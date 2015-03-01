@@ -11,15 +11,14 @@ def getBindings():
 # Directories
 ########################################
 
-path = os.getcwd()
-parent = path[:path.rfind('/')] + '/../'
-
-outDir = parent + 'search/'
+#path = os.getcwd()
+#parent = path[:path.rfind('/')] + '/../'
+#outDir = parent + 'search/'
+outDir = '/Users/tlp/Documents/'
 dotSearch = outDir + 's%d%s.dot'
 dotSearchX = outDir + 'sx%d%s.dot'
 pr2_hpnDir = path + '/'
-pr2Dir = parent
-libkinDir = pr2Dir+ 'IK/'
+libkinDir = './IK/'
 
 ########################################
 # System: LINUX and Mac OS X are supported

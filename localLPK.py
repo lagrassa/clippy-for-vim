@@ -1,7 +1,7 @@
 import os
 path = os.getcwd()
 parent = path[:path.rfind('/')] + '/../'
-libkinDir = parent + 'IK/'
+libkinDir = './IK/'
 
 outDir = '/Users/lpk/Desktop/search/'
 dotSearch = outDir + 's%s%s.dot'

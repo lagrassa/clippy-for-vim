@@ -1,9 +1,9 @@
 import os
-path = os.getcwd()
-parent = path[:path.rfind('/')] + '/../'
-libkinDir = parent + 'IK/'
+# path = os.getcwd()
+# parent = path[:path.rfind('/')] + '/../'
+libkinDir = './IK/'
 # print 'parent', parent
-outDir = parent + 'search/'
+outDir = '/Users/tlp/Documents/search/'
 dotSearch = outDir + 's%s%s.dot'
 dotSearchX = outDir + 'sX%s%s.dot'
 
