@@ -1,0 +1,23 @@
+CC = g++
+
+CFLAGS  = -O2 -I. -I../../include
+LDFLAGS	= -L.
+
+.SUFFIXES: .cpp
+
+SRCS    = ikfastApr18Left.cpp ikfastApr18Right.cpp
+
+OBJECTS	= ikfastApr18Left.o ikfastApr18Right.o
+
+CLEAN   = $(OBJECTS)
+
+.cpp.o:
+	$(CC) ${CFLAGS} -fPIC -c $<
+
+library: $(OBJECTS)
+	/bin/rm -f libkin.so.*
+	$(CC) $(LDFLAGS) -shared -Wl,-soname,libkin.so.1.1 -o libkin.so.1.1 $(OBJECTS) -lm
+
+clean:
+	/bin/rm -f $(CLEAN)
+
