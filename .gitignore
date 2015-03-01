@@ -4,6 +4,7 @@ __pycache__/
 
 # C extensions
 *.so
+*.c
 
 # Distribution / packaging
 .Python
@@ -52,3 +53,14 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Byte compiled
+*.pyc
+
+# Random
+*~
+.DS_Store/
+.DS_Store
+#*
+*.*#
+
