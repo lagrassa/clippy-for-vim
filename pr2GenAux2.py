@@ -14,7 +14,7 @@ from fbch import getMatchingFluents
 from belief import Bd, B
 from pr2Fluents import CanReachHome, canReachHome, In, Pose
 from transformations import rotation_matrix
-from cspace import xyCI, CI
+from cspace import xyCI, CI, xyCO
 
 Ident = util.Transform(np.eye(4))            # identity transform
 
@@ -454,12 +454,12 @@ def bboxInterior(bb1, bb2):
 # !! Should pick relevant orientations... or more samples.
 angleList = [-math.pi/2. -math.pi/4., 0.0, math.pi/4, math.pi/2]
 def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, maxPoses = 30):
-    def genPose(rs, shRot, cI,  angle):
+    def genPose(rs, angle,  chunk):
         for i in xrange(5):
-            (x,y,z) = bboxRandomDrawCoords(cI.bbox())
+            (x,y,z) = bboxRandomDrawCoords(chunk.bbox())
             # Support pose, we assume that sh is on support face
             pose = util.Pose(x,y,z + clearance, angle)
-            sh = shRot.applyTrans(pose)
+            sh = shRotations[angle].applyTrans(pose)
             if debug('potentialRegionPoseGen'):
                 sh.draw('W', 'brown')
                 wm.getWindow('W').update()
@@ -469,15 +469,17 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
     clearance = 0.01
     for rs in regShapes: rs.draw('W', 'purple')
     ff = placeB.faceFrames[placeB.support.mode()]
-    objShadow = bState.objShadow(obj, True, prob, placeB, ff)
+    objShadowBase = bState.objShadow(obj, True, prob, placeB, ff)
+    objShadow = objShadowBase.applyTrans(objShadowBase.origin().inverse())
     shWorld = bState.getShadowWorld(prob)
+    shRotations = dict([(angle, objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()) \
+                        for angle in angleList])
     count = 0
     bICost = 5.
     safeCost = 1.
     chunks = []                         # (cost, ciReg)
     for rs in regShapes:
-        for angle in angleList:
-            shRot =  objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()
+        for (angle, shRot) in shRotations.items():
             bI = CI(shRot, rs.prim())
             if bI == None:
                 if debug('potentialRegionPoseGen'):
@@ -487,23 +489,25 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
                 bI.draw('W', 'cyan')
                 debugMsg('potentialRegionPoseGen', 'Region interior in cyan')
             chunks.append(((angle, bI), bICost))
-            co = shapes.Shape([xyCO(shRot, obj) \
-                               for o in shWorld.getObjectShapes()])
+            co = shapes.Shape([xyCO(shRot, o) \
+                               for o in shWorld.getObjectShapes()], o.origin())
             safeI = bI.cut(co)
-            if not safeCI:
+            if not safeI:
                 if debug('potentialRegionPoseGen'):
                     print 'safeI is None for angle', angle
             elif debug('potentialRegionPoseGen'):
-                safeI.draw('W', 'cyan')
-                debugMsg('potentialRegionPoseGen', 'Region in cyan')
+                safeI.draw('W', 'pink')
+                debugMsg('potentialRegionPoseGen', 'Region interior in pink')
             chunks.append(((angle, safeI), safeCost))
     angleChunkDist = DDist(dict(chunks))
+    angleChunkDist.normalize()
 
-
-            pose = genPose(rs, shRot, angle)
-            if pose:
-                count += 1
-                yield pose
+    for i in range(maxPoses):
+        (angle, chunk) = angleChunkDist.draw()
+        pose = genPose(rs, angle, chunk)
+        if pose:
+            count += 1
+            yield pose
     if debug('potentialRegionPoseGen'):
         print 'Returned', count, 'for regions', [r.name() for r in regShapes]
     return
@@ -512,7 +516,6 @@ def baseDist(c1, c2):
     (x1,y1,_) = c1['pr2Base']
     (x2,y2,_) = c2['pr2Base']
     return ((x2-x1)**2 + (y2-y1)**2)**0.5
-
     
 #############
 # Selecting safe points in region
@@ -529,13 +532,6 @@ def bboxGridCoords(bb, n=10, z=None, res=None):
             y = y0 + j*dy
             points.append((x, y, z))
     return points
-
-# region is a convex Prim
-# gripper must avoid obstacles
-# object must avoid zones + obstacles
-def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts,
-                           maxPoses = 30):
-
 
 def safeLocationsInRegion(obj, world, obstacles, zones, region,
                           objG = [], sortDirs = None, sortFn = None,

@@ -20,7 +20,9 @@ from shapes import Box
 
 Ident = util.Transform(np.eye(4))            # identity transform
 
+import pr2GenAux
 from pr2GenAux import *
+reload(pr2GenAux)
 
 pickPlaceSearch = True
 
