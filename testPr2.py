@@ -620,7 +620,14 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
                      (0.001,)*4, targetProb], True)])
                   #Conf([goalConf, confDeltas], True)])
     homeConf = makeConf(t.world.robot, -0.5, 0.0, math.pi, up=True) if flip else None
-    goodSkel = [['pick', 'move', 'place', 'move', 'lookAtHand', 'move', 'pick', 'move']]
+    goodSkel = [['pick',
+                 'move',
+                  place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+                 'move',
+                 'lookAtHand',
+                 'move',
+                 'pick',
+                 'move']]
     t.run(goal,
           hpn = hpn,
           skeleton = goodSkel if skeleton else None,

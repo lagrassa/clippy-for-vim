@@ -532,6 +532,7 @@ def hAddBackBSet(start, goal, operators, idk, maxK = 30,
                     newActSet = set([preImage.operator])
                     canonicalChildren = []
                     partialCost = preImage.operator.instanceCost
+                    assert partialCost < float('inf')
                     # AND loop over preconditions
                     store = True
                     for ff in partitionFn(preImage.fluents):
@@ -548,6 +549,8 @@ def hAddBackBSet(start, goal, operators, idk, maxK = 30,
                             print spaces+'C Aux:', k-1,\
                                  prettyString(totalCost - partialCost),\
                                    [f.shortName() for f in ffc]
+                            for f in ffc: print spaces+'--'+f.prettyString()
+    
                                    
                         subCost, subActSet = aux(ffc, k-1,
                                                  totalCost - partialCost)
@@ -564,8 +567,11 @@ def hAddBackBSet(start, goal, operators, idk, maxK = 30,
                                                for op in newActSet])
 
                     newTotalCost = partialCost
-                    if newTotalCost >= totalCost:
-                        store = False # This is not a good cost estimate
+                    # if newTotalCost >= totalCost:
+                    #     # Actually, this is a good cost estimate.  The last
+                    #     # child made it not be better than the bound we were
+                    #     # given, though.
+                    #     store = False
 
                     if debug('hAddBack'):
                         childCosts = [aux(c, k-1, float('inf'))[0] \
@@ -632,7 +638,8 @@ def hAddBackBSetID(start, goal, operators, maxK = 30,
                    staticEval = lambda f: 500,
                    ddPartitionFn = lambda fs: [set([f]) for f in fs]):
     fbch.inHeuristic = True
-    for k in range(1, maxK):
+    startDepth = 10
+    for k in range(startDepth, maxK):
         hCacheID[k] = set()
         vk = hAddBackBSet(start, goal, operators, k,
                           ddPartitionFn = ddPartitionFn)

@@ -275,9 +275,19 @@ def notNone(args, goal, start, vals):
 
 def notEqual(args, goal, start, vals):
     if args[0] == args[1]:
-        return None
+        result = None
     else:
-        return [[]]
+        result = [[]]
+    return result
+
+# It pains me that this has to exist; but the args needs to be a list
+# not a structure of variables.
+def notEqual2(args, goal, start, vals):
+    if (args[0], args[1]) == (args[2], args[3]):
+        result = None
+    else:
+        result = [[]]
+    return result
     
 # Isbound
 def isBound(args, goal, start, vals):
@@ -380,7 +390,10 @@ def genLookObjHandPrevVariance((ve, hand, obj, face), goal, start, vals):
     vbo = varBeforeObs(lookVar, ve)
     cappedVbo = tuple([min(a, b) for (a, b) in zip(maxVar, vbo)])
 
-    if cappedVbo[0] > ve[0]:
+    # It's tempting to fail in this case; but we may be looking to
+    # increase the mode prob
+    # !!!
+    if True: #cappedVbo[0] > ve[0]:
         result.append([cappedVbo])
     return result
 
@@ -1047,11 +1060,10 @@ hRegrasp = Operator(\
             Function(['PrevGraspFace', 'PrevGraspMu', 'PrevGraspVar',
                       'PrevGraspDelta'],
                       ['Obj', 'Hand'], easyGraspGen, 'easyGraspGen'),
-            # Only use to change grasp
-            Function([], ['GraspMu', 'PrevGraspMu'],
-                     notEqual, 'notEqual', True),
-            Function([], ['GraspFace', 'PrevGraspFace'],
-                     notEqual, 'notEqual', True),
+            # Only use to change grasp.
+            Function([], ['GraspMu', 'GraspFace',
+                          'PrevGraspMu', 'PrevGraspFace'],
+                     notEqual2, 'notEqual2', True),
             ],
         cost = lambda al, args, details: magicRegraspCost,
         argsToPrint = [0, 1],

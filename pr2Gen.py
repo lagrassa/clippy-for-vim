@@ -76,7 +76,7 @@ def easyGraspGen(args, goalConds, bState, outBindings):
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
     shWorld = newBS.getShadowWorld(prob)
     if obj == newBS.held[hand].mode():
-        gB = bState.graspB[hand]
+        gB = newBS.graspB[hand]
         yield (gB.grasp.mode(), gB.poseD.mode().xyztTuple(),
                graspVar, graspDelta)
         return
@@ -107,6 +107,9 @@ def easyGraspGen(args, goalConds, bState, outBindings):
 def pickGen(args, goalConds, bState, outBindings, onlyCurrent = False):
     (obj, graspFace, graspPose,
      objV, graspV, objDelta, confDelta, graspDelta, hand, prob) = args
+
+    debugMsg('pickGen', 'args', args)
+
     world = bState.pbs.getWorld()
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
                        PoseD(util.Pose(*graspPose), graspV), delta=graspDelta)

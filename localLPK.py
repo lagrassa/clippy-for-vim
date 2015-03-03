@@ -49,7 +49,9 @@ traceGen  (compact summary of generators)
 
 '''
 
-debugOn = ['nonmon', 'executionFail', 'skeleton']
+debugOn = ['nonmon', 'executionFail', 'skeleton',
+           'appOp:number', 'heuristic', 'hAddBackInf', 'traceGen',
+           'hAddBackV']
 
 
 
