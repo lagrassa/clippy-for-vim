@@ -1201,11 +1201,19 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     targetDelta = (0.001, 0.001, 0.001, 0.005)
     # Increase this
     goalProb = 0.2
-    goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
+    # Need to empty the hand in order to achieve this
+    goal3 = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
                      p2.xyztTuple(), targetVar, targetDelta,
                      goalProb], True)])
-    goal = State([Bd([Holding(['left']), 'none', goalProb], True)])
+    # Just empty the hand.  No problem.
+    goal1 = State([Bd([Holding(['left']), 'none', goalProb], True)])
+    # Empty the hand.  Other goal condition is already true.
+    goal2 = State([Bd([Holding(['left']), 'none', goalProb], True),
+                   Bd([SupportFace(['objA']), 4, goalProb], True),
+                   B([Pose(['objA', 4]),
+                     p1.xyztTuple(), targetVar, targetDelta,
+                     goalProb], True)])
 
     fbch.inHeuristic = False
     if skeleton:
@@ -1250,7 +1258,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     if skeleton:
         skel = [[(operators[o] if type(o) == str else o) \
                           for o in stuff] for stuff in skeleton]
-    HPN(s, goal, 
+    HPN(s, goal2, 
          [t.operators[o] for o in operators],
          t.realWorld,
          hpnFileTag = t.name,

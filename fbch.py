@@ -1282,20 +1282,24 @@ class PlanStack(Stack):
             lowerGoal = layers[i].steps[-1][1]
             if not op or upperSubgoal != lowerGoal:
                 # Layer i doesn't have an action to execute OR
-                # subgoal at i+1 doesn't equal actual goal at i
+                # subgoal at i-1 doesn't equal actual goal at i
                 debugMsg('nextStep', ('op', op), ('upperSG', upperSubgoal),
                          ('lowerGoal', lowerGoal))
                 # This is a surprise if previous is not current - 1
                 # Could actually check this condition going down farther in
                 # order to see where the surprise originated.
-                previousUpperIndex = layers[i-1].subgoalIndex(lowerGoal)
-                currentUpperIndex = layers[i-1].subgoalIndex(upperSubgoal)
 
-                if previousUpperIndex != currentUpperIndex -1 :
-                    debugMsg('executionSurprise', ('layer', i-1),
+                if lowerGoal and upperSubgoal:
+                    previousUpperIndex = layers[i-1].subgoalIndex(lowerGoal)
+                    currentUpperIndex = layers[i-1].subgoalIndex(upperSubgoal)
+
+                    if previousUpperIndex != currentUpperIndex -1 :
+                        debugMsg('executionSurprise', ('layer', i-1),
                              ('prevIndex', previousUpperIndex),
                              ('currIndex', currentUpperIndex),
                              ('popping layers', i, 'through', len(layers)-1))
+
+
                 # Get rid of layers i and below
                 self.popTo(i)
                 # Replan again for upperSubgoal
