@@ -44,7 +44,7 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
 # debugOn = ['regression:inconsistent', 'traceGen', 'traceCRH']
 # debugOn = ['checkCRH']
 # debugOn = ['traceGen', 'traceCRH']
-debugOn = ['potentialRegionPoseGen']
+debugOn = []
 pauseOn = debugOn
 if 'canPickPlaceTest' in pauseOn:
     pauseOn.remove('canPickPlaceTest')

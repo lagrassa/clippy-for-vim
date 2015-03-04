@@ -341,14 +341,15 @@ cdef class PBS:
                 shadow = self.objShadow(heldObj, True, prob, self.graspB[hand], faceFrame)
                 fingerFrame = robot.fingerSupportFrame(hand, graspDesc.dz*2)
                 graspShadow = shadow.applyTrans(fingerFrame)
+                robot.attachRel(graspShadow, sw, hand)
                 if debug('getShadowWorld'):
                     print 'faceFrame\n', faceFrame.matrix
                     print 'shadow\n', shadow.bbox()
                     print 'fingerFrame\n', fingerFrame.matrix
                     print 'graspShadow\n', graspShadow.bbox()
                     graspShadow.draw('W', 'red')
+                    print 'attached origin\n', sw.attached[hand].origin().matrix
                     raw_input('Attach?')
-                robot.attachRel(graspShadow, sw, hand)
                 sw.held[hand] = heldObj
         sw.setRobotConf(self.conf)
         return sw

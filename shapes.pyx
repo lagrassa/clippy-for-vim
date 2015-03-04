@@ -417,6 +417,23 @@ cdef class Box(Prim):
                       origin,
                       **props)
 
+cdef class BoxScale(Prim):
+    def __init__(self, float dx, float dy, float dz, util.Transform origin, float scale, **props):
+        cdef:
+            float hdx = 0.5*dx
+            float hdy = 0.5*dy
+            float hdz = 0.5*dz
+            np.ndarray[np.float64_t, ndim=2] points
+        if not 'name' in props:
+            props = mergeProps(props, {'name':util.gensym("box")})
+        points = np.array([[-hdx, -hdy, -hdz, 1.], [hdx, -hdy, -hdz, 1.],
+                           [hdx, hdy, -hdz, 1.], [-hdx, hdy, -hdz, 1.]]).T
+        Prim.__init__(self,
+                      vertsFrom2DScale(points, -hdz, hdz, scale),
+                      facesFrom2D(<int>points.shape[1]),
+                      origin,
+                      **props)
+
 cdef class Ngon(Prim):
     def __init__(self, float r, dz, int nsides, util.Transform origin, **props):
         cdef:
@@ -479,6 +496,20 @@ cpdef np.ndarray[np.float64_t, ndim=2] vertsFrom2D(np.ndarray[np.float64_t, ndim
     vertsHi = verts.copy()
     for i in xrange(verts.shape[1]):
         vertsLo[2,i] = zlo
+        vertsHi[2,i] = zhi
+    return np.hstack([vertsLo, vertsHi])
+
+cpdef np.ndarray[np.float64_t, ndim=2] vertsFrom2DScale(np.ndarray[np.float64_t, ndim=2] verts,
+                                                        float zlo, float zhi, float scale):
+    cdef:
+        np.ndarray[np.float64_t, ndim=2] vertsLo, vertsHi
+        int i
+    vertsLo = verts.copy()
+    vertsHi = verts.copy()
+    for i in xrange(verts.shape[1]):
+        vertsLo[2,i] = zlo
+        for j in range(2):
+            vertsHi[j,i] = vertsLo[j,i]*scale
         vertsHi[2,i] = zhi
     return np.hstack([vertsLo, vertsHi])
 

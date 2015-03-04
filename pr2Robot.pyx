@@ -406,7 +406,10 @@ cdef class PR2:
         # Origin is on the inside surface of the finger (at the far tip).
         # The -0.105 is (0.5*palmWidth+fingerLength) -- if using gripper frame
         # The -0.18 is from finger tip to the wrist  -- if using wrist frame
-        mat = np.dot(transf.euler_matrix(math.pi/2, math.pi/2, 0.0, 'rzyx'),
+        mat = np.dot(transf.euler_matrix(-math.pi/2, math.pi/2, 0.0,
+                                         #'rzyx'
+                                         'ryxz'
+                                         ),
                      transf.translation_matrix([0.0, -0.18, -width/2]))
         # print 'fingerSupportFrame'
         # print mat

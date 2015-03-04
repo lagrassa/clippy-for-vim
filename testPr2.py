@@ -138,6 +138,9 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     def place((x0, x1), (y0, y1), (z0, z1)):
         return Ba(np.array([(x0, y0, z0), (x1, y1, z1)]))
 
+    def placeSc((x0, x1), (y0, y1), (z0, z1)):
+        return shapes.BoxScale(x1 - x0, y1 - y0, z1 - z0, util.Pose(0,0,-0.5*(z1-z0),0), 0.5)
+    
     world = World()
     # The room
     world.workspace = np.array([(x0, y0, -w), (x1, y1, -0.0001)])
@@ -181,8 +184,8 @@ def testWorld(include = ['objA', 'objB', 'objC'],
 
     colors = ['red', 'green', 'blue', 'cyan', 'purple', 'pink', 'orange']
     for i, objName in enumerate(manipulanda):
-        thing = Sh([place((-0.05, 0.05), (-0.025, 0.025), (0.0, 0.1))],
-                        name = objName, color=colors[i%len(colors)])
+        thing = Sh([placeSc((-0.05, 0.05), (-0.025, 0.025), (0.0, 0.1))],
+                   name = objName, color=colors[i%len(colors)])
         world.addObjectShape(thing)
         bbox = bboxGrow(thing.bbox(), np.array([0.075, 0.075, 0.02]))
         regName = objName+'Top'
@@ -481,6 +484,7 @@ def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
                      'poseAchCanSee', 'lookAtHand'],
           home=homeConf
           )
+    return t
 
 # pick and place
 def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
@@ -1244,9 +1248,17 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     t.realWorld.setRobotConf(t.bs.pbs.conf)
     for obj in t.objects:
         t.realWorld.setObjectPose(obj, t.bs.pbs.getPlaceB(obj).objFrame())
+
+    attachedShape = t.bs.pbs.getRobot().attachedObj(t.bs.pbs.getShadowWorld(0.9), 'left')
+    shape = t.bs.pbs.getWorld().getObjectShapeAtOrigin(o).applyLoc(attachedShape.origin())
+    t.realWorld.robot.attach(shape, t.realWorld, h)
+    robot = t.bs.pbs.getRobot()
+    cart = robot.forwardKin(t.realWorld.robotConf)
+    handPose = cart[robot.armChainNames['left']].compose(gripperTip)
+    pose = shape.origin()
     t.realWorld.held['left'] = o
-    t.realWorld.grasp['left'] = gm
-    t.realWorld.robot.attach(t.realWorld.objectShapes[o], t.realWorld, h)
+    t.realWorld.grasp['left'] = handPose.inverse().compose(pose)
+    raw_input('Huh?')
     t.realWorld.delObjectState(o)    
 
     t.realWorld.draw('World')

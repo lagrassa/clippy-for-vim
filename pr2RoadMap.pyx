@@ -769,6 +769,7 @@ cdef bool graspBigger(gr1, gr2):
         g1 = gr1[hand]
         g2 = gr2[hand]
         if g1 == g2: continue
+        if g1 is None or g2 is None: continue
         if g1.obj != g2.obj: return False
         if g1.poseD.muTuple != g2.poseD.muTuple: return False
         w1 = [v+d for (v,d) in zip(g1.poseD.muTuple, g1.delta)]

@@ -73,6 +73,9 @@ cdef class Shape(Thing):
 cdef class Box(Prim):
     cdef nothing
 
+cdef class BoxScale(Prim):
+    cdef nothing
+
 cdef class Ngon(Prim):
     cdef nothing
 
