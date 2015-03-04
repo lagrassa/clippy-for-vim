@@ -483,6 +483,7 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
             bI = CI(shRot, rs.prim())
             if bI == None:
                 if debug('potentialRegionPoseGen'):
+                    bState.draw(prob, 'W')
                     print 'bI is None for angle', angle
                 continue
             elif debug('potentialRegionPoseGen'):
@@ -491,6 +492,8 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
             chunks.append(((angle, bI), bICost))
             co = shapes.Shape([xyCO(shRot, o) \
                                for o in shWorld.getObjectShapes()], o.origin())
+            if debug('potentialRegionPoseGen'):
+                co.draw('W', 'brown')
             safeI = bI.cut(co)
             if not safeI:
                 if debug('potentialRegionPoseGen'):

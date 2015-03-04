@@ -148,9 +148,11 @@ cdef class Thing:
     cpdef Shape cut(self, Thing obj, bool isect = False):
         if not (obj.bbox() is None) and bboxOverlap(self.bbox(), obj.bbox()):
             if isinstance(obj, Shape):
-                return obj.cut(self.prim(), isect=isect)
+                return self.prim().cut(obj, isect=isect)
             else:
-                return primPrimCut(self.prim(), obj.prim(), isect=isect)
+                ans = primPrimCut(self.prim(), obj.prim(), isect=isect)
+                if ans:
+                    return Shape([ans], self.origin(), **self.properties)
         return None if isect else self
 
     cpdef Prim xyPrim(self):
@@ -252,11 +254,33 @@ cdef class Prim(Thing):
 
     cpdef Shape cut(self, Thing obj, bool isect = False):
         if bboxOverlap(self.bbox(), obj.bbox()):
-            if isinstance(obj, Shape):
-                return obj.cut(self, isect=isect)
+            if isinstance(obj, Shape):  # Shape is a union of objects
+                ans = []
+                p1 = self
+                if bboxOverlap(p1.bbox(), obj.bbox()):
+                    if isect:
+                        # We want union of intersections.
+                        for p2 in obj.parts():
+                            cut = p1.cut(p2, isect).parts()
+                            ans.extend(cut)
+                    else:
+                        # For diff, find pieces of p1 outside all of obj
+                        p1Parts = [p1]
+                        for p2 in obj.parts():
+                            temp = [] # will hold pieces of p1 outside of p2
+                            for p in p1Parts: # loop over every piece of p1
+                                cut = p.cut(p2, isect).parts()
+                                temp.extend(cut) # add result to temp
+                            p1Parts = temp       # set up p1 parts for next p2
+                        ans.extend(p1Parts)
+                elif not isect:     # doing diff
+                    ans.append(p1)  # keep p1, else ignore for isect
+                return Shape(ans, self.origin(), **self.properties) if ans else None
             else:
-                return primPrimCut(self, obj.prim(), isect=isect)
-        return None if isect else self
+                ans = primPrimCut(self, obj.prim(), isect=isect)
+                if ans:
+                    Shape([ans], self.origin(), **self.properties)
+        return None if isect else Shape([self], self.origin(), **self.properties)
     
     # Compute XY convex hull
     cpdef Prim xyPrim(self):
@@ -351,7 +375,7 @@ cdef class Shape(Thing):
                         ans.extend(p1Parts)
                 elif not isect:     # doing diff
                     ans.append(p1)  # keep p1, else ignore for isect
-            return Shape(ans, self.thingOrigin, **self.properties) if ans else None
+            return Shape(ans, self.origin(), **self.properties) if ans else None
         return None if isect else self
 
     # Compute 3d convex hull
