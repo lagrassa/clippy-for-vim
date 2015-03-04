@@ -1074,11 +1074,12 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
           skeleton = skel if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'lookAtHand'],
+          hierarchical = hierarchical,
           heuristic = heuristic,
           regions=['table1Top']
           )
 
-# 20.  A in back, B in front -> A in front, B in back (combination)    
+# 20.  Swap!
 def test20(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs):
     front = util.Pose(0.45, 0.0, 0.61, 0.0)
@@ -1142,9 +1143,9 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
+          hierarchical = hierarchical,
           regions=['table1Top']
           )
-
 
 # stack objects?
 def testStack(hpn = True, skeleton = False, hierarchical = False,
@@ -1180,9 +1181,83 @@ def testStack(hpn = True, skeleton = False, hierarchical = False,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
+          hierarchical = hierarchical,
           regions=['objATop', 'objBTop']
           )
 
+# Empty hand
+def test21(hpn = True, skeleton = False, hierarchical = False,
+           heuristic = habbs):
+    p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
+    p2 = util.Pose(0.45, 0.4, 0.61, 0.0)
+
+    t = PlanTest('test21',  smallErrProbs, 
+                 objects=['table1', 'objA', 'objB'],
+                 movePoses={'objA': p1,
+                            'objB': p2})
+
+    # Small var
+    targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
+    targetDelta = (0.001, 0.001, 0.001, 0.005)
+    # Increase this
+    goalProb = 0.2
+    goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
+                  B([Pose(['objA', 4]),
+                     p2.xyztTuple(), targetVar, targetDelta,
+                     goalProb], True)])
+    goal = State([Bd([Holding(['left']), 'none', goalProb], True)])
+
+    fbch.inHeuristic = False
+    if skeleton:
+       fbch.dotSearchId = 0    # should make skeletons work without reload
+    fbch.flatPlan = not hierarchical
+    fbch.plannerGreedy = 0.7
+    pr2Sim.simulateError = False
+    for win in wm.windows:
+       wm.getWindow(win).clear()
+    t.buildBelief(home=None, regions=['table1Top'])
+
+    # Change pbs so obj B is in the hand
+    o = 'objB'
+    h = 'left'
+    gm = (0, -0.025, 0, 0)
+    gv = (1e-4,)*4
+    gd = (1e-4,)*4
+    gf = 0
+    t.bs.pbs.updateHeld(o, gf, PoseD(gm, gv), h, gd)
+    t.bs.pbs.excludeObjs([o])
+    t.bs.pbs.shadowWorld = None # force recompute
+    t.bs.pbs.draw(0.9, 'W')
+    t.bs.pbs.draw(0.9, 'Belief')
+    
+    # Initialize simulator
+    t.realWorld = RealWorld(t.bs.pbs.getWorld(),
+                                   t.domainProbs) # simulator
+    t.realWorld.setRobotConf(t.bs.pbs.conf)
+    for obj in t.objects:
+        t.realWorld.setObjectPose(obj, t.bs.pbs.getPlaceB(obj).objFrame())
+    t.realWorld.held['left'] = o
+    t.realWorld.grasp['left'] = gm
+    t.realWorld.robot.attach(t.realWorld.objectShapes[o], t.realWorld, h)
+    t.realWorld.delObjectState(o)    
+
+    t.realWorld.draw('World')
+    s = State([], details = t.bs)
+
+    operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
+                     'poseAchCanSee', 'lookAtHand']
+
+    if skeleton:
+        skel = [[(operators[o] if type(o) == str else o) \
+                          for o in stuff] for stuff in skeleton]
+    HPN(s, goal, 
+         [t.operators[o] for o in operators],
+         t.realWorld,
+         hpnFileTag = t.name,
+         skeleton = skel if skeleton else None,
+         h = heuristic,
+         verbose = False,
+         fileTag = t.name if writeSearch else None)
 
 def prof(test):
     import cProfile

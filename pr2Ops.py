@@ -708,6 +708,7 @@ place = Operator(\
             # Hand is bound (because we're trying to make it empty)
             # If Obj is not bound then: get it from the start state;
             #  also, let region be awayRegion
+
             Function(['Obj'], ['Hand'], getObjInHand, 'getObjInHand'),
             Function(['Region'], ['Region', 'Pose'], awayRegionIfNecessary,
                                    'awayRegionIfNecessary'),
@@ -758,7 +759,8 @@ place = Operator(\
         f = placeBProgress,
         prim = placePrim,
         argsToPrint = [0, 1, 3, 4, 5],
-        ignorableArgs = range(2, 27)) 
+        ignorableArgs = range(2, 27))
+
 
 # Dont' try to move with more than this variance in grasp
 maxGraspVar = (0.001, 0.001, 0.001, 0.005)
@@ -987,7 +989,7 @@ poseAchCanReach = Operator(\
                   addPosePreCond, 'addPosePreCond')],
     cost = lambda al, args, details: 0.1,
     argsToPrint = [0, 14, 16],
-    ignorableArgs = range(1, 14) + range(15,22))  # Make this a list?
+    ignorableArgs = range(1, 14) + range(17,22))  # Make this a list?
     
 
 poseAchCanSee = Operator(\

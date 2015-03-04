@@ -910,7 +910,7 @@ class Operator(object):
                 hNew = heuristic(newGoal)
                 primOp = self.copy()
                 primOp.abstractionLevel = primOp.concreteAbstractionLevel
-                primOpRegr = primOp.regress(goal, startState, operators)
+                primOpRegr = primOp.regress(goal, startState, heuristic)
                 if hNew == float('inf') or len(primOpRegr) == 0:
                     # This is hopeless.  Give up now.
                     debugMsg('infeasible', newGoal)
@@ -1264,22 +1264,44 @@ def executePrim(op, s, env, f = None):
     debugMsg('prim', 'done')
 
 class PlanStack(Stack):
-    # Return op and subgoal to be addressed next by HPN
+    # Return op and subgoal to be addressed next by HPN.
+    # Go down layers (from most abstract to least)
+    # Ask each layer what it wants its next step to be
+    # If it's different than the subgoal at the next layer below, pop all
+    #    lower layers
     def nextStep(self, s):
         layers = self.guts()
         numLayers = len(layers)
         preImages = self.computePreimages()
+        # Subgoal layer i-1 is executing
         (upperOp, upperSubgoal) = self.nextLayerStep(layers[0], preImages[0],s)
         for i in range(1, len(layers)):
+            # Op and subgoal layer i wants to execute
             (op, subgoal) = self.nextLayerStep(layers[i], preImages[i], s)
+            # Ultimate goal of layer i
             lowerGoal = layers[i].steps[-1][1]
             if not op or upperSubgoal != lowerGoal:
+                # Layer i doesn't have an action to execute OR
+                # subgoal at i+1 doesn't equal actual goal at i
                 debugMsg('nextStep', ('op', op), ('upperSG', upperSubgoal),
                          ('lowerGoal', lowerGoal))
+                # This is a surprise if previous is not current - 1
+                # Could actually check this condition going down farther in
+                # order to see where the surprise originated.
+                previousUpperIndex = layers[i-1].subgoalIndex(lowerGoal)
+                currentUpperIndex = layers[i-1].subgoalIndex(upperSubgoal)
+
+                if previousUpperIndex != currentUpperIndex -1 :
+                    debugMsg('executionSurprise', ('layer', i-1),
+                             ('prevIndex', previousUpperIndex),
+                             ('currIndex', currentUpperIndex),
+                             ('popping layers', i, 'through', len(layers)-1))
+                # Get rid of layers i and below
                 self.popTo(i)
+                # Replan again for upperSubgoal
                 return (upperOp, upperSubgoal)
             elif i == len(layers)-1:
-                # bottom layer, return what we've got
+                # bottom layer, return subgoal at level i
                 debugMsg('nextStep', 'bottomLayer', op, subgoal)
                 return (op, subgoal)
             else:
@@ -1445,6 +1467,14 @@ class Plan:
                     raw_input('go?')
 
         return None, None
+
+    # return index of this subgoal in the plan
+    # None if it's not there
+    def subgoalIndex(self, subgoal):
+        for i in range(self.length):
+            if self.steps[i][1] == subgoal:
+                return i
+        return None
 
     def getOps(self):
         return [o for (o, g) in self.steps[1:]]

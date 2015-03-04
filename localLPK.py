@@ -28,6 +28,7 @@ confViolations
 cost
 drawInHeuristic
 executionFail
+executionSurprise
 hAddBack   (super verbose)
 hAddBackInf
 hAddBackV  (just values)
@@ -50,8 +51,8 @@ traceGen  (compact summary of generators)
 '''
 
 debugOn = ['nonmon', 'executionFail', 'skeleton',
-           'appOp:number', 'heuristic', 'hAddBackInf', 'traceGen',
-           'hAddBackV']
+           'appOp:number', 'hAddBackInf', 'traceGen', 'hAddBackV',
+           'executionSurprise']
 
 
 
