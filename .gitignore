@@ -65,8 +65,15 @@ target/
 .DS_Store
 #*
 *.*#
+<<<<<<< Updated upstream
 
 
 local.py
+<<<<<<< HEAD
 
 local.py
+=======
+=======
+*.html
+>>>>>>> Stashed changes
+>>>>>>> origin/master
