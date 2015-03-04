@@ -31,6 +31,13 @@ class BFluent(Fluent):
                all([not isAnyVar(a) for a in self.args[1:]]) \
                and not isAnyVar(self.value)
 
+    def getIsPartiallyBound(self):
+        b0 = self.args[0].isPartiallyBound()
+        g0 = self.args[0].isGround()
+        v0 = not b0 and not g0 # rf has no bindings
+        av = [v0] + [isVar(a) for a in self.args[1:]]
+        return (True in av) and (False in av)
+
     def argsGround(self):
         return self.args[0].isGround()
 
@@ -49,6 +56,7 @@ class BFluent(Fluent):
         self.args[0].update()
         # Do the update on this fluent (should call the parent method)
         self.isGroundStored = self.getIsGround()
+        self.isPartiallyBoundStored = self.getIsPartiallyBound()
         self.strStored = self.getStr()
 
     # Avoid printing the value of the embedded rfluent

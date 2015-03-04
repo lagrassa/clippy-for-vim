@@ -497,11 +497,16 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
     goal = State([Bd([SupportFace(['objA']), 4, .5], True),
                   B([Pose(['objA', 4]),
                      targetPose, targetVar, (0.001,)*4,
-                     0.5], True)])
+                     0.5], True),
+                  Bd([Holding(['left']), 'none', 0.5], True)])
+
+    skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+                 move,
+                 pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+                 move]]
     t.run(goal,
           hpn = hpn,
-          skeleton = [['place', 'move', 'pick', 'move']] if skeleton\
-             else None,
+          skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'lookAtHand'],
@@ -529,11 +534,20 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
                   B([Pose(['objB', 4]),
                      targetPoseB, targetVar, (0.001,)*4,
                      goalProb], True)])
+
+    skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+                 move,
+                 pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+                 move,
+                 place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
+                 move,
+                 pick.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
+                 move]]
+
     t.run(goal,
           hpn = hpn,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach', 'poseAchCanSee', 'lookAtHand'],
-          skeleton = [['place', 'move', 'pick', 'move',
-                       'place', 'move', 'pick', 'move']] if skeleton else None,
+          skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           heuristic = heuristic
           )
@@ -1267,14 +1281,13 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'lookAtHand']
 
-    if skeleton:
-        skel = [[(operators[o] if type(o) == str else o) \
-                          for o in stuff] for stuff in skeleton]
-    HPN(s, goal2, 
+    skeleton = [[place, move]]
+
+    HPN(s, goal1, 
          [t.operators[o] for o in operators],
          t.realWorld,
          hpnFileTag = t.name,
-         skeleton = skel if skeleton else None,
+         skeleton = skeleton if skeleton else None,
          h = heuristic,
          verbose = False,
          fileTag = t.name if writeSearch else None)

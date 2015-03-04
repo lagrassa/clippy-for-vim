@@ -317,6 +317,7 @@ class Fluent(object):
 
     def update(self):
         self.isGroundStored = self.getIsGround()
+        self.isPartiallyBoundStored = self.getIsPartiallyBound()
         self.strStored = self.getStr()
 
     def isImplicit(self):
@@ -343,6 +344,10 @@ class Fluent(object):
     def getIsGround(self):
         return self.argsGround() and not isVar(self.value)
 
+    # If some args are bound and some are not
+    def getIsPartiallyBound(self):
+        argB = [isVar(a) for a in self.args]
+        return (True in argB) and (False in argB)
 
     def getVars(self):
         valVars = [self.value] if isVar(self.value) else []
@@ -364,6 +369,9 @@ class Fluent(object):
                    
     def isGround(self):
         return self.isGroundStored
+
+    def isPartiallyBound(self):
+        return self.isPartiallyBoundStored
 
     # For a fluent that is ground except for the value, get the value
     def getGrounding(self, details):
@@ -549,11 +557,12 @@ class Operator(object):
                 if isVar(v): varsUsed.add(v)
             for v in f.inVars:
                 if isVar(v): varsUsed.add(v)
-        for (r, conds) in self.results:
-            varsUsed = varsUsed.union(r.getVars())
-            for (al, c) in conds.items():
-                for cc in c:
-                    varsUsed.union(cc.getVars())
+        for (rset, conds) in self.results:
+            for r in rset:
+                varsUsed = varsUsed.union(r.getVars())
+                for (al, c) in conds.items():
+                    for cc in c:
+                        varsUsed.union(cc.getVars())
 
         varsDeclared = set([v for v in self.args if isVar(v)])
 
@@ -585,7 +594,7 @@ class Operator(object):
         return self.args
 
     def allResultFluents(self):
-        return [r for (r, ps) in self.results]
+        return squashSets([r for (r, ps) in self.results])
     
     def isGround(self):
         return not any([isVar(a) for a in self.args])
@@ -736,10 +745,13 @@ class Operator(object):
         if any([(p.immutable and p.isGround() and\
                  not startState.fluentValue(p) == p.getValue()) \
                 for p in self.preconditionSet()]):
-                debugMsg('regression:fail', 'immutable precond is false')
+                debugMsg('regression:fail', 'immutable precond is false',
+                         [p for p in self.preconditionSet() if \
+                          (p.immutable and p.isGround() and \
+                            not startState.fluentValue(p) == p.getValue())])
                 return []
 
-        results = [r for (r, c) in self.results]
+        results = squash([r for (r, c) in self.results])
 
         # Discharge conditions that are entailed by this result
         # It's an experiment to do this here, before getting all the bindings
@@ -1568,10 +1580,13 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
             preConds = mergeDicts([sharedPreconds] +\
                                    [ps for (r, ps) in resultSet])
 
-            results = [r for (r, ps) in resultSet]
+            # List of sets of result fluents
+            resultSets = [r for (r, ps) in resultSet]
+            results = list(squashSets(resultSets))
 
             newOp = Operator(o.name, o.args, preConds,
-                             [(r, {}) for r in results],
+                             #[(r, {}) for r in results]
+                             [(results, {})],
                              o.functions, o.f, o.cost, o.prim,
                              o.sideEffects,
                              o.ignorableArgs,
@@ -1599,11 +1614,14 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                 # necessary preconditions, and some other version
                 # does.
                 allBoundRfs = [f.applyBindings(b) for f in o.allResultFluents()]
+            
+                # Require these to be ground?  Or, definitely, not all
+                # variables
                 extraRfs = set(allBoundRfs).difference(set(boundRFs))
-                dup = any([rf.entails(gf, startState) != False \
-                           for rf in extraRfs \
-                           for gf in g.fluents])
-                                    
+                dup = any([(rf.isPartiallyBound() and \
+                            rf.entails(gf, startState) != False) \
+                           for rf in extraRfs for gf in g.fluents])
+
                 if allUseful and not dup and (mono or not monotonic):
                     debugMsg('appOp:detail', 'adding binding', b, boundRFs)
                     bindingSet.append(b)

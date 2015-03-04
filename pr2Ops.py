@@ -614,8 +614,8 @@ move = Operator(\
           B([Grasp(['RObj', 'right', 'RFace']),
              'RGraspMu', 'RealGraspVarR', 'RGraspDelta', 'P2'], True)
              }},
-    # Results:  list of pairs: (fluent, private preconds)
-    [(Conf(['CEnd', 'DEnd'], True), {})],
+    # Results:  list of pairs: (fluent set, private preconds)
+    [({Conf(['CEnd', 'DEnd'], True)}, {})],
     functions = [\
         Function(['CEnd'], [], genNone, 'genNone'),                 
         Function(['RealGraspVarL'], ['LGraspVar'], maxGraspVarFun,
@@ -697,11 +697,11 @@ place = Operator(\
          3 : {Conf(['PreConf', 'ConfDelta'], True)}
         },
         # Results
-        [(Bd([In(['Obj', 'Region']), True, 'PR4'], True), {}),
-         (Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True), {}),
-         (B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta', 'PR2'],
-           True), {}),
-         (Bd([Holding(['Hand']), 'none', 'PR3'], True), {})],
+        [({Bd([In(['Obj', 'Region']), True, 'PR4'], True)}, {}),
+         ({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
+           B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta','PR2'],
+                 True)},{}),
+         ({Bd([Holding(['Hand']), 'none', 'PR3'], True)}, {})],
         # Functions
         functions = [\
             # Either Obj is bound (because we're trying to place it) or
@@ -793,10 +793,10 @@ pick = Operator(\
              }},
 
         # Results
-        [(Bd([Holding(['Hand']), 'Obj', 'PR1'], True), {}),
-         (Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'PR2'], True), {}),
-         (B([Grasp(['Obj', 'Hand', 'GraspFace']),
-            'GraspMu', 'GraspVar', 'GraspDelta', 'PR3'], True), {})],
+        [({Bd([Holding(['Hand']), 'Obj', 'PR1'], True), 
+           Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'PR2'], True),
+           B([Grasp(['Obj', 'Hand', 'GraspFace']),
+             'GraspMu', 'GraspVar', 'GraspDelta', 'PR3'], True)}, {})],
         # Functions
         functions = [\
             # Be sure obj is not none -- don't use this to empty the hand
@@ -858,10 +858,9 @@ lookAt = Operator(\
              True, 'P2'], True),
          Conf(['LookConf', lookConfDelta], True)}},
     # Results
-    [(B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
-         'PR1'],
-       True), {}),
-     (Bd([SupportFace(['Obj']), 'PoseFace', 'PR2'], True), {})
+    [({B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
+         'PR1'],True),
+       Bd([SupportFace(['Obj']), 'PoseFace', 'PR2'], True)}, {})
        ],
     # Functions
     functions = [\
@@ -894,11 +893,10 @@ lookAtHand = Operator(\
             'GraspDelta', 'P1'], True)},
      1: {Conf(['LookConf', lookConfDelta], True)}},
     # Results
-    [(B([Grasp(['Obj', 'Hand', 'GraspFace']), 'Grasp', 'GraspVarAfter',
-         'GraspDelta', 'PR1'],
-       True), {}),
-     (Bd([Holding(['Hand']), 'Obj', 'PR2'], True), {}),       
-     (Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'PR3'], True), {})
+    [({B([Grasp(['Obj', 'Hand', 'GraspFace']), 'Grasp', 'GraspVarAfter',
+         'GraspDelta', 'PR1'], True), 
+      Bd([Holding(['Hand']), 'Obj', 'PR2'], True),
+      Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'PR3'], True)}, {})
        ],
     # Functions
     functions = [\
@@ -967,10 +965,10 @@ poseAchCanReach = Operator(\
          B([Pose(['Occ', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta', 'P2'],
             True)}},
     # Result
-    [(Bd([CanReachHome(['CEnd', 'Hand',
+    [({Bd([CanReachHome(['CEnd', 'Hand',
                    'LObj', 'LFace', 'LGraspMu', 'RealGraspVarL', 'LGraspDelta',
                    'RObj', 'RFace', 'RGraspMu', 'RealGraspVarR', 'RGraspDelta',
-                           'PostCond']),  True, 'PR'], True), {})],
+                           'PostCond']),  True, 'PR'], True)}, {})],
 
     # Functions
     functions = [\
@@ -1006,8 +1004,8 @@ poseAchCanSee = Operator(\
          B([Pose(['Occ', 'OccPoseFace']), 'OccPose', 'OccPoseVar',
             'OccPoseDelta', 'P2'], True)}},
     # Result
-    [(Bd([CanSeeFrom(['Obj', 'TargetPose', 'TargetPoseFace', 'LookConf', 
-                           'PostCond']),  True, 'PR'], True), {})],
+    [({Bd([CanSeeFrom(['Obj', 'TargetPose', 'TargetPoseFace', 'LookConf', 
+                           'PostCond']),  True, 'PR'], True)}, {})],
     # Functions
     functions = [\
         # Compute precond probs
@@ -1050,10 +1048,10 @@ hRegrasp = Operator(\
                   'PrevGraspMu', 'GraspVar', 'GraspDelta', 'PR3'], True)}},
 
         # Results
-        [(Bd([Holding(['Hand']), 'Obj', 'PR1'], True), {}),
-         (Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'PR2'], True), {}),
-         (B([Grasp(['Obj', 'Hand', 'GraspFace']),
-            'GraspMu', 'GraspVar', 'GraspDelta', 'PR3'], True), {})],
+        [({Bd([Holding(['Hand']), 'Obj', 'PR1'], True), 
+           Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'PR2'], True),
+           B([Grasp(['Obj', 'Hand', 'GraspFace']),
+            'GraspMu', 'GraspVar', 'GraspDelta', 'PR3'], True)}, {})],
 
         # Functions
         functions = [\
