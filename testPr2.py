@@ -102,15 +102,16 @@ def testAll(skeleton = False, heuristic=habbs, crashIsError = True):
     test11(skeleton = skeleton, heuristic = heuristic)
     test11(skeleton = skeleton, heuristic = heuristic, hierarchical = True)
     test12(skeleton = skeleton, heuristic = heuristic)
-    # Takes too long
-    # test12(skeleton = skeleton, heuristic = heuristic, hierarchical = True)
-    # Takes too long
-    # test13(skeleton = skeleton, heuristic = heuristic)
-    # test13(skeleton = skeleton, heuristic = heuristic, hierarchical = True)
+    test12(skeleton = skeleton, heuristic = heuristic, hierarchical = True)
+    test13(skeleton = skeleton, heuristic = heuristic)
+    test13(skeleton = skeleton, heuristic = heuristic, hierarchical = True)
     test15(skeleton = skeleton, heuristic = heuristic)
     test16(skeleton = skeleton, heuristic = heuristic)
     test17(skeleton = skeleton, heuristic = heuristic)
+    test18(skeleton = skeleton, heuristic = heuristic)
     test19(skeleton = skeleton, heuristic = heuristic)
+    test20(skeleton = skeleton, heuristic = heuristic)
+    test21(skeleton = skeleton, heuristic = heuristic)
 
 
 ######################################################################

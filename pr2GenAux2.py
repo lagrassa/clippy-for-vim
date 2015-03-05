@@ -494,7 +494,10 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
                                for o in shWorld.getObjectShapes()], o.origin())
             if debug('potentialRegionPoseGen'):
                 co.draw('W', 'brown')
+
+            bState.draw('W')
             safeI = bI.cut(co)
+
             if not safeI:
                 if debug('potentialRegionPoseGen'):
                     print 'safeI is None for angle', angle

@@ -71,7 +71,7 @@ cdef list primPrimCutAux(shapes.Prim p1, shapes.Prim p2, bool isect):
         else: return []
     else:                               # return diff, if any
         if debug('cut'):
-            ans.draw('W', 'green')
+            [a.draw('W', 'green') for a in ans]
             raw_input('answer in green')
         return ans
 
@@ -112,5 +112,15 @@ cdef tuple facePrimCut(np.ndarray[np.float64_t, ndim=1] plane,
         raise Exception, 'Inconsistent!'
     cutV = np.hstack(cutVerts)          # matrix of cutverts
     # Return convex hull of vertex sets
-    return (geom.convexHullPrim(np.hstack([verts[:, outv], cutV]), prim.origin()),
-            geom.convexHullPrim(np.hstack([verts[:, inv], cutV]), prim.origin()))
+    print 'cutting with', plane
+    print 'calling ConvexHull'
+    print np.hstack([verts[:, outv], cutV])
+    outPrim = geom.convexHullPrim(np.hstack([verts[:, outv], cutV]), prim.origin())
+    outPrim.draw('W', 'purple')
+    print 'returned from ConvexHull'
+    print 'calling ConvexHull'
+    np.hstack([verts[:, inv], cutV])
+    inPrim = geom.convexHullPrim(np.hstack([verts[:, inv], cutV]), prim.origin())
+    inPrim.draw('W', 'orange')
+    raw_input('returned from ConvexHull')
+    return (outPrim, inPrim)
