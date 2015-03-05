@@ -1284,7 +1284,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
 
     skeleton = [[place, move]]
 
-    HPN(s, goal1, 
+    HPN(s, goal2, 
          [t.operators[o] for o in operators],
          t.realWorld,
          hpnFileTag = t.name,

@@ -33,8 +33,8 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
 
 debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'traceCRH', 'hAddBackV',
            'regression:fail', 'applicableOps', 'regression:inconsistent', 'easyGraspGen',
-           'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'lookHandGen', 'canReachGen',
-           'pathObst', 'visible', 'checkCRH']
+           'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'lookHandGn', 'canReachGen',
+           'pathObst', 'visible', 'checkCRH', 'potentialRegionPoseGen']
 
 # debugOn = ['confReachViolGen', 'visible', 'canReachHome', 'confReachViol', 'confReachViolCache', 'canPickPlaceTest']
 # debugOn = ['hAddBackV', 'traceGen']
@@ -44,7 +44,8 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
 # debugOn = ['regression:inconsistent', 'traceGen', 'traceCRH']
 # debugOn = ['checkCRH']
 # debugOn = ['traceGen', 'traceCRH']
-debugOn = ['potentialRegionPoseGen', 'cut']
+# debugOn = ['potentialRegionPoseGen', 'cut']
+debugOn = []
 pauseOn = debugOn
 if 'canPickPlaceTest' in pauseOn:
     pauseOn.remove('canPickPlaceTest')

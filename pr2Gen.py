@@ -139,6 +139,7 @@ def pickGenTop(args, goalConds, bState, outBindings,
         attachedShape = bState.getRobot().attachedObj(bState.getShadowWorld(prob), hand)
         shape = bState.getWorld().getObjectShapeAtOrigin(obj).applyLoc(attachedShape.origin())
         sup = supportFaceIndex(shape)
+        raw_input('Support = %d'%sup)
         pose = None
         conf = None
         confAppr = None
@@ -349,9 +350,10 @@ def placeGenAux(bState, obj, confAppr, conf, placeBs, graspB, hand, prob,
             return False
 
     def checkOrigGrasp(gB):
-        if bStateOrig and bStateOrig.held[hand].mode() != obj:
-            if next(potentialGraspConfGen(bStateOrig, bStateOrig.getPlaceB(obj),
-                                          gB, conf, hand, prob, nMax=1), None):
+        pB = bStateOrig.getPlaceB(obj, default=False) # check we know where obj is.
+        if bStateOrig and bStateOrig.held[hand].mode() != obj and pB:
+            if next(potentialGraspConfGen(bStateOrig, pB, gB, conf, hand, prob, nMax=1),
+                    None):
                 return 0
             else:
                 return 1
