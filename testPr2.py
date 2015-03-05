@@ -1219,7 +1219,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
     targetDelta = (0.001, 0.001, 0.001, 0.005)
     # Increase this
-    goalProb = 0.2
+    goalProb = 0.4
     # Need to empty the hand in order to achieve this
     goal3 = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
@@ -1273,7 +1273,6 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     pose = shape.origin()
     t.realWorld.held['left'] = o
     t.realWorld.grasp['left'] = handPose.inverse().compose(pose)
-    raw_input('Huh?')
     t.realWorld.delObjectState(o)    
 
     t.realWorld.draw('World')
@@ -1284,7 +1283,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
 
     skeleton = None #[[place, move]]
 
-    HPN(s, goal2, 
+    HPN(s, goal3, 
          [t.operators[o] for o in operators],
          t.realWorld,
          hpnFileTag = t.name,
