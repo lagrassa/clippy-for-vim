@@ -612,6 +612,9 @@ def hAddBackBSet(start, goal, operators, idk, maxK = 30,
             assert totalCost >= 0
             if totalCost == float('inf'):
                 actSet = set()
+                for f in fUp:
+                    print '    ', f.shortName()
+                raw_input('Warning: storing infinite value in hCache')
                 addToCachesSet(fUp, totalCost, set(), idk)
             thing = hCacheLookup(fUp, idk)
             # If it's not in the cache, we bailed out before computing a good

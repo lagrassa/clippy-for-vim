@@ -189,7 +189,7 @@ cdef class PBS:
         self.moveObjBs = {}
         self.shadowWorld = None
         finalObjects = self.objectsInBState()
-        if initialObjects != finalObjects:
+        if debug('conservation') and initialObjects != finalObjects:
             print 'Failure of conservation'
             print '    initial', sorted(list(initialObjects))
             print '    final', sorted(list(finalObjects))
