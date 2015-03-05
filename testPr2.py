@@ -1282,7 +1282,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'lookAtHand']
 
-    skeleton = [[place, move]]
+    skeleton = None #[[place, move]]
 
     HPN(s, goal2, 
          [t.operators[o] for o in operators],
