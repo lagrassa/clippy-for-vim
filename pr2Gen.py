@@ -850,6 +850,18 @@ def canReachGen(args, goalConds, bState, outBindings):
     for ans in canReachGenTop((conf, hand, graspB1, graspB2, cond, prob,
                                lookVar),
                               goalConds, bState.pbs, outBindings):
+
+        # LPK temporary stuff to look for case of suggesting that we
+        # move the same object
+        (occ, occPose, occFace, occVar, occDelta) = ans
+        for thing in cond:
+            if thing.predicate == 'B' and thing.args[0].predicate == 'Pose' and\
+                thing.args[0].args[0] == occ:
+                print 'canReachGen suggesting a move of an object in cond'
+                print 'CRH ans', ans
+                print 'Suspect cond', thing
+                raw_input('okay?')
+
         debugMsg('canReachGen', ('->', ans))
         canReachGenCache[key].append(ans)
         yield ans
