@@ -536,7 +536,9 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
         for rs in regShapes: rs.draw('W', 'purple')
     ff = placeB.faceFrames[placeB.support.mode()]
     objShadowBase = bState.objShadow(obj, True, prob, placeB, ff)
-    objShadow = objShadowBase.applyTrans(objShadowBase.origin().inverse())
+    # Needed when doing CO/CI version - why?
+    # objShadow = objShadowBase.applyTrans(objShadowBase.origin().inverse())
+    objShadow = objShadowBase
     shWorld = bState.getShadowWorld(prob)
     shRotations = dict([(angle, objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
