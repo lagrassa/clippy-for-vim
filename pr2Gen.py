@@ -820,7 +820,7 @@ def lookHandGenTop(args, goalConds, bState, outBindings):
             debugMsg('lookHandGen', ('-> cyan', lookConf.conf))
         yield (lookConf,), viol
 
-canReachGenCache = {}
+#canReachGenCache = {}
 
 # returns
 # ['Occ', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta']
@@ -829,16 +829,16 @@ def canReachGen(args, goalConds, bState, outBindings):
     (conf, hand, lobj, lgf, lgmu, lgv, lgd,
      robj, rgf, rgmu, rgv, rgd, prob, cond) = args
 
-    key = (tuplify(args),
-           tuple(goalConds),
-           bState)
-    if key in canReachGenCache:
-        print 'canReachGenCache hit'
-        for val in canReachGenCache[key]:
-            yield val
-        return
-    else:
-        canReachGenCache[key] = []
+    # key = (tuplify(args),
+    #        tuple(goalConds),
+    #        bState)
+    # if key in canReachGenCache:
+    #     print 'canReachGenCache hit'
+    #     for val in canReachGenCache[key]:
+    #         yield val
+    #     return
+    # else:
+    #     canReachGenCache[key] = []
 
     debugMsg('canReachGen', args)
     world = bState.pbs.getWorld()
@@ -863,7 +863,7 @@ def canReachGen(args, goalConds, bState, outBindings):
                 raw_input('okay?')
 
         debugMsg('canReachGen', ('->', ans))
-        canReachGenCache[key].append(ans)
+        # canReachGenCache[key].append(ans)
         yield ans
     debugMsg('canReachGen', 'exhausted')
 

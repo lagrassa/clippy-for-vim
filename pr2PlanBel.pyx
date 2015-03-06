@@ -83,7 +83,7 @@ class BeliefContext:
 # Marginal distributions over object poses, relative to the robot
 cdef class PBS:
     def __init__(self, beliefContext, held=None, conf=None,
-                 graspB=None, fixObjBs=None, moveObjBs=None, regions=[]):
+                 graspB=None, fixObjBs=None, moveObjBs=None, regions=[], domainProbs=None):
         self.beliefContext = beliefContext
         self.conf = conf or None
         self.held = held or \
@@ -101,6 +101,7 @@ cdef class PBS:
         self.heuristic = None                     # the robot shape depends on heuristic
         self.defaultGraspBCache = {}
         self.defaultPlaceBCache = {}
+        self.domainProbs = domainProbs
 
     cpdef getWorld(self):
         return self.beliefContext.world
@@ -162,7 +163,8 @@ cdef class PBS:
 
     cpdef copy(self):
         return PBS(self.beliefContext, self.held.copy(), self.conf.copy(),
-                   self.graspB.copy(), self.fixObjBs.copy(), self.moveObjBs.copy(), self.regions)
+                   self.graspB.copy(), self.fixObjBs.copy(), self.moveObjBs.copy(),
+                   self.regions, self.domainProbs)
 
     def objectsInBState(self):
         objects = []
@@ -320,6 +322,9 @@ cdef class PBS:
                 raw_input('Shadow for %s'%obj)
             w.addObjectShape(shadow)
             sw.setObjectPose(shadow.name(), objPose)
+            if obj in self.fixObjBs and self.domainProbs and \
+                   all([x <= y for (x,y) in zip(objB.poseD.var, self.domainProbs.obsVarTuple)]):
+                sw.fixedObjects.add(shadow.name())
             if obj in avoidShadow:      # can't collide with these shadows
                 sw.fixedObjects.add(shadow.name())
             if  obj in self.fixObjBs:   # can't collide with these objects

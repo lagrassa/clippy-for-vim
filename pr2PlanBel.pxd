@@ -2,7 +2,7 @@ cdef list diagToSq(tuple d)
 
 cdef class PBS:
      cdef public beliefContext, conf, held, graspB, fixObjBs, moveObjBs, regions, 
-     cdef public pbs, shadowWorld, shadowProb, avoidShadow, defaultGraspBCache, defaultPlaceBCache, heuristic
+     cdef public pbs, shadowWorld, shadowProb, avoidShadow, defaultGraspBCache, defaultPlaceBCache, heuristic, domainProbs
 
      cpdef getWorld(self)
      cpdef getRobot(self)
