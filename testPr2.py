@@ -341,7 +341,8 @@ class PlanTest:
                      else ['pr2Base', 'pr2LeftGripper', 'pr2LeftArm'],)
         rm.batchAddNodes(self.initConfs)
         belC.roadMap = rm
-        pbs = PBS(belC, conf=pr2Home, fixObjBs = self.fix.copy(), moveObjBs = self.move.copy(), regions = regions) 
+        pbs = PBS(belC, conf=pr2Home, fixObjBs = self.fix.copy(), moveObjBs = self.move.copy(),
+        regions = regions, domainProbs=self.domainProbs) 
         pbs.draw(0.9, 'Belief')
         bs = BeliefState()
         bs.pbs = pbs
