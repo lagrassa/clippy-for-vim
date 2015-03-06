@@ -870,6 +870,7 @@ def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
     
 def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
     # Move A so we can look at B
+    # Example isn't really constructed right
     p1 = util.Pose(0.4, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.8, 0.0, 0.61, 0.0)
     t = PlanTest('test14', smallErrProbs,
@@ -880,9 +881,12 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
                  varDict = {'objA': (0.0001*2,)*4,
                             'objB': (0.005*2,)*4})
 
-    goal = State([B([Pose(['objB', 4]), p2.xyztTuple(),
+    goalProb = 0.8
+
+    goal = State([ Bd([SupportFace(['objB']), 4, goalProb], True),
+                   B([Pose(['objB', 4]), p2.xyztTuple(),
                      (0.0001, 0.0001, 0.0001, 0.001),
-                          (0.01,)*4, 0.8], True)])
+                          (0.01,)*4, goalProb], True)])
 
     t.run(goal,
           hpn = hpn,

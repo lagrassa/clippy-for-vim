@@ -856,7 +856,7 @@ def canReachGen(args, goalConds, bState, outBindings):
         (occ, occPose, occFace, occVar, occDelta) = ans
         for thing in cond:
             if thing.predicate == 'B' and thing.args[0].predicate == 'Pose' and\
-                thing.args[0].args[0] == occ:
+                thing.args[0].args[0] == occ and thing.args[2][0] <= occVar[0]:
                 print 'canReachGen suggesting a move of an object in cond'
                 print 'CRH ans', ans
                 print 'Suspect cond', thing
