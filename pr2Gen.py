@@ -5,7 +5,7 @@ import util
 import copy
 import windowManager3D as wm
 from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ, debugOn
-from miscUtil import isAnyVar, argmax, isGround
+from miscUtil import isAnyVar, argmax, isGround, tuplify
 from dist import DeltaDist, UniformDist
 from pr2Robot import CartConf, gripperTip, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, \
@@ -20,9 +20,9 @@ from shapes import Box
 
 Ident = util.Transform(np.eye(4))            # identity transform
 
-import pr2GenAux
-from pr2GenAux import *
-reload(pr2GenAux)
+import pr2GenAux2
+from pr2GenAux2 import *
+reload(pr2GenAux2)
 
 pickPlaceSearch = True
 
@@ -820,12 +820,26 @@ def lookHandGenTop(args, goalConds, bState, outBindings):
             debugMsg('lookHandGen', ('-> cyan', lookConf.conf))
         yield (lookConf,), viol
 
+canReachGenCache = {}
+
 # returns
 # ['Occ', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta']
 # obj, pose, face, var, delta
 def canReachGen(args, goalConds, bState, outBindings):
     (conf, hand, lobj, lgf, lgmu, lgv, lgd,
      robj, rgf, rgmu, rgv, rgd, prob, cond) = args
+
+    key = (tuplify(args),
+           tuple(goalConds),
+           bState)
+    if key in canReachGenCache:
+        print 'canReachGenCache hit'
+        for val in canReachGenCache[key]:
+            yield val
+        return
+    else:
+        canReachGenCache[key] = []
+
     debugMsg('canReachGen', args)
     world = bState.pbs.getWorld()
     lookVar = bState.domainProbs.obsVarTuple
@@ -837,6 +851,7 @@ def canReachGen(args, goalConds, bState, outBindings):
                                lookVar),
                               goalConds, bState.pbs, outBindings):
         debugMsg('canReachGen', ('->', ans))
+        canReachGenCache[key].append(ans)
         yield ans
     debugMsg('canReachGen', 'exhausted')
 

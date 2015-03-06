@@ -40,6 +40,7 @@ def objectGraspFrame(bState, objGrasp, objPlace):
     # !! Rotates wrist frame to grasp face frame - defined in pr2Robot
     gT = gripperFaceFrame
     wristFrame = graspFrame.compose(gT.inverse())
+    assert wristFrame.pose()
 
     if debug('objectGraspFrame'):
         print 'objGrasp', objGrasp
@@ -453,7 +454,7 @@ def bboxInterior(bb1, bb2):
 
 # !! Should pick relevant orientations... or more samples.
 angleList = [-math.pi/2. -math.pi/4., 0.0, math.pi/4, math.pi/2]
-def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, maxPoses = 30):
+def potentialRegionPoseGenCut(bState, obj, placeB, prob, regShapes, reachObsts, maxPoses = 30):
     def genPose(rs, angle,  chunk):
         for i in xrange(5):
             (x,y,z) = bboxRandomDrawCoords(chunk.bbox())
@@ -489,7 +490,7 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
             elif debug('potentialRegionPoseGen'):
                 bI.draw('W', 'cyan')
                 debugMsg('potentialRegionPoseGen', 'Region interior in cyan')
-            chunks.append(((angle, bI), bICost))
+            chunks.append(((angle, bI), 1./bICost))
             co = shapes.Shape([xyCO(shRot, o) \
                                for o in shWorld.getObjectShapes()], o.origin())
             if debug('potentialRegionPoseGen'):
@@ -504,7 +505,7 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
             elif debug('potentialRegionPoseGen'):
                 safeI.draw('W', 'pink')
                 debugMsg('potentialRegionPoseGen', 'Region interior in pink')
-            chunks.append(((angle, safeI), safeCost))
+            chunks.append(((angle, safeI), 1./safeCost))
     angleChunkDist = DDist(dict(chunks))
     angleChunkDist.normalize()
 
@@ -518,6 +519,84 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
         print 'Returned', count, 'for regions', [r.name() for r in regShapes]
     return
 
+def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, maxPoses = 30):
+    def genPose(rs, angle, point):
+        (x,y,z,_) = point
+        # Support pose, we assume that sh is on support face
+        pose = util.Pose(x,y,z + clearance, angle)
+        sh = shRotations[angle].applyTrans(pose)
+        if debug('potentialRegionPoseGen'):
+            sh.draw('W', 'brown')
+            wm.getWindow('W').update()
+        if all([rs.containsPt(p) for p in sh.vertices().T]) and \
+           all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
+            return pose
+    clearance = 0.01
+    if debug('potentialRegionPoseGen'):
+        for rs in regShapes: rs.draw('W', 'purple')
+    ff = placeB.faceFrames[placeB.support.mode()]
+    objShadowBase = bState.objShadow(obj, True, prob, placeB, ff)
+    objShadow = objShadowBase.applyTrans(objShadowBase.origin().inverse())
+    shWorld = bState.getShadowWorld(prob)
+    shRotations = dict([(angle, objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()) \
+                        for angle in angleList])
+    obstCost = 5.
+    hyps = []                         # (index, cost)
+    points = []                       # [(angle, xyz1)]
+    count = 0
+    for rs in regShapes:
+        for (angle, shRot) in shRotations.items():
+            bI = CI(shRot, rs.prim())
+            if bI == None:
+                if debug('potentialRegionPoseGen'):
+                    print 'bI is None for angle', angle
+                continue
+            elif debug('potentialRegionPoseGen'):
+                bI.draw('W', 'cyan')
+                debugMsg('potentialRegionPoseGen', 'Region interior in cyan')
+            coFixed = [xyCO(shRot, o) for o in shWorld.getObjectShapes() \
+                       if o.name() in shWorld.fixedObjects]
+            coObst = [xyCO(shRot, o) for o in shWorld.getNonShadowShapes() \
+                      if o.name() not in shWorld.fixedObjects]
+            coShadow = [xyCO(shRot, o) for o in shWorld.getShadowShapes() \
+                        if o.name() not in shWorld.fixedObjects]
+            if debug('potentialRegionPoseGen'):
+                for co in coFixed: co.draw('W', 'red')
+                for co in coObst: co.draw('W', 'brown')
+                for co in coShadow: co.draw('W', 'orange')
+            z0 = bI.bbox()[0,2] + clearance
+            for point in bboxGridCoords(bI.bbox(), z=z0):
+                if any(co.containsPt(point) for co in coFixed): continue
+                cost = 0
+                for co in coObst:
+                    if co.containsPt(point): cost += obstCost
+                for co in coObst:
+                    if co.containsPt(point): cost += 0.5*obstCost
+                points.append((angle, point.tolist()))
+                hyps.append((count, 1./cost if cost else 1.))
+                count += 1
+    if hyps:
+        pointDist = DDist(dict(hyps))
+        pointDist.normalize()
+    else:
+        debugMsg('potentialRegionPoseGen', 'No valid points in region')
+        return
+    if debug('potentialRegionPoseGen'):
+        print pointDist
+    count = 0
+    for i in range(maxPoses):
+        angle, point = points[pointDist.draw()]
+        pose = genPose(rs, angle, point)
+        if pose:
+            count += 1
+            if debug('potentialRegionPoseGen'):
+                print '->', pose
+                shRotations[angle].applyTrans(pose).draw('W', 'green')
+            yield pose
+    if debug('potentialRegionPoseGen'):
+        print 'Returned', count, 'for regions', [r.name() for r in regShapes]
+    return
+
 def baseDist(c1, c2):
     (x1,y1,_) = c1['pr2Base']
     (x2,y2,_) = c2['pr2Base']
@@ -526,7 +605,7 @@ def baseDist(c1, c2):
 #############
 # Selecting safe points in region
 
-def bboxGridCoords(bb, n=10, z=None, res=None):
+def bboxGridCoords(bb, n=5, z=None, res=None):
     ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)
     dx = res or float(x1 - x0)/n
     dy = res or float(y1 - y0)/n
@@ -536,99 +615,5 @@ def bboxGridCoords(bb, n=10, z=None, res=None):
         x = x0 + i*dx
         for j in range(n+1):
             y = y0 + j*dy
-            points.append((x, y, z))
+            points.append(np.array([x, y, z, 1.]))
     return points
-
-def safeLocationsInRegion(obj, world, obstacles, zones, region,
-                          objG = [], sortDirs = None, sortFn = None,
-                          contact = False, grid = 4):
-
-    if om.polySameShape(obj, region):
-        if not om.polySameShapeAndAngle(obj, region):
-            return []
-        objPose = region.originPt().pose()
-        newObj = obj.applyPose(objPose)
-        if objG:
-            newObjG = om.Object([g.applyPose(objPose) for g in objG])
-        obstObj = om.makeObject(obstacles)
-        zoneObj = om.makeObject(zones + obstacles)
-        if not (newObj.collides(zoneObj) or \
-                (objG and newObjG.collides(obstObj))):
-            return [region.originPt()]
-        else:
-            return []
-
-    points = []
-    # Locations where obj is contained in region
-    # using largestPart is not safe!!
-    ci = cspace.CI(obj, largestPart(region), ciOff)
-    # print 'ci', ci
-    # largestPart(region).draw(world.window, 'magenta')
-    # ci.draw(world.window, 'magenta')
-    # raw_input('safeLocationsInRegion: CI')
-    if not ci: return []
-
-    relevantBB = om.bboxGrow(region.bbox(), 0.5)
-    obstacles = [o for o in obstacles \
-                 if om.bboxOverlap(relevantBB, o.bbox())]
-    zones = [o for o in zones \
-             if om.bboxOverlap(relevantBB, o.bbox())]
-
-    obst3D = [o for o in obstacles if threeD(o)]
-    zone3D = [o for o in zones if threeD(o)]
-    obst2D = [o for o in obstacles if not o in obst3D]
-    zone2D = [o for o in zones if not o in zone3D]
-
-    # Locations where obj (or obj+objG) collide with obstacles
-    obst = cspace.growObjects(om.Object(obst2D).prims(), ciOff)
-    zone = cspace.growObjects(om.Object(zone2D).prims(), ciOff)
-    co = vg.CObstacles([], obj, obst+zone, 0.0)
-    if objG:
-        for g in objG:
-            co.extend(vg.CObstacles([], g, obst, 0.0))
-
-    # Interior locations with no collisions
-    safeCI = om.Object([ci]).cut(om.Object(co), -ciOff) if co else om.Object([ci])
-    # print 'safeCI', safeCI
-    # raw_input('safeLocationsInRegion: safeCI')
-    if safeCI:
-        z = region.zRange()[0]
-        legal = [p for p in safeCI.prims() if util.inRange(z+0.001, p.zRange())]
-        # if not legal:
-        #    print 'no legal part of safeCI', obj, region
-        #    raw_input('safeLocationsInRegion: illegal')
-        if legal:
-            safeCI = om.Object(legal)
-        else:
-            safeCI = None
-    if not safeCI:
-        return []
-    # Find verts that are up against obstacles (tightest packing)
-    safe = sortContactPoints(obj, safeCI, sortDirs, sortFn, contact,
-                             obstacles, offset=0) 
-    # print 'original safe', safe
-    if grid:
-        safe = safe + gridPointsInRegion(safeCI, n=grid)
-    # print 'adding grid points', safe
-    if obst3D or zone3D:
-        safe = [p for p in safe if all([not obj.collides(o) for o in obst3D+zone3D])]
-        # print 'not colliding with 3D', safe
-        if obst3D:
-            oG = om.Object(objG)
-            safe = [p for p in safe if all([not objG.collides(o) for o in obst3D])]
-            # print 'hand not colliding with 3D', safe
-    # safe = chooseLoc(safe, safeCI)
-    safe = removeDups(safe, 0.01)
-    return safe
-
-def removeDups(poses, minDist):
-    keep = [poses[0]]
-    minDistSq = minDist**2
-    for p1 in poses[1:]:
-        near = False
-        for p2 in keep:
-            if p1.distanceSqXY(p2) < minDistSq:
-                near = True
-                break
-        if not near: keep.append(p1)
-    return keep
