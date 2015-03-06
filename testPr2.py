@@ -81,38 +81,27 @@ def habbs(s, g, ops):
     assert val != float('inf')
     return val
 
-def testAll(skeleton = False, heuristic=habbs, crashIsError = True):
+from timeout import timeout, TimeoutError
 
+# 5 min timeout for all tests
+@timeout(300)
+def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=False):
+    eval('test%d(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical)'%n)
+
+def testRepeat(n, repeat=3, **args):
+    for i in range(repeat):
+        try:
+            testFunc(n, args)
+        except TimeoutError:
+            print '************** Timed out **************'
+
+testResults = {}
+
+def testAll(indices, repeat=3, crashIsError=True, **args):
     pr2Sim.crashIsError = crashIsError
-
-    test1(skeleton = skeleton, heuristic = heuristic)
-    test2(skeleton = skeleton, heuristic = heuristic)
-    test2(skeleton = skeleton, heuristic = heuristic, flip = True)
-    test3(skeleton = skeleton, heuristic = heuristic)
-    test4(skeleton = skeleton, heuristic = heuristic)
-    if not skeleton:
-        test4(skeleton = skeleton, heuristic = heuristic, hierarchical = True)
-    test5(skeleton = skeleton, heuristic = heuristic)
-    test6(skeleton = skeleton, heuristic = heuristic)
-    test7(skeleton = skeleton, heuristic = heuristic)
-    test8(skeleton = skeleton, heuristic = heuristic)
-    test9(skeleton = skeleton, heuristic = heuristic)
-    test10(skeleton = skeleton, heuristic = heuristic)
-    test10(skeleton = skeleton, heuristic = heuristic, hierarchical = True)
-    test11(skeleton = skeleton, heuristic = heuristic)
-    test11(skeleton = skeleton, heuristic = heuristic, hierarchical = True)
-    test12(skeleton = skeleton, heuristic = heuristic)
-    test12(skeleton = skeleton, heuristic = heuristic, hierarchical = True)
-    test13(skeleton = skeleton, heuristic = heuristic)
-    test13(skeleton = skeleton, heuristic = heuristic, hierarchical = True)
-    test15(skeleton = skeleton, heuristic = heuristic)
-    test16(skeleton = skeleton, heuristic = heuristic)
-    test17(skeleton = skeleton, heuristic = heuristic)
-    test18(skeleton = skeleton, heuristic = heuristic)
-    test19(skeleton = skeleton, heuristic = heuristic)
-    test20(skeleton = skeleton, heuristic = heuristic)
-    test21(skeleton = skeleton, heuristic = heuristic)
-
+    for i in indices:
+        testRepeat(i, repeat=repeat, **args)
+    print testResults
 
 ######################################################################
 # Test Cases
@@ -402,9 +391,14 @@ class PlanTest:
                 makePlanObj(p, s).printIt(verbose = False)
             else:
                 print 'Planning failed'
+        runTime = time.clock() - startTime
+        if (self.name, hierarchical) not in testResults:
+            testResults[(self.name, hierarchical)] = [runTime]
+        else:
+            testResults[(self.name, hierarchical)].append(runTime)
         print '**************', self.name, \
                 'Hierarchical' if hierarchical else '', \
-                'Time =', time.clock() - startTime, '***************'      
+                'Time =', runTime, '***************'      
 
 ######################################################################
 # Test Cases
@@ -449,7 +443,7 @@ tinyErrProbs = DomainProbs(\
             pickTolerance = (0.02, 0.02, 0.02, 0.02))
 
 # Try to make a plan!     Just move
-def test1(hpn=True, skeleton=False, heuristic=habbs):
+def test1(hpn=True, skeleton=False, heuristic=habbs, hierarchical=False):
     t = PlanTest('test1', typicalErrProbs)
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
@@ -462,7 +456,7 @@ def test1(hpn=True, skeleton=False, heuristic=habbs):
 
 # Pick something up! and move
 def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
-          heuristic=habbs):
+          heuristic=habbs, hierarchical=False):
     global moreGD
     if gd != 0: moreGD = True           # hack!
     t = PlanTest('test2', smallErrProbs, objects=['table1', 'objA'])

@@ -542,7 +542,7 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
     shWorld = bState.getShadowWorld(prob)
     shRotations = dict([(angle, objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
-    obstCost = 5.
+    obstCost = 10.
     hyps = []                         # (index, cost)
     points = []                       # [(angle, xyz1)]
     count = 0
