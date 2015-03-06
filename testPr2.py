@@ -91,7 +91,7 @@ def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=False):
 def testRepeat(n, repeat=3, **args):
     for i in range(repeat):
         try:
-            testFunc(n, args)
+            testFunc(n, **args)
         except TimeoutError:
             print '************** Timed out **************'
 
