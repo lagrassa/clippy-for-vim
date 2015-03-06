@@ -429,6 +429,9 @@ def placeGenAux(bState, obj, confAppr, conf, placeBs, graspB, hand, prob,
                     ca = path[-1]
                     c = approached[ca]
                     viol = placeable(ca, approached[ca])
+                    if not viol:
+                        raw_input('Illegal placeable')
+                        continue
                     (pB, gB) = context[ca]
                     if debug('placeGen'):
                         if regrasp:

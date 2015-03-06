@@ -510,7 +510,7 @@ cdef class RoadMap:
         targets.sort()
         for (cost, tnode) in targets:
             finalViolation = testConnection(initConfNode, tnode, initViol)
-            if finalViolation and finalViolation.empty():  # only if no collision
+            if finalViolation and finalViolation.empty() and testFn(tnode):  # only if no collision
                 targets.remove((cost, tnode))
                 nodePath = [initConfNode, tnode]
                 confPath = processPath(nodePath)

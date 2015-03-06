@@ -34,9 +34,10 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
 debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'traceCRH', 'hAddBackV',
            'regression:fail', 'applicableOps', 'regression:inconsistent', 'easyGraspGen',
            'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'lookHandGn', 'canReachGen',
-           'pathObst', 'visible', 'checkCRH', 'potentialRegionPoseGen']
+           'pathObst', 'visible', 'checkCRH', 'potentialRegionPoseGen', 'canPickPlaceTest',
+           'confReachViolGen']
 
-# debugOn = ['confReachViolGen', 'visible', 'canReachHome', 'confReachViol', 'confReachViolCache', 'canPickPlaceTest']
+# debugOn = ['confReachViolGen', 'visible', 'canReachHome', 'confReachViol', 'confReachViolCache', ]
 # debugOn = ['hAddBackV', 'traceGen']
 # debugOn = ['nonmon', 'executionFail', 'hAddBackV', 'skeleton', 'applicableOps', 'regression:fail']
 # debugOn = ['traceGen', 'traceCRH', 'potentialRegionPoseGen']

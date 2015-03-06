@@ -247,6 +247,7 @@ def searchGen(initialState, goalStates, actions, successor,
         if gk in goalStates:
             goalStates.remove(gk)
             if goalTest(gk):
+                # raw_input('Goal?')
                 # We're done! At least for this invocation...
                 if somewhatVerbose or verbose:
                     print 'Found goal state', n.state
