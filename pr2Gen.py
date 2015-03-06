@@ -139,7 +139,7 @@ def pickGenTop(args, goalConds, bState, outBindings,
         attachedShape = bState.getRobot().attachedObj(bState.getShadowWorld(prob), hand)
         shape = bState.getWorld().getObjectShapeAtOrigin(obj).applyLoc(attachedShape.origin())
         sup = supportFaceIndex(shape)
-        raw_input('Support = %d'%sup)
+        #raw_input('Support = %d'%sup)
         pose = None
         conf = None
         confAppr = None

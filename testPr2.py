@@ -343,7 +343,6 @@ class PlanTest:
         belC.roadMap = rm
         pbs = PBS(belC, conf=pr2Home, fixObjBs = self.fix.copy(), moveObjBs = self.move.copy(), regions = regions) 
         pbs.draw(0.9, 'Belief')
-        raw_input('Initial belief')
         bs = BeliefState()
         bs.pbs = pbs
         bs.domainProbs = self.domainProbs
@@ -554,7 +553,7 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
           )
 
 # Test placing in a region    
-def test5(hpn = True, skeleton = False, heuristic=habbs):
+def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False):
     p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.6, 0.0, 0.61, 0.0)
     t = PlanTest('test5',  smallErrProbs, 
@@ -573,7 +572,7 @@ def test5(hpn = True, skeleton = False, heuristic=habbs):
           )
 
 # Test looking
-def test6(hpn = True, skeleton=False, heuristic=habbs):
+def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False):
     p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.6, 0.0, 0.61, 0.0)
     t = PlanTest('test6', smallErrProbs,
@@ -582,20 +581,24 @@ def test6(hpn = True, skeleton=False, heuristic=habbs):
                             'objB': p2},
                  varDict = {'objA': (0.01*2,)*4})
 
+    goalProb = 0.8
+
     goal = State([B([Pose(['objA', 4]), p1.xyztTuple(),
                      (0.0001, 0.0001, 0.0001, 0.001),
-                          (0.01,)*4, 0.8], True)])
-
+                          (0.01,)*4, goalProb], True),
+                  Bd([SupportFace(['objA']), 4, goalProb], True)])
     t.run(goal,
           hpn = hpn,
-          skeleton = [['lookAt']] if skeleton else None,
+          skeleton = [['lookAt', 'move']] if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'lookAtHand'],
+          hierarchical = hierarchical,
           heuristic = heuristic,
           )
 
 # Test look, pick, place
-def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs):
+def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
+          hierarchical = False):
     p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.6, 0.0, 0.61, 0.0)
     t = PlanTest('test7',  smallErrProbs, # !! should be typical
@@ -620,6 +623,7 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs):
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
+          hierarchical = hierarchical,
           home=homeConf
           )
 
@@ -658,7 +662,7 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
           regions=['table1Top']
           )
 
-def test9(hpn=True, skeleton = False, heuristic=habbs):
+def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False):
     t = PlanTest('test9', typicalErrProbs,
                  objects = ['table1'],
                  varDict = {'table1': (0.01*2,)*4})
@@ -668,7 +672,8 @@ def test9(hpn=True, skeleton = False, heuristic=habbs):
     goal = State([Conf([goalConf, confDeltas], True)])
     t.run(goal,
           hpn = hpn,
-          heuristic = heuristic,       
+          heuristic = heuristic,
+          hierarchical = hierarchical,
           regions=['table1Top'],
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'lookAtHand'],
@@ -1219,7 +1224,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
     targetDelta = (0.001, 0.001, 0.001, 0.005)
     # Increase this
-    goalProb = 0.2
+    goalProb = 0.4
     # Need to empty the hand in order to achieve this
     goal3 = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
@@ -1273,7 +1278,6 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     pose = shape.origin()
     t.realWorld.held['left'] = o
     t.realWorld.grasp['left'] = handPose.inverse().compose(pose)
-    raw_input('Huh?')
     t.realWorld.delObjectState(o)    
 
     t.realWorld.draw('World')
@@ -1281,9 +1285,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
 
     operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'lookAtHand']
-
-    # skeleton = [[place, move]]
-    skeleton = None
+    skeleton = None #[[place, move]]
 
     HPN(s, goal3, 
          [t.operators[o] for o in operators],

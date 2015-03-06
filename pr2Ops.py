@@ -316,7 +316,7 @@ def regressProb(n):
     def regressProbAux(args, goal, start, vals):
         pr = max([a for a in args if not isVar(a)])
         val = np.power(pr, 1.0/n)
-        if val < maxProbValue:
+        if val < maxProbValue or n == 1:
             return [[val]*n]
         else:
             return []
@@ -417,7 +417,7 @@ def awayRegionIfNecessary((region, pose), goal, start, vals):
     if not isVar(pose) or not isVar(region):
         return [[region]]
     else:
-        return [start.pbs.awayRegions()]
+        return [[r] for r in start.pbs.awayRegions()]
 
 
 ################################################################
