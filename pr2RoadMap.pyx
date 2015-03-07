@@ -23,14 +23,14 @@ from planGlobals import debugMsg, debug, debugDraw
 
 from pr2Util import Violations, NextColor, drawPath, NextColor
 
-cdef float objCollisionCost = 1.0
+cdef float objCollisionCost = 2.0
 cdef float shCollisionCost = 0.5
 cdef int maxSearchNodes = 5000
 cdef int maxExpandedNodes = 1500
 cdef float searchGreedy = 0.75
 cdef float minStep = 0.1
 cdef float minStepHeuristic = 0.4
-cdef float confReachViolGenBatch = 5
+cdef float confReachViolGenBatch = 10
 
 cdef int node_idnum = 0
 cdef class Node:
@@ -714,6 +714,8 @@ cdef class RoadMap:
                     if debug('confReachViolGen') and not fbch.inHeuristic:
                         drawPath(pathOrig, viol=viol,
                                  attached=bState.getShadowWorld(prob).attached)
+                        self.checkPath(path, bState, prob, viol,
+                                       bState.getShadowWorld(prob).attached, avoidShadow)
                         debugMsg('confReachViolGen', ('->', (viol, cost, 'path len = %d'%len(pathOrig))))
                     yield (viol, cost, pathOrig)
                 else:

@@ -24,8 +24,6 @@ import pr2GenAux2
 from pr2GenAux2 import *
 reload(pr2GenAux2)
 
-pickPlaceSearch = True
-
 # Generators:
 #   INPUT:
 #   list of specific args such as region, object(s), variance, probability
@@ -205,24 +203,42 @@ def pickGenAux(bState, obj, confAppr, conf, placeB, graspB, hand, prob,
         firstConf = next(graspApproachConfGen(None), None)
         if (not firstConf) or (firstConf and checkInfeasible(firstConf)):
             debugMsg('pickGen', 'No potential grasp confs, will need to regrasp')
-        elif pickPlaceSearch:
-            for ans in rm.confReachViolGen(graspApproachConfGen(firstConf), bState, prob,
-                                           testFn = lambda ca: pickable(ca, approached[ca], placeB)):
-                _, cost, path = ans
-                if not path: continue
-                ca = path[-1]
-                c = approached[ca]
-                viol = pickable(ca, approached[ca], placeB)
-                ans = (placeB, c, ca)
-                if debug('pickGen', skip=fbch.inHeuristic):
-                    drawPoseConf(bState, placeB, c, ca, prob, 'W', color = 'navy')
-                    debugMsg('pickGen', ('-> currently graspable', ans), ('viol', viol))
-                    wm.getWindow('W').clear()
-                yield ans, viol
+        # elif pickPlaceSearch:
+        #     for ans in rm.confReachViolGen(graspApproachConfGen(firstConf), bState, prob,
+        #                                    testFn = lambda ca: pickable(ca, approached[ca], placeB)):
+        #         _, cost, path = ans
+        #         if not path: continue
+        #         ca = path[-1]
+        #         c = approached[ca]
+        #         viol = pickable(ca, approached[ca], placeB)
+        #         ans = (placeB, c, ca)
+        #         if debug('pickGen', skip=fbch.inHeuristic):
+        #             drawPoseConf(bState, placeB, c, ca, prob, 'W', color = 'navy')
+        #             debugMsg('pickGen', ('-> currently graspable', ans), ('viol', viol))
+        #             wm.getWindow('W').clear()
+        #         yield ans, viol
         else:
-            for ca in graspApproachConfGen(firstConf):
-                viol = pickable(ca, approached[ca], placeB)
-                if viol:
+            targetConfs = graspApproachConfGen(firstConf)
+            batchSize = 10
+            batch = 0
+            while True:
+                # Collect the next batach of trialConfs
+                batch += 1
+                trialConfs = []
+                count = 0
+                minCost = 1e6
+                for ca in targetConfs:       # targetConfs is a generator
+                    viol = pickable(ca, approached[ca], placeB)
+                    if viol:
+                        trialConfs.append((viol.weight(), viol, ca))
+                        minCost = min(viol.weight(), minCost)
+                    else:
+                        continue
+                    count += 1
+                    if count == batchSize or (minCost == 0 and count > batchSize/2.): break
+                if count == 0: break
+                trialConfs.sort()
+                for _, viol, ca in trialConfs:
                     c = approached[ca]
                     ans = (placeB, c, ca)
                     if debug('pickGen', skip=fbch.inHeuristic):
@@ -416,65 +432,68 @@ def placeGenAux(bState, obj, confAppr, conf, placeBs, graspB, hand, prob,
         if debug('placeGen', skip=fbch.inHeuristic):
             print '    placeGen: considering', gB, 'orig', orig
 
-        if pickPlaceSearch:
-            # We have not chosen a grasp yet, so this search is done
-            # without obj in the world and without it in the hand.  But,
-            # the placeable test for success will consider the approach
-            # with the relevant grasp.
-            for ans in rm.confReachViolGen(placeApproachConfGen(gB), bState, prob,
-                                           goalCostFn = regraspCost,
-                                           testFn = lambda ca: placeable(ca, approached[ca])):
-                _, cost, path = ans
-                if path: 
-                    ca = path[-1]
-                    c = approached[ca]
-                    viol = placeable(ca, approached[ca])
-                    if not viol:
-                        raw_input('Illegal placeable')
-                        continue
-                    (pB, gB) = context[ca]
-                    if debug('placeGen'):
-                        if regrasp:
-                            status = 'regraspable' if regraspablePB[pB] else 'not regraspable'
-                        else:
-                            status = 'not regrasping'
-                        print 'pose=', pB.poseD.mode(), 'grasp=', gB.grasp.mode(), status
-                    ans = (gB, pB, c, ca)
-                    if debug('placeGen', skip=fbch.inHeuristic):
-                        drawPoseConf(bState, pB, c, ca, prob, 'W', color='magenta')
-                        debugMsg('placeGen', ('->', ans), ('viol', viol))
-                        wm.getWindow('W').clear()
-                    yield ans, viol
+        # if pickPlaceSearch:
+        #     # We have not chosen a grasp yet, so this search is done
+        #     # without obj in the world and without it in the hand.  But,
+        #     # the placeable test for success will consider the approach
+        #     # with the relevant grasp.
+        #     for ans in rm.confReachViolGen(placeApproachConfGen(gB), bState, prob,
+        #                                    goalCostFn = regraspCost,
+        #                                    testFn = lambda ca: placeable(ca, approached[ca])):
+        #         _, cost, path = ans
+        #         if path: 
+        #             ca = path[-1]
+        #             c = approached[ca]
+        #             viol = placeable(ca, approached[ca])
+        #             if not viol:
+        #                 raw_input('Illegal placeable')
+        #                 continue
+        #             (pB, gB) = context[ca]
+        #             if debug('placeGen'):
+        #                 if regrasp:
+        #                     status = 'regraspable' if regraspablePB[pB] else 'not regraspable'
+        #                 else:
+        #                     status = 'not regrasping'
+        #                 print 'pose=', pB.poseD.mode(), 'grasp=', gB.grasp.mode(), status
+        #             ans = (gB, pB, c, ca)
+        #             if debug('placeGen', skip=fbch.inHeuristic):
+        #                 drawPoseConf(bState, pB, c, ca, prob, 'W', color='magenta')
+        #                 debugMsg('placeGen', ('->', ans), ('viol', viol))
+        #                 wm.getWindow('W').clear()
+        #             yield ans, viol
+        #         else:
+        #             debugMsg('placeGen', 'No valid placements')
+        # else:
+        targetConfs = placeApproachConfGen(gB)
+        batchSize = 10
+        batch = 0
+        while True:
+            # Collect the next batach of trialConfs
+            batch += 1
+            trialConfs = []
+            count = 0
+            minCost = 1e6
+            for ca in targetConfs:       # targetConfs is a generator
+                viol = placeable(ca, approached[ca])
+                if viol:
+                    cost = viol.weight() + regraspCost(ca)
+                    minCost = min(cost, minCost)
+                    trialConfs.append((cost, viol, ca))
                 else:
-                    debugMsg('placeGen', 'No valid placements')
-        else:
-            targetConfs = placeApproachConfGen(gB)
-            batchSize = 10
-            batch = 0
-            while True:
-                # Collect the next batach of trialConfs
-                batch += 1
-                trialConfs = []
-                count = 0
-                for ca in targetConfs:       # targetConfs is a generator
-                    trialConfs.append((regraspCost(ca), ca))
-                    count += 1
-                    if count == batchSize: break
-                if count == 0: break
-                trialConfs.sort()
-                for _, ca in trialConfs:
-                    viol = placeable(ca, approached[ca])
-                    if viol:
-                        (pB, gB) = context[ca]
-                        c = approached[ca]
-                        ans = (gB, pB, c, ca)
-                        if debug('placeGen', skip=fbch.inHeuristic):
-                            drawPoseConf(bState, pB, c, ca, prob, 'W', color='magenta')
-                            debugMsg('placeGen', ('->', ans), ('viol', viol))
-                            wm.getWindow('W').clear()
-                        yield ans, viol
-                    else:
-                        debugMsg('placeGen', 'No valid placements')
+                    continue
+                count += 1
+                if count == batchSize or (minCost == 0 and count > batchSize/2.): break
+            if count == 0: break
+            trialConfs.sort()
+            for _, viol, ca in trialConfs:
+                (pB, gB) = context[ca]
+                c = approached[ca]
+                ans = (gB, pB, c, ca)
+                if debug('placeGen', skip=fbch.inHeuristic):
+                    drawPoseConf(bState, pB, c, ca, prob, 'W', color='magenta')
+                    debugMsg('placeGen', ('->', ans), ('viol', viol))
+                    wm.getWindow('W').clear()
+                yield ans, viol
     debugMsg('placeGen', 'out of values')
 
 # Our choices are (generated by graspGen):
@@ -980,3 +999,4 @@ def canSeeGenTop(args, goalConds, bState, outBindings):
     moveDelta = (0.01, 0.01, 0.01, 0.02)
     for ans in moveOut(newBS, obst, moveDelta):
         yield ans 
+
