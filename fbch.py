@@ -788,6 +788,7 @@ class Operator(object):
 
         # Figure out which variables, and therefore which functions, we need.
         necessaryFunctions = self.getNecessaryFunctions()
+        
         # Call backtracker to get bindings of unbound vars
         newBindings = btGetBindings(necessaryFunctions,
                                     pendingFluents, #goal.fluents,
@@ -937,7 +938,7 @@ class Operator(object):
             # cost.
             hh = heuristic if heuristic else lambda s: s.easyH(startState)
             hNew = hh(newGoal)
-            primOp = self.copy()
+            primOp = self.applyBindings(newBindings) # was self.copy()
             primOp.abstractionLevel = primOp.concreteAbstractionLevel
             primOpRegr = primOp.regress(goal, startState)
             if hNew == float('inf') or len(primOpRegr) == 0:
@@ -2017,7 +2018,8 @@ def writeGoalNode(f, goal):
     global dotSearchId 
     goal.planNum = dotSearchId
     dotSearchId += 1    
-    print 'Planning for goal', goal.planNum, goal
+    print 'Planning for goal', goal.planNum
+    for f in goal.fluents: print '    ', f.prettyString()
     goalNodeName =  name(goal.goalName())    
     goalLabel = name('Goal '+str(goal.planNum)+nl+goal.prettyString(False,None))
     if f:
