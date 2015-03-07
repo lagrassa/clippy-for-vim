@@ -2019,7 +2019,7 @@ def writeGoalNode(f, goal):
     goal.planNum = dotSearchId
     dotSearchId += 1    
     print 'Planning for goal', goal.planNum
-    for f in goal.fluents: print '    ', f.prettyString()
+    for fl in goal.fluents: print '    ', fl.prettyString()
     goalNodeName =  name(goal.goalName())    
     goalLabel = name('Goal '+str(goal.planNum)+nl+goal.prettyString(False,None))
     if f:

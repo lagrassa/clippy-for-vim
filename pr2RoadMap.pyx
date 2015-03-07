@@ -656,7 +656,6 @@ cdef class RoadMap:
                                   objCost, shCost, maxNodes, attached=attached)
         return exitWithAns(gen.next())
 
-    # Cached version of the call to minViolPath
     def confReachViolGen(self, targetConfs, bState, prob, initViol=noViol, avoidShadow = [],
                          objCost = objCollisionCost, shCost = shCollisionCost,
                          maxNodes = maxSearchNodes, testFn = lambda x: True, goalCostFn = lambda x: 0,
@@ -734,6 +733,8 @@ cdef tuple bsEntails(bs1, p1, avoid1, cacheValues):
     for cacheValue in cacheValues:
         (bs2, p2, avoid2, ans) = cacheValue
         (viol2, cost2, path2) = ans
+        if debug('confReachViolCache'):
+            print 'cached v=', viol2.weight() if viol2 else viol2
         if path2 and viol2 and viol2.empty():
             # when theres a "clear" path and bs2 is "bigger", then we can use it
             # if there is some collision with obstacle or shadow, then it doesn't follow.

@@ -24,6 +24,8 @@ import pr2GenAux2
 from pr2GenAux2 import *
 reload(pr2GenAux2)
 
+pickPlaceBatchSize = 5
+
 # Generators:
 #   INPUT:
 #   list of specific args such as region, object(s), variance, probability
@@ -219,7 +221,7 @@ def pickGenAux(bState, obj, confAppr, conf, placeB, graspB, hand, prob,
         #         yield ans, viol
         else:
             targetConfs = graspApproachConfGen(firstConf)
-            batchSize = 10
+            batchSize = pickPlaceBatchSize
             batch = 0
             while True:
                 # Collect the next batach of trialConfs
@@ -465,7 +467,7 @@ def placeGenAux(bState, obj, confAppr, conf, placeBs, graspB, hand, prob,
         #             debugMsg('placeGen', 'No valid placements')
         # else:
         targetConfs = placeApproachConfGen(gB)
-        batchSize = 10
+        batchSize = pickPlaceBatchSize
         batch = 0
         while True:
             # Collect the next batach of trialConfs

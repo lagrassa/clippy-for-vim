@@ -45,11 +45,11 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
 # debugOn = ['hAddBackV', 'traceGen', 'traceCRH']
 # debugOn = ['regression:inconsistent', 'traceGen', 'traceCRH']
 # debugOn = ['checkCRH']
-debugOn = ['traceGen', 'traceCRH', 'potentialRegionPoseGen', 'placeGen', 'placeInGen',
-           'confReachViol', 'confReachViolGen']
-debugOn = ['traceGen', 'traceCRH']
+debugOn = ['traceGen', 'traceCRH', 'confReachViol', 'confReachViolCache']
+#debugOn = ['traceGen', 'traceCRH']
+#debugOn = []
 pauseOn = debugOn
-pauseOn = ['confReachViolGen']
+pauseOn = ['confReachViolCache']
 if 'canPickPlaceTest' in pauseOn:
     pauseOn.remove('canPickPlaceTest')
 
