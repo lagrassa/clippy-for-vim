@@ -1259,7 +1259,7 @@ def HPNCommit(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
         writeCoda(f)
 
 def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
-        skeleton = None, verbose = True):
+        skeleton = None, verbose = False):
     f = writePreamble(hpnFileTag or fileTag)
     ps = PlanStack()
     ancestors = []
@@ -1297,7 +1297,9 @@ def executePrim(op, s, env, f = None):
     # The refinement procedure should extract whatever information is
     # necessary from belief.details and store it in the prim.
     params = op.evalPrim(s.details)
-    print 'PRIM:', op, params
+    # Print compactly unless we are debugging
+    print 'PRIM:', op.prettyString(eq = debug('prim'))
+    if debug('prim'): print '     params', params
     writePrimRefinement(f, op)
     obs = env.executePrim(op, params)
     s.updateStateEstimate(op, obs)
@@ -1529,7 +1531,8 @@ class Plan:
             print '    Initial preimage :', \
               self.steps[0][1].prettyString().replace('\\n','\n')
         for i in range(1, self.length):
-            print '    step', i, ':', self.steps[i][0].prettyString()
+            print '    step', i, ':', \
+                  self.steps[i][0].prettyString(eq = verbose)
             if verbose:
                 print '    result', i, ':', \
                   self.steps[i][1].prettyString().replace('\\n','\n')

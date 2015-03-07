@@ -57,7 +57,8 @@ class RealWorld(WorldState):
             cart = conf.robot.forwardKin(conf)
             leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
             rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
-            print 'base', conf['pr2Base'], 'left', leftPos, 'right', rightPos
+            debugMsg('path', 
+             ('base', conf['pr2Base'], 'left', leftPos, 'right', rightPos))
             for obst in objShapes:
                 if self.robotPlace.collides(obst):
                     obs ='crash'
@@ -76,7 +77,8 @@ class RealWorld(WorldState):
                 cart = conf.robot.forwardKin(conf)
                 leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
                 rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
-                print 'base', conf['pr2Base'], 'left', leftPos, 'right', rightPos
+                debugMsg('path',
+                    ('base', conf['pr2Base'], 'left', leftPos,'right',rightPos))
                 break
         wm.getWindow('World').update()
         debugMsg('executePath', 'Admire the path')
@@ -98,7 +100,7 @@ class RealWorld(WorldState):
                 'P1', 'P2', 'PCR']
             if params:
                 path = params
-                print 'path len = ', len(path)
+                debugMsg('path', 'path len = ', len(path))
                 if not path:
                     raw_input('No path!!')
                 obs = self.executePath(path)
