@@ -11,6 +11,7 @@ cdef class Thing:
     cdef public list thingFaceFrames
     cdef public Prim thingPrim
     cdef public util.Transform thingOrigin
+    cdef public str thingString
 
     cpdef np.ndarray[np.float64_t, ndim=2] bbox(self)
     cpdef str name(self)

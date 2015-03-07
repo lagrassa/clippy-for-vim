@@ -601,12 +601,12 @@ def placeInGenTop(args, goalConds, bState, outBindings,
     confAppr = None
     # Obstacles for all Reachable fluents
     reachObsts = getReachObsts(goalConds, bState)
-    if debug('placeInGen', skip=fbch.inHeuristic):
-        for _, obst in reachObsts: obst.draw('W', 'brown')
-        debugMsg('placeInGen', ('len(reachObsts) - in brown', len(reachObsts)))
     if reachObsts == None:
         debugMsg('placeInGen', 'quitting because no path')
         return
+    if debug('placeInGen', skip=fbch.inHeuristic) or debug('reachObsts', skip=fbch.inHeuristic):
+        for _, obst in reachObsts: obst.draw('W', 'brown')
+        raw_input('%d reachObsts - in brown'%len(reachObsts))
     # If we are not considering other objects, pick a pose and call placeGen
     if not considerOtherIns:
         newBS = bState.copy()           #  not necessary

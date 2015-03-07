@@ -44,6 +44,7 @@ cdef class Thing:
         self.thingEdges = None
         self.thingPrim = None
         self.thingFaceFrames = None
+        self.thingString = None
 
     cpdef str name(self):
         return self.properties.get('name', 'noName')
@@ -168,19 +169,21 @@ cdef class Thing:
     def __str__(self):
         return self.properties['name']
     def __repr__(self):
-        return 'Thing('+str(self.bbox().tolist())+','+str(self.properties)+')'
-    # def __hash__(self):
-    #     return repr(self).__hash__()
-    # def __richcmp__(self, other, int op):
-    #     if not (other and isinstance(other, Thing)):
-    #         return True if op == 3 else False
-    #     if op == 2:
-    #         ans = repr(self) == repr(other)
-    #     elif op == 3:
-    #         ans = repr(self) != repr(other)
-    #     else:
-    #         ans = False
-    #     return ans
+        if not self.thingString:
+            self.thingString = 'Thing('+str(self.bbox().tolist())+','+str(self.properties)+')'
+        return self.thingString
+    def __hash__(self):
+        return repr(self).__hash__()
+    def __richcmp__(self, other, int op):
+        if not (other and isinstance(other, Thing)):
+            return True if op == 3 else False
+        if op == 2:
+            ans = self.name() == other.name() and repr(self) == repr(other)
+        elif op == 3:
+            ans = self.name() != other.name() or repr(self) != repr(other)
+        else:
+            ans = False
+        return ans
 
 # Prim class: convex "chunk", has 3D description and we can get 2.5D
 # approx via convex hull of projection.
@@ -291,7 +294,9 @@ cdef class Prim(Thing):
         return boundingRectPrimAux(self.vertices(), self.thingOrigin, self.properties)
 
     def __repr__(self):
-        return 'Prim('+str(self.primVerts.tolist())+','+str(self.primFaces)+','+str(self.properties)+')'
+        if not self.thingString:
+            self.thingString = 'Prim('+str(self.primVerts.tolist())+','+str(self.primFaces)+','+str(self.properties)+')'
+        return self.thingString
 
 cdef class Shape(Thing):
     def __init__(self, list parts, util.Transform origin, **props):
@@ -394,7 +399,9 @@ cdef class Shape(Thing):
                if self.parts() else None
 
     def __repr__(self):
-        return 'Shape('+repr(self.parts())+','+str(self.properties)+')'
+        if not self.thingString:
+            self.thingString = 'Shape('+repr(self.parts())+','+str(self.properties)+')'
+        return self.thingString
 
 #################################
 # Object creation: Prims

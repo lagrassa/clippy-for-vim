@@ -28,7 +28,7 @@ cdef float shCollisionCost = 0.5
 cdef int maxSearchNodes = 5000
 cdef int maxExpandedNodes = 1500
 cdef float searchGreedy = 0.75
-cdef float minStep = 0.2
+cdef float minStep = 0.1
 cdef float minStepHeuristic = 0.4
 cdef float confReachViolGenBatch = 5
 
@@ -386,6 +386,18 @@ cdef class RoadMap:
                                 attached, edge.nodes, allObstacles, permanent, coll)
         return coll
 
+    def checkPath(self, path, bState, prob, viol, attached, avoidShadow=[]):
+        newViol = noViol
+        for conf in path:
+            newViol, _ = self.confViolations(conf, bState, prob,
+                                             attached=attached,
+                                             initViol=newViol,
+                                             avoidShadow=avoidShadow)
+        if newViol.weight() != viol.weight():
+            print 'viol', viol
+            print 'newViol', newViol
+            raw_input('checkPath failed')
+
     def confViolations(self, conf, bState, prob,
                        initViol=noViol,
                        avoidShadow=[], attached=None,
@@ -536,15 +548,15 @@ cdef class RoadMap:
                 (path, costs) = ans
                 if not path:
                     if debug('minViolPath'):
-                        bState.draw(prob, glob.debugWin)
+                        bState.draw(prob, 'W')
                         for tnode in targets:
                             tnode.conf.draw('W', 'red')
                     yield None, 1e10, None
                     return
                 if debug('minViolPath'):
-                    self.bState.draw(prob, glob.debugWin)
+                    bState.draw(prob, 'W')
                     for (_, p) in path:
-                        p[0].conf.draw(glob.debugWin, 'green')
+                        p[0].conf.draw('W', 'green')
                 # an entry in path is (action, (conf, violation))
                 (_, (_, finalViolation)) = path[-1] # last path entry
                 if debug('minViolPath'):
@@ -575,6 +587,8 @@ cdef class RoadMap:
                 if debug('confReachViol'):
                     drawPath(path, viol=viol,
                              attached=bState.getShadowWorld(prob).attached)
+                    self.checkPath(path, bState, prob, viol,
+                                   bState.getShadowWorld(prob).attached, avoidShadow)
                     debugMsg('confReachViol', ('->', (viol, cost, 'path len = %d'%len(path))))
             else:
                 debugMsg('confReachViol', ('->', ans))
@@ -786,3 +800,5 @@ cdef str cartChainName(str chainName):
 
 def pointDist(p1, p2):
     return sum([(a-b)**2 for (a, b) in zip(p1, p2)])**0.5
+
+

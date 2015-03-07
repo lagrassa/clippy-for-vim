@@ -31,11 +31,12 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
            'confReachViolGen', 'confReachViol', 'confReachViolCache', 'colliders:collision', 'successors',
            'canPickPlaceTest', 'canReachHome', 'confViolations']
 
-debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'traceCRH', 'hAddBackV',
+debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'traceCRH',
            'regression:fail', 'applicableOps', 'regression:inconsistent', 'easyGraspGen',
            'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'lookHandGn', 'canReachGen',
-           'pathObst', 'visible', 'checkCRH', 'potentialRegionPoseGen', 'canPickPlaceTest',
-           'confReachViolGen']
+           'visible', 'potentialRegionPoseGen',
+           'minViolPath', 'confReachViolGen', 'confReachViol', 'confReachViolCache'
+           ]
 
 # debugOn = ['confReachViolGen', 'visible', 'canReachHome', 'confReachViol', 'confReachViolCache', ]
 # debugOn = ['hAddBackV', 'traceGen']
@@ -44,8 +45,8 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
 # debugOn = ['hAddBackV', 'traceGen', 'traceCRH']
 # debugOn = ['regression:inconsistent', 'traceGen', 'traceCRH']
 # debugOn = ['checkCRH']
-debugOn = ['traceGen', 'traceCRH']
-debugOn = []
+# debugOn = ['traceGen', 'traceCRH', 'potentialRegionPoseGen', 'placeGen', 'placeInGen']
+# debugOn = []
 pauseOn = debugOn
 if 'canPickPlaceTest' in pauseOn:
     pauseOn.remove('canPickPlaceTest')

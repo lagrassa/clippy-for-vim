@@ -533,6 +533,7 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
             return pose
     clearance = 0.01
     if debug('potentialRegionPoseGen'):
+        bState.draw(prob, 'W')
         for rs in regShapes: rs.draw('W', 'purple')
     ff = placeB.faceFrames[placeB.support.mode()]
     objShadowBase = bState.objShadow(obj, True, prob, placeB, ff)
@@ -547,6 +548,8 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
     points = []                       # [(angle, xyz1)]
     count = 0
     for rs in regShapes:
+        if debug('potentialRegionPoseGen'):
+            print 'Considering region', rs.name()
         for (angle, shRot) in shRotations.items():
             bI = CI(shRot, rs.prim())
             if bI == None:
@@ -575,7 +578,10 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
                 for co in coObst:
                     if co.containsPt(point): cost += 0.5*obstCost
                 points.append((angle, point.tolist()))
-                hyps.append((count, 1./cost if cost else 1.))
+                hyp = (count, 1./cost if cost else 1.)
+                # if debug('potentialRegionPoseGen'):
+                #    print count, (angle, point.tolist()), hyp[1]
+                hyps.append(hyp)
                 count += 1
     if hyps:
         pointDist = DDist(dict(hyps))
@@ -583,16 +589,15 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
     else:
         debugMsg('potentialRegionPoseGen', 'No valid points in region')
         return
-    if debug('potentialRegionPoseGen'):
-        print pointDist
     count = 0
     for i in range(maxPoses):
-        angle, point = points[pointDist.draw()]
+        index = pointDist.draw()
+        angle, point = points[index]
         pose = genPose(rs, angle, point)
         if pose:
             count += 1
             if debug('potentialRegionPoseGen'):
-                print '->', pose
+                print '->', pose, 'prob=', pointDist.prob(index), 'max prob=', max(pointDist.d.values())
                 shRotations[angle].applyTrans(pose).draw('W', 'green')
             yield pose
     if debug('potentialRegionPoseGen'):
