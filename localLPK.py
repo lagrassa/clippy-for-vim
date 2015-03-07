@@ -33,6 +33,7 @@ hAddBack   (super verbose)
 hAddBackInf
 hAddBackV  (just values)
 heuristic (in ucSearch: positive value at goal or 0 value elsewhere)
+heuristicInversion  (prim actually achieves more than abs)
 infeasible (hierarchical subgoal)
 lookHandGen
 nextStep

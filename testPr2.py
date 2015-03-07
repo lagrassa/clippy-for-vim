@@ -787,7 +787,7 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
 def test12(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs):
     t = PlanTest('test12',  smallErrProbs,
-                 objects=['table1', # 'table2',
+                 objects=['table1', 'table2',
                           'objA', 'objB', 'objD',
                           'objE', 'objF', 'objG'])
     targetPose = (0.55, 0.25, 0.61, 0.0)
@@ -829,14 +829,13 @@ def test12(hpn = True, skeleton = False, hierarchical = False,
                        ]] if skeleton else None,
           hierarchical = hierarchical,
           # regions=['table2Top'],
-          regions=['table1Top'],
+          regions=['table1Top', 'table2Top'],
           heuristic = heuristic
           )
 
-# Not sure if this skeleton is right
 def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
     t = PlanTest('test13',  smallErrProbs,
-                 objects=['table1', 'objA', 'objB', 'objD',
+                 objects=['table1', 'table2', 'objA', 'objB', 'objD',
                           'objE', 'objF', 'objG'])
     targetPose = (0.55, 0.25, 0.61, 0.0)
     targetPoseB = (0.55, -0.2, 0.61, 0.0)
@@ -846,6 +845,9 @@ def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
     confDeltas = (0.05, 0.05, 0.05, 0.05)
 
     goalProb = 0.1
+
+    if skeleton:
+        raw_input('skeleton wrong for this problem')
 
     goal = State([\
                   Bd([SupportFace(['objA']), 4, goalProb], True),
@@ -859,7 +861,7 @@ def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
           skeleton = [['place', 'move', 'pick', 'move', 'poseAchCanReach',
                        'place', 'move', 'pick', 'move']] if skeleton else None,
           hierarchical = hierarchical,
-          regions=['table1Top'],
+          regions=['table1Top', 'table2Top'],
           heuristic = heuristic
           )
     
@@ -897,7 +899,8 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
 
 
 # Test look at hand
-def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0, heuristic=habbs):
+def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
+           heuristic=habbs):
     global moreGD
     if gd != 0: moreGD = True           # hack!
     t = PlanTest('test15', typicalErrProbs, objects=['table1', 'objA'])
@@ -999,6 +1002,7 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
+          hierarchical = hierarchical,
           regions=['table1Top']
           )
 
@@ -1286,7 +1290,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
                      'poseAchCanSee', 'lookAtHand']
     skeleton = None #[[place, move]]
 
-    HPN(s, goal3, 
+    HPN(s, goal2, 
          [t.operators[o] for o in operators],
          t.realWorld,
          hpnFileTag = t.name,

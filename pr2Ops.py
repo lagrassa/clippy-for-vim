@@ -957,11 +957,12 @@ poseAchCanReach = Operator(\
      'Occ', 'PoseFace', 'Pose', 'PoseVar', 'PoseDelta',
      'P1', 'P2', 'PR'],
 
-    {0: {Bd([CanReachHome(['CEnd', 'Hand', 
+    {0: {},
+     1: {Bd([CanReachHome(['CEnd', 'Hand', 
                    'LObj', 'LFace', 'LGraspMu', 'RealGraspVarL', 'LGraspDelta',
                    'RObj', 'RFace', 'RGraspMu', 'RealGraspVarR', 'RGraspDelta',
-                           'PreCond']),  True, 'P1'], True)},
-     1: {Bd([SupportFace(['Occ']), 'PoseFace', 'P2'], True),
+                           'PreCond']),  True, 'P1'], True),
+         Bd([SupportFace(['Occ']), 'PoseFace', 'P2'], True),
          B([Pose(['Occ', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta', 'P2'],
             True)}},
     # Result

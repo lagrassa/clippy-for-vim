@@ -933,18 +933,27 @@ class Operator(object):
                     # This is an estimate of how hard it is to
                     # establish all the preconds
                     (sp, cp) = primOpRegr[0]
+                    # Cost to get from start to one primitive step before
+                    # newGoal, plus the cost of the last step
                     hOld = heuristic(sp) + cp
+                    # Difference between that cost, and the cost of
+                    # the regression of the abstract action.  This is
+                    # an estimate of the cost of the abstract action.
                     cost = hOld - hNew
                     if cost < 0 and cost >= -0.1:
                         # This can happen for definitional operators;
                         # not really a problem.
-                        cost = 0.1
+                        cost = cp
                     if cost <= - 0.1:
                         print 'Cost < - 0.1', hOld, hNew
-                        print 'Old state'
-                        for f in sp.fluents: print heuristic(State([f])), f
-                        print 'New state'
-                        for f in newGoal.fluents: print heuristic(State([f])), f
+                        print 'Regression under prim: unsat fluents'
+                        for f in sp.fluents:
+                            if not f.valueInDetails(startState.details):
+                                print f
+                        print 'Regression under abs op: unsat fluents'
+                        for f in newGoal.fluents: 
+                            if not f.valueInDetails(startState.details):
+                                print f
                         print 'Removing from cache'
                         for f in newGoal.fluents: hCacheDel(f)
                         for f in sp.fluents: hCacheDel(f)
@@ -952,9 +961,9 @@ class Operator(object):
                         nhNew = heuristic(newGoal)
                         print 'new values', nhOld, nhNew
                         cost = nhOld - nhNew
-                        raw_input('Cost < 0')
+                        debugMsg('heursticInversion')
                         if cost <= 0: 
-                            cost = .1
+                            cost = cp
             else:
                 cost = 10
 
@@ -1581,8 +1590,8 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                                    [ps for (r, ps) in resultSet])
 
             # List of sets of result fluents
-            resultSets = [r for (r, ps) in resultSet]
-            results = list(squashSets(resultSets))
+            resultSetList = [r for (r, ps) in resultSet]
+            results = list(squashSets(resultSetList))
 
             newOp = Operator(o.name, o.args, preConds,
                              #[(r, {}) for r in results]
@@ -1784,6 +1793,7 @@ def planBackward(startState, goal, ops, ancestors = [],
 # Bind all result fluents or fail.
 # Returns a list of possible bindings (maybe empty)
 
+'''
 def getBindingsBetween(resultFs, goalFs, startState):
     if len(resultFs) == 0:
         debugMsg('gbb:detail', resultFs, [{}])
@@ -1805,7 +1815,37 @@ def getBindingsBetween(resultFs, goalFs, startState):
                     debugMsg('gbb:detail', 'appended updated newB', newB)
         debugMsg('gbb', 'handled', rf, result)
         return result
+'''    
 
+# Bind at least one result
+# Returns a list of possible bindings (maybe empty)
+
+def getBindingsBetween(resultFs, goalFs, startState):
+    if len(resultFs) == 0:
+        debugMsg('gbb:detail', resultFs, [{}])
+        return [{}]
+    else:
+        result = []
+        rf = resultFs[0]
+        debugMsg('gbb:detail', 'working on', rf)
+        restAnswer = getBindingsBetween(resultFs[1:], goalFs, startState)
+        debugMsg('gbb:detail', 'rest of answer', restAnswer)
+        for b in restAnswer:
+            matched = False
+            for gf in goalFs:
+                newB = rf.applyBindings(b).entails(gf, startState.details)
+                if newB != False:
+                    matched = True
+                    debugMsg('gbb:detail', 'entails', b, gf.applyBindings(b),
+                              ('newB', newB))
+                    newB.update(b)
+                    result.append(newB)
+                    debugMsg('gbb:detail', 'appended updated newB', newB)
+            if not matched:
+                result.append(b)
+        debugMsg('gbb', 'handled', rf, result)
+        return result
+    
 ############################################################################
 #
 # Printing utilities    
