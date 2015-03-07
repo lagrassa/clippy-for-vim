@@ -14,6 +14,7 @@ drawFailedNodes = False
 drawRebindNodes = True
 
 '''
+abstractCost
 applicableOps
 appOp:detail
 appOp:number

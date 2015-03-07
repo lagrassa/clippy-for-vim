@@ -459,7 +459,7 @@ maxHeuristicValue = 1000
 
 hAddBackEntail = False
 
-def hAddBackBSet(start, goal, operators, idk, maxK = 30,
+def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                  staticEval = lambda f: float('inf'),
                  ddPartitionFn = lambda fs: [set([f]) for f in fs]):
 
@@ -510,6 +510,7 @@ def hAddBackBSet(start, goal, operators, idk, maxK = 30,
             return hCacheLookup(fUp, idk)
         else:
             # See if we have a special purpose way of computing a value
+            # for this fluent
             hv = False
             for f in fUp:
                 hv =  f.heuristicVal(start)
@@ -527,10 +528,14 @@ def hAddBackBSet(start, goal, operators, idk, maxK = 30,
             store = False
 
             # OR loop over operators and ways of achieving them
-            ops = applicableOps(g, operators, start, monotonic = False)
+            # Need to pass in ancestors to use the appropriate level of
+            # abstraction in computing the heuristic (does this make sense?)
+            ops = applicableOps(g, operators, start, ancestors,
+                                monotonic = False)
             if len(ops) == 0:
                 debugMsg('hAddBack', 'no applicable ops', g)
             for o in ops:
+                # Uncomment to always use primitive regression
                 #o.abstractionLevel = o.concreteAbstractionLevel
                 pres = o.regress(g, start)
                 if len(pres) == 1:
@@ -614,7 +619,8 @@ def hAddBackBSet(start, goal, operators, idk, maxK = 30,
                 actSet = set()
                 for f in fUp:
                     print '    ', f.shortName()
-                raw_input('Warning: storing infinite value in hCache')
+                debugMsg('hAddBackInf',
+                         'Warning: storing infinite value in hCache')
                 addToCachesSet(fUp, totalCost, set(), idk)
             thing = hCacheLookup(fUp, idk)
             # If it's not in the cache, we bailed out before computing a good
@@ -645,14 +651,14 @@ def hAddBackBSet(start, goal, operators, idk, maxK = 30,
 
     return totalCost
 
-def hAddBackBSetID(start, goal, operators, maxK = 30,
+def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,
                    staticEval = lambda f: 500,
                    ddPartitionFn = lambda fs: [set([f]) for f in fs]):
     fbch.inHeuristic = True
     startDepth = 10
     for k in range(startDepth, maxK):
         hCacheID[k] = set()
-        vk = hAddBackBSet(start, goal, operators, k,
+        vk = hAddBackBSet(start, goal, operators, ancestors, k,
                           ddPartitionFn = ddPartitionFn)
         if vk < float('inf'):
             break

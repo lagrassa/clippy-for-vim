@@ -74,11 +74,10 @@ useRight = True
 # Test Rig
 ######################################################################
 
-def habbs(s, g, ops):
+def habbs(s, g, ops, ancestors):
     hops = ops + [hRegrasp]
-    val = hAddBackBSetID(s, g, hops, ddPartitionFn = partition,
+    val = hAddBackBSetID(s, g, hops, ancestors, ddPartitionFn = partition,
                          maxK = 20)
-    assert val != float('inf')
     return val
 
 from timeout import timeout, TimeoutError
@@ -829,7 +828,7 @@ def test12(hpn = True, skeleton = False, hierarchical = False,
                        ]] if skeleton else None,
           hierarchical = hierarchical,
           # regions=['table2Top'],
-          regions=['table1Top', 'table2Top'],
+          regions=['table2Top', 'table1Top'],
           heuristic = heuristic
           )
 

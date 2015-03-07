@@ -63,6 +63,23 @@ class State:
         self.valueCache = {}
         self.relaxedValueCache = {}
 
+    # Quick heuristic
+    def easyH(self, start, defaultFluentCost = 20):
+        # Find how many false fluents there are
+        # Charge them their heuristicVal if it's defined, else the default
+        total = 0
+        actSet = set()
+        for f in self.fluents:
+            if not f.isGround() or start.fluentValue(f) != f.value:
+                # Either False (if not defined), else a cost and a
+                # list of actions
+                hv = f.heuristicVal(start)
+                if hv != False:
+                    actSet = actSet | hv[1]
+                else:
+                    total += defaultFluentCost
+        return total + sum([o.instanceCost for o in actSet])
+
     def updateStateEstimate(self, op, obs=None):
         # Assumes that we're not progressing fluents, so just update
         # the details, which keeps distribution on objects, etc.
@@ -918,55 +935,54 @@ class Operator(object):
         else:
             # Idea is to use heuristic difference as an estimate of operator
             # cost.
-            if heuristic:
-                hNew = heuristic(newGoal)
-                primOp = self.copy()
-                primOp.abstractionLevel = primOp.concreteAbstractionLevel
-                primOpRegr = primOp.regress(goal, startState, heuristic)
-                if hNew == float('inf') or len(primOpRegr) == 0:
-                    # This is hopeless.  Give up now.
-                    debugMsg('infeasible', newGoal)
-                    cost = float('inf')
-                else:
-                    # Do one step of primitive regression on the old
-                    # state and then compute the heuristic on that.
-                    # This is an estimate of how hard it is to
-                    # establish all the preconds
-                    (sp, cp) = primOpRegr[0]
-                    # Cost to get from start to one primitive step before
-                    # newGoal, plus the cost of the last step
-                    hOld = heuristic(sp) + cp
-                    # Difference between that cost, and the cost of
-                    # the regression of the abstract action.  This is
-                    # an estimate of the cost of the abstract action.
-                    cost = hOld - hNew
-                    if cost < 0 and cost >= -0.1:
-                        # This can happen for definitional operators;
-                        # not really a problem.
-                        cost = cp
-                    if cost <= - 0.1:
-                        print 'Cost < - 0.1', hOld, hNew
-                        print 'Regression under prim: unsat fluents'
-                        for f in sp.fluents:
-                            if not f.valueInDetails(startState.details):
-                                print f
-                        print 'Regression under abs op: unsat fluents'
-                        for f in newGoal.fluents: 
-                            if not f.valueInDetails(startState.details):
-                                print f
-                        print 'Removing from cache'
-                        for f in newGoal.fluents: hCacheDel(f)
-                        for f in sp.fluents: hCacheDel(f)
-                        nhOld = heuristic(sp) + cp
-                        nhNew = heuristic(newGoal)
-                        print 'new values', nhOld, nhNew
-                        cost = nhOld - nhNew
-                        debugMsg('heursticInversion')
-                        if cost <= 0: 
-                            cost = cp
+            hh = heuristic if heuristic else lambda s: s.easyH(startState)
+            hNew = hh(newGoal)
+            primOp = self.copy()
+            primOp.abstractionLevel = primOp.concreteAbstractionLevel
+            primOpRegr = primOp.regress(goal, startState)
+            if hNew == float('inf') or len(primOpRegr) == 0:
+                # This is hopeless.  Give up now.
+                 debugMsg('infeasible', newGoal)
+                 cost = float('inf')
             else:
-                cost = 10
-
+                # Do one step of primitive regression on the old
+                # state and then compute the heuristic on that.
+                # This is an estimate of how hard it is to
+                # establish all the preconds
+                (sp, cp) = primOpRegr[0]
+                # Cost to get from start to one primitive step before
+                # newGoal, plus the cost of the last step
+                hOld = hh(sp) + cp
+                # Difference between that cost, and the cost of
+                # the regression of the abstract action.  This is
+                # an estimate of the cost of the abstract action.
+                cost = hOld - hNew
+                if cost < 0 and cost >= -0.1:
+                    # This can happen for definitional operators;
+                    # not really a problem.
+                    cost = cp
+                if cost <= - 0.1:
+                    print 'Cost < - 0.1', hOld, hNew
+                    print 'Regression under prim: unsat fluents'
+                    for f in sp.fluents:
+                        if not f.valueInDetails(startState.details):
+                           print f
+                    print 'Regression under abs op: unsat fluents'
+                    for f in newGoal.fluents: 
+                        if not f.valueInDetails(startState.details):
+                            print f
+                    for f in newGoal.fluents: hCacheDel(f)
+                    for f in sp.fluents: hCacheDel(f)
+                    nhOld = heuristic(sp) + cp
+                    nhNew = heuristic(newGoal)
+                    cost = nhOld - nhNew
+                    if cost <= 0: 
+                        debugMsg('abstractCost',
+                                 ('heurstic inverstion', nhOld, nhNew))
+                        cost = cp
+                debugMsg('abstractCost',
+                         ('with heuristic', heuristic != None),
+                         cost)
         if not inHeuristic or debugInHeuristic:
             debugMsg(tag, 'Final regression result', ('Op', self),
                      ('cost', cost),
@@ -1119,6 +1135,9 @@ def hCacheDel(f):
                 
 def hAddBack(start, goal, operators, minK = 20, maxK = 30,
              staticEval = lambda f: float("inf")):
+
+    raw_input('This version of hAddBack probably needs to have bugs fixed'+\
+              '; see the version in belief.py for details')
 
     # Return a set of actions
     def aux(fl, k):
@@ -1701,7 +1720,7 @@ def planBackward(startState, goal, ops, ancestors = [],
     goal.depth = 0
     
     if h:
-        heuristic = lambda g: h(startState, g, operators)
+        heuristic = lambda g: h(startState, g, operators, ancestors)
     else:
         heuristic = lambda g: 0
 
