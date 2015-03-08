@@ -74,10 +74,14 @@ class State:
                 # Either False (if not defined), else a cost and a
                 # list of actions
                 hv = f.heuristicVal(start)
-                if hv != False:
+                if hv == False:
+                    total += defaultFluentCost
+                elif hv[0] != float('inf'):
                     actSet = actSet | hv[1]
                 else:
-                    total += defaultFluentCost
+                    # We got troube, right here in River City
+                    total = float('inf')
+
         return total + sum([o.instanceCost for o in actSet])
 
     def updateStateEstimate(self, op, obs=None):
@@ -549,6 +553,16 @@ class Operator(object):
         self.args = args # list of vars or constants
         self.preconditions = preconditions
         self.functions = functions if functions != None else []
+
+        assert type(results) == list
+        if len(results) > 0:
+            assert type(results[0]) == tuple
+            assert type(results[0][0]) == set
+            assert type(results[0][1]) == dict
+            if results[0][0] != set():
+                # Should be a set of fluents
+                assert type(list(results[0][0])[0]) != list
+
         self.results = results
         self.f = f  # function from args and details to details
         self.cost = cost # function from abs level and args to number
@@ -768,7 +782,7 @@ class Operator(object):
                             not startState.fluentValue(p) == p.getValue())])
                 return []
 
-        results = squash([r for (r, c) in self.results])
+        results = squashSets([r for (r, c) in self.results])
 
         # Discharge conditions that are entailed by this result
         # It's an experiment to do this here, before getting all the bindings
@@ -788,7 +802,7 @@ class Operator(object):
 
         # Figure out which variables, and therefore which functions, we need.
         necessaryFunctions = self.getNecessaryFunctions()
-        
+
         # Call backtracker to get bindings of unbound vars
         newBindings = btGetBindings(necessaryFunctions,
                                     pendingFluents, #goal.fluents,
@@ -958,29 +972,8 @@ class Operator(object):
                 # the regression of the abstract action.  This is
                 # an estimate of the cost of the abstract action.
                 cost = hOld - hNew
-                if cost < 0 and cost >= -0.1:
-                    # This can happen for definitional operators;
-                    # not really a problem.
+                if cost < 0:
                     cost = cp
-                if cost <= - 0.1:
-                    print 'Cost < - 0.1', hOld, hNew
-                    print 'Regression under prim: unsat fluents'
-                    for f in sp.fluents:
-                        if not f.valueInDetails(startState.details):
-                           print f
-                    print 'Regression under abs op: unsat fluents'
-                    for f in newGoal.fluents: 
-                        if not f.valueInDetails(startState.details):
-                            print f
-                    for f in newGoal.fluents: hCacheDel(f)
-                    for f in sp.fluents: hCacheDel(f)
-                    nhOld = heuristic(sp) + cp
-                    nhNew = heuristic(newGoal)
-                    cost = nhOld - nhNew
-                    if cost <= 0: 
-                        debugMsg('abstractCost',
-                                 ('heurstic inverstion', nhOld, nhNew))
-                        cost = cp
                 debugMsg('abstractCost',
                          ('with heuristic', heuristic != None),
                          cost)
@@ -1273,8 +1266,9 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
                 parent = ps.guts()[-1]
                 writeSubgoalRefinement(f, parent, subgoal)
                 p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
-                                     skeleton = skeleton[subgoal.planNum]\
-                                     if skeleton else None)
+                                 lastOp = op,
+                                 skeleton = skeleton[subgoal.planNum]\
+                                            if skeleton else None)
                 assert p, 'Planning failed.'
                 planObj = makePlanObj(p, s)
                 planObj.printIt(verbose = verbose)
@@ -1578,7 +1572,7 @@ def hNum(start, goal, operators):
 
 # Handling all binding choices (including objects) by the rebinding mechanism. 
 def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
-                  monotonic = True):
+                  monotonic = True, lastOp = None):
 
     tag = 'applicableOps'
     result = set([])
@@ -1594,8 +1588,9 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
             debugMsg('skeleton', 'Skeleton exhausted', g.depth)
             glob.debugOn = glob.debugOn[:-1]
             return []
+    elif lastOp and g.depth == 0 and lastOp != top:
+        ops = [lastOp]
     else:
-        debugMsg('no skeleton!')
         ops = operators
 
     if g.rebind:
@@ -1606,6 +1601,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
     for o in ops:
         debugMsg('appOp:detail', 'Operator', o)
         sharedPreconds = o.preconditions
+
         resultSets = powerset(o.results, includeEmpty = False)
         for resultSet in resultSets:
             debugMsg('appOp:result', 'result set', resultSet)
@@ -1614,7 +1610,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
 
             # List of sets of result fluents
             resultSetList = [r for (r, ps) in resultSet]
-            results = list(squashSets(resultSetList))
+            results = squashSets(resultSetList)
 
             newOp = Operator(o.name, o.args, preConds,
                              #[(r, {}) for r in results]
@@ -1624,7 +1620,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                              o.ignorableArgs,
                              o.argsToPrint)
 
-            bigBindingSet = getBindingsBetween(results, list(g.fluents),
+            bigBindingSet = getBindingsBetween(list(results), list(g.fluents),
                                                startState)
             bindingSet = []
             for b in bigBindingSet:
@@ -1710,21 +1706,14 @@ def getGrounding(fluents, details):
     else:
         return None
 
-# LPK gross!
-global operators
-
 def planBackward(startState, goal, ops, ancestors = [],
-                 h = None, fileTag = None,
-                 skeleton = None):
-
-    global operators
-    operators = ops
+                 h = None, fileTag = None, skeleton = None, lastOp = None):
 
     skel = copy.copy(skeleton)
     goal.depth = 0
     
     if h:
-        heuristic = lambda g: h(startState, g, operators, ancestors)
+        heuristic = lambda g: h(startState, g, ops, ancestors)
     else:
         heuristic = lambda g: 0
 
@@ -1754,10 +1743,11 @@ def planBackward(startState, goal, ops, ancestors = [],
         if glob.monotonicFirst: 
             (p, c) = ucSearch.search(goal,
                                  lambda subgoal: testGoal(startState, subgoal),
-                                 lambda g: applicableOps(g, operators,
+                                 lambda g: applicableOps(g, ops,
                                                          startState,
                                                          ancestors, skeleton,
-                                                         monotonic = True),
+                                                         monotonic = True,
+                                                         lastOp = lastOp),
                                  lambda s, o: o.regress(s, startState, 
                                                         heuristic if h else h),
                                  heuristic = heuristic, 
@@ -1783,10 +1773,11 @@ def planBackward(startState, goal, ops, ancestors = [],
         hCacheReset() # flush heuristic values
         (p, c) = ucSearch.search(goal,
                                  lambda subgoal: testGoal(startState, subgoal),
-                                 lambda g: applicableOps(g, operators,
+                                 lambda g: applicableOps(g, ops,
                                                          startState,
                                                          ancestors, skeleton,
-                                                         monotonic = False),
+                                                         monotonic = False,
+                                                         lastOp = lastOp),
                                  lambda s, o: o.regress(s, startState,
                                                         heuristic if h else h),
                                  heuristic = heuristic, 

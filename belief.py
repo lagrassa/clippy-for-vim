@@ -616,6 +616,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
 
             assert totalCost >= 0
             if totalCost == float('inf'):
+                print 'Infinite cost goal set'
                 actSet = set()
                 for f in fUp:
                     print '    ', f.shortName()

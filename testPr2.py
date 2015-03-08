@@ -732,7 +732,7 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
                      targetPoseB, targetVar, (0.001,)*4,
                      goalProb], True)])
 
-    glob.monotonicFirst = False
+    glob.monotonicFirst = hierarchical
     glob.rebindPenalty = 200
 
     skel = [[place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
@@ -845,8 +845,40 @@ def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
 
     goalProb = 0.1
 
-    if skeleton:
+    if skeleton and not hierarchical:
         raw_input('skeleton wrong for this problem')
+
+    hskel = [[place],  #0
+             [place, poseAchCanReach, poseAchCanReach, poseAchCanReach], #1
+             [poseAchCanReach, lookAt, place], #2
+             [place], #3
+             [place, pick], #4
+             [pick], #5
+             [pick, move], #6
+             [move], #7
+             [place, pick], #8
+             [pick, poseAchCanReach, poseAchCanReach, poseAchCanReach], #9
+             [poseAchCanReach, lookAt, place], #10
+             [place], #11
+             [place, pick], #12
+             [pick], #13
+             [pick, move], #14
+             [move], #15
+             [place.applyBindings({'Obj' : 'objE'}),
+              move], #16
+             [move], #17
+             [pick.applyBindings({'Obj' : 'objA'}),   # 18
+              move,
+              place.applyBindings({'Obj' : 'objF'}), move],
+             [move], 
+             [place],
+             [move], 
+             [place.applyBindings({'Hand' : 'left', 'Obj' : 'objA'})
+              ],  # a, left
+             [pick, move],
+             [move],
+             [place, move],
+             [move]]
 
     goal = State([\
                   Bd([SupportFace(['objA']), 4, goalProb], True),
@@ -857,8 +889,7 @@ def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
           hpn = hpn,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'lookAtHand'],
-          skeleton = [['place', 'move', 'pick', 'move', 'poseAchCanReach',
-                       'place', 'move', 'pick', 'move']] if skeleton else None,
+          skeleton = hskel if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top', 'table2Top'],
           heuristic = heuristic
