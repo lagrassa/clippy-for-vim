@@ -312,9 +312,10 @@ class State:
     __repr__ = __str__
     signature = __str__
     def __eq__(self, other):
-        return self.signature() == other.signature()
+        
+        return other != None and self.signature() == other.signature()
     def __ne__(self, other):
-        return self.signature() != other.signature()
+        return other == None or self.signature() != other.signature()
     def __hash__(self):
         return self.signature().__hash__()
 
@@ -803,6 +804,17 @@ class Operator(object):
         # Figure out which variables, and therefore which functions, we need.
         necessaryFunctions = self.getNecessaryFunctions()
 
+        if not inHeuristic and False:
+            print '========== op =============='
+            print self
+            print '========== preconds =============='
+            for f in self.preconditionSet():
+                print f
+            print '========== necessary funs =============='
+            for f in necessaryFunctions:
+                print f
+            raw_input('good funs?')
+
         # Call backtracker to get bindings of unbound vars
         newBindings = btGetBindings(necessaryFunctions,
                                     pendingFluents, #goal.fluents,
@@ -955,6 +967,7 @@ class Operator(object):
             primOp = self.applyBindings(newBindings) # was self.copy()
             primOp.abstractionLevel = primOp.concreteAbstractionLevel
             primOpRegr = primOp.regress(goal, startState)
+ 
             if hNew == float('inf') or len(primOpRegr) == 0:
                 # This is hopeless.  Give up now.
                  debugMsg('infeasible', newGoal)
@@ -974,6 +987,29 @@ class Operator(object):
                 cost = hOld - hNew
                 if cost < 0:
                     cost = cp
+
+                # Store the bindings we made in this process!
+                # But keep the abstract preconditions
+                # Maybe they should be "backtrackable";  this could be
+                # risky
+                if not inHeuristic:
+                    psb = primOpRegr[0][0].bindings
+                    newOp = newGoal.operator.applyBindings(psb)
+                    newGoal.operator = newOp
+
+                    # print '========== op =============='
+                    # print self
+                    # print '========== abs bindings =============='                
+                    # print newGoal.bindings
+                    # print '========== prim state bindings ==============' 
+                    # print psb
+                    # print '========== prim operator ==============' 
+                    # print primOpRegr[0][0].operator
+                    # print '========== newly bound operator ==============' 
+                    # print newOp
+                    # # Can we merge these bindings back into newGoal.operator?
+                    # raw_input('opportunity?')
+                
                 debugMsg('abstractCost',
                          ('with heuristic', heuristic != None),
                          cost)
