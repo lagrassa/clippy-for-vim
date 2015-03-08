@@ -24,7 +24,7 @@ import pr2GenAux2
 from pr2GenAux2 import *
 reload(pr2GenAux2)
 
-pickPlaceBatchSize = 5
+pickPlaceBatchSize = 10
 
 # Generators:
 #   INPUT:
@@ -237,7 +237,7 @@ def pickGenAux(bState, obj, confAppr, conf, placeB, graspB, hand, prob,
                     else:
                         continue
                     count += 1
-                    if count == batchSize or (minCost == 0 and count > batchSize/2.): break
+                    if count == batchSize or minCost == 0: break
                 if count == 0: break
                 trialConfs.sort()
                 for _, viol, ca in trialConfs:
@@ -484,7 +484,7 @@ def placeGenAux(bState, obj, confAppr, conf, placeBs, graspB, hand, prob,
                 else:
                     continue
                 count += 1
-                if count == batchSize or (minCost == 0 and count > batchSize/2.): break
+                if count == batchSize or minCost == 0: break
             if count == 0: break
             trialConfs.sort()
             for _, viol, ca in trialConfs:
