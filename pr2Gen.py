@@ -525,6 +525,8 @@ def graspGen(bState, obj, graspB, placeB=None, conf=None, hand=None, prob=None):
 # Note that this is smaller than the variable in pr2Ops
 maxGraspVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2)
 
+placeInGenCache = {}
+
 # returns values for (?pose, ?poseFace, ?graspPose, ?graspFace, ?graspvar, ?conf, ?confAppr)
 def placeInGen(args, goalConds, bState, outBindings,
                considerOtherIns = False, regrasp = False, away=False):
@@ -571,7 +573,7 @@ def placeInGen(args, goalConds, bState, outBindings,
         return
 
     # !! Needs to consider uncertainty in region -- but how?
-    
+
     shWorld = bState.pbs.getShadowWorld(prob)
     regShapes = [shWorld.regionShapes[region] for region in regions]
     if debug('placeInGen'):
@@ -630,6 +632,27 @@ def placeInGenTop(args, goalConds, bState, outBindings,
         raw_input('%d reachObsts - in brown'%len(reachObsts))
     # If we are not considering other objects, pick a pose and call placeGen
     if not considerOtherIns:
+
+        key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away)
+        if key in placeInGenCache:
+            ff = placeB.faceFrames[placeB.support.mode()]
+            objShadow = bState.objShadow(obj, True, prob, placeB, ff)
+            for ans in placeInGenCache[key]:
+                ((pB, gB, cf, ca), viol) = ans
+                pose = pB.poseD.mode() if pB else None
+                grasp = gB.grasp.mode() if gB else None
+                sh = objShadow.applyTrans(pose)
+                if all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
+                    viol2 = canPickPlaceTest(bState, ca, cf, hand, gB, pB, prob)
+                    if viol2 and viol2.weight() <= viol.weight():
+                        if debug('traceGen'):
+                            print 'reusing placeInGen'
+                            print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
+                                  viol2.weight() if viol2 else None, grasp, pose
+                        yield ans[0], viol2
+        else:
+            placeInGenCache[key] = []
+        
         newBS = bState.copy()           #  not necessary
         # Shadow (at origin) for object to be placed.
         pB = placeB.modifyPoseD(var=maxPlaceVar)
@@ -643,6 +666,7 @@ def placeInGenTop(args, goalConds, bState, outBindings,
                 grasp = gB.grasp.mode() if gB else None
                 print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
                       v.weight() if v else None, grasp, pose
+            placeInGenCache[key].append((ans, v))
             yield ans,v
     else:
         assert False           # !! not ready for this

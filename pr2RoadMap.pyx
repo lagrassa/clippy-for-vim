@@ -386,17 +386,15 @@ cdef class RoadMap:
                                 attached, edge.nodes, allObstacles, permanent, coll)
         return coll
 
-    def checkPath(self, path, bState, prob, viol, attached, avoidShadow=[]):
+    def checkPath(self, path, bState, prob, attached, avoidShadow=[]):
         newViol = noViol
         for conf in path:
             newViol, _ = self.confViolations(conf, bState, prob,
                                              attached=attached,
                                              initViol=newViol,
                                              avoidShadow=avoidShadow)
-        if newViol.weight() != viol.weight():
-            print 'viol', viol
-            print 'newViol', newViol
-            raw_input('checkPath failed')
+            if newViol is None: return None
+        return newViol
 
     def confViolations(self, conf, bState, prob,
                        initViol=noViol,
@@ -469,7 +467,7 @@ cdef class RoadMap:
                 for (_, n) in nearNodes:
                     n.conf.draw('W', color)
                 print [c for (c,_) in nearNodes]
-                raw_input('successors')
+                debugMsg('successors', 'Go?')
 
             if debug('successors'):
                 print v, '->'
@@ -587,8 +585,12 @@ cdef class RoadMap:
                 if debug('confReachViol'):
                     drawPath(path, viol=viol,
                              attached=bState.getShadowWorld(prob).attached)
-                    self.checkPath(path, bState, prob, viol,
-                                   bState.getShadowWorld(prob).attached, avoidShadow)
+                    newViol =self.checkPath(path, bState, prob, 
+                                            bState.getShadowWorld(prob).attached, avoidShadow)
+                    if newViol.weight() != viol.weight():
+                        print 'viol', viol.weight(), viol
+                        print 'newViol', newViol.weight(), newViol
+                        raw_input('checkPath failed')
                     debugMsg('confReachViol', ('->', (viol, cost, 'path len = %d'%len(path))))
             else:
                 debugMsg('confReachViol', ('->', ans))
@@ -616,13 +618,27 @@ cdef class RoadMap:
         self.confReachCacheTotal += 1
         if key in self.confReachCache:
             if debug('confReachViolCache'): print 'confReachCache tentative hit'
-            cacheValue = self.confReachCache[key]
-            ans = bsEntails(bState, prob, avoidShadow, cacheValue)
+            cacheValues = self.confReachCache[key]
+            ans = bsEntails(bState, prob, avoidShadow, cacheValues)
             if ans != None:
+                if debug('traceCRH'): print 'actual cache hit'
                 if debug('confReachViolCache'):
-                    raw_input('confReachCache actual hit')
+                    debugMsg('confReachViolCache', 'confReachCache actual hit')
                     print '    returning', ans
                 return ans   # actual answer
+            else:
+                for cacheValue in cacheValues:
+                    (bs2, p2, avoid2, ans) = cacheValue
+                    (viol2, cost2, path2) = ans
+                    if viol2:
+                        newViol = self.checkPath(path2, bState, prob,
+                                                 bState.getShadowWorld(prob).attached, avoidShadow)
+                        if newViol and newViol.obstacles==viol2.obstacles and newViol.shadows==viol2.shadows:
+                            if debug('traceCRH'): print 'reusing path'
+                            if debug('confReachViolCache'):
+                                debugMsg('confReachViolCache', 'confReachCache reusing path')
+                                print '    returning', ans
+                            return ans
         else:
             self.confReachCache[key] = []
             if debug('confReachViolCache'): print 'confReachCache miss'
@@ -634,22 +650,26 @@ cdef class RoadMap:
             initConf.draw('W', 'blue', attached=attached)
             targetConf.draw('W', 'pink', attached=attached)
             print 'startConf is blue; targetConf is pink'
-            raw_input('confReachViol - Go?')
+            debugMsg('confReachViol', 'Go?')
 
         cv = self.confViolations(targetConf, bState, prob,
                                  avoidShadow=avoidShadow, attached=attached)[0]
         cv = self.confViolations(initConf, bState, prob, initViol=cv,
                                  avoidShadow=avoidShadow, attached=attached)[0]
         if cv is None:
+            if debug('traceCRH'): print 'unreachable conf'
             if debug('confReachViol'):
                 print 'targetConf is unreachable'
             return exitWithAns((None, None, None))
         cvi = initViol.combine(cv.obstacles, cv.shadows)
         if initConf == targetConf:
+            if debug('traceCRH'): print 'init=target'
             return exitWithAns((cvi, 0, [targetConf]))
         if fbch.inHeuristic:
+            if debug('traceCRH'): print 'heuristic path'
             ans = cvi, objCost*len(cvi.obstacles)+shCost*len(cvi.shadows), [initConf, targetConf]
             return exitWithAns(ans)
+        if debug('traceCRH'): print 'find path'
         node = self.addNode(targetConf)
         gen = self.minViolPathGen([node], bState, prob, avoidShadow,
                                   startConf, initViol,
@@ -694,7 +714,7 @@ cdef class RoadMap:
                 for trialConf in trialConfs:
                     trialConf.draw('W', 'pink', attached=attached)
                 print 'startConf is blue; targetConfs are pink'
-                raw_input('confReachViolGen - Go?')
+                debugMsg('confReachViolGen', 'Go?')
             
             # keep track of the original conf for the nodes
             nodeConf = dict([(self.addNode(tc), tc) for tc in trialConfs])
@@ -713,8 +733,12 @@ cdef class RoadMap:
                     if debug('confReachViolGen') and not fbch.inHeuristic:
                         drawPath(pathOrig, viol=viol,
                                  attached=bState.getShadowWorld(prob).attached)
-                        self.checkPath(path, bState, prob, viol,
-                                       bState.getShadowWorld(prob).attached, avoidShadow)
+                        newViol = self.checkPath(path, bState, prob, 
+                                                 bState.getShadowWorld(prob).attached, avoidShadow)
+                        if newViol.weight() != viol.weight():
+                            print 'viol', viol
+                            print 'newViol', newViol
+                            raw_input('checkPath failed')
                         debugMsg('confReachViolGen', ('->', (viol, cost, 'path len = %d'%len(pathOrig))))
                     yield (viol, cost, pathOrig)
                 else:
@@ -776,7 +800,7 @@ cdef bool bsBigger(bs1, bs2):
                 print 'grasp1 is not bigger than grasp2'
                 print '    grasp1', grasp1
                 print '    grasp2', grasp2
-                raw_input('Go?')
+                debugMsg('confReachViolCache', 'Go?')
             return False
     if debug('confReachViolCache'): 'bsBigger = True'
     return True
