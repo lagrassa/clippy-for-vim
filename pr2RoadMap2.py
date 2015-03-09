@@ -26,7 +26,7 @@ objCollisionCost = 2.0
 shCollisionCost = 0.5
 maxSearchNodes = 5000
 maxExpandedNodes = 1500
-kNearestNodes = 10
+kNearestNodes = 4
 searchGreedy = 0.75                     # slightly greedy
 minStep = 0.2                           # !! maybe 0.1 is better
 minStepHeuristic = 0.4
@@ -627,8 +627,8 @@ class RoadMap:
                 debugMsg('confReachViol', ('->', ans))
                 return (None, None, None)
             
-        if fbch.inHeuristic:
-            prob = 0.99*prob             # make slightly easier
+        # if fbch.inHeuristic:
+        #     prob = 0.99*prob             # make slightly easier
         if attached == None:
             attached = bState.getShadowWorld(prob).attached
         # key = (targetConf, startConf, prob, bState, tuple(avoidShadow), initViol),
@@ -652,7 +652,7 @@ class RoadMap:
             cacheValues = self.confReachCache[key]
             ans = bsEntails(bState, prob, avoidShadow, cacheValues)
             if ans != None:
-                if debug('traceCRH'): print 'actual cache hit'
+                if debug('traceCRH'): print '    actual cache hit',
                 if debug('confReachViolCache'):
                     debugMsg('confReachViolCache', 'confReachCache actual hit')
                     print '    returning', ans
@@ -715,8 +715,8 @@ class RoadMap:
                          objCost = objCollisionCost, shCost = shCollisionCost,
                          maxNodes = maxSearchNodes, testFn = lambda x: True, goalCostFn = lambda x: 0,
                          startConf = None, attached = None, draw=False):
-        if fbch.inHeuristic:
-            prob = 0.99*prob             # make slightly easier
+        # if fbch.inHeuristic:
+        #     prob = 0.99*prob             # make slightly easier
         if attached == None:
             attached = bState.getShadowWorld(prob).attached
         initConf = startConf or self.homeConf

@@ -62,7 +62,7 @@ def Sh(*args, **prop): return shapes.Shape(list(args), Ident, **prop)
 dx = glob.baseGrowthX; dy = glob.baseGrowthY
 
 heuristicShapes = ['pr2Base', 'pr2RightGripper', 'pr2LeftGripper']
-heuristicShapes = None
+# heuristicShapes = None
 
 # Small base and torso
 pr2BaseLink = Sh(\

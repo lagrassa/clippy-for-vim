@@ -73,7 +73,7 @@ class BeliefContext:
         self.pathObstCache = {}
         # Initialize generator caches
         self.genCaches = {}
-        for gen in ['pickGen', 'placeGen', 'placeInGen', 'lookGen', 'clearGen']:
+        for gen in ['pickGen', 'placeGen', 'placeInGen', 'lookGen', 'clearGen', 'getShadowWorld']:
             self.genCaches[gen] = {}
     def __repr__(self):
         return "Belief(%s)"%(str(self.world))
@@ -289,7 +289,16 @@ cdef class PBS:
         if self.shadowWorld and self.shadowProb == prob \
            and self.heuristic == inHeuristic \
            and set(avoidShadow) == set(self.avoidShadow):
+            # print 'same shadowWorld'
             return self.shadowWorld
+        else:
+            cache = self.beliefContext.genCaches['getShadowWorld']
+            key = (self.items(), inHeuristic)
+            if key in cache:
+                (self.shadowWorld, self.heuristic, self.avoidShadow) = cache[key]
+                # print 'cached shadowWorld'
+                return self.shadowWorld
+        # print 'new shadowWorld'
         # The world holds objects, but not poses or shapes
         w = self.getWorld().copy()
         # the shadow world is a WorldState.  Cache it.
@@ -353,6 +362,7 @@ cdef class PBS:
                     raw_input('Attach?')
                 sw.held[hand] = heldObj
         sw.setRobotConf(self.conf)
+        cache[key] = (sw, inHeuristic, avoidShadow)
         return sw
 
     # Shadow over POSE variation.  Should only do finite number of poseVar/poseDelta values.

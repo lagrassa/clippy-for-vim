@@ -605,36 +605,49 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, han
         debugMsg('potentialRegionPoseGen', 'No valid points in region')
         return
     count = 0
-    costHistory = []
-    poseHistory = []
-    historySize = 5
-    tries = 0
-    while count < maxPoses or tries > maxTries:
-        tries += 1
-        index = pointDist.draw()
-        angle, point = points[index]
-        p = genPose(rs, angle, point)
-        if not p: continue
-        cost = poseViolationWeight(p)
-        if cost is None: continue
-        if len(costHistory) < historySize:
-            costHistory.append(cost)
-            poseHistory.append(p)
-            continue
-        elif cost > min(costHistory):
-            minIndex = costHistory.index(min(costHistory))
-            pose = poseHistory[minIndex]
-            if debug('potentialRegionPoseGen'): print 'pose cost', costHistory[minIndex]
-            costHistory[minIndex] = cost
-            poseHistory[minIndex] = p
-        else:                           # cost <= min(costHistory)
-            pose = p
-            if debug('potentialRegionPoseGen'): print 'pose cost', cost
-        count += 1
-        if debug('potentialRegionPoseGen'):
-            print '->', pose, 'prob=', pointDist.prob(index), 'max prob=', max(pointDist.d.values())
-            shRotations[angle].applyTrans(pose).draw('W', 'green')
-        yield pose
+    if False: # fbch.inHeuristic:
+        while count < maxPoses or tries > maxTries:
+            tries += 1
+            index = pointDist.draw()
+            angle, point = points[index]
+            pose = genPose(rs, angle, point)
+            if not pose: continue
+            count += 1
+            if debug('potentialRegionPoseGen'):
+                print '->', pose, 'prob=', pointDist.prob(index), 'max prob=', max(pointDist.d.values())
+                shRotations[angle].applyTrans(pose).draw('W', 'green')
+            yield pose
+    else:
+        costHistory = []
+        poseHistory = []
+        historySize = 5
+        tries = 0
+        while count < maxPoses or tries > maxTries:
+            tries += 1
+            index = pointDist.draw()
+            angle, point = points[index]
+            p = genPose(rs, angle, point)
+            if not p: continue
+            cost = poseViolationWeight(p)
+            if cost is None: continue
+            if len(costHistory) < historySize:
+                costHistory.append(cost)
+                poseHistory.append(p)
+                continue
+            elif cost > min(costHistory):
+                minIndex = costHistory.index(min(costHistory))
+                pose = poseHistory[minIndex]
+                if debug('potentialRegionPoseGen'): print 'pose cost', costHistory[minIndex]
+                costHistory[minIndex] = cost
+                poseHistory[minIndex] = p
+            else:                           # cost <= min(costHistory)
+                pose = p
+                if debug('potentialRegionPoseGen'): print 'pose cost', cost
+            count += 1
+            if debug('potentialRegionPoseGen'):
+                print '->', pose, 'prob=', pointDist.prob(index), 'max prob=', max(pointDist.d.values())
+                shRotations[angle].applyTrans(pose).draw('W', 'green')
+            yield pose
     if debug('potentialRegionPoseGen'):
         print 'Returned', count, 'for regions', [r.name() for r in regShapes]
     return
