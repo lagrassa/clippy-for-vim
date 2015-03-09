@@ -29,7 +29,8 @@ pickPlaceBatchSize = 10
 # Generators:
 #   INPUT:
 #   list of specific args such as region, object(s), variance, probability
-#   conditions from the goal state, e.g. Pose, Conf, Grasp, Reachable, In, are constraints
+#   conditions from the goal state, e.g. Pose, Conf, Grasp, Reachable, In,
+#   are constraints
 #   initial state
 #   some pre-bindings of output variables.
 #   OUTPUT:
@@ -915,6 +916,7 @@ def canReachGen(args, goalConds, bState, outBindings):
         yield ans
     debugMsg('canReachGen', 'exhausted')
 
+    
 
 def canReachGenTop(args, goalConds, bState, outBindings):
     (conf, hand, graspB1, graspB2, cond, prob, lookVar) = args
@@ -976,6 +978,91 @@ def canReachGenTop(args, goalConds, bState, outBindings):
         if obst not in newBS.fixObjBs:
             for ans in moveOut(newBS, obst, moveDelta):
                 yield ans
+
+# LPK!! Organize this better and share bottom part of code with canReachGen
+def canPickPlaceGen(args, goalConds, bState, outBindings):
+    (preconf, ppconf, hand,
+     obj, pose, realPoseVar, poseDelta, poseFace,
+     graspFace, graspMu, graspVar, graspDelta, oobj, oface, oGraspMu, oGraspVar,
+     oGraspDelta, preCond, postCond, occ, occPose, occPoseFace, occPoseVar,
+     occPoseDelta, p, cond) = args
+
+    def moveOut(newBS, obst, delta):
+        if debug('traceGen') or debug('canReachGen'):
+            print '    canReachGen() obst:', obst
+        if not isinstance(obst, str):
+            obst = obst.name()
+        for ans in placeInGenAway((obst, delta, prob), goalConds, newBS, None):
+            (pose, poseFace, _, _, gV, _, _) = ans
+            yield (obst, pose, poseFace, gV, delta)
+
+    debugMsg('canPickPlaceGen', args)
+    if debug('traceGen') or debug('canPickPlaceGen'):
+        print 'canPickPlaceGen() h=', fbch.inHeuristic
+
+    world = bState.pbs.getWorld()
+    lookVar = bState.domainProbs.obsVarTuple
+
+    graspB1 = ObjGraspB(obj, world.getGraspDesc(obj), face,
+                 PoseD(graspMu, graspVar), delta= graspDelta)
+    graspB2 = ObjGraspB(oobj, world.getGraspDesc(oobj), oface,
+                 PoseD(oGraspMu, oGraspVar), delta= oGraspDelta) \
+                 if oobj != 'none' else None
+    placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
+                         PoseD(pose, realPoseVar), delta=poseDelta)
+    newBS = bState.copy()   
+    newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
+    newBS = newBS.updateFromGoalPoses(cond) if cond else newBS
+    # Build the other hand's info into the bState
+    newBS.updateHeldBel(graspB2, otherHand(hand))
+
+    viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
+                             graspB1, placeB, p)
+    
+    if not viol:                  # hopeless
+        return
+    if viol.empty():
+        debugMsg('canPickPlaceGen', 'No obstacles or shadows; returning')
+        return
+    
+    # This delta can actually be quite large; we aren't trying to
+    # "find" this object in a specific position; mostly want to reduce
+    # the variance.
+    lookDelta = (0.01, 0.01, 0.01, 0.05)
+    moveDelta = (0.01, 0.01, 0.01, 0.02)
+    # Try to fix one of the violations if any...
+    if viol.obstacles:
+        obsts = [o.name() for o in viol.obstacles \
+                 if o.name() not in newBS.fixObjBs]
+        if not obsts: return       # nothing available
+        # !! How carefully placed this object needs to be
+        for ans in moveOut(newBS, obsts[0], moveDelta):
+            yield ans 
+    else:
+        obst = objectName(list(viol.shadows)[0])
+        placeB = newBS.getPlaceB(obst)
+        # !! It could be that sensing is not good enough to reduce the
+        # shadow so that we can actually reach conf.
+        newBS2 = newBS.copy()
+        placeB2 = placeB.modifyPoseD(var = lookVar)
+        placeB2.delta = lookDelta
+        newBS2.updatePermObjPose(placeB2)
+        path2, viol2 = canReachHome(newBS2, conf, prob, Violations())
+        if path2 and viol2:
+            if debug('canPickPlaceGen', skip=fbch.inHeuristic):
+                drawObjAndShadow(newBS2, placeB2, prob, 'W', color='red')
+                debugMsg('canPickPlaceGen',
+                         'Trying to reduce shadow (on W in red) %s'%obst)
+            if debug('traceGen'):
+                print '    canPickPlaceGen() shadow:', obst
+            yield (obst, placeB.poseD.mode().xyztTuple(), placeB.support.mode(),
+                   lookVar, lookDelta)
+        # Either reducing the shadow is not enough or we failed and
+        # need to move the object (if it's movable).
+        if obst not in newBS.fixObjBs:
+            for ans in moveOut(newBS, obst, moveDelta):
+                yield ans
+
 
 # returns
 # ['Occ', 'PoseFace', 'Pose', 'PoseVar', 'PoseDelta']

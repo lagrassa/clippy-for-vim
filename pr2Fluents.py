@@ -4,6 +4,7 @@ import numpy as np
 from pr2Util import PoseD, defaultPoseD, NextColor, shadowName, Violations, drawPath
 from dist import DeltaDist
 from planGlobals import debugMsg, debugDraw, debug, pause
+import planGlobals as glob
 from miscUtil import isGround, isVar, prettyString, applyBindings
 import fbch
 from fbch import Fluent, getMatchingFluents, Operator
@@ -198,6 +199,110 @@ class CanReachHome(Fluent):
                   prettyString([conf, lobj, robj, 'Conds'], eq)
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
+
+zeroPose = zeroVar = (0.0,)*4
+tinyDelta = (1e-8,)*4
+awayPose = (100.0, 100.0, 0.0, 0.0)
+
+# Check all three reachability conditions together.  For now, try to
+# piggy-back on existing code.  Can probably optimize later.
+class CanPickPlace(Fluent):
+    predicate = 'CanPickPlace'
+    implicit = True
+    conditional = True
+
+    def getConds(self):
+        # Will recompute if new bindings are applied because the result
+        # won't have this attribute
+        (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
+          graspFace, graspMu, graspVar, graspDelta,
+         oObj, oFace, oGraspMu, oGraspVar, oGraspDelta, inconds) = self.args
+        if not hasattr(self, 'conds'):
+            objInPlace = B([Pose([obj, poseFace]), pose, poseVar, poseDelta,
+                            1.0], True)
+            objInPlaceZeroVar = B([Pose([obj, poseFace]), pose, zeroVar,
+                                   tinyDelta,1.0], True)
+            self.conds = \
+          [# 1.  Home to approach, holding nothing, obj in place
+              CanReachHome([preConf, hand,
+                        'none', 0, zeroPose, zeroVar, tinyDelta,
+                        oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
+                      [objInPlace]]),
+              # 2.  Home to approach with object in hand
+              CanReachHome([preConf, hand, obj,
+                                graspFace, graspMu, graspVar, graspDelta,
+                                oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
+                                []]),
+              # 3.  Home to pick with hand empty, obj in place with zero var
+              CanReachHome([ppConf, hand, 
+                               'none', 0, zeroPose, zeroVar, tinyDelta,
+                                oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
+                       [objInPlaceZeroVar]]),
+             # 4. Home to pick with the object in hand with zero var and delta
+              CanReachHome([ppConf, hand,
+                                obj, graspFace, graspMu, zeroVar, tinyDelta,
+                                oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
+                        []])]
+        for c in self.conds: c.addConditions(inconds)
+        return self.conds
+
+    def getViols(self, bState, v, p, strict = True):
+        def violCombo(v1, v2):
+            return Violations(v1.obstacles.union(v2.obstacles),
+                              v1.shadows.union(v2.shadows))
+
+        condViols = [c.getViols(bState, v, p, strict) for c in self.getConds()]
+        pathNone = any([p == None for (p, v) in condViols])
+        if pathNone:
+            return (None, None)
+        allViols = [v for (p, v) in condViols]
+        violations = reduce(violCombo, allViols)
+        return True, violations
+
+    def bTest(self, bState, v, p):
+        path, violations = self.getViols(bState, v, p, strict = True)
+        return bool(path and violations.empty())
+
+    def heuristicVal(self, bState, v, p):
+        # Return cost estimate and a set of dummy operations
+        obstCost = 40
+        shadowCost = 20
+        path, violations = self.getViols(bState.details, v, p, strict = False)
+        if path == None:
+            #!! should this happen?
+            print 'hv infinite'
+            glob.debugOn.append('confViolations')
+            bState.details.pbs.getRoadMap().confReachCache = {}
+            self.getViols(bState.details, v, p, strict = False)
+            glob.debugOn.pop(-1)
+            raw_input('should this happen?')
+            return float('inf'), {}
+        obstacles = violations.obstacles
+        shadows = violations.shadows
+        obstOps = [Operator('RemoveObst', [o.name()],{},[]) for o in obstacles]
+        for o in obstOps: o.instanceCost = obstCost
+        shadowOps = [Operator('RemoveShadow', [o.name()],{},[]) \
+                     for o in shadows]
+        for o in shadowOps: o.instanceCost = shadowCost
+        ops = set(obstOps + shadowOps)
+        return (obstCost * len(obstacles) + shadowCost * len(shadows), ops)
+
+    def prettyString(self, eq = True, includeValue = True):
+        (preConf, ppConf, hand, lobj, pose, poseVar, poseDelta, poseFace,
+          lface, lgraspMu, lgraspVar, lgraspDelta,
+          robj, rface, rgraspMu, rgraspVar, rgraspDelta, conds) = self.args
+
+        if hand == 'right':
+            (lobj, lface, lgraspMu, lgraspVar, lgraspDelta, \
+             robj, rface, rgraspMu, rgraspVar, rgraspDelta) =  \
+            (robj, rface, rgraspMu, rgraspVar, rgraspDelta, \
+             lobj, lface, lgraspMu, lgraspVar, lgraspDelta)
+
+        argStr = prettyString(self.args) if eq else \
+                  prettyString([lobj, hand, pose, 'Conds'], eq)
+        valueStr = ' = ' + prettyString(self.value) if includeValue else ''
+        return self.predicate + ' ' + argStr + valueStr
+
         
 class Holding(Fluent):
     predicate = 'Holding'

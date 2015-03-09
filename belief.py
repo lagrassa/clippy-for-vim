@@ -365,7 +365,9 @@ fbch.hCacheDel = hCacheDel
 
 # Can cause non-zero heuristic at goal state, because it is trying to
 # achieve a rounded-up value
-heuristicPrecision = 100.0
+heuristicPrecision = 1000.0
+
+# Consider applying this to stdev, not variance
 
 def canonicalizeUp(f, prec = heuristicPrecision):
     newF = f.copy()
