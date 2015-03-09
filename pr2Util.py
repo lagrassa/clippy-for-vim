@@ -143,6 +143,9 @@ class Violations(Hashable):
     def combine(self, obstacles, shadows):
         return Violations(frozenset(self.obstacles.union(obstacles)),
                           frozenset(self.shadows.union(shadows)))
+    def union(self, viol):
+        return Violations(frozenset(self.obstacles.union(viol.obstacles)),
+                          frozenset(self.shadows.union(viol.shadows)))
     def weight(self):
         return len(self.obstacles) + 0.5*len(self.shadows)+self.penalty
     def LEQ(self, other):

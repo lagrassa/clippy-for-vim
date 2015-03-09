@@ -167,11 +167,11 @@ cdef class Thing:
         win.getWindow(window).draw(self, color, opacity)
         
     def __str__(self):
-        return self.properties['name']
-    def __repr__(self):
         if not self.thingString:
-            self.thingString = 'Thing('+str(self.bbox().tolist())+','+str(self.properties)+')'
-        return self.thingString
+            self.thingString = self.properties['name']+':'+str(self.bbox().tolist())
+        else:
+            return self.thingString
+    __repr__ = __str__
     def __hash__(self):
         return repr(self).__hash__()
     def __richcmp__(self, other, int op):
@@ -293,10 +293,10 @@ cdef class Prim(Thing):
     cpdef Prim boundingRectPrim(self):
         return boundingRectPrimAux(self.vertices(), self.thingOrigin, self.properties)
 
-    def __repr__(self):
-        if not self.thingString:
-            self.thingString = 'Prim('+str(self.primVerts.tolist())+','+str(self.primFaces)+','+str(self.properties)+')'
-        return self.thingString
+    # def __repr__(self):
+    #     if not self.thingString:
+    #         self.thingString = 'Prim('+str(self.primVerts.tolist())+','+str(self.primFaces)+','+str(self.properties)+')'
+    #     return self.thingString
 
 cdef class Shape(Thing):
     def __init__(self, list parts, util.Transform origin, **props):
@@ -398,10 +398,10 @@ cdef class Shape(Thing):
         return boundingRectPrimAux(self.vertices(), self.thingOrigin, self.properties) \
                if self.parts() else None
 
-    def __repr__(self):
-        if not self.thingString:
-            self.thingString = 'Shape('+repr(self.parts())+','+str(self.properties)+')'
-        return self.thingString
+    # def __repr__(self):
+    #     if not self.thingString:
+    #         self.thingString = 'Shape('+repr(self.parts())+','+str(self.properties)+')'
+    #     return self.thingString
 
 #################################
 # Object creation: Prims

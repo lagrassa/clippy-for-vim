@@ -36,9 +36,9 @@ reload(pr2Robot)
 from pr2Robot import makePr2Chains, PR2, JointConf, CartConf, pr2Init, \
      gripperTip
 
-import pr2RoadMap
-reload(pr2RoadMap)
-from pr2RoadMap import RoadMap
+import pr2RoadMap2
+reload(pr2RoadMap2)
+from pr2RoadMap2 import RoadMap
 
 import pr2Fluents
 reload(pr2Fluents)
@@ -83,7 +83,7 @@ def habbs(s, g, ops, ancestors):
 from timeout import timeout, TimeoutError
 
 # 5 min timeout for all tests
-@timeout(300)
+@timeout(600)
 def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=False):
     eval('test%d(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical)'%n)
 
@@ -899,8 +899,6 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
     # Move A so we can look at B
     # Example isn't really constructed right
 
-    return None                         # so it doesn't mess up testAll
-    
     p1 = util.Pose(0.4, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.8, 0.0, 0.61, 0.0)
     t = PlanTest('test14', smallErrProbs,

@@ -21,5 +21,5 @@ cdef class RoadMap:
      cpdef cartLineSteps(self, node_f, node_i, minLength)
      cpdef robotSelfCollide(self, shape)
      cpdef heldSelfCollide(self, shape)
-     cpdef colliders(self, node_f, node_i, bState, prob, avoidShadow=*, attached=*)
+     cpdef colliders(self, node_f, node_i, bState, prob, viol, avoidShadow=*, attached=*)
      

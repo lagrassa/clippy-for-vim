@@ -68,4 +68,5 @@ target/
 local.py
 *.html
 prof
+*.txt
 

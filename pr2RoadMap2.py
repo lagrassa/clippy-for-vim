@@ -1,4 +1,3 @@
-from cpython cimport bool
 import math
 import random
 import copy
@@ -23,18 +22,18 @@ from planGlobals import debugMsg, debug, debugDraw
 
 from pr2Util import Violations, NextColor, drawPath, NextColor
 
-cdef float objCollisionCost = 2.0
-cdef float shCollisionCost = 0.5
-cdef int maxSearchNodes = 5000
-cdef int maxExpandedNodes = 1500
-kNearestNodes = 10                      # 10 seems to fail too often
-cdef float searchGreedy = 0.75          # slightly greedy
-cdef float minStep = 0.2                # !! maybe 0.1 is better
-cdef float minStepHeuristic = 0.4
-cdef float confReachViolGenBatch = 10
+objCollisionCost = 2.0
+shCollisionCost = 0.5
+maxSearchNodes = 5000
+maxExpandedNodes = 1500
+kNearestNodes = 10
+searchGreedy = 0.75                     # slightly greedy
+minStep = 0.2                           # !! maybe 0.1 is better
+minStepHeuristic = 0.4
+confReachViolGenBatch = 10
 
-cdef int node_idnum = 0
-cdef class Node:
+node_idnum = 0
+class Node:
     def __init__(self, conf, cartConf, point):
         global node_idnum
         self.id = node_idnum; node_idnum += 1
@@ -46,8 +45,8 @@ cdef class Node:
     def __hash__(self):
         return hash(tuple(self.point))
 
-cdef int edge_idnum = 0
-cdef class Edge:
+edge_idnum = 0
+class Edge:
     def __init__(self, n1, n2):
         global edge_idnum
         self.id = edge_idnum; edge_idnum += 1
@@ -64,12 +63,12 @@ cdef class Edge:
         return self.id
  
 noViol = Violations()
-cdef dict stats = {'newRob':0, 'newHeld':0, 'oldRob':0, 'oldHeld':0,
-                   'newTest':0, 'oldTest':0}
+stats = {'newRob':0, 'newHeld':0, 'oldRob':0, 'oldHeld':0,
+         'newTest':0, 'oldTest':0}
 
 # The Tree is rooted at the home location.  The moveChains indicate
 # which parts of the robot are moving.  
-cdef class RoadMap:
+class RoadMap:
     def __init__(self, homeConf, world,
                  cartesian = True,        # type of interpolation
                  kdLeafSize = 20,
@@ -109,15 +108,14 @@ cdef class RoadMap:
         self.confReachPathFails = 0
         self.confReachCacheTotal = 0
 
-    cpdef batchAddNodes(self, list confs):
+    def batchAddNodes(self, confs):
         if not confs: return
-        cdef int last = len(confs) - 1
-        cdef int i
+        last = len(confs) - 1
         for i in xrange(len(confs)):
             conf = confs[i]
             self.addNode(conf, merge = (i == last))   # merge on the last one
 
-    cpdef mergeKDTrees(self):
+    def mergeKDTrees(self):
         if self.newSize == 0: return
         self.points = np.vstack((self.points,
                                  np.array(self.newPoints)))
@@ -129,7 +127,7 @@ cdef class RoadMap:
         self.newSize = 0
         self.newKDTree = None
         
-    cpdef pointFromCart(self, cart, alpha = 0.1):
+    def pointFromCart(self, cart, alpha = 0.1):
         point = []
         for chain in ['pr2Base', 'pr2LeftArm', 'pr2RightArm']: # self.moveChains
             if 'Gripper' in chain or 'Torso' in chain:
@@ -142,7 +140,7 @@ cdef class RoadMap:
                 #    point.extend([alpha*pose.matrix[i,j] + pose_o[i] for i in range(3)])
         return point
             
-    cpdef addNode(self, conf, merge = True):
+    def addNode(self, conf, merge = True):
         cart = self.robot.forwardKin(conf)
         point = self.pointFromCart(cart)
         n_new = Node(conf, cart, point)
@@ -162,11 +160,8 @@ cdef class RoadMap:
         return n_new
 
     # Is it better just to make a new global tree when we do addConf
-    cpdef nearest(self, Node node, int k):
-        cdef:
-            list merge = []
-            float d
-            int i
+    def nearest(self, node, k):
+        merge = []
         dists, ids = self.kdTree.query(node.point, k)
         if k == 1:
             dists = [dists]; ids = [ids]
@@ -187,7 +182,7 @@ cdef class RoadMap:
         return [(d, self.newNodes[i]) if new else (d, self.nodes[i]) \
                 for (d, i, new) in merge[:k]]
 
-    cpdef close(self, node_f, node_i, thr, cart):
+    def close(self, node_f, node_i, thr, cart):
         if cart:
             c_f = node_f.cartConf
             c_i = node_i.cartConf
@@ -198,11 +193,11 @@ cdef class RoadMap:
         else:
             return node_f.conf == node_i.conf
 
-    cpdef drawNodes(self, color='yellow'):
+    def drawNodes(self, color='yellow'):
         for node in self.nodes + self.newNodes:
             node.conf.draw('W', color=color)
 
-    cpdef interpPose(self, pose_f, pose_i, minLength, ratio=0.5):
+    def interpPose(self, pose_f, pose_i, minLength, ratio=0.5):
         if isinstance(pose_f, list):
             return [f*ratio + i*(1-ratio) for (f,i) in zip(pose_f, pose_i)], \
                    all([abs(f-i)<=minLength for (f,i) in zip(pose_f, pose_i)])
@@ -212,7 +207,7 @@ cdef class RoadMap:
             return util.Transform(None, pr.matrix, qr), \
                    pose_f.near(pose_i, minLength, minLength)
 
-    cpdef cartInterpolators(self, n_f, n_i, minLength, depth=0):
+    def cartInterpolators(self, n_f, n_i, minLength, depth=0):
         if depth > 10:
             raw_input('cartInterpolators depth > 10')
         if n_f.conf == n_i.conf: return [n_f]
@@ -262,7 +257,7 @@ cdef class RoadMap:
 
     # Should this fall back on joint interpolation when necessary?
     # Returns list of nodes that go from initial node to final node
-    cpdef cartLineSteps(self, node_f, node_i, minLength):
+    def cartLineSteps(self, node_f, node_i, minLength):
         if fbch.inHeuristic:            # !! ?
             return [node_i, node_f]
         interp = self.cartInterpolators(node_f, node_i, minLength)
@@ -276,14 +271,14 @@ cdef class RoadMap:
             nodes.append(node_f)
             return nodes
 
-    cpdef robotSelfCollide(self, shape):
+    def robotSelfCollide(self, shape):
         if fbch.inHeuristic: return False
         # Very sparse checks...
-        cdef dict checkParts = {'pr2LeftArm': ['pr2RightArm', 'pr2RightGripper'],
-                                'pr2LeftGripper': ['pr2RightArm', 'pr2RightGripper'],
-                                'pr2RightArm': [],
-                                'pr2RightGripper': []}
-        cdef dict parts = dict([(part.name(), part) for part in shape.parts()])
+        checkParts = {'pr2LeftArm': ['pr2RightArm', 'pr2RightGripper'],
+                      'pr2LeftGripper': ['pr2RightArm', 'pr2RightGripper'],
+                      'pr2RightArm': [],
+                      'pr2RightGripper': []}
+        parts = dict([(part.name(), part) for part in shape.parts()])
         for p in checkParts:
             pShape = parts[p]
             for check in checkParts[p]:
@@ -294,7 +289,7 @@ cdef class RoadMap:
         heldParts = [parts[p] for p in parts if p[:3] != 'pr2']
         return self.heldSelfCollide(heldParts)
 
-    cpdef heldSelfCollide(self, shape):
+    def heldSelfCollide(self, shape):
         shapeParts = shape if isinstance(shape, (list, tuple)) else shape.parts()
         if len(shapeParts) < 2:
             return False
@@ -304,16 +299,16 @@ cdef class RoadMap:
             assert None, 'There should be at most two parts in attached'
         return
 
-    # The compiler does not like this as cpdef...
-    def edgeCollide(self, bool rob, key, dict collisions, dict robotShapes, dict attached, \
-                    list nodes, list allObstacles, set permanent, set coll, viol):
-        cdef dict ecoll = collisions.get(key, None)
+    # The compiler does not like this as def...
+    def edgeCollide(self, rob, key, collisions, robotShapes, attached, \
+                    nodes, allObstacles, permanent, coll, viol):
+        ecoll = collisions.get(key, None)
         if ecoll is None:
             ecoll = {}
             collisions[key] = ecoll
         if 'robotSelfCollision' in ecoll or 'heldSelfCollision' in ecoll:
             return None
-        cdef dict rshapes = robotShapes.get(key, None)
+        rshapes = robotShapes.get(key, None)
         if rshapes is None:
             rshapes = {}       # robot shapes
             robotShapes[key] = rshapes
@@ -336,9 +331,9 @@ cdef class RoadMap:
         else:
             stats['oldRob' if rob else 'oldHeld'] += 1
 
-        cdef frozenset vset = viol.obstacles.union(viol.shadows)
-        cdef list obst = []             # relevant obstacles
-        cdef list permanentObst = []
+        vset = viol.obstacles.union(viol.shadows)
+        obst = []             # relevant obstacles
+        permanentObst = []
         for obstacle in allObstacles:
             if not obstacle.parts() or obstacle in vset: continue
             if obstacle in ecoll:       # already checked
@@ -373,7 +368,7 @@ cdef class RoadMap:
     # We want edge to depend only on endpoints so we can cache the
     # interpolated confs.  The collisions depend on the robot variance
     # as well as the particular obstacles (and their varince).
-    cpdef colliders(self, node_f, node_i, bState, prob, viol, avoidShadow=[], attached=None):
+    def colliders(self, node_f, node_i, bState, prob, viol, avoidShadow=[], attached=None):
         shWorld = bState.getShadowWorld(prob, avoidShadow)
         coll = set([])
         empty = {}
@@ -406,6 +401,28 @@ cdef class RoadMap:
                                              avoidShadow=avoidShadow)
             if newViol is None: return None
         return newViol
+
+    def checkNodePath(self, nodePath, bState, prob, attached, avoidShadow=[]):
+        ecoll = set([])
+        v = nodePath[0]
+        for w in nodePath[1:]:
+            assert self.edges.get((v,w), {}) or self.edges.get((w,v), {})
+            c = self.colliders(v, w, bState, prob, noViol,
+                               attached=attached, avoidShadow=avoidShadow)
+            if c is None: break
+            ecoll = ecoll.union(c)
+            v = w
+        if ecoll:
+            shWorld = bState.getShadowWorld(prob, avoidShadow)
+            fixed = shWorld.fixedObjects
+            obstacleSet = set([sh for sh in shWorld.getNonShadowShapes() \
+                               if not sh.name() in fixed])
+            shadowSet = set([sh for sh in shWorld.getShadowShapes() \
+                             if not sh.name() in fixed])
+            obst = ecoll.intersection(obstacleSet)
+            shad = ecoll.intersection(shadowSet)
+            return Violations(obst, shad)
+        return noViol
 
     def confViolations(self, conf, bState, prob,
                        initViol=noViol,
@@ -490,26 +507,6 @@ cdef class RoadMap:
                 successors.append((w, nviol))
             return successors
 
-        def processPath(nodePath):
-            confPath = []
-            if len(nodePath) > 1:
-                for i in range(len(nodePath)-1):
-                    edge = self.edges.get((nodePath[i], nodePath[i+1]), None)
-                    if edge:
-                        confs = [n.conf for n in edge.nodes[::-1]]
-                    else:
-                        edge = self.edges.get((nodePath[i+1], nodePath[i]), None)
-                        if edge:
-                            confs = [n.conf for n in edge.nodes]
-                    assert edge
-                    if confPath:
-                        confPath.extend(confs[1:])
-                    else:
-                        confPath.extend(confs)
-            elif len(nodePath) == 1:
-                confPath = [nodePath[0].conf]
-            return confPath
-
         shWorld = bState.getShadowWorld(prob, avoidShadow)
 
         if draw or debug('successors'):
@@ -534,9 +531,9 @@ cdef class RoadMap:
             if finalViolation and finalViolation.empty() and testFn(tnode):  # only if no collision
                 targets.remove((cost, tnode))
                 nodePath = [initConfNode, tnode]
-                confPath = processPath(nodePath)
+                confPath = self.confPathFromNodePath(nodePath)
                 # finalViolation, finalCost, path (list of confs)
-                yield finalViolation, cost, confPath
+                yield finalViolation, cost, confPath, nodePath
         if targets:                     # some targets remaining
             # Each node is (conf node, obj collisions, shadow collisions)
             gen = search.searchGen((initConfNode, initViol),
@@ -560,7 +557,7 @@ cdef class RoadMap:
                         bState.draw(prob, 'W')
                         for tnode in targets:
                             tnode.conf.draw('W', 'red')
-                    yield None, 1e10, None
+                    yield None, 1e10, None, None
                     return
                 if debug('minViolPath'):
                     bState.draw(prob, 'W')
@@ -573,14 +570,36 @@ cdef class RoadMap:
                         node.conf.draw('W', 'blue')
                         raw_input('v=%s, cost=%f'%(viol.weight(), cost))
                 nodePath = [node for (_, (node, _)) in path]
-                confPath = processPath(nodePath)
+                confPath = self.confPathFromNodePath(nodePath)
                 # finalViolation, finalCost, path (list of confs)
-                yield finalViolation, costs[-1], confPath
+                yield finalViolation, costs[-1], confPath, nodePath
+
+    def confPathFromNodePath(self, nodePath):
+        confPath = []
+        if len(nodePath) > 1:
+            for i in range(len(nodePath)-1):
+                edge = self.edges.get((nodePath[i], nodePath[i+1]), None)
+                if edge:
+                    confs = [n.conf for n in edge.nodes[::-1]]
+                else:
+                    edge = self.edges.get((nodePath[i+1], nodePath[i]), None)
+                    if edge:
+                        confs = [n.conf for n in edge.nodes]
+                assert edge
+                if confPath:
+                    confPath.extend(confs[1:])
+                else:
+                    confPath.extend(confs)
+        elif len(nodePath) == 1:
+            confPath = [nodePath[0].conf]
+        return confPath
 
     # Cached version of the call to minViolPath
     def confReachViol(self, targetConf, bState, prob, initViol=noViol, avoidShadow = [],
                         objCost = objCollisionCost, shCost = shCollisionCost,
                         maxNodes = maxSearchNodes, startConf = None, attached = None):
+        realInitViol = initViol
+        initViol = noViol
         def grasp(hand):
             g = bState.graspB[hand]
             if g == None or g.obj == 'none':
@@ -589,11 +608,11 @@ cdef class RoadMap:
                 return g
         def exitWithAns(ans):
             self.confReachCache[key].append((bState, prob, avoidShadow, ans))
-            if not ans:
+            if not ans[0]:
                 self.confReachPathFails += 1
-            if ans and ans[0] and ans[2] and not fbch.inHeuristic:
-                (viol, cost, path) = ans
-                if debug('confReachViol'):
+            if ans and ans[0] and ans[2]:
+                (viol, cost, path, nodePath) = ans
+                if debug('confReachViol') and (not fbch.inHeuristic or debug('drawInHeuristic')):
                     drawPath(path, viol=viol,
                              attached=bState.getShadowWorld(prob).attached)
                     newViol =self.checkPath(path, bState, prob, 
@@ -603,9 +622,10 @@ cdef class RoadMap:
                         print 'newViol', newViol.weight(), newViol
                         raw_input('checkPath failed')
                     debugMsg('confReachViol', ('->', (viol, cost, 'path len = %d'%len(path))))
+                return (viol.union(realInitViol) if viol else viol, cost, path)
             else:
                 debugMsg('confReachViol', ('->', ans))
-            return ans
+                return (None, None, None)
             
         if fbch.inHeuristic:
             prob = 0.99*prob             # make slightly easier
@@ -636,20 +656,23 @@ cdef class RoadMap:
                 if debug('confReachViolCache'):
                     debugMsg('confReachViolCache', 'confReachCache actual hit')
                     print '    returning', ans
-                return ans   # actual answer
-            else:
-                for cacheValue in cacheValues:
+                (viol2, cost2, path2, nodePath2) = ans
+                return (viol2.union(realInitViol) if viol2 else viol2, cost2, path2) # actual answer
+            elif not fbch.inHeuristic:
+                sortedCacheValues = sorted(cacheValues,
+                                           key=lambda v: v[-1][0].weight() if v[-1][0] else v[-1][0])
+                for cacheValue in sortedCacheValues:
                     (bs2, p2, avoid2, ans) = cacheValue
-                    (viol2, cost2, path2) = ans
+                    (viol2, cost2, path2, nodePath2) = ans
                     if viol2:
-                        newViol = self.checkPath(path2, bState, prob,
-                                                 bState.getShadowWorld(prob).attached, avoidShadow)
+                        newViol = self.checkNodePath(nodePath2, bState, prob,
+                                                     bState.getShadowWorld(prob).attached, avoidShadow)
                         if newViol and newViol.obstacles==viol2.obstacles and newViol.shadows==viol2.shadows:
-                            if debug('traceCRH'): print 'reusing path'
+                            if debug('traceCRH'): print '    reusing path',
                             if debug('confReachViolCache'):
                                 debugMsg('confReachViolCache', 'confReachCache reusing path')
                                 print '    returning', ans
-                            return ans
+                            return (viol2.union(realInitViol) if viol2 else viol2, cost2, path2)
         else:
             self.confReachCache[key] = []
             if debug('confReachViolCache'): print 'confReachCache miss'
@@ -668,22 +691,23 @@ cdef class RoadMap:
         cv = self.confViolations(initConf, bState, prob, initViol=cv,
                                  avoidShadow=avoidShadow, attached=attached)[0]
         if cv is None:
-            if debug('traceCRH'): print 'unreachable conf'
+            if debug('traceCRH'): print '    unreachable conf',
             if debug('confReachViol'):
                 print 'targetConf is unreachable'
-            return exitWithAns((None, None, None))
+            return exitWithAns((None, None, None, None))
         cvi = initViol.combine(cv.obstacles, cv.shadows)
-        if initConf == targetConf:
-            if debug('traceCRH'): print 'init=target'
-            return exitWithAns((cvi, 0, [targetConf]))
-        if fbch.inHeuristic:
-            if debug('traceCRH'): print 'heuristic path'
-            ans = cvi, objCost*len(cvi.obstacles)+shCost*len(cvi.shadows), [initConf, targetConf]
-            return exitWithAns(ans)
-        if debug('traceCRH'): print 'find path'
         node = self.addNode(targetConf)
+        if initConf == targetConf:
+            if debug('traceCRH'): print '    init=target',
+            return exitWithAns((cvi, 0, [targetConf], [node]))
+        if fbch.inHeuristic:
+            initConfNode = self.addNode(initConf)  # have it stored??
+            ans = cvi, objCost*len(cvi.obstacles)+shCost*len(cvi.shadows), \
+                  [initConf, targetConf], [initConfNode, node]
+            return exitWithAns(ans)
+        if debug('traceCRH'): print '    find path',
         gen = self.minViolPathGen([node], bState, prob, avoidShadow,
-                                  startConf, initViol,
+                                  startConf, cvi,
                                   objCost, shCost, maxNodes, attached=attached)
         return exitWithAns(gen.next())
 
@@ -739,7 +763,7 @@ cdef class RoadMap:
                                       goalCostFn=goalNodeCostFn, draw=draw)
             for ans in gen:
                 if ans and ans[0] and ans[2]:
-                    (viol, cost, path) = ans
+                    (viol, cost, path, _) = ans
                     pathOrig = path[:-1] + [origConf[path[-1]]]
                     if debug('confReachViolGen') and not fbch.inHeuristic:
                         drawPath(pathOrig, viol=viol,
@@ -764,10 +788,10 @@ cdef class RoadMap:
     def __str__(self):
         return 'RoadMap:['+str(self.size+self.newSize)+']'
 
-cdef tuple bsEntails(bs1, p1, avoid1, cacheValues):
+def bsEntails(bs1, p1, avoid1, cacheValues):
     for cacheValue in cacheValues:
         (bs2, p2, avoid2, ans) = cacheValue
-        (viol2, cost2, path2) = ans
+        (viol2, cost2, path2, _) = ans
         if debug('confReachViolCache'):
             print 'cached v=', viol2.weight() if viol2 else viol2
         if path2 and viol2 and viol2.empty():
@@ -782,7 +806,7 @@ cdef tuple bsEntails(bs1, p1, avoid1, cacheValues):
         print 'bsEntails returns False'
     return None
 
-cdef bool bsBigger(bs1, bs2):
+def bsBigger(bs1, bs2):
     (held1, grasp1, conf1, fix1, move1) = bs1.items()
     (held2, grasp2, conf2, fix2, move2) = bs2.items()
     if held1 != held2:
@@ -816,7 +840,7 @@ cdef bool bsBigger(bs1, bs2):
     if debug('confReachViolCache'): 'bsBigger = True'
     return True
 
-cdef bool graspBigger(gr1, gr2):
+def graspBigger(gr1, gr2):
     for hand in ('left', 'right'):
         g1 = gr1[hand]
         g2 = gr2[hand]
@@ -830,7 +854,7 @@ cdef bool graspBigger(gr1, gr2):
             return False
     return True
 
-cdef str cartChainName(str chainName):
+def cartChainName(chainName):
     if 'Gripper' in chainName or 'Torso' in chainName:
         return chainName
     else:

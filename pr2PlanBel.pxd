@@ -11,7 +11,7 @@ cdef class PBS:
      cpdef awayRegions(self)
      cpdef getPlaceB(self, obj, face=*, default=*)
      cpdef defaultPlaceB(self, obj)
-     cpdef getGraspB(self, obj, hand, face=*)
+     cpdef getGraspB(self, obj, hand, face=*, default=*)
      cpdef defaultGraspB(self, obj)
      cpdef getPlacedObjBs(self)
      cpdef getHeld(self, hand)

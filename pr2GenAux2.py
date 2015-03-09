@@ -197,7 +197,7 @@ def potentialGraspConfGen(bState, placeB, graspB, conf, hand, prob, nMax=None):
         params[2] = 0.0
         return util.Pose(*params)
     if conf:
-        yield conf
+        yield conf, Violations()
         return
     robot = bState.getRobot()
     rm = bState.getRoadMap()
@@ -232,7 +232,7 @@ def potentialGraspConfGen(bState, placeB, graspB, conf, hand, prob, nMax=None):
                     conf.draw('W','green')
                     debugMsg('potentialGraspConfs', ('->', conf.conf))
                 count += 1
-                yield conf
+                yield conf, viol
             else:
                 if debug('potentialGraspConfs'): conf.draw('W','red')
         elif debug('potentialGraspConfs'):
@@ -519,7 +519,8 @@ def potentialRegionPoseGenCut(bState, obj, placeB, prob, regShapes, reachObsts, 
         print 'Returned', count, 'for regions', [r.name() for r in regShapes]
     return
 
-def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, maxPoses = 30):
+def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, hand,
+                           maxPoses = 30):
     def genPose(rs, angle, point):
         (x,y,z,_) = point
         # Support pose, we assume that sh is on support face
@@ -531,6 +532,18 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
         if all([rs.containsPt(p) for p in sh.vertices().T]) and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
             return pose
+
+    def poseViolationWeight(pose):
+        pB = placeB.modifyPoseD(pose)
+        c, v = next(potentialGraspConfGen(bState, pB, graspB, None, hand, prob, nMax=1),
+                    (None,None))
+        if v:
+            if debug('potentialRegionPoseGen'):
+                c.draw('W')
+                raw_input('weight=%s'%str(v.weight()))
+            return v.weight()
+        return None
+        
     clearance = 0.01
     if debug('potentialRegionPoseGen'):
         bState.draw(prob, 'W')
@@ -547,6 +560,8 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
     hyps = []                         # (index, cost)
     points = []                       # [(angle, xyz1)]
     count = 0
+    graspB = bState.defaultGraspB(obj)  # all grasps...
+    world = bState.pbs.getWorld()
     for rs in regShapes:
         if debug('potentialRegionPoseGen'):
             print 'Considering region', rs.name()
@@ -590,16 +605,36 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, max
         debugMsg('potentialRegionPoseGen', 'No valid points in region')
         return
     count = 0
-    for i in range(maxPoses):
+    costHistory = []
+    poseHistory = []
+    historySize = 5
+    tries = 0
+    while count < maxPoses or tries > maxTries:
+        tries += 1
         index = pointDist.draw()
         angle, point = points[index]
-        pose = genPose(rs, angle, point)
-        if pose:
-            count += 1
-            if debug('potentialRegionPoseGen'):
-                print '->', pose, 'prob=', pointDist.prob(index), 'max prob=', max(pointDist.d.values())
-                shRotations[angle].applyTrans(pose).draw('W', 'green')
-            yield pose
+        p = genPose(rs, angle, point)
+        if not p: continue
+        cost = poseViolationWeight(p)
+        if cost is None: continue
+        if len(costHistory) < historySize:
+            costHistory.append(cost)
+            poseHistory.append(p)
+            continue
+        elif cost > min(costHistory):
+            minIndex = costHistory.index(min(costHistory))
+            pose = poseHistory[minIndex]
+            if debug('potentialRegionPoseGen'): print 'pose cost', costHistory[minIndex]
+            costHistory[minIndex] = cost
+            poseHistory[minIndex] = p
+        else:                           # cost <= min(costHistory)
+            pose = p
+            if debug('potentialRegionPoseGen'): print 'pose cost', cost
+        count += 1
+        if debug('potentialRegionPoseGen'):
+            print '->', pose, 'prob=', pointDist.prob(index), 'max prob=', max(pointDist.d.values())
+            shRotations[angle].applyTrans(pose).draw('W', 'green')
+        yield pose
     if debug('potentialRegionPoseGen'):
         print 'Returned', count, 'for regions', [r.name() for r in regShapes]
     return

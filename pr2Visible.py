@@ -43,9 +43,10 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True):
         updateDepthMap(scan, objPrim, dm, contacts, 0)
     total = n - contacts.count(None)
     if total < minVisiblePoints:
-        scan.draw('W')
-        print total, 'hit points'
-        debugMsg('visible', 'Not enough hit points')
+        if debug('visible'):
+            scan.draw('W')
+            print total, 'hit points'
+            debugMsg('visible', 'Not enough hit points')
         return False, []
     occluders = []
     for i, objShape in enumerate(obstacles):
@@ -89,4 +90,8 @@ def lookAtConf(conf, shape):
     cartConf = conf.robot.forwardKin(conf)
     assert cartConf['pr2Head']
     lookCartConf = cartConf.set('pr2Head', util.Pose(*center.tolist()+[0.,]))
-    return conf.robot.inverseKin(lookCartConf, conf=conf)
+    lookConf = conf.robot.inverseKin(lookCartConf, conf=conf)
+    if all(lookConf.values()):
+        return lookConf
+
+

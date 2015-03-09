@@ -99,8 +99,6 @@ cdef class PBS:
         self.shadowProb = None                    # shadow probability
         self.avoidShadow = None                   # shadows to avoid, in cached obstacles
         self.heuristic = None                     # the robot shape depends on heuristic
-        self.defaultGraspBCache = {}
-        self.defaultPlaceBCache = {}
         self.domainProbs = domainProbs
 
     cpdef getWorld(self):
@@ -124,29 +122,27 @@ cdef class PBS:
         else:
             return None
     cpdef defaultPlaceB(self, obj):
-        if not obj in self.defaultPlaceBCache:
-            world = self.getWorld()
-            fr = world.getFaceFrames(obj)
-            gd = ObjPlaceB(obj, fr, UniformDist(range(len(fr))), Ident,
-                           4*(100.0,))
-            self.defaultPlaceBCache[obj] = gd
-        return self.defaultPlaceBCache[obj]
+        world = self.getWorld()
+        fr = world.getFaceFrames(obj)
+        return ObjPlaceB(obj, fr, UniformDist(range(len(fr))), Ident,
+                         4*(100.0,))
     
-    cpdef getGraspB(self, obj, hand, face = None):
+    cpdef getGraspB(self, obj, hand, face = None, default = True):
         if obj == self.held[hand].mode():
             graspB = self.graspB[hand]
             if face is None or face == graspB.grasp.mode():
                 return graspB
-            else:
+            elif default:
                 return self.defaultGraspB(obj)
-        else:
+            else:
+                return None
+        elif default:
             return self.defaultGraspB(obj)
+        else:
+            return None
     cpdef defaultGraspB(self, obj):
-        if not obj in self.defaultGraspBCache:
-            desc = self.getWorld().getGraspDesc(obj)
-            gd = ObjGraspB(obj, desc, UniformDist(range(len(desc))), Ident, 4*(100.0,))
-            self.defaultGraspBCache[obj] = gd
-        return self.defaultGraspBCache[obj]
+        desc = self.getWorld().getGraspDesc(obj)
+        return ObjGraspB(obj, desc, UniformDist(range(len(desc))), Ident, 4*(100.0,))
 
     cpdef getPlacedObjBs(self):
         objectBs = {}
