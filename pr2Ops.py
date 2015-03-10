@@ -22,7 +22,7 @@ maxVarianceTuple = (.1,)*4
 #  are used during execution
 #
 ######################################################################
-
+'''
 def primPathDirect(bs, cs, ce, p):
     path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs, draw=False)
     if not viols:
@@ -45,6 +45,7 @@ def primPathDirect(bs, cs, ce, p):
         print 'Potential collision in primitive path - continuing'
     if path:
         return path
+    '''
 
 def primPath(bs, cs, ce, p):
     path1, v1 = canReachHome(bs, cs, p, Violations(), draw=False)
@@ -52,7 +53,8 @@ def primPath(bs, cs, ce, p):
     if v1.weight() > 0 or v2.weight() > 0:
         if v1.weight() > 0: print 'start viol', v1
         if v2.weight() > 0: print 'end viol', v2
-        print 'Potential collision in primitive path - continuing.'
+        raw_input('Potential collision in primitive path')
+        return path1[::-1] + path2
     else:
         print 'Success'
         return path1[::-1] + path2
@@ -79,6 +81,7 @@ def movePrim(args, details):
         print '*** movePrim'
         print zip(vl, args)
         print 'path length', len(path)
+    assert path
     return path
 
 def printConf(conf):

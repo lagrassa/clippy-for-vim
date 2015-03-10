@@ -412,7 +412,9 @@ class RoadMap:
             if c is None: break
             ecoll = ecoll.union(c)
             v = w
-        if ecoll:
+        if ecoll is None:
+            return None
+        elif ecoll:
             shWorld = bState.getShadowWorld(prob, avoidShadow)
             fixed = shWorld.fixedObjects
             obstacleSet = set([sh for sh in shWorld.getNonShadowShapes() \
@@ -422,7 +424,8 @@ class RoadMap:
             obst = ecoll.intersection(obstacleSet)
             shad = ecoll.intersection(shadowSet)
             return Violations(obst, shad)
-        return noViol
+        else:
+            return noViol
 
     def confViolations(self, conf, bState, prob,
                        initViol=noViol,
