@@ -73,6 +73,8 @@ searchGreedy = 0.5                      # 0.5 is A*, 0 is UCS, 1 is best-first
 # Variance parameters
 ########################################
 
+## LPK Deprecated...try to be sure we're not using them
+
 from miscUtil import makeDiag
 # Super good looking!
 lookVarianceTuple = (0.001, 0.001)

@@ -406,3 +406,9 @@ def undiag(m):
     if m == None: return None
     return tuple(np.diag(m))
 
+def roundUp(v, prec):
+    vt = int(v * prec) / prec
+    if v > vt:
+        return int(v * prec + 1) / prec
+    else:
+        return vt

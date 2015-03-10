@@ -12,6 +12,7 @@ import miscUtil
 from miscUtil import isVar, isAnyVar, floatify, isStruct, customCopy,\
     lookup, squash, squashSets, prettyString, isGround, matchLists
 
+
 ######################################################################
 #
 # Belief fluents.  First a generic class
@@ -355,42 +356,13 @@ def hCacheReset():
 fbch.hCacheReset = hCacheReset
 
 def hCacheDel(f):
-    fUp = canonicalizeUp(f)
-    if fUp in fbch.hCache:
-        del fbch.hCache[fUp]
+    if f in fbch.hCache:
+        del fbch.hCache[f]
     for i in hCacheID.keys():
-        hCacheID[i].discard(fUp)
+        hCacheID[i].discard(f)
 
 fbch.hCacheDel = hCacheDel
 
-# Can cause non-zero heuristic at goal state, because it is trying to
-# achieve a rounded-up value
-heuristicPrecision = 1000.0
-
-# Consider applying this to stdev, not variance
-
-def canonicalizeUp(f, prec = heuristicPrecision):
-    newF = f.copy()
-    def roundUp(v):
-        vt = int(v * prec) / prec
-        if v > vt:
-            return int(v * prec + 1) / prec
-        else:
-            return vt
-    if f.predicate == 'Bd':
-        newF.args[2] = roundUp(f.args[2])
-        if str(newF.args[1])[0] == '?': newF.args[1] = '?'
-    elif f.predicate == 'B':
-        # round prob up; round variances up; round deltas up
-        newF.args[2] = tuple([roundUp(v) for v in f.args[2]])
-        newF.args[3] = tuple([roundUp(v) for v in f.args[3]])
-        newF.args[4] = roundUp(f.args[4])
-        if str(newF.args[1])[0] == '?': newF.args[1] = '?'
-    newF.update()
-    return newF
-
-# def canonicalizeUp(f, prec = 0):
-#     return f
 
 # hCache maps each fluent to the set of actions needed to achieve it
 # This can be saved until the next action is taken
@@ -398,7 +370,7 @@ def canonicalizeUp(f, prec = heuristicPrecision):
 
 # For belief, make it two-level:
 #   Top level: replace probability arguments with None
-#   next level: map canonicalized probability args to (totalCost, operators)
+#   next level: map probability args to (totalCost, operators)
 # At query time, look for lowest prob greater than query prob and return
 #   the associated result
 
@@ -545,7 +517,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                 for pre in pres[:-1]:
                     (preImage, newOpCost) = pre
                     newActSet = set([preImage.operator])
-                    canonicalChildren = []
+                    children = []
                     partialCost = preImage.operator.instanceCost
                     assert partialCost < float('inf')
                     # AND loop over preconditions
@@ -558,20 +530,19 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                             store = False # This is not a good cost estimate
                             break
 
-                        ffc = frozenset([canonicalizeUp(f) for f in ff])
-                        canonicalChildren.append(ffc)
+                        children.append(ff)
                         if debug('hAddBack'):
                             print spaces+'C Aux:', k-1,\
                                  prettyString(totalCost - partialCost),\
-                                   [f.shortName() for f in ffc]
+                                   [f.shortName() for f in ff]
                             for f in ffc: print spaces+'--'+f.prettyString()
     
                                    
-                        subCost, subActSet = aux(ffc, k-1,
+                        subCost, subActSet = aux(ff, k-1,
                                                  totalCost - partialCost)
                         if debug('hAddBack'):
                             print spaces+'R Aux:', k-1, prettyString(subCost),\
-                                   [f.shortName() for f in ffc]
+                                   [f.shortName() for f in ff]
 
                         # make this side effect
                         if subCost == float('inf'):
@@ -582,20 +553,15 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                                                for op in newActSet])
 
                     newTotalCost = partialCost
-                    # if newTotalCost >= totalCost:
-                    #     # Actually, this is a good cost estimate.  The last
-                    #     # child made it not be better than the bound we were
-                    #     # given, though.
-                    #     store = False
 
                     if debug('hAddBack'):
                         childCosts = [aux(c, k-1, float('inf'))[0] \
-                                      for c in canonicalChildren]
+                                      for c in children]
                         print spaces+'goal', k, prettyString(minSoFar),\
                                     [f.shortName() for f in fUp]
                         print spaces+'op', o.name
                         print spaces+'Children:'
-                        for (x,y) in zip(childCosts, canonicalChildren):
+                        for (x,y) in zip(childCosts, children):
                             print spaces+'    ', x, [f.shortName() for f in y]
 
                     if store and newTotalCost < totalCost:
@@ -634,8 +600,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
     # AND loop over fluents
     fbch.inHeuristic = True
     for ff in partitionFn(goal.fluents):
-        ffc = frozenset([canonicalizeUp(f) for f in ff])
-        (ic, actSet) = aux(ffc, idk, float('inf'))
+        (ic, actSet) = aux(ff, idk, float('inf'))
         if ic == float('inf'):
             debugMsg('hAddBackInf', ('infinite cost', idk, ff))
             return ic
