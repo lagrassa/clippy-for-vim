@@ -993,7 +993,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     (preconf, ppconf, hand,
      obj, pose, realPoseVar, poseDelta, poseFace,
      graspFace, graspMu, graspVar, graspDelta, oobj, oface, oGraspMu, oGraspVar,
-     oGraspDelta, p, cond) = args
+     oGraspDelta, prob, cond) = args
 
     def moveOut(newBS, obst, delta):
         if debug('traceGen') or debug('canReachGen'):
@@ -1025,7 +1025,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     newBS.updateHeldBel(graspB2, otherHand(hand))
 
     viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
-                             graspB1, placeB, p)
+                             graspB1, placeB, prob)
     
     if not viol:                  # hopeless
         return
@@ -1055,8 +1055,9 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         placeB2 = placeB.modifyPoseD(var = lookVar)
         placeB2.delta = lookDelta
         newBS2.updatePermObjPose(placeB2)
-        path2, viol2 = canReachHome(newBS2, conf, prob, Violations())
-        if path2 and viol2:
+        viol2 = canPickPlaceTest(newBS2, preconf, ppconf, hand,
+                                 graspB1, placeB2, prob)
+        if viol2:
             if debug('canPickPlaceGen', skip=fbch.inHeuristic):
                 drawObjAndShadow(newBS2, placeB2, prob, 'W', color='red')
                 debugMsg('canPickPlaceGen',
