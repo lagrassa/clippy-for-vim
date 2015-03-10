@@ -211,7 +211,7 @@ class CanPickPlace(Fluent):
     implicit = True
     conditional = True
 
-    def getConds(self):
+    def getConds(self, details = None):
         # Will recompute if new bindings are applied because the result
         # won't have this attribute
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
@@ -243,7 +243,7 @@ class CanPickPlace(Fluent):
                                 obj, graspFace, graspMu, zeroVar, tinyDelta,
                                 oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
                         []])]
-        for c in self.conds: c.addConditions(inconds)
+        for c in self.conds: c.addConditions(inconds, details)
         return self.conds
 
     def getViols(self, bState, v, p, strict = True):
@@ -251,7 +251,8 @@ class CanPickPlace(Fluent):
             return Violations(v1.obstacles.union(v2.obstacles),
                               v1.shadows.union(v2.shadows))
 
-        condViols = [c.getViols(bState, v, p, strict) for c in self.getConds()]
+        condViols = [c.getViols(bState, v, p, strict) \
+                     for c in self.getConds(bState)]
         pathNone = any([p == None for (p, v) in condViols])
         if pathNone:
             return (None, None)
