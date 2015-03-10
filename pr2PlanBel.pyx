@@ -162,7 +162,7 @@ cdef class PBS:
                    self.graspB.copy(), self.fixObjBs.copy(), self.moveObjBs.copy(),
                    self.regions, self.domainProbs)
 
-    def objectsInBState(self):
+    def objectsInPBS(self):
         objects = []
         for held in self.held.values():
             if held and held.mode() != 'none':
@@ -172,7 +172,7 @@ cdef class PBS:
         return set(objects)
 
     cpdef updateFromAllPoses(self, goalConds, updateHeld=True, updateConf=True):
-        initialObjects = self.objectsInBState()
+        initialObjects = self.objectsInPBS()
         world = self.getWorld()
         if updateHeld:
             (self.held, self.graspB) = \
@@ -186,7 +186,7 @@ cdef class PBS:
                                        self.getPlacedObjBs())
         self.moveObjBs = {}
         self.shadowWorld = None
-        finalObjects = self.objectsInBState()
+        finalObjects = self.objectsInPBS()
         if debug('conservation') and initialObjects != finalObjects:
             print 'Failure of conservation'
             print '    initial', sorted(list(initialObjects))
@@ -194,7 +194,7 @@ cdef class PBS:
         return self
     
     cpdef updateFromGoalPoses(self, goalConds, updateHeld=True, updateConf=True):
-        initialObjects = self.objectsInBState()
+        initialObjects = self.objectsInPBS()
         world = self.getWorld()
         if updateHeld:
             (self.held, self.graspB) = \
@@ -210,7 +210,7 @@ cdef class PBS:
                                in self.getPlacedObjBs().iteritems() \
                                if o not in self.fixObjBs])
         self.shadowWorld = None
-        finalObjects = self.objectsInBState()
+        finalObjects = self.objectsInPBS()
         if debug('conservation') and initialObjects != finalObjects:
             print 'Failure of conservation'
             print '    initial', sorted(list(initialObjects))

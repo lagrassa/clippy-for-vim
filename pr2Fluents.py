@@ -534,26 +534,26 @@ def partition(fluents):
 # Tests
 ###
 
-def canReachHome(bState, conf, prob, initViol,
+def canReachHome(pbs, conf, prob, initViol,
                  avoidShadow = [], startConf = None, draw=True):
-    rm = bState.getRoadMap()
-    robot = bState.getRobot()
+    rm = pbs.getRoadMap()
+    robot = pbs.getRobot()
     initConf = startConf or rm.homeConf
     # Reverse start and target
-    viol, cost, pathRev = rm.confReachViol(initConf, bState, prob,
+    viol, cost, pathRev = rm.confReachViol(initConf, pbs, prob,
                                            initViol,
                                            avoidShadow=avoidShadow,
                                            startConf=conf)
     path = pathRev[::-1] if pathRev else pathRev
 
     if debug('checkCRH') and fbch.inHeuristic:
-        bState.draw(prob, 'W')
+        pbs.draw(prob, 'W')
         fbch.inHeuristic = False
-        bState.shadowWorld = None
-        bState.draw(prob, 'W', clear=False) # overlay
+        pbs.shadowWorld = None
+        pbs.draw(prob, 'W', clear=False) # overlay
         conf.draw('W', 'blue')
         initConf.draw('W', 'pink')
-        viol2, cost2, pathRev2 = rm.confReachViol(initConf, bState, prob,
+        viol2, cost2, pathRev2 = rm.confReachViol(initConf, pbs, prob,
                                                   initViol,
                                                   avoidShadow=avoidShadow,
                                                   startConf=conf)
@@ -576,10 +576,10 @@ def canReachHome(bState, conf, prob, initViol,
         print '    canReachHome h=', fbch.inHeuristic, 'viol=:', viol.weight() if viol else None
     if not path:
         if fbch.inHeuristic and debug('extraTests'):
-            bState.draw(prob, 'W')
+            pbs.draw(prob, 'W')
             print 'canReachHome failed with inHeuristic=True'
             fbch.inHeuristic = False
-            viol, cost, path = rm.confReachViol(conf, bState, prob,
+            viol, cost, path = rm.confReachViol(conf, pbs, prob,
                                                 initViol,
                                                 avoidShadow=avoidShadow,
                                                 startConf=startConf)
@@ -591,10 +591,10 @@ def canReachHome(bState, conf, prob, initViol,
 
     if (not fbch.inHeuristic) or debug('drawInHeuristic'):
         if debug('canReachHome'):
-            bState.draw(prob, 'W')
+            pbs.draw(prob, 'W')
             if path:
                 drawPath(path, viol=viol,
-                         attached=bState.getShadowWorld(prob).attached)
+                         attached=pbs.getShadowWorld(prob).attached)
             else:
                 print 'viol, cost, path', viol, cost, path
         debugMsg('canReachHome', ('viol', viol))

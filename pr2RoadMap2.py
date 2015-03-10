@@ -368,8 +368,8 @@ class RoadMap:
     # We want edge to depend only on endpoints so we can cache the
     # interpolated confs.  The collisions depend on the robot variance
     # as well as the particular obstacles (and their varince).
-    def colliders(self, node_f, node_i, bState, prob, viol, avoidShadow=[], attached=None):
-        shWorld = bState.getShadowWorld(prob, avoidShadow)
+    def colliders(self, node_f, node_i, pbs, prob, viol, avoidShadow=[], attached=None):
+        shWorld = pbs.getShadowWorld(prob, avoidShadow)
         coll = set([])
         empty = {}
         edge = self.edges.get((node_f, node_i), empty) or \
@@ -387,27 +387,27 @@ class RoadMap:
                                 attached, edge.nodes, allObstacles, permanent, coll, viol)
         if coll is None:
             return coll
-        key = tuple([bState.graspB[h] for h in ['left', 'right']] + [fbch.inHeuristic])
+        key = tuple([pbs.graspB[h] for h in ['left', 'right']] + [fbch.inHeuristic])
         coll = self.edgeCollide(False, key, edge.heldCollisions, edge.heldShapes,
                                 attached, edge.nodes, allObstacles, permanent, coll, viol)
         return coll
 
-    def checkPath(self, path, bState, prob, attached, avoidShadow=[]):
+    def checkPath(self, path, pbs, prob, attached, avoidShadow=[]):
         newViol = noViol
         for conf in path:
-            newViol, _ = self.confViolations(conf, bState, prob,
+            newViol, _ = self.confViolations(conf, pbs, prob,
                                              attached=attached,
                                              initViol=newViol,
                                              avoidShadow=avoidShadow)
             if newViol is None: return None
         return newViol
 
-    def checkNodePath(self, nodePath, bState, prob, attached, avoidShadow=[]):
+    def checkNodePath(self, nodePath, pbs, prob, attached, avoidShadow=[]):
         ecoll = set([])
         v = nodePath[0]
         for w in nodePath[1:]:
             assert self.edges.get((v,w), {}) or self.edges.get((w,v), {})
-            c = self.colliders(v, w, bState, prob, noViol,
+            c = self.colliders(v, w, pbs, prob, noViol,
                                attached=attached, avoidShadow=avoidShadow)
             if c is None: break
             ecoll = ecoll.union(c)
@@ -415,7 +415,7 @@ class RoadMap:
         if ecoll is None:
             return None
         elif ecoll:
-            shWorld = bState.getShadowWorld(prob, avoidShadow)
+            shWorld = pbs.getShadowWorld(prob, avoidShadow)
             fixed = shWorld.fixedObjects
             obstacleSet = set([sh for sh in shWorld.getNonShadowShapes() \
                                if not sh.name() in fixed])
@@ -427,11 +427,11 @@ class RoadMap:
         else:
             return noViol
 
-    def confViolations(self, conf, bState, prob,
+    def confViolations(self, conf, pbs, prob,
                        initViol=noViol,
                        avoidShadow=[], attached=None,
                        additionalObsts = []):
-        shWorld = bState.getShadowWorld(prob, avoidShadow)
+        shWorld = pbs.getShadowWorld(prob, avoidShadow)
         robotShape, attachedParts = conf.placementAux(attached=attached)
         attachedParts = [x for x in attachedParts.values() if x]
         if debug('confViolations'):
@@ -470,13 +470,13 @@ class RoadMap:
         return initViol.combine(obst, shad), (False, False)
 
     # !! Should do additional sampling to connect confs.
-    def minViolPathGen(self, targetConfNodes, bState, prob, avoidShadow=[], startConf = None,
+    def minViolPathGen(self, targetConfNodes, pbs, prob, avoidShadow=[], startConf = None,
                        initViol=noViol, objCost=1.0, shCost=0.5, maxNodes=maxSearchNodes, 
                        testFn = lambda x: True,
                        attached = None, goalCostFn = lambda x: 0, draw=False, maxExpanded= maxExpandedNodes):
 
         def testConnection(v, w, viol):
-            wObjs = self.colliders(v, w, bState, prob, viol, attached=attached)
+            wObjs = self.colliders(v, w, pbs, prob, viol, attached=attached)
             if wObjs is None or not wObjs.isdisjoint(staticObstSet):
                 return None
             obst = wObjs.intersection(obstacleSet)
@@ -510,7 +510,7 @@ class RoadMap:
                 successors.append((w, nviol))
             return successors
 
-        shWorld = bState.getShadowWorld(prob, avoidShadow)
+        shWorld = pbs.getShadowWorld(prob, avoidShadow)
 
         if draw or debug('successors'):
             colorGen = NextColor(20, s=0.6)
@@ -557,13 +557,13 @@ class RoadMap:
                 (path, costs) = ans
                 if not path:
                     if debug('minViolPath'):
-                        bState.draw(prob, 'W')
+                        pbs.draw(prob, 'W')
                         for tnode in targets:
                             tnode.conf.draw('W', 'red')
                     yield None, 1e10, None, None
                     return
                 if debug('minViolPath'):
-                    bState.draw(prob, 'W')
+                    pbs.draw(prob, 'W')
                     for (_, p) in path:
                         p[0].conf.draw('W', 'green')
                 # an entry in path is (action, (conf, violation))
@@ -598,28 +598,28 @@ class RoadMap:
         return confPath
 
     # Cached version of the call to minViolPath
-    def confReachViol(self, targetConf, bState, prob, initViol=noViol, avoidShadow = [],
+    def confReachViol(self, targetConf, pbs, prob, initViol=noViol, avoidShadow = [],
                         objCost = objCollisionCost, shCost = shCollisionCost,
                         maxNodes = maxSearchNodes, startConf = None, attached = None):
         realInitViol = initViol
         initViol = noViol
         def grasp(hand):
-            g = bState.graspB[hand]
+            g = pbs.graspB[hand]
             if g == None or g.obj == 'none':
                 return None
             else:
                 return g
         def exitWithAns(ans):
-            self.confReachCache[key].append((bState, prob, avoidShadow, ans))
+            self.confReachCache[key].append((pbs, prob, avoidShadow, ans))
             if not ans[0]:
                 self.confReachPathFails += 1
             if ans and ans[0] and ans[2]:
                 (viol, cost, path, nodePath) = ans
                 if debug('confReachViol') and (not fbch.inHeuristic or debug('drawInHeuristic')):
                     drawPath(path, viol=viol,
-                             attached=bState.getShadowWorld(prob).attached)
-                    newViol =self.checkPath(path, bState, prob, 
-                                            bState.getShadowWorld(prob).attached, avoidShadow)
+                             attached=pbs.getShadowWorld(prob).attached)
+                    newViol =self.checkPath(path, pbs, prob, 
+                                            pbs.getShadowWorld(prob).attached, avoidShadow)
                     if newViol.weight() != viol.weight():
                         print 'viol', viol.weight(), viol
                         print 'newViol', newViol.weight(), newViol
@@ -633,18 +633,18 @@ class RoadMap:
         # if fbch.inHeuristic:
         #     prob = 0.99*prob             # make slightly easier
         if attached == None:
-            attached = bState.getShadowWorld(prob).attached
-        # key = (targetConf, startConf, prob, bState, tuple(avoidShadow), initViol),
+            attached = pbs.getShadowWorld(prob).attached
+        # key = (targetConf, startConf, prob, pbs, tuple(avoidShadow), initViol),
         key = (targetConf, startConf, initViol, fbch.inHeuristic)
         if debug('confReachViolCache'):
             debugMsg('confReachViolCache',
                      ('targetConf', targetConf.conf),
                      ('startConf', startConf.conf if startConf else None),
                      ('prob', prob),
-                     ('moveObjBs', bState.moveObjBs),
-                     ('fixObjBs', bState.fixObjBs),
-                     ('held', (bState.held['left'].mode(),
-                               bState.held['right'].mode(),
+                     ('moveObjBs', pbs.moveObjBs),
+                     ('fixObjBs', pbs.fixObjBs),
+                     ('held', (pbs.held['left'].mode(),
+                               pbs.held['right'].mode(),
                                grasp('left'), grasp('right'))),
                      ('initViol', ([x.name() for x in initViol.obstacles],
                                    [x.name() for x in initViol.shadows]) if initViol else None),
@@ -653,7 +653,7 @@ class RoadMap:
         if key in self.confReachCache:
             if debug('confReachViolCache'): print 'confReachCache tentative hit'
             cacheValues = self.confReachCache[key]
-            ans = bsEntails(bState, prob, avoidShadow, cacheValues)
+            ans = bsEntails(pbs, prob, avoidShadow, cacheValues)
             if ans != None:
                 if debug('traceCRH'): print '    actual cache hit',
                 if debug('confReachViolCache'):
@@ -668,8 +668,8 @@ class RoadMap:
                     (bs2, p2, avoid2, ans) = cacheValue
                     (viol2, cost2, path2, nodePath2) = ans
                     if viol2:
-                        newViol = self.checkNodePath(nodePath2, bState, prob,
-                                                     bState.getShadowWorld(prob).attached, avoidShadow)
+                        newViol = self.checkNodePath(nodePath2, pbs, prob,
+                                                     pbs.getShadowWorld(prob).attached, avoidShadow)
                         if newViol and newViol.obstacles==viol2.obstacles and newViol.shadows==viol2.shadows:
                             if debug('traceCRH'): print '    reusing path',
                             if debug('confReachViolCache'):
@@ -683,15 +683,15 @@ class RoadMap:
         initConf = startConf or self.homeConf
         if debug('confReachViol') and \
             (not fbch.inHeuristic  or debug('drawInHeuristic')):
-            bState.draw(prob, 'W')
+            pbs.draw(prob, 'W')
             initConf.draw('W', 'blue', attached=attached)
             targetConf.draw('W', 'pink', attached=attached)
             print 'startConf is blue; targetConf is pink'
             debugMsg('confReachViol', 'Go?')
 
-        cv = self.confViolations(targetConf, bState, prob,
+        cv = self.confViolations(targetConf, pbs, prob,
                                  avoidShadow=avoidShadow, attached=attached)[0]
-        cv = self.confViolations(initConf, bState, prob, initViol=cv,
+        cv = self.confViolations(initConf, pbs, prob, initViol=cv,
                                  avoidShadow=avoidShadow, attached=attached)[0]
         if cv is None:
             if debug('traceCRH'): print '    unreachable conf',
@@ -709,19 +709,19 @@ class RoadMap:
                   [initConf, targetConf], [initConfNode, node]
             return exitWithAns(ans)
         if debug('traceCRH'): print '    find path',
-        gen = self.minViolPathGen([node], bState, prob, avoidShadow,
+        gen = self.minViolPathGen([node], pbs, prob, avoidShadow,
                                   startConf, cvi,
                                   objCost, shCost, maxNodes, attached=attached)
         return exitWithAns(gen.next())
 
-    def confReachViolGen(self, targetConfs, bState, prob, initViol=noViol, avoidShadow = [],
+    def confReachViolGen(self, targetConfs, pbs, prob, initViol=noViol, avoidShadow = [],
                          objCost = objCollisionCost, shCost = shCollisionCost,
                          maxNodes = maxSearchNodes, testFn = lambda x: True, goalCostFn = lambda x: 0,
                          startConf = None, attached = None, draw=False):
         # if fbch.inHeuristic:
         #     prob = 0.99*prob             # make slightly easier
         if attached == None:
-            attached = bState.getShadowWorld(prob).attached
+            attached = pbs.getShadowWorld(prob).attached
         initConf = startConf or self.homeConf
         batchSize = confReachViolGenBatch
         batch = 0
@@ -731,7 +731,7 @@ class RoadMap:
             trialConfs = []
             count = 0
             for c in targetConfs:       # targetConfs is a generator
-                if self.confViolations(c, bState, prob, avoidShadow=avoidShadow, attached=attached)[0] != None:
+                if self.confViolations(c, pbs, prob, avoidShadow=avoidShadow, attached=attached)[0] != None:
                     count += 1
                     trialConfs.append(c)
                     if initConf == c:
@@ -747,7 +747,7 @@ class RoadMap:
                 break
             random.shuffle(trialConfs)
             if debug('confReachViolGen') and not fbch.inHeuristic:
-                bState.draw(prob, 'W')
+                pbs.draw(prob, 'W')
                 initConf.draw('W', 'blue', attached=attached)
                 for trialConf in trialConfs:
                     trialConf.draw('W', 'pink', attached=attached)
@@ -760,7 +760,7 @@ class RoadMap:
             nodeTestFn = lambda n: testFn(nodeConf[n])
             goalNodeCostFn = lambda n: goalCostFn(nodeConf[n])
             gen = self.minViolPathGen(nodeConf.keys(),
-                                      bState, prob, avoidShadow,
+                                      pbs, prob, avoidShadow,
                                       initConf, initViol or Violations(),
                                       objCost, shCost, maxNodes, nodeTestFn, attached,
                                       goalCostFn=goalNodeCostFn, draw=draw)
@@ -770,9 +770,9 @@ class RoadMap:
                     pathOrig = path[:-1] + [origConf[path[-1]]]
                     if debug('confReachViolGen') and not fbch.inHeuristic:
                         drawPath(pathOrig, viol=viol,
-                                 attached=bState.getShadowWorld(prob).attached)
-                        newViol = self.checkPath(path, bState, prob, 
-                                                 bState.getShadowWorld(prob).attached, avoidShadow)
+                                 attached=pbs.getShadowWorld(prob).attached)
+                        newViol = self.checkPath(path, pbs, prob, 
+                                                 pbs.getShadowWorld(prob).attached, avoidShadow)
                         if newViol.weight() != viol.weight():
                             print 'viol', viol
                             print 'newViol', newViol

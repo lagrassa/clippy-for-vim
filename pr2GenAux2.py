@@ -23,14 +23,14 @@ Ident = util.Transform(np.eye(4))            # identity transform
 ################
 
 deltaThreshold = (0.01, 0.01, 0.01, 0.02)
-def legalGrasp(bState, conf, hand, objGrasp, objPlace):
+def legalGrasp(pbs, conf, hand, objGrasp, objPlace):
     # !! This should check for kinematic feasibility over a range of poses.
-    of = objectGraspFrame(bState, objGrasp, objPlace)
-    rf = robotGraspFrame(bState, conf, hand)
+    of = objectGraspFrame(pbs, objGrasp, objPlace)
+    rf = robotGraspFrame(pbs, conf, hand)
     result = of.withinDelta(rf, deltaThreshold)
     return result
 
-def objectGraspFrame(bState, objGrasp, objPlace):
+def objectGraspFrame(pbs, objGrasp, objPlace):
     # Find the robot wrist frame corresponding to the grasp at the placement
     objFrame = objPlace.objFrame()
     graspDesc = objGrasp.graspDesc[objGrasp.grasp.mode()]
@@ -53,8 +53,8 @@ def objectGraspFrame(bState, objGrasp, objPlace):
 
     return wristFrame
 
-def robotGraspFrame(bState, conf, hand):
-    robot = bState.getRobot()
+def robotGraspFrame(pbs, conf, hand):
+    robot = pbs.getRobot()
     _, frames = robot.placement(conf, getShapes=[])
     wristFrame = frames[robot.wristFrameNames[hand]]
     if debug('robotGraspFrame'):
@@ -79,51 +79,51 @@ def InPlaceDeproach(*x): return True
 # place1. move home->place with hand empty
 # place2. move home->pre with obj at place pose
 
-def canPickPlaceTest(bState, preConf, pickConf, hand, objGrasp, objPlace, p):
-    args = (preConf, pickConf, hand, objGrasp, objPlace, p, bState)
+def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p):
+    args = (preConf, pickConf, hand, objGrasp, objPlace, p, pbs)
     if debug('canPickPlaceTest'):
-        print zip(('preConf', 'pickConf', 'hand', 'objGrasp', 'objPlace', 'p', 'bState'),
+        print zip(('preConf', 'pickConf', 'hand', 'objGrasp', 'objPlace', 'p', 'pbs'),
                   args)
-    if not legalGrasp(bState, pickConf, hand, objGrasp, objPlace):
+    if not legalGrasp(pbs, pickConf, hand, objGrasp, objPlace):
         if debug('canPickPlaceTest'):
             print 'Grasp is not legal'
         return None
-    # if preConf and not inPickApproach(bState, preConf, pickConf, hand, objGrasp, objPlace):
+    # if preConf and not inPickApproach(pbs, preConf, pickConf, hand, objGrasp, objPlace):
     #     if debug('canPickPlaceTest'):
     #         print 'Not a proper approach')
     #     return None
     violations = Violations()           # cumulative
     # 1.  Can move from home to pre holding nothing with object placed at pose
     if preConf:
-        bState1 = bState.copy().updatePermObjPose(objPlace).updateHeldBel(None, hand)
+        pbs1 = pbs.copy().updatePermObjPose(objPlace).updateHeldBel(None, hand)
         if debug('canPickPlaceTest'): print 'H->App, obj=pose (condition 1)'
-        path, violations = canReachHome(bState1, preConf, p, violations)
+        path, violations = canReachHome(pbs1, preConf, p, violations)
         if not path:
             debugMsg('canPickPlaceTest', 'Failed H->App, obj=pose (condition 1)')
             return None
     # 2 - Can move from home to pre holding the object
     obj = objGrasp.obj
-    bState2 = bState.copy().excludeObjs([obj]).updateHeldBel(objGrasp, hand)
+    pbs2 = pbs.copy().excludeObjs([obj]).updateHeldBel(objGrasp, hand)
     if debug('canPickPlaceTest'): print 'H->App, obj=held (condition 2)'
-    path, violations = canReachHome(bState2, preConf, p, violations)
+    path, violations = canReachHome(pbs2, preConf, p, violations)
     if not path:
         debugMsg('canPickPlaceTest', 'Failed H->App, obj=held (condition 2)')
         return None
     # 3.  Can move from home to pick while obj is placed with zero variance
     oB = objPlace.modifyPoseD(var=4*(0.0,)) # ignore uncertainty
     oB.delta = 4*(0.0,)
-    bState3 = bState.copy().updatePermObjPose(oB).updateHeldBel(None, hand)
+    pbs3 = pbs.copy().updatePermObjPose(oB).updateHeldBel(None, hand)
     if debug('canPickPlaceTest'): print 'H->Target, obj placed (0 var) (condition 3)'
-    path, violations = canReachHome(bState3, pickConf, p, violations)
+    path, violations = canReachHome(pbs3, pickConf, p, violations)
     if not path:
         debugMsg('canPickPlaceTest', 'Failed H->Target (condition 3)')
         return None
     # 4.  Can move from home to pick while holding obj with zero grasp variance
     gB = objGrasp.modifyPoseD(var=4*(0.0,)) # ignore uncertainty
     gB.delta = 4*(0.0,)
-    bState3 = bState.copy().excludeObjs([obj]).updateHeldBel(gB, hand)
+    pbs3 = pbs.copy().excludeObjs([obj]).updateHeldBel(gB, hand)
     if debug('canPickPlaceTest'): print 'H->Target, holding obj (0 var) (condition 4)'
-    path, violations = canReachHome(bState3, pickConf, p, violations)
+    path, violations = canReachHome(pbs3, pickConf, p, violations)
     if not path:
         debugMsg('canPickPlaceTest', 'Failed H->Target (condition 4)')
         return None
@@ -178,8 +178,8 @@ class Memoizer:
 # This needs generalization
 approachBackoff = 0.10
 zBackoff = approachBackoff
-def findApproachConf(bState, obj, placeB, conf, hand, prob):
-    robot = bState.getRobot()
+def findApproachConf(pbs, obj, placeB, conf, hand, prob):
+    robot = pbs.getRobot()
     cart = robot.forwardKin(conf)
     wristFrame = cart[robot.armChainNames[hand]]
     wristFrameBack = wristFrame.compose(\
@@ -191,7 +191,7 @@ def findApproachConf(bState, obj, placeB, conf, hand, prob):
     else:
         return None
 
-def potentialGraspConfGen(bState, placeB, graspB, conf, hand, prob, nMax=None):
+def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, prob, nMax=None):
     def ground(pose):
         params = list(pose.xyztTuple())
         params[2] = 0.0
@@ -199,12 +199,12 @@ def potentialGraspConfGen(bState, placeB, graspB, conf, hand, prob, nMax=None):
     if conf:
         yield conf, Violations()
         return
-    robot = bState.getRobot()
-    rm = bState.getRoadMap()
-    wrist = objectGraspFrame(bState, graspB, placeB)
+    robot = pbs.getRobot()
+    rm = pbs.getRoadMap()
+    wrist = objectGraspFrame(pbs, graspB, placeB)
     if debug('potentialGraspConfs'):
         print 'wrist', wrist
-        bState.draw(prob, 'W')
+        pbs.draw(prob, 'W')
     count = 0
     tried = 0
     for basePose in robot.nuggetPoses[hand]:
@@ -220,14 +220,14 @@ def potentialGraspConfGen(bState, placeB, graspB, conf, hand, prob, nMax=None):
             cart.conf['pr2RightGripper'] = 0.08
         conf = robot.inverseKin(cart, complain=debug('potentialGraspConfs'))
         if hand == 'left':
-            conf.conf['pr2RightArm'] = bState.conf['pr2RightArm']
-            conf.conf['pr2RightGripper'] = bState.conf['pr2RightGripper']
+            conf.conf['pr2RightArm'] = pbs.conf['pr2RightArm']
+            conf.conf['pr2RightGripper'] = pbs.conf['pr2RightGripper']
         else:
-            conf.conf['pr2LeftArm'] = bState.conf['pr2LeftArm']
-            conf.conf['pr2LeftGripper'] = bState.conf['pr2LeftGripper']
+            conf.conf['pr2LeftArm'] = pbs.conf['pr2LeftArm']
+            conf.conf['pr2LeftGripper'] = pbs.conf['pr2LeftGripper']
         if not None in conf.values():
-            viol, _ = rm.confViolations(conf, bState, prob) # don't include attached...
-            if viol and findApproachConf(bState, placeB.obj, placeB, conf, hand, prob):
+            viol, _ = rm.confViolations(conf, pbs, prob) # don't include attached...
+            if viol and findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob):
                 if debug('potentialGraspConfs'):
                     conf.draw('W','green')
                     debugMsg('potentialGraspConfs', ('->', conf.conf))
@@ -237,8 +237,8 @@ def potentialGraspConfGen(bState, placeB, graspB, conf, hand, prob, nMax=None):
                 if debug('potentialGraspConfs'): conf.draw('W','red')
         elif debug('potentialGraspConfs'):
                 print conf.conf
-                conf.conf['pr2LeftArm'] = bState.getShadowWorld(prob).robotConf['pr2LeftArm']
-                conf.conf['pr2RightArm'] = bState.getShadowWorld(prob).robotConf['pr2RightArm']
+                conf.conf['pr2LeftArm'] = pbs.getShadowWorld(prob).robotConf['pr2LeftArm']
+                conf.conf['pr2RightArm'] = pbs.getShadowWorld(prob).robotConf['pr2RightArm']
                 if not None in conf.values(): conf.draw('W','red')
     if debug('potentialGraspConfs'):
         print 'Tried', tried, 'Found', count, 'potential grasp confs'
@@ -289,16 +289,16 @@ lookPoses = {'left': [trL(x) for x in [util.Pose(0.5,0.08,1.0, ang),
                                        util.Pose(0.5,0.18,1.0, ang)]],
              'right': [trR(x) for x in [util.Pose(0.5,-0.08,1.0, -ang),
                                         util.Pose(0.5,-0.18,1.0, -ang)]]}
-def potentialLookHandConfGen(bState, prob, hand):
-    shWorld = bState.getShadowWorld(prob)
-    robot = bState.conf.robot
-    curCartConf = robot.forwardKin(bState.conf)
+def potentialLookHandConfGen(pbs, prob, hand):
+    shWorld = pbs.getShadowWorld(prob)
+    robot = pbs.conf.robot
+    curCartConf = robot.forwardKin(pbs.conf)
     chain = robot.armChainNames[hand]
     baseFrame = curCartConf['pr2Base']
     for pose in lookPoses[hand]:
         target = baseFrame.compose(pose)
         cartConf = curCartConf.set(chain, target)
-        conf = robot.inverseKin(cartConf, conf=bState.conf)
+        conf = robot.inverseKin(cartConf, conf=pbs.conf)
         if all(v for v in conf.conf.values()):
             if debug('potentialLookHandConfs'):
                 print 'lookPose\n', pose.matrix
@@ -316,7 +316,7 @@ def potentialLookHandConfGen(bState, prob, hand):
 
 # !! THIS IS NOT FINISHED!
 
-def candidatePlaceH(bState, inCondsRev, graspB, reachObsts, hand, prob):
+def candidatePlaceH(pbs, inCondsRev, graspB, reachObsts, hand, prob):
 
     assert False
 
@@ -325,11 +325,11 @@ def candidatePlaceH(bState, inCondsRev, graspB, reachObsts, hand, prob):
     debugMsg('candidatePGCC', ('inConds - reversed', inConds))
     objs = [obj for (obj,_,_,_) in inConds]
     objPB = [opb for (_,_,opb,_,_) in inConds]
-    shWorld = bState.getShadowWorld(prob)
+    shWorld = pbs.getShadowWorld(prob)
     # Shadows (at origin) for objects to be placed.
     ## !! Maybe give it a little cushion
     objShadows = [shWorld.world.getObjectShapesAtOrigin(o.name()) for o in shWorld.getShadowShapes()]
-    newBS = bState.copy()
+    newBS = pbs.copy()
     newBS.excludeObjs(objs)
     shWorld = newBS.getShadowWorld(prob)
     poseObsts = [sh for sh in shWorld.getShadowShapes() if not sh.name() in shWorld.fixedObjects]
@@ -346,13 +346,13 @@ def candidatePlaceH(bState, inCondsRev, graspB, reachObsts, hand, prob):
 ## Drawing
 ################
     
-def drawPoseConf(bState, placeB, conf, confAppr, prob, win, color = None):
-    ws = bState.getShadowWorld(prob)
+def drawPoseConf(pbs, placeB, conf, confAppr, prob, win, color = None):
+    ws = pbs.getShadowWorld(prob)
     ws.world.getObjectShapeAtOrigin(placeB.obj).applyLoc(placeB.objFrame()).draw(win, color=color)
     conf.draw(win, color=color)
 
-def drawObjAndShadow(bState, placeB, prob, win, color = None):
-    ws = bState.getShadowWorld(prob)
+def drawObjAndShadow(pbs, placeB, prob, win, color = None):
+    ws = pbs.getShadowWorld(prob)
     obj = placeB.obj
     ws.world.getObjectShapeAtOrigin(obj).applyLoc(placeB.objFrame()).draw(win, color=color)
     if shadowName(obj) in ws.world.objects:
@@ -369,19 +369,19 @@ def getGoalInConds(goalConds, X=[]):
     return [(b['Obj'], b['Reg'], b['P']) \
             for (f, b) in fbs if isGround(b.values())]
 
-def pathShape(path, prob, bState, name):
+def pathShape(path, prob, pbs, name):
     assert isinstance(path, (list, tuple))
-    attached = bState.getShadowWorld(prob).attached
+    attached = pbs.getShadowWorld(prob).attached
     return shapes.Shape([c.placement(attached=attached) for c in path], None, name=name)
 
-def pathObst(cs, lgb, rgb, cd, p, bState, name):
-    newBS = bState.copy()
+def pathObst(cs, lgb, rgb, cd, p, pbs, name):
+    newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(cd) if cd else newBS
     newBS.updateHeldBel(lgb, 'left')
     newBS.updateHeldBel(rgb, 'right')
     key = (cs, newBS, p)
-    if key in bState.beliefContext.pathObstCache:
-        return bState.beliefContext.pathObstCache[key]
+    if key in pbs.beliefContext.pathObstCache:
+        return pbs.beliefContext.pathObstCache[key]
     path,  viol = canReachHome(newBS, cs, p, Violations())
     if debug('pathObst'):
         newBS.draw(p, 'W')
@@ -395,17 +395,17 @@ def pathObst(cs, lgb, rgb, cd, p, bState, name):
         ans = None
     else:
         ans = pathShape(path, p, newBS, name)
-    bState.beliefContext.pathObstCache[key] = ans
+    pbs.beliefContext.pathObstCache[key] = ans
     return ans
 
-def getReachObsts(goalConds, bState):
+def getReachObsts(goalConds, pbs):
     fbs = getMatchingFluents(goalConds,
                              Bd([CanReachHome(['C', 'H',
                                                'LO', 'LF', 'LGM', 'LGV', 'LGD',
                                                'RO', 'RF', 'RGM', 'RGV', 'RGD',
                                                'Cond']),
                                   True, 'P'], True))
-    world = bState.getWorld()
+    world = pbs.getWorld()
     obsts = []
     index = 0
     for (f, b) in fbs:
@@ -424,7 +424,7 @@ def getReachObsts(goalConds, bState):
             gBL = gB1; gBR = gB2
         else:
             gBL = gB2; gBR = gB1
-        obst = pathObst(b['C'], gBL, gBR, b['Cond'], b['P'], bState, name= 'reachObst%d'%index)
+        obst = pathObst(b['C'], gBL, gBR, b['Cond'], b['P'], pbs, name= 'reachObst%d'%index)
         index += 1
         if not obst:
             debugMsg('getReachObsts', ('path fail', f, b.values()))
@@ -454,7 +454,7 @@ def bboxInterior(bb1, bb2):
 
 # !! Should pick relevant orientations... or more samples.
 angleList = [-math.pi/2. -math.pi/4., 0.0, math.pi/4, math.pi/2]
-def potentialRegionPoseGenCut(bState, obj, placeB, prob, regShapes, reachObsts, maxPoses = 30):
+def potentialRegionPoseGenCut(pbs, obj, placeB, prob, regShapes, reachObsts, maxPoses = 30):
     def genPose(rs, angle,  chunk):
         for i in xrange(5):
             (x,y,z) = bboxRandomDrawCoords(chunk.bbox())
@@ -470,9 +470,9 @@ def potentialRegionPoseGenCut(bState, obj, placeB, prob, regShapes, reachObsts, 
     clearance = 0.01
     for rs in regShapes: rs.draw('W', 'purple')
     ff = placeB.faceFrames[placeB.support.mode()]
-    objShadowBase = bState.objShadow(obj, True, prob, placeB, ff)
+    objShadowBase = pbs.objShadow(obj, True, prob, placeB, ff)
     objShadow = objShadowBase.applyTrans(objShadowBase.origin().inverse())
-    shWorld = bState.getShadowWorld(prob)
+    shWorld = pbs.getShadowWorld(prob)
     shRotations = dict([(angle, objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
     count = 0
@@ -484,7 +484,7 @@ def potentialRegionPoseGenCut(bState, obj, placeB, prob, regShapes, reachObsts, 
             bI = CI(shRot, rs.prim())
             if bI == None:
                 if debug('potentialRegionPoseGen'):
-                    bState.draw(prob, 'W')
+                    pbs.draw(prob, 'W')
                     print 'bI is None for angle', angle
                 continue
             elif debug('potentialRegionPoseGen'):
@@ -496,7 +496,7 @@ def potentialRegionPoseGenCut(bState, obj, placeB, prob, regShapes, reachObsts, 
             if debug('potentialRegionPoseGen'):
                 co.draw('W', 'brown')
 
-            bState.draw('W')
+            pbs.draw('W')
             safeI = bI.cut(co)
 
             if not safeI:
@@ -519,7 +519,7 @@ def potentialRegionPoseGenCut(bState, obj, placeB, prob, regShapes, reachObsts, 
         print 'Returned', count, 'for regions', [r.name() for r in regShapes]
     return
 
-def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, hand,
+def potentialRegionPoseGen(pbs, obj, placeB, prob, regShapes, reachObsts, hand,
                            maxPoses = 30):
     def genPose(rs, angle, point):
         (x,y,z,_) = point
@@ -535,7 +535,7 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, han
 
     def poseViolationWeight(pose):
         pB = placeB.modifyPoseD(pose)
-        c, v = next(potentialGraspConfGen(bState, pB, graspB, None, hand, prob, nMax=1),
+        c, v = next(potentialGraspConfGen(pbs, pB, graspB, None, hand, prob, nMax=1),
                     (None,None))
         if v:
             if debug('potentialRegionPoseGen'):
@@ -546,22 +546,22 @@ def potentialRegionPoseGen(bState, obj, placeB, prob, regShapes, reachObsts, han
         
     clearance = 0.01
     if debug('potentialRegionPoseGen'):
-        bState.draw(prob, 'W')
+        pbs.draw(prob, 'W')
         for rs in regShapes: rs.draw('W', 'purple')
     ff = placeB.faceFrames[placeB.support.mode()]
-    objShadowBase = bState.objShadow(obj, True, prob, placeB, ff)
+    objShadowBase = pbs.objShadow(obj, True, prob, placeB, ff)
     # Needed when doing CO/CI version - why?
     # objShadow = objShadowBase.applyTrans(objShadowBase.origin().inverse())
     objShadow = objShadowBase
-    shWorld = bState.getShadowWorld(prob)
+    shWorld = pbs.getShadowWorld(prob)
     shRotations = dict([(angle, objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
     obstCost = 10.
     hyps = []                         # (index, cost)
     points = []                       # [(angle, xyz1)]
     count = 0
-    graspB = bState.defaultGraspB(obj)  # all grasps...
-    world = bState.pbs.getWorld()
+    graspB = pbs.defaultGraspB(obj)  # all grasps...
+    world = pbs.getWorld()
     for rs in regShapes:
         if debug('potentialRegionPoseGen'):
             print 'Considering region', rs.name()
