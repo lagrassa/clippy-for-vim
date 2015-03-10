@@ -131,7 +131,14 @@ def pickGenTop(args, goalConds, bState, outBindings,
         print 'pickGen(%s,%s,%d) h='%(obj,hand,graspB.grasp.mode()), fbch.inHeuristic
     debugMsgSkip('pickGen', fbch.inHeuristic,
                  zip(('obj', 'graspB', 'placeB', 'hand', 'prob'), args),
-                 outBindings)
+                 ('goalConds', goalConds),
+                 ('moveObjBs', bState.moveObjBs),
+                 ('fixObjBs', bState.fixObjBs),
+                 ('held', (bState.held['left'].mode(),
+                           bState.held['right'].mode(),
+                           bState.graspB['left'],
+                           bState.graspB['right'])))
+
     if obj == 'none':                   # can't pick up 'none'
         return
     if goalConds and getConf(goalConds, None):
@@ -307,7 +314,6 @@ def placeGenTop(args, goalConds, bState, outBindings, regrasp=False, away=False)
         startTime = time.clock()
     debugMsgSkip('placeGen', fbch.inHeuristic,
                  zip(('obj', 'graspB', 'placeBs', 'hand', 'prob'), args),
-                 ('outBindings', outBindings),
                  ('goalConds', goalConds),
                  ('moveObjBs', bState.moveObjBs),
                  ('fixObjBs', bState.fixObjBs),
@@ -648,7 +654,7 @@ def placeInGenTop(args, goalConds, bState, outBindings,
                     viol2 = canPickPlaceTest(bState, ca, cf, hand, gB, pB, prob)
                     if viol2 and viol2.weight() <= viol.weight():
                         if debug('traceGen'):
-                            print 'reusing placeInGen'
+                            print '    reusing placeInGen',
                             print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
                                   viol2.weight() if viol2 else None, grasp, pose
                         yield ans[0], viol2
