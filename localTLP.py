@@ -34,13 +34,10 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
 debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'traceCRH',
            'regression:fail', 'applicableOps', 'regression:inconsistent', 'easyGraspGen',
            'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'lookHandGn', 'canReachGen',
-           'visible', 'potentialRegionPoseGen',
-           'minViolPath', 'confReachViolGen', 'confReachViol', 'confReachViolCache'
+           'visible', 'potentialRegionPoseGen', 'canPickPlaceGen',
+           # 'minViolPath', 'confReachViolGen', 'confReachViol', 'confReachViolCache'
            ]
 
-debugOn = ['traceGen', 'traceCRH', 'pickGen', 'placeGen', 'placeInGen',
-           'confReachViolGen', 'confReachViol'
-           ]
 # debugOn = ['confReachViolGen', 'visible', 'canReachHome', 'confReachViol', 'confReachViolCache', ]
 # debugOn = ['hAddBackV', 'traceGen']
 # debugOn = ['nonmon', 'executionFail', 'hAddBackV', 'skeleton', 'applicableOps', 'regression:fail']
@@ -52,7 +49,6 @@ debugOn = ['traceGen', 'traceCRH', 'pickGen', 'placeGen', 'placeInGen',
 debugOn = ['traceGen', 'traceCRH']
 #debugOn = []
 pauseOn = debugOn
-pauseOn = []
 if 'canPickPlaceTest' in pauseOn:
     pauseOn.remove('canPickPlaceTest')
 

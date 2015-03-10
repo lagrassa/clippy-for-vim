@@ -169,9 +169,9 @@ cdef class Thing:
     def __str__(self):
         if not self.thingString:
             self.thingString = self.properties['name']+':'+str(self.bbox().tolist())
-        else:
-            return self.thingString
-    __repr__ = __str__
+        return self.thingString
+    def __repr__(self):
+        return str(self)
     def __hash__(self):
         return repr(self).__hash__()
     def __richcmp__(self, other, int op):

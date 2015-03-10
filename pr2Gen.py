@@ -1026,7 +1026,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
 
     viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
                              graspB1, placeB, prob)
-    
+    debugMsg('canPickPlaceGen', ('viol', viol))
     if not viol:                  # hopeless
         return
     if viol.empty():
@@ -1048,18 +1048,19 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
             yield ans 
     else:
         obst = objectName(list(viol.shadows)[0])
-        placeB = newBS.getPlaceB(obst)
+        pB = newBS.getPlaceB(obst)
         # !! It could be that sensing is not good enough to reduce the
         # shadow so that we can actually reach conf.
         newBS2 = newBS.copy()
-        placeB2 = placeB.modifyPoseD(var = lookVar)
-        placeB2.delta = lookDelta
-        newBS2.updatePermObjPose(placeB2)
+        pB2 = pB.modifyPoseD(var = lookVar)
+        pB2.delta = lookDelta
+        newBS2.updatePermObjPose(pB2)
         viol2 = canPickPlaceTest(newBS2, preconf, ppconf, hand,
-                                 graspB1, placeB2, prob)
+                                 graspB1, placeB, prob)
+        debugMsg('canPickPlaceGen', ('viol2', viol2))
         if viol2:
             if debug('canPickPlaceGen', skip=fbch.inHeuristic):
-                drawObjAndShadow(newBS2, placeB2, prob, 'W', color='red')
+                drawObjAndShadow(newBS2, pB2, prob, 'W', color='red')
                 debugMsg('canPickPlaceGen',
                          'Trying to reduce shadow (on W in red) %s'%obst)
             if debug('traceGen'):
