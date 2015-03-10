@@ -73,6 +73,9 @@ def movePrim(args, details):
      p1, p2, pcr) = args
 
     bs = details.pbs.copy()
+    # Make all the objects be fixed
+    bs.fixObjBs.update(bs.moveObjBs)
+    bs.moveObjBs = {}
     print 'movePrim (start, end)'
     printConf(cs); printConf(ce)
 
