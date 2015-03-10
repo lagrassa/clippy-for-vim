@@ -987,8 +987,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     (preconf, ppconf, hand,
      obj, pose, realPoseVar, poseDelta, poseFace,
      graspFace, graspMu, graspVar, graspDelta, oobj, oface, oGraspMu, oGraspVar,
-     oGraspDelta, preCond, postCond, occ, occPose, occPoseFace, occPoseVar,
-     occPoseDelta, p, cond) = args
+     oGraspDelta, p, cond) = args
 
     def moveOut(newBS, obst, delta):
         if debug('traceGen') or debug('canReachGen'):
@@ -1006,14 +1005,14 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     world = bState.pbs.getWorld()
     lookVar = bState.domainProbs.obsVarTuple
 
-    graspB1 = ObjGraspB(obj, world.getGraspDesc(obj), face,
+    graspB1 = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
                  PoseD(graspMu, graspVar), delta= graspDelta)
     graspB2 = ObjGraspB(oobj, world.getGraspDesc(oobj), oface,
                  PoseD(oGraspMu, oGraspVar), delta= oGraspDelta) \
                  if oobj != 'none' else None
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
                          PoseD(pose, realPoseVar), delta=poseDelta)
-    newBS = bState.copy()   
+    newBS = bState.pbs.copy()   
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
     newBS = newBS.updateFromGoalPoses(cond) if cond else newBS
     # Build the other hand's info into the bState

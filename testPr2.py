@@ -674,7 +674,7 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False):
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           skeleton = [['move', 'poseAchCanReach',
-                       'lookAt']] if skeleton else None,
+                       'lookAt', move]] if skeleton else None,
           )
 
 def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
@@ -701,7 +701,7 @@ def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
           hpn = hpn,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
-          skeleton = [['place', 'move', 'pick', 'move', 'poseAchCanReach',
+          skeleton = [['place', 'move', 'pick', 'move', 'poseAchCanPickPlace',
                        'lookAt', 'move']]*3 if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
