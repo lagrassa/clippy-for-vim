@@ -99,6 +99,7 @@ testResults = {}
 def testAll(indices, repeat=3, crashIsError=True, **args):
     pr2Sim.crashIsError = crashIsError
     for i in indices:
+        if i == 0: continue
         testRepeat(i, repeat=repeat, **args)
     print testResults
 

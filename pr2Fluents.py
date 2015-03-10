@@ -173,7 +173,6 @@ class CanReachHome(Fluent):
         if path == None:
             #!! should this happen?
             print 'hv infinite'
-            raw_input('go?')
             return float('inf'), {}
         obstacles = violations.obstacles
         shadows = violations.shadows
@@ -272,11 +271,6 @@ class CanPickPlace(Fluent):
         if path == None:
             #!! should this happen?
             print 'hv infinite'
-            glob.debugOn.append('confViolations')
-            bState.details.pbs.getRoadMap().confReachCache = {}
-            self.getViols(bState.details, v, p, strict = False)
-            glob.debugOn.pop(-1)
-            raw_input('should this happen?')
             return float('inf'), {}
         obstacles = violations.obstacles
         shadows = violations.shadows
