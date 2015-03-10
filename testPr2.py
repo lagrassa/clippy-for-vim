@@ -55,7 +55,7 @@ reload(pr2Gen)
 import pr2Ops
 reload(pr2Ops)
 from pr2Ops import move, pick, place, lookAt, poseAchCanReach, poseAchCanSee,\
-      lookAtHand, hRegrasp
+      lookAtHand, hRegrasp, poseAchCanPickPlace
 
 import pr2Sim
 reload(pr2Sim)
@@ -315,6 +315,7 @@ class PlanTest:
         self.operators = {'move': move, 'pick': pick, 'place': place,
                           'lookAt': lookAt, 'poseAchCanReach' : poseAchCanReach,
                           'poseAchCanSee' : poseAchCanSee,
+                          'poseAchCanPickPlace' : poseAchCanPickPlace,
                           'lookAtHand' : lookAtHand}
         wm.makeWindow('Belief', viewPort, 500)
         wm.makeWindow('World', viewPort, 500)
@@ -475,7 +476,7 @@ def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
           if skeleton else None,
           heuristic = heuristic,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                     'poseAchCanSee', 'poseAchCanPickPlace', 'lookAtHand'],
           home=homeConf
           )
     return t
@@ -503,7 +504,7 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
           skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                     'poseAchCanSee', 'poseAchCanPickPlace', 'lookAtHand'],
           heuristic = heuristic
           )
 
@@ -540,7 +541,8 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
 
     t.run(goal,
           hpn = hpn,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach', 'poseAchCanSee', 'lookAtHand'],
+          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           heuristic = heuristic
@@ -561,7 +563,7 @@ def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False):
           hpn = hpn,
           skeleton = [['place', 'move', 'pick', 'move']] if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic
           )
 
@@ -585,7 +587,7 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False):
           hpn = hpn,
           skeleton = [['lookAt', 'move']] if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           hierarchical = hierarchical,
           heuristic = heuristic,
           )
@@ -615,7 +617,7 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
           hpn = hpn,
           skeleton = skel if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
           hierarchical = hierarchical,
           home=homeConf
@@ -650,7 +652,7 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
           skeleton = goodSkel if skeleton else None,
           heuristic = heuristic, 
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           hierarchical = hierarchical,
           home=homeConf,
           regions=['table1Top']
@@ -670,7 +672,7 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False):
           hierarchical = hierarchical,
           regions=['table1Top'],
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           skeleton = [['move', 'poseAchCanReach',
                        'lookAt']] if skeleton else None,
           )
@@ -698,7 +700,7 @@ def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
     t.run(goal,
           hpn = hpn,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           skeleton = [['place', 'move', 'pick', 'move', 'poseAchCanReach',
                        'lookAt', 'move']]*3 if skeleton else None,
           hierarchical = hierarchical,
@@ -776,7 +778,7 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
     t.run(goal,
           hpn = hpn,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
@@ -808,7 +810,7 @@ def test12(hpn = True, skeleton = False, hierarchical = False,
     t.run(goal,
           hpn = hpn,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           skeleton = [['pick',
                        'move',
                        'poseAchCanReach',
@@ -888,7 +890,7 @@ def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
     t.run(goal,
           hpn = hpn,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           skeleton = hskel if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top', 'table2Top'],
@@ -919,7 +921,7 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
     t.run(goal,
           hpn = hpn,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           skeleton = [['lookAt', 'poseAchCanSee', 'move',
                        'place', 'move', 'pick', 'move']] \
                              if skeleton else None,
@@ -951,7 +953,7 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
           if skeleton else None,
           heuristic = heuristic,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           home=homeConf
           )
 
@@ -977,7 +979,7 @@ def test16(hpn = True, skeleton = False, hierarchical = False,
                        'pick', 'move', 'lookAt']]*5 \
                        if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           hierarchical = hierarchical,
           heuristic = heuristic
           )
@@ -1031,7 +1033,7 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
           hpn = hpn,
           skeleton = skel if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
           hierarchical = hierarchical,
           regions=['table1Top']
@@ -1082,7 +1084,7 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
           hpn = hpn,
           skeleton = skel if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           hierarchical = hierarchical,
           heuristic = heuristic,
           regions=['table1Top']
@@ -1131,7 +1133,7 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
           hpn = hpn,
           skeleton = skel if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           hierarchical = hierarchical,
           heuristic = heuristic,
           regions=['table1Top']
@@ -1199,7 +1201,7 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
           hpn = hpn,
           skeleton = swapSkel if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
           hierarchical = hierarchical,
           regions=['table1Top']
@@ -1237,7 +1239,7 @@ def testStack(hpn = True, skeleton = False, hierarchical = False,
           hpn = hpn,
           skeleton = skel if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand'],
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
           hierarchical = hierarchical,
           regions=['objATop', 'objBTop']
@@ -1318,7 +1320,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     s = State([], details = t.bs)
 
     operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'lookAtHand']
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand']
     skeleton = None #[[place, move]]
 
     HPN(s, goal2, 
