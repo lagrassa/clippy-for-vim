@@ -202,16 +202,19 @@ def drawPath(path, viol=None, attached=None):
 class DomainProbs:
     # obsVar, pickVar, and placeVar are diagonal cov 4-tuples (fix this!)
     # pickTolerance is a distance error in x, y, z, theta
-    def __init__(self, odoError, obsVar, pickVar, placeVar, pickTolerance):
+    def __init__(self, odoError, obsVar, obsTypeErrProb, pickVar,
+                 placeVar, pickTolerance):
         self.odoError = odoError # std dev per meter / radian in base motion
         self.obsVar = np.diag(obsVar) # error in observations
         self.obsVarTuple = obsVar     # error in observations
+        self.obsTypeErrProb = 0
         self.pickVar = pickVar # error introduced by the picking operation
         self.pickStdev = tuple([np.sqrt(x) for x in pickVar])
         # error introduced by the placing operator;  should have 0 error in z
         self.placeVar = placeVar
         self.placeStdev = tuple([np.sqrt(x) for x in placeVar])
-        self.pickTolerance = pickTolerance # size of basin of attraction of pick operator
+        # size of basin of attraction of pick operator
+        self.pickTolerance = pickTolerance 
         # Bad failures, like dropping
         self.pickFailProb = 0
         self.placeFailProb = 0

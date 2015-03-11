@@ -412,6 +412,8 @@ typicalErrProbs = DomainProbs(\
             odoError = (0.05, 0.05, 0.05, 0.05),
             # variance in observations; diagonal for now
             obsVar = (0.01**2, 0.01**2, 1e-12, 0.01**2),
+            # get type of object wrong
+            obsTypeErrProb = 0.05,
             # variance in grasp after picking
             pickVar = (0.02**2, 0.02**2, 0.02**2, 0.04**2),
             # variance in grasp after placing
@@ -424,6 +426,8 @@ smallErrProbs = DomainProbs(\
             odoError = (0.01, 0.01, 0.01, 0.01),
             # variance in observations; diagonal for now
             obsVar = (0.001**2, 0.001**2, 1e-12, 0.002**2),
+            # get type of object wrong
+            obsTypeErrProb = 0.02,
             # variance in grasp after picking
             pickVar = (0.01**2, 0.01**2, 0.01**2, 0.01**2),
             # variance in grasp after placing
@@ -436,6 +440,8 @@ tinyErrProbs = DomainProbs(\
             odoError = (0.0001, 0.0001, 0.0001, 0.0001),
             # variance in observations; diagonal for now
             obsVar = (0.00001**2, 0.00001**2, 1e-12, 0.00002**2),
+            # get type of object wrong
+            obsTypeErrProb = 0.0,
             # variance in grasp after picking
             pickVar = (0.0001**2, 0.0001**2, 0.0001**2, 0.0001**2),
             # variance in grasp after placing
@@ -744,23 +750,6 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
     glob.monotonicFirst = hierarchical
     glob.rebindPenalty = 200
 
-    skel = [[place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-             'move',
-             place.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
-             'move',
-             lookAtHand.applyBindings({'Obj' : 'objA'}),
-             'move',
-             pick.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
-             'move',
-             lookAtHand.applyBindings({'Obj' : 'objB'}),
-             'move',
-             pick.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-             'move',
-             lookAt.applyBindings({'Obj' : 'objB'}),
-             'move',
-              lookAt.applyBindings({'Obj' : 'objA'}),
-              'move']]*5
-
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
              'move',
              place.applyBindings({'Obj' : 'objB', 'Hand' : 'right'}),
@@ -774,7 +763,7 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
              lookAtHand.applyBindings({'Obj' : 'objA'}),
              'move',
              pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             'poseAchCanReach',
+             'poseAchCanPickPlace',
              'move',
               lookAt.applyBindings({'Obj' : 'objB'}),
              'move',
@@ -1265,6 +1254,10 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
                  movePoses={'objA': p1,
                             'objB': p2})
 
+    # Init var
+    initGraspVar = (1e-4,)*4    # very small
+    # initGraspVar = (0.01, 0.01, 0.01, 0.05)    # very big
+
     # Small var
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
     targetDelta = (0.001, 0.001, 0.001, 0.005)
@@ -1286,7 +1279,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
 
     fbch.inHeuristic = False
     if skeleton:
-       fbch.dotSearchId = 0    # should make skeletons work without reload
+       fbch.dotSearchId = 0    
     fbch.flatPlan = not hierarchical
     fbch.plannerGreedy = 0.7
     pr2Sim.simulateError = False
@@ -1298,7 +1291,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     o = 'objB'
     h = 'left'
     gm = (0, -0.025, 0, 0)
-    gv = (1e-4,)*4
+    gv = initGraspVar
     gd = (1e-4,)*4
     gf = 0
     t.bs.pbs.updateHeld(o, gf, PoseD(gm, gv), h, gd)
@@ -1330,17 +1323,100 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
 
     operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand']
-    skeleton = None #[[place, move]]
+    skeleton1 = [[place, move, lookAtHand, move, lookAtHand,
+                  move]]
+
+    HPN(s, goal1, 
+         [t.operators[o] for o in operators],
+         t.realWorld,
+         hpnFileTag = t.name,
+         skeleton = skeleton1 if skeleton else None,
+         h = heuristic,
+         verbose = False,
+         fileTag = t.name if writeSearch else None)
+
+
+# Need to verify that hand is empty
+def test22(hpn = True, skeleton = False, hierarchical = False,
+           heuristic = habbs):
+    p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
+    p2 = util.Pose(0.45, 0.4, 0.61, 0.0)
+
+    t = PlanTest('test22',  smallErrProbs, 
+                 objects=['table1', 'objA', 'objB'],
+                 movePoses={'objA': p1,
+                            'objB': p2})
+
+    # Small var
+    targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
+    # Bigger for testing
+    targetVar = (0.001, 0.001, 0.001, 0.005)
+    targetDelta = (0.001, 0.001, 0.001, 0.005)
+    # Increase this
+    goalProb = 0.4
+
+    goal1 = State([Bd([Holding(['left']), 'none', .97], True)])
+
+
+    # Need to be very sure
+    goal3 = State([Bd([Holding(['left']), 'objA', .97], True),
+                   Bd([GraspFace(['objA', 'left']), 0, .97], True),
+                   B([Grasp(['objA', 'left', 0]),
+                     (0,-0.025,0,0), (0.001, 0.001, 0.001, 0.001), (0.001,)*4,
+                     .97], True)])
+
+    # Need to verify empty hand in order to achieve this
+    goal2 = State([Bd([SupportFace(['objA']), 4, goalProb], True),
+                  B([Pose(['objA', 4]),
+                     p2.xyztTuple(), targetVar, targetDelta,
+                     goalProb], True)])
+
+    fbch.inHeuristic = False
+    if skeleton:
+       fbch.dotSearchId = 0    
+    fbch.flatPlan = not hierarchical
+    fbch.plannerGreedy = 0.7
+    pr2Sim.simulateError = False
+    for win in wm.windows:
+       wm.getWindow(win).clear()
+    t.buildBelief(home=None, regions=['table1Top'])
+
+    # Change pbs so we are unsure whether both hands are empty
+    t.bs.pbs.held['left'] = dist.DDist({'none' : .6, 'objA' : .3, 'objB': .1})
+    t.bs.pbs.held['right'] = dist.DDist({'none' : .6, 'objA' : .1, 'objB': .3})
+    t.bs.pbs.shadowWorld = None # force recompute
+    t.bs.pbs.draw(0.9, 'W')
+    t.bs.pbs.draw(0.9, 'Belief')
+    
+    # Initialize simulator
+    t.realWorld = RealWorld(t.bs.pbs.getWorld(),
+                                   t.domainProbs) # simulator
+    t.realWorld.setRobotConf(t.bs.pbs.conf)
+    for obj in t.objects:
+        t.realWorld.setObjectPose(obj, t.bs.pbs.getPlaceB(obj).objFrame())
+
+    t.realWorld.draw('World')
+    s = State([], details = t.bs)
+
+    operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand']
+    skeleton1 = [[lookAtHand.applyBindings({'Hand' : 'left'}),
+                  move,
+                  lookAtHand.applyBindings({'Hand' : 'left'}),
+                  move]]
+    skeleton2 = [[lookAt, move, place, move, pick, move, lookAtHand, move]]
 
     HPN(s, goal2, 
          [t.operators[o] for o in operators],
          t.realWorld,
          hpnFileTag = t.name,
-         skeleton = skeleton if skeleton else None,
+         skeleton = skeleton1 if skeleton else None,
          h = heuristic,
          verbose = False,
          fileTag = t.name if writeSearch else None)
 
+
+    
 def prof(test):
     import cProfile
     import pstats

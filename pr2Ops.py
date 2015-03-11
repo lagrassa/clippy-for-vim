@@ -1,6 +1,7 @@
 import numpy as np
 import util
-from dist import DeltaDist, varBeforeObs, DDist, probModeMoved
+from dist import DeltaDist, varBeforeObs, DDist, probModeMoved, MixtureDist,\
+     UniformDist
 from fbch import Function, getMatchingFluents, Operator, simplifyCond
 from miscUtil import isVar
 from pr2Util import PoseD, shadowName, ObjGraspB, ObjPlaceB, Violations
@@ -344,7 +345,17 @@ def halveVariance((var,), goal, start, vals):
     return [[tuple([min(maxVarianceTuple[0], v / 2.0) for v in var])]*2]
 
 def maxGraspVarFun((var,), goal, start, vals):
-    return [[tuple([min(x,y) for (x,y) in zip(var, maxGraspVar)])]]
+    # A conservative value to start with, but then try whatever the
+    # variance is in the current grasp
+    result = [[tuple([min(x,y) for (x,y) in zip(var, maxGraspVar)])]] 
+    lgs = graspStuffFromStart(start, 'left')
+    if lgs[0] != 'none':
+        result.append([tuple([min(x,y) for (x,y) in zip(var, lgs[3])])])
+    rgs = graspStuffFromStart(start, 'right')
+    if rgs[0] != 'none':
+        result.append([tuple([min(x,y) for (x,y) in zip(var, rgs[3])])])
+    return result
+
 
 def realPoseVar((graspVar,), goal, start, vals):
     placeVar = start.domainProbs.placeVar
@@ -482,9 +493,15 @@ def lookAtCostFun(al, args, details):
     return result
 
 def lookAtHandCostFun(al, args, details):
-    (_,_,_,_,_,vb,d,_,p1,_,_,_) = args
-    vo = details.domainProbs.obsVarTuple
-    deltaViolProb = probModeMoved(d[0], vb[0], vo[0])
+    # Two parts:  the probability and the variance
+    (_,_,_,_,_,vb,d,_,p1,pGraspR,_,pHoldingR) = args
+    
+    holdingProb = p1
+    if not isVar(d):
+        vo = details.domainProbs.obsVarTuple
+        deltaViolProb = probModeMoved(d[0], vb[0], vo[0])
+    else:
+        deltaViolProb = 0
     result = costFun(1.0, p1*(1-deltaViolProb))
     debugMsg('cost', ('lookAtHand', (p1, 1-deltaViolProb), result))
     return result
@@ -566,32 +583,71 @@ def lookAtBProgress(details, args, obs):
 # For now, assume obs has the form (obj, face, grasp) or None
 # Really, we'll get obj-type, face, relative pose
 def lookAtHandBProgress(details, args, obs):
-    (o, h, _, f, _, _, _,  _, _, _, _,_) = args
-    opb = details.pbs.getGraspB(o, h, f)
-    if obs == None or o != obs[0]:
-        # Increase the variance on o
-        oldVar = opb.poseD.var
-        newVar = tuple([v*2 for v in oldVar])
-        opb.poseD.var = newVar
-    else:
-        (o, gf, grasp) = obs
-        # Cheapo obs update
-        oldMu = opb.poseD.mode().xyztTuple()
-        oldSigma = opb.poseD.variance()
-        obsVar = details.domainProbs.obsVarTuple
-        newMu = tuple([(m * obsV + op * muV) / (obsV + muV) \
+    (_, h, _, f, _, _, _,  _, _, _, _,_) = args
+    # Awful!  Should have an attribute of the object
+    universe = [o for o in details.pbs.beliefContext.world.objects.keys() \
+                if o[0:3] == 'obj']
+    heldDist = details.pbs.held[h]
+
+    oldMlo = heldDist.mode()
+    # Update dist on what we're holding if we got an observation
+    if obs != None:
+        obsObj = 'none' if obs == 'none' else obs[0]
+        # Observation model
+        def om(trueObj):
+            return MixtureDist(DeltaDist(trueObj),
+                               UniformDist(universe + ['none']),
+                               1 - details.domainProbs.obsTypeErrProb)
+        heldDist.obsUpdate(om, obsObj)
+
+        # If we are fairly sure of the object, update the mode object's dist
+        mlo = heldDist.mode()
+        bigSigma = (0.1, 0.1, 0.1, 0.4)
+        if mlo == 'none':
+            newOGB = None
+        # If we now have a new mode, we have to reinitialize the grasp dist!
+        elif mlo != oldMlo:
+            gd = details.pbs.graspB[h].graspDesc
+            newOGB = objGraspB(mlo, gd, PoseD(util.Pose(0, 0, 0, 0),
+                                                  bigSigma))
+        elif mlo != 'none' and obsObj != 'none':
+            (_, ogf, ograsp) = obs            
+            gd = details.pbs.graspB[h].graspDesc
+            # Update the rest of the distributional info.
+            # Consider only doing this if the mode prob is high
+            mlop = heldDist.prob(mlo)
+            faceDist = details.pbs.graspB[h].grasp
+            oldMlf = faceDist.mode()
+
+            # Should do an update, but since we only have one grasp for now it
+            # doesn't make sense
+            # faceDist.obsUpdate(fom, ogf)
+            faceDist = dist.DeltaDist(ogf)
+
+            mlf = faceDist.mode()
+            poseDist = details.pbs.graspB[h].poseD
+            oldMu = poseDist.mode().xyztTuple()
+            oldSigma = poseDist.variance()
+
+            if mlf != oldMlf:
+                # Most likely grasp face changed.
+                # Keep the pose for lack of a better idea, but
+                # increase sigma a lot!
+                newPoseDist = PoseD(poseDist.pose, bigSigma)
+            else:
+                # Cheapo obs update
+                obsVar = details.domainProbs.obsVarTuple
+                newMu = tuple([(m * obsV + op * muV) / (obsV + muV) \
                        for (m, muV, op, obsV) in \
                        zip(oldMu, oldSigma, grasp, obsVar)])
-        newSigma = tuple([(a * b) / (a + b) for (a, b) in zip(oldSigma,obsVar)])
-        gd = opb.graspDesc
-        details.pbs.updateHeldBel(ObjGraspB(o, gd, DeltaDist(gf),
-                                         PoseD(util.Pose(*newMu), newSigma)),
-                                  h)
+                newSigma = tuple([(a * b) / (a + b) for (a, b) in \
+                                  zip(oldSigma,obsVar)])
+                newPoseDist = PoseD(util.Pose(*newMu), newSigma)
+            newOGB = ObjGraspB(mlo, gd, faceDist, newPoseDist)
+        details.pbs.updateHeldBel(newOGB, h)
     details.pbs.shadowWorld = None # force recompute
     debugMsg('beliefUpdate', 'look')
 
-
-    
 ################################################################
 ## Operator descriptions
 ################################################################
@@ -917,13 +973,10 @@ lookAtHand = Operator(\
     # Results
     [({B([Grasp(['Obj', 'Hand', 'GraspFace']), 'Grasp', 'GraspVarAfter',
          'GraspDelta', 'PR1'], True), 
-      Bd([Holding(['Hand']), 'Obj', 'PR2'], True),
-      Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'PR3'], True)}, {})
-       ],
+      Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'PR3'], True)}, {}),
+     ({Bd([Holding(['Hand']), 'Obj', 'PR2'], True)}, {})],
     # Functions
     functions = [\
-        # Temporarily
-        Function([], ['Obj'], notNone, 'notNone', True),
         # Look increases probability.  For now, just a fixed amount.  Ugly.
         Function(['P1'], ['PR1', 'PR2'], obsModeProb, 'obsModeProb'),
         # How confident do we need to be before the look?

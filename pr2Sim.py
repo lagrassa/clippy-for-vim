@@ -117,21 +117,29 @@ class RealWorld(WorldState):
             self.setRobotConf(lookConf)
             self.robotPlace.draw('World', 'orchid')
             debugMsg('sim', 'LookAt configuration')
-            _, attachedParts = self.robotConf.placementAux(self.attached, getShapes=[])
+            _, attachedParts = self.robotConf.placementAux(self.attached,
+                                                           getShapes=[])
             shapeInHand = attachedParts[hand]
-            assert shapeInHand.name() == targetObj
-
-            gdIndex, graspTuple = graspFaceIndexAndPose(self.robotConf, hand, shapeInHand,
-                                                        self.world.getGraspDesc(targetObj))
-
-            obstacles = [s for s in self.getObjectShapes() if s.name() != targetObj ] + [self.robotPlace]
-            vis, _ = visible(self, self.robotConf, shapeInHand, obstacles, 0.75, moveHead=False)
-            if not vis:
-                print 'Object', targetObj, 'is not visible'
-                return endExec(None)
+            objInHand = shapeInHand.name() if shapeInHand else 'none'
+            if shapeInHand:
+                gdIndex, graspTuple = graspFaceIndexAndPose(self.robotConf,
+                                                            hand,
+                                                            shapeInHand,
+                                         self.world.getGraspDesc(targetObj))
+                obstacles = [s for s in self.getObjectShapes() \
+                             if s.name() != targetObj ] + [self.robotPlace]
+                vis, _ = visible(self, self.robotConf, shapeInHand,
+                                 obstacles, 0.75, moveHead=False)
+                if not vis:
+                    print 'Object', targetObj, 'is not visible'
+                    return endExec(None)
+                else:
+                    print 'Object', targetObj, 'is visible'
+                return endExec((targetObj, gdIndex, graspTuple))
             else:
-                print 'Object', targetObj, 'is visible'
-            return endExec((targetObj, gdIndex, graspTuple))
+                # TLP! Please fix.  Should check that the hand is actually
+                # visible
+                return endExec('none')
 
         elif op.name == 'LookAt':
             targetObj = op.args[0]

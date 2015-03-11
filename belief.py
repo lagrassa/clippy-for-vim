@@ -535,7 +535,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                             print spaces+'C Aux:', k-1,\
                                  prettyString(totalCost - partialCost),\
                                    [f.shortName() for f in ff]
-                            for f in ffc: print spaces+'--'+f.prettyString()
+                            for f in ff: print spaces+'--'+f.prettyString()
     
                                    
                         subCost, subActSet = aux(ff, k-1,

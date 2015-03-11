@@ -771,8 +771,6 @@ class Operator(object):
     def regress(self, goal, startState = None, heuristic = None):
         tag = 'regression'
 
-        debugInHeuristic = False
-
         # Stop right away if an immutable precond is false
         if any([(p.immutable and p.isGround() and\
                  not startState.fluentValue(p) == p.getValue()) \
@@ -824,11 +822,11 @@ class Operator(object):
         debugMsg('regression:bind', 'getting new bindings',
                  self.functions, goal.fluents, ('result', newBindings))
         if newBindings == None:
-            if not inHeuristic or debugInHeuristic:
+            if not inHeuristic or debug('debugInHeuristic'):
                 debugMsg('regression:fail', self, 'could not get bindings',
                      'h = '+str(inHeuristic))
             if debug('regression:fail') and \
-                    (not inHeuristic or debugInHeuristic):
+                    (not inHeuristic or debug('debugInHeuristic')):
                 glob.debugOn = glob.debugOn + ['btbind']
                 newBindings = btGetBindings(necessaryFunctions,
                                             goal.fluents,
@@ -853,7 +851,7 @@ class Operator(object):
 
         # Be sure the result is consistent
         if not goal.isConsistent(boundResults, startState.details):
-            if not inHeuristic or debugInHeuristic:
+            if not inHeuristic or debug('debugInHeuristic'):
                 debugMsg('regression:inconsistent', self,
                          'results inconsistent with goal')
             return []
@@ -916,7 +914,7 @@ class Operator(object):
         # Could fold the boundPrecond part of this in to addSet later
         if not newGoal.isConsistent(boundPreconds + boundSE,
                                     startState.details):
-            if not inHeuristic or debugInHeuristic:
+            if not inHeuristic or debug('debugInHeuristic'):
                 if debug('regression:inconsistent'):
                     for f1 in boundPreconds + boundSE:
                         for f2 in newGoal.fluents:
@@ -932,7 +930,7 @@ class Operator(object):
         if any([(p.immutable and \
                  not startState.fluentValue(p) == p.getValue()) \
                 for p in boundPreconds]):
-            if not inHeuristic or debugInHeuristic:
+            if not inHeuristic or debug('debugInHeuristic'):
                 debugMsg('regression:fail', 'immutable precond is false')
             return []
 
@@ -1013,14 +1011,14 @@ class Operator(object):
                 debugMsg('abstractCost',
                          ('with heuristic', heuristic != None),
                          cost)
-        if not inHeuristic or debugInHeuristic:
+        if not inHeuristic or debug('debugInHeuristic'):
             debugMsg(tag, 'Final regression result', ('Op', self),
                      ('cost', cost),
                      ('goal',  goal.prettyString(False, startState)),
                      ('newGoal', newGoal.prettyString(False, startState)))
 
         if cost == float('inf'):
-            if not inHeuristic or debugInHeuristic:
+            if not inHeuristic or debug('debugInHeuristic'):
                 debugMsg('regression:fail', 'infinite cost')
             return [[rebindLater, rebindCost]]
         newGoal.operator.instanceCost = cost
