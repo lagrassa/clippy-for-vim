@@ -453,7 +453,7 @@ def test1(hpn=True, skeleton=False, heuristic=habbs, hierarchical=False):
           hpn = hpn,
           operators=['move', 'pick'],
           heuristic=heuristic
-          )
+           )
 
 # Pick something up! and move
 def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
@@ -478,6 +478,7 @@ def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
           heuristic = heuristic,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'poseAchCanPickPlace', 'lookAtHand'],
+          regions=['table1Top'],
           home=homeConf
           )
     return t
@@ -506,6 +507,7 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
           hierarchical = hierarchical,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                      'poseAchCanSee', 'poseAchCanPickPlace', 'lookAtHand'],
+          regions=['table1Top'],
           heuristic = heuristic
           )
 
@@ -546,6 +548,7 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
+          regions=['table1Top'],
           heuristic = heuristic
           )
 
@@ -565,6 +568,7 @@ def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False):
           skeleton = [['place', 'move', 'pick', 'move']] if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
+          regions=['table1Top'],
           heuristic = heuristic
           )
 
@@ -590,6 +594,7 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False):
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           hierarchical = hierarchical,
+          regions=['table1Top'],
           heuristic = heuristic,
           )
 
@@ -621,6 +626,7 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
           hierarchical = hierarchical,
+          regions=['table1Top'],
           home=homeConf
           )
 
@@ -955,6 +961,7 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
           heuristic = heuristic,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
+          regions=['table1Top'],
           home=homeConf
           )
 
@@ -982,6 +989,7 @@ def test16(hpn = True, skeleton = False, hierarchical = False,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           hierarchical = hierarchical,
+          regions=['table1Top'],
           heuristic = heuristic
           )
 

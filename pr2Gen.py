@@ -585,6 +585,8 @@ def placeInGen(args, goalConds, bState, outBindings,
     shWorld = bState.pbs.getShadowWorld(prob)
     regShapes = [shWorld.regionShapes[region] for region in regions]
     if debug('placeInGen'):
+        if len(regShapes) == 0:
+            debugMsg('placeInGen', 'no region specified')
         shWorld.draw('W')
         for rs in regShapes: rs.draw('W', 'purple')
         debugMsg('placeInGen', 'Target region in purple')
@@ -619,7 +621,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     if obj == 'none' or not regShapes:
         # Nothing to do
         if debug('traceGen'):
-            print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), None
+            print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), fbch.inHeuristic, 'nothing to do'
         return
 
     if goalConds and getConf(goalConds, None) and not away:

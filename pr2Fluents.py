@@ -173,6 +173,7 @@ class CanReachHome(Fluent):
         if path == None:
             #!! should this happen?
             print 'hv infinite'
+            raw_input('go?')
             return float('inf'), {}
         obstacles = violations.obstacles
         shadows = violations.shadows
@@ -271,6 +272,7 @@ class CanPickPlace(Fluent):
         if path == None:
             #!! should this happen?
             print 'hv infinite'
+            raw_input('go?')
             return float('inf'), {}
         obstacles = violations.obstacles
         shadows = violations.shadows

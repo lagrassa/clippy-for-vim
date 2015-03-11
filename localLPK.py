@@ -57,6 +57,7 @@ debugOn = ['nonmon', 'executionFail', 'skeleton',
            'executionSurprise']
 debugOn = ['appOp:number', 'hAddBackInf', 'traceGen', 'skeleton']
 
+
 pauseOn = debugOn
 
 

@@ -16,6 +16,10 @@ tinyDelta = (1e-8,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
 
+# Dont' try to move with more than this variance in grasp
+maxGraspVar = (0.0005, 0.0005, 0.0005, 0.001)
+    
+
 ######################################################################
 #
 # Prim functions map an operator's arguments to some parameters that
@@ -776,8 +780,6 @@ place = Operator(\
         ignorableArgs = range(2, 27))
 
 
-# Dont' try to move with more than this variance in grasp
-maxGraspVar = (0.001, 0.001, 0.001, 0.005)
 
 pick = Operator(\
         'Pick',
@@ -793,7 +795,8 @@ pick = Operator(\
                  'P1'], True)},
          1 : {Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
                                'PoseVar', 'PoseDelta', 'PoseFace',
-                               'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
+                               'GraspFace', 'GraspMu', 'RealGraspVar',
+                               'GraspDelta',
                                'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
                                'OGraspDelta', []]), True, 'P1'], True)},
          # 1 : ppConds('PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',

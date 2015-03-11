@@ -1016,7 +1016,6 @@ class Operator(object):
         if not inHeuristic or debugInHeuristic:
             debugMsg(tag, 'Final regression result', ('Op', self),
                      ('cost', cost),
-                     ('newHeuristic', heuristic and heuristic(newGoal)),
                      ('goal',  goal.prettyString(False, startState)),
                      ('newGoal', newGoal.prettyString(False, startState)))
 
