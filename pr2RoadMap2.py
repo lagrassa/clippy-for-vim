@@ -403,7 +403,7 @@ class RoadMap:
         return newViol
 
     def checkNodePath(self, nodePath, pbs, prob, attached, avoidShadow=[]):
-        # actual = self.checkPath(self.confPathFromNodePath(nodePath), pbs, prob, attached, avoidShadow)
+        return self.checkPath(self.confPathFromNodePath(nodePath), pbs, prob, attached, avoidShadow)
         # print 'actual', actual
         ecoll = set([])
         v = nodePath[0]
