@@ -402,9 +402,17 @@ class RoadMap:
             if newViol is None: return None
         return newViol
 
+    def checkNodePathTest(self, nodePath, pbs, prob, attached, avoidShadow=[]):
+        actual = self.checkPath(self.confPathFromNodePath(nodePath), pbs, prob, attached, avoidShadow)
+        test = self.checkNodePathTest(nodePath, pbs, prob, attached, avoidShadow)
+        if not actual == test:
+            print 'actual', actual
+            print 'test', test
+            raw_input('Go?')
+        return actual
+
     def checkNodePath(self, nodePath, pbs, prob, attached, avoidShadow=[]):
-        return self.checkPath(self.confPathFromNodePath(nodePath), pbs, prob, attached, avoidShadow)
-        # print 'actual', actual
+        # actual = self.checkPath(self.confPathFromNodePath(nodePath), pbs, prob, attached, avoidShadow)
         ecoll = set([])
         v = nodePath[0]
         for w in nodePath[1:]:
@@ -414,8 +422,9 @@ class RoadMap:
             if c is None: return None
             ecoll = ecoll.union(c)
             v = w
-        # print 'ecoll', [o.name() for o in ecoll]
-        # raw_input('Go?')
+        # if actual is None:
+        #     print 'ecoll', [o.name() for o in ecoll]
+        #     raw_input('Go?')
         if ecoll is None:
             return None
         elif ecoll:
@@ -427,8 +436,9 @@ class RoadMap:
                              if not sh.name() in fixed])
             obst = ecoll.intersection(obstacleSet)
             shad = ecoll.intersection(shadowSet)
-            # print [o.name() for o in obst], [o.name() for o in shad]
-            # raw_input('Go?')
+            # if actual is None:
+            #     print [o.name() for o in obst], [o.name() for o in shad]
+            #     raw_input('Go?')
             return Violations(obst, shad)
         else:
             return noViol
@@ -873,7 +883,7 @@ def pointDist(p1, p2):
     return sum([(a-b)**2 for (a, b) in zip(p1, p2)])**0.5
 
 def checkCollisions(obstacles, nodes, rshapes, permanentObst):
-    if len(nodes) == 0 or len(obstacles) == 0:
+    if len(nodes) == 0 or (len(obstacles) == 0 and len(permanentObst) == 0):
         return set([])
     elif len(nodes) == 1:
         if any(o for o in permanentObst if rshapes[nodes[0]].collides(o)):
