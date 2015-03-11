@@ -403,15 +403,19 @@ class RoadMap:
         return newViol
 
     def checkNodePath(self, nodePath, pbs, prob, attached, avoidShadow=[]):
+        # actual = self.checkPath(self.confPathFromNodePath(nodePath), pbs, prob, attached, avoidShadow)
+        # print 'actual', actual
         ecoll = set([])
         v = nodePath[0]
         for w in nodePath[1:]:
             assert self.edges.get((v,w), {}) or self.edges.get((w,v), {})
             c = self.colliders(v, w, pbs, prob, noViol,
                                attached=attached, avoidShadow=avoidShadow)
-            if c is None: break
+            if c is None: return None
             ecoll = ecoll.union(c)
             v = w
+        # print 'ecoll', [o.name() for o in ecoll]
+        # raw_input('Go?')
         if ecoll is None:
             return None
         elif ecoll:
@@ -423,6 +427,8 @@ class RoadMap:
                              if not sh.name() in fixed])
             obst = ecoll.intersection(obstacleSet)
             shad = ecoll.intersection(shadowSet)
+            # print [o.name() for o in obst], [o.name() for o in shad]
+            # raw_input('Go?')
             return Violations(obst, shad)
         else:
             return noViol

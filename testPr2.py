@@ -940,7 +940,7 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
 
 # Test look at hand
 def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
-           heuristic=habbs):
+           heuristic=habbs, hierarchical=False):
     global moreGD
     if gd != 0: moreGD = True           # hack!
     t = PlanTest('test15', typicalErrProbs, objects=['table1', 'objA'])
