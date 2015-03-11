@@ -1019,7 +1019,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
                  PoseD(oGraspMu, oGraspVar), delta= oGraspDelta) \
                  if oobj != 'none' else None
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
-                         PoseD(pose, realPoseVar), delta=poseDelta)
+                       PoseD(pose, realPoseVar), delta=poseDelta)
     newBS = bState.pbs.copy()   
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
     newBS = newBS.updateFromGoalPoses(cond) if cond else newBS
@@ -1066,8 +1066,8 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
                 debugMsg('canPickPlaceGen',
                          'Trying to reduce shadow (on W in red) %s'%obst)
             if debug('traceGen'):
-                print '    canPickPlaceGen() shadow:', obst
-            yield (obst, placeB.poseD.mode().xyztTuple(), placeB.support.mode(),
+                print '    canPickPlaceGen() shadow:', obst, pB.poseD.mode().xyztTuple()
+            yield (obst, pB.poseD.mode().xyztTuple(), pB.support.mode(),
                    lookVar, lookDelta)
         # Either reducing the shadow is not enough or we failed and
         # need to move the object (if it's movable).
