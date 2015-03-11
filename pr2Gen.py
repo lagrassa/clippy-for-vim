@@ -851,14 +851,6 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
     if goalConds and getConf(goalConds, None):
         # if conf is specified, just fail
         return
-
-    # key = (newBS, (obj, hand, graspB, prob))
-    # if key in lookHandCache:
-    #     print 'lookHandCache HIT'
-    # else:
-    #     print 'lookHandCache MISS'
-    #     lookHandCache[key] = True
-
     rm = newBS.getRoadMap()
     obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
     lookConfGen = potentialLookHandConfGen(newBS, prob, hand)

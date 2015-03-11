@@ -285,10 +285,14 @@ rotL = util.Transform(rotation_matrix(-math.pi/4, (1,0,0)))
 def trL(p): return p.compose(rotL)
 rotR = util.Transform(rotation_matrix(math.pi/4, (1,0,0)))
 def trR(p): return p.compose(rotR)
-lookPoses = {'left': [trL(x) for x in [util.Pose(0.5,0.08,1.0, ang),
-                                       util.Pose(0.5,0.18,1.0, ang)]],
-             'right': [trR(x) for x in [util.Pose(0.5,-0.08,1.0, -ang),
-                                        util.Pose(0.5,-0.18,1.0, -ang)]]}
+lookPoses = {'left': [trL(x) for x in [util.Pose(0.4, 0.35, 1.0, ang),
+                                       util.Pose(0.4, 0.25, 1.0, ang),
+                                       util.Pose(0.5, 0.08, 1.0, ang),
+                                       util.Pose(0.5, 0.18, 1.0, ang)]],
+             'right': [trR(x) for x in [util.Pose(0.4, -0.35, 0.9, -ang),
+                                        util.Pose(0.4, -0.25, 0.9, -ang),
+                                        util.Pose(0.5, -0.08, 1.0, -ang),
+                                        util.Pose(0.5, -0.18, 1.0, -ang)]]}
 def potentialLookHandConfGen(pbs, prob, hand):
     shWorld = pbs.getShadowWorld(prob)
     robot = pbs.conf.robot
@@ -296,15 +300,19 @@ def potentialLookHandConfGen(pbs, prob, hand):
     chain = robot.armChainNames[hand]
     baseFrame = curCartConf['pr2Base']
     for pose in lookPoses[hand]:
+        if debug('potentialLookHandConfs'):
+            print 'potentialLookHandConfs trying:\n', pose
         target = baseFrame.compose(pose)
         cartConf = curCartConf.set(chain, target)
         conf = robot.inverseKin(cartConf, conf=pbs.conf)
         if all(v for v in conf.conf.values()):
             if debug('potentialLookHandConfs'):
+                conf.draw('W', 'blue')
                 print 'lookPose\n', pose.matrix
                 print 'target\n', target.matrix
                 print 'conf', conf.conf
                 print 'cart\n', cartConf[chain].matrix
+                raw_input('potentialLookHandConfs')
             yield conf
     return
 

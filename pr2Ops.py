@@ -622,7 +622,7 @@ def lookAtHandBProgress(details, args, obs):
             # Should do an update, but since we only have one grasp for now it
             # doesn't make sense
             # faceDist.obsUpdate(fom, ogf)
-            faceDist = dist.DeltaDist(ogf)
+            faceDist = DeltaDist(ogf)
 
             mlf = faceDist.mode()
             poseDist = details.pbs.graspB[h].poseD

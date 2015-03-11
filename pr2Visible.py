@@ -24,6 +24,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True):
     if debug(visible):
         print 'visible from base=', conf['pr2Base'], 'head=', conf['pr2Head']
     lookConf = lookAtConf(conf, shape) if moveHead else conf
+    if not lookConf: return False, []
     lookCartConf = conf.robot.forwardKin(lookConf)
     headTrans = lookCartConf['pr2Head']
     if fbch.inHeuristic:
