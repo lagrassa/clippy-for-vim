@@ -342,7 +342,8 @@ class PlanTest:
 
     def run(self, goal, skeleton = None, operators = None, hpn = True,
             home=None, regions = [], hierarchical = False, heuristic = None,
-            greedy = 0.7, simulateError = False):
+            greedy = 0.7, simulateError = False,
+            initBelief = None, initWorld=None):
         fbch.inHeuristic = False
         if skeleton:
             fbch.dotSearchId = 0    # should make skeletons work without reload
@@ -353,18 +354,20 @@ class PlanTest:
         for win in wm.windows:
             wm.getWindow(win).clear()
         self.buildBelief(home=home, regions=regions)
-        self.bs.pbs.draw(0.9, 'W')
+        if initBelief: initBelief(self.bs)
         self.bs.pbs.draw(0.9, 'Belief')
+        self.bs.pbs.draw(0.9, 'W')
         # Initialize simulator
         self.realWorld = RealWorld(self.bs.pbs.getWorld(),
                                    self.domainProbs) # simulator
         self.realWorld.setRobotConf(self.bs.pbs.conf)
         for obj in self.objects:
             self.realWorld.setObjectPose(obj, self.bs.pbs.getPlaceB(obj).objFrame())
-        if self.bs.pbs.held['left'].mode() != 'none':
-            self.realWorld.held['left'] = self.bs.pbs.held['left'].mode()
-            print 'Need to figure out grasp!'
-            assert False
+        if initWorld: initWorld(self.bs, self.realWorld)
+        # if self.bs.pbs.held['left'].mode() != 'none':
+        #     self.realWorld.held['left'] = self.bs.pbs.held['left'].mode()
+        #     print 'Need to figure out grasp!'
+        #     assert False
         self.realWorld.draw('World')
         s = State([], details = self.bs)
         print '**************', self.name,\
@@ -1277,64 +1280,44 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
                      p1.xyztTuple(), targetVar, targetDelta,
                      goalProb], True)])
 
-    fbch.inHeuristic = False
-    if skeleton:
-       fbch.dotSearchId = 0    
-    fbch.flatPlan = not hierarchical
-    fbch.plannerGreedy = 0.7
-    pr2Sim.simulateError = False
-    for win in wm.windows:
-       wm.getWindow(win).clear()
-    t.buildBelief(home=None, regions=['table1Top'])
-
-    # Change pbs so obj B is in the hand
-    o = 'objB'
-    h = 'left'
-    gm = (0, -0.025, 0, 0)
-    gv = initGraspVar
-    gd = (1e-4,)*4
-    gf = 0
-    t.bs.pbs.updateHeld(o, gf, PoseD(gm, gv), h, gd)
-    t.bs.pbs.excludeObjs([o])
-    t.bs.pbs.shadowWorld = None # force recompute
-    t.bs.pbs.draw(0.9, 'W')
-    t.bs.pbs.draw(0.9, 'Belief')
-    
-    # Initialize simulator
-    t.realWorld = RealWorld(t.bs.pbs.getWorld(),
-                                   t.domainProbs) # simulator
-    t.realWorld.setRobotConf(t.bs.pbs.conf)
-    for obj in t.objects:
-        t.realWorld.setObjectPose(obj, t.bs.pbs.getPlaceB(obj).objFrame())
-
-    attachedShape = t.bs.pbs.getRobot().attachedObj(t.bs.pbs.getShadowWorld(0.9), 'left')
-    shape = t.bs.pbs.getWorld().getObjectShapeAtOrigin(o).applyLoc(attachedShape.origin())
-    t.realWorld.robot.attach(shape, t.realWorld, h)
-    robot = t.bs.pbs.getRobot()
-    cart = robot.forwardKin(t.realWorld.robotConf)
-    handPose = cart[robot.armChainNames['left']].compose(gripperTip)
-    pose = shape.origin()
-    t.realWorld.held['left'] = o
-    t.realWorld.grasp['left'] = handPose.inverse().compose(pose)
-    t.realWorld.delObjectState(o)    
-
-    t.realWorld.draw('World')
-    s = State([], details = t.bs)
+    grasped = 'objB'
+    hand = 'left'
+    def initBel(bs):
+        # Change pbs so obj B is in the hand
+        grasped = 'objB'
+        gm = (0, -0.025, 0, 0)
+        gv = initGraspVar
+        gd = (1e-4,)*4
+        gf = 0
+        bs.pbs.updateHeld(grasped, gf, PoseD(gm, gv), hand, gd)
+        bs.pbs.excludeObjs([grasped])
+        bs.pbs.shadowWorld = None # force recompute
+        bs.pbs.draw(0.9, 'W')
+        bs.pbs.draw(0.9, 'Belief')
+    def initWorld(bs, realWorld):
+        attachedShape = bs.pbs.getRobot().attachedObj(bs.pbs.getShadowWorld(0.9), 'left')
+        shape = bs.pbs.getWorld().getObjectShapeAtOrigin(grasped).applyLoc(attachedShape.origin())
+        realWorld.robot.attach(shape, realWorld, hand)
+        robot = bs.pbs.getRobot()
+        cart = robot.forwardKin(realWorld.robotConf)
+        handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
+        pose = shape.origin()
+        realWorld.held[hand] = grasped
+        realWorld.grasp[hand] = handPose.inverse().compose(pose)
+        realWorld.delObjectState(grasped)    
 
     operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand']
     skeleton1 = [[place, move, lookAtHand, move, lookAtHand,
                   move]]
-
-    HPN(s, goal1, 
-         [t.operators[o] for o in operators],
-         t.realWorld,
-         hpnFileTag = t.name,
-         skeleton = skeleton1 if skeleton else None,
-         h = heuristic,
-         verbose = False,
-         fileTag = t.name if writeSearch else None)
-
+    t.run(goal1,
+          hpn = hpn,
+          skeleton = skeleton1 if skeleton else None,
+          heuristic = heuristic,
+          operators = operators,
+          initBelief = initBel,
+          initWorld = initWorld
+          )
 
 # Need to verify that hand is empty
 def test22(hpn = True, skeleton = False, hierarchical = False,
@@ -1371,32 +1354,13 @@ def test22(hpn = True, skeleton = False, hierarchical = False,
                      p2.xyztTuple(), targetVar, targetDelta,
                      goalProb], True)])
 
-    fbch.inHeuristic = False
-    if skeleton:
-       fbch.dotSearchId = 0    
-    fbch.flatPlan = not hierarchical
-    fbch.plannerGreedy = 0.7
-    pr2Sim.simulateError = False
-    for win in wm.windows:
-       wm.getWindow(win).clear()
-    t.buildBelief(home=None, regions=['table1Top'])
-
-    # Change pbs so we are unsure whether both hands are empty
-    t.bs.pbs.held['left'] = dist.DDist({'none' : .6, 'objA' : .3, 'objB': .1})
-    t.bs.pbs.held['right'] = dist.DDist({'none' : .6, 'objA' : .1, 'objB': .3})
-    t.bs.pbs.shadowWorld = None # force recompute
-    t.bs.pbs.draw(0.9, 'W')
-    t.bs.pbs.draw(0.9, 'Belief')
-    
-    # Initialize simulator
-    t.realWorld = RealWorld(t.bs.pbs.getWorld(),
-                                   t.domainProbs) # simulator
-    t.realWorld.setRobotConf(t.bs.pbs.conf)
-    for obj in t.objects:
-        t.realWorld.setObjectPose(obj, t.bs.pbs.getPlaceB(obj).objFrame())
-
-    t.realWorld.draw('World')
-    s = State([], details = t.bs)
+    def initBel(bs):
+        # Change pbs so we are unsure whether both hands are empty
+        bs.pbs.held['left'] = dist.DDist({'none' : .6, 'objA' : .3, 'objB': .1})
+        bs.pbs.held['right'] = dist.DDist({'none' : .6, 'objA' : .1, 'objB': .3})
+        bs.pbs.shadowWorld = None # force recompute
+        bs.pbs.draw(0.9, 'W')
+        bs.pbs.draw(0.9, 'Belief')
 
     operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand']
@@ -1406,16 +1370,14 @@ def test22(hpn = True, skeleton = False, hierarchical = False,
                   move]]
     skeleton2 = [[lookAt, move, place, move, pick, move, lookAtHand, move]]
 
-    HPN(s, goal2, 
-         [t.operators[o] for o in operators],
-         t.realWorld,
-         hpnFileTag = t.name,
-         skeleton = skeleton1 if skeleton else None,
-         h = heuristic,
-         verbose = False,
-         fileTag = t.name if writeSearch else None)
-
-
+    t.run(goal2,
+          hpn = hpn,
+          skeleton = skeleton1 if skeleton else None,
+          heuristic = heuristic,
+          operators = operators,
+          initBelief = initBel,
+          regions = ['table1Top']
+          )
     
 def prof(test):
     import cProfile
