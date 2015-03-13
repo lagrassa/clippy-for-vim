@@ -991,7 +991,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
 
     def moveOut(newBS, obst, delta):
         if debug('traceGen') or debug('canReachGen'):
-            print '    canReachGen() obst:', obst
+            print '    canPickPlaceGen() obst:', obst
         if not isinstance(obst, str):
             obst = obst.name()
         for ans in placeInGenAway((obst, delta, prob), goalConds, newBS, None):

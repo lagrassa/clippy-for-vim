@@ -623,7 +623,7 @@ def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,
                    staticEval = lambda f: 500,
                    ddPartitionFn = lambda fs: [set([f]) for f in fs]):
     fbch.inHeuristic = True
-    startDepth = 10
+    startDepth = maxK-1
     for k in range(startDepth, maxK):
         hCacheID[k] = set()
         vk = hAddBackBSet(start, goal, operators, ancestors, k,

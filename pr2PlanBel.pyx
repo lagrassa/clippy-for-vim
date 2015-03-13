@@ -6,9 +6,7 @@ import copy
 import util
 import shapes
 from miscUtil import isGround
-from dist import GMU, MultivariateGaussianDistribution, UniformDist, \
-     DeltaDist, chiSqFromP
-MVG = MultivariateGaussianDistribution
+from dist import UniformDist,  DeltaDist, chiSqFromP
 from objects import World, WorldState
 from pr2Robot import PR2, pr2Init, makePr2Chains
 from planGlobals import debugMsg, debugDraw, debug, pause
@@ -16,9 +14,6 @@ from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
 from pr2Util import ObjGraspB, ObjPlaceB, shadowName
 from fbch import getMatchingFluents, inHeuristic
 from belief import B, Bd
-
-zeroObjectVarianceArray = [[0]*4]*4
-identPoseTuple = (0.0, 0.0, 0.0, 0.0)
 
 Ident = util.Transform(np.eye(4))            # identity transform
 
@@ -28,36 +23,6 @@ Ident = util.Transform(np.eye(4))            # identity transform
 ## Beliefs about the world
 ## This should be independent of how confs and poses are represented
 ################################################################
-
-cdef list diagToSq(tuple d):
-    return [[(d[i] if i==j else 0.0) \
-             for i in range(len(d))] for j in range(len(d))]
-
-# Keep all the raw representation necessary for filtering
-# After every belief update, it will have an instance variable
-# pbs, which is the current PBS
-class BeliefState:
-
-    # Temporary hacks to keep all the types right
-    
-    def graspModeDist(self, obj, hand, face):
-        if obj == 'none' or face == 'none':
-            return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray), 1.0)])
-        else:
-            poseD = self.pbs.getGraspB(obj, hand, face).poseD
-            return GMU([(MVG(poseD.mu.xyztTuple(), diagToSq(poseD.var)),
-                         0.999)])
-
-    def poseModeDist(self, obj, face):
-        if obj == 'none' or face == 'none':
-            return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray), 1.0)])
-        else:
-            poseD = self.pbs.getPlaceB(obj, face).poseD
-            return GMU([(MVG(poseD.mu.xyztTuple(), diagToSq(poseD.var)),
-                         0.999)])
-
-    def draw(self, w = 'Belief'):
-        print self.pbs.draw(0.9, w)
 
 
 # This class does not keep state except for caches shared by all

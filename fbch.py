@@ -1750,6 +1750,8 @@ def planBackward(startState, goal, ops, ancestors = [],
     else:
         heuristic = lambda g: 0
 
+    hCacheReset() # flush heuristic values
+
     if fileTag:
         visitF = lambda s1, c1, h1, a, s2, c2, h2: \
                            visitTrace(f1, s1, c1, h1, a,

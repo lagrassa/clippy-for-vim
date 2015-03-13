@@ -18,7 +18,8 @@ awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
 
 # Dont' try to move with more than this variance in grasp
-maxGraspVar = (0.0005, 0.0005, 0.0005, 0.001)
+# LPK:  was .0005 which is quite small (smaller than pickVar)
+maxGraspVar = (0.001, 0.001, 0.001, 0.01)
     
 
 ######################################################################
@@ -117,12 +118,6 @@ def pickPrim(args, details):
     bs = details.pbs.copy()
 
     print 'plckPrim (start, end)'
-    # printConf(prc); printConf(pc)
-    # path = primPath(bs, prc, pc, p2)
-
-    # ans = lookHandGen(('none', 'left', None, None, None, None, 0.9), [], bs, [])
-    # print ans.next()[0].conf
-    # raw_input('lookHandGen')
     
     # !! Should close the fingers as well?
     if debug('prim'):
@@ -345,9 +340,12 @@ def halveVariance((var,), goal, start, vals):
     return [[tuple([min(maxVarianceTuple[0], v / 2.0) for v in var])]*2]
 
 def maxGraspVarFun((var,), goal, start, vals):
+    assert not(isVar(var))
+
     # A conservative value to start with, but then try whatever the
     # variance is in the current grasp
     result = [[tuple([min(x,y) for (x,y) in zip(var, maxGraspVar)])]] 
+
     lgs = graspStuffFromStart(start, 'left')
     if lgs[0] != 'none':
         result.append([tuple([min(x,y) for (x,y) in zip(var, lgs[3])])])
@@ -407,17 +405,22 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
 # starting var if it's legal, plus regression of the result var
 def genLookObjHandPrevVariance((ve, hand, obj, face), goal, start, vals):
     epsilon = 10e-5
-    maxVar = (0.04**2,)*4
     lookVar = start.domainProbs.obsVarTuple
 
     result = []
     hs = start.pbs.getHeld(hand).mode()
+    vs = None
     if hs == obj:
         vs = tuple(start.graspModeDist(obj, hand, face)\
                         .mld().sigma.diagonal().tolist()[0])
-        result.append([vs])
+        if vs[0] < maxPoseVar[0] and vs[0] > ve[0]:
+            # starting var is bigger, but not too big
+            result.append([vs])
     vbo = varBeforeObs(lookVar, ve)
-    cappedVbo = tuple([min(a, b) for (a, b) in zip(maxVar, vbo)])
+    cappedVbo = tuple([min(a, b) for (a, b) in zip(maxGraspVar, vbo)])
+
+    debugMsg('lookObjHand', ('postVar', ve), ('vstart', vs),
+             ('preVar', vbo), ('capped preVar', cappedVbo))
 
     # It's tempting to fail in this case; but we may be looking to
     # increase the mode prob
@@ -639,7 +642,7 @@ def lookAtHandBProgress(details, args, obs):
                 obsVar = details.domainProbs.obsVarTuple
                 newMu = tuple([(m * obsV + op * muV) / (obsV + muV) \
                        for (m, muV, op, obsV) in \
-                       zip(oldMu, oldSigma, grasp, obsVar)])
+                       zip(oldMu, oldSigma, ograsp, obsVar)])
                 newSigma = tuple([(a * b) / (a + b) for (a, b) in \
                                   zip(oldSigma,obsVar)])
                 newPoseDist = PoseD(util.Pose(*newMu), newSigma)
@@ -691,15 +694,15 @@ move = Operator(\
     [({Conf(['CEnd', 'DEnd'], True)}, {})],
     functions = [\
         Function(['CEnd'], [], genNone, 'genNone'),                 
-        Function(['RealGraspVarL'], ['LGraspVar'], maxGraspVarFun,
-                     'realGraspVar'),
-        Function(['RealGraspVarR'], ['RGraspVar'], maxGraspVarFun,
-                     'realGraspVar'),
         Function(['PCR', 'P1', 'P2'], [], genMoveProbs,
                  'genMoveProbs'),
         Function(['LObj', 'LFace', 'LGraspMu', 'LGraspVar', 'LGraspDelta',
                   'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta'],
-                 [], genGraspStuff, 'genGraspStuff')
+                 [], genGraspStuff, 'genGraspStuff'),
+        Function(['RealGraspVarL'], ['LGraspVar'], maxGraspVarFun,
+                     'realGraspVar'),
+        Function(['RealGraspVarR'], ['RGraspVar'], maxGraspVarFun,
+                     'realGraspVar')
                  ],
     cost = moveCostFun,
     f = moveBProgress,
@@ -749,11 +752,6 @@ place = Operator(\
          'PR1', 'PR2', 'PR3', 'PR4', 'P1', 'P2', 'P3'],
         # Pre
         {0 : {Graspable(['Obj'], True)},
-         # 1 : ppConds('PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
-         #             'RealPoseVar', 'PoseDelta', 'PoseFace',
-         #             'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-         #             'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 'OGraspDelta',
-         #             'P1'),
          1 : {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                                'RealPoseVar', 'PoseDelta', 'PoseFace',
                                'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
