@@ -111,7 +111,7 @@ cdef class PBS:
         return self.beliefContext.world.getObjectShapeAtOrigin(obj)
 
     cpdef awayRegions(self):
-        return self.regions
+        return [r for r in self.regions if r[:5] == 'table']
 
     cpdef getPlaceB(self, obj, face = None, default = True):
         placeB = self.fixObjBs.get(obj, None) or self.moveObjBs.get(obj, None)

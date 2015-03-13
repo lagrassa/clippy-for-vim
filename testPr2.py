@@ -176,12 +176,15 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     for i, objName in enumerate(manipulanda):
         thing = Sh([placeSc((-0.05, 0.05), (-0.025, 0.025), (0.0, 0.1))],
                    name = objName, color=colors[i%len(colors)])
+        height = thing.bbox()[1,2]
         world.addObjectShape(thing)
-        bbox = bboxGrow(thing.bbox(), np.array([0.075, 0.075, 0.02]))
+        # The bbox has been centered
+        extraHeight = 1.5*height+0.01
+        bbox = bboxGrow(thing.bbox(), np.array([0.075, 0.075, extraHeight]))
         regName = objName+'Top'
         print 'Region', regName, '\n', bbox
         world.addObjectRegion(objName, regName, Sh([Ba(bbox)], name=regName),
-                              util.Pose(0,0,bbox[1,2]+0.02,0))
+                              util.Pose(0,0,2*(height)+extraHeight,0))
 
     world.graspDesc = {}
     gMat0 = np.array([(0.,1.,0.,0.),
@@ -1234,7 +1237,8 @@ def testStack(hpn = True, skeleton = False, hierarchical = False,
              'move']]*5
 
     goal = State([Bd([In(['objA', 'objBTop']), True, .4], True),
-                  Bd([In(['objC', 'objATop']), True, .4], True)])
+                  # Bd([In(['objC', 'objATop']), True, .4], True)
+                  ])
 
     t.run(goal,
           hpn = hpn,
@@ -1243,7 +1247,7 @@ def testStack(hpn = True, skeleton = False, hierarchical = False,
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
           hierarchical = hierarchical,
-          regions=['objATop', 'objBTop']
+          regions=['objATop', 'objBTop', 'table1Top']
           )
 
 # Empty hand
@@ -1284,7 +1288,6 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     hand = 'left'
     def initBel(bs):
         # Change pbs so obj B is in the hand
-        grasped = 'objB'
         gm = (0, -0.025, 0, 0)
         gv = initGraspVar
         gd = (1e-4,)*4
@@ -1292,10 +1295,9 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
         bs.pbs.updateHeld(grasped, gf, PoseD(gm, gv), hand, gd)
         bs.pbs.excludeObjs([grasped])
         bs.pbs.shadowWorld = None # force recompute
-        bs.pbs.draw(0.9, 'W')
-        bs.pbs.draw(0.9, 'Belief')
+
     def initWorld(bs, realWorld):
-        attachedShape = bs.pbs.getRobot().attachedObj(bs.pbs.getShadowWorld(0.9), 'left')
+        attachedShape = bs.pbs.getRobot().attachedObj(bs.pbs.getShadowWorld(0.9), hand)
         shape = bs.pbs.getWorld().getObjectShapeAtOrigin(grasped).applyLoc(attachedShape.origin())
         realWorld.robot.attach(shape, realWorld, hand)
         robot = bs.pbs.getRobot()
@@ -1315,6 +1317,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
           skeleton = skeleton1 if skeleton else None,
           heuristic = heuristic,
           operators = operators,
+          regions = ['table1Top'],
           initBelief = initBel,
           initWorld = initWorld
           )

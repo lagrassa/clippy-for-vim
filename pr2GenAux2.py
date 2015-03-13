@@ -578,6 +578,7 @@ def potentialRegionPoseGen(pbs, obj, placeB, prob, regShapes, reachObsts, hand,
             if bI == None:
                 if debug('potentialRegionPoseGen'):
                     print 'bI is None for angle', angle
+                    raw_input('bI')
                 continue
             elif debug('potentialRegionPoseGen'):
                 bI.draw('W', 'cyan')

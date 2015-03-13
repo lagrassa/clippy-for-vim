@@ -608,7 +608,7 @@ def placeInGenAway(args, goalConds, pbs, outBindings):
                           goalConds, pbs, [], away=True):
         yield ans
 
-maxPlaceVar = (0.001, 0.001, 0.001, 0.01)
+maxPlaceVar = (0.0001, 0.0001, 0.0001, 0.001)
 
 def placeInGenTop(args, goalConds, pbs, outBindings,
                   considerOtherIns = False, regrasp=False, away = False):
