@@ -51,10 +51,9 @@ skeleton
 traceGen  (compact summary of generators)
 
 '''
-debugOn = ['nonmon', 'executionFail', 'skeleton',
+debugOn = ['nonmon', 'executionFail', 
            'appOp:number', 'traceGen', 
            'executionSurprise', 'prim', 'canPickPlaceGen']
-# 'hAddBackV', 'hAddBackInf',
 
 
 pauseOn = debugOn

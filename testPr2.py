@@ -1179,14 +1179,14 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
     glob.monotonicFirst = True
     glob.rebindPenalty = 200
 
-    skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
-             'move',
-             place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-             'move',
-             pick.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
-             'move',
-             pick.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-             'move']]*5
+    hierSkel = [[place, place],
+                [place, poseAchCanPickPlace],
+                [poseAchCanPickPlace, place],
+                [place, pick],
+                [lookAtHand.applyBindings({'Hand' : 'left', 'Obj':'objA'}),
+                 pick,
+                 poseAchCanPickPlace],
+                [poseAchCanPickPlace, place, move, pick, move]]
 
     swapSkel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
                  'move',
@@ -1224,7 +1224,7 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
 
     t.run(goal,
           hpn = hpn,
-          skeleton = swapSkel if skeleton else None,
+          skeleton = hierSkel if skeleton else None,
           operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
                       'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
