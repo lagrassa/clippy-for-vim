@@ -12,7 +12,7 @@ from pr2Robot import CartConf, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName
 from fbch import getMatchingFluents
 from belief import Bd, B
-from pr2Fluents import CanReachHome, canReachHome, In, Pose
+from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace
 from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCO
 
@@ -408,11 +408,24 @@ def pathObst(cs, lgb, rgb, cd, p, pbs, name):
 
 def getReachObsts(goalConds, pbs):
     fbs = getMatchingFluents(goalConds,
+                             Bd([CanPickPlace(['Preconf', 'Ppconf', 'Hand', 'Obj', 'Pose',
+                                                'Posevar', 'Posedelta', 'Poseface',
+                                                'Graspface', 'Graspmu', 'Graspvar', 'Graspdelta',
+                                                'Oobj', 'Oface', 'Ograspmu', 'Ograspvar',
+                                                'Ograspdelta', 'Inconds']),
+                                 True, 'P'], True))
+    obstacles = []
+    for (f, b) in fbs:
+        obstacles.extend(getCRHObsts([Bd([fc, True, b['P']], True) for fc in f.args[0].getConds()], pbs))
+    return obstacles
+
+def getCRHObsts(goalConds, pbs):
+    fbs = getMatchingFluents(goalConds,
                              Bd([CanReachHome(['C', 'H',
                                                'LO', 'LF', 'LGM', 'LGV', 'LGD',
                                                'RO', 'RF', 'RGM', 'RGV', 'RGD',
                                                'Cond']),
-                                  True, 'P'], True))
+                                 True, 'P'], True))
     world = pbs.getWorld()
     obsts = []
     index = 0
@@ -462,6 +475,7 @@ def bboxInterior(bb1, bb2):
 
 # !! Should pick relevant orientations... or more samples.
 angleList = [-math.pi/2. -math.pi/4., 0.0, math.pi/4, math.pi/2]
+'''
 def potentialRegionPoseGenCut(pbs, obj, placeB, prob, regShapes, reachObsts, maxPoses = 30):
     def genPose(rs, angle,  chunk):
         for i in xrange(5):
@@ -478,9 +492,9 @@ def potentialRegionPoseGenCut(pbs, obj, placeB, prob, regShapes, reachObsts, max
     clearance = 0.01
     for rs in regShapes: rs.draw('W', 'purple')
     ff = placeB.faceFrames[placeB.support.mode()]
+    shWorld = pbs.getShadowWorld(prob)
     objShadowBase = pbs.objShadow(obj, True, prob, placeB, ff)
     objShadow = objShadowBase.applyTrans(objShadowBase.origin().inverse())
-    shWorld = pbs.getShadowWorld(prob)
     shRotations = dict([(angle, objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
     count = 0
@@ -526,9 +540,33 @@ def potentialRegionPoseGenCut(pbs, obj, placeB, prob, regShapes, reachObsts, max
     if debug('potentialRegionPoseGen'):
         print 'Returned', count, 'for regions', [r.name() for r in regShapes]
     return
+'''
 
 def potentialRegionPoseGen(pbs, obj, placeB, prob, regShapes, reachObsts, hand,
-                           maxPoses = 30):
+                              maxPoses = 30):
+    def interpolateVars(maxV, minV, n):
+        deltaV = [(maxV[i]-minV[i])/(n-1.) for i in range(4)]
+        Vs = []
+        for j in range(n):
+            Vs.append(tuple([maxV[i]-j*deltaV[i] for i in range(4)]))
+        return Vs
+        
+    maxVar = placeB.poseD.var
+    minVar = pbs.domainProbs.obsVarTuple
+    count = 0
+    # Preferentially use large variance...
+    for medVar in interpolateVars(maxVar, minVar, 4):
+        pB = placeB.modifyPoseD(var=medVar)
+        if debug('potentialRegionPoseGen'):
+            print 'potentialRegionPoseGen var', medVar
+        for pose in potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes,
+                                              reachObsts, hand, maxPoses):
+            yield pose
+            if count > maxPoses: return
+            count += 1
+
+def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, hand,
+                              maxPoses = 30):
     def genPose(rs, angle, point):
         (x,y,z,_) = point
         # Support pose, we assume that sh is on support face
@@ -557,11 +595,9 @@ def potentialRegionPoseGen(pbs, obj, placeB, prob, regShapes, reachObsts, hand,
         pbs.draw(prob, 'W')
         for rs in regShapes: rs.draw('W', 'purple')
     ff = placeB.faceFrames[placeB.support.mode()]
-    objShadowBase = pbs.objShadow(obj, True, prob, placeB, ff)
-    # Needed when doing CO/CI version - why?
-    # objShadow = objShadowBase.applyTrans(objShadowBase.origin().inverse())
-    objShadow = objShadowBase
     shWorld = pbs.getShadowWorld(prob)
+    
+    objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
     shRotations = dict([(angle, objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
     obstCost = 10.
@@ -631,6 +667,7 @@ def potentialRegionPoseGen(pbs, obj, placeB, prob, regShapes, reachObsts, hand,
         poseHistory = []
         historySize = 5
         tries = 0
+        maxTries = 2*maxPoses
         while count < maxPoses or tries > maxTries:
             tries += 1
             index = pointDist.draw()

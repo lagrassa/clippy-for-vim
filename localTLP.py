@@ -23,7 +23,7 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath',
            'canReachHome', 'canReachGen', 'placeInGen', 'placeGen', 'canPickPlaceTest']
 debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'hAddBackV', 'regression:fail',
            'pickGen', 'placeGen', 'placeInGen', 'confReachViol', 'confReachViolGen', 'confReachViolCache',
-           'canPickPlaceTest', 'canReachHome',
+           'canPickPlaceTest', 'canReachHome', 
            'potentialLookHandConfs', 'lookHandGen', 'visible'
            ]
 debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'traceCRH', 'hAddBackV', 'regression:fail',
@@ -35,7 +35,7 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
            'regression:fail', 'applicableOps', 'regression:inconsistent', 'easyGraspGen',
            'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'lookHandGn', 'canReachGen',
            'visible', 'potentialRegionPoseGen', 'canPickPlaceGen',
-           # 'minViolPath', 'confReachViolGen', 'confReachViol', 'confReachViolCache'
+           'minViolPath', 'confReachViolGen', 'confReachViol', 'confReachViolCache'
            ]
 
 # debugOn = ['confReachViolGen', 'visible', 'canReachHome', 'confReachViol', 'confReachViolCache', ]
@@ -46,8 +46,8 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
 # debugOn = ['regression:inconsistent', 'traceGen', 'traceCRH']
 # debugOn = ['checkCRH']
 #debugOn = ['traceGen', 'traceCRH', 'confReachViol', 'confReachViolCache', 'drawInHeuristic']
-# debugOn = ['traceGen', 'traceCRH']
-debugOn = []
+debugOn = ['traceGen', 'traceCRH', 'placeInGen', 'potentialRegionPoseGen', 'skeleton']
+# debugOn = []
 pauseOn = debugOn
 if 'canPickPlaceTest' in pauseOn:
     pauseOn.remove('canPickPlaceTest')
