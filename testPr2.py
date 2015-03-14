@@ -1179,14 +1179,21 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
     glob.monotonicFirst = True
     glob.rebindPenalty = 200
 
-    hierSkel = [[place, place],
-                [place, poseAchCanPickPlace],
-                [poseAchCanPickPlace, place],
-                [place, pick],
+    # This just gets us down the first left expansion
+    hierSkel = [[place, place], #0
+                [place, poseAchCanPickPlace], #1
+                [poseAchCanPickPlace, place], #2
+                [place, pick], #3
                 [lookAtHand.applyBindings({'Hand' : 'left', 'Obj':'objA'}),
                  pick,
-                 poseAchCanPickPlace],
-                [poseAchCanPickPlace, place, move, pick, move]]
+                 poseAchCanPickPlace], #4
+                [poseAchCanPickPlace, lookAt, place], #5
+                [place], #6
+                [place, lookAtHand, pick],#7
+                [pick],  #8
+                [pick, move], #9
+                [move]] #10
+
 
     swapSkel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
                  'move',

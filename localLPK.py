@@ -20,6 +20,7 @@ appOp:detail
 appOp:number
 appOp:result
 btbind
+canPickPlaceGen
 canReachGen
 canReachHome
 canSeeGen
@@ -52,9 +53,8 @@ traceGen  (compact summary of generators)
 
 '''
 debugOn = ['nonmon', 'executionFail', 
-           'appOp:number', 'traceGen', 
-           'executionSurprise', 'prim', 'canPickPlaceGen']
-
+           'appOp:number', 'traceGen', 'hAddBackInf',
+           'executionSurprise']
 
 pauseOn = debugOn
 

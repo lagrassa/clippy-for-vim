@@ -172,6 +172,7 @@ class CanReachHome(Fluent):
         path, violations = self.getViols(bState.details, v, p, strict = False)
         if path == None:
             #!! should this happen?
+            print '&&&&&&', self, v, p
             print 'hv infinite'
             raw_input('go?')
             return float('inf'), {}
@@ -217,6 +218,9 @@ class CanPickPlace(Fluent):
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
           graspFace, graspMu, graspVar, graspDelta,
          oObj, oFace, oGraspMu, oGraspVar, oGraspDelta, inconds) = self.args
+    
+        assert obj != 'none'
+
         if not hasattr(self, 'conds'):
             objInPlace = B([Pose([obj, poseFace]), pose, poseVar, poseDelta,
                             1.0], True)
@@ -243,7 +247,7 @@ class CanPickPlace(Fluent):
                                 obj, graspFace, graspMu, zeroVar, tinyDelta,
                                 oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
                         []])]
-        for c in self.conds: c.addConditions(inconds, details)
+            for c in self.conds: c.addConditions(inconds, details)
         return self.conds
 
     def getViols(self, bState, v, p, strict = True):

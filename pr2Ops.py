@@ -19,7 +19,7 @@ maxVarianceTuple = (.1,)*4
 
 # Dont' try to move with more than this variance in grasp
 # LPK:  was .0005 which is quite small (smaller than pickVar)
-maxGraspVar = (0.001, 0.001, 0.001, 0.01)
+maxGraspVar = (0.0008, 0.0008, 0.0008, 0.008)
     
 
 ######################################################################
@@ -853,11 +853,6 @@ pick = Operator(\
                                'GraspDelta',
                                'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
                                'OGraspDelta', []]), True, 'P1'], True)},
-         # 1 : ppConds('PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
-         #             'PoseVar', 'PoseDelta', 'PoseFace',
-         #             'GraspFace', 'GraspMu', 'RealGraspVar', 'GraspDelta',
-         #             'OObj', 'OFace', 'OGraspMu', 'OGraspVar',
-         #             'OGraspDelta', 'P2'),
             # Implicitly, CanPick should be true, too
          2  : {Conf(['PreConf', 'ConfDelta'], True),
              Bd([Holding(['Hand']), 'none', 'P3'], True),

@@ -1299,7 +1299,7 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
                 parent = ps.guts()[-1]
                 writeSubgoalRefinement(f, parent, subgoal)
                 p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
-                                 lastOp = op,
+                                 lastOp = None, #op,
                                  skeleton = skeleton[subgoal.planNum]\
                                             if skeleton else None)
                 assert p, 'Planning failed.'

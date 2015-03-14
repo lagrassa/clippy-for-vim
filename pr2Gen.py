@@ -990,7 +990,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
      oGraspDelta, prob, cond) = args
 
     def moveOut(newBS, obst, delta):
-        if debug('traceGen') or debug('canReachGen'):
+        if debug('traceGen') or debug('canPickPlaceGen'):
             print '    canPickPlaceGen() obst:', obst
         if not isinstance(obst, str):
             obst = obst.name()
