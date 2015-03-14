@@ -643,9 +643,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     # If we are not considering other objects, pick a pose and call placeGen
     if not considerOtherIns:
         placeInGenCache = pbs.beliefContext.genCaches['placeInGen']
-        # Need to make reachObsts hashable, but there's a set of ignorable objects
-        # Maybe use the fluents instead?
-        # key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away, tuple(reachObsts), fbch.inHeuristic)
+        # key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away, fbch.inHeuristic)
         if False: # key in placeInGenCache:
             ff = placeB.faceFrames[placeB.support.mode()]
             objShadow = pbs.objShadow(obj, True, prob, placeB, ff)

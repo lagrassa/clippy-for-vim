@@ -1127,6 +1127,46 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
           regions=['table1Top']
           )
 
+def test19a(hpn = True, skeleton = False, hierarchical = False,
+           heuristic = habbs):
+    front = util.Pose(0.45, 0.0, 0.61, 0.0)
+    back = util.Pose(0.6, 0.0, 0.61, 0.0)
+    parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
+    parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
+    parkingBad = util.Pose(0.683, 0.222, 0.620, 1.571)
+    t = PlanTest('test19',  tinyErrProbs, 
+                 objects=['table1', 'objA', 'objB'],
+                 movePoses={'objA': parkingBad,
+                            'objB': back})
+
+    #glob.monotonicFirst = False
+    glob.rebindPenalty = 200
+
+    # Small var
+    targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
+    targetDelta = (0.001, 0.001, 0.001, 0.005)
+    # Increase this
+    goalProb = 0.2
+    
+    goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
+                  B([Pose(['objA', 4]),
+                     front.xyztTuple(), targetVar, targetDelta,
+                     goalProb], True),
+                  Bd([SupportFace(['objB']), 4, goalProb], True),
+                  B([Pose(['objB', 4]),
+                     back.xyztTuple(), targetVar, targetDelta,
+                     goalProb], True)])
+
+    t.run(goal,
+          hpn = hpn,
+          skeleton = None,
+          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
+                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
+          hierarchical = hierarchical,
+          heuristic = heuristic,
+          regions=['table1Top']
+          )
+
 # 20.  Swap!
 def test20(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs):
