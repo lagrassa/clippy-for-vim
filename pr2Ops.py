@@ -257,6 +257,14 @@ def graspStuffFromGoal(goal, hand,
 
     return (obj, face, mu, var, delta)
 
+# See if would be useful to look at obj in order to reduce its variance
+def graspVarCanPickPlaceGen(args, goal, start, vals):
+    (obj, variance) = args
+    if obj != 'none' and variance[0] > start.domainProbs.obsVarTuple[0]:
+        return [[start.domainProbs.obsVarTuple]]
+    else:
+        return []
+
 # Get all grasp-relevant information for both hands.  Used by move.
 def genGraspStuff(args, goal, start, vals):
     return [genGraspStuffHand(('left', 'O1'), goal, start, vals)[0] + \
@@ -1105,6 +1113,40 @@ poseAchCanPickPlace = Operator(\
     argsToPrint = [3, 2, 4, 19, 20],
     ignorableArgs = range(0, 2) + range(5, 27))
 
+# Need also graspAchCanReachHome
+
+graspAchCanPickPlace = Operator(\
+    'GraspAchCanPickPlace',
+    ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
+                          'RealPoseVar', 'PoseDelta', 'PoseFace',
+                          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
+                          'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
+                          'OGraspDelta', 'Cond',
+                          'PreGraspVar', 'P1', 'P2', 'PR'],
+    {0: {},
+     1: {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
+                          'RealPoseVar', 'PoseDelta', 'PoseFace',
+                          'GraspFace', 'GraspMu', 'PreGraspVar', 'GraspDelta',
+                          'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
+                          'OGraspDelta', 'Cond']), True, 'P1'],True),
+         B([Grasp(['Obj', 'Hand', 'GraspFace']),
+             'GraspMu', 'PreGraspVar', 'GraspDelta', 'P2'], True)}},
+    # Result
+    [({Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
+                          'RealPoseVar', 'PoseDelta', 'PoseFace',
+                          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
+                          'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
+                          'OGraspDelta', 'Cond']), True, 'PR'],True)}, {})],
+    # Functions
+    functions = [\
+        # Compute precond probs
+        Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2'),
+        # Call generator, just to see if reducing graspvar would be useful
+        Function(['PreGraspVar'],['Obj', 'GraspVar'],
+                   graspVarCanPickPlaceGen, 'graspVarCanPickPlaceGen')],
+    cost = lambda al, args, details: 0.1,
+    argsToPrint = [3, 2, 4, 18],
+    ignorableArgs = range(0, 2) + range(5, 22))
 
 poseAchCanSee = Operator(\
     'PoseAchCanSee',

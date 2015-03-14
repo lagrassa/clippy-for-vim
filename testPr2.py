@@ -59,7 +59,7 @@ reload(pr2Gen)
 import pr2Ops
 reload(pr2Ops)
 from pr2Ops import move, pick, place, lookAt, poseAchCanReach, poseAchCanSee,\
-      lookAtHand, hRegrasp, poseAchCanPickPlace
+      lookAtHand, hRegrasp, poseAchCanPickPlace, graspAchCanPickPlace
 
 import pr2Sim
 reload(pr2Sim)
@@ -248,7 +248,7 @@ def makeConf(robot,x,y,th,g=0.07,up=True):
     return c
 
 class PlanTest:
-    def __init__(self, name, domainProbs,
+    def __init__(self, name, domainProbs, operators,
                  objects = ['table1','objA'],
                  movePoses = {}, held = None, grasp = None,
                  multiplier = 8, var = 1.0e-10, randomizeObjects = False,
@@ -320,11 +320,7 @@ class PlanTest:
                 self.move[name] = ObjPlaceB(name, ff(name), DeltaDist(supFace),
                                   moveObjPoses[name], oVar, del0)
         self.randomizeObjects = randomizeObjects
-        self.operators = {'move': move, 'pick': pick, 'place': place,
-                          'lookAt': lookAt, 'poseAchCanReach' : poseAchCanReach,
-                          'poseAchCanSee' : poseAchCanSee,
-                          'poseAchCanPickPlace' : poseAchCanPickPlace,
-                          'lookAtHand' : lookAtHand}
+        self.operators = operators
         wm.makeWindow('Belief', viewPort, 500)
         wm.makeWindow('World', viewPort, 500)
 
@@ -347,7 +343,7 @@ class PlanTest:
         bs.awayRegion = 'table2Top'
         self.bs = bs
 
-    def run(self, goal, skeleton = None, operators = None, hpn = True,
+    def run(self, goal, skeleton = None, hpn = True,
             home=None, regions = [], hierarchical = False, heuristic = None,
             greedy = 0.7, simulateError = False,
             initBelief = None, initWorld=None):
@@ -377,25 +373,23 @@ class PlanTest:
         #     assert False
         self.realWorld.draw('World')
         s = State([], details = self.bs)
+
         print '**************', self.name,\
                  'Hierarchical' if hierarchical else '', '***************'
         if hpn:
-            if skeleton:
-                skel = [[(self.operators[o] if type(o) == str else o) \
-                          for o in stuff] for stuff in skeleton]
             HPN(s,
                 goal,
-                [self.operators[o] for o in operators],
+                self.operators,
                 self.realWorld,
                 hpnFileTag = self.name,
-                skeleton = skel if skeleton else None,
+                skeleton = skeleton,
                 h = heuristic,
                 verbose = False,
                 fileTag = self.name if writeSearch else None)
         else:
             p = planBackward(s,
                              goal,
-                             [self.operators[o] for o in operators],
+                             self.operators,
                              h = heuristic,
                              fileTag = self.name if writeSearch else None)
             if p:
@@ -459,15 +453,18 @@ tinyErrProbs = DomainProbs(\
             # pickTolerance
             pickTolerance = (0.02, 0.02, 0.02, 0.02))
 
+allOperators = [move, pick, place, lookAt, poseAchCanReach,
+                poseAchCanSee, poseAchCanPickPlace, lookAtHand,
+                graspAchCanPickPlace]
+
 # Try to make a plan!     Just move
 def test1(hpn=True, skeleton=False, heuristic=habbs, hierarchical=False):
-    t = PlanTest('test1', typicalErrProbs)
+    t = PlanTest('test1', typicalErrProbs, allOperators)
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
     goal = State([Conf([goalConf, confDeltas], True)])
     t.run(goal,
           hpn = hpn,
-          operators=['move', 'pick'],
           heuristic=heuristic
            )
 
@@ -476,7 +473,8 @@ def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
           heuristic=habbs, hierarchical=False):
     global moreGD
     if gd != 0: moreGD = True           # hack!
-    t = PlanTest('test2', typicalErrProbs, objects=['table1', 'objA'])
+    t = PlanTest('test2', typicalErrProbs, allOperators,
+                 objects=['table1', 'objA'])
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
     goal = State([Bd([Holding([hand]), 'objA', .6], True),
@@ -489,12 +487,9 @@ def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
                          if flip else None
     t.run(goal,
           hpn = hpn,
-          skeleton = [['move', 'lookAtHand', 'move',
-                       'pick', 'move']] \
-          if skeleton else None,
+          skeleton = [[move, lookAtHand, move, pick, move]] \
+                          if skeleton else None,
           heuristic = heuristic,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'poseAchCanPickPlace', 'lookAtHand'],
           regions=['table1Top'],
           home=homeConf
           )
@@ -506,7 +501,8 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
 
-    t = PlanTest('test3',  errProbs, objects=['table1', 'objA'])
+    t = PlanTest('test3',  errProbs, allOperators,
+                 objects=['table1', 'objA'])
     targetPose = (0.55, 0.25, 0.61, 0.0)
     # large target var is no problem
     targetVar = (0.01, 0.01, 0.01, 0.05)
@@ -524,8 +520,6 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           hpn = hpn,
           skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                     'poseAchCanSee', 'poseAchCanPickPlace', 'lookAtHand'],
           regions=['table1Top'],
           heuristic = heuristic
           )
@@ -537,7 +531,7 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
     glob.rebindPenalty = 300
 
 
-    t = PlanTest('test4',  errProbs,
+    t = PlanTest('test4',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'])
     targetPose = (0.55, 0.25, 0.61, 0.0)
     targetPoseB = (0.55, -0.2, 0.61, 0.0)
@@ -567,8 +561,6 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
 
     t.run(goal,
           hpn = hpn,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
@@ -583,7 +575,7 @@ def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False,
 
     p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.6, 0.0, 0.61, 0.0)
-    t = PlanTest('test5',  errProbs, 
+    t = PlanTest('test5',  errProbs, allOperators,
                  objects=['table1', 'objA', 'table2'],
                  movePoses={'objA': p1,
                             'objB': p2})
@@ -592,9 +584,7 @@ def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False,
 
     t.run(goal,
           hpn = hpn,
-          skeleton = [['place', 'move', 'pick', 'move']] if skeleton else None,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
+          skeleton = [[place, move, pick, move]] if skeleton else None,
           regions=['table1Top'],
           heuristic = heuristic
           )
@@ -607,7 +597,7 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
         
     p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.6, 0.0, 0.61, 0.0)
-    t = PlanTest('test6', smallErrProbs,
+    t = PlanTest('test6', smallErrProbs, allOperators,
                  objects=['table1', 'objA', 'table2'],
                  movePoses={'objA': p1,
                             'objB': p2},
@@ -619,9 +609,7 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
                   Bd([SupportFace(['objA']), 4, goalProb], True)])
     t.run(goal,
           hpn = hpn,
-          skeleton = [['lookAt', 'move']] if skeleton else None,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
+          skeleton = [[lookAt, move]] if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
           heuristic = heuristic,
@@ -635,7 +623,7 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
 
     p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.6, 0.0, 0.61, 0.0)
-    t = PlanTest('test7',  errProbs,
+    t = PlanTest('test7',  errProbs, allOperators,
                  objects=['table1', 'objA', 'table2'],
                  movePoses={'objA': p1,
                             'objB': p2},
@@ -649,12 +637,10 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
                      (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), (0.001,)*4,
                      goalProb], True)])
     homeConf = makeConf(t.world.robot, -0.5, 0.0, math.pi, up=True) if flip else None
-    skel = [['lookAtHand', 'move', 'pick', 'move', 'lookAt', 'move']]*3
+    skel = [[lookAtHand, move, pick, move, lookAt, move]]*3
     t.run(goal,
           hpn = hpn,
           skeleton = skel if skeleton else None,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
           hierarchical = hierarchical,
           regions=['table1Top'],
@@ -670,7 +656,8 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
 
     global moreGD
     if gd != 0: moreGD = True
-    t = PlanTest('test8', errProbs, objects=['table1', 'table3', 'objA'])
+    t = PlanTest('test8', errProbs, allOperators,
+                 objects=['table1', 'table3', 'objA'])
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
     goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
@@ -679,27 +666,25 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
                      (0,-0.025,0,0), (0.005, 0.005, 0.005, 0.05),
                      (0.001,)*4, goalProb], True)])
     homeConf = makeConf(t.world.robot, -0.5, 0.0, math.pi, up=True) if flip else None
-    goodSkel = [['pick',
-                 'move',
-                  place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-                 'move',
-                 'lookAtHand',
-                 'move',
-                 'pick',
-                 'move']]
+    goodSkel = [[pick,
+                 move,
+                 place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+                 move,
+                 lookAtHand,
+                 move,
+                 pick,
+                 move]]
     t.run(goal,
           hpn = hpn,
           skeleton = goodSkel if skeleton else None,
           heuristic = heuristic, 
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           hierarchical = hierarchical,
           home=homeConf,
           regions=['table1Top']
           )
 
 def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False):
-    t = PlanTest('test9', typicalErrProbs,
+    t = PlanTest('test9', typicalErrProbs, allOperators,
                  objects = ['table1'],
                  varDict = {'table1': (0.01*2,)*4})
 
@@ -711,16 +696,14 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False):
           heuristic = heuristic,
           hierarchical = hierarchical,
           regions=['table1Top'],
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
-          skeleton = [['move', 'poseAchCanReach',
-                       'lookAt', move]] if skeleton else None,
+          skeleton = [[move, poseAchCanReach,
+                       lookAt, move]] if skeleton else None,
           )
 
 def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
     # need to look at A to clear path to b
     
-    t = PlanTest('test10',  smallErrProbs,
+    t = PlanTest('test10',  smallErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  varDict = {'objA': (0.01*2,)*4})
     targetPose = (0.55, 0.25, 0.61, 0.0)
@@ -739,10 +722,8 @@ def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
                      goalProb], True)])
     t.run(goal,
           hpn = hpn,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
-          skeleton = [['place', 'move', 'pick', 'move', 'poseAchCanPickPlace',
-                       'lookAt', 'move']]*3 if skeleton else None,
+          skeleton = [[place, move, pick, move, poseAchCanPickPlace,
+                       lookAt, move]]*3 if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
           heuristic = heuristic
@@ -751,7 +732,7 @@ def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
 
 def test11(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs):
-    t = PlanTest('test11',  smallErrProbs,
+    t = PlanTest('test11',  smallErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  varDict = {'objA': (0.01*2,)*4,
                             'objB': (0.01*2,)*4})
@@ -778,30 +759,27 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 200
 
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             'move',
+             move,
              place.applyBindings({'Obj' : 'objB', 'Hand' : 'right'}),
-             'move',
+             move,
              lookAtHand.applyBindings({'Obj' : 'objB'}),
-             'move',
+             move,
              pick.applyBindings({'Obj' : 'objB', 'Hand' : 'right'}),
-             'move',
+             move,
              lookAt.applyBindings({'Obj' : 'objB'}),
-             'move',
+             move,
              lookAtHand.applyBindings({'Obj' : 'objA'}),
-             'move',
+             move,
              pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             'poseAchCanPickPlace',
-             'move',
-              lookAt.applyBindings({'Obj' : 'objB'}),
-             'move',
-              lookAt.applyBindings({'Obj' : 'objA'}),
-              'move']]*5
+             poseAchCanPickPlace,
+             move,
+             lookAt.applyBindings({'Obj' : 'objB'}),
+             move,
+             lookAt.applyBindings({'Obj' : 'objA'}),
+             move]]*5
 
-                              
     t.run(goal,
           hpn = hpn,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
@@ -810,7 +788,7 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
     
 def test12(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs):
-    t = PlanTest('test12',  smallErrProbs,
+    t = PlanTest('test12',  smallErrProbs, allOperators,
                  objects=['table1', 'table2',
                           'objA', 'objB', 'objD',
                           'objE', 'objF', 'objG'])
@@ -832,24 +810,22 @@ def test12(hpn = True, skeleton = False, hierarchical = False,
                      (0.001,)*4, goalProb], True)])
     t.run(goal,
           hpn = hpn,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
-          skeleton = [['pick',
-                       'move',
-                       'poseAchCanReach',
-                       'lookAt',  # E
-                       'move',
+          skeleton = [[pick,
+                       move,
+                       poseAchCanReach,
+                       lookAt,  # E
+                       move,
                        place.applyBindings({'Hand' : 'left'}),
-                       'move',
-                       'pick',
-                       'move',
-                       'poseAchCanReach',
-                       'lookAt',  
-                       'move',
+                       move,
+                       pick,
+                       move,
+                       poseAchCanReach,
+                       lookAt,  
+                       move,
                        place.applyBindings({'Hand' : 'left'}),
-                       'move',
-                       'pick',
-                       'move',
+                       move,
+                       pick,
+                       move
                        ]] if skeleton else None,
           hierarchical = hierarchical,
           # regions=['table2Top'],
@@ -858,7 +834,7 @@ def test12(hpn = True, skeleton = False, hierarchical = False,
           )
 
 def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
-    t = PlanTest('test13',  smallErrProbs,
+    t = PlanTest('test13',  smallErrProbs, allOperators,
                  objects=['table1', 'table2', 'objA', 'objB', 'objD',
                           'objE', 'objF', 'objG'])
     targetPose = (0.55, 0.25, 0.61, 0.0)
@@ -912,8 +888,6 @@ def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
                      goalProb], True)])
     t.run(goal,
           hpn = hpn,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           skeleton = hskel if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top', 'table2Top'],
@@ -926,7 +900,7 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
 
     p1 = util.Pose(0.4, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.8, 0.0, 0.61, 0.0)
-    t = PlanTest('test14', smallErrProbs,
+    t = PlanTest('test14', smallErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB', 'table2',
                           'cupboardSide1', 'cupboardSide2'],
                  movePoses={'objA': p1,
@@ -943,10 +917,8 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
 
     t.run(goal,
           hpn = hpn,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
-          skeleton = [['lookAt', 'poseAchCanSee', 'move',
-                       'place', 'move', 'pick', 'move']] \
+          skeleton = [[lookAt, poseAchCanSee, move,
+                       place, move, pick, move]] \
                              if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
@@ -959,7 +931,8 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
            heuristic=habbs, hierarchical=False):
     global moreGD
     if gd != 0: moreGD = True           # hack!
-    t = PlanTest('test15', typicalErrProbs, objects=['table1', 'objA'])
+    t = PlanTest('test15', typicalErrProbs, allOperators,
+                 objects=['table1', 'objA'])
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
     goal = State([Bd([Holding([hand]), 'objA', .6], True),
@@ -972,11 +945,9 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
                          if flip else None
     t.run(goal,
           hpn = hpn,
-          skeleton = [['move', 'lookAtHand', 'move', 'pick', 'move']] \
+          skeleton = [[move, lookAtHand, move, pick, move]] \
           if skeleton else None,
           heuristic = heuristic,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           regions=['table1Top'],
           home=homeConf
           )
@@ -984,7 +955,7 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
 # pick and place with more noise 
 def test16(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs):
-    t = PlanTest('test16',  typicalErrProbs,
+    t = PlanTest('test16',  typicalErrProbs, operators,
                  objects=['table1', 'objA', 'objB'],
                  varDict = {'objA': (0.005*2,)*4},
                  #varDict = {'objA': (0.01*2,)*4}
@@ -999,11 +970,9 @@ def test16(hpn = True, skeleton = False, hierarchical = False,
                      goalProb], True)])
     t.run(goal,
           hpn = hpn,
-          skeleton = [['lookAt', 'move', 'place', 'move',
-                       'pick', 'move', 'lookAt']]*5 \
+          skeleton = [[lookAt, move, place, move,
+                       pick, move, lookAt]]*5 \
                        if skeleton else None,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           hierarchical = hierarchical,
           regions=['table1Top'],
           heuristic = heuristic
@@ -1023,7 +992,7 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
     front = util.Pose(0.45, 0.0, 0.61, 0.0)
     back = util.Pose(0.6, 0.0, 0.61, 0.0)
     parking = util.Pose(0.45, 0.3, 0.61, 0.0)
-    t = PlanTest('test17',  tinyErrProbs, 
+    t = PlanTest('test17',  tinyErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
                             'objB': parking})
@@ -1032,16 +1001,16 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 200
 
     skel = [[place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-             'move',
+             move,
              pick.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-             'move',
-             'poseAchCanPickPlace',
+             move,
+             poseAchCanPickPlace,
              place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             'move',
-             'lookAtHand',
-             'move',
+             move,
+             lookAtHand,
+             move,
              pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             'move']]*5
+             move]]*5
 
     # Small var
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
@@ -1057,8 +1026,6 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
     t.run(goal,
           hpn = hpn,
           skeleton = skel if skeleton else None,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
           hierarchical = hierarchical,
           regions=['table1Top']
@@ -1073,7 +1040,7 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
     back = util.Pose(0.6, 0.0, 0.61, 0.0)
     parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
     parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
-    t = PlanTest('test18',  tinyErrProbs, 
+    t = PlanTest('test18',  tinyErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': parking1,
                             'objB': parking2})
@@ -1082,13 +1049,13 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 200
 
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             'move',
+             move,
              pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             'move',
+             move,
              place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-             'move',
+             move,
              pick.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-             'move']]*5
+             move]]*5
 
     # Small var
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
@@ -1108,8 +1075,6 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
     t.run(goal,
           hpn = hpn,
           skeleton = skel if skeleton else None,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           hierarchical = hierarchical,
           heuristic = heuristic,
           regions=['table1Top']
@@ -1122,7 +1087,7 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
     back = util.Pose(0.6, 0.0, 0.61, 0.0)
     parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
     parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
-    t = PlanTest('test19',  tinyErrProbs, 
+    t = PlanTest('test19',  tinyErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
                             'objB': parking2})
@@ -1131,13 +1096,13 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 200
 
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
-             'move',
+             move,
              place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-             'move',
+             move,
              pick.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-             'move',
+             move,
              pick.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
-             'move']]*5
+             move]]*5
 
     # Small var
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
@@ -1157,8 +1122,6 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
     t.run(goal,
           hpn = hpn,
           skeleton = skel if skeleton else None,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           hierarchical = hierarchical,
           heuristic = heuristic,
           regions=['table1Top']
@@ -1171,7 +1134,7 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
     back = util.Pose(0.6, 0.0, 0.61, 0.0)
     parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
     parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
-    t = PlanTest('test20',  tinyErrProbs, 
+    t = PlanTest('test20',  tinyErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
                             'objB': front})
@@ -1196,23 +1159,23 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
 
 
     swapSkel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-                 'move',
+                 move,
                  pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-                 'move',
+                 move,
                  place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-                 'move',
+                 move,
                  pick.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-                 'move',
+                 move,
                  lookAt.applyBindings({'Obj' : 'objA'}),
-                 'move',
+                 move,
                  place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-                 'move',
+                 move,
                  pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-                 'move',
+                 move,
                  place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-                 'move',
+                 move,
                  pick.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-                 'move']]*5
+                 move]]*5
 
     # Small var
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
@@ -1232,8 +1195,6 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
     t.run(goal,
           hpn = hpn,
           skeleton = hierSkel if skeleton else None,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
           hierarchical = hierarchical,
           regions=['table1Top']
@@ -1245,24 +1206,24 @@ def testStack(hpn = True, skeleton = False, hierarchical = False,
     p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.6, 0.0, 0.61, 0.0)
     p3 = util.Pose(0.45, 0.2, 0.61, 0.0)
-    t = PlanTest('test18',  smallErrProbs, 
+    t = PlanTest('test18',  smallErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB', 'objC'],
                  movePoses={'objA': p1,
                             'objB': p2,
                             'objC': p3})
 
     skel = [[place.applyBindings({'Obj' : 'objC', 'Hand' : 'left'}),
-             'move',
+             move,
              lookAtHand.applyBindings({'Obj' : 'objC'}),
-             'move',
+             move,
              pick.applyBindings({'Obj' : 'objC', 'Hand' : 'left'}),
-             'move',
+             move,
              place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             'move',
+             move,
              lookAtHand.applyBindings({'Obj' : 'objA'}),
-             'move',
+             move,
              pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             'move']]*5
+             move]]*5
 
     goal = State([Bd([In(['objA', 'objBTop']), True, .4], True),
                   # Bd([In(['objC', 'objATop']), True, .4], True)
@@ -1271,8 +1232,6 @@ def testStack(hpn = True, skeleton = False, hierarchical = False,
     t.run(goal,
           hpn = hpn,
           skeleton = skel if skeleton else None,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           heuristic = heuristic,
           hierarchical = hierarchical,
           regions=['objATop', 'objBTop', 'table1Top']
@@ -1284,7 +1243,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
     p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.45, 0.4, 0.61, 0.0)
 
-    t = PlanTest('test21',  smallErrProbs, 
+    t = PlanTest('test21',  smallErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': p1,
                             'objB': p2})
@@ -1336,15 +1295,12 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
         realWorld.grasp[hand] = handPose.inverse().compose(pose)
         realWorld.delObjectState(grasped)    
 
-    operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand']
     skeleton1 = [[place, move, lookAtHand, move, lookAtHand,
                   move]]
     t.run(goal1,
           hpn = hpn,
           skeleton = skeleton1 if skeleton else None,
           heuristic = heuristic,
-          operators = operators,
           regions = ['table1Top'],
           initBelief = initBel,
           initWorld = initWorld
@@ -1356,7 +1312,7 @@ def test22(hpn = True, skeleton = False, hierarchical = False,
     p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.45, 0.4, 0.61, 0.0)
 
-    t = PlanTest('test22',  smallErrProbs, 
+    t = PlanTest('test22',  smallErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': p1,
                             'objB': p2})
@@ -1393,8 +1349,6 @@ def test22(hpn = True, skeleton = False, hierarchical = False,
         bs.pbs.draw(0.9, 'W')
         bs.pbs.draw(0.9, 'Belief')
 
-    operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand']
     skeleton1 = [[lookAtHand.applyBindings({'Hand' : 'left'}),
                   move,
                   lookAtHand.applyBindings({'Hand' : 'left'}),
@@ -1405,7 +1359,6 @@ def test22(hpn = True, skeleton = False, hierarchical = False,
           hpn = hpn,
           skeleton = skeleton1 if skeleton else None,
           heuristic = heuristic,
-          operators = operators,
           initBelief = initBel,
           regions = ['table1Top']
           )
