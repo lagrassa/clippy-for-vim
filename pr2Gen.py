@@ -643,7 +643,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     # If we are not considering other objects, pick a pose and call placeGen
     if not considerOtherIns:
         placeInGenCache = pbs.beliefContext.genCaches['placeInGen']
-        key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away)
+        key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away, fbch.inHeuristic)
         if key in placeInGenCache:
             ff = placeB.faceFrames[placeB.support.mode()]
             objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
@@ -658,7 +658,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
                         if debug('traceGen'):
                             print '    reusing placeInGen',
                             print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
-                                  viol2.weight() if viol2 else None, grasp, pose
+                                  fbch.inHeuristic, 'v=', viol2.weight() if viol2 else None, 'g=', grasp, pose
                         yield ans[0], viol2
         else:
             placeInGenCache[key] = []
