@@ -1127,6 +1127,7 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
           regions=['table1Top']
           )
 
+
 def test19a(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs):
     front = util.Pose(0.45, 0.0, 0.61, 0.0)
@@ -1134,7 +1135,7 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
     parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
     parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
     parkingBad = util.Pose(0.683, 0.222, 0.620, 1.571)
-    t = PlanTest('test19',  tinyErrProbs, 
+    t = PlanTest('test19',  tinyErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': parkingBad,
                             'objB': back})
@@ -1160,8 +1161,6 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
     t.run(goal,
           hpn = hpn,
           skeleton = None,
-          operators=['move', 'pick', 'place', 'lookAt', 'poseAchCanReach',
-                      'poseAchCanPickPlace', 'poseAchCanSee', 'lookAtHand'],
           hierarchical = hierarchical,
           heuristic = heuristic,
           regions=['table1Top']
