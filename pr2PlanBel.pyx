@@ -260,7 +260,7 @@ cdef class PBS:
             cache = self.beliefContext.genCaches['getShadowWorld']
             key = (self.items(), inHeuristic)
             if key in cache:
-                (self.shadowWorld, self.heuristic, self.avoidShadow) = cache[key]
+                (self.shadowWorld, self.shadowProb, self.avoidShadow, self.heuristic) = cache[key]
                 # print 'cached shadowWorld'
                 return self.shadowWorld
         # print 'new shadowWorld'
@@ -327,7 +327,7 @@ cdef class PBS:
                     raw_input('Attach?')
                 sw.held[hand] = heldObj
         sw.setRobotConf(self.conf)
-        cache[key] = (sw, inHeuristic, avoidShadow)
+        cache[key] = (sw, prob, avoidShadow, inHeuristic)
         return sw
 
     # Shadow over POSE variation.  Should only do finite number of poseVar/poseDelta values.
