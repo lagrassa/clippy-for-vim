@@ -571,7 +571,7 @@ def placeInGen(args, goalConds, bState, outBindings,
     if pose and not isAnyVar(pose):
         if debug('placeInGen'):
             bState.pbs.draw(prob, 'W')
-            debugMsg('placeInGen', ('Pose specified', pose))
+            debugMsgSkip('placeInGen', fbch.inHeuristic, ('Pose specified', pose))
         oplaceB = placeB.modifyPoseD(mu=util.Pose(*pose))
         for ans, viol in placeGenTop((obj, graspB, [oplaceB], hand, prob),
                                      goalConds, bState.pbs, [], away=away):
@@ -589,7 +589,7 @@ def placeInGen(args, goalConds, bState, outBindings,
             debugMsg('placeInGen', 'no region specified')
         shWorld.draw('W')
         for rs in regShapes: rs.draw('W', 'purple')
-        debugMsg('placeInGen', 'Target region in purple')
+        debugMsgSkip('placeInGen', fbch.inHeuristic, 'Target region in purple')
     for ans, viol in placeInGenTop((obj, regShapes, graspB, placeB, hand, prob),
                                    goalConds, bState.pbs, outBindings, considerOtherIns,
                                    regrasp=regrasp, away=away):
@@ -643,8 +643,10 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     # If we are not considering other objects, pick a pose and call placeGen
     if not considerOtherIns:
         placeInGenCache = pbs.beliefContext.genCaches['placeInGen']
-        key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away, fbch.inHeuristic)
-        if key in placeInGenCache:
+        # Need to make reachObsts hashable, but there's a set of ignorable objects
+        # Maybe use the fluents instead?
+        # key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away, tuple(reachObsts), fbch.inHeuristic)
+        if False: # key in placeInGenCache:
             ff = placeB.faceFrames[placeB.support.mode()]
             objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
             for ans in placeInGenCache[key]:
@@ -661,7 +663,8 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
                                   fbch.inHeuristic, 'v=', viol2.weight() if viol2 else None, 'g=', grasp, pose
                         yield ans[0], viol2
         else:
-            placeInGenCache[key] = []
+            # placeInGenCache[key] = []
+            pass
         
         newBS = pbs.copy()           #  not necessary
         # Shadow (at origin) for object to be placed.
@@ -676,7 +679,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
                 grasp = gB.grasp.mode() if gB else None
                 print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
                       v.weight() if v else None, grasp, pose
-            placeInGenCache[key].append((ans, v))
+            # placeInGenCache[key].append((ans, v))
             yield ans,v
     else:
         assert False           # !! not ready for this
