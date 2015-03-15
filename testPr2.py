@@ -1134,7 +1134,7 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
     back = util.Pose(0.6, 0.0, 0.61, 0.0)
     parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
     parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
-    parkingBad = util.Pose(0.683, 0.222, 0.620, 1.571)
+    parkingBad = util.Pose(0.683, 0.222, 0.610, 1.571)
     t = PlanTest('test19',  tinyErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': parkingBad,

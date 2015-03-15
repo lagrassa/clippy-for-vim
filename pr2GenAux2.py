@@ -570,7 +570,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, han
     def genPose(rs, angle, point):
         (x,y,z,_) = point
         # Support pose, we assume that sh is on support face
-        pose = util.Pose(x,y,z + clearance, angle)
+        pose = util.Pose(x,y,z, angle)
         sh = shRotations[angle].applyTrans(pose)
         if debug('potentialRegionPoseGen'):
             sh.draw('W', 'brown')

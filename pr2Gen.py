@@ -129,7 +129,8 @@ def pickGenTop(args, goalConds, pbs, outBindings,
     (obj, graspB, placeB, hand, prob) = args
     if debug('traceGen'):
         print 'pickGen(%s,%s,%d) h='%(obj,hand,graspB.grasp.mode()), fbch.inHeuristic
-    debugMsgSkip('pickGen', fbch.inHeuristic,
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    debugMsgSkip('pickGen', skip,
                  zip(('obj', 'graspB', 'placeB', 'hand', 'prob'), args),
                  ('goalConds', goalConds),
                  ('moveObjBs', pbs.moveObjBs),
@@ -161,12 +162,12 @@ def pickGenTop(args, goalConds, pbs, outBindings,
         confAppr = None
     placeB.poseD = PoseD(pose, placeB.poseD.var) # record the pose
     placeB.support = DeltaDist(sup)                             # and supportFace
-    debugMsgSkip('pickGen', fbch.inHeuristic, ('target placeB', placeB))
+    debugMsgSkip('pickGen', skip, ('target placeB', placeB))
     # Set up pbs
     newBS = pbs.copy()
     # Just placements specified in goal
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
-    if debug('pickGen', skip=fbch.inHeuristic):
+    if debug('pickGen', skip=skip):
         newBS.draw(prob, 'W')
         debugMsg('pickGen', 'Goal conditions')
     gen = pickGenAux(newBS, obj, confAppr, conf, placeB, graspB, hand, prob,
@@ -206,6 +207,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
                 approached[ca] = c
                 yield ca
     
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
     shWorld = pbs.getShadowWorld(prob)
     approached = {}
     rm = pbs.getRoadMap()
@@ -214,20 +216,6 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
         firstConf = next(graspApproachConfGen(None), None)
         if (not firstConf) or (firstConf and checkInfeasible(firstConf)):
             debugMsg('pickGen', 'No potential grasp confs, will need to regrasp')
-        # elif pickPlaceSearch:
-        #     for ans in rm.confReachViolGen(graspApproachConfGen(firstConf), pbs, prob,
-        #                                    testFn = lambda ca: pickable(ca, approached[ca], placeB)):
-        #         _, cost, path = ans
-        #         if not path: continue
-        #         ca = path[-1]
-        #         c = approached[ca]
-        #         viol = pickable(ca, approached[ca], placeB)
-        #         ans = (placeB, c, ca)
-        #         if debug('pickGen', skip=fbch.inHeuristic):
-        #             drawPoseConf(pbs, placeB, c, ca, prob, 'W', color = 'navy')
-        #             debugMsg('pickGen', ('-> currently graspable', ans), ('viol', viol))
-        #             wm.getWindow('W').clear()
-        #         yield ans, viol
         else:
             targetConfs = graspApproachConfGen(firstConf)
             batchSize = pickPlaceBatchSize
@@ -252,7 +240,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
                 for _, viol, ca in trialConfs:
                     c = approached[ca]
                     ans = (placeB, c, ca)
-                    if debug('pickGen', skip=fbch.inHeuristic):
+                    if debug('pickGen', skip=skip):
                         drawPoseConf(pbs, placeB, c, ca, prob, 'W', color = 'navy')
                         debugMsg('pickGen', ('-> currently graspable', ans), ('viol', viol))
                         wm.getWindow('W').clear()
@@ -312,7 +300,8 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
     if debug('traceGen'):
         print 'placeGen(%s,%s) h='%(obj,hand), fbch.inHeuristic
         startTime = time.clock()
-    debugMsgSkip('placeGen', fbch.inHeuristic,
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    debugMsgSkip('placeGen', skip,
                  zip(('obj', 'graspB', 'placeBs', 'hand', 'prob'), args),
                  ('goalConds', goalConds),
                  ('moveObjBs', pbs.moveObjBs),
@@ -337,7 +326,7 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
     # Just placements specified in goal (and excluding obj)
     newBS = newBS.updateFromGoalPoses(goalConds, updateConf=not away) if goalConds else newBS
     newBS = newBS.excludeObjs([obj])
-    if debug('placeGen', skip=fbch.inHeuristic):
+    if debug('placeGen', skip=skip):
         for gc in goalConds: print gc
         newBS.draw(prob, 'W')
         debugMsg('placeGen', 'Goal conditions')
@@ -365,7 +354,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
         other =  [next(potentialGraspConfGen(pbs, pB, gBO, conf, hand, prob, nMax=1), (None,None))[0] \
                   for gBO in gBOther]
         if any(other):
-            if debug('placeGen', skip=fbch.inHeuristic):
+            if debug('placeGen', skip=skip):
                 print 'Regraspable', pB.poseD.mode(), [gBO.grasp.mode() for gBO in gBOther]
                 for x in other:
                     x.draw('W', 'green')
@@ -374,7 +363,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
             return True
         else:
             regraspablePB[pB] = False
-            if debug('placeGen', skip=fbch.inHeuristic): print 'Not regraspable'
+            if debug('placeGen', skip=skip): print 'Not regraspable'
             return False
 
     def checkOrigGrasp(gB):
@@ -389,7 +378,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
 
     def placeApproachConfGen(gB):
         for pB in placeBs:
-            if debug('placeGen', skip=fbch.inHeuristic):
+            if debug('placeGen', skip=skip):
                 print 'placeGen: considering grasps for ', pB
             if regrasp:
                 checkRegraspable(pB)
@@ -398,13 +387,13 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
             for c,_ in graspConfGen:
                 ca = findApproachConf(pbs, obj, pB, c, hand, prob)
                 if not ca: continue
-                if debug('placeGen', skip=fbch.inHeuristic):
+                if debug('placeGen', skip=skip):
                     c.draw('W', 'orange')
                 approached[ca] = c
                 count += 1
                 context[ca] = (pB, gB)
                 yield ca
-            if debug('placeGen', skip=fbch.inHeuristic):
+            if debug('placeGen', skip=skip):
                 print '    placeGen: found', count, 'confs'
 
     def regraspCost(ca):
@@ -422,7 +411,8 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
         else:
             # if debug('placeGen'): print 'unknown pB, cost = 0'
             return 0
-        
+
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
     approached = {}
     context = {}
     regraspablePB = {}
@@ -441,41 +431,9 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
     grasps.sort()
 
     for (orig, gB) in grasps: # for now, just grasp type...
-        if debug('placeGen', skip=fbch.inHeuristic):
+        if debug('placeGen', skip=skip):
             print '    placeGen: considering', gB, 'orig', orig
 
-        # if pickPlaceSearch:
-        #     # We have not chosen a grasp yet, so this search is done
-        #     # without obj in the world and without it in the hand.  But,
-        #     # the placeable test for success will consider the approach
-        #     # with the relevant grasp.
-        #     for ans in rm.confReachViolGen(placeApproachConfGen(gB), pbs, prob,
-        #                                    goalCostFn = regraspCost,
-        #                                    testFn = lambda ca: placeable(ca, approached[ca])):
-        #         _, cost, path = ans
-        #         if path: 
-        #             ca = path[-1]
-        #             c = approached[ca]
-        #             viol = placeable(ca, approached[ca])
-        #             if not viol:
-        #                 raw_input('Illegal placeable')
-        #                 continue
-        #             (pB, gB) = context[ca]
-        #             if debug('placeGen'):
-        #                 if regrasp:
-        #                     status = 'regraspable' if regraspablePB[pB] else 'not regraspable'
-        #                 else:
-        #                     status = 'not regrasping'
-        #                 print 'pose=', pB.poseD.mode(), 'grasp=', gB.grasp.mode(), status
-        #             ans = (gB, pB, c, ca)
-        #             if debug('placeGen', skip=fbch.inHeuristic):
-        #                 drawPoseConf(pbs, pB, c, ca, prob, 'W', color='magenta')
-        #                 debugMsg('placeGen', ('->', ans), ('viol', viol))
-        #                 wm.getWindow('W').clear()
-        #             yield ans, viol
-        #         else:
-        #             debugMsg('placeGen', 'No valid placements')
-        # else:
         targetConfs = placeApproachConfGen(gB)
         batchSize = pickPlaceBatchSize
         batch = 0
@@ -501,7 +459,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
                 (pB, gB) = context[ca]
                 c = approached[ca]
                 ans = (gB, pB, c, ca)
-                if debug('placeGen', skip=fbch.inHeuristic):
+                if debug('placeGen', skip=skip):
                     drawPoseConf(pbs, pB, c, ca, prob, 'W', color='magenta')
                     debugMsg('placeGen', ('->', ans), ('viol', viol))
                     wm.getWindow('W').clear()
@@ -545,6 +503,7 @@ def placeInGen(args, goalConds, bState, outBindings,
     else:
         regions = region
 
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
     world = bState.pbs.getWorld()
 
     if isAnyVar(graspV):
@@ -571,7 +530,7 @@ def placeInGen(args, goalConds, bState, outBindings,
     if pose and not isAnyVar(pose):
         if debug('placeInGen'):
             bState.pbs.draw(prob, 'W')
-            debugMsgSkip('placeInGen', fbch.inHeuristic, ('Pose specified', pose))
+            debugMsgSkip('placeInGen', skip, ('Pose specified', pose))
         oplaceB = placeB.modifyPoseD(mu=util.Pose(*pose))
         for ans, viol in placeGenTop((obj, graspB, [oplaceB], hand, prob),
                                      goalConds, bState.pbs, [], away=away):
@@ -589,7 +548,7 @@ def placeInGen(args, goalConds, bState, outBindings,
             debugMsg('placeInGen', 'no region specified')
         shWorld.draw('W')
         for rs in regShapes: rs.draw('W', 'purple')
-        debugMsgSkip('placeInGen', fbch.inHeuristic, 'Target region in purple')
+        debugMsgSkip('placeInGen', skip, 'Target region in purple')
     for ans, viol in placeInGenTop((obj, regShapes, graspB, placeB, hand, prob),
                                    goalConds, bState.pbs, outBindings, considerOtherIns,
                                    regrasp=regrasp, away=away):
@@ -615,7 +574,8 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     (obj, regShapes, graspB, placeB, hand, prob) = args
     if debug('traceGen'):
         print 'placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), fbch.inHeuristic
-    debugMsgSkip('placeInGen', fbch.inHeuristic,
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    debugMsgSkip('placeInGen', skip,
              zip(('obj', 'regShapes', 'graspB', 'placeB', 'hand', 'prob'), args),
              outBindings)
     if obj == 'none' or not regShapes:
@@ -637,7 +597,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     if reachObsts == None:
         debugMsg('placeInGen', 'quitting because no path')
         return
-    if debug('placeInGen', skip=fbch.inHeuristic) or debug('reachObsts', skip=fbch.inHeuristic):
+    if debug('placeInGen', skip=skip) or debug('reachObsts', skip=skip):
         for _, obst in reachObsts: obst.draw('W', 'brown')
         raw_input('%d reachObsts - in brown'%len(reachObsts))
     # If we are not considering other objects, pick a pose and call placeGen
@@ -707,11 +667,12 @@ def placeInGenAux1(pbs, poseGen, goalConds, confAppr, conf, placeB, graspB, hand
     def placeBGen():
         for pose in poseGen:
             yield placeB.modifyPoseD(mu=pose)
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
     tries = 0
     for ans, viol in placeGenTop((graspB.obj, graspB, placeBGen(), hand, prob),
                                  goalConds, pbs, [], regrasp=regrasp, away=away):
         (gB, pB, cf, ca) = ans
-        if debug('placeInGen', skip=fbch.inHeuristic):
+        if debug('placeInGen', skip=skip):
             drawPoseConf(pbs, pB, cf, ca, prob, 'W', 'blue')
             debugMsg('placeInGen', ('-> cyan', ans))
         yield (pB, gB, cf, ca), viol
@@ -766,6 +727,7 @@ def lookGen(args, goalConds, bState, outBindings):
 def lookGenTop(args, goalConds, pbs, outBindings):
     (obj, placeB, lookDelta, prob) = args
     if debug('traceGen'): print 'lookGen(%s) h='%obj, fbch.inHeuristic
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
     newBS.updatePermObjPose(placeB)
@@ -801,7 +763,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
             return
         conf = path[-1]
         lookConf = lookAtConf(conf, sh)
-        if debug('lookGen', skip=fbch.inHeuristic):
+        if debug('lookGen', skip=skip):
             pbs.draw(prob, 'W')
             lookConf.draw('W', color='cyan', attached=shWorld.attached)
             debugMsg('lookGen', ('-> cyan', lookConf.conf))
@@ -840,6 +802,7 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
 
     (obj, hand, graspB, prob) = args
     if debug('traceGen'): print 'lookHandGen(%s) h='%obj, fbch.inHeuristic
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
     newBS.updateHeldBel(graspB, hand)
@@ -867,7 +830,7 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
         conf = path[-1]
         lookConf = lookAtConf(conf, objInHand(conf, hand))
         if lookConf is None: continue # can't look at it.
-        if debug('lookHandGen', skip=fbch.inHeuristic):
+        if debug('lookHandGen', skip=skip):
             pbs.draw(prob, 'W')
             lookConf.draw('W', color='cyan', attached=shWorld.attached)
             debugMsg('lookHandGen', ('-> cyan', lookConf.conf))
@@ -925,6 +888,7 @@ def canReachGen(args, goalConds, bState, outBindings):
 def canReachGenTop(args, goalConds, pbs, outBindings):
     (conf, hand, graspB1, graspB2, cond, prob, lookVar) = args
     if debug('traceGen') or debug('canReachGen'): print 'canReachGen() h=', fbch.inHeuristic
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
     def moveOut(newBS, obst, delta):
         if debug('traceGen') or debug('canReachGen'):
             print '    canReachGen() obst:', obst
@@ -970,7 +934,7 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
         newBS2.updatePermObjPose(placeB2)
         path2, viol2 = canReachHome(newBS2, conf, prob, Violations())
         if path2 and viol2:
-            if debug('canReachGen', skip=fbch.inHeuristic):
+            if debug('canReachGen', skip=skip):
                 drawObjAndShadow(newBS2, placeB2, prob, 'W', color='red')
                 debugMsg('canReachGen', 'Trying to reduce shadow (on W in red) %s'%obst)
             if debug('traceGen'):
@@ -989,7 +953,8 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
      obj, pose, realPoseVar, poseDelta, poseFace,
      graspFace, graspMu, graspVar, graspDelta, oobj, oface, oGraspMu, oGraspVar,
      oGraspDelta, prob, cond) = args
-
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    
     def moveOut(newBS, obst, delta):
         if debug('traceGen') or debug('canPickPlaceGen'):
             print '    canPickPlaceGen() obst:', obst
@@ -1054,7 +1019,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
                                  graspB1, placeB, prob)
         debugMsg('canPickPlaceGen', ('viol2', viol2))
         if viol2:
-            if debug('canPickPlaceGen', skip=fbch.inHeuristic):
+            if debug('canPickPlaceGen', skip=skip):
                 drawObjAndShadow(newBS2, pB2, prob, 'W', color='red')
                 debugMsg('canPickPlaceGen',
                          'Trying to reduce shadow (on W in red) %s'%obst)
@@ -1089,7 +1054,8 @@ def canSeeGenTop(args, goalConds, pbs, outBindings):
     obj = placeB.obj
     if debug('traceGen') or debug('canSeeGen'):
         print 'canSeeGen(%s) h='%obj, fbch.inHeuristic
-    debugMsg('canSeeGen', ('args', args))
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    debugMsgSkip('canSeeGen', skip, ('args', args))
     def moveOut(newBS, obst, delta):
         if debug('traceGen') or debug('canSeeGen'):
             print '    canSeeGen(%s) obst='%obj, obst
