@@ -1299,7 +1299,7 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
                 parent = ps.guts()[-1]
                 writeSubgoalRefinement(f, parent, subgoal)
                 p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
-                                 lastOp = None, #op,
+                                 lastOp = op,
                                  skeleton = skeleton[subgoal.planNum]\
                                             if skeleton else None)
                 assert p, 'Planning failed.'
@@ -1622,7 +1622,8 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
             glob.debugOn = glob.debugOn[:-1]
             return []
     elif lastOp and g.depth == 0 and lastOp != top:
-        ops = [lastOp]
+        # At least ensure we try these bindings
+        ops = [lastOp] + operators
     else:
         ops = operators
 

@@ -535,10 +535,12 @@ def pickBProgress(details, args, obs=None):
     (o, h, _, _, _, _, _, _, _, _, _, gf, gm, gv, gd, _,_,_,_,_,_,_,_,_,_,_,_)=\
        args
     pickVar = details.domainProbs.pickVar
+    failProb = details.domainProbs.pickFailProb
     # !! This is wrong!  The coordinate frames of the variances don't match.
     v = [x+y for x,y in zip(details.pbs.getPlaceB(o).poseD.var, pickVar)]
     v[2] = 0.0
     gv = tuple(v)
+    details.graspModeProb[h] = (1 - failProb) * details.poseModeProbs[o]
     details.pbs.updateHeld(o, gf, PoseD(gm, gv), h, gd)
     details.pbs.excludeObjs([o])
     details.pbs.shadowWorld = None # force recompute
@@ -549,11 +551,13 @@ def placeBProgress(details, args, obs=None):
     (o, h, _, r, pf, p, _, _, _,_,_,_, _, _, _, _, _, _,_,_,_,_,_,_,_,_,_, _) =\
        args
     placeVar = details.domainProbs.placeVar
+    failProb = details.domainProbs.placeFailProb
     # !! This is wrong!  The coordinate frames of the variances don't match.
     v = [x+y for x,y in \
          zip(details.pbs.getGraspB(o,h).poseD.var, placeVar)]
     v[2] = 0.0
     gv = tuple(v)
+    details.poseModeProbs[o] = (1 - failProb) * details.graspModeProb[h]
     details.pbs.updateHeld('none', None, None, h, None)
     ff = details.pbs.getWorld().getFaceFrames(o)
     if isinstance(pf, int):
@@ -573,6 +577,7 @@ def lookAtBProgress(details, args, obs):
     if obs == None or o != obs[0]:
         # Increase the variance on o
         oldVar = opb.poseD.var
+        details.poseModeProbs[o] *= .9
         newVar = tuple([v*2 for v in oldVar])
         opb.poseD.var = newVar
     else:
@@ -581,6 +586,8 @@ def lookAtBProgress(details, args, obs):
         oldMu = opb.poseD.mode().xyztTuple()
         oldSigma = opb.poseD.variance()
         obsVar = details.domainProbs.obsVarTuple
+        # Kind of bogus
+        details.poseModeProbs[o] == (1 - details.domainProbs.obsTypeErrProb)
         newMu = tuple([(m * obsV + op * muV) / (obsV + muV) \
                        for (m, muV, op, obsV) in \
                        zip(oldMu, oldSigma, pose.xyztTuple(), obsVar)])
@@ -618,11 +625,14 @@ def lookAtHandBProgress(details, args, obs):
             newOGB = None
         # If we now have a new mode, we have to reinitialize the grasp dist!
         elif mlo != oldMlo:
+            details.graspModeProb[h] = 1 - details.domainProbs.obsTypeErrProb
             gd = details.pbs.graspB[h].graspDesc
             newOGB = objGraspB(mlo, gd, PoseD(util.Pose(0, 0, 0, 0),
                                                   bigSigma))
         elif mlo != 'none' and obsObj != 'none':
             (_, ogf, ograsp) = obs            
+            details.graspModeProb[h] = 1 - details.domainProbs.obsTypeErrProb
+
             gd = details.pbs.graspB[h].graspDesc
             # Update the rest of the distributional info.
             # Consider only doing this if the mode prob is high

@@ -337,10 +337,7 @@ class PlanTest:
         pbs = PBS(belC, conf=pr2Home, fixObjBs = self.fix.copy(), moveObjBs = self.move.copy(),
         regions = regions, domainProbs=self.domainProbs) 
         pbs.draw(0.9, 'Belief')
-        bs = BeliefState()
-        bs.pbs = pbs
-        bs.domainProbs = self.domainProbs
-        bs.awayRegion = 'table2Top'
+        bs = BeliefState(pbs, self.domainProbs, 'table2Top')
         self.bs = bs
 
     def run(self, goal, skeleton = None, hpn = True,
@@ -418,6 +415,9 @@ typicalErrProbs = DomainProbs(\
             obsVar = (0.01**2, 0.01**2, 1e-12, 0.01**2),
             # get type of object wrong
             obsTypeErrProb = 0.05,
+            # fail to pick or place in the way characterized by the Gaussian
+            pickFailProb = 0.02,
+            placeFailProb = 0.02,
             # variance in grasp after picking
             pickVar = (0.02**2, 0.02**2, 0.02**2, 0.04**2),
             # variance in grasp after placing
@@ -432,6 +432,9 @@ smallErrProbs = DomainProbs(\
             obsVar = (0.001**2, 0.001**2, 1e-12, 0.002**2),
             # get type of object wrong
             obsTypeErrProb = 0.02,
+            # fail to pick or place in the way characterized by the Gaussian
+            pickFailProb = 0.0,
+            placeFailProb = 0.0,
             # variance in grasp after picking
             pickVar = (0.01**2, 0.01**2, 0.01**2, 0.01**2),
             # variance in grasp after placing
@@ -446,6 +449,9 @@ tinyErrProbs = DomainProbs(\
             obsVar = (0.00001**2, 0.00001**2, 1e-12, 0.00002**2),
             # get type of object wrong
             obsTypeErrProb = 0.0,
+            # fail to pick or place in the way characterized by the Gaussian
+            pickFailProb = 0.0,
+            placeFailProb = 0.0,
             # variance in grasp after picking
             pickVar = (0.0001**2, 0.0001**2, 0.0001**2, 0.0001**2),
             # variance in grasp after placing
