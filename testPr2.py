@@ -1135,7 +1135,7 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
     parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
     parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
     parkingBad = util.Pose(0.683, 0.222, 0.610, 1.571)
-    t = PlanTest('test19',  tinyErrProbs, allOperators,
+    t = PlanTest('test19a',  tinyErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': parkingBad,
                             'objB': back})
@@ -1199,9 +1199,9 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
                      pick.applyBindings({'Obj' : 'objB'}),
                      move]]
 
-    t.run(easyGoal,  #goal
+    t.run(goal,  #goal
           hpn = hpn,
-          skeleton = easySkeleton, #flatSkeleton,
+          skeleton = easySkeleton if skeleton else None, #flatSkeleton,
           hierarchical = hierarchical,
           heuristic = heuristic,
           regions=['table1Top']
