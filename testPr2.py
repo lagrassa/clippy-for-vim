@@ -1140,7 +1140,7 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
                  movePoses={'objA': parkingBad,
                             'objB': back})
 
-    #glob.monotonicFirst = False
+    glob.monotonicFirst = False
     glob.rebindPenalty = 200
 
     # Small var
@@ -1148,6 +1148,11 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
     targetDelta = (0.001, 0.001, 0.001, 0.005)
     # Increase this
     goalProb = 0.2
+
+    easyGoal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
+                  B([Pose(['objA', 4]),
+                     (0.45, -0.4, 0.61, 0.0), targetVar, targetDelta,
+                     goalProb], True)])
     
     goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
@@ -1158,9 +1163,45 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
                      back.xyztTuple(), targetVar, targetDelta,
                      goalProb], True)])
 
-    t.run(goal,
+    flatSkeleton = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+                     move,
+                     pick.applyBindings({'Obj' : 'objA'}),
+                     move,
+                     place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
+                     move,
+                     lookAtHand.applyBindings({'Hand' : 'left'}),
+                     move, 
+                     pick.applyBindings({'Obj' : 'objB'}),
+                     move,                                              
+                     place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+                     move,
+                     lookAtHand.applyBindings({'Hand' : 'left'}),
+                     move, 
+                     pick.applyBindings({'Obj' : 'objA'}),
+                     move,
+                     place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
+                     move,
+                     lookAtHand.applyBindings({'Hand' : 'left'}),
+                     move, 
+                     pick.applyBindings({'Obj' : 'objB'}),
+                     move]]
+
+
+    easySkeleton = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+                     move,
+                     pick.applyBindings({'Obj' : 'objA'}),
+                     move, 
+                     poseAchCanPickPlace,
+                     place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
+                     move,
+                     lookAtHand.applyBindings({'Hand' : 'left'}),
+                     move, 
+                     pick.applyBindings({'Obj' : 'objB'}),
+                     move]]
+
+    t.run(easyGoal,  #goal
           hpn = hpn,
-          skeleton = None,
+          skeleton = easySkeleton, #flatSkeleton,
           hierarchical = hierarchical,
           heuristic = heuristic,
           regions=['table1Top']

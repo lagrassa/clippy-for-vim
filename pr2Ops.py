@@ -1102,7 +1102,7 @@ poseAchCanPickPlace = Operator(\
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
                           'OGraspDelta',
-                   'P2', 'PostCond'], canPickPlaceGen, 'canReachGen'),
+                   'P2', 'PostCond'], canPickPlaceGen, 'canPickPlaceGen'),
          # Add the appropriate condition
          Function(['PreCond'],
                   ['PostCond',
