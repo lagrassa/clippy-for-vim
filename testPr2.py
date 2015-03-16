@@ -533,7 +533,7 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 def test4(hpn = True, hierarchical = False, skeleton = False,
           heuristic = habbs, easy = True):
 
-    goalProb, errProbs = (0.2,smallErrProbs) if easy else (0.95,typicalErrProbs)
+    goalProb, errProbs = (0.2,smallErrProbs) if easy else (0.98,typicalErrProbs)
     glob.rebindPenalty = 300
 
 
@@ -541,19 +541,15 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
                  objects=['table1', 'objA', 'objB'])
     targetPose = (0.55, 0.25, 0.61, 0.0)
     targetPoseB = (0.55, -0.2, 0.61, 0.0)
-    targetVar = (0.001, 0.001, 0.001, 0.005) 
-
-    goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
-    confDeltas = (0.05, 0.05, 0.05, 0.05)
+    targetVar = (0.001, 0.001, 0.001, 0.005)
+    targetDelta = (.02, .02, .02, .04)
 
     goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
-                     targetPose, targetVar, (0.001,)*4,
-                     goalProb], True),
+                     targetPose, targetVar, targetDelta, goalProb], True),
                   Bd([SupportFace(['objB']), 4, goalProb], True),
                   B([Pose(['objB', 4]),
-                     targetPoseB, targetVar, (0.001,)*4,
-                     goalProb], True)])
+                     targetPoseB, targetVar, targetDelta, goalProb], True)])
 
     # Probably wrong, with typicalErrProbs
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),

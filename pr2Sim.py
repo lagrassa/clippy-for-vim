@@ -23,8 +23,6 @@ from time import sleep
 def argN (v, vl, args):
     return args[vl.position(v)]
 
-obsMissProb = 0.05
-
 crashIsError = False
 
 simulateError = False
@@ -161,8 +159,10 @@ class RealWorld(WorldState):
             trueFace = supportFaceIndex(self.objectShapes[targetObj])
             print 'observed Face', trueFace
             truePlace = truePose.compose(ff[trueFace]).pose().xyztTuple()
-            miss = DDist({True:obsMissProb, False:1-obsMissProb}).draw()
+            obsMissProb = self.domainProbs.obsTypeErrProb
+            miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
             if miss:
+                raw_input('yet another missed observation')
                 return endExec(None)
             else:
                 obsVar = self.domainProbs.obsVar
@@ -190,107 +190,91 @@ class RealWorld(WorldState):
                 'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                 'PreConf', 'ConfDelta', 'PickConf',
                 'P1', 'P2', 'P3', 'P4', 'PR1', 'PR2', 'PR3']
-            hand = op.args[1]
-            pickConf = op.args[17]
-            approachConf = op.args[15]
+            failProb = self.domainProbs.pickFailProb
+            success = DDist({True : 1 - failProb, False : failProb}).draw()
+
+            # Try to execute pick
+            (hand, pickConf, approachConf) = \
+                     (op.args[1], op.args[17], op.args[15])
             self.setRobotConf(pickConf)
             self.robotPlace.draw('World', 'orchid')
-            # if params:
-            #     path = params
-            #     print 'path length = ', len(path)
-            #     if not path:
-            #         raw_input('No path!!')
-            #     obs = self.executePath(path)
-            #     if obs == 'crash':
-            #         return endExec(obs)
-            # else:
-            #     print op
-            #     raw_input('No path given')
-            # Find obj nearest to "hand" (should use a better test)
             oDist = None
             o = None
             robot = self.robot
             cart = robot.forwardKin(self.robotConf)
             handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
-            # !! Add noise to handPose
+            # Find closest object
             for oname in self.objectConfs:
                 pose = self.getObjectPose(oname)
                 od = handPose.distance(pose)
                 # print oname, pose, od
                 if not oDist or od < oDist:
-                    oDist = od
-                    o = oname
-                    opose = pose
+                    (oDist, o, opose) = (od, oname, pose)
             if oDist < pickSuccessDist:
-                self.held[hand] = o
-                grasp = handPose.inverse().compose(opose)
-                if simulateError:
-                    noisyGrasp = grasp.pose().corruptGauss(0.0,
+                if success:
+                    self.held[hand] = o
+                    grasp = handPose.inverse().compose(opose)
+                    if simulateError:
+                        noisyGrasp = grasp.pose().corruptGauss(0.0,
                                                   self.domainProbs.pickStdev)
-                    self.grasp[hand] = noisyGrasp
+                        self.grasp[hand] = noisyGrasp
+                    else:
+                        self.grasp[hand] = grasp
+                    # !! Add noise to grasp
+                    robot.attach(self.objectShapes[o], self, hand)
+                    self.delObjectState(o)
+                    print 'picked', self.held[hand], self.grasp[hand]
+                    self.setRobotConf(self.robotConf)
+                    self.robotPlace.draw('World', 'black')
+                    self.setRobotConf(approachConf)
+                    self.robotPlace.draw('World', 'orchid')
+                    print 'retracted'
                 else:
-                    self.grasp[hand] = grasp
-                # !! Add noise to grasp
-                robot.attach(self.objectShapes[o], self, hand)
-                self.delObjectState(o)
-                print 'picked', self.held[hand], self.grasp[hand]
-                self.setRobotConf(self.robotConf)
-                self.robotPlace.draw('World', 'black')
-                self.setRobotConf(approachConf)
-                self.robotPlace.draw('World', 'orchid')
-                # obs = self.executePath(path[::-1])
-                obs = None
-                print 'retracted'
+                    # Failed to pick.  Move the object a little.
+                    newObjPose = opose.pose().corruptGauss(0.0,
+                                               self.domainProbs.placeStdev)
+                    self.setObjectPose(o, newObjPose)
             else:
                 print 'tried to pick but missed', o, oDist, pickSuccessDist
-                return endExec(obs)
-        elif op.name == 'Place':
-            # Execute the place prim, starting at c1, aiming for c2.
-            hand = op.args[1]
-            placeConf = op.args[20]
-            approachConf = op.args[18]
-            self.setRobotConf(placeConf)
-            self.robotPlace.draw('World', 'orchid')            
-            if not self.attached[hand]:
-                debugMsg('sim', 'No object is attached')
-            else:
-                debugMsg('sim', 'Object is attached')
-            # if params:
-            #     path = params
-            #     print 'path length = ', len(path)
-            #     if not path:
-            #         raw_input('No path!!')
-            #     obs = self.executePath(path)
-            #     if obs == 'crash':
-            #         return endExec(obs)
-            # else:
-            #     print op
-            #     raw_input('No path given')
-            robot = self.robot
-            if not self.attached[hand]:
-                raw_input('No object is attached')
-            detached = robot.detach(self, hand)
-            self.setRobotConf(self.robotConf)
-            obj = self.held[hand]
-            assert detached and obj == detached.name()
-            cart = robot.forwardKin(self.robotConf)
+            return endExec(None)
 
-            handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
-            objPose = handPose.compose(self.grasp[hand]).pose()
-            if simulateError:
-                actualObjPose = objPose.corruptGauss(0.0,
+        elif op.name == 'Place':
+            failProb = self.domainProbs.placeFailProb
+            success = DDist({True : 1 - failProb, False : failProb}).draw()
+            if success:
+            # Execute the place prim, starting at c1, aiming for c2.
+                hand = op.args[1]
+                placeConf = op.args[20]
+                approachConf = op.args[18]
+                self.setRobotConf(placeConf)
+                self.robotPlace.draw('World', 'orchid')            
+                if not self.attached[hand]:
+                    raw_input('No object is attached')
+                    debugMsg('sim', 'No object is attached')
+                else:
+                    debugMsg('sim', 'Object is attached')
+                robot = self.robot
+                detached = robot.detach(self, hand)
+                self.setRobotConf(self.robotConf)
+                obj = self.held[hand]
+                assert detached and obj == detached.name()
+                cart = robot.forwardKin(self.robotConf)
+
+                handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
+                objPose = handPose.compose(self.grasp[hand]).pose()
+                if simulateError:
+                    actualObjPose = objPose.corruptGauss(0.0,
                                                     self.domainProbs.placeStdev)
-            else:
-                actualObjPose = objPose
-            self.setObjectPose(self.held[hand], actualObjPose)
-            self.grasp[hand] = None
-            self.held[hand] = None
-            print 'placed', obj, actualObjPose
-            self.setRobotConf(approachConf)
-            self.robotPlace.draw('World', 'orchid')
-            # obs = self.executePath(path[::-1])
+                else:
+                    actualObjPose = objPose
+                self.setObjectPose(self.held[hand], actualObjPose)
+                self.grasp[hand] = None
+                self.held[hand] = None
+                print 'placed', obj, actualObjPose
+                self.setRobotConf(approachConf)
+                self.robotPlace.draw('World', 'orchid')
+                print 'retracted'
             obs = None
-            print 'retracted'
         else:
             raise Exception, 'Unknown operator: '+str(op)
         return endExec(obs)

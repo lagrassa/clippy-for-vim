@@ -20,7 +20,10 @@ maxVarianceTuple = (.1,)*4
 # Dont' try to move with more than this variance in grasp
 # LPK:  was .0005 which is quite small (smaller than pickVar)
 maxGraspVar = (0.0008, 0.0008, 0.0008, 0.008)
-    
+
+# Fixed accuracy to use for some standard preconditions
+canPPProb = 0.9
+otherHandProb = 0.9
 
 ######################################################################
 #
@@ -288,6 +291,9 @@ def genGraspStuffHand((hand, otherObj), goal, start, values):
 def genNone(args, goal, start, vals):
     return None
 
+def assign(args, goal, start, vals):
+    return args
+
 # Be sure the argument is not 'none'
 def notNone(args, goal, start, vals):
     if args[0] == 'none':
@@ -320,8 +326,7 @@ def isBound(args, goal, start, vals):
     
 
 # No prob can go above this
-#maxProbValue = 0.999
-maxProbValue = 0.98
+maxProbValue = 0.999
 
 # Return as many values as there are args; overwrite any that are
 # variables with the minimum value
@@ -334,9 +339,10 @@ def obsModeProb(args, goal, start, vals):
     return [[max(0.1, pr - 0.2)]]
 
 # Compute the nth root of the maximum defined prob value
-def regressProb(n):
+def regressProb(n, probName = None):
     def regressProbAux(args, goal, start, vals):
-        pr = max([a for a in args if not isVar(a)])
+        failProb = getattr(start.domainProbs, probName) if probName else 0.0
+        pr = max([a for a in args if not isVar(a)]) / (1 - failProb)
         val = np.power(pr, 1.0/n)
         if val < maxProbValue or n == 1:
             return [[val]*n]
@@ -388,8 +394,10 @@ def pickPoseVar((graspVar,), goal, start, vals):
     pickVar = start.domainProbs.pickVar
     poseVar = tuple([gv - pv for (gv, pv) in zip(graspVar, pickVar)])
     if any([x <= 0 for x in poseVar]):
+        debugMsg('pickGen', 'pick pose var negative', poseVar)
         return []
     else:
+        debugMsg('pickGen', 'pick pose var', poseVar)
         return [[poseVar]]
 
 # If it's bigger than this, we can't just plan to look and see it    
@@ -403,8 +411,10 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     vbo = varBeforeObs(lookVar, ve)
     cappedVbo = tuple([min(a, b) for (a, b) in zip(maxPoseVar, vbo)])
     result = []
-    if cappedVbo[0] > ve[0]:
-        result.append([cappedVbo])
+    # We might be looking to increase the mode prob, so don't fail
+    # !!!
+    #if cappedVbo[0] > ve[0]:
+    result.append([cappedVbo])
     if vs[0] < maxPoseVar[0] and vs[0] > ve[0]:
         # starting var is bigger, but not too big
         result.append([vs])
@@ -567,7 +577,7 @@ def placeBProgress(details, args, obs=None):
         pf = pf.mode()
     details.pbs.moveObjBs[o] = ObjPlaceB(o, ff, pf, PoseD(p, gv))
     details.pbs.shadowWorld = None # force recompute
-    debugMsg('beliefUpdate', 'pickBel')
+    debugMsg('beliefUpdate', 'placeBel')
     
 # For now, assume obs has the form (obj, face, pose) or None
 # Really, we'll get obj-type, face, relative pose
@@ -577,7 +587,12 @@ def lookAtBProgress(details, args, obs):
     if obs == None or o != obs[0]:
         # Increase the variance on o
         oldVar = opb.poseD.var
-        details.poseModeProbs[o] *= .9
+        # Bayes!
+        oldP = details.poseModeProbs[o]
+        obsGivenH = details.domainProbs.obsTypeErrProb
+        obsGivenNotH = (1 - details.domainProbs.obsTypeErrProb)
+        newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
+        details.poseModeProbs[o] = newP
         newVar = tuple([v*2 for v in oldVar])
         opb.poseD.var = newVar
     else:
@@ -586,8 +601,12 @@ def lookAtBProgress(details, args, obs):
         oldMu = opb.poseD.mode().xyztTuple()
         oldSigma = opb.poseD.variance()
         obsVar = details.domainProbs.obsVarTuple
-        # Kind of bogus
-        details.poseModeProbs[o] == (1 - details.domainProbs.obsTypeErrProb)
+        # Bayes!
+        oldP = details.poseModeProbs[o]
+        obsGivenH = (1 - details.domainProbs.obsTypeErrProb)
+        obsGivenNotH = details.domainProbs.obsTypeErrProb
+        newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
+        details.poseModeProbs[o] = newP
         newMu = tuple([(m * obsV + op * muV) / (obsV + muV) \
                        for (m, muV, op, obsV) in \
                        zip(oldMu, oldSigma, pose.xyztTuple(), obsVar)])
@@ -596,6 +615,10 @@ def lookAtBProgress(details, args, obs):
         details.pbs.updateObjB(ObjPlaceB(o, ff, DeltaDist(pf),
                                          PoseD(util.Pose(*newMu), newSigma)))
     details.pbs.shadowWorld = None # force recompute
+
+    details.draw()
+    raw_input('belief after look')
+
     debugMsg('beliefUpdate', 'look')
     
 # For now, assume obs has the form (obj, face, grasp) or None
@@ -684,8 +707,8 @@ def genMoveProbs(args, goal, start, vals):
     return [[movePreProb]*3]
 
 # Parameter PCR is the probability that its path is not blocked.
-# Making it close to 1 will make the operator more reliable and also
-# Increase the cost.
+# Likelihood of success is p1 * p2 * pcr
+
 move = Operator(\
     'Move',
     ['CStart', 'CEnd', 'DEnd',
@@ -730,35 +753,7 @@ move = Operator(\
 
 defaultPoseDelta = (0.0001, 0.0001, 0.0001, 0.001)
 
-
-'''
-def ppConds(preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
-            graspFace, graspMu, graspVar, graspDelta,
-            oObj, oFace, oGraspMu, oGraspVar, oGraspDelta, prob):
-    return {# 1.  Home to approach, holding nothing, obj in place
-              Bd([CanReachHome([preConf, hand,
-                        'none', 0, zeroPose, zeroVar, tinyDelta,
-                        oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-                      [B([Pose([obj, poseFace]), pose, poseVar, poseDelta,1.0],
-                           True)]]), True, prob], True),
-              # 2.  Home to approach with object in hand
-              Bd([CanReachHome([preConf, hand, obj,
-                                graspFace, graspMu, graspVar, graspDelta,
-                                oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-                                []]), True, prob], True),
-              # 3.  Home to pick with hand empty, obj in place with zero var
-              Bd([CanReachHome([ppConf, hand, 
-                               'none', 0, zeroPose, zeroVar, tinyDelta,
-                                oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-                       [B([Pose([obj, poseFace]), pose, zeroVar, tinyDelta,1.0],
-                           True)]]),
-                           True, prob], True),
-             # 4. Home to pick with the object in hand with zero var and delta
-              Bd([CanReachHome([ppConf, hand,
-                                obj, graspFace, graspMu, zeroVar, tinyDelta,
-                                oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-                        []]), True, prob], True)}
-'''                        
+# Likelihood of success is p1 * p2 * p3
 
 place = Operator(\
         'Place',
@@ -810,9 +805,13 @@ place = Operator(\
             Function(['PR1', 'PR2', 'PR3', 'PR4'],
                      ['PR1', 'PR2', 'PR3', 'PR4'], minP,'minP'),
 
-            # Compute precond probs
-            Function(['P1', 'P2', 'P3'], ['PR1', 'PR2', 'PR3', 'PR4'], 
-                     regressProb(3), 'regressProb3'),
+            # Compute precond probs.  Assume that crash is observable.
+            # So, really, just move the obj holding prob forward into
+            # the result.  Use canned probs for the other ones.
+            Function(['P2'], ['PR1', 'PR2', 'PR3', 'PR4'], 
+                     regressProb(1, 'placeFailProb'), 'regressProb1'),
+            Function(['P1', 'P3'], [[canPPProb, otherHandProb]],
+                     assign, 'assign'),
 
             # PoseVar = GraspVar + PlaceVar,
             # GraspVar = min(maxGraspVar, PoseVar - PlaceVar)
@@ -851,8 +850,6 @@ place = Operator(\
         argsToPrint = [0, 1, 3, 4, 5],
         ignorableArgs = range(2, 27))
 
-
-
 pick = Operator(\
         'Pick',
         ['Obj', 'Hand', 'OtherHand', 'PoseFace', 'Pose', 'PoseDelta',
@@ -870,7 +867,7 @@ pick = Operator(\
                                'GraspFace', 'GraspMu', 'RealGraspVar',
                                'GraspDelta',
                                'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                               'OGraspDelta', []]), True, 'P1'], True)},
+                               'OGraspDelta', []]), True, 'P2'], True)},
             # Implicitly, CanPick should be true, too
          2  : {Conf(['PreConf', 'ConfDelta'], True),
              Bd([Holding(['Hand']), 'none', 'P3'], True),
@@ -897,10 +894,12 @@ pick = Operator(\
             # Be sure all result probs are bound.  At least one will be.
             Function(['PR1', 'PR2', 'PR3'], ['PR1', 'PR2', 'PR3'], minP,'minP'),
 
-            # Compute precond probs
-            Function(['P1', 'P2', 'P3', 'P4'], ['PR1', 'PR2'], 
-                     regressProb(4), 'regressProb4'),
-
+            # Compute precond probs.  Only regress object placecement P1.
+            # Consider failure prob
+            Function(['P1'], ['PR1', 'PR2'], 
+                     regressProb(1, 'pickFailProb'), 'regressProb1'),
+            Function(['P2', 'P3', 'P4'],[[canPPProb, canPPProb, otherHandProb]],
+                    assign, 'assign'),
             Function(['RealGraspVar'], ['GraspVar'], maxGraspVarFun,
                      'realGraspVar'),
                      
@@ -953,7 +952,8 @@ lookAt = Operator(\
        ],
     # Functions
     functions = [\
-        Function(['P2'], ['PR1', 'PR2'], regressProb(1), 'regressProb1'),
+        Function(['P2'], ['PR1', 'PR2'],
+                 regressProb(1, 'obsTypeErrProb'), 'regressProb1'),
         # Look increases probability.  For now, just a fixed amount.  Ugly.
         Function(['P1'], ['PR1', 'PR2'], obsModeProb, 'obsModeProb'),
         # How confident do we need to be before the look?
