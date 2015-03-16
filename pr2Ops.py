@@ -620,7 +620,7 @@ def lookAtHandBProgress(details, args, obs):
 
         # If we are fairly sure of the object, update the mode object's dist
         mlo = heldDist.mode()
-        bigSigma = (0.1, 0.1, 0.1, 0.4)
+        bigSigma = (0.01, 0.01, 0.01, 0.04)
         if mlo == 'none':
             newOGB = None
         # If we now have a new mode, we have to reinitialize the grasp dist!
@@ -654,7 +654,8 @@ def lookAtHandBProgress(details, args, obs):
                 # Most likely grasp face changed.
                 # Keep the pose for lack of a better idea, but
                 # increase sigma a lot!
-                newPoseDist = PoseD(poseDist.pose, bigSigma)
+                newPoseDist = PoseD(poseDist.mode(), bigSigma)
+                raw_input('Grasp changed')
             else:
                 # Cheapo obs update
                 obsVar = details.domainProbs.obsVarTuple
