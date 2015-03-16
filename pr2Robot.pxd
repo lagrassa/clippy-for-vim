@@ -24,7 +24,7 @@ cdef class CartConf(JointConf):
 cdef class PR2:
      cdef public chains, color, name, scanner, chainNames, moveChainNames, armChainNames, 
      cdef public gripperChainNames, wristFrameNames, baseChainName, gripperTip, nominalConf
-     cdef public nuggetPoses
+     cdef public horizontalTrans, verticalTrans
      cpdef fingerSupportFrame(self, hand, width)
      cpdef list limits(self, chainNames = *)
      cpdef JointConf randomConf(self, moveChains=*)

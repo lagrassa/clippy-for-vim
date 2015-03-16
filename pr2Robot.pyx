@@ -18,7 +18,7 @@ import fbch
 import planGlobals as glob
 from planGlobals import debugMsg, debugDraw, debug, pause
 
-from pr2IkPoses import *                   # some useful poses for IK
+from pr2IkPoses import ikTrans          # base poses for IK
 
 # We need this for inverse kinematics
 from ctypes import *
@@ -154,7 +154,10 @@ gripperTip = util.Pose(0.18,0.0,0.0,0.0)
 gripperToolOffset = util.Transform(np.dot(gripperTip.matrix,
                                           transf.rotation_matrix(math.pi/2,(0,1,0))))
 # Rotates wrist to grasp face frame
-gripperFaceFrame = util.Transform(np.array([(0.,1.,0.,0.18),(0.,0.,1.,0.0),(1.,0.,0.,0.),(0.,0.,0.,1.)]))
+gripperFaceFrame = util.Transform(np.array([(0.,1.,0.,0.18),
+                                            (0.,0.,1.,0.0),
+                                            (1.,0.,0.,0.),
+                                            (0.,0.,0.,1.)]))
 
 # This behaves like a dictionary, except that it doesn't support side effects.
 cdef class JointConf:
@@ -369,9 +372,20 @@ def makePr2ChainsShadow(name, workspaceBounds, radiusVar=0.0, angleVar=0.0, reac
                       [baseChain, torsoChain, leftArmChain, leftGripperChain,
                        rightArmChain, rightGripperChain, headChain])
 
-def flip(pose):
-    params = list(pose.xyztTuple())
+# These don't handle the rotation correctly -- what's the general form ??
+def fliph(pose):
+    params = list(pose.pose().xyztTuple())
     params[1] = -params[1]
+    return util.Pose(*params)
+
+def flipv(pose):
+    m = pose.matrix.copy()
+    m[1,3] = -m[1,3]
+    return util.Transform(m)
+
+def ground(pose):
+    params = list(pose.xyztTuple())
+    params[2] = 0.0
     return util.Pose(*params)
 
 # This basically implements a Chain type interface, execpt for the wstate
@@ -394,11 +408,24 @@ cdef class PR2:
         self.baseChainName = 'pr2Base'
         self.gripperTip = gripperTip
         self.nominalConf = None
-        nuggetPoses, _ = setupNuggets(1)
-        self.nuggetPoses = {'left': [p.inverse().pose() for p in nuggetPoses],
-                            'right': [flip(p).inverse().pose() for p in nuggetPoses]}
+        horizontalTrans, verticalTrans = ikTrans()
+        self.horizontalTrans = {'left': [p.inverse() for p in horizontalTrans],
+                                'right': [fliph(p).inverse() for p in horizontalTrans]}
+        self.verticalTrans = {'left': [p.inverse() for p in verticalTrans],
+                                'right': [flipv(p).inverse() for p in verticalTrans]}
         if debug('PR2'): print 'New PR2!'
         return
+
+    def potentialBasePosesGen(self, wrist, hand):
+        xAxisZ = wrist.matrix[2,0]
+        if abs(xAxisZ) < 0.01:
+            for tr in self.horizontalTrans[hand]:
+                yield ground(wrist.compose(tr).pose())
+        elif abs(xAxisZ + 1.0) < 0.01:
+            for tr in self.verticalTrans[hand]:
+                yield ground(wrist.compose(tr).pose())
+        else:
+            raw_input('Illegal wrist trans for base pose')
 
     cpdef fingerSupportFrame(self, hand, width):
         # !! DOUBLE CHECK THIS !!  Line up z axis to point in the
