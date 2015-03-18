@@ -24,6 +24,7 @@ maxGraspVar = (0.0008, 0.0008, 0.0008, 0.008)
 # Fixed accuracy to use for some standard preconditions
 canPPProb = 0.9
 otherHandProb = 0.9
+canSeeProb = 0.9
 
 ######################################################################
 #
@@ -190,27 +191,41 @@ def placePrim(args, details):
 
 smallDelta = (10e-4,)*4
 
+def oh(h):
+    return 'left' if h == 'right' else 'right'
+
 def otherHand((hand,), goal, start, vals):
     if hand == 'left':
         return [['right']]
     else:
         return [['left']]
 
-def getHands(args, goal, start, (a, b)):
-    # Respect existing bindings
-    if a == 'left':
-        assert b != 'left'
-        return [['left', 'right']]
-    elif a == 'right':
-        assert b != 'right'
-        return [['right', 'left']]
-    if b == 'left':
-        assert a != 'left'
-        return [['right', 'left']]
-    elif b == 'right':
-        assert a != 'right'
-        return [['left', 'right']]
-    return [['left', 'right'], ['right', 'left']]
+def getObjAndHands(args, goal, start, stuff):
+    (o, h) = args
+    heldLeft = start.pbs.getHeld('left').mode()        
+    heldRight = start.pbs.getHeld('right').mode()        
+    result = []
+    if isVar(o):
+        # Obj is unspecified, h should be bound
+        result = [(heldLeft if h == 'left' else heldRight, h, oh(h))]
+    else:
+        # Obj is specified
+        if not isVar(h):
+            # hand is specified
+            hands = [h]
+        elif heldLeft == o:
+            # Try left first
+            hands = ['left', 'right']
+        elif heldRight == o:
+            # Try right first
+            hands = ['right', 'left']
+        elif heldLeft == 'none':
+            # Either order okay, but prefer empty one
+            hands = ['left', 'right']
+        else:
+            hands = ['right', 'left']
+        result = [(o, hand, oh(hand)) for hand in hands]
+    return result
 
 # Return a tuple (obj, face, mu, var, delta).  Values taken from the start state
 def graspStuffFromStart(start, hand):
@@ -270,18 +285,25 @@ def graspVarCanPickPlaceGen(args, goal, start, vals):
 
 # Get all grasp-relevant information for both hands.  Used by move.
 def genGraspStuff(args, goal, start, vals):
-    return [genGraspStuffHand(('left', 'O1'), goal, start, vals)[0] + \
-            genGraspStuffHand(('right', 'O2'), goal, start, vals)[0]]
+    return [a + b for (a, b) in \
+      zip(genGraspStuffHand(('left', 'O1'), goal, start, vals),
+          genGraspStuffHand(('right', 'O2'), goal, start, vals))]
 
 # Get grasp-relevant stuff for one hand.  Used by move, place, pick
 def genGraspStuffHand((hand, otherObj), goal, start, values):
+    # See if there is a pose requirement in the goal (in which case that
+    # obj can't be in the hand.
+    pb = getMatchingFluents(goal,
+                            B([Pose(['O', 'F']), 'PM', 'PV', 'PD', 'P'], True))
+    fixedObjs = [b['O'] for (f, b) in pb]
     # If it's not required by the goal, then let it be the
     # value in the start state
-    result = graspStuffFromGoal(goal, hand, graspStuffFromStart(start, hand))
-    if result[0] == otherObj:
-        ans = []
-    else:
-        ans = [result]
+    s1 = graspStuffFromGoal(goal, hand, graspStuffFromStart(start, hand)) 
+    # Try with empty as a default, even if it's different in start
+    s2 = graspStuffFromGoal(goal, hand)
+    ans = []
+    if s1[0] != otherObj and not s1[0] in fixedObjs: ans.append(s1)
+    if s2[0] != otherObj: ans.append(s2)
     debugMsg('genGraspStuff', hand, ans)
     return ans
 
@@ -334,17 +356,22 @@ def minP(args, goal, start, vals):
     minVal = min([a for a in args if not isVar(a)])
     return [[minVal if isVar(a) else a for a in args]]
 
+# Regression:  what does the mode need to be beforehand, assuming a good
+# outcome
 def obsModeProb(args, goal, start, vals):
-    pr = max([a for a in args if not isVar(a)])
-    return [[max(0.1, pr - 0.2)]]
+    p = max([a for a in args if not isVar(a)])
+    pFalsePos = pFalseNeg = start.domainProbs.obsTypeErrProb
+    pr = p * pFalsePos / ((1 - p) * (1 - pFalseNeg) + p * pFalsePos)
+    return [[max(0.1, pr)]]
 
 # Compute the nth root of the maximum defined prob value
+
 def regressProb(n, probName = None):
     def regressProbAux(args, goal, start, vals):
         failProb = getattr(start.domainProbs, probName) if probName else 0.0
         pr = max([a for a in args if not isVar(a)]) / (1 - failProb)
         val = np.power(pr, 1.0/n)
-        if val < maxProbValue or n == 1:
+        if val < maxProbValue:
             return [[val]*n]
         else:
             return []
@@ -456,12 +483,6 @@ def addPosePreCond((postCond, obj, poseFace, pose, poseVar, poseDelta, p),
     fluentList = simplifyCond(postCond, newFluents)
     return [[fluentList]]
 
-def getObjInHand((hand,), goal, start, vals):
-    held = start.pbs.getHeld(hand).mode()
-    if held == 'none':
-        return []
-    else:
-        return [[held]]
 
 def awayRegionIfNecessary((region, pose), goal, start, vals):
     if not isVar(pose) or not isVar(region):
@@ -509,8 +530,12 @@ def lookAtCostFun(al, args, details):
     (_,_,_,_,vb,d,_,p1,p2,_,_,) = args
     vo = details.domainProbs.obsVarTuple
     deltaViolProb = probModeMoved(d[0], vb[0], vo[0])
-    result = costFun(1.0, p1*p2*(1-deltaViolProb))
-    debugMsg('cost', ('lookAt', (p1, p2, 1-deltaViolProb), result))
+    result = costFun(1.0, p1*p2*(1-deltaViolProb)*\
+                     (1 - details.domainProbs.obsTypeErrProb))
+    debugMsg('cost',
+             ('lookAt',
+              (p1, p2, 1-deltaViolProb, 1-details.domainProbs.obsTypeErrProb),
+                result))
     return result
 
 def lookAtHandCostFun(al, args, details):
@@ -616,9 +641,6 @@ def lookAtBProgress(details, args, obs):
                                          PoseD(util.Pose(*newMu), newSigma)))
     details.pbs.shadowWorld = None # force recompute
 
-    details.draw()
-    raw_input('belief after look')
-
     debugMsg('beliefUpdate', 'look')
     
 # For now, assume obs has the form (obj, face, grasp) or None
@@ -654,7 +676,13 @@ def lookAtHandBProgress(details, args, obs):
                                                   bigSigma))
         elif mlo != 'none' and obsObj != 'none':
             (_, ogf, ograsp) = obs            
-            details.graspModeProb[h] = 1 - details.domainProbs.obsTypeErrProb
+            # Bayes update on mode prob
+            oldP = details.graspModeProb[h]
+            obsGivenH = (1 - details.domainProbs.obsTypeErrProb)
+            obsGivenNotH = details.domainProbs.obsTypeErrProb
+            newP = obsGivenH * oldP / \
+                        (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
+            details.graspModeProb[h] = newP
 
             gd = details.pbs.graspB[h].graspDesc
             # Update the rest of the distributional info.
@@ -789,18 +817,16 @@ place = Operator(\
          ({Bd([Holding(['Hand']), 'none', 'PR3'], True)}, {})],
         # Functions
         functions = [\
+            # Get both hands and object!
+            Function(['Obj', 'Hand', 'OtherHand'], ['Obj', 'Hand'],
+                     getObjAndHands, 'getObjAndHands'),
             # Either Obj is bound (because we're trying to place it) or
             # Hand is bound (because we're trying to make it empty)
             # If Obj is not bound then: get it from the start state;
             #  also, let region be awayRegion
-
-            Function(['Obj'], ['Hand'], getObjInHand, 'getObjInHand'),
             Function(['Region'], ['Region', 'Pose'], awayRegionIfNecessary,
                                    'awayRegionIfNecessary'),
             
-            # Get both hands!
-            Function(['Hand', 'OtherHand'], [], getHands, 'getHands'),
-
             # Be sure all result probs are bound.  At least one will be.
             Function(['PR1', 'PR2', 'PR3', 'PR4'],
                      ['PR1', 'PR2', 'PR3', 'PR4'], minP,'minP'),
@@ -933,6 +959,7 @@ pick = Operator(\
 
 lookConfDelta = (0.0001, 0.0001, 0.0001, 0.001)
 
+# P2 goes into success prob (cost)
 lookAt = Operator(\
     'LookAt',
     ['Obj', 'LookConf', 'PoseFace', 'Pose',
@@ -952,8 +979,7 @@ lookAt = Operator(\
        ],
     # Functions
     functions = [\
-        Function(['P2'], ['PR1', 'PR2'],
-                 regressProb(1, 'obsTypeErrProb'), 'regressProb1'),
+        Function(['P2'], [[canSeeProb]], assign, 'assign'),
         # Look increases probability.  For now, just a fixed amount.  Ugly.
         Function(['P1'], ['PR1', 'PR2'], obsModeProb, 'obsModeProb'),
         # How confident do we need to be before the look?

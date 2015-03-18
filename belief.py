@@ -51,6 +51,8 @@ class BFluent(Fluent):
                    ', ' + prettyString(self.args[-1]) +  ')'
 
     def update(self):
+        assert isVar(self.args[-1]) or (0 <= self.args[-1] <= 1) or \
+          self.args[-1] == None
         # Set the value in the embedded fluent
         self.args[0].value = self.args[1]
         # Generate the string
@@ -98,6 +100,7 @@ class Bd(BFluent):
     # True if the rFluent has value v with probability greater than p
     def test(self, b):
         (rFluent, v, p) = self.args
+        assert isVar(p) or (0 <= p <= 1) or p == None
 
         if hasattr(rFluent, 'bTest'):
             return rFluent.bTest(b, v, p)

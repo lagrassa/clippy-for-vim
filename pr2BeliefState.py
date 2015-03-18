@@ -21,7 +21,7 @@ class BeliefState:
         self.domainProbs = domainProbs
         self.awayRegion = awayRegion
         self.poseModeProbs = dict([(name , 1.0) \
-                                   for name in pbs.moveObjBs.keys()])
+               for name in (pbs.moveObjBs.keys() + pbs.fixObjBs.keys())])
         self.graspModeProb = {'left' : 1.0, 'right' : 1.0}
 
     # Temporary hacks to keep all the types right
@@ -50,13 +50,17 @@ class BeliefState:
         gbl = gb['left']
         gbr = gb['right']
         print 'Held Left:', self.pbs.held['left'], \
-                 'mode prob', self.graspModeProb['left']
+                 'mode prob', prettyString(self.graspModeProb['left'])
+        print '    Grasp type:', prettyString(gbl.grasp) \
+               if gbl else None
         print '    Grasp mean:', prettyString(gbl.poseD.meanTuple()) \
                if (gbl and gbl.poseD) else None
         print '    Grasp stdev:', prettyStdev(gbl.poseD.varTuple()) \
                if (gbl and gbl.poseD) else None
         print 'Held Right:', self.pbs.held['right'], \
-                 'mode prob', self.graspModeProb['right']
+                 'mode prob', prettyString(self.graspModeProb['right'])
+        print '    Grasp type:', prettyString(gbr.grasp) \
+                         if gbr else None
         print '    Grasp mean:', prettyString(gbr.poseD.meanTuple()) \
                     if (gbr and gbr.poseD) else None
         print '    Grasp stdev:', prettyStdev(gbr.poseD.varTuple()) \

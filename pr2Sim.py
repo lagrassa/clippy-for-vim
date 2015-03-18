@@ -145,8 +145,14 @@ class RealWorld(WorldState):
             self.setRobotConf(lookConf)
             self.robotPlace.draw('World', 'orchid')
             debugMsg('sim', 'LookAt configuration')
-            obstacles = [s for s in self.getObjectShapes() if s.name() != targetObj ]
-            vis, _ = visible(self, self.robotConf, self.objectShapes[targetObj],
+            obstacles = [s for s in self.getObjectShapes() if \
+                         s.name() != targetObj ]
+            
+            if not targetObj in self.objectShapes:
+                vis = False
+            else:
+                vis, _ = visible(self, self.robotConf,
+                                 self.objectShapes[targetObj],
                              obstacles, 0.75)
             if not vis:
                 print 'Object', targetObj, 'is not visible'
@@ -257,20 +263,21 @@ class RealWorld(WorldState):
                 detached = robot.detach(self, hand)
                 self.setRobotConf(self.robotConf)
                 obj = self.held[hand]
-                assert detached and obj == detached.name()
-                cart = robot.forwardKin(self.robotConf)
-
-                handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
-                objPose = handPose.compose(self.grasp[hand]).pose()
-                if simulateError:
-                    actualObjPose = objPose.corruptGauss(0.0,
+                #assert detached and obj == detached.name()
+                if detached:
+                    cart = robot.forwardKin(self.robotConf)
+                    handPose = cart[robot.armChainNames[hand]].\
+                      compose(gripperTip)
+                    objPose = handPose.compose(self.grasp[hand]).pose()
+                    if simulateError:
+                        actualObjPose = objPose.corruptGauss(0.0,
                                                     self.domainProbs.placeStdev)
-                else:
-                    actualObjPose = objPose
-                self.setObjectPose(self.held[hand], actualObjPose)
-                self.grasp[hand] = None
-                self.held[hand] = None
-                print 'placed', obj, actualObjPose
+                    else:
+                        actualObjPose = objPose
+                    self.setObjectPose(self.held[hand], actualObjPose)
+                    self.grasp[hand] = None
+                    self.held[hand] = None
+                    print 'placed', obj, actualObjPose
                 self.setRobotConf(approachConf)
                 self.robotPlace.draw('World', 'orchid')
                 print 'retracted'

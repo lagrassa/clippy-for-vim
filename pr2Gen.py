@@ -146,14 +146,29 @@ def pickGenTop(args, goalConds, pbs, outBindings,
         # if conf is specified, just fail
         return
     if obj == pbs.held[hand].mode():
-        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob), hand)
-        shape = pbs.getWorld().getObjectShapeAtOrigin(obj).applyLoc(attachedShape.origin())
+        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
+                                                   hand)
+        shape = pbs.getWorld().getObjectShapeAtOrigin(obj).\
+                                             applyLoc(attachedShape.origin())
         sup = supportFaceIndex(shape)
-        #raw_input('Support = %d'%sup)
         pose = None
         conf = None
         confAppr = None
-        debugMsg('pickGen', ('Trying to pick object already in hand -- support surface is', sup))
+        debugMsg('pickGen',
+                 ('Trying to pick object already in hand',
+                  ' -- support surface is', sup))
+    elif obj == pbs.held[otherHand(hand)].mode():
+        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
+                                                   otherHand(hand))
+        shape = pbs.getWorld().getObjectShapeAtOrigin(obj).\
+                                       applyLoc(attachedShape.origin())
+        sup = supportFaceIndex(shape)
+        pose = None
+        conf = None
+        confAppr = None
+        debugMsg('pickGen',
+                 ('Trying to pick object already in hand other hand',
+                  '-- support surface is', sup))
     else:
         # Use placeB from the current state
         pose = pbs.getPlaceB(obj).poseD.mode()

@@ -854,6 +854,8 @@ class Operator(object):
             if not inHeuristic or debug('debugInHeuristic'):
                 debugMsg('regression:inconsistent', self,
                          'results inconsistent with goal')
+            # This is not a fatal flaw;  just a problem with these bindings
+
             return []
 
         # Some bindings that we make after this might apply to previous steps
@@ -911,6 +913,14 @@ class Operator(object):
                  ('newBindings', newBindings),
                  ('newGoal', newGoal.fluents))
 
+        # Stop right away if an immutable precond is false
+        if any([(p.immutable and \
+                 not startState.fluentValue(p) == p.getValue()) \
+                for p in boundPreconds]):
+            if not inHeuristic or debug('debugInHeuristic'):
+                debugMsg('regression:fail', 'immutable precond is false')
+            return []
+
         # Could fold the boundPrecond part of this in to addSet later
         if not newGoal.isConsistent(boundPreconds + boundSE,
                                     startState.details):
@@ -924,15 +934,19 @@ class Operator(object):
                              'preconds inconsistent with goal',
                              ('newGoal', newGoal), ('preconds', boundPreconds),
                              ('sideEffects', boundSE))
-            return []
+            bindingsNoGood = True
+        else: bindingsNoGood = False
 
-        # Stop right away if an immutable precond is false
-        if any([(p.immutable and \
-                 not startState.fluentValue(p) == p.getValue()) \
-                for p in boundPreconds]):
-            if not inHeuristic or debug('debugInHeuristic'):
-                debugMsg('regression:fail', 'immutable precond is false')
-            return []
+
+        # Make another result, which is a place-holder for rebinding
+        rebindLater = goal.copy()
+        rebindLater.suspendedOperator = self
+        rebindLater.bindingsAlreadyTried.append(newBindings)
+        rebindLater.rebind = True
+        rebindCost = glob.rebindPenalty
+
+        if bindingsNoGood: 
+            return [[rebindLater, rebindCost]]
 
         # Add in the preconditions.  We can make new bindings between
         # new and old preconds, but not between new ones!
@@ -946,12 +960,6 @@ class Operator(object):
         newGoal.bindings = copy.copy(goal.bindings)
         newGoal.bindings.update(newBindings)
 
-        # Make another result, which is a place-holder for rebinding
-        rebindLater = goal.copy()
-        rebindLater.suspendedOperator = self
-        rebindLater.bindingsAlreadyTried.append(newBindings)
-        rebindLater.rebind = True
-        rebindCost = glob.rebindPenalty
 
         if self.abstractionLevel == self.concreteAbstractionLevel:
             cost = self.cost(self.abstractionLevel,
