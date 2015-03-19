@@ -1385,7 +1385,8 @@ class PlanStack(Stack):
             elif i == len(layers)-1:
                 # bottom layer, return subgoal at level i
                 debugMsg('nextStep', 'bottomLayer', op, subgoal)
-                assert op.prim != None, 'Selected inferential op for execution'
+                assert op.isAbstract() or op.prim != None, \
+                             'Selected inferential op for execution'
                 return (op, subgoal)
             else:
                 # go down a level
