@@ -1157,25 +1157,24 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
 
 
 def test19a(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs):
+           heuristic = habbs, easy = True):
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+    glob.monotonicFirst = True
+
     front = util.Pose(0.45, 0.0, 0.61, 0.0)
     back = util.Pose(0.6, 0.0, 0.61, 0.0)
     parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
     parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
     parkingBad = util.Pose(0.683, 0.222, 0.610, 1.571)
-    t = PlanTest('test19a',  tinyErrProbs, allOperators,
+    t = PlanTest('test19a',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': parkingBad,
                             'objB': back})
 
-    glob.monotonicFirst = False
-    glob.rebindPenalty = 200
-
     # Small var
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
-    targetDelta = (0.001, 0.001, 0.001, 0.005)
-    # Increase this
-    goalProb = 0.2
+    targetDelta = (0.02, 0.02, 0.02, 0.05)
 
     easyGoal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
@@ -1237,18 +1236,21 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
 
 # 20.  Swap!
 def test20(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs):
+           heuristic = habbs, easy = True):
+
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+    glob.monotonicFirst = True
+
+
     front = util.Pose(0.45, 0.0, 0.61, 0.0)
     back = util.Pose(0.6, 0.0, 0.61, 0.0)
     parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
     parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
-    t = PlanTest('test20',  tinyErrProbs, allOperators,
+    t = PlanTest('test20',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
                             'objB': front})
-
-    glob.monotonicFirst = True
-    glob.rebindPenalty = 200
 
     # This just gets us down the first left expansion
     hierSkel = [[place, place], #0
@@ -1287,9 +1289,7 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
 
     # Small var
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
-    targetDelta = (0.001, 0.001, 0.001, 0.005)
-    # Increase this
-    goalProb = 0.2
+    targetDelta = (0.02, 0.02, 0.02, 0.05)
     
     goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
