@@ -8,7 +8,7 @@ import windowManager3D as wm
 from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ, debugOn
 from miscUtil import isAnyVar, argmax, isGround, tuplify
 from dist import DeltaDist, UniformDist
-from pr2Robot import CartConf, gripperTip, gripperFaceFrame
+from pr2Robot2 import CartConf, gripperTip, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, \
      NextColor, supportFaceIndex
 import fbch
@@ -16,7 +16,7 @@ from fbch import getMatchingFluents
 from belief import Bd
 from pr2Fluents import CanReachHome, canReachHome, inTest
 from pr2Visible import visible, lookAtConf
-from pr2PlanBel import getConf
+from pr2PlanBel2 import getConf
 from shapes import Box
 
 Ident = util.Transform(np.eye(4))            # identity transform
