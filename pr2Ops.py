@@ -1166,6 +1166,8 @@ graspAchCanPickPlace = Operator(\
                           'GraspFace', 'GraspMu', 'PreGraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
                           'OGraspDelta', 'Cond']), True, 'P1'],True),
+         Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'P2'], True),
+         Bd([Holding(['Hand']), 'Obj', 'P2'], True),
          B([Grasp(['Obj', 'Hand', 'GraspFace']),
              'GraspMu', 'PreGraspVar', 'GraspDelta', 'P2'], True)}},
     # Result

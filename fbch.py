@@ -1717,6 +1717,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                     else:
                         debugMsg('appOp:detail', 'redundant op', newOpBound)
     if len(result) == 0:
+        print g
         debugMsg('appOp:number', ('h', inHeuristic, 'number', len(result)))
     debugMsg(tag, ('h', inHeuristic, 'number', len(result)), ('result', result))
     return result
