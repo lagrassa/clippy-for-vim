@@ -160,49 +160,49 @@ gripperFaceFrame = util.Transform(np.array([(0.,1.,0.,0.18),
                                             (0.,0.,0.,1.)]))
 
 # This behaves like a dictionary, except that it doesn't support side effects.
-cdef class JointConf:
+class JointConf:
     def __init__(self, conf, robot):
         global confIdnum
         self.conf = conf
         self.robot = robot
-    cpdef copy(self):
+    def copy(self):
         return JointConf(self.conf.copy(), self.robot)
-    cpdef list values(self):
+    def values(self):
         return self.conf.values()
-    cpdef list keys(self):
+    def keys(self):
         return self.conf.keys()
-    cpdef get(self, name, default = None):
+    def get(self, name, default = None):
         if name in self.conf:
             return self.conf[name]
         else:
             return default
-    cpdef set(self, name, value):
+    def set(self, name, value):
         assert value is None or isinstance(value, (list, tuple))
         c = self.copy()
         c.conf[name] = value
         return c
-    cpdef placement(self, attached=None):
-        return self.robot.placement(self, attached=attached)[0]
-    cpdef placementMod(self, place, attached=None):
+    def placement(self, attached=None, getShapes=True):
+        return self.robot.placement(self, attached=attached, getShapes=getShapes)[0]
+    def placementMod(self, place, attached=None):
         return self.robot.placementMod(self, place, attached=attached)[0]    
-    cpdef placementAux(self, attached=None, getShapes=True):
+    def placementAux(self, attached=None, getShapes=True):
         place, attachedParts, trans = self.robot.placementAux(self, attached=attached,
                                                               getShapes=getShapes)
         return place, attachedParts
-    cpdef placementModAux(self, place, attached=None, getShapes=True):
+    def placementModAux(self, place, attached=None, getShapes=True):
         place, attachedParts, trans = self.robot.placementModAux(self, place,
                                                                  attached=attached,
                                                                  getShapes=getShapes)
         return place, attachedParts
-    cpdef draw(self, win, color='black', attached=None):
+    def draw(self, win, color='black', attached=None):
         self.placement(attached=attached).draw(win, color)
-    cpdef str prettyString(self, eq = True):
+    def prettyString(self, eq = True):
         if not eq:
             # If we don't need to maintain equality, just print the base
             return 'JointConf('+prettyString(self.conf['pr2Base'], eq)+')'
         else:
             return 'JointConf('+prettyString(self.conf, eq)+')'
-    cpdef frozenset confItems(self, moveChains=None):
+    def confItems(self, moveChains=None):
         return frozenset([(chain, tuple(self.conf[chain])) for chain in (moveChains or self.conf)])
     def __str__(self):
         return 'JointConf('+str(self.conf)+')'
@@ -210,34 +210,31 @@ cdef class JointConf:
         return self.conf[name]
     def __hash__(self):
         return hash(self.confItems())
-    def __richcmp__(self, other, int op):
+    def __eq__(self, other):
         if not (other and isinstance(other, JointConf)):
-            return True if op == 3 else False
-        if op == 2:
-            ans = self.conf == other.conf
-        elif op == 3:
-            ans = self.conf != other.conf
+            return False
         else:
-            ans = False
-        return ans
+            return self.conf == other.conf
+    def __neq__(self, other):
+        return not self == other
 
-cdef class CartConf(JointConf):
+class CartConf(JointConf):
     def __init__(self, conf, robot):
         self.conf = conf
         self.robot = robot
 
-    cpdef str frameName(self, name):
+    def frameName(self, name):
         if 'Frame' in name or 'Gripper' in name or 'Torso' in name:
             return name
         else:
             return name + 'Frame'
-    cpdef get(self, name, default = None):
+    def get(self, name, default = None):
         name = self.frameName(name)
         if name in self.conf:
             return self.conf[self.frameName(name)]
         else:
             return default
-    cpdef set(self, name, value):
+    def set(self, name, value):
         c = self.copy()
         name = self.frameName(name)
         if 'Gripper' in name or 'Torso' in name:
@@ -249,7 +246,7 @@ cdef class CartConf(JointConf):
             assert value is None or isinstance(value, util.Transform)
             c.conf[name] = value
         return c
-    cpdef copy(self):
+    def copy(self):
         return CartConf(self.conf.copy(), self.robot)
     def __getitem__(self, name):
         return self.conf[self.frameName(name)]
@@ -390,7 +387,7 @@ def ground(pose):
 
 # This basically implements a Chain type interface, execpt for the wstate
 # arguments to the methods.
-cdef class PR2:
+class PR2:
     def __init__(self, name, chains, color = pr2Color):
         self.chains = chains
         self.color = color
@@ -427,7 +424,7 @@ cdef class PR2:
         else:
             raw_input('Illegal wrist trans for base pose')
 
-    cpdef fingerSupportFrame(self, hand, width):
+    def fingerSupportFrame(self, hand, width):
         # The old way...
         # Origin is on the inside surface of the finger (at the far tip).
         # The -0.18 is from finger tip to the wrist  -- if using wrist frame
@@ -443,11 +440,11 @@ cdef class PR2:
                                                        (0.,0.,0.,1.)]))
         return gripperFaceFrame_dy
 
-    cpdef list limits(self, chainNames = None):
+    def limits(self, chainNames = None):
         return itertools.chain(*[self.chains.chainsByName[name].limits()\
                                  for name in chainNames])
 
-    cpdef JointConf randomConf(self, moveChains=None):
+    def randomConf(self, moveChains=None):
         conf = JointConf({}, self)
         for chainName in (moveChains or self.moveChainNames):
             conf = conf.set(chainName,
@@ -455,7 +452,7 @@ cdef class PR2:
         return conf
 
     # attach the object (at its current pose) to gripper (at current conf)
-    cpdef attach(self, objectPlace, wstate, hand='left'):
+    def attach(self, objectPlace, wstate, hand='left'):
         conf = wstate.robotConf
         cartConf = self.forwardKin(conf)
         frame = cartConf[self.armChainNames[hand]]
@@ -463,11 +460,11 @@ cdef class PR2:
         wstate.attached[hand] = obj
 
     # attach object to gripper links, object expressed relative to wrist
-    cpdef attachRel(self, objectPlace, wstate, hand='left'):
+    def attachRel(self, objectPlace, wstate, hand='left'):
         wstate.attached[hand] = objectPlace
 
     # detach and return the object (at its current pose) from gripper (at current conf)
-    cpdef detach(self, wstate, hand='left'):
+    def detach(self, wstate, hand='left'):
         obj = wstate.attached[hand]
         if obj:
             conf = wstate.robotConf
@@ -479,14 +476,14 @@ cdef class PR2:
             raw_input('Attempt to detach, but no object is attached')
 
     # Just detach the object, don't return it.
-    cpdef detachRel(self, wstate, hand='left'):
+    def detachRel(self, wstate, hand='left'):
         obj = wstate.attached[hand]
         if obj:
             wstate.attached[hand] = None
         else:
             assert None, 'Attempt to detach, but no object is attached'
 
-    cpdef attachedObj(self, wstate, hand='left'):
+    def attachedObj(self, wstate, hand='left'):
         obj = wstate.attached[hand]
         if obj:
             conf = wstate.robotConf
@@ -496,7 +493,7 @@ cdef class PR2:
         else:
             return None
 
-    cpdef placement(self, conf, wstate=None, getShapes=True, attached=None):
+    def placement(self, conf, wstate=None, getShapes=True, attached=None):
         place, attachedParts, trans = self.placementAux(conf, wstate, getShapes, attached)
         if attached and getShapes:
             return shapes.Shape(place.parts() + [x for x in attachedParts.values() if x],
@@ -505,7 +502,7 @@ cdef class PR2:
         else:
             return place, trans
 
-    cpdef placementMod(self, conf, place, wstate=None, getShapes=True, attached=None):
+    def placementMod(self, conf, place, wstate=None, getShapes=True, attached=None):
         place, attachedParts, trans = self.placementModeAux(conf, place, wstate, getShapes, attached)
         if attached and getShapes:
             return shapes.Shape(place.parts() + [x for x in attachedParts.values() if x],
@@ -514,7 +511,7 @@ cdef class PR2:
         else:
             return place, trans
 
-    cpdef placementAux(self, conf, wstate=None, getShapes=True, attached=None):
+    def placementAux(self, conf, wstate=None, getShapes=True, attached=None):
         # The placement is relative to the state in some world (provides the base frame)
         # Returns a Shape object and a dictionary of frames for each sub-chain.
         frame = wstate.getFrame(self.chains.baseFname) if wstate else Ident
@@ -531,7 +528,7 @@ cdef class PR2:
                     attachedParts[hand] = attached[hand].applyTrans(trans[self.wristFrameNames[hand]])
         return place, attachedParts, trans
 
-    cpdef placementModAux(self, conf, place, wstate=None,
+    def placementModAux(self, conf, place, wstate=None,
                           getShapes=True, attached=None):
         # The placement is relative to the state in some world (provides the base frame)
         # Returns a Shape object and a dictionary of frames for each sub-chain.
@@ -596,7 +593,7 @@ cdef class PR2:
                 collisions.append(objPlace)
         return collisions
     
-    cpdef completeJointConf(self, conf, wstate=None, baseConf=None):
+    def completeJointConf(self, conf, wstate=None, baseConf=None):
         assert wstate or baseConf
         if not baseConf:
             baseConf = wstate.objectConfs[self.chains.name]
@@ -607,7 +604,7 @@ cdef class PR2:
                 cfg = cfg.set(cname, baseConf[cname])
         return cfg
 
-    cpdef stepAlongLine(self, q_f, q_i, stepSize, forward = True, moveChains = None):
+    def stepAlongLine(self, q_f, q_i, stepSize, forward = True, moveChains = None):
         moveChains = moveChains or self.moveChainNames
         q = q_i.copy()
         # Reverse the order of chains when working on the "from the goal" tree.
@@ -620,7 +617,7 @@ cdef class PR2:
             return q.set(chainName, jv) # only move one chain at a time...
         return q_i
 
-    cpdef distConf(self, q1, q2):
+    def distConf(self, q1, q2):
         total = 0.
         for chainName in self.chainNames:
             if chainName in q1.conf and chainName in q2.conf:
@@ -628,7 +625,7 @@ cdef class PR2:
         return total
 
     # "normalize" the angles...
-    cpdef normConf(self, target, source):
+    def normConf(self, target, source):
         cByN = self.chains.chainsByName
         for chainName in self.chainNames:
             if not chainName in target.conf or not chainName in source.conf: continue
@@ -638,7 +635,7 @@ cdef class PR2:
         return target
 
     # Note that the "ArmFrame" is the wrist frame.
-    cpdef forwardKin(self, conf, wstate=None, complain = False, fail = False):
+    def forwardKin(self, conf, wstate=None, complain = False, fail = False):
         shapes, frames = self.placement(conf, wstate=wstate, getShapes=[])
         return CartConf(\
             {'pr2BaseFrame': frames[self.chains.chainsByName['pr2Base'].joints[-1].name],
@@ -742,7 +739,7 @@ cdef class PR2:
 # Inverse kinematics support functions
 ########################################
 
-cpdef headInvKin(chains, torso, targetFrame, wstate,
+def headInvKin(chains, torso, targetFrame, wstate,
                  collisionAware=False, allowedViewError = 1e-5):
     headChain = chains.chainsByName['pr2Head']
     limits = headChain.limits()
@@ -780,11 +777,8 @@ cpdef headInvKin(chains, torso, targetFrame, wstate,
     # print 'bestScore', bestScore, 'best', best, 'error\n', bestError
     return best if bestScore <= allowedViewError else None
 
-cdef list tangentSol(float x, float y, float x0, float y0):
+def tangentSol(x, y, x0, y0):
     # print 'X', (x,y), 'X0', (x0, y0)
-    cdef float alpha, thata0, r, d, theta1, ac, angle, vangle
-    cdef tuple v
-    cdef list values, keep
     alpha = math.atan2(y,x)
     theta0 = math.atan2(y0,x0)
     r = math.sqrt(x0*x0 + y0*y0)
@@ -808,7 +802,7 @@ cdef list tangentSol(float x, float y, float x0, float y0):
     # print 'keep', keep
     return keep
 
-cpdef torsoInvKin(chains, base, target, wstate, collisionAware = False):
+def torsoInvKin(chains, base, target, wstate, collisionAware = False):
     # Should pick a good torso value to place the hand at target, prefering
     # not to change the current value if possible.
     return glob.torsoZ
@@ -908,7 +902,7 @@ def pr2KinIKfastAll(arm, T, current, chain, safeTest):
     # print 'IKFast sols', sols
     return sols
 
-cpdef solnDist(sol1, sol2):
+def solnDist(sol1, sol2):
     total = 0.0
     for (th1, th2) in zip(sol1, sol2):
         total += abs(util.angleDiff(th1, th2))

@@ -8,7 +8,7 @@ import shapes
 from miscUtil import isGround
 from dist import UniformDist,  DeltaDist, chiSqFromP
 from objects import World, WorldState
-from pr2Robot import PR2, pr2Init, makePr2Chains
+from pr2Robot2 import PR2, pr2Init, makePr2Chains
 from planGlobals import debugMsg, debugDraw, debug, pause
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
 from pr2Util import ObjGraspB, ObjPlaceB, shadowName
@@ -47,7 +47,7 @@ class BeliefContext:
 
 # Representation of belief state mostly used for planning
 # Marginal distributions over object poses, relative to the robot
-cdef class PBS:
+class PBS:
     def __init__(self, beliefContext, held=None, conf=None,
                  graspB=None, fixObjBs=None, moveObjBs=None, regions=[], domainProbs=None):
         self.beliefContext = beliefContext
@@ -67,19 +67,19 @@ cdef class PBS:
         self.heuristic = None                     # the robot shape depends on heuristic
         self.domainProbs = domainProbs
 
-    cpdef getWorld(self):
+    def getWorld(self):
         return self.beliefContext.world
-    cpdef getRobot(self):
+    def getRobot(self):
         return self.beliefContext.world.robot
-    cpdef getRoadMap(self):
+    def getRoadMap(self):
         return self.beliefContext.roadMap
-    cpdef getObjectShapeAtOrigin(self, obj):
+    def getObjectShapeAtOrigin(self, obj):
         return self.beliefContext.world.getObjectShapeAtOrigin(obj)
 
-    cpdef awayRegions(self):
+    def awayRegions(self):
         return [r for r in self.regions if r[:5] == 'table']
 
-    cpdef getPlaceB(self, obj, face = None, default = True):
+    def getPlaceB(self, obj, face = None, default = True):
         placeB = self.fixObjBs.get(obj, None) or self.moveObjBs.get(obj, None)
         if placeB and (face is None or face == placeB.support.mode()):
             return placeB
@@ -87,14 +87,13 @@ cdef class PBS:
             return self.defaultPlaceB(obj)
         else:
             return None
-    cpdef defaultPlaceB(self, obj):
+    def defaultPlaceB(self, obj):
         world = self.getWorld()
         fr = world.getFaceFrames(obj)
-        # LPK hack.  Used to be a uniform.
-        d = DeltaDist(4)
-        return ObjPlaceB(obj, fr, d, Ident, 4*(100.0,))
+        return ObjPlaceB(obj, fr, UniformDist(range(len(fr))), Ident,
+                         4*(100.0,))
     
-    cpdef getGraspB(self, obj, hand, face = None, default = True):
+    def getGraspB(self, obj, hand, face = None, default = True):
         if obj == self.held[hand].mode():
             graspB = self.graspB[hand]
             if face is None or face == graspB.grasp.mode():
@@ -107,11 +106,11 @@ cdef class PBS:
             return self.defaultGraspB(obj)
         else:
             return None
-    cpdef defaultGraspB(self, obj):
+    def defaultGraspB(self, obj):
         desc = self.getWorld().getGraspDesc(obj)
         return ObjGraspB(obj, desc, UniformDist(range(len(desc))), Ident, 4*(100.0,))
 
-    cpdef getPlacedObjBs(self):
+    def getPlacedObjBs(self):
         objectBs = {}
         objectBs.update(self.fixObjBs)
         objectBs.update(self.moveObjBs)
@@ -121,10 +120,10 @@ cdef class PBS:
                 del objectBs[heldObj]
         return objectBs
 
-    cpdef getHeld(self, hand):
+    def getHeld(self, hand):
         return self.held[hand]
 
-    cpdef copy(self):
+    def copy(self):
         return PBS(self.beliefContext, self.held.copy(), self.conf.copy(),
                    self.graspB.copy(), self.fixObjBs.copy(), self.moveObjBs.copy(),
                    self.regions, self.domainProbs)
@@ -138,7 +137,7 @@ cdef class PBS:
         objects.extend(self.moveObjBs.keys())
         return set(objects)
 
-    cpdef updateFromAllPoses(self, goalConds, updateHeld=True, updateConf=True):
+    def updateFromAllPoses(self, goalConds, updateHeld=True, updateConf=True):
         initialObjects = self.objectsInPBS()
         world = self.getWorld()
         if updateHeld:
@@ -160,7 +159,7 @@ cdef class PBS:
             print '    final', sorted(list(finalObjects))
         return self
     
-    cpdef updateFromGoalPoses(self, goalConds, updateHeld=True, updateConf=True):
+    def updateFromGoalPoses(self, goalConds, updateHeld=True, updateConf=True):
         initialObjects = self.objectsInPBS()
         world = self.getWorld()
         if updateHeld:
@@ -184,7 +183,7 @@ cdef class PBS:
             print '    final', sorted(list(finalObjects))
         return self
 
-    cpdef updateHeld(self, obj, face, graspD, hand, delta = None):
+    def updateHeld(self, obj, face, graspD, hand, delta = None):
         desc = self.getWorld().getGraspDesc(obj) \
           if obj != 'none' else []
         og = ObjGraspB(obj, desc, DeltaDist(face), graspD, delta = delta)
@@ -194,7 +193,7 @@ cdef class PBS:
         self.shadowWorld = None
         return self
 
-    cpdef updateHeldBel(self, graspB, hand):
+    def updateHeldBel(self, graspB, hand):
         self.graspB[hand] = graspB
         if graspB is None:
             self.held[hand] = DeltaDist('none')
@@ -205,13 +204,13 @@ cdef class PBS:
         self.shadowWorld = None
         return self
     
-    cpdef updateConf(self, c):
+    def updateConf(self, c):
         self.conf = c
         if self.shadowWorld:
             self.shadowWorld.setRobotConf(c)
         return self
 
-    cpdef updatePermObjPose(self, objPlace):
+    def updatePermObjPose(self, objPlace):
         obj = objPlace.obj
         if obj in self.moveObjBs:
             del self.moveObjBs[obj]
@@ -222,7 +221,7 @@ cdef class PBS:
         self.shadowWorld = None
         return self
 
-    cpdef updateObjB(self, objPlace):
+    def updateObjB(self, objPlace):
         obj = objPlace.obj
         if obj in self.moveObjBs:
             self.moveObjBs[obj] = objPlace
@@ -232,14 +231,14 @@ cdef class PBS:
             assert None
         self.shadowWorld = None
 
-    cpdef excludeObjs(self, objs):
+    def excludeObjs(self, objs):
         for obj in objs:
             if obj in self.fixObjBs: del self.fixObjBs[obj]
             if obj in self.moveObjBs: del self.moveObjBs[obj]
         self.shadowWorld = None
         return self
 
-    cpdef extendFixObjBs(self, objBs, objShapes):
+    def extendFixObjBs(self, objBs, objShapes):
         if not objBs: return self       # no change
         # To extend objects we need to copy beliefContext and change world.
         bc = copy.copy(self.beliefContext)
@@ -252,7 +251,7 @@ cdef class PBS:
             bs.fixObjBs[obj] = objBs[obj]
         return bs
     
-    cpdef getShadowWorld(self, prob, avoidShadow = []):
+    def getShadowWorld(self, prob, avoidShadow = []):
         if self.shadowWorld and self.shadowProb == prob \
            and self.heuristic == fbch.inHeuristic \
            and set(avoidShadow) == set(self.avoidShadow):
@@ -314,27 +313,18 @@ cdef class PBS:
                 assert self.graspB[hand] and self.graspB[hand].obj == heldObj
                 graspIndex = self.graspB[hand].grasp.mode()
                 graspDesc = self.graspB[hand].graspDesc[graspIndex]
-<<<<<<< HEAD
-                # faceFrame = graspDesc.frame.compose(self.graspB[hand].poseD.mode().inverse())
-                faceFrame = graspDesc.frame.compose(self.graspB[hand].poseD.mode().inverse())
-=======
                 # Transform from object origin to grasp surface
                 # The graspDesc frame is relative to object origin
                 # The graspB pose encodes finger tip relative to graspDesc frame
                 faceFrame = graspDesc.frame.compose(self.graspB[hand].poseD.mode())
->>>>>>> new_grasp_frames
                 shadow = self.objShadow(heldObj, True, prob, self.graspB[hand], faceFrame)
                 # graspShadow is expressed relative to wrist and attached to arm
                 # fingerFrame should map shodow (supported at graspDesc) into wrist frame
                 fingerFrame = robot.fingerSupportFrame(hand, graspDesc.dz*2)
                 graspShadow = shadow.applyTrans(fingerFrame)
                 robot.attachRel(graspShadow, sw, hand)
-<<<<<<< HEAD
-                if debug('getShadowWorldGrasp'):
-=======
                 sw.held[hand] = heldObj
                 if debug('getShadowWorldGrasp') and not fbch.inHeuristic:
->>>>>>> new_grasp_frames
                     print 'faceFrame\n', faceFrame.matrix
                     print 'shadow\n', shadow.bbox()
                     print 'fingerFrame\n', fingerFrame.matrix
@@ -349,7 +339,7 @@ cdef class PBS:
         return sw
 
     # Shadow over POSE variation.  Should only do finite number of poseVar/poseDelta values.
-    cpdef objShadow(self, obj, shName, prob, poseBel, faceFrame):
+    def objShadow(self, obj, shName, prob, poseBel, faceFrame):
         shape = self.getObjectShapeAtOrigin(obj)
         key = (shape, shName, prob, poseBel, faceFrame)
         shadow = self.beliefContext.objectShadowCache.get(key, None)
@@ -364,30 +354,23 @@ cdef class PBS:
         debugMsg('objShadow', key, ('->', shadow.bbox()))
         return shadow
 
-    cpdef draw(self, p = 0.9, win = 'W', clear=True):
+    def draw(self, p = 0.9, win = 'W', clear=True):
         if clear: wm.getWindow(win).clear()
         if self.shadowWorld:            # don't recompute
             self.shadowWorld.draw(win)
         else:
             self.getShadowWorld(p).draw(win)
 
-    cpdef items(self):
+    def items(self):
         return (frozenset(self.held.items()),
                 frozenset(self.graspB.items()),
                 self.conf,
                 frozenset(self.fixObjBs.items()),
                 frozenset(self.moveObjBs.items()))
-
-    def __richcmp__(self, other, int op):
-        if not (other and isinstance(other, PBS)):
-            return True if op == 3 else False
-        if op == 2:
-            ans = self.items() == other.items()
-        elif op == 3:
-            ans = self.items() != other.items()
-        else:
-            ans = False
-        return ans
+    def __eq__(self, other):
+        return hasattr(other, 'items') and self.items() == other.items()
+    def __neq__(self, other):
+        return not self == other
     def __hash__(self):
         return hash(self.items())
     def __repr__(self):
@@ -398,17 +381,17 @@ cdef class PBS:
 # Shadow computation
 ####################
 
-cpdef list shadowWidths(tuple variance, tuple delta, float probability):
+def shadowWidths(variance, delta, probability):
     numStdDevs =  math.sqrt(chiSqFromP(1-probability, 2))
     assert all([v >= 0 for v in variance])
     return [numStdDevs*(v**0.5)+d for (v,d) in zip(variance, delta)]
 
-cpdef sigmaPoses(float prob, poseD, poseDelta):
-    cdef list widths = shadowWidths(poseD.variance(), poseDelta, prob)
+def sigmaPoses(prob, poseD, poseDelta):
+    widths = shadowWidths(poseD.variance(), poseDelta, prob)
     if debug('getShadowWorld'):
         print 'shadowWidths', widths
-    cdef int n = len(widths)
-    cdef list offsets = []
+    n = len(widths)
+    offsets = []
     (wx, wy, _, wt) = widths
     offsets.append([-wx, 0, 0, -wt])
     offsets.append([-wx, 0, 0, wt])
@@ -418,7 +401,7 @@ cpdef sigmaPoses(float prob, poseD, poseDelta):
     offsets.append([0, -wy, 0, wt])
     offsets.append([0, wy, 0, -wt])
     offsets.append([0, wy, 0, wt])
-    cdef list poses = []
+    poses = []
     # poseTuple = poseD.mode().xyztTuple()
     for offset in offsets:
         # offPoseTuple = [c+o for c,o in zip(poseTuple, offset)]
@@ -426,7 +409,7 @@ cpdef sigmaPoses(float prob, poseD, poseDelta):
         poses.append(util.Pose(*offPoseTuple))
     return poses
 
-cpdef makeShadow(shape, prob, bel, name=None):
+def makeShadow(shape, prob, bel, name=None):
     shParts = []
     poses = sigmaPoses(prob, bel.poseD, bel.delta)
     if debug('getShadowWorld'):
@@ -460,7 +443,7 @@ cpdef makeShadow(shape, prob, bel, name=None):
                             name=name or shape.name(),
                             color=color)
 
-cpdef LEQ(x, y):
+def LEQ(x, y):
     return all([x1 <= y1 for (x1, y1) in zip(x,y)])
 
 ####################
@@ -468,7 +451,7 @@ cpdef LEQ(x, y):
 ####################
 
 # Returns dictionary of obj poses, extracted from goalConds.
-cpdef getGoalPoseBels(goalConds, getFaceFrames):
+def getGoalPoseBels(goalConds, getFaceFrames):
     if not goalConds: return {}
     fbs = getMatchingFluents(goalConds,
                             B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
@@ -483,14 +466,14 @@ cpdef getGoalPoseBels(goalConds, getFaceFrames):
 
 # Overrides is a list of fluents
 # Returns dictionary of objects in belief state, overriden as appropriate.
-cpdef getAllPoseBels(overrides, getFaceFrames, curr):
+def getAllPoseBels(overrides, getFaceFrames, curr):
     if not overrides: return curr
     objects = curr.copy()
     for (o, p) in getGoalPoseBels(overrides, getFaceFrames).iteritems():
         objects[o] = p
     return objects
 
-cpdef getConf(overrides, curr):
+def getConf(overrides, curr):
     if not overrides: return curr
     fbs = [(f, b) for (f, b) \
            in getMatchingFluents(overrides,
@@ -503,7 +486,7 @@ cpdef getConf(overrides, curr):
             conf = b['Mu']
     return conf
 
-cpdef getHeldAndGraspBel(overrides, getGraspDesc, currHeld, currGrasp):
+def getHeldAndGraspBel(overrides, getGraspDesc, currHeld, currGrasp):
     if not overrides: return (currHeld, currGrasp)
 
     # Figure out what we're holding

@@ -8,7 +8,7 @@ import windowManager3D as wm
 import numpy as np
 import shapes
 from ranges import *
-from pr2Robot import CartConf
+from pr2Robot2 import CartConf
 from objects import WorldState
 from geom import bboxOverlap, bboxUnion
 from transformations import quaternion_slerp
@@ -26,11 +26,12 @@ objCollisionCost = 2.0
 shCollisionCost = 0.5
 maxSearchNodes = 5000
 maxExpandedNodes = 1500
-kNearestNodes = 4
 searchGreedy = 0.75                     # slightly greedy
 minStep = 0.2                           # !! maybe 0.1 is better
 minStepHeuristic = 0.4
 confReachViolGenBatch = 10
+coarsePath = False
+heuristicShapes = ['pr2Base', 'pr2RightGripper', 'pr2LeftGripper']
 
 node_idnum = 0
 class Node:
@@ -72,20 +73,13 @@ class RoadMap:
     def __init__(self, homeConf, world,
                  cartesian = True,        # type of interpolation
                  kdLeafSize = 20,
-                 kNearest = kNearestNodes,
+                 kNearest = 10,
                  moveChains=['pr2Base', 'pr2LeftArm']):
         self.robot = world.robot
         self.cartesian = cartesian
         self.moveChains = moveChains
         self.kdLeafSize = kdLeafSize
         self.homeConf = homeConf
-        self.robotShapes = {}
-        save = fbch.inHeuristic
-        fbch.inHeuristic = True         # partial robot
-        self.robotShapes[fbch.inHeuristic] = homeConf.placement()
-        fbch.inHeuristic = False        # full robot
-        self.robotShapes[fbch.inHeuristic] = homeConf.placement()
-        fbch.inHeuristic = save
         cart = self.robot.forwardKin(homeConf)
         self.root = Node(homeConf, cart, self.pointFromCart(cart))
         self.nodeTooClose = 0.001      # is there a rational way of picking this?
@@ -245,7 +239,7 @@ class RoadMap:
             # Switch to joint interpolation if cartesian interpolation fails!!
             final = []
             for c in rrt.interpolate(n_i.conf, n_f.conf,
-                                     stepSize=0.5 if fbch.inHeuristic else 0.25,
+                                     stepSize=0.5 if (fbch.inHeuristic or coarsePath) else 0.25,
                                      moveChains=self.moveChains):
                 cart = self.robot.forwardKin(c)
                 for chain in self.robot.chainNames: #  fill in
@@ -258,8 +252,8 @@ class RoadMap:
     # Should this fall back on joint interpolation when necessary?
     # Returns list of nodes that go from initial node to final node
     def cartLineSteps(self, node_f, node_i, minLength):
-        if fbch.inHeuristic:            # !! ?
-            return [node_i, node_f]
+        # if fbch.inHeuristic:            # !! ?
+        #     return [node_i, node_f]
         interp = self.cartInterpolators(node_f, node_i, minLength)
         if interp is None:
             return
@@ -280,7 +274,8 @@ class RoadMap:
                       'pr2RightGripper': []}
         parts = dict([(part.name(), part) for part in shape.parts()])
         for p in checkParts:
-            pShape = parts[p]
+            pShape = parts.get(p, None)
+            if not pShape: continue
             for check in checkParts[p]:
                 if not check in parts: continue
                 checkShape = parts[check]
@@ -315,10 +310,10 @@ class RoadMap:
             for node in nodes:
                 if rob:
                     stats['newRob'] += 1
-                    rshapes[node] = node.conf.placement()
-                    if self.robotSelfCollide(rshapes[node]):
-                        ecoll['robotSelfCollision'] = True
-                        return None
+                    # rshapes[node] = node.conf.placement()
+                    # if self.robotSelfCollide(rshapes[node]):
+                    #     ecoll['robotSelfCollision'] = True
+                    #     return None
                 else:
                     stats['newHeld'] += 1
                     robShape, attachedParts = node.conf.placementAux(getShapes=[],
@@ -348,7 +343,7 @@ class RoadMap:
                     permanentObst.append(obstacle)
                 else:
                     obst.append(obstacle)
-        val = checkCollisions(obst, nodes, rshapes, permanentObst)
+        val = self.checkCollisions(obst, nodes, rshapes, ecoll, permanentObst)
         # print [o.name() for o in obst], [o.name() for o in permanentObst], [o.name() for o in val] if val else val
         if val is None:
             # collision with permanent object, permanency can
@@ -365,6 +360,33 @@ class RoadMap:
             coll.add(o)
         return coll
 
+    def checkCollisions(self, obstacles, nodes, rshapes, ecoll, permanentObst):
+        if len(nodes) == 0 or (len(obstacles) == 0 and len(permanentObst) == 0):
+            return set([])
+        elif len(nodes) == 1:
+            node = nodes[0]
+            if not node in rshapes:
+                rshapes[node] = node.conf.placement(getShapes=heuristicShapes if coarsePath else True)
+                if self.robotSelfCollide(rshapes[node]):
+                    ecoll['robotSelfCollision'] = True
+                    return None
+            if any(o for o in permanentObst if rshapes[node].collides(o)):
+                return None
+            return set([o for o in obstacles if rshapes[node].collides(o)])
+        else:
+            mid = len(nodes)/2
+            c2 = self.checkCollisions(obstacles, nodes[mid:mid+1], rshapes, ecoll, permanentObst)
+            if c2 is None: return None
+            elif c2:
+                obstacles = [o for o in obstacles if o not in c2]
+            c1 = self.checkCollisions(obstacles, nodes[0:mid], rshapes, ecoll, permanentObst)
+            if c1 is None: return None
+            elif c1:
+                obstacles = [o for o in obstacles if o not in c1]
+            c3 = self.checkCollisions(obstacles, nodes[mid+1:len(nodes)], rshapes, ecoll, permanentObst)
+            if c3 is None: return None
+            return c1.union(c2).union(c3)
+
     # We want edge to depend only on endpoints so we can cache the
     # interpolated confs.  The collisions depend on the robot variance
     # as well as the particular obstacles (and their varince).
@@ -377,17 +399,17 @@ class RoadMap:
         if not edge:
             edge = Edge(node_f, node_i)
             edge.nodes = self.cartLineSteps(node_f, node_i,
-                                            minStepHeuristic if fbch.inHeuristic else minStep)
+                                            minStepHeuristic if (fbch.inHeuristic or coarsePath) else minStep)
             self.edges[(node_f, node_i)] = edge
         allObstacles = shWorld.getObjectShapes()
         permanent = shWorld.fixedObjects # set of names
         # We don't want to confuse the robot model during heuristic
         # with the one for regular planning.
-        coll = self.edgeCollide(True, fbch.inHeuristic, edge.robotCollisions, edge.robotShapes,
+        coll = self.edgeCollide(True, (fbch.inHeuristic or coarsePath), edge.robotCollisions, edge.robotShapes,
                                 attached, edge.nodes, allObstacles, permanent, coll, viol)
         if coll is None:
             return coll
-        key = tuple([pbs.graspB[h] for h in ['left', 'right']] + [fbch.inHeuristic])
+        key = tuple([pbs.graspB[h] for h in ['left', 'right']] + [fbch.inHeuristic or coarsePath])
         coll = self.edgeCollide(False, key, edge.heldCollisions, edge.heldShapes,
                                 attached, edge.nodes, allObstacles, permanent, coll, viol)
         return coll
@@ -487,9 +509,9 @@ class RoadMap:
 
     # !! Should do additional sampling to connect confs.
     def minViolPathGen(self, targetConfNodes, pbs, prob, avoidShadow=[], startConf = None,
-                       initViol=noViol, objCost=1.0, shCost=0.5, maxNodes=maxSearchNodes, 
-                       testFn = lambda x: True,
-                       attached = None, goalCostFn = lambda x: 0, draw=False, maxExpanded= maxExpandedNodes):
+                       initViol=noViol, objCost=1.0, shCost=0.5, maxNodes=maxSearchNodes,
+                       attached = None, testFn = lambda x: True,
+                       goalCostFn = lambda x: 0, draw=False, maxExpanded= maxExpandedNodes):
 
         def testConnection(v, w, viol):
             wObjs = self.colliders(v, w, pbs, prob, viol, attached=attached)
@@ -502,28 +524,32 @@ class RoadMap:
         def successors(s):
             (v, viol) = s
             successors = []
-            nearNodes = self.nearest(v, self.kNearest)
-
-            if draw:
-                v.conf.draw('W', 'cyan')
-                wm.getWindow('W').update()
-                print v.cartConf['pr2LeftArm'].point()
+            near = self.kNearest
+            maxNear = 32.
+            minFree = 4.
+            while len(successors) < minFree and near <= maxNear:
+                nearN = self.nearest(v, near+1)
+                for n in nearN:
+                    (_, w) = n
+                    if len(successors) >= minFree: break
+                    if not w in prev:
+                        nviol = testConnection(v, w, viol)
+                        if nviol is None: continue
+                        prev.add(w) 
+                        successors.append((w, nviol))                  
+                near = near*2
 
             if draw or debug('successors'):
+                pbs.draw(prob, 'W')
+                v.conf.draw('W', 'cyan')
                 color = colorGen.next()
-                for (_, n) in nearNodes:
-                    n.conf.draw('W', color)
-                print [c for (c,_) in nearNodes]
-                debugMsg('successors', 'Go?')
-
-            if debug('successors'):
                 print v, '->'
-            for (_, w) in nearNodes:
-                if debug('successors'):
-                    print '    ', w
-                nviol = testConnection(v, w, viol)
-                if nviol is None: continue
-                successors.append((w, nviol))
+                for (n, _) in successors:
+                    n.conf.draw('W', color)
+                    print '    ', n
+                wm.getWindow('W').update()
+                debugMsg('successors', 'Go?')
+                
             return successors
 
         shWorld = pbs.getShadowWorld(prob, avoidShadow)
@@ -532,7 +558,7 @@ class RoadMap:
             colorGen = NextColor(20, s=0.6)
             wm.getWindow('W').clear()
             shWorld.draw('W')
-        
+
         fixed = shWorld.fixedObjects
         staticObstSet = set([sh for sh in shWorld.getObjectShapes() \
                              if sh.name() in fixed])
@@ -543,6 +569,7 @@ class RoadMap:
         attached = attached or shWorld.attached
         initConf = startConf or self.homeConf
         initConfNode = self.addNode(initConf)  # have it stored??
+        prev = set([initConfNode])
         targets = [(goalCostFn(tnode), tnode) for tnode in targetConfNodes]
         targets.sort()
         for (cost, tnode) in targets:
@@ -568,13 +595,14 @@ class RoadMap:
                                    goalCostFn = goalCostFn,
                                    maxNodes = maxNodes, maxExpanded = maxExpanded,
                                    maxHDelta = None,
+                                   expandF = minViolPathDebug if debug('expand') else None,
                                    greedy = searchGreedy, printFinal = False)
             for ans in gen:
                 (path, costs) = ans
                 if not path:
                     if debug('minViolPath'):
                         pbs.draw(prob, 'W')
-                        for tnode in targets:
+                        for (c, tnode) in targets:
                             tnode.conf.draw('W', 'red')
                     yield None, 1e10, None, None
                     return
@@ -617,6 +645,7 @@ class RoadMap:
     def confReachViol(self, targetConf, pbs, prob, initViol=noViol, avoidShadow = [],
                         objCost = objCollisionCost, shCost = shCollisionCost,
                         maxNodes = maxSearchNodes, startConf = None, attached = None):
+        global coarsePath
         realInitViol = initViol
         initViol = noViol
         def grasp(hand):
@@ -632,26 +661,38 @@ class RoadMap:
             if ans and ans[0] and ans[2]:
                 (viol, cost, path, nodePath) = ans
                 if debug('confReachViol') and (not fbch.inHeuristic or debug('drawInHeuristic')):
-                    drawPath(path, viol=viol,
-                             attached=pbs.getShadowWorld(prob).attached)
-                    newViol =self.checkPath(path, pbs, prob, 
-                                            pbs.getShadowWorld(prob).attached, avoidShadow)
-                    if newViol.weight() != viol.weight():
-                        print 'viol', viol.weight(), viol
-                        print 'newViol', newViol.weight(), newViol
-                        raw_input('checkPath failed')
-                    debugMsg('confReachViol', ('->', (viol, cost, 'path len = %d'%len(path))))
+                   drawPath(path, viol=viol,
+                            attached=pbs.getShadowWorld(prob).attached)
+                   newViol = self.checkPath(path, pbs, prob, 
+                                           pbs.getShadowWorld(prob).attached, avoidShadow)
+                   if newViol.weight() != viol.weight():
+                       print 'viol', viol.weight(), viol
+                       print 'newViol', newViol.weight(), newViol
+                       raw_input('checkPath failed')
+                   debugMsg('confReachViol', ('->', (viol, cost, 'path len = %d'%len(path))))
                 return (viol.union(realInitViol) if viol else viol, cost, path)
             else:
-                debugMsg('confReachViol', ('->', ans))
+                if debug('confReachViol'):
+                    drawProblem(forceDraw=True)
+                    debugMsg('confReachViol', ('->', ans))
                 return (None, None, None)
-            
+
+        def drawProblem(forceDraw=False):
+            if forceDraw or \
+                   (debug('confReachViol') and \
+                    (not fbch.inHeuristic  or debug('drawInHeuristic'))):
+                pbs.draw(prob, 'W')
+                initConf.draw('W', 'blue', attached=attached)
+                targetConf.draw('W', 'pink', attached=attached)
+                print 'startConf is blue; targetConf is pink'
+                raw_input('confReachViol')
+
         # if fbch.inHeuristic:
         #     prob = 0.99*prob             # make slightly easier
         if attached == None:
             attached = pbs.getShadowWorld(prob).attached
         # key = (targetConf, startConf, prob, pbs, tuple(avoidShadow), initViol),
-        key = (targetConf, startConf, initViol, fbch.inHeuristic)
+        key = (targetConf, startConf, initViol, fbch.inHeuristic or coarsePath)
         if debug('confReachViolCache'):
             debugMsg('confReachViolCache',
                      ('targetConf', targetConf.conf),
@@ -697,14 +738,7 @@ class RoadMap:
             if debug('confReachViolCache'): print 'confReachCache miss'
 
         initConf = startConf or self.homeConf
-        if debug('confReachViol') and \
-            (not fbch.inHeuristic  or debug('drawInHeuristic')):
-            pbs.draw(prob, 'W')
-            initConf.draw('W', 'blue', attached=attached)
-            targetConf.draw('W', 'pink', attached=attached)
-            print 'startConf is blue; targetConf is pink'
-            debugMsg('confReachViol', 'Go?')
-
+        drawProblem()
         cv = self.confViolations(targetConf, pbs, prob,
                                  avoidShadow=avoidShadow, attached=attached)[0]
         cv = self.confViolations(initConf, pbs, prob, initViol=cv,
@@ -725,10 +759,14 @@ class RoadMap:
                   [initConf, targetConf], [initConfNode, node]
             return exitWithAns(ans)
         if debug('traceCRH'): print '    find path',
+        if debug('expand'):
+            pbs.draw(prob, 'W')
+        hsave = fbch.inHeuristic
         gen = self.minViolPathGen([node], pbs, prob, avoidShadow,
                                   startConf, cvi,
                                   objCost, shCost, maxNodes, attached=attached)
-        return exitWithAns(gen.next())
+        ans = gen.next()        
+        return exitWithAns(ans)
 
     def confReachViolGen(self, targetConfs, pbs, prob, initViol=noViol, avoidShadow = [],
                          objCost = objCollisionCost, shCost = shCollisionCost,
@@ -778,7 +816,7 @@ class RoadMap:
             gen = self.minViolPathGen(nodeConf.keys(),
                                       pbs, prob, avoidShadow,
                                       initConf, initViol or Violations(),
-                                      objCost, shCost, maxNodes, nodeTestFn, attached,
+                                      objCost, shCost, maxNodes, attached, nodeTestFn,
                                       goalCostFn=goalNodeCostFn, draw=draw)
             for ans in gen:
                 if ans and ans[0] and ans[2]:
@@ -881,25 +919,12 @@ def cartChainName(chainName):
 
 def pointDist(p1, p2):
     return sum([(a-b)**2 for (a, b) in zip(p1, p2)])**0.5
-
-def checkCollisions(obstacles, nodes, rshapes, permanentObst):
-    if len(nodes) == 0 or (len(obstacles) == 0 and len(permanentObst) == 0):
-        return set([])
-    elif len(nodes) == 1:
-        if any(o for o in permanentObst if rshapes[nodes[0]].collides(o)):
-            return None
-        return set([o for o in obstacles if rshapes[nodes[0]].collides(o)])
-    else:
-        mid = len(nodes)/2
-        c2 = checkCollisions(obstacles, nodes[mid:mid+1], rshapes, permanentObst)
-        if c2 is None: return None
-        elif c2:
-            obstacles = [o for o in obstacles if o not in c2]
-        c1 = checkCollisions(obstacles, nodes[0:mid], rshapes, permanentObst)
-        if c1 is None: return None
-        elif c1:
-            obstacles = [o for o in obstacles if o not in c1]
-        c3 = checkCollisions(obstacles, nodes[mid+1:len(nodes)], rshapes, permanentObst)
-        if c3 is None: return None
-        return c1.union(c2).union(c3)
         
+def minViolPathDebug(n):
+    (node, _) = n.state
+    node.conf.draw('W')
+    raw_input('expand')
+
+
+
+

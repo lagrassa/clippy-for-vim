@@ -1,7 +1,8 @@
+import math
 import numpy as np
 import objects
 from objects import WorldState
-from pr2Robot import gripperTip
+from pr2Robot2 import gripperTip
 import windowManager3D as wm
 import pr2Util
 from pr2Util import supportFaceIndex, DomainProbs
@@ -309,9 +310,11 @@ def graspFaceIndexAndPose(conf, hand, shape, graspDescs):
         faceFrame = graspDesc.frame
         centerFrame = faceFrame.compose(util.Pose(0,0,graspDesc.dz,0))
         graspFrame = objFrame.compose(centerFrame)
-        candidateFrame = graspFrame.inverse().compose(fingerFrame)
-        if candidateFrame.pose(fail=False):
-            print 'Grasp face', g, 'Grasp offset', candidateFrame.pose().xyztTuple()
-            return (g, candidateFrame.pose().xyztTuple())
+        candidatePose = graspFrame.inverse().compose(fingerFrame).pose(fail=False)
+        if candidatePose:
+            params = candidatePose.xyztTuple()
+            if abs(params[-1]) < math.pi/8:
+                print 'Grasp face', g, 'Grasp offset', params
+                return (g, params)
     raw_input('Could not find graspFace')
     return (0, (0,0,0,0))

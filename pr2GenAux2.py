@@ -8,7 +8,7 @@ import shapes
 from planGlobals import debugMsg, debugDraw, debug, pause, torsoZ
 from miscUtil import argmax, isGround
 from dist import UniformDist, DDist
-from pr2Robot import CartConf, gripperFaceFrame
+from pr2Robot2 import CartConf, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName
 from fbch import getMatchingFluents
 from belief import Bd, B
@@ -182,8 +182,11 @@ def findApproachConf(pbs, obj, placeB, conf, hand, prob):
     robot = pbs.getRobot()
     cart = robot.forwardKin(conf)
     wristFrame = cart[robot.armChainNames[hand]]
-    wristFrameBack = wristFrame.compose(\
-             util.Pose(-approachBackoff,0.,zBackoff,0.))
+    if abs(wristFrame.matrix[2,0]) < 0.1: # horizontal
+        offset = util.Pose(-approachBackoff,0.,zBackoff,0.)
+    else:                               # vertical
+        offset = util.Pose(-approachBackoff,0.,0.,0.)
+    wristFrameBack = wristFrame.compose(offset)
     cartBack = cart.set(robot.armChainNames[hand], wristFrameBack)
     confBack = robot.inverseKin(cartBack, conf = conf)
     if not None in confBack.values():
