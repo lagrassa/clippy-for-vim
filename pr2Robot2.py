@@ -416,13 +416,18 @@ class PR2:
     def potentialBasePosesGen(self, wrist, hand):
         xAxisZ = wrist.matrix[2,0]
         if abs(xAxisZ) < 0.01:
-            for tr in self.horizontalTrans[hand]:
-                yield ground(wrist.compose(tr).pose())
+            trs = self.horizontalTrans[hand]
         elif abs(xAxisZ + 1.0) < 0.01:
-            for tr in self.verticalTrans[hand]:
-                yield ground(wrist.compose(tr).pose())
+            trs = self.verticalTrans[hand]
         else:
+            print 'wrist=\n', wrist.matrix
             raw_input('Illegal wrist trans for base pose')
+        for tr in trs:
+            ans = wrist.compose(tr).pose(fail=False)
+            if ans is None:
+                print 'wrist=\n', wrist.matrix
+                raw_input('Illegal wrist trans for base pose')
+            yield ground(ans)
 
     def fingerSupportFrame(self, hand, width):
         # The old way...

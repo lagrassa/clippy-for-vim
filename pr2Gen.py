@@ -84,6 +84,8 @@ def easyGraspGen(args, goalConds, bState, outBindings):
         yield (gB.grasp.mode(), gB.poseD.mode().xyztTuple(),
                graspVar, graspDelta)
         return
+    if obj == newBS.held[otherHand(hand)].mode():
+        return                          # no easyGrasp with this hand
     approached = {}
     rm = newBS.getRoadMap()
     placeB = newBS.getPlaceB(obj)
