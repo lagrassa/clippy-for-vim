@@ -43,7 +43,7 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         conf.left_joints = map(float, cnfIn.get('pr2LeftArm', []))
         conf.left_grip = map(float, cnfIn.get('pr2LeftGripper', []))
         conf.right_joints = map(float, cnfIn.get('pr2RightArm', []))
-        conf.right_grip = map(float, cnfIn.get('pr2RightGripper', []))
+        conf.rght_grip = map(float, cnfIn.get('pr2RightGripper', []))
         # conf.head = map(float, cnfIn.get('pr2Head', []))
         conf.head = []
 

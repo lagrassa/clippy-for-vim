@@ -1,28 +1,30 @@
-cimport util
-cimport kContents as KC
-cimport objModels as om
 from cpython cimport bool
-
+import numpy as np
+cimport numpy as np
 import math
+
+cimport util
+cimport pointClouds as pc
+cimport shapes
+
 import planGlobals as glob
 reload(glob)
 
 windowName = 'MAP'
-#windowName = 'PR2'
 
 cpdef list emptyPair (int i, int j):
     return [0, 0]
 
 # Table is the refObj, centered on origin
-cpdef tuple bestTable(om.Polygon zone, om.Object table, KC.Scan scan, list exclude,
+cpdef tuple bestTable(shapes.Thing zone, shapes.Thing table, pc.Scan scan, list exclude,
                       float res=0.01, float zthr = 0.03, list angles = [],
                       bool debug = False):
     name = 'bestTable'
 
     cdef int minTablePoints = int(glob.minTableDim / glob.cloudPointsResolution)
     cdef float height = table.zRange()[1] - table.zRange()[0]
-    cdef tuple bb = table.bbox()
-    cdef float radius = 0.75*math.sqrt((bb[1][0] - bb[0][0])**2 + (bb[1][1] - bb[0][1])**2)
+    cdef np.ndarray[np.float64_t, ndim=2] bb = table.bbox()
+    cdef float radius = 0.75*math.sqrt((bb[1,0] - bb[0,0])**2 + (bb[1,1] - bb[0,1])**2)
     cdef list good = []
     cdef list below = []
     cdef float thrHi = height + zthr

@@ -65,17 +65,14 @@ cdef class Scan:
             (focal, height, width, length, n) = self.scanParams
         else:
             length = 3.0
+
+        # Draw a coordinate frame (RGB = XYZ)
         ray = shapes.BoxAligned(np.array([(-r, -r, -r), (length/3., r, r)]), None)
-        ray = ray.applyTrans(self.headTrans)
-        ray.draw(window, color='red')
-
+        ray.applyTrans(self.headTrans).draw(window, color='red')
         ray = shapes.BoxAligned(np.array([(-r, -r, -r), (r, length/3., r)]), None)
-        ray = ray.applyTrans(self.headTrans)
-        ray.draw(window, color='green')
-
+        ray.applyTrans(self.headTrans).draw(window, color='green')
         ray = shapes.BoxAligned(np.array([(-r, -r, -r), (r, r, length/3.)]), None)
-        ray = ray.applyTrans(self.headTrans)
-        ray.draw(window, color='blue')
+        ray.applyTrans(self.headTrans).draw(window, color='blue')
 
         pointBox = shapes.BoxAligned(np.array([(-r, -r, -r), (r, r, r)]), None)
         v = self.vertices
