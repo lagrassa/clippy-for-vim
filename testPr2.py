@@ -200,16 +200,16 @@ def testWorld(include = ['objA', 'objB', 'objC'],
                       (1.,0.,0.,0.),
                       (0.,0.,0.,1.)])
     # from the top
-    gMat2= np.array([(1.,0.,0.,0.),
-                     (0.,0.,1.,-0.025),
+    gMat2= np.array([(-1.,0.,0.,0.),
+                     (0.,0.,-1.,0.025),
                      (0.,-1.,0.,0.),
                      (0.,0.,0.,1.)])
     for obj in manipulanda:
         world.graspDesc[obj] = [GDesc(obj, util.Transform(gMat0),
                                       0.05, 0.05, 0.025),
                                 # Needs more general confs for grasping
-                                # GDesc(obj, util.Transform(gMat2),
-                                #      0.05, 0.05, 0.025)
+                                GDesc(obj, util.Transform(gMat2),
+                                      0.05, 0.05, 0.025)
                                 ]
     if moreGD:
         for obj in manipulanda:

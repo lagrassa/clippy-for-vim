@@ -40,7 +40,7 @@ def objectGraspFrame(pbs, objGrasp, objPlace):
     # !! Rotates wrist frame to grasp face frame - defined in pr2Robot
     gT = gripperFaceFrame
     wristFrame = graspFrame.compose(gT.inverse())
-    assert wristFrame.pose()
+    # assert wristFrame.pose()
 
     if debug('objectGraspFrame'):
         print 'objGrasp', objGrasp
@@ -192,10 +192,6 @@ def findApproachConf(pbs, obj, placeB, conf, hand, prob):
         return None
 
 def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, prob, nMax=None):
-    def ground(pose):
-        params = list(pose.xyztTuple())
-        params[2] = 0.0
-        return util.Pose(*params)
     if conf:
         yield conf, Violations()
         return
@@ -207,10 +203,10 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, prob, nMax=None):
         pbs.draw(prob, 'W')
     count = 0
     tried = 0
-    for basePose in robot.nuggetPoses[hand]:
+    for basePose in robot.potentialBasePosesGen(wrist, hand):
         if nMax and count >= nMax: break
         tried += 1
-        cart = CartConf({'pr2BaseFrame': ground(wrist.compose(basePose).pose()),
+        cart = CartConf({'pr2BaseFrame': basePose.pose(),
                          'pr2Torso':[torsoZ]}, robot)
         if hand == 'left':
             cart.conf['pr2LeftArmFrame'] = wrist 
@@ -218,28 +214,26 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, prob, nMax=None):
         else:
             cart.conf['pr2RightArmFrame'] = wrist 
             cart.conf['pr2RightGripper'] = 0.08
+        # Check inverse kinematics
         conf = robot.inverseKin(cart, complain=debug('potentialGraspConfs'))
+        if None in conf.values(): continue
+        # Copy the other arm
         if hand == 'left':
             conf.conf['pr2RightArm'] = pbs.conf['pr2RightArm']
             conf.conf['pr2RightGripper'] = pbs.conf['pr2RightGripper']
         else:
             conf.conf['pr2LeftArm'] = pbs.conf['pr2LeftArm']
             conf.conf['pr2LeftGripper'] = pbs.conf['pr2LeftGripper']
-        if not None in conf.values():
-            viol, _ = rm.confViolations(conf, pbs, prob) # don't include attached...
-            if viol and findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob):
-                if debug('potentialGraspConfs'):
-                    conf.draw('W','green')
-                    debugMsg('potentialGraspConfs', ('->', conf.conf))
-                count += 1
-                yield conf, viol
-            else:
-                if debug('potentialGraspConfs'): conf.draw('W','red')
-        elif debug('potentialGraspConfs'):
-                print conf.conf
-                conf.conf['pr2LeftArm'] = pbs.getShadowWorld(prob).robotConf['pr2LeftArm']
-                conf.conf['pr2RightArm'] = pbs.getShadowWorld(prob).robotConf['pr2RightArm']
-                if not None in conf.values(): conf.draw('W','red')
+        # Check for collisions
+        viol, _ = rm.confViolations(conf, pbs, prob) # don't include attached...
+        if viol and findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob):
+            if debug('potentialGraspConfs'):
+                conf.draw('W','green')
+                debugMsg('potentialGraspConfs', ('->', conf.conf))
+            count += 1
+            yield conf, viol
+        else:
+            if debug('potentialGraspConfs'): conf.draw('W','red')
     if debug('potentialGraspConfs'):
         print 'Tried', tried, 'Found', count, 'potential grasp confs'
     return

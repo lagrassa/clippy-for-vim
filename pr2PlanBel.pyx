@@ -313,12 +313,13 @@ cdef class PBS:
                 assert self.graspB[hand] and self.graspB[hand].obj == heldObj
                 graspIndex = self.graspB[hand].grasp.mode()
                 graspDesc = self.graspB[hand].graspDesc[graspIndex]
+                # faceFrame = graspDesc.frame.compose(self.graspB[hand].poseD.mode().inverse())
                 faceFrame = graspDesc.frame.compose(self.graspB[hand].poseD.mode().inverse())
                 shadow = self.objShadow(heldObj, True, prob, self.graspB[hand], faceFrame)
                 fingerFrame = robot.fingerSupportFrame(hand, graspDesc.dz*2)
                 graspShadow = shadow.applyTrans(fingerFrame)
                 robot.attachRel(graspShadow, sw, hand)
-                if debug('getShadowWorld'):
+                if debug('getShadowWorldGrasp'):
                     print 'faceFrame\n', faceFrame.matrix
                     print 'shadow\n', shadow.bbox()
                     print 'fingerFrame\n', fingerFrame.matrix

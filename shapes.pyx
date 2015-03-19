@@ -514,9 +514,12 @@ cpdef np.ndarray[np.float64_t, ndim=2] vertsFrom2DScale(np.ndarray[np.float64_t,
     vertsLo = verts.copy()
     vertsHi = verts.copy()
     for i in xrange(verts.shape[1]):
+        if vertsLo[0,i] > 0.:
+            vertsHi[0,i] = vertsLo[0,i]*scale
+        else:
+            vertsHi[0,i] = vertsLo[0,i]
+        vertsHi[1,i] = vertsLo[1,i]*scale
         vertsLo[2,i] = zlo
-        for j in range(2):
-            vertsHi[j,i] = vertsLo[j,i]*scale
         vertsHi[2,i] = zhi
     return np.hstack([vertsLo, vertsHi])
 
