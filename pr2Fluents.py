@@ -212,6 +212,11 @@ class CanPickPlace(Fluent):
     implicit = True
     conditional = True
 
+    # Override the default version of this so that the component conds will be recalculated
+    def addConditions(self, newConds, details = None):
+        self.conds = None
+        Fluent.addConditions(self, newConds, details)
+
     def getConds(self, details = None):
         # Will recompute if new bindings are applied because the result
         # won't have this attribute
@@ -221,7 +226,7 @@ class CanPickPlace(Fluent):
     
         assert obj != 'none'
 
-        if not hasattr(self, 'conds'):
+        if not hasattr(self, 'conds') or self.conds == None:
             objInPlace = B([Pose([obj, poseFace]), pose, poseVar, poseDelta,
                             1.0], True)
             objInPlaceZeroVar = B([Pose([obj, poseFace]), pose, zeroVar,
@@ -276,6 +281,7 @@ class CanPickPlace(Fluent):
         if path == None:
             #!! should this happen?
             print 'hv infinite'
+            print self
             raw_input('go?')
             return float('inf'), {}
         obstacles = violations.obstacles

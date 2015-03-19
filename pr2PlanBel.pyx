@@ -89,8 +89,9 @@ cdef class PBS:
     cpdef defaultPlaceB(self, obj):
         world = self.getWorld()
         fr = world.getFaceFrames(obj)
-        return ObjPlaceB(obj, fr, UniformDist(range(len(fr))), Ident,
-                         4*(100.0,))
+        # LPK hack.  Used to be a uniform.
+        d = DeltaDist(4)
+        return ObjPlaceB(obj, fr, d, Ident, 4*(100.0,))
     
     cpdef getGraspB(self, obj, hand, face = None, default = True):
         if obj == self.held[hand].mode():

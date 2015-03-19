@@ -70,3 +70,7 @@ local.py
 prof
 *.txt
 
+
+.#testPr2.py
+
+.#pr2Fluents.py

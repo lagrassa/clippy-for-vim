@@ -416,7 +416,11 @@ def getReachObsts(goalConds, pbs):
                                  True, 'P'], True))
     obstacles = []
     for (f, b) in fbs:
-        obstacles.extend(getCRHObsts([Bd([fc, True, b['P']], True) for fc in f.args[0].getConds()], pbs))
+        crhObsts = getCRHObsts([Bd([fc, True, b['P']], True) \
+                                for fc in f.args[0].getConds()], pbs)
+        if crhObsts == None:
+            return None
+        obstacles.extend(crhObsts)
     return obstacles
 
 def getCRHObsts(goalConds, pbs):

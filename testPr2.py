@@ -505,20 +505,21 @@ def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
 def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = True):
 
-    goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
+    goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.98,typicalErrProbs)
 
     t = PlanTest('test3',  errProbs, allOperators,
                  objects=['table1', 'objA'])
     targetPose = (0.55, 0.25, 0.61, 0.0)
     # large target var is no problem
-    targetVar = (0.01, 0.01, 0.01, 0.05)
+    targetVar = (0.02, 0.02, 0.01, 0.05)
     goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
-                     targetPose, targetVar, (0.001,)*4,
-                     goalProb], True),
-                  Bd([Holding(['left']), 'none', goalProb], True)])
+                     targetPose, targetVar, (0.02,)*4,
+                     goalProb], True)])
 
-    skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+    skel = [[lookAt.applyBindings({'Obj' : 'objA'}),
+                 move,
+                 place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
                  move,
                  pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
                  move]]
@@ -533,7 +534,7 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 def test4(hpn = True, hierarchical = False, skeleton = False,
           heuristic = habbs, easy = True):
 
-    goalProb, errProbs = (0.2,smallErrProbs) if easy else (0.95,typicalErrProbs)
+    goalProb, errProbs = (0.2,smallErrProbs) if easy else (0.98,typicalErrProbs)
     glob.rebindPenalty = 300
 
 
@@ -541,19 +542,15 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
                  objects=['table1', 'objA', 'objB'])
     targetPose = (0.55, 0.25, 0.61, 0.0)
     targetPoseB = (0.55, -0.2, 0.61, 0.0)
-    targetVar = (0.001, 0.001, 0.001, 0.005) 
-
-    goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
-    confDeltas = (0.05, 0.05, 0.05, 0.05)
+    targetVar = (0.001, 0.001, 0.001, 0.005)
+    targetDelta = (.02, .02, .02, .04)
 
     goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
-                     targetPose, targetVar, (0.001,)*4,
-                     goalProb], True),
+                     targetPose, targetVar, targetDelta, goalProb], True),
                   Bd([SupportFace(['objB']), 4, goalProb], True),
                   B([Pose(['objB', 4]),
-                     targetPoseB, targetVar, (0.001,)*4,
-                     goalProb], True)])
+                     targetPoseB, targetVar, targetDelta, goalProb], True)])
 
     # Probably wrong, with typicalErrProbs
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
@@ -577,7 +574,7 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
 def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False,
           easy = True):
 
-    goalProb, errProbs = (0.4,smallErrProbs) if easy else (0.95,typicalErrProbs)
+    goalProb, errProbs = (0.4,smallErrProbs) if easy else (0.98,typicalErrProbs)
 
     p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.6, 0.0, 0.61, 0.0)
@@ -599,7 +596,7 @@ def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False,
 def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
           easy = True):
 
-    goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.95,typicalErrProbs)
+    goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.98,typicalErrProbs)
         
     p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.6, 0.0, 0.61, 0.0)
@@ -621,14 +618,16 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
           heuristic = heuristic,
           )
 
-# Test look, pick, place
+# Test look, pick
 def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
           hierarchical = False, easy = True):
 
-    goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.95,typicalErrProbs)
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.99,typicalErrProbs)
 
     p1 = util.Pose(0.45, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.6, 0.0, 0.61, 0.0)
+    delta = (0.01, 0.01, 0.01, 0.05)
     t = PlanTest('test7',  errProbs, allOperators,
                  objects=['table1', 'objA', 'table2'],
                  movePoses={'objA': p1,
@@ -640,7 +639,7 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
     goal = State([Bd([Holding(['left']), 'objA', goalProb], True),
                   Bd([GraspFace(['objA', 'left']), 0, goalProb], True),
                   B([Grasp(['objA', 'left', 0]),
-                     (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), (0.001,)*4,
+                     (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), delta,
                      goalProb], True)])
     homeConf = makeConf(t.world.robot, -0.5, 0.0, math.pi, up=True) if flip else None
     skel = [[lookAtHand, move, pick, move, lookAt, move]]*3
@@ -658,19 +657,19 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
             heuristic = habbs, hand='left', flip = False, gd=1,
             easy = True):
 
-    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.98,typicalErrProbs)
 
     global moreGD
     if gd != 0: moreGD = True
     t = PlanTest('test8', errProbs, allOperators,
                  objects=['table1', 'table3', 'objA'])
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
-    confDeltas = (0.05, 0.05, 0.05, 0.05)
     goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
                   Bd([GraspFace(['objA', hand]), gd, goalProb], True),
                   B([Grasp(['objA', hand, gd]),
                      (0,-0.025,0,0), (0.005, 0.005, 0.005, 0.05),
-                     (0.001,)*4, goalProb], True)])
+                     (0.01,)*4, goalProb], True)])
     homeConf = makeConf(t.world.robot, -0.5, 0.0, math.pi, up=True) if flip else None
     goodSkel = [[pick,
                  move,
@@ -689,8 +688,12 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
           regions=['table1Top']
           )
 
-def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False):
-    t = PlanTest('test9', typicalErrProbs, allOperators,
+def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
+          easy = True):
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.98,typicalErrProbs)
+
+    t = PlanTest('test9', errProbs, allOperators,
                  objects = ['table1'],
                  varDict = {'table1': (0.01*2,)*4})
 
@@ -706,10 +709,13 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False):
                        lookAt, move]] if skeleton else None,
           )
 
-def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
+def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+           easy = True):
     # need to look at A to clear path to b
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     
-    t = PlanTest('test10',  smallErrProbs, allOperators,
+    t = PlanTest('test10',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  varDict = {'objA': (0.01*2,)*4})
     targetPose = (0.55, 0.25, 0.61, 0.0)
@@ -719,12 +725,10 @@ def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
 
-    goalProb = 0.4
-
     goal = State([\
                   Bd([SupportFace(['objB']), 4, goalProb], True),
                   B([Pose(['objB', 4]),
-                     targetPoseB, targetVar, (0.001,)*4,
+                     targetPoseB, targetVar, (0.02,)*4,
                      goalProb], True)])
     t.run(goal,
           hpn = hpn,
@@ -737,32 +741,27 @@ def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
 
 
 def test11(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs):
-    t = PlanTest('test11',  smallErrProbs, allOperators,
+           heuristic = habbs, easy = True):
+    glob.rebindPenalty = 500
+    glob.monotonicFirst = hierarchical
+    glob.monotonicFirst = True
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+    t = PlanTest('test11',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  varDict = {'objA': (0.01*2,)*4,
                             'objB': (0.01*2,)*4})
     targetPose = (0.55, 0.25, 0.61, 0.0)
     targetPoseB = (0.55, -0.2, 0.61, 0.0)
     targetVar = (0.001, 0.001, 0.001, 0.005) 
-
-    goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
-    confDeltas = (0.05, 0.05, 0.05, 0.05)
-
-    goalProb = 0.7
-
     goal = State([\
                   Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
-                     targetPose, targetVar, (0.001,)*4,
+                     targetPose, targetVar, (0.02,)*4,
                      goalProb], True),
                   Bd([SupportFace(['objB']), 4, goalProb], True),
                   B([Pose(['objB', 4]),
-                     targetPoseB, targetVar, (0.001,)*4,
+                     targetPoseB, targetVar, (0.02,)*4,
                      goalProb], True)])
-
-    glob.monotonicFirst = hierarchical
-    glob.rebindPenalty = 200
 
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
              move,
@@ -784,6 +783,28 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
              lookAt.applyBindings({'Obj' : 'objA'}),
              move]]*5
 
+
+    hardskel = [[lookAt.applyBindings({'Obj' : 'objA'}),
+                move,
+             place.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
+             move,
+             pick.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
+             poseAchCanPickPlace,
+             move,
+             lookAt.applyBindings({'Obj' : 'objA'}),
+             move,
+             lookAt.applyBindings({'Obj' : 'objB'}),
+             move,
+             place.applyBindings({'Obj' : 'objB', 'Hand' : 'right'}),
+             poseAchCanPickPlace,
+             move,
+             lookAtHand.applyBindings({'Obj' : 'objA'}),
+             move,
+             pick.applyBindings({'Obj' : 'objB', 'Hand' : 'right'}),
+             move,
+             lookAt.applyBindings({'Obj' : 'objB'}),
+             move]]*5
+        
     t.run(goal,
           hpn = hpn,
           skeleton = skel if skeleton else None,
@@ -793,8 +814,11 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
           )
     
 def test12(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs):
-    t = PlanTest('test12',  smallErrProbs, allOperators,
+           heuristic = habbs, easy = True):
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+
+    t = PlanTest('test12',  errProbs, allOperators,
                  objects=['table1', 'table2',
                           'objA', 'objB', 'objD',
                           'objE', 'objF', 'objG'])
@@ -804,16 +828,13 @@ def test12(hpn = True, skeleton = False, hierarchical = False,
 
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
-
-    goalProb = 0.1
-
     hand = 'left'
     gd = 0
     goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
                   Bd([GraspFace(['objA', hand]), 0, goalProb], True),
                   B([Grasp(['objA', hand, gd]),
                      (0,-0.025,0,0), (0.001, 0.001, 0.001, 0.001),
-                     (0.001,)*4, goalProb], True)])
+                     (0.02,)*4, goalProb], True)])
     t.run(goal,
           hpn = hpn,
           skeleton = [[pick,
@@ -839,19 +860,16 @@ def test12(hpn = True, skeleton = False, hierarchical = False,
           heuristic = heuristic
           )
 
-def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
-    t = PlanTest('test13',  smallErrProbs, allOperators,
+def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+           easy = True):
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+    t = PlanTest('test13',  errProbs, allOperators,
                  objects=['table1', 'table2', 'objA', 'objB', 'objD',
                           'objE', 'objF', 'objG'])
     targetPose = (0.55, 0.25, 0.61, 0.0)
     targetPoseB = (0.55, -0.2, 0.61, 0.0)
     targetVar = (0.001, 0.001, 0.001, 0.005)  # should be this
-
-    goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
-    confDeltas = (0.05, 0.05, 0.05, 0.05)
-
-    goalProb = 0.1
-
     if skeleton and not hierarchical:
         raw_input('skeleton wrong for this problem')
 
@@ -890,7 +908,7 @@ def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
     goal = State([\
                   Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
-                     targetPose, targetVar, (0.001,)*4,
+                     targetPose, targetVar, (0.02,)*4,
                      goalProb], True)])
     t.run(goal,
           hpn = hpn,
@@ -900,13 +918,17 @@ def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
           heuristic = heuristic
           )
     
-def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
+def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+           easy = True):
     # Move A so we can look at B
     # Example isn't really constructed right
 
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+
     p1 = util.Pose(0.4, 0.0, 0.61, 0.0)
     p2 = util.Pose(0.8, 0.0, 0.61, 0.0)
-    t = PlanTest('test14', smallErrProbs, allOperators,
+    t = PlanTest('test14', errProbs, allOperators,
                  objects=['table1', 'objA', 'objB', 'table2',
                           'cupboardSide1', 'cupboardSide2'],
                  movePoses={'objA': p1,
@@ -914,12 +936,10 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
                  varDict = {'objA': (0.0001*2,)*4,
                             'objB': (0.005*2,)*4})
 
-    goalProb = 0.8
-
     goal = State([ Bd([SupportFace(['objB']), 4, goalProb], True),
                    B([Pose(['objB', 4]), p2.xyztTuple(),
-                     (0.0001, 0.0001, 0.0001, 0.001),
-                          (0.01,)*4, goalProb], True)])
+                     (0.00001, 0.00001, 0.00001, 0.0001),
+                          (0.02,)*4, goalProb], True)])
 
     t.run(goal,
           hpn = hpn,
@@ -934,10 +954,14 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs):
 
 # Test look at hand
 def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
-           heuristic=habbs, hierarchical=False):
+           heuristic=habbs, hierarchical=False, easy = True):
+
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+
     global moreGD
     if gd != 0: moreGD = True           # hack!
-    t = PlanTest('test15', typicalErrProbs, allOperators,
+    t = PlanTest('test15', errProbs, allOperators,
                  objects=['table1', 'objA'])
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
@@ -945,7 +969,7 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
                   Bd([GraspFace(['objA', hand]), gd, .6], True),
                   B([Grasp(['objA', hand, gd]),
                      (0,-0.025,0,0), (0.0001, 0.0001, 0.0001, 0.0001),
-                     (0.001,)*4, 0.6], True),
+                     (0.02,)*4, 0.6], True),
                   Conf([goalConf, confDeltas], True)])
     homeConf = makeConf(t.world.robot, -0.5, 0.0, math.pi, up=True) \
                          if flip else None
@@ -960,15 +984,17 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
 
 # pick and place with more noise 
 def test16(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs):
-    t = PlanTest('test16',  typicalErrProbs, operators,
+           heuristic = habbs, easy = True):
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+
+    t = PlanTest('test16',  errProbs, operators,
                  objects=['table1', 'objA', 'objB'],
                  varDict = {'objA': (0.005*2,)*4},
                  #varDict = {'objA': (0.01*2,)*4}
                  )
 
     targetPose = (0.55, 0.25, 0.61, 0.0)
-    goalProb = 0.9
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
     goal = State([Bd([SupportFace(['objA']), 4, .5], True),
                   B([Pose(['objA', 4]),
@@ -994,17 +1020,17 @@ def test16(hpn = True, skeleton = False, hierarchical = False,
 # 21.  A in back, B in front -> A in front, B in back (whole enchilada)
 
 def test17(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs):
+           heuristic = habbs, easy = True):
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+
     front = util.Pose(0.45, 0.0, 0.61, 0.0)
     back = util.Pose(0.6, 0.0, 0.61, 0.0)
     parking = util.Pose(0.45, 0.3, 0.61, 0.0)
-    t = PlanTest('test17',  tinyErrProbs, allOperators,
+    t = PlanTest('test17',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
                             'objB': parking})
-
-    #glob.monotonicFirst = False
-    glob.rebindPenalty = 200
 
     skel = [[place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
              move,
@@ -1020,9 +1046,7 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
 
     # Small var
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
-    targetDelta = (0.001, 0.001, 0.001, 0.005)
-    # Increase this
-    goalProb = 0.2
+    targetDelta = (0.02, 0.02, 0.02, 0.05)
     
     goal = State([Bd([SupportFace(['objB']), 4, goalProb], True),
                   B([Pose(['objB', 4]),
@@ -1041,18 +1065,19 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
 # 18.  A in parking, B in parking -> A in front, B in back  (ordering)
 # Trivial with skeleton
 def test18(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs):
+           heuristic = habbs, easy = True):
+
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+
     front = util.Pose(0.45, 0.0, 0.61, 0.0)
     back = util.Pose(0.6, 0.0, 0.61, 0.0)
     parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
     parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
-    t = PlanTest('test18',  tinyErrProbs, allOperators,
+    t = PlanTest('test18',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': parking1,
                             'objB': parking2})
-
-    #glob.monotonicFirst = False
-    glob.rebindPenalty = 200
 
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
              move,
@@ -1065,9 +1090,7 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
 
     # Small var
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
-    targetDelta = (0.001, 0.001, 0.001, 0.005)
-    # Increase this
-    goalProb = 0.2
+    targetDelta = (0.02, 0.02, 0.02, 0.05)
     
     goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
@@ -1088,18 +1111,19 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
 
 # 19.  A in back, B in parking -> A in front, B in back (combination)    
 def test19(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs):
+           heuristic = habbs, easy = True):
+
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+
     front = util.Pose(0.45, 0.0, 0.61, 0.0)
     back = util.Pose(0.6, 0.0, 0.61, 0.0)
     parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
     parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
-    t = PlanTest('test19',  tinyErrProbs, allOperators,
+    t = PlanTest('test19',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
                             'objB': parking2})
-
-    #glob.monotonicFirst = False
-    glob.rebindPenalty = 200
 
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
              move,
@@ -1112,9 +1136,7 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
 
     # Small var
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
-    targetDelta = (0.001, 0.001, 0.001, 0.005)
-    # Increase this
-    goalProb = 0.2
+    targetDelta = (0.02, 0.02, 0.02, 0.05)
     
     goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
@@ -1135,25 +1157,24 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
 
 
 def test19a(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs):
+           heuristic = habbs, easy = True):
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+    glob.monotonicFirst = True
+
     front = util.Pose(0.45, 0.0, 0.61, 0.0)
     back = util.Pose(0.6, 0.0, 0.61, 0.0)
     parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
     parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
     parkingBad = util.Pose(0.683, 0.222, 0.610, 1.571)
-    t = PlanTest('test19a',  tinyErrProbs, allOperators,
+    t = PlanTest('test19a',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': parkingBad,
                             'objB': back})
 
-    glob.monotonicFirst = False
-    glob.rebindPenalty = 200
-
     # Small var
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
-    targetDelta = (0.001, 0.001, 0.001, 0.005)
-    # Increase this
-    goalProb = 0.2
+    targetDelta = (0.02, 0.02, 0.02, 0.05)
 
     easyGoal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
@@ -1215,18 +1236,21 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
 
 # 20.  Swap!
 def test20(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs):
+           heuristic = habbs, easy = True):
+
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+    glob.monotonicFirst = True
+
+
     front = util.Pose(0.45, 0.0, 0.61, 0.0)
     back = util.Pose(0.6, 0.0, 0.61, 0.0)
     parking1 = util.Pose(0.45, 0.3, 0.61, 0.0)
     parking2 = util.Pose(0.45, -0.3, 0.61, 0.0)
-    t = PlanTest('test20',  tinyErrProbs, allOperators,
+    t = PlanTest('test20',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
                             'objB': front})
-
-    glob.monotonicFirst = True
-    glob.rebindPenalty = 200
 
     # This just gets us down the first left expansion
     hierSkel = [[place, place], #0
@@ -1265,9 +1289,7 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
 
     # Small var
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
-    targetDelta = (0.001, 0.001, 0.001, 0.005)
-    # Increase this
-    goalProb = 0.2
+    targetDelta = (0.02, 0.02, 0.02, 0.05)
     
     goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
