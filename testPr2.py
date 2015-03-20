@@ -61,9 +61,9 @@ reload(pr2Ops)
 from pr2Ops import move, pick, place, lookAt, poseAchCanReach, poseAchCanSee,\
       lookAtHand, hRegrasp, poseAchCanPickPlace, graspAchCanPickPlace
 
-import pr2Sim
-reload(pr2Sim)
-from pr2Sim import RealWorld
+import pr2Sim2
+reload(pr2Sim2)
+from pr2Sim2 import RealWorld
 
 
 writeSearch = True
@@ -103,7 +103,7 @@ def testRepeat(n, repeat=3, **args):
 testResults = {}
 
 def testAll(indices, repeat=3, crashIsError=True, **args):
-    pr2Sim.crashIsError = crashIsError
+    pr2Sim2.crashIsError = crashIsError
     for i in indices:
         if i == 0: continue
         testRepeat(i, repeat=repeat, **args)
@@ -358,7 +358,7 @@ class PlanTest:
         startTime = time.clock()
         fbch.flatPlan = not hierarchical
         fbch.plannerGreedy = greedy  # somewhat greedy by default
-        pr2Sim.simulateError = simulateError
+        pr2Sim2.simulateError = simulateError
         for win in wm.windows:
             wm.getWindow(win).clear()
         self.buildBelief(home=home, regions=regions)
@@ -472,7 +472,7 @@ allOperators = [move, pick, place, lookAt, poseAchCanReach,
                 graspAchCanPickPlace]
 
 # Try to make a plan!     Just move
-def test1(hpn=True, skeleton=False, heuristic=habbs, hierarchical=False):
+def test1(hpn=True, skeleton=False, heuristic=habbs, hierarchical=False, easy=True):
     t = PlanTest('test1', typicalErrProbs, allOperators)
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
@@ -484,7 +484,7 @@ def test1(hpn=True, skeleton=False, heuristic=habbs, hierarchical=False):
 
 # Pick something up! and move
 def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
-          heuristic=habbs, hierarchical=False):
+          heuristic=habbs, hierarchical=False, easy=True):
     global moreGD
     if gd != 0: moreGD = True           # hack!
     t = PlanTest('test2', typicalErrProbs, allOperators,

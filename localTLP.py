@@ -50,6 +50,7 @@ debugOn = ['traceGen', 'traceCRH', 'confReachViol', 'canPickPlaceGen', 'pickGen'
 debugOn = ['traceGen', 'traceCRH', 'prim', 'getShadowWorldGrasp']
 # debugOn = []
 debugOn = ['traceGen', 'traceCRH']
+
 pauseOn = debugOn
 if 'canPickPlaceTest' in pauseOn:
     pauseOn.remove('canPickPlaceTest')

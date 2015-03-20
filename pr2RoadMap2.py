@@ -541,11 +541,11 @@ class RoadMap:
 
             if draw or debug('successors'):
                 pbs.draw(prob, 'W')
-                v.conf.draw('W', 'cyan')
+                v.conf.draw('W', color='cyan', attached=attached)
                 color = colorGen.next()
                 print v, '->'
                 for (n, _) in successors:
-                    n.conf.draw('W', color)
+                    n.conf.draw('W', color=color, attached=attached)
                     print '    ', n
                 wm.getWindow('W').update()
                 debugMsg('successors', 'Go?')
