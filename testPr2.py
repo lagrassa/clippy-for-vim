@@ -354,11 +354,8 @@ class PlanTest:
         self.bs = bs
 
     def run(self, goal, skeleton = None, hpn = True,
-<<<<<<< HEAD
-            home=None, regions = set(), hierarchical = False, heuristic = None,
-=======
-            home=None, regions = frozenset([]), hierarchical = False, heuristic = None,
->>>>>>> Improve_motion_planner
+            home=None, regions = frozenset([]), hierarchical = False,
+            heuristic = None,
             greedy = 0.7, simulateError = False,
             initBelief = None, initWorld=None):
         fbch.inHeuristic = False
