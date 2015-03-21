@@ -495,6 +495,7 @@ def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
     if gd != 0: moreGD = True           # hack!
     t = PlanTest('test2', typicalErrProbs, allOperators,
                  objects=['table1', 'objA'])
+    if moreGD: moreGD = False
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
     goal = State([Bd([Holding([hand]), 'objA', .6], True),
@@ -650,7 +651,7 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
                  movePoses={'objA': p1,
                             'objB': p2},
                  varDict = {'objA': (0.01*2,)*4})
-
+    if moreGD: moreGD = False
     targetPose = (0.55, 0.25, tZ, 0.0)
 
     goal = State([Bd([Holding(['left']), 'objA', goalProb], True),
@@ -681,6 +682,7 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
     if gd != 0: moreGD = True
     t = PlanTest('test8', errProbs, allOperators,
                  objects=['table1', 'table3', 'objA'])
+    if moreGD: moreGD = False
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0)
     goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
                   Bd([GraspFace(['objA', hand]), gd, goalProb], True),
@@ -982,6 +984,7 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
     if gd != 0: moreGD = True           # hack!
     t = PlanTest('test15', errProbs, allOperators,
                  objects=['table1', 'objA'])
+    if moreGD: moreGD = False
     goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
     goal = State([Bd([Holding([hand]), 'objA', .6], True),
