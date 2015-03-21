@@ -39,7 +39,8 @@ class BeliefContext:
         self.pathObstCache = {}
         # Initialize generator caches
         self.genCaches = {}
-        for gen in ['pickGen', 'placeGen', 'placeInGen', 'lookGen', 'clearGen', 'getShadowWorld']:
+        for gen in ['pickGen', 'placeGen', 'placeInGen', 'lookGen', 'clearGen',
+                    'getShadowWorld']:
             self.genCaches[gen] = {}
     def __repr__(self):
         return "Belief(%s)"%(str(self.world))
@@ -77,7 +78,7 @@ class PBS:
         return self.beliefContext.world.getObjectShapeAtOrigin(obj)
 
     def awayRegions(self):
-        return [r for r in self.regions if r[:5] == 'table']
+        return frozenset([r for r in self.regions if r[:5] == 'table'])
 
     def getPlaceB(self, obj, face = None, default = True):
         placeB = self.fixObjBs.get(obj, None) or self.moveObjBs.get(obj, None)
@@ -261,12 +262,17 @@ class PBS:
             cache = self.beliefContext.genCaches['getShadowWorld']
             key = (self.items(), fbch.inHeuristic)
             if key in cache:
+<<<<<<< HEAD
                 ans = cache.get(key, None)
                 if ans != None:
                     (self.shadowWorld, self.shadowProb, self.avoidShadow, self.heuristic) = ans
                     # print 'cached shadowWorld'
                     return self.shadowWorld
         # print 'new shadowWorld'
+=======
+                (self.shadowWorld, self.shadowProb, self.avoidShadow, self.heuristic) = cache[key]
+                return self.shadowWorld
+>>>>>>> Improve_motion_planner
         # The world holds objects, but not poses or shapes
         w = self.getWorld().copy()
         # the shadow world is a WorldState.  Cache it.
@@ -303,8 +309,8 @@ class PBS:
             if  obj in self.fixObjBs:   # can't collide with these objects
                 sw.fixedObjects.add(obj)
         # Add robot
-        # !! Fix this
-        sw.robot = PR2('MM', makePr2Chains('PR2', w.workspace, new=False))
+        # sw.robot = PR2('MM', makePr2Chains('PR2', w.workspace, new=False))
+        sw.robot = self.getRobot()
         robot = sw.robot
         robot.nominalConf = w.robot.nominalConf
         # robot.nominalConf = nominalConf

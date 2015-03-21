@@ -1,3 +1,4 @@
+# cython: profile=True
 import transformations as transf
 import copy
 import math

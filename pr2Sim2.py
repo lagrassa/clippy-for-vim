@@ -301,10 +301,10 @@ class RealWorld(WorldState):
         return copy.copy(self)
 
     def draw(self, win):
-        print 'Robot', self.robotConf
-        print 'Objects', self.objectConfs
-        print 'Held', self.held
-        print 'Grasp', self.grasp
+        # print 'Robot', self.robotConf
+        # print 'Objects', self.objectConfs
+        # print 'Held', self.held
+        # print 'Grasp', self.grasp
         wm.getWindow(win).clear()
         WorldState.draw(self, win)
         wm.getWindow(win).update()

@@ -88,6 +88,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p):
         if debug('canPickPlaceTest'):
             print 'Grasp is not legal'
         return None
+    pbs.getRoadMap().approachConfs[pickConf] = preConf
     # if preConf and not inPickApproach(pbs, preConf, pickConf, hand, objGrasp, objPlace):
     #     if debug('canPickPlaceTest'):
     #         print 'Not a proper approach')
