@@ -333,7 +333,13 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
         # if conf is specified, just fail
         return
     # Have any output bindings been specified?
-    graspB = copy.copy(graspB)
+
+    if obj == pbs.held[hand].mode():
+        graspB = copy.copy(pbs.graspB[hand])
+    elif obj == pbs.held[otherHand(hand)].mode():
+        graspB = copy.copy(pbs.graspB[otherHand(hand)])
+    else:
+        graspB = copy.copy(graspB)        
     if graspB.grasp.mode() is None:
         graspB.grasp = UniformDist(range(0,len(graspB.graspDesc)))
     conf = None

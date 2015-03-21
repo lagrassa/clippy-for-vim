@@ -261,9 +261,11 @@ class PBS:
             cache = self.beliefContext.genCaches['getShadowWorld']
             key = (self.items(), fbch.inHeuristic)
             if key in cache:
-                (self.shadowWorld, self.shadowProb, self.avoidShadow, self.heuristic) = cache[key]
-                # print 'cached shadowWorld'
-                return self.shadowWorld
+                ans = cache.get(key, None)
+                if ans != None:
+                    (self.shadowWorld, self.shadowProb, self.avoidShadow, self.heuristic) = ans
+                    # print 'cached shadowWorld'
+                    return self.shadowWorld
         # print 'new shadowWorld'
         # The world holds objects, but not poses or shapes
         w = self.getWorld().copy()
