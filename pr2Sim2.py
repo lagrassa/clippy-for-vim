@@ -69,7 +69,8 @@ class RealWorld(WorldState):
             # !! Add noise to conf
             self.setRobotConf(conf)
             if animate:
-                self.draw('World'); sleep(0.2)
+                self.draw('World')
+                sleep(0.2)
             else:
                 self.robotPlace.draw('World', 'orchid')
             cart = conf.robot.forwardKin(conf)

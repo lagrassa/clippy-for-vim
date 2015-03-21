@@ -49,11 +49,12 @@ regression:inconsistent (may be evidence that generator could have failed earlie
 
 sim
 skeleton
+traceCRH
 traceGen  (compact summary of generators)
 
 '''
 debugOn = ['nonmon', 'executionFail', 
-           'appOp:number', 'traceGen', 'hAddBackInf',
+           'appOp:number', 'traceGen', 'traceCRH', 'hAddBackInf',
            'executionSurprise', 'rebind']
 
 pauseOn = debugOn

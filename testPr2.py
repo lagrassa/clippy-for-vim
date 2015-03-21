@@ -349,7 +349,7 @@ class PlanTest:
         self.bs = bs
 
     def run(self, goal, skeleton = None, hpn = True,
-            home=None, regions = [], hierarchical = False, heuristic = None,
+            home=None, regions = set(), hierarchical = False, heuristic = None,
             greedy = 0.7, simulateError = False,
             initBelief = None, initWorld=None):
         fbch.inHeuristic = False
@@ -361,7 +361,7 @@ class PlanTest:
         pr2Sim2.simulateError = simulateError
         for win in wm.windows:
             wm.getWindow(win).clear()
-        self.buildBelief(home=home, regions=regions)
+        self.buildBelief(home=home, regions = set(regions))
         if initBelief: initBelief(self.bs)
         self.bs.pbs.draw(0.9, 'Belief')
         self.bs.pbs.draw(0.9, 'W')
@@ -504,7 +504,7 @@ def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
           skeleton = [[move, lookAtHand, move, pick, move]] \
                           if skeleton else None,
           heuristic = heuristic,
-          regions=['table1Top'],
+          regions= ['table1Top'],
           home=homeConf
           )
     return t
@@ -675,13 +675,13 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
     if gd != 0: moreGD = True
     t = PlanTest('test8', errProbs, allOperators,
                  objects=['table1', 'table3', 'objA'])
-    goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
+    goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0)
     goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
                   Bd([GraspFace(['objA', hand]), gd, goalProb], True),
                   B([Grasp(['objA', hand, gd]),
                      (0,-0.025,0,0), (0.005, 0.005, 0.005, 0.05),
                      (0.01,)*4, goalProb], True)])
-    homeConf = makeConf(t.world.robot, -0.5, 0.0, math.pi, up=True) if flip else None
+    homeConf = makeConf(t.world.robot, -0.5, 0.0, math.pi) if flip else None
     goodSkel = [[pick,
                  move,
                  place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
