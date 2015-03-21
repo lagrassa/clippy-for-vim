@@ -102,7 +102,8 @@ def easyGraspGen(args, goalConds, bState, outBindings):
                 ans = (gB.grasp.mode(), gB.poseD.mode().xyztTuple(),
                        graspVar, graspDelta)
                 if debug('traceGen'):
-                    print '    easyGraspGen(%s,%s)='%(obj, hand), ans
+                    pg = (placeB.support.mode(), gB.grasp.mode())
+                    print '    easyGraspGen(%s,%s)='%(obj, hand), '(p,g)=', pg, ans
                 yield ans
                 break
     if debug('traceGen'):
@@ -194,7 +195,9 @@ def pickGenTop(args, goalConds, pbs, outBindings,
             (pB, cf, ca) = x
             pose = pB.poseD.mode() if pB else None
             grasp = graspB.grasp.mode() if graspB else None
-            print '    pickGen(%s) viol='%obj, v.weight() if v else None, grasp, pose
+            pg = (placeB.support.mode(), grasp)
+            w = v.weight() if v else None
+            print '    pickGen(%s) viol='%obj, w, '(p,g)=', pg, pose
         yield x,v
 
 def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
@@ -333,7 +336,13 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
         # if conf is specified, just fail
         return
     # Have any output bindings been specified?
-    graspB = copy.copy(graspB)
+
+    if obj == pbs.held[hand].mode():
+        graspB = copy.copy(pbs.graspB[hand])
+    elif obj == pbs.held[otherHand(hand)].mode():
+        graspB = copy.copy(pbs.graspB[otherHand(hand)])
+    else:
+        graspB = copy.copy(graspB)        
     if graspB.grasp.mode() is None:
         graspB.grasp = UniformDist(range(0,len(graspB.graspDesc)))
     conf = None
@@ -355,7 +364,9 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
             (gB, pB, c, ca) = x
             pose = pB.poseD.mode() if pB else None
             grasp = gB.grasp.mode() if gB else None
-            print '    placeGen(%s,%s) viol='%(obj,hand), v.weight() if v else None, grasp, pose, '(t=', time.clock()-startTime, ')'
+            pg = (pB.support.mode(), grasp)
+            w = v.weight() if v else None
+            print '    placeGen(%s,%s) viol='%(obj,hand), w, '(p,g)=', pg, pose, '(t=', time.clock()-startTime, ')'
         yield x,v
 
 def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
@@ -515,10 +526,10 @@ def placeInGen(args, goalConds, bState, outBindings,
                considerOtherIns = False, regrasp = False, away=False):
     (obj, region, pose, support, objV, graspV, objDelta,
      graspDelta, confDelta, hand, prob) = args
-    if not isinstance(region, (list, tuple)):
-        regions = [region]
+    if not isinstance(region, (list, tuple, frozenset)):
+        regions = frozenset([region])
     else:
-        regions = region
+        regions = frozenset(region)
 
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     world = bState.pbs.getWorld()
@@ -627,15 +638,18 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
             for ans in placeInGenCache[key]:
                 ((pB, gB, cf, ca), viol) = ans
                 pose = pB.poseD.mode() if pB else None
+                sup = pB.support.mode() if pB else None
                 grasp = gB.grasp.mode() if gB else None
+                pg = (sup, grasp)
                 sh = objShadow.applyTrans(pose)
                 if all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
                     viol2 = canPickPlaceTest(pbs, ca, cf, hand, gB, pB, prob)
                     if viol2 and viol2.weight() <= viol.weight():
                         if debug('traceGen'):
+                            w = viol2.weight() if viol2 else None
                             print '    reusing placeInGen',
                             print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
-                                  fbch.inHeuristic, 'v=', viol2.weight() if viol2 else None, 'g=', grasp, pose
+                                  fbch.inHeuristic, 'v=', w, '(p,g)=', pg, pose
                         yield ans[0], viol2
         else:
             # placeInGenCache[key] = []
@@ -652,8 +666,10 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
                 (pB, gB, c, ca) = ans
                 pose = pB.poseD.mode() if pB else None
                 grasp = gB.grasp.mode() if gB else None
+                sup = pB.support.mode() if pB else None
+                pg = (sup, grasp)
                 print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
-                      v.weight() if v else None, grasp, pose
+                      v.weight() if v else None, '(p,g)=', pg, pose
             # placeInGenCache[key].append((ans, v))
             yield ans,v
     else:

@@ -28,7 +28,7 @@ crashIsError = False
 
 simulateError = False
 
-animate = True
+animate = False
 
 pickSuccessDist = 0.1  # pretty big for now
 class RealWorld(WorldState):
@@ -300,10 +300,10 @@ class RealWorld(WorldState):
         return copy.copy(self)
 
     def draw(self, win):
-        print 'Robot', self.robotConf
-        print 'Objects', self.objectConfs
-        print 'Held', self.held
-        print 'Grasp', self.grasp
+        # print 'Robot', self.robotConf
+        # print 'Objects', self.objectConfs
+        # print 'Held', self.held
+        # print 'Grasp', self.grasp
         wm.getWindow(win).clear()
         WorldState.draw(self, win)
         wm.getWindow(win).update()

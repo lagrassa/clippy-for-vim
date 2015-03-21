@@ -98,9 +98,7 @@ class RoadMap:
         # Caches
         self.edges = {}
         self.confReachCache = {}
-        self.confReachCacheHits = 0
-        self.confReachPathFails = 0
-        self.confReachCacheTotal = 0
+        self.approachConfs = {}
 
     def batchAddNodes(self, confs):
         if not confs: return
@@ -130,21 +128,22 @@ class RoadMap:
                 pose = cart[chain] 
                 pose_o = [pose.matrix[i,3] for i in range(3)]
                 point.extend(pose_o)
-                #for j in range(2):            # x and y axes
-                #    point.extend([alpha*pose.matrix[i,j] + pose_o[i] for i in range(3)])
+                for j in [2]:           # could be 0,1,2
+                    point.extend([alpha*pose.matrix[i,j] + pose_o[i] for i in range(3)])
         return point
             
     def addNode(self, conf, merge = True):
         cart = self.robot.forwardKin(conf)
         point = self.pointFromCart(cart)
         n_new = Node(conf, cart, point)
-        (d, nc) = self.nearest(n_new, 1)[0]
-        if d <= self.nodeTooClose and conf == nc.conf:
-            if debug('addNode'):
-                print 'New', conf
-                print 'Old', nc.conf
-                raw_input('Node too close, d=%s'%d)
-            return nc
+        if merge:
+            (d, nc) = self.nearest(n_new, 1)[0]
+            if d <= self.nodeTooClose:
+                if debug('addNode'):
+                    print 'New', conf
+                    print 'Old', nc.conf
+                    raw_input('Node too close, d=%s'%d)
+                return nc
         self.newPoints.append(point)
         self.newNodes.append(n_new)
         self.newSize += 1
@@ -648,6 +647,9 @@ class RoadMap:
         global coarsePath
         realInitViol = initViol
         initViol = noViol
+        initConf = startConf or self.homeConf
+        initConfNode = self.addNode(initConf)
+
         def grasp(hand):
             g = pbs.graspB[hand]
             if g == None or g.obj == 'none':
@@ -656,8 +658,6 @@ class RoadMap:
                 return g
         def exitWithAns(ans):
             self.confReachCache[key].append((pbs, prob, avoidShadow, ans))
-            if not ans[0]:
-                self.confReachPathFails += 1
             if ans and ans[0] and ans[2]:
                 (viol, cost, path, nodePath) = ans
                 if debug('confReachViol') and (not fbch.inHeuristic or debug('drawInHeuristic')):
@@ -691,12 +691,28 @@ class RoadMap:
         #     prob = 0.99*prob             # make slightly easier
         if attached == None:
             attached = pbs.getShadowWorld(prob).attached
-        # key = (targetConf, startConf, prob, pbs, tuple(avoidShadow), initViol),
-        key = (targetConf, startConf, initViol, fbch.inHeuristic or coarsePath)
+        if not fbch.inHeuristic and initConf in self.approachConfs:
+            key = (targetConf, self.approachConfs[initConf], initViol, fbch.inHeuristic or coarsePath)
+            if key in self.confReachCache:
+                if debug('confReachViolCache'): print 'confReachCache approach tentative hit'
+                cacheValues = self.confReachCache[key]
+                ans = bsEntails(pbs, prob, avoidShadow, cacheValues, loose=True)
+                if ans != None:
+                    if debug('traceCRH'): print '    approach cache hit',
+                    if debug('confReachViolCache'):
+                        debugMsg('confReachViolCache', 'confReachCache approach actual hit')
+                    (viol2, cost2, path2, nodePath2) = ans
+                    cv = self.confViolations(initConf, pbs, prob,
+                                             avoidShadow=avoidShadow, attached=attached)[0]
+                    if cv:
+                        return (viol2.union(cv).union(realInitViol) if viol2 else viol2,
+                                cost2,
+                                [initConf] + path2)
+        key = (targetConf, initConf, initViol, fbch.inHeuristic or coarsePath)
         if debug('confReachViolCache'):
             debugMsg('confReachViolCache',
                      ('targetConf', targetConf.conf),
-                     ('startConf', startConf.conf if startConf else None),
+                     ('initConf', initConf),
                      ('prob', prob),
                      ('moveObjBs', pbs.moveObjBs),
                      ('fixObjBs', pbs.fixObjBs),
@@ -706,7 +722,6 @@ class RoadMap:
                      ('initViol', ([x.name() for x in initViol.obstacles],
                                    [x.name() for x in initViol.shadows]) if initViol else None),
                      ('avoidShadow', avoidShadow))
-        self.confReachCacheTotal += 1
         if key in self.confReachCache:
             if debug('confReachViolCache'): print 'confReachCache tentative hit'
             cacheValues = self.confReachCache[key]
@@ -727,17 +742,20 @@ class RoadMap:
                     if viol2:
                         newViol = self.checkNodePath(nodePath2, pbs, prob,
                                                      pbs.getShadowWorld(prob).attached, avoidShadow)
-                        if newViol and newViol.obstacles==viol2.obstacles and newViol.shadows==viol2.shadows:
+                        # newViol.obstacles<=viol2.obstacles and newViol.shadows<=viol2.shadows
+                        if newViol and newViol.weight() <= viol2.weight():
+                            ans = (newViol.union(realInitViol) if newViol else newViol, cost2, path2,
+                                   nodePath2)
                             if debug('traceCRH'): print '    reusing path',
                             if debug('confReachViolCache'):
                                 debugMsg('confReachViolCache', 'confReachCache reusing path')
                                 print '    returning', ans
-                            return (viol2.union(realInitViol) if viol2 else viol2, cost2, path2)
+                            self.confReachCache[key].append((pbs, prob, avoidShadow, ans))
+                            return ans[:-1]
         else:
             self.confReachCache[key] = []
             if debug('confReachViolCache'): print 'confReachCache miss'
 
-        initConf = startConf or self.homeConf
         drawProblem()
         cv = self.confViolations(targetConf, pbs, prob,
                                  avoidShadow=avoidShadow, attached=attached)[0]
@@ -754,7 +772,6 @@ class RoadMap:
             if debug('traceCRH'): print '    init=target',
             return exitWithAns((cvi, 0, [targetConf], [node]))
         if fbch.inHeuristic:
-            initConfNode = self.addNode(initConf)  # have it stored??
             ans = cvi, objCost*len(cvi.obstacles)+shCost*len(cvi.shadows), \
                   [initConf, targetConf], [initConfNode, node]
             return exitWithAns(ans)
@@ -763,7 +780,7 @@ class RoadMap:
             pbs.draw(prob, 'W')
         hsave = fbch.inHeuristic
         gen = self.minViolPathGen([node], pbs, prob, avoidShadow,
-                                  startConf, cvi,
+                                  initConf, cvi,
                                   objCost, shCost, maxNodes, attached=attached)
         ans = gen.next()        
         return exitWithAns(ans)
@@ -845,13 +862,13 @@ class RoadMap:
     def __str__(self):
         return 'RoadMap:['+str(self.size+self.newSize)+']'
 
-def bsEntails(bs1, p1, avoid1, cacheValues):
+def bsEntails(bs1, p1, avoid1, cacheValues, loose=False):
     for cacheValue in cacheValues:
         (bs2, p2, avoid2, ans) = cacheValue
         (viol2, cost2, path2, _) = ans
         if debug('confReachViolCache'):
             print 'cached v=', viol2.weight() if viol2 else viol2
-        if path2 and viol2 and viol2.empty():
+        if path2 and viol2 and (loose or viol2.empty()):
             # when theres a "clear" path and bs2 is "bigger", then we can use it
             # if there is some collision with obstacle or shadow, then it doesn't follow.
             if bsBigger(bs2, bs1) and p2 >= p1 and (avoid1 == avoid2 or not avoid1):
@@ -872,13 +889,13 @@ def bsBigger(bs1, bs2):
             print '    held1', held1
             print '    held2', held2
         return False
-    if not fix2 <= fix1:
+    if not placesBigger(fix1, fix2):
         if debug('confReachViolCache'):
             print 'fix1 is not superset of fix2'
             print '    fix1', fix1
             print '    fix2', fix2
         return False
-    if not move2 <= move1:
+    if not placesBigger(move1, move2):
         if debug('confReachViolCache'):
             print 'move1 is not superset of move2'
             print '    move1', move1
@@ -894,7 +911,38 @@ def bsBigger(bs1, bs2):
                 print '    grasp2', grasp2
                 debugMsg('confReachViolCache', 'Go?')
             return False
-    if debug('confReachViolCache'): 'bsBigger = True'
+    if debug('confReachViolCache'): print 'bsBigger = True'
+    return True
+
+def placesBigger(places1, places2):
+    if debug('confReachViolCache'):
+        print 'placesBigger'
+        print '    places1', places1
+        print '    places2', places2
+    if not set([name for name, place in places2]) <= set([name for name, place in places1]):
+        if debug('confReachViolCache'): print 'names are not superset'
+        return False
+    dict2 = dict(list(places2))
+    for (name1, placeB1) in places1:
+        if not name1 in dict2: continue
+        if not placeBigger(placeB1, dict2[name1]):
+            if debug('confReachViolCache'): print placeB1, 'not bigger than', dict2[name1]
+            return False
+    return True
+
+def placeBigger(p1, p2):
+    if debug('confReachViolCache'):
+        print 'placeBigger'
+        print '    p1', p1
+        print '    p2', p2
+    if p1 == p2: return True
+    if p1.obj != p2.obj: return False
+    if p1.poseD.muTuple != p2.poseD.muTuple: return False
+    w1 = [v+d for (v,d) in zip(p1.poseD.var, p1.delta)]
+    w2 = [v+d for (v,d) in zip(p2.poseD.var, p2.delta)]
+    if not all([x1 >= x2 for x1, x2 in zip(w1, w2)]):
+        if debug('confReachViolCache'): print w1, 'not bigger than', w2
+        return False
     return True
 
 def graspBigger(gr1, gr2):
@@ -905,8 +953,8 @@ def graspBigger(gr1, gr2):
         if g1 is None or g2 is None: continue
         if g1.obj != g2.obj: return False
         if g1.poseD.muTuple != g2.poseD.muTuple: return False
-        w1 = [v+d for (v,d) in zip(g1.poseD.muTuple, g1.delta)]
-        w2 = [v+d for (v,d) in zip(g2.poseD.muTuple, g2.delta)]
+        w1 = [v+d for (v,d) in zip(g1.poseD.var, g1.delta)]
+        w2 = [v+d for (v,d) in zip(g2.poseD.var, g2.delta)]
         if not all([x1 >= x2 for x1, x2 in zip(w1, w2)]):
             return False
     return True

@@ -261,6 +261,8 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False):
     c = robot.inverseKin(cart, conf=c)
     return c
 
+initConfs = []
+
 class PlanTest:
     def __init__(self, name, domainProbs, operators,
                  objects = ['table1','objA'],
@@ -273,21 +275,24 @@ class PlanTest:
         self.objects = objects          # list of objects to consider
         self.domainProbs = domainProbs
         self.world = testWorld(include=self.objects)
-        self.initConfs = []
-        for x in range(-multiplier, (multiplier+1)):
-            for y in range(-multiplier, (multiplier+1)):
-                for angle in [0, math.pi/2, -math.pi/2, math.pi]:
-                    if useHorizontal:
-                        self.initConfs.append(\
-                        makeConf(self.world.robot,
-                                 x*self.size/float(multiplier),
-                                 y*self.size/float(multiplier), angle)),
-                    if useVertical:
-                        self.initConfs.append(\
-                         makeConf(self.world.robot,
-                                  x*self.size/float(multiplier),
-                                  y*self.size/float(multiplier), angle, vertical=True))
-        print 'Creating', len(self.initConfs), 'initial confs'
+        if not initConfs:
+            print 'Creating initial confs ...',
+            for x in range(-multiplier, (multiplier+1)):
+                for y in range(-multiplier, (multiplier+1)):
+                    for angle in [0, math.pi/2, -math.pi/2, math.pi]:
+                        if useHorizontal:
+                            initConfs.append(\
+                            makeConf(self.world.robot,
+                                     x*self.size/float(multiplier),
+                                     y*self.size/float(multiplier), angle)),
+                        if useVertical:
+                            initConfs.append(\
+                             makeConf(self.world.robot,
+                                      x*self.size/float(multiplier),
+                                      y*self.size/float(multiplier), angle, vertical=True))
+            print 'done'
+        self.initConfs = initConfs
+        print 'Using', len(self.initConfs), 'initial confs'
         var4 = (var, var, 0.0, var)
         del0 = (0.0, 0.0, 0.0, 0.0)
         ff = lambda o: self.world.getFaceFrames(o) if o in objects else []
@@ -332,7 +337,7 @@ class PlanTest:
         wm.makeWindow('Belief', viewPort, 500)
         wm.makeWindow('World', viewPort, 500)
 
-    def buildBelief(self, home=None, regions=[]):
+    def buildBelief(self, home=None, regions=frozenset([])):
         world = self.world
         belC = BeliefContext(world)
         pr2Home = home or makeConf(world.robot, -0.5, 0.0, 0.0)
@@ -343,13 +348,13 @@ class PlanTest:
         rm.batchAddNodes(self.initConfs)
         belC.roadMap = rm
         pbs = PBS(belC, conf=pr2Home, fixObjBs = self.fix.copy(), moveObjBs = self.move.copy(),
-        regions = regions, domainProbs=self.domainProbs) 
+        regions = frozenset(regions), domainProbs=self.domainProbs) 
         pbs.draw(0.9, 'Belief')
         bs = BeliefState(pbs, self.domainProbs, 'table2Top')
         self.bs = bs
 
     def run(self, goal, skeleton = None, hpn = True,
-            home=None, regions = [], hierarchical = False, heuristic = None,
+            home=None, regions = frozenset([]), hierarchical = False, heuristic = None,
             greedy = 0.7, simulateError = False,
             initBelief = None, initWorld=None):
         fbch.inHeuristic = False
@@ -675,13 +680,13 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
     if gd != 0: moreGD = True
     t = PlanTest('test8', errProbs, allOperators,
                  objects=['table1', 'table3', 'objA'])
-    goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0, up=True)
+    goalConf = makeConf(t.world.robot, 0.0, 1.0, 0.0)
     goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
                   Bd([GraspFace(['objA', hand]), gd, goalProb], True),
                   B([Grasp(['objA', hand, gd]),
                      (0,-0.025,0,0), (0.005, 0.005, 0.005, 0.05),
                      (0.01,)*4, goalProb], True)])
-    homeConf = makeConf(t.world.robot, -0.5, 0.0, math.pi, up=True) if flip else None
+    homeConf = makeConf(t.world.robot, -0.5, 0.0, math.pi) if flip else None
     goodSkel = [[pick,
                  move,
                  place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
@@ -1484,10 +1489,10 @@ def test22(hpn = True, skeleton = False, hierarchical = False,
           regions = ['table1Top']
           )
     
-def prof(test):
+def prof(test, n=50):
     import cProfile
     import pstats
     cProfile.run(test, 'prof')
     p = pstats.Stats('prof')
-    p.sort_stats('cumulative').print_stats(50)
-    p.sort_stats('cumulative').print_callers(50)
+    p.sort_stats('cumulative').print_stats(n)
+    p.sort_stats('cumulative').print_callers(n)
