@@ -262,17 +262,11 @@ class PBS:
             cache = self.beliefContext.genCaches['getShadowWorld']
             key = (self.items(), fbch.inHeuristic)
             if key in cache:
-<<<<<<< HEAD
                 ans = cache.get(key, None)
                 if ans != None:
                     (self.shadowWorld, self.shadowProb, self.avoidShadow, self.heuristic) = ans
                     # print 'cached shadowWorld'
                     return self.shadowWorld
-        # print 'new shadowWorld'
-=======
-                (self.shadowWorld, self.shadowProb, self.avoidShadow, self.heuristic) = cache[key]
-                return self.shadowWorld
->>>>>>> Improve_motion_planner
         # The world holds objects, but not poses or shapes
         w = self.getWorld().copy()
         # the shadow world is a WorldState.  Cache it.
