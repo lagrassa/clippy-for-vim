@@ -1011,7 +1011,7 @@ def test16(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 500
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
-    t = PlanTest('test16',  errProbs, operators,
+    t = PlanTest('test16',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  varDict = {'objA': (0.005*2,)*4},
                  #varDict = {'objA': (0.01*2,)*4}

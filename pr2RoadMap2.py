@@ -696,7 +696,9 @@ class RoadMap:
             if key in self.confReachCache:
                 if debug('confReachViolCache'): print 'confReachCache approach tentative hit'
                 cacheValues = self.confReachCache[key]
-                ans = bsEntails(pbs, prob, avoidShadow, cacheValues, loose=True)
+                sortedCacheValues = sorted(cacheValues,
+                                           key=lambda v: v[-1][0].weight() if v[-1][0] else v[-1][0])
+                ans = bsEntails(pbs, prob, avoidShadow, sortedCacheValues, loose=True)
                 if ans != None:
                     if debug('traceCRH'): print '    approach cache hit',
                     if debug('confReachViolCache'):
@@ -725,7 +727,9 @@ class RoadMap:
         if key in self.confReachCache:
             if debug('confReachViolCache'): print 'confReachCache tentative hit'
             cacheValues = self.confReachCache[key]
-            ans = bsEntails(pbs, prob, avoidShadow, cacheValues)
+            sortedCacheValues = sorted(cacheValues,
+                                       key=lambda v: v[-1][0].weight() if v[-1][0] else v[-1][0])
+            ans = bsEntails(pbs, prob, avoidShadow, sortedCacheValues)
             if ans != None:
                 if debug('traceCRH'): print '    actual cache hit',
                 if debug('confReachViolCache'):
@@ -734,8 +738,6 @@ class RoadMap:
                 (viol2, cost2, path2, nodePath2) = ans
                 return (viol2.union(realInitViol) if viol2 else viol2, cost2, path2) # actual answer
             elif not fbch.inHeuristic:
-                sortedCacheValues = sorted(cacheValues,
-                                           key=lambda v: v[-1][0].weight() if v[-1][0] else v[-1][0])
                 for cacheValue in sortedCacheValues:
                     (bs2, p2, avoid2, ans) = cacheValue
                     (viol2, cost2, path2, nodePath2) = ans
