@@ -31,7 +31,7 @@ cost
 drawInHeuristic
 executionFail
 executionSurprise
-fluentCache
+fluentCache (be sure the fluent cache is behaving)
 hAddBack   (super verbose)
 hAddBackInf
 hAddBackV  (just values)
@@ -56,7 +56,10 @@ traceGen  (compact summary of generators)
 '''
 debugOn = ['nonmon', 'executionFail', 
            'appOp:number', 'traceGen', 'traceCRH', 'hAddBackInf',
-           'executionSurprise', 'rebind', 'fluentCache']
+           'executionSurprise', 'rebind']
+#    , 'prim', 'nextStep']
+
+debugOn = []
 
 pauseOn = debugOn
 

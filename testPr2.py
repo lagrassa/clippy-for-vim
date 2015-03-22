@@ -688,8 +688,8 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
     goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
                   Bd([GraspFace(['objA', hand]), gd, goalProb], True),
                   B([Grasp(['objA', hand, gd]),
-                     (0,-0.025,0,0), (0.005, 0.005, 0.005, 0.05),
-                     (0.01,)*4, goalProb], True)])
+                     (0,-0.025,0,0), (0.001, 0.001, 0.001, 0.005),
+                     (0.02,)*4, goalProb], True)])
     homeConf = makeConf(t.world.robot, -0.5, 0.0, math.pi) if flip else None
     goodSkel = [[pick,
                  move,

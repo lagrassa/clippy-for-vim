@@ -64,7 +64,8 @@ def easyGraspGen(args, goalConds, bState, outBindings):
                 yield ca
 
     graspVar = 4*(0.001,)
-    graspDelta = 4*(0.001,)
+    # graspDelta = 4*(0.01,)
+    graspDelta = 4*(0.001,)   # put back to prev value
     
     pbs = bState.pbs
     (obj, hand) = args
@@ -945,6 +946,9 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
     # This delta can actually be quite large; we aren't trying to
     # "find" this object in a specific position; mostly want to reduce
     # the variance.
+
+    # lookDelta = (0.02, 0.02, 0.02, 0.05)
+    # moveDelta = (0.02, 0.02, 0.02, 0.05)
     lookDelta = (0.01, 0.01, 0.01, 0.05)
     moveDelta = (0.01, 0.01, 0.01, 0.02)
     # Try to fix one of the violations if any...

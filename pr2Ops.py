@@ -11,9 +11,7 @@ from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace
 from planGlobals import debugMsg, debug
 
-smallDelta = (0.001,)*4
 zeroPose = zeroVar = (0.0,)*4
-tinyDelta = (1e-8,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
 
