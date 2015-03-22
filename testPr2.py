@@ -677,7 +677,7 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
 
     glob.rebindPenalty = 500
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.98,typicalErrProbs)
-    glob.monotonicFirst = False
+    #glob.monotonicFirst = False
 
     global moreGD
     if gd != 0: moreGD = True
@@ -1501,3 +1501,11 @@ def prof(test, n=50):
     p = pstats.Stats('prof')
     p.sort_stats('cumulative').print_stats(n)
     p.sort_stats('cumulative').print_callers(n)
+
+
+# Evaluate on details and a fluent to flush the caches and evaluate
+def firstAid(details, fluent):
+    glob.debugOn.extend(['confReachViol', 'confViolations'])
+    details.pbs.getRoadMap().confReachCache = {}
+    details.pbs.beliefContext.pathObstCache = {}
+    return fluent.valueInDetails(details)

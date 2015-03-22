@@ -211,16 +211,17 @@ class State:
         if cache != None and (fluent in cache):
             return cache[fluent]
 
-        values = set()
         # Only useful when there are some aspects of the initial state
         # described only in fluents (not details).  Could delete
         for f in self.fluents:
             # See if it matches a fluent in the state
             if fluent.predicate == f.predicate and \
                          fluent.args == f.args:
+
+                if self.details != None and debug('fluentCache'):
+                    fval = fluent.valueInDetails(self.details)
+                    assert fval == f.getValue(), 'fluent cache inconsistent'
                 return f.getValue()
-        if values:
-            return values
 
         # Now, look in the details
         if self.details != None:
