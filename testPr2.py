@@ -677,6 +677,7 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
 
     glob.rebindPenalty = 500
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.98,typicalErrProbs)
+    glob.monotonicFirst = False
 
     global moreGD
     if gd != 0: moreGD = True

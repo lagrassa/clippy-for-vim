@@ -1408,6 +1408,20 @@ class PlanStack(Stack):
             if any([s.satisfies(sg) for sg in preImages[i]]):
                 layer.lastStepExecuted = i+1
                 debugMsg('nextStep', 'returning', layer.steps[i+1])
+
+                (op, _) = layer.steps[i+1]
+                if op.prim == None and not (op.isAbstract() or op == top):
+                    print 'Selecting an inferential operator for execution'
+                    print op
+                    preImage = preImages[i]
+                    postCond = preImages[i+1]
+                    print 'Post conditions not satisfied'
+                    for thing in postCond:
+                        for fl in thing.fluents:
+                            #if not fl.valueInDetails(s.details) == True:
+                            if not s.fluentValue(fl) == True:
+                                print fl
+                    raw_input('Continue?')
                 return layer.steps[i+1]
         # Not in the envelope
         debugMsg('nextStep', 'not in envelope')

@@ -215,9 +215,18 @@ def getObjAndHands(args, goal, start, stuff):
     heldRight = start.pbs.getHeld('right').mode()        
     result = []
     if isVar(o):
-        # Obj is unspecified, h should be bound
-        result = [(heldLeft if h == 'left' else heldRight, h, oh(h))]
+        # Obj is unspecified, h should be bound.  
+        hh = heldLeft if h == 'left' else heldRight
+        if hh == 'none':
+            # If there is nothing in the hand right now, then we
+            # should technically iterate through all possible objects.
+            # For now, fail.
+            result = []
+        else:
+            result = [(hh, h, oh(h))]
     else:
+        if o == 'none' and heldLeft == 'none' and heldRight == 'none':
+            return []
         # Obj is specified
         if not isVar(h):
             # hand is specified
