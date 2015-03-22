@@ -6,12 +6,12 @@ import copy
 import util
 import shapes
 from miscUtil import isGround
-from dist import UniformDist,  DeltaDist, chiSqFromP
+from dist import UniformDist,  DeltaDist
 from objects import World, WorldState
 from pr2Robot2 import PR2, pr2Init, makePr2Chains
 from planGlobals import debugMsg, debugDraw, debug, pause
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
-from pr2Util import ObjGraspB, ObjPlaceB, shadowName
+from pr2Util import ObjGraspB, ObjPlaceB, shadowName, shadowWidths
 import fbch
 from fbch import getMatchingFluents
 from belief import B, Bd
@@ -382,11 +382,6 @@ class PBS:
 ####################
 # Shadow computation
 ####################
-
-def shadowWidths(variance, delta, probability):
-    numStdDevs =  math.sqrt(chiSqFromP(1-probability, 2))
-    assert all([v >= 0 for v in variance])
-    return [numStdDevs*(v**0.5)+d for (v,d) in zip(variance, delta)]
 
 def sigmaPoses(prob, poseD, poseDelta):
     widths = shadowWidths(poseD.variance(), poseDelta, prob)

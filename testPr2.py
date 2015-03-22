@@ -90,8 +90,8 @@ from timeout import timeout, TimeoutError
 
 # 5 min timeout for all tests
 @timeout(600)
-def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=False):
-    eval('test%d(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical)'%n)
+def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=False, easy=False):
+    eval('test%d(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical, easy=easy)'%n)
 
 def testRepeat(n, repeat=3, **args):
     for i in range(repeat):

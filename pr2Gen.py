@@ -947,10 +947,10 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
     # "find" this object in a specific position; mostly want to reduce
     # the variance.
 
-    # lookDelta = (0.02, 0.02, 0.02, 0.05)
-    # moveDelta = (0.02, 0.02, 0.02, 0.05)
-    lookDelta = (0.01, 0.01, 0.01, 0.05)
-    moveDelta = (0.01, 0.01, 0.01, 0.02)
+    lookDelta = (0.02, 0.02, 0.02, 0.05)
+    moveDelta = (0.02, 0.02, 0.02, 0.05)
+    # lookDelta = (0.01, 0.01, 0.01, 0.05)
+    # moveDelta = (0.01, 0.01, 0.01, 0.02)
     # Try to fix one of the violations if any...
     if viol.obstacles:
         obsts = [o.name() for o in viol.obstacles if o.name() not in newBS.fixObjBs]

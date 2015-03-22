@@ -20,7 +20,7 @@ import fbch
 import planGlobals as glob
 from planGlobals import debugMsg, debug, debugDraw
 
-from pr2Util import Violations, NextColor, drawPath, NextColor
+from pr2Util import Violations, NextColor, drawPath, NextColor, shadowWidths
 
 objCollisionCost = 2.0
 shCollisionCost = 0.5
@@ -264,14 +264,17 @@ class RoadMap:
             nodes.append(node_f)
             return nodes
 
-    def robotSelfCollide(self, shape):
+    def robotSelfCollide(self, shape, heldDict={}):
         if fbch.inHeuristic: return False
         # Very sparse checks...
-        checkParts = {'pr2LeftArm': ['pr2RightArm', 'pr2RightGripper'],
-                      'pr2LeftGripper': ['pr2RightArm', 'pr2RightGripper'],
-                      'pr2RightArm': [],
-                      'pr2RightGripper': []}
+        checkParts = {'pr2LeftArm': ['pr2RightArm', 'pr2RightGripper', 'right'],
+                      'pr2LeftGripper': ['pr2RightArm', 'pr2RightGripper', 'right'],
+                      'pr2RightArm': ['left'],
+                      'pr2RightGripper': ['left']}
         parts = dict([(part.name(), part) for part in shape.parts()])
+        for h in ('right', 'left'):
+            if h in heldDict and heldDict[h]:
+                parts[h] = heldDict[h]
         for p in checkParts:
             pShape = parts.get(p, None)
             if not pShape: continue
@@ -280,7 +283,10 @@ class RoadMap:
                 checkShape = parts[check]
                 if pShape.collides(checkShape):
                     return True
-        heldParts = [parts[p] for p in parts if p[:3] != 'pr2']
+        if heldDict:
+            heldParts = [x for x in heldDict.values() if x]
+        else:
+            heldParts = [parts[p] for p in parts if p[:3] != 'pr2']
         return self.heldSelfCollide(heldParts)
 
     def heldSelfCollide(self, shape):
@@ -291,7 +297,7 @@ class RoadMap:
             return shapeParts[0].collides(shapeParts[1])
         else:
             assert None, 'There should be at most two parts in attached'
-        return
+        return False
 
     # The compiler does not like this as def...
     def edgeCollide(self, rob, key, collisions, robotShapes, attached, \
@@ -469,14 +475,14 @@ class RoadMap:
                        avoidShadow=[], attached=None,
                        additionalObsts = []):
         shWorld = pbs.getShadowWorld(prob, avoidShadow)
-        robotShape, attachedParts = conf.placementAux(attached=attached)
-        attachedParts = [x for x in attachedParts.values() if x]
+        robotShape, attachedPartsDict = conf.placementAux(attached=attached)
+        attachedParts = [x for x in attachedPartsDict.values() if x]
         if debug('confViolations'):
             robotShape.draw('W', 'purple')
             for part in attachedParts: part.draw('W', 'purple')
         if self.heldSelfCollide(attachedParts):
             return None, (False, True)
-        elif self.robotSelfCollide(robotShape):
+        elif self.robotSelfCollide(robotShape, attachedPartsDict):
             return None, (True, False)
         fixed = shWorld.fixedObjects
         obstacleSet = set([sh for sh in shWorld.getNonShadowShapes() \
@@ -873,16 +879,16 @@ def bsEntails(bs1, p1, avoid1, cacheValues, loose=False):
         if path2 and viol2 and (loose or viol2.empty()):
             # when theres a "clear" path and bs2 is "bigger", then we can use it
             # if there is some collision with obstacle or shadow, then it doesn't follow.
-            if bsBigger(bs2, bs1) and p2 >= p1 and (avoid1 == avoid2 or not avoid1):
+            if bsBigger(bs2, p2, bs1, p1) and (avoid1 == avoid2 or not avoid1):
                 return ans
         elif not viol2:
-            if bsBigger(bs1, bs2) and p2 <= p1 and (avoid1 == avoid2 or not avoid2):
+            if bsBigger(bs1, p1, bs2, p2) and (avoid1 == avoid2 or not avoid2):
                 return ans
     if debug('confReachViolCache'):
         print 'bsEntails returns False'
     return None
 
-def bsBigger(bs1, bs2):
+def bsBigger(bs1, p1, bs2, p2):
     (held1, grasp1, conf1, fix1, move1) = bs1.items()
     (held2, grasp2, conf2, fix2, move2) = bs2.items()
     if held1 != held2:
@@ -891,13 +897,13 @@ def bsBigger(bs1, bs2):
             print '    held1', held1
             print '    held2', held2
         return False
-    if not placesBigger(fix1, fix2):
+    if not placesBigger(fix1, p1, fix2, p2):
         if debug('confReachViolCache'):
             print 'fix1 is not superset of fix2'
             print '    fix1', fix1
             print '    fix2', fix2
         return False
-    if not placesBigger(move1, move2):
+    if not placesBigger(move1, p1, move2, p2):
         if debug('confReachViolCache'):
             print 'move1 is not superset of move2'
             print '    move1', move1
@@ -906,7 +912,7 @@ def bsBigger(bs1, bs2):
     if grasp1 != grasp2:
         gr1 = dict(list(grasp1))
         gr2 = dict(list(grasp2))
-        if not graspBigger(gr1, gr2):
+        if not graspBigger(gr1, p1, gr2, p2):
             if debug('confReachViolCache'):
                 print 'grasp1 is not bigger than grasp2'
                 print '    grasp1', grasp1
@@ -916,7 +922,7 @@ def bsBigger(bs1, bs2):
     if debug('confReachViolCache'): print 'bsBigger = True'
     return True
 
-def placesBigger(places1, places2):
+def placesBigger(places1, p1, places2, p2):
     if debug('confReachViolCache'):
         print 'placesBigger'
         print '    places1', places1
@@ -927,27 +933,29 @@ def placesBigger(places1, places2):
     dict2 = dict(list(places2))
     for (name1, placeB1) in places1:
         if not name1 in dict2: continue
-        if not placeBigger(placeB1, dict2[name1]):
+        if not placeBigger(placeB1, p1, dict2[name1], p2):
             if debug('confReachViolCache'): print placeB1, 'not bigger than', dict2[name1]
             return False
     return True
 
-def placeBigger(p1, p2):
+def placeBigger(pl1, p1, pl2, p2):
     if debug('confReachViolCache'):
         print 'placeBigger'
-        print '    p1', p1
-        print '    p2', p2
-    if p1 == p2: return True
-    if p1.obj != p2.obj: return False
-    if p1.poseD.muTuple != p2.poseD.muTuple: return False
-    w1 = [v+d for (v,d) in zip(p1.poseD.var, p1.delta)]
-    w2 = [v+d for (v,d) in zip(p2.poseD.var, p2.delta)]
+        print '    pl1', pl1
+        print '    pl2', pl2
+    if pl1 == pl2: return True
+    if pl1.obj != pl2.obj: return False
+    if pl1.poseD.muTuple != pl2.poseD.muTuple: return False
+    w1 = shadowWidths(pl1.poseD.var, pl1.delta, p1)
+    w2 = shadowWidths(pl2.poseD.var, pl2.delta, p2)
     if not all([x1 >= x2 for x1, x2 in zip(w1, w2)]):
         if debug('confReachViolCache'): print w1, 'not bigger than', w2
         return False
+    else:
+        if debug('confReachViolCache'): print w1, 'is bigger than', w2
     return True
 
-def graspBigger(gr1, gr2):
+def graspBigger(gr1, p1, gr2, p2):
     for hand in ('left', 'right'):
         g1 = gr1[hand]
         g2 = gr2[hand]
@@ -955,8 +963,8 @@ def graspBigger(gr1, gr2):
         if g1 is None or g2 is None: continue
         if g1.obj != g2.obj: return False
         if g1.poseD.muTuple != g2.poseD.muTuple: return False
-        w1 = [v+d for (v,d) in zip(g1.poseD.var, g1.delta)]
-        w2 = [v+d for (v,d) in zip(g2.poseD.var, g2.delta)]
+        w1 = shadowWidths(g1.poseD.var, g1.delta, p1)
+        w2 = shadowWidths(g2.poseD.var, g2.delta, p2)
         if not all([x1 >= x2 for x1, x2 in zip(w1, w2)]):
             return False
     return True

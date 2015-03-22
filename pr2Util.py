@@ -1,6 +1,8 @@
+import math
 import util
 import copy
 from colors import RGBToPyColor, HSVtoRGB
+from dist import chiSqFromP
 import numpy as np
 import dist
 
@@ -220,6 +222,7 @@ class DomainProbs:
         self.pickFailProb = pickFailProb
         self.placeFailProb = placeFailProb
         
-
-
-
+def shadowWidths(variance, delta, probability):
+    numStdDevs =  math.sqrt(chiSqFromP(1-probability, 2))
+    assert all([v >= 0 for v in variance])
+    return [numStdDevs*(v**0.5)+d for (v,d) in zip(variance, delta)]
