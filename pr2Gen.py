@@ -49,7 +49,6 @@ def easyGraspGen(args, goalConds, bState, outBindings):
         viol, (rv, hv) = rm.confViolations(conf, newBS, prob,
                                            attached = newBS.getShadowWorld(prob).attached)
         if not viol:                # was valid when not holding, so...
-            assert hv               # I hope...
             if debug('easyGraspGen'):
                 newBS.draw(prob, 'W')
                 debugMsg('easyGen', 'Held collision.')
@@ -212,7 +211,6 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
         viol, (rv, hv) = rm.confViolations(conf, newBS, prob,
                                            attached = newBS.getShadowWorld(prob).attached)
         if not viol:                # was valid when not holding, so...
-            assert hv               # I hope...
             if debug('pickGen'):
                 newBS.draw(prob, 'W')
                 debugMsg('pickGen', 'Held collision.')

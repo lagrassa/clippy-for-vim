@@ -5,9 +5,13 @@ import pdb
 import copy
 import time
 import transformations as transf
-import util
+
 import planGlobals as glob
 import windowManager3D as wm
+
+import util
+import tables as tab
+reload(tab)
 
 if glob.useROS:
     import rospy
@@ -23,7 +27,6 @@ if glob.useROS:
     from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
     from cardboard.srv import *
     import geometry_msgs.msg as gm
-
 
 ## Communicate with ROS controller to move the robot, just unpack the configuration.
 
@@ -95,7 +98,47 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         pass
     def executePlace(self, op, params):
         pass
-    
+
+def getTables(robot, obsTargets, scan):
+    tables = []
+    exclude = []
+    # A zone of interest
+    zone = shapes.BoxAligned(np.array([(0, -2, 0), (3, 2, 1.5)]), None)
+    for objName in obsTargets.keys():
+        if 'table' in objName:
+            table = obsTargets[objName][0]
+            var = obsTargets[objName][1]
+            if not var or (var and scan.headTransInverse.applyToPoint(table.center()).x > 0):
+
+                startTime = time.time()
+                score, detection = tab.bestTable(zone, table.refObj(),
+                                                 scan, exclude,
+                                                 angles = tab.anglesList(30),
+                                                 zthr = 0.05,
+                                                 debug=glob.debug('table'))
+                print 'Table detection', detection, 'with score', score
+                print 'Running time for table detections =',  time.time() - startTime
+                if detection:
+                    tableInRobotFrame = detection
+                    tables.append(tableDetection(objName, tableInRobotFrame, score))
+                    exclude.append(detection)
+                    detection.draw('MAP', 'blue')
+                    #raw_input('Detection for table=%s'%objName)
+    return tables
+
+# This format is needed for the object detection.
+def tableDetection(objName, tableInRobotFrame, score = None):
+    table = Table()
+    table.name = objName
+    table.score = score
+    tableInRobotFramePose = tableInRobotFrame.origin().pose()
+    table.z = tableInRobotFrame.zRange()[1] # upper Z of table
+    table.pose = tableInRobotFramePose
+    print 'Detection:', table.name, table.pose, table.z, 'score:', score
+    if glob.useROS:
+        table.polygon = makeROSPolygon(tableInRobotFrame)
+    return table
+
 def getCloudPoints(resolution):
     rospy.wait_for_service('point_cloud')
     #raw_input('Got Cloud?')
@@ -119,34 +162,13 @@ def getCloudPoints(resolution):
 
 def makeROSPolygon(obj, dz=0):
     points = []
-    if not 'side' in obj.getBaseName():
-        verts = obj.prims()[0].verts()
-        z = obj.zRange()[1]
-        # Either pick out the top z verts or move them to that z
-        points = [gm.Point(v.x, v.y, v.z) for v in verts \
-                  if abs(z - v.z) < 0.001] \
-                  or \
-                  [gm.Point(v.x, v.y, z+dz) for v in verts]
-    else:
-        verts = obj.prims()[0].allVerts()
-        verts = thinOutVerts(verts, len(verts)/2)
-        points = [gm.Point(v.x, v.y, v.z+dz) for v in verts]
+    verts = obj.xyPrim().verts()
+    zhi = obj.zRange()[1]
+    for p in verts.shape[1]:
+        (x, y, z) = verts[0:3,p]
+        if abs(z - zhi) < 0.001:
+            points.append(gm.Point(x, y, z))
     return gm.Polygon(points)
-
-def thinOutVerts(verts, size):
-    # print 'thinOut', verts, size
-    if len(verts) <= size:
-        return verts
-    closestIndex = 0
-    closestDist = 1e10
-    for i in xrange(len(verts)-1):
-        for j in xrange(i+1, len(verts)):
-            dist = verts[i].distance(verts[j])
-            if dist < closestDist:
-                closestIndex = j
-                closestDist = dist
-    return thinOutVerts(verts[:closestIndex]+verts[closestIndex+1:],
-                        size)
 
 def makeROSPose2D(pose):
     pose = pose.pose()
@@ -154,9 +176,8 @@ def makeROSPose2D(pose):
 
 def makeROSPose3D(pose):
     T = pose.matrix
-    r = transf.quaternion_from_matrix(T)
-    o = (T[0][3],T[1][3],T[2][3])
-    ((px,py,pz),(x,y,z,w)) = (o, r)
+    (x,y,z,w) = T.quat().matrix
+    (px, py, pz) = T.matrix[0:3,3]
     rpose = gm.Pose()
     rpose.position.x = px
     rpose.position.y = py
@@ -170,16 +191,14 @@ def makeROSPose3D(pose):
 def TransformFromROSMsg(msg):
     pos = msg.transform.translation
     quat = msg.transform.rotation
-    posList = [pos.x, pos.y, pos.z]
-    quatList = [quat.x, quat.y, quat.z, quat.w]
-    trans = transf.translation_matrix(posList)
-    rot = transf.quaternion_matrix(quatList)
-    return util.Transform(numpy.dot(trans, rot))
+    pos = np.array([[x] for x in [pos.x, pos.y, pos.z, 1.0]])
+    quat = np.array([quat.x, quat.y, quat.z, quat.w])
+    return util.Transform(p=pos, q=quat)
 
 def transformPoly(poly, x, y, z, theta):
     def pt(coords):
         return gm.Point(coords[0], coords[1], coords[2])
     tr = numpy.dot(transf.translation_matrix([x, y, z]),
                    transf.rotation_matrix(theta, (0,0,1)))
-    points = [pt(numpy.dot(tr, [p.x, p.y, p.z, 1])) for p in poly.points]
+    points = [pt(numpy.dot(tr, [p.x, p.y, p.z, 1.0])) for p in poly.points]
     return gm.Polygon(points)
