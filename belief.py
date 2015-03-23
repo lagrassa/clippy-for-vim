@@ -619,7 +619,6 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
         debugMsg('haddBack')
     if totalCost < float('inf') and not debug('hAddBack'):
         print 'H', prettyString(totalCost)
-
     return totalCost
 
 def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,

@@ -946,7 +946,8 @@ class Operator(object):
         rebindLater.rebind = True
         rebindCost = glob.rebindPenalty
 
-        if bindingsNoGood: 
+        if bindingsNoGood:
+            rebindLater.instanceCost = rebindCost
             return [[rebindLater, rebindCost]]
 
         # Add in the preconditions.  We can make new bindings between
@@ -992,8 +993,15 @@ class Operator(object):
                 # the regression of the abstract action.  This is
                 # an estimate of the cost of the abstract action.
                 cost = hOld - hNew
+
+                print 'AbsCost', self.name, prettyString(hOld), '-',\
+                  prettyString(hNew), '=',  prettyString(cost)
+
                 if cost < 0:
                     cost = cp
+
+                # Try this!
+                rebindCost = hOld + rebindCost
 
                 # Store the bindings we made in this process!
                 # But keep the abstract preconditions
@@ -1003,19 +1011,6 @@ class Operator(object):
                     psb = primOpRegr[0][0].bindings
                     newOp = newGoal.operator.applyBindings(psb)
                     newGoal.operator = newOp
-
-                    # print '========== op =============='
-                    # print self
-                    # print '========== abs bindings =============='                
-                    # print newGoal.bindings
-                    # print '========== prim state bindings ==============' 
-                    # print psb
-                    # print '========== prim operator ==============' 
-                    # print primOpRegr[0][0].operator
-                    # print '========== newly bound operator ==============' 
-                    # print newOp
-                    # # Can we merge these bindings back into newGoal.operator?
-                    # raw_input('opportunity?')
                 
                 debugMsg('abstractCost',
                          ('with heuristic', heuristic != None),
@@ -1029,8 +1024,10 @@ class Operator(object):
         if cost == float('inf'):
             if not inHeuristic or debug('debugInHeuristic'):
                 debugMsg('regression:fail', 'infinite cost')
+            rebindLater.instanceCost = rebindCost
             return [[rebindLater, rebindCost]]
         newGoal.operator.instanceCost = cost
+        rebindLater.instanceCost = rebindCost
         return [[newGoal, cost], [rebindLater, rebindCost]]
 
     def prettyString(self, eq = True):
@@ -1112,7 +1109,8 @@ class RebindOp:
             debugMsg('rebind', 'successfully rebound local vars',
                      'costs', [c for (s, c) in results], 'minus',
                      glob.rebindPenalty)
-            results[0][1] -= glob.rebindPenalty
+            #results[0][1] -= glob.rebindPenalty
+            results[0][1] -= op.instanceCost
         else:
             debugMsg('rebind', 'failed to rebind local vars')
         return results

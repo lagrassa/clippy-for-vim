@@ -3,7 +3,7 @@ import util
 from dist import DeltaDist, varBeforeObs, DDist, probModeMoved, MixtureDist,\
      UniformDist
 from fbch import Function, getMatchingFluents, Operator, simplifyCond
-from miscUtil import isVar
+from miscUtil import isVar, prettyString
 from pr2Util import PoseD, shadowName, ObjGraspB, ObjPlaceB, Violations
 from pr2Gen import pickGen, canReachHome, placeInGen, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen
 from belief import Bd, B
@@ -543,29 +543,42 @@ def pickCostFun(al, args, details):
 # When we go to non-diagonal covariance, this will be fun...
 # For now, just use the first term!
 def lookAtCostFun(al, args, details):
-    (_,_,_,_,vb,d,_,p1,p2,_,_,) = args
+    (_,_,_,_,vb,d,va,pb,pCanSee,pPoseR,pFaceR) = args
+    placeProb = min(pPoseR, pFaceR)
     vo = details.domainProbs.obsVarTuple
     deltaViolProb = probModeMoved(d[0], vb[0], vo[0])
-    result = costFun(1.0, p1*p2*(1-deltaViolProb)*\
+    # Switched to using var *after* look because if look reliability
+    # is very high then var before is huge and so is the cost.
+    deltaViolProb = probModeMoved(d[0], va[0], vo[0])
+    result = costFun(1.0, pCanSee*placeProb*(1-deltaViolProb)*\
                      (1 - details.domainProbs.obsTypeErrProb))
     debugMsg('cost',
              ('lookAt',
-              (p1, p2, 1-deltaViolProb, 1-details.domainProbs.obsTypeErrProb),
+              (pCanSee, placeProb,
+               1-deltaViolProb, 1-details.domainProbs.obsTypeErrProb),
                 result))
     return result
 
 def lookAtHandCostFun(al, args, details):
     # Two parts:  the probability and the variance
-    (_,_,_,_,_,vb,d,_,p1,pGraspR,_,pHoldingR) = args
+    (_,_,_,_,_,vb,d,va,pb,pGraspR,pFaceR,pHoldingR) = args
     
-    holdingProb = p1
+    holdingProb = min(pGraspR, pFaceR, pHoldingR)
     if not isVar(d):
         vo = details.domainProbs.obsVarTuple
-        deltaViolProb = probModeMoved(d[0], vb[0], vo[0])
+        #deltaViolProb = probModeMoved(d[0], vb[0], vo[0])
+        # Switched to using var *after* look because if look
+        # reliability is very high then var before is huge and so is
+        # the cost.
+        deltaViolProb = probModeMoved(d[0], va[0], vo[0])
     else:
         deltaViolProb = 0
-    result = costFun(1.0, p1*(1-deltaViolProb))
-    debugMsg('cost', ('lookAtHand', (p1, 1-deltaViolProb), result))
+    result = costFun(1.0, holdingProb*(1-deltaViolProb))
+    debugMsg('cost', ('lookAtHand', (holdingProb, 1-deltaViolProb), result))
+
+    print 'lookAtHandCost', prettyString(holdingProb), \
+          prettyString(1-deltaViolProb), prettyString(result)
+
     return result
 
 ################################################################
@@ -746,7 +759,7 @@ def lookAtHandBProgress(details, args, obs):
 # makes the plan work harder to be sure the preconds are satisfied.
 movePreProb = 0.98 # Very hard to satisfy until look is working
 # Crazy value for debugging (was most recently 0.9)
-movePreProb = 0.5
+#movePreProb = 0.5
 
 def genMoveProbs(args, goal, start, vals):
     return [[movePreProb]*3]

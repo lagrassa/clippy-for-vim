@@ -710,7 +710,7 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
 
 def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
           easy = True):
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 200
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.98,typicalErrProbs)
 
     t = PlanTest('test9', errProbs, allOperators,
