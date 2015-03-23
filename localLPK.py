@@ -54,12 +54,8 @@ traceCRH
 traceGen  (compact summary of generators)
 
 '''
-debugOn = ['nonmon', 'executionFail', 
-           'appOp:number', 'traceGen', 'traceCRH', 'hAddBackInf',
-           'executionSurprise', 'rebind']
-#    , 'prim', 'nextStep']
-
-debugOn = []
+debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
+           'appOp:number', 'hAddBackInf', 'rebind']
 
 pauseOn = debugOn
 

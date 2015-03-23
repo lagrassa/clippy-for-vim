@@ -167,8 +167,8 @@ class CanReachHome(Fluent):
 
     def heuristicVal(self, bState, v, p):
         # Return cost estimate and a set of dummy operations
-        obstCost = 40
-        shadowCost = 20
+        obstCost = 10
+        shadowCost = 5
         path, violations = self.getViols(bState.details, v, p, strict = False)
         if path == None:
             #!! should this happen?
@@ -275,8 +275,8 @@ class CanPickPlace(Fluent):
 
     def heuristicVal(self, bState, v, p):
         # Return cost estimate and a set of dummy operations
-        obstCost = 40
-        shadowCost = 20
+        obstCost = 5  # move, pick, move, place, maybe a look at hand
+        shadowCost = 3  # move look, if we're lucky
         path, violations = self.getViols(bState.details, v, p, strict = False)
         if path == None:
             #!! should this happen?
@@ -286,13 +286,22 @@ class CanPickPlace(Fluent):
             return float('inf'), {}
         obstacles = violations.obstacles
         shadows = violations.shadows
-        obstOps = [Operator('RemoveObst', [o.name()],{},[]) for o in obstacles]
+        obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
+                       for o in obstacles])
         for o in obstOps: o.instanceCost = obstCost
-        shadowOps = [Operator('RemoveShadow', [o.name()],{},[]) \
-                     for o in shadows]
+        shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
+                     for o in shadows])
         for o in shadowOps: o.instanceCost = shadowCost
-        ops = set(obstOps + shadowOps)
-        return (obstCost * len(obstacles) + shadowCost * len(shadows), ops)
+        ops = obstOps.union(shadowOps)
+
+        if debug('hAddBack'):
+            print 'Heuristic val', self.predicate
+            print 'ops', ops, 'cost',\
+             prettyString(obstCost * len(obstOps) + \
+                          shadowCost * len(shadowOps))
+            raw_input('foo?')
+
+        return (obstCost * len(obstOps) + shadowCost * len(shadowOps), ops)
 
     def prettyString(self, eq = True, includeValue = True):
         (preConf, ppConf, hand, lobj, pose, poseVar, poseDelta, poseFace,

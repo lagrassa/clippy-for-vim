@@ -512,8 +512,8 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
             if len(ops) == 0:
                 debugMsg('hAddBack', 'no applicable ops', g)
             for o in ops:
-                # Uncomment to always use primitive regression
-                #o.abstractionLevel = o.concreteAbstractionLevel
+                if debug('primitiveHeuristicAlways'):
+                    o.abstractionLevel = o.concreteAbstractionLevel
                 pres = o.regress(g, start)
                 if len(pres) == 1:
                     debugMsg('hAddBack', 'no preimage', g, o)

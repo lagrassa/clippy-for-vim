@@ -144,9 +144,11 @@ def pickGenTop(args, goalConds, pbs, outBindings,
                            pbs.graspB['right'])))
 
     if obj == 'none':                   # can't pick up 'none'
+        debugMsg('pickGen', 'cannot pick up none')
         return
     if goalConds and getConf(goalConds, None):
         # if conf is specified, just fail
+        debugMsg('pickGen', 'conf is already specified')
         return
     if obj == pbs.held[hand].mode():
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
@@ -1032,7 +1034,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     # "find" this object in a specific position; mostly want to reduce
     # the variance.
     lookDelta = (0.01, 0.01, 0.01, 0.05)
-    moveDelta = (0.01, 0.01, 0.01, 0.02)
+    moveDelta = (0.02, 0.02, 0.02, 0.04)
     # Try to fix one of the violations if any...
     if viol.obstacles:
         obsts = [o.name() for o in viol.obstacles \

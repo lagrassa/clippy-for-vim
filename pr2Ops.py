@@ -1,7 +1,7 @@
 import numpy as np
 import util
 from dist import DeltaDist, varBeforeObs, DDist, probModeMoved, MixtureDist,\
-     UniformDist
+     UniformDist, chiSqFromP
 from fbch import Function, getMatchingFluents, Operator, simplifyCond
 from miscUtil import isVar, prettyString
 from pr2Util import PoseD, shadowName, ObjGraspB, ObjPlaceB, Violations
@@ -14,10 +14,6 @@ from planGlobals import debugMsg, debug
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
-
-# Dont' try to move with more than this variance in grasp
-# LPK:  was .0005 which is quite small (smaller than pickVar)
-maxGraspVar = (0.0008, 0.0008, 0.0008, 0.008)
 
 # Fixed accuracy to use for some standard preconditions
 canPPProb = 0.9
@@ -398,6 +394,7 @@ def halveVariance((var,), goal, start, vals):
 
 def maxGraspVarFun((var,), goal, start, vals):
     assert not(isVar(var))
+    maxGraspVar = (0.015**2, .015**2, .015**2, .03**2)
 
     # A conservative value to start with, but then try whatever the
     # variance is in the current grasp
@@ -419,6 +416,7 @@ def realPoseVar((graspVar,), goal, start, vals):
 # For place, grasp var is desired poseVar minus fixed placeVar
 # Don't let it be bigger than maxGraspVar 
 def placeGraspVar((poseVar,), goal, start, vals):
+    maxGraspVar = (0.0004, 0.0004, 0.0004, 0.008)
     placeVar = start.domainProbs.placeVar
     if isVar(poseVar):
         # For placing in a region; could let the place pick this, but
@@ -433,9 +431,17 @@ def placeGraspVar((poseVar,), goal, start, vals):
         return [[graspVar]]
 
 # For pick, pose var is desired graspVar minus fixed pickVar
-def pickPoseVar((graspVar,), goal, start, vals):
+def pickPoseVar((graspVar, prob), goal, start, vals):
     pickVar = start.domainProbs.pickVar
-    poseVar = tuple([gv - pv for (gv, pv) in zip(graspVar, pickVar)])
+    pickTolerance = start.domainProbs.pickTolerance[0]
+    # What does the variance need to be so that we are within
+    # pickTolerance with probability prob?
+    numStdDevs =  np.sqrt(chiSqFromP(1-prob, 2))
+    # nstd * std < pickTol
+    # std < pickTol / nstd
+    tolerableVar = (pickTolerance / numStdDevs)**2
+    poseVar = tuple([min(gv - pv, tolerableVar) \
+                     for (gv, pv) in zip(graspVar, pickVar)])
     if any([x <= 0 for x in poseVar]):
         debugMsg('pickGen', 'pick pose var negative', poseVar)
         return []
@@ -467,6 +473,7 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
 def genLookObjHandPrevVariance((ve, hand, obj, face), goal, start, vals):
     epsilon = 10e-5
     lookVar = start.domainProbs.obsVarTuple
+    maxGraspVar = (0.0008, 0.0008, 0.0008, 0.008)
 
     result = []
     hs = start.pbs.getHeld(hand).mode()
@@ -575,10 +582,6 @@ def lookAtHandCostFun(al, args, details):
         deltaViolProb = 0
     result = costFun(1.0, holdingProb*(1-deltaViolProb))
     debugMsg('cost', ('lookAtHand', (holdingProb, 1-deltaViolProb), result))
-
-    print 'lookAtHandCost', prettyString(holdingProb), \
-          prettyString(1-deltaViolProb), prettyString(result)
-
     return result
 
 ################################################################
@@ -757,9 +760,10 @@ def lookAtHandBProgress(details, args, obs):
 # How sure the move preconditions need to be.  Making this lower makes
 # the plan more likely to fail (cost be higher).  Making this higher
 # makes the plan work harder to be sure the preconds are satisfied.
+
 movePreProb = 0.98 # Very hard to satisfy until look is working
-# Crazy value for debugging (was most recently 0.9)
-#movePreProb = 0.5
+
+movePreProb = 0.8
 
 def genMoveProbs(args, goal, start, vals):
     return [[movePreProb]*3]
@@ -960,7 +964,8 @@ pick = Operator(\
                      'realGraspVar'),
                      
             # GraspVar = PoseVar + PickVar
-            Function(['PoseVar'], ['RealGraspVar'], pickPoseVar, 'pickPoseVar'),
+            Function(['PoseVar'], ['RealGraspVar', 'PR3'],
+                     pickPoseVar, 'pickPoseVar'),
             
             # Divide delta evenly
             Function(['ConfDelta', 'PoseDelta'], ['GraspDelta'],

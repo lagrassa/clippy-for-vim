@@ -64,24 +64,38 @@ class State:
         self.relaxedValueCache = {}
 
     # Quick heuristic
-    def easyH(self, start, defaultFluentCost = 20):
-        # Find how many false fluents there are
-        # Charge them their heuristicVal if it's defined, else the default
+    def easyH(self, start, defaultFluentCost = 5):
+        # Find how many false fluents there are.  Better to partition
+        # into groups.  Charge them their heuristicVal if it's
+        # defined, else the default
         total = 0
         actSet = set()
-        for f in self.fluents:
-            if not f.isGround() or start.fluentValue(f) != f.value:
-                # Either False (if not defined), else a cost and a
-                # list of actions
-                hv = f.heuristicVal(start)
-                if hv == False:
-                    total += defaultFluentCost
-                elif hv[0] != float('inf'):
-                    actSet = actSet | hv[1]
-                else:
-                    # We got troube, right here in River City
-                    total = float('inf')
-
+        fluentGroups = start.details.partitionFn(self.fluents)
+        for fg in fluentGroups:
+            for f in fg:
+                maxCostInGroup = 0
+                groupActSet = set()
+                if not f.isGround() or start.fluentValue(f) != f.value:
+                    # Either False (if not defined), else a cost and a
+                    # list of actions
+                    hv = f.heuristicVal(start)
+                    if hv == False:
+                        if defaultFluentCost > maxCostInGroup:
+                            maxCostInGroup = defaultFluentCost
+                            groupActSet = set()
+                    elif hv[0] != float('inf'):
+                        totalCost = sum([a.instanceCost for a in hv[1]])
+                        if totalCost > maxCostInGroup:
+                            maxCostInGroup = totalCost
+                            groupActSet = hv[1]
+                    else:
+                        # We got trouble, right here in River City
+                        maxCostInGroup = float('inf')
+            # Per fluent group
+            if actSet == set():
+                total += maxCostInGroup
+            else:
+                actSet = actSet.union(groupActSet)
         return total + sum([o.instanceCost for o in actSet])
 
     def updateStateEstimate(self, op, obs=None):
@@ -579,6 +593,7 @@ class Operator(object):
         self.incrementNum()
         self.argsToPrint = argsToPrint
         self.ignorableArgs = ignorableArgs
+        self.instanceCost = 'none'
 
     def verifyArgs(self):
         varsUsed = set({})
@@ -742,6 +757,7 @@ class Operator(object):
                       self.ignorableArgs,
                       self.argsToPrint)
         op.abstractionLevel = self.abstractionLevel
+        op.instanceCost = self.instanceCost
         return op
 
     def applyBindingsSideEffect(self, rb):
@@ -941,13 +957,13 @@ class Operator(object):
 
         # Make another result, which is a place-holder for rebinding
         rebindLater = goal.copy()
-        rebindLater.suspendedOperator = self
+        rebindLater.suspendedOperator = self.copy()
         rebindLater.bindingsAlreadyTried.append(newBindings)
         rebindLater.rebind = True
         rebindCost = glob.rebindPenalty
 
         if bindingsNoGood:
-            rebindLater.instanceCost = rebindCost
+            rebindLater.suspendedOperator.instanceCost = rebindCost
             return [[rebindLater, rebindCost]]
 
         # Add in the preconditions.  We can make new bindings between
@@ -993,9 +1009,11 @@ class Operator(object):
                 # the regression of the abstract action.  This is
                 # an estimate of the cost of the abstract action.
                 cost = hOld - hNew
-
-                print 'AbsCost', self.name, prettyString(hOld), '-',\
-                  prettyString(hNew), '=',  prettyString(cost)
+                
+                # if not inHeuristic:
+                #     print 'AbsCost', self.name, prettyString(hOld), '-',\
+                #       prettyString(hNew), '=',  prettyString(cost)
+                #     raw_input('okay?')
 
                 if cost < 0:
                     cost = cp
@@ -1021,13 +1039,12 @@ class Operator(object):
                      ('goal',  goal.prettyString(False, startState)),
                      ('newGoal', newGoal.prettyString(False, startState)))
 
+        rebindLater.suspendedOperator.instanceCost = rebindCost
         if cost == float('inf'):
             if not inHeuristic or debug('debugInHeuristic'):
                 debugMsg('regression:fail', 'infinite cost')
-            rebindLater.instanceCost = rebindCost
             return [[rebindLater, rebindCost]]
         newGoal.operator.instanceCost = cost
-        rebindLater.instanceCost = rebindCost
         return [[newGoal, cost], [rebindLater, rebindCost]]
 
     def prettyString(self, eq = True):
@@ -1104,13 +1121,12 @@ class RebindOp:
         results = op.regress(g, startState, heuristic)
 
         if len(results) > 0:
-            (newGoal, cost) = results[0]
-
             debugMsg('rebind', 'successfully rebound local vars',
                      'costs', [c for (s, c) in results], 'minus',
                      glob.rebindPenalty)
             #results[0][1] -= glob.rebindPenalty
-            results[0][1] -= op.instanceCost
+            for r in results:
+                r[1] -= op.instanceCost
         else:
             debugMsg('rebind', 'failed to rebind local vars')
         return results
@@ -1577,6 +1593,7 @@ class Plan:
         return [o for (o, g) in self.steps[1:]]
 
     def printIt(self, verbose = True):
+        totalCost = 0
         print '** Start plan **'
         if verbose:
             print '    Initial preimage :', \
@@ -1584,10 +1601,13 @@ class Plan:
         for i in range(1, self.length):
             print '    step', i, ':', \
                   self.steps[i][0].prettyString(eq = verbose)
+            print '        cost = ', prettyString(self.steps[i][0].instanceCost)
+            totalCost += self.steps[i][0].instanceCost
             if verbose:
                 print '    result', i, ':', \
                   self.steps[i][1].prettyString().replace('\\n','\n')
         print '** End plan **'
+        print '===== Total Cost =', prettyString(totalCost), '====='
         debugMsg('displayPlan', 'Continue?')
 
 # Return an instance of Plan
@@ -1720,6 +1740,13 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                     debugMsg('appOp:detail', 'nonmon so skipping binding', b,
                              boundRFs)
 
+            # if len(bindingSet) > 1:
+            #     print 'Applicable op'
+            #     print newOp
+            #     print 'multiple bindings with same result set'
+            #     print bindingSet
+            #     raw_input('chill?')
+
             for b in bindingSet:
                 if b != False:
                     newOpBound = newOp.applyBindings(b, rename = True)
@@ -1729,6 +1756,13 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                         debugMsg('appOp:detail', 'added bound op', newOpBound)
                     else:
                         debugMsg('appOp:detail', 'redundant op', newOpBound)
+
+    resultNames = [o.name for o in result]
+    # if len(resultNames) > len(set(resultNames)):
+    #     print 'multiple instances of same op applicable'
+    #     print resultNames
+    #     raw_input('chili?')
+
     if len(result) == 0:
         print g
         debugMsg('appOp:number', ('h', inHeuristic, 'number', len(result)))

@@ -351,6 +351,8 @@ class PlanTest:
         regions = frozenset(regions), domainProbs=self.domainProbs) 
         pbs.draw(0.9, 'Belief')
         bs = BeliefState(pbs, self.domainProbs, 'table2Top')
+        ### !!!!  LPK Awful modularity
+        bs.partitionFn = partition
         self.bs = bs
 
     def run(self, goal, skeleton = None, hpn = True,
@@ -433,9 +435,9 @@ typicalErrProbs = DomainProbs(\
             pickFailProb = 0.02,
             placeFailProb = 0.02,
             # variance in grasp after picking
-            pickVar = (0.02**2, 0.02**2, 0.02**2, 0.04**2),
+            pickVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2),
             # variance in grasp after placing
-            placeVar = (0.02**2, 0.02**2, 0.02**2, 0.02**2),
+            placeVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2),
             # pickTolerance
             pickTolerance = (0.02, 0.02, 0.02, 0.02))
 
@@ -856,25 +858,30 @@ def test12(hpn = True, skeleton = False, hierarchical = False,
                   B([Grasp(['objA', hand, gd]),
                      (0,-0.025,0,0), (0.001, 0.001, 0.001, 0.001),
                      (0.02,)*4, goalProb], True)])
+
+    easySkel = [[pick,
+                       move,
+                       poseAchCanPickPlace,
+                       place.applyBindings({'Hand' : 'left'}),
+                       move,
+                       pick,
+                       move,
+                       ]]
+
+    hardSkel = [[lookAtHand, move, pick,
+                       move,
+                       poseAchCanPickPlace,
+                       lookAt,
+                       move,
+                       place.applyBindings({'Hand' : 'left'}),
+                       move,
+                       pick,
+                       move,
+                       ]]
+        
     t.run(goal,
           hpn = hpn,
-          skeleton = [[pick,
-                       move,
-                       poseAchCanReach,
-                       lookAt,  # E
-                       move,
-                       place.applyBindings({'Hand' : 'left'}),
-                       move,
-                       pick,
-                       move,
-                       poseAchCanReach,
-                       lookAt,  
-                       move,
-                       place.applyBindings({'Hand' : 'left'}),
-                       move,
-                       pick,
-                       move
-                       ]] if skeleton else None,
+          skeleton = hardSkel if skeleton else None,
           hierarchical = hierarchical,
           # regions=['table2Top'],
           regions=['table2Top', 'table1Top'],
