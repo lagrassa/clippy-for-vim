@@ -1377,7 +1377,7 @@ def testStack(hpn = True, skeleton = False, hierarchical = False,
 
 # Empty hand
 def test21(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs):
+           heuristic = habbs, easy=True):
     p1 = util.Pose(0.45, 0.0, tZ, 0.0)
     p2 = util.Pose(0.45, 0.4, tZ, 0.0)
 
@@ -1446,7 +1446,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
 
 # Need to verify that hand is empty
 def test22(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs):
+           heuristic = habbs, easy=True):
     p1 = util.Pose(0.45, 0.0, tZ, 0.0)
     p2 = util.Pose(0.45, 0.4, tZ, 0.0)
 

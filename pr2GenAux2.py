@@ -122,9 +122,9 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p):
     # 4.  Can move from home to pick while holding obj with zero grasp variance
     gB = objGrasp.modifyPoseD(var=4*(0.0,)) # ignore uncertainty
     gB.delta = 4*(0.0,)
-    pbs3 = pbs.copy().excludeObjs([obj]).updateHeldBel(gB, hand)
+    pbs4 = pbs.copy().excludeObjs([obj]).updateHeldBel(gB, hand)
     if debug('canPickPlaceTest'): print 'H->Target, holding obj (0 var) (condition 4)'
-    path, violations = canReachHome(pbs3, pickConf, p, violations)
+    path, violations = canReachHome(pbs4, pickConf, p, violations)
     if not path:
         debugMsg('canPickPlaceTest', 'Failed H->Target (condition 4)')
         return None

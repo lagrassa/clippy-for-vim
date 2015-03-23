@@ -257,9 +257,7 @@ class CanPickPlace(Fluent):
 
     def getViols(self, bState, v, p, strict = True):
         def violCombo(v1, v2):
-            return Violations(v1.obstacles.union(v2.obstacles),
-                              v1.shadows.union(v2.shadows))
-
+            return v1.update(v2)
         condViols = [c.getViols(bState, v, p, strict) \
                      for c in self.getConds(bState)]
         pathNone = any([p == None for (p, v) in condViols])

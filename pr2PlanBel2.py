@@ -260,7 +260,7 @@ class PBS:
             return self.shadowWorld
         else:
             cache = self.beliefContext.genCaches['getShadowWorld']
-            key = (self.items(), fbch.inHeuristic)
+            key = (self.items(), prob, tuple(avoidShadow), fbch.inHeuristic)
             if key in cache:
                 ans = cache.get(key, None)
                 if ans != None:

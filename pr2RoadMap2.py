@@ -24,8 +24,8 @@ from pr2Util import Violations, NextColor, drawPath, NextColor, shadowWidths
 
 objCollisionCost = 2.0
 shCollisionCost = 0.5
-maxSearchNodes = 5000
-maxExpandedNodes = 1500
+maxSearchNodes = 2000                   # 5000
+maxExpandedNodes = 500                  # 1500
 searchGreedy = 0.75                     # slightly greedy
 minStep = 0.2                           # !! maybe 0.1 is better
 minStepHeuristic = 0.4
@@ -510,7 +510,7 @@ class RoadMap:
             debugMsg('confViolations',
                      ('obstacles:', [o.name() for o in obst]),
                      ('shadows:', [o.name() for o in shad]))
-        return initViol.combine(obst, shad), (False, False)
+        return initViol.update(Violations(obst, shad)), (False, False)
 
     # !! Should do additional sampling to connect confs.
     def minViolPathGen(self, targetConfNodes, pbs, prob, avoidShadow=[], startConf = None,
@@ -676,7 +676,7 @@ class RoadMap:
                        print 'newViol', newViol.weight(), newViol
                        raw_input('checkPath failed')
                    debugMsg('confReachViol', ('->', (viol, cost, 'path len = %d'%len(path))))
-                return (viol.union(realInitViol) if viol else viol, cost, path)
+                return (viol.update(realInitViol) if viol else viol, cost, path)
             else:
                 if debug('confReachViol'):
                     drawProblem(forceDraw=True)
@@ -713,7 +713,7 @@ class RoadMap:
                     cv = self.confViolations(initConf, pbs, prob,
                                              avoidShadow=avoidShadow, attached=attached)[0]
                     if cv:
-                        return (viol2.union(cv).union(realInitViol) if viol2 else viol2,
+                        return (viol2.update(cv).update(realInitViol) if viol2 else viol2,
                                 cost2,
                                 [initConf] + path2)
         key = (targetConf, initConf, initViol, fbch.inHeuristic or coarsePath)
@@ -742,7 +742,7 @@ class RoadMap:
                     debugMsg('confReachViolCache', 'confReachCache actual hit')
                     print '    returning', ans
                 (viol2, cost2, path2, nodePath2) = ans
-                return (viol2.union(realInitViol) if viol2 else viol2, cost2, path2) # actual answer
+                return (viol2.update(realInitViol) if viol2 else viol2, cost2, path2) # actual answer
             elif not fbch.inHeuristic:
                 for cacheValue in sortedCacheValues:
                     (bs2, p2, avoid2, ans) = cacheValue
@@ -752,7 +752,7 @@ class RoadMap:
                                                      pbs.getShadowWorld(prob).attached, avoidShadow)
                         # newViol.obstacles<=viol2.obstacles and newViol.shadows<=viol2.shadows
                         if newViol and newViol.weight() <= viol2.weight():
-                            ans = (newViol.union(realInitViol) if newViol else newViol, cost2, path2,
+                            ans = (newViol.update(realInitViol) if newViol else newViol, cost2, path2,
                                    nodePath2)
                             if debug('traceCRH'): print '    reusing path',
                             if debug('confReachViolCache'):
@@ -774,7 +774,7 @@ class RoadMap:
             if debug('confReachViol'):
                 print 'targetConf is unreachable'
             return exitWithAns((None, None, None, None))
-        cvi = initViol.combine(cv.obstacles, cv.shadows)
+        cvi = initViol.update(cv)
         node = self.addNode(targetConf)
         if initConf == targetConf:
             if debug('traceCRH'): print '    init=target',

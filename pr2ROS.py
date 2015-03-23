@@ -99,52 +99,42 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
     def executePlace(self, op, params):
         pass
 
-def getTables(robot, obsTargets, scan):
+class PointCloud:
+    def __init__(self, matrix, eye):
+        self.pointMatrix = matrix
+        self.eye = eye
+
+# obsTargets is dict: {name:ObjPlaceB or None, ...}
+def getTables(world, obsTargets, pointCloud):
     tables = []
     exclude = []
     # A zone of interest
     zone = shapes.BoxAligned(np.array([(0, -2, 0), (3, 2, 1.5)]), None)
-    for objName in obsTargets.keys():
+    for objName in obsTargets:
         if 'table' in objName:
-            table = obsTargets[objName][0]
-            var = obsTargets[objName][1]
-            if not var or (var and scan.headTransInverse.applyToPoint(table.center()).x > 0):
-
+            placeB = obsTargets[objName]
+            if not placeB or pointCloud.eye.applyToPoint(table.origin().point()).x > 0):
                 startTime = time.time()
-                score, detection = tab.bestTable(zone, table.refObj(),
-                                                 scan, exclude,
+                tableShape = world.getObjectShapeAtOrigin(objName)
+                score, detection = tab.bestTable(zone, tableShape,
+                                                 pointCloud, exclude,
                                                  angles = tab.anglesList(30),
                                                  zthr = 0.05,
-                                                 debug=glob.debug('table'))
+                                                 debug=debug('getTables'))
                 print 'Table detection', detection, 'with score', score
                 print 'Running time for table detections =',  time.time() - startTime
                 if detection:
-                    tableInRobotFrame = detection
-                    tables.append(tableDetection(objName, tableInRobotFrame, score))
+                    tables.append((score, detection))
                     exclude.append(detection)
                     detection.draw('MAP', 'blue')
-                    #raw_input('Detection for table=%s'%objName)
+                    debugMsg('getTables', 'Detection for table=%s'%objName)
     return tables
 
-# This format is needed for the object detection.
-def tableDetection(objName, tableInRobotFrame, score = None):
-    table = Table()
-    table.name = objName
-    table.score = score
-    tableInRobotFramePose = tableInRobotFrame.origin().pose()
-    table.z = tableInRobotFrame.zRange()[1] # upper Z of table
-    table.pose = tableInRobotFramePose
-    print 'Detection:', table.name, table.pose, table.z, 'score:', score
-    if glob.useROS:
-        table.polygon = makeROSPolygon(tableInRobotFrame)
-    return table
-
-def getCloudPoints(resolution):
+def getPointCloud(resolution):
     rospy.wait_for_service('point_cloud')
-    #raw_input('Got Cloud?')
+    debugMsg('getPointCloud', 'Got Cloud?')
     time.sleep(3)
     print 'Asking for cloud points'
-    
     try:
         getCloudPts = rospy.ServiceProxy('point_cloud', PointCloud)
         reqC = PointCloudRequest(resolution = resolution)
@@ -153,8 +143,10 @@ def getCloudPoints(resolution):
         response = None
         response = getCloudPts(reqC)
         print 'Got cloud points:', len(response.cloud.points)
-        return ([util.Point(p.x, p.y, p.z) for p in response.cloud.points],
-                response.cloud.eye)
+        points = np.zeros((4, len(response.cloud.points)), dtype=np.float64)
+        for i, pt in enumerate(response.cloud.points):
+            points[:, i] = (p.x, p.y, p.z, 1.0)
+        return PointCloud(points, TransformFromROSMsg(response.cloud.eye))
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
         raw_input('Continue?')

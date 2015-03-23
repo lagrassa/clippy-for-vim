@@ -139,15 +139,22 @@ class Violations(Hashable):
     def __init__(self, obstacles=frozenset([]), shadows=frozenset([]), penalty=0.0):
         self.obstacles = frozenset(obstacles)
         self.shadows = frozenset(shadows)
+        assert len(set([o.name() for o in self.obstacles])) == len(self.obstacles)
+        assert len(set([o.name() for o in self.shadows])) == len(self.shadows)
         self.penalty = penalty
     def empty(self):
         return (not self.obstacles) and (not self.shadows)
     def combine(self, obstacles, shadows):
         return Violations(frozenset(self.obstacles.union(obstacles)),
                           frozenset(self.shadows.union(shadows)))
-    def union(self, viol):
-        return Violations(frozenset(self.obstacles.union(viol.obstacles)),
-                          frozenset(self.shadows.union(viol.shadows)))
+    def update(self, viol):
+        def upd(curShapes, newShapes):
+            curDict = dict([(o.name(), o) for o in curShapes])
+            newDict = dict([(o.name(), o) for o in newShapes])
+            curDict.update(newDict)
+            return curDict.values()
+        return Violations(frozenset(upd(self.obstacles, viol.obstacles)),
+                          frozenset(upd(self.shadows, viol.shadows)))
     def weight(self):
         return len(self.obstacles) + 0.5*len(self.shadows)+self.penalty
     def LEQ(self, other):
