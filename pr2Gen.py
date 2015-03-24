@@ -984,7 +984,8 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
             for ans in moveOut(newBS, obst, moveDelta):
                 yield ans
 
-# LPK!! Organize this better and share bottom part of code with canReachGen
+# LPK!! More efficient if we notice right away that we cannot ask to
+# change the pose of an object that is in the hand in goalConds
 def canPickPlaceGen(args, goalConds, bState, outBindings):
     (preconf, ppconf, hand,
      obj, pose, realPoseVar, poseDelta, poseFace,
@@ -1023,8 +1024,10 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
 
     viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
                              graspB1, placeB, prob)
+    newBS.draw(prob, 'W')
     debugMsg('canPickPlaceGen', ('viol', viol))
     if not viol:                  # hopeless
+        debugMsg('canPickPlaceGen', 'Violation is permanent; returning')
         return
     if viol.empty():
         debugMsg('canPickPlaceGen', 'No obstacles or shadows; returning')

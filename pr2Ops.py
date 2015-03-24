@@ -449,8 +449,9 @@ def pickPoseVar((graspVar, prob), goal, start, vals):
         debugMsg('pickGen', 'pick pose var', poseVar)
         return [[poseVar]]
 
-# If it's bigger than this, we can't just plan to look and see it    
-maxPoseVar = (0.2**2,)*4
+# If it's bigger than this, we can't just plan to look and see it
+# Should be more subtle than this...
+maxPoseVar = (0.2**2, 0.2**2, 0.2**2, 0.5**2)
 
 # starting var if it's legal, plus regression of the result var
 def genLookObjPrevVariance((ve, obj, face), goal, start, vals):

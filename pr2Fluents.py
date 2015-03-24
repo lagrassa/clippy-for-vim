@@ -212,6 +212,10 @@ class CanPickPlace(Fluent):
     implicit = True
     conditional = True
 
+    # Add a glb method that will at least return False, {} if the two are
+    # in contradiction.  How to test, exactly?
+
+
     # Override the default version of this so that the component conds will be recalculated
     def addConditions(self, newConds, details = None):
         self.conds = None
@@ -302,18 +306,13 @@ class CanPickPlace(Fluent):
         return (obstCost * len(obstOps) + shadowCost * len(shadowOps), ops)
 
     def prettyString(self, eq = True, includeValue = True):
-        (preConf, ppConf, hand, lobj, pose, poseVar, poseDelta, poseFace,
-          lface, lgraspMu, lgraspVar, lgraspDelta,
-          robj, rface, rgraspMu, rgraspVar, rgraspDelta, conds) = self.args
-
-        if hand == 'right':
-            (lobj, lface, lgraspMu, lgraspVar, lgraspDelta, \
-             robj, rface, rgraspMu, rgraspVar, rgraspDelta) =  \
-            (robj, rface, rgraspMu, rgraspVar, rgraspDelta, \
-             lobj, lface, lgraspMu, lgraspVar, lgraspDelta)
+        (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
+          face, graspMu, graspVar, graspDelta,
+          oobj, oface, ograspMu, ograspVar, ograspDelta, conds) = self.args
+        assert obj != 'none'
 
         argStr = prettyString(self.args) if eq else \
-                  prettyString([lobj, hand, pose, 'Conds'], eq)
+                  prettyString([obj, hand, pose, 'Conds'], eq)
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
 

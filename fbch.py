@@ -518,6 +518,8 @@ class Fluent(object):
         elif self.fglb != None:
             # See if we have a domain-specific method
             result = self.fglb(other, details)
+        elif other.fglb != None:
+            result = other.fglb(self, details)
         else:
             # Assume they can get along
             result = {self, other}, {}
@@ -918,10 +920,20 @@ class Operator(object):
         newGoal = State([])
         for f in newBoundFluents:
             if f.isConditional():
+
+                # !! LPK take out extra evaluations
+                #print 'adding conditions to', f.prettyString()
                 # Preconds will not override results
+                v0 = f.valueInDetails(startState.details)
                 f.addConditions(explicitResults, startState.details)
+                v1 = f.valueInDetails(startState.details)
                 f.addConditions(explicitPreconds, startState.details)
+                v2 = f.valueInDetails(startState.details)
                 f.addConditions(explicitSE, startState.details)
+                v3 = f.valueInDetails(startState.details)
+                if v0 == True and v3 == False:
+                    print 'value in details:', v0, v1, v2, v3
+                    raw_input('made it false!')
                 f.update()
             newGoal.add(f, startState.details)
 
