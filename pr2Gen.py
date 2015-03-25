@@ -801,7 +801,8 @@ def lookGenTop(args, goalConds, pbs, outBindings):
             pbs.draw(prob, 'W')
             lookConf.draw('W', color='cyan', attached=shWorld.attached)
             debugMsg('lookGen', ('-> cyan', lookConf.conf))
-        yield (lookConf,), viol
+        if lookConf:
+            yield (lookConf,), viol
 
 ## lookHandGen
 ## obj, hand, graspFace, grasp, graspVar, graspDelta and gives a conf

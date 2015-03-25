@@ -1,3 +1,5 @@
+import platform
+
 ########################################
 # Default values of global values, can be overriden in local.py
 ########################################
@@ -6,7 +8,7 @@
 # System: LINUX and Mac OS X are supported
 ########################################
 
-LINUX = False # if path[:6] == '/Users' else True
+LINUX = (platform.system() == 'Linux')
 
 ########################################
 # ROS: Controlling robot 

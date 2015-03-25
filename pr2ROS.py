@@ -94,7 +94,6 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
     def executePrim(self, op, params = None):
         def endExec(obs):
             print 'Executed', op.name, 'got obs', obs
-            debugMsg('executePrim')
             return obs
         if op.name == 'Move':
             return endExec(self.executeMove(op, params))

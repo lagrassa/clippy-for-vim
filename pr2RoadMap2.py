@@ -474,6 +474,8 @@ class RoadMap:
                        initViol=noViol,
                        avoidShadow=[], attached=None,
                        additionalObsts = []):
+        if initViol is None:
+            return None, (None, None)
         shWorld = pbs.getShadowWorld(prob, avoidShadow)
         robotShape, attachedPartsDict = conf.placementAux(attached=attached)
         attachedParts = [x for x in attachedPartsDict.values() if x]

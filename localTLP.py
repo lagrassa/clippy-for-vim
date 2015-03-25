@@ -1,12 +1,12 @@
 import os
-# path = os.getcwd()
-# parent = path[:path.rfind('/')] + '/../'
+import platform
 libkinDir = './IK/'
-# print 'parent', parent
-outDir = '/Users/tlp/Documents/search/'
+if platform.system() == 'Linux':
+    outDir = '/mit/tlp/search/'
+else:
+    outDir = '/Users/tlp/Documents/search/'
 dotSearch = outDir + 's%s%s.dot'
 dotSearchX = outDir + 'sX%s%s.dot'
-
 
 rebindPenalty = 100
 
@@ -49,7 +49,7 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
 debugOn = ['traceGen', 'traceCRH', 'confReachViol', 'canPickPlaceGen', 'pickGen']
 debugOn = ['traceGen', 'traceCRH', 'prim', 'getShadowWorldGrasp']
 # debugOn = []
-debugOn = ['traceGen', 'traceCRH', 'prim', 'skeleton', 'canPickPlaceGen']
+debugOn = ['traceGen', 'traceCRH', 'robotEnv']
 
 pauseOn = debugOn
 
