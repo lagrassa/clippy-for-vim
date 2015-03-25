@@ -65,6 +65,9 @@ import pr2Sim2
 reload(pr2Sim2)
 from pr2Sim2 import RealWorld
 
+import pr2ROS
+reload(pr2ROS)
+from pr2ROS import RobotEnv
 
 writeSearch = True
 
@@ -182,8 +185,9 @@ def testWorld(include = ['objA', 'objB', 'objC'],
 
     colors = ['red', 'green', 'blue', 'cyan', 'purple', 'pink', 'orange']
     for i, objName in enumerate(manipulanda):
-        thing = Sh([placeSc((-0.05, 0.05), (-0.025, 0.025), (0.0, 0.1))],
+        thing = Sh([place((-0.0445, 0.0445), (-0.027, 0.027), (0.0, 0.1175))],
                    name = objName, color=colors[i%len(colors)])
+        # thing.typeName = 'soda'  #!! HACK
         height = thing.bbox()[1,2]
         world.addObjectShape(thing)
         # The bbox has been centered
@@ -375,23 +379,23 @@ class PlanTest:
         self.bs.pbs.draw(0.9, 'Belief')
         self.bs.pbs.draw(0.9, 'W')
         # Initialize simulator
-        self.realWorld = RealWorld(self.bs.pbs.getWorld(),
-                                   self.domainProbs) # simulator
-        self.realWorld.setRobotConf(self.bs.pbs.conf)
-        # LPK!! add collision checking
-        for obj in self.objects:
-            pb = self.bs.pbs.getPlaceB(obj)
-            objPose = pb.objFrame().pose()
-            if randomizedInitialPoses:
-                stDev = tuple([np.sqrt(v) for v in pb.poseD.variance()])
-                objPose = objPose.corruptGauss(0.0, stDev, noZ = True)
-            self.realWorld.setObjectPose(obj, objPose)
-        if initWorld: initWorld(self.bs, self.realWorld)
-        # if self.bs.pbs.held['left'].mode() != 'none':
-        #     self.realWorld.held['left'] = self.bs.pbs.held['left'].mode()
-        #     print 'Need to figure out grasp!'
-        #     assert False
-        self.realWorld.draw('World')
+        if glob.useROS:
+            self.realWorld = RobotEnv(self.bs.pbs.getWorld())
+        else:
+            self.realWorld = RealWorld(self.bs.pbs.getWorld(),
+                                       self.domainProbs) # simulator
+            self.realWorld.setRobotConf(self.bs.pbs.conf)
+            # LPK!! add collision checking
+            for obj in self.objects:
+                pb = self.bs.pbs.getPlaceB(obj)
+                objPose = pb.objFrame().pose()
+                if randomizedInitialPoses:
+                    stDev = tuple([np.sqrt(v) for v in pb.poseD.variance()])
+                    objPose = objPose.corruptGauss(0.0, stDev, noZ = True)
+                self.realWorld.setObjectPose(obj, objPose)
+            if initWorld: initWorld(self.bs, self.realWorld)
+            self.realWorld.draw('World')
+
         s = State([], details = self.bs)
 
         print '**************', self.name,\
