@@ -8,8 +8,9 @@ import transformations as transf
 
 import pointClouds as pc
 import planGlobals as glob
+from planGlobals import debug, debugMsg
 import windowManager3D as wm
-from pr2Utils import shadowWidths
+from pr2Util import shadowWidths
 
 import util
 import tables
@@ -17,11 +18,11 @@ reload(tables)
 
 if glob.useROS:
     import rospy
-    import pr2_hpn.msg
-    import pr2_hpn.srv
-    from pr2_hpn.srv import *
     import roslib
-    roslib.load_manifest('pr2_hpn')
+    roslib.load_manifest('hpn_redux')
+    import hpn_redux.msg
+    import hpn_redux.srv
+    from hpn_redux.srv import *
     import kinematics_msgs.msg
     import kinematics_msgs.srv
     from std_msgs.msg import Header
@@ -43,21 +44,23 @@ if glob.useROS:
 def pr2GoToConf(cnfIn,                  # could be partial...
                 operation,              # a string
                 arm = 'both',
-                speedfactor = glob.speedFactor):
+                speedFactor = glob.speedFactor):
     if not glob.useROS: return None, None
     rospy.wait_for_service('pr2_goto_configuration')
     try:
         gotoConf = rospy.ServiceProxy('pr2_goto_configuration',
-                                      pr2_hpn.srv.GoToConf)
-        conf = pr2_hpn.msg.Conf()
+                                      hpn_redux.srv.GoToConf)
+        conf = hpn_redux.msg.Conf()
         conf.arm = arm
         conf.base = map(float, cnfIn.get('pr2Base', []))
         conf.torso = map(float, cnfIn.get('pr2Torso', [])) 
         conf.left_joints = map(float, cnfIn.get('pr2LeftArm', []))
         conf.left_grip = map(float, cnfIn.get('pr2LeftGripper', []))
         conf.right_joints = map(float, cnfIn.get('pr2RightArm', []))
-        conf.rght_grip = map(float, cnfIn.get('pr2RightGripper', []))
+        conf.right_grip = map(float, cnfIn.get('pr2RightGripper', []))
         conf.head = map(float, cnfIn.get('pr2Head', []))
+        if conf.head:
+            conf.head = [1.0, 0.0, 0.6]
 
         print operation, conf
         
@@ -210,7 +213,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         
         return 'none'
 
-def getObjDetections(self.world, obsTargets, robotConf, surfacePolys, maxFitness = 3):
+def getObjDetections(world, obsTargets, robotConf, surfacePolys, maxFitness = 3):
     targetPoses = dict([(placeB.obj, placeB.poseD.mode()) \
                         for placeB in obsTargets.values()])
     robotFrame = robotConf['pr2Base']
@@ -229,7 +232,8 @@ def getObjDetections(self.world, obsTargets, robotConf, surfacePolys, maxFitness
 
     rospy.wait_for_service('detect_models')
     detect = rospy.ServiceProxy('detect_models', DetectModels)
-    targetModels = [o.typeName for o in targetPoses if o.typeName]
+    # targetModels = [o.typeName for o in targetPoses if o.typeName]
+    targetModels = ['soda']
     if debug('robotEnv'):
         print 'calling perception with', targetModels
     reqD = DetectModelsRequest(timeout = rospy.Duration(15),
