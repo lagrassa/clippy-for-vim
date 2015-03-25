@@ -89,6 +89,15 @@ minPlaceInVarTuple = (.005, .005)        # Target variance for placing
 maxPlaceVarTuple = (.02, .02)            # Target variance for placing
 
 ########################################
+# Table parameters
+########################################
+
+tableMaxShrink = 0.1
+minTableDim = 5.
+cloudPointsResolution = 0.01            # should be 0.1
+tableBadWeight = 5
+
+########################################
 # Debugging
 ########################################
 debugOn = []

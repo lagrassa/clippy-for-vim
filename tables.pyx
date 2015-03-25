@@ -5,12 +5,15 @@ reload(glob)
 from planGlobals import debugMsg, debug
 
 # Can be cimports
+cimport numpy as np
 import numpy as np
+cimport util
 import util
+cimport geom
 import geom
-import shapes
-import pointClouds as pc
-# from cpython cimport bool
+cimport shapes
+cimport pointClouds as pc
+from cpython cimport bool
 
 import windowManager3D as wm
 windowName = 'MAP'
@@ -19,14 +22,14 @@ windowName = 'MAP'
 def bestTable(zone, table, pointCloud, exclude,
                     res=0.01, zthr = 0.03, angles = []):
     
-    # cdef int minTablePoints, p, size, score, bestScore
-    # cdef float height, radius, thrHi, thrLo, angle
-    # cdef list good, below
-    # cdef np.ndarray[np.float64_t, ndim=1] pt, center
-    # cdef np.ndarray[np.float64_t, ndim=2] bb, points, eye, badPoints, goodPoints, badOffset, bbGood
-    # cdef bool inside
-    # cdef util.Transform headTrans
-    # cdef util.Pose pose, bestPose
+    cdef int minTablePoints, p, size, score, bestScore
+    cdef float height, radius, thrHi, thrLo, angle
+    cdef list good, below
+    cdef np.ndarray[np.float64_t, ndim=1] pt, center
+    cdef np.ndarray[np.float64_t, ndim=2] bb, points, eye, badPoints, goodPoints, badOffset, bbGood
+    cdef bool inside
+    cdef util.Transform headTrans
+    cdef util.Transform pose, bestPose
     
     minTablePoints = int(glob.minTableDim / glob.cloudPointsResolution)
     height = table.zRange()[1] - table.zRange()[0]
@@ -97,11 +100,14 @@ def bestTable(zone, table, pointCloud, exclude,
     else:
         return bestScore, None
     
-def fillSummed(centerPoseInv, ci, pts, summed, res, size):
+cdef fillSummed(util.Transform centerPoseInv, tuple ci,
+               np.ndarray[np.float64_t, ndim=2] pts,
+               np.ndarray[np.int_t, ndim=2] summed,
+               float res, int size):
 
-    # cdef int pi, i, j, p, npts
-    # cdef np.ndarray[np.int_t, ndim=1] si, si_1, ind
-    # cdef np.ndarray[np.float64_t, ndim=2] centered
+    cdef int pi, i, j, p, npts
+    cdef np.ndarray[np.int_t, ndim=1] si, si_1, ind
+    cdef np.ndarray[np.float64_t, ndim=2] centered
     
     pi = 0                              # index into points
     centered = np.dot(centerPoseInv.matrix, pts)
@@ -127,25 +133,29 @@ def fillSummed(centerPoseInv, ci, pts, summed, res, size):
             else:
                 si[j] = p
 
-def scoreTable1(summed, i, j, dimI, dimJ):
-    # cdef list scoreA, scoreB, scoreC, scoreD
+cdef int scoreTable1(np.ndarray[np.int_t, ndim=2] summed, int i, int j, int dimI, int dimJ):
+    cdef int scoreA, scoreB, scoreC, scoreD
     scoreA = summed[i,j]
     scoreC = summed[i+dimI,j+dimJ]
     scoreB = summed[i,j+dimJ]
     scoreD = summed[i+dimI,j]
     return scoreC + scoreA - scoreB - scoreD
 
-def scoreTable(summed, i, j, dimI, dimJ):
+cdef tuple scoreTable(tuple summed, int i, int j, int dimI, int dimJ):
     return (scoreTable1(summed[0], i, j, dimI, dimJ),
             scoreTable1(summed[1], i, j, dimI, dimJ))
 
-def bestTablePose(table, center, angle, good, bad, summed, res, size):
+cpdef tuple bestTablePose(shapes.Thing table, np.ndarray[np.float64_t, ndim=1 ]center,
+                          float angle,
+                          np.ndarray[np.float64_t, ndim=2] good,
+                          np.ndarray[np.float64_t, ndim=2] bad,
+                          tuple summed, float res, int size):
 
-    # cdef util.Pose centerPose, centerPoseInv, pose, cpose
-    # cdef tuple ci, bestPlace
-    # cdef np.ndarray[np.float64_t, ndim=2] bb
-    # cdef int dimI, dimJ, bestScore
-    # cdef int i, j, score, shrink, maxShrink, scoreGood, scoreBad
+    cdef util.Transform centerPose, centerPoseInv, pose, cpose
+    cdef tuple ci, bestPlace
+    cdef np.ndarray[np.float64_t, ndim=2] bb
+    cdef int dimI, dimJ, bestScore
+    cdef int i, j, score, shrink, maxShrink, scoreGood, scoreBad
     
     centerPose = util.Pose(*[center[0], center[1], 0., angle])
     centerPoseInv = centerPose.inverse()
@@ -187,7 +197,7 @@ def anglesList(n = 8):
     return [i*delta for i in xrange(n)]
 
 # obsTargets is dict: {name:ObjPlaceB or None, ...}
-def getTables(world, obsTargets, pointCloud):
+def getTableDetections(world, obsTargets, pointCloud):
     tables = []
     exclude = []
     # A zone of interest

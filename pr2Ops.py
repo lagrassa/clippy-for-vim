@@ -141,7 +141,9 @@ def lookPrim(args, details):
     if debug('prim'):
         print '*** lookPrim'
         print zip(vl, args)
-    return None
+
+    # The distributions for the placed objects, to guide looking
+    return details.pbs.getPlacedObjBs()
 
 def lookHandPrim(args, details):
     # In the real vision system, we might pass in a more general
@@ -152,8 +154,9 @@ def lookHandPrim(args, details):
     if debug('prim'):
         print '*** lookHandPrim'
         print zip(vl, args)
-    return None
 
+    # The distributions for the grasped objects, to guide looking
+    return details.pbs.graspB
     
 def placePrim(args, details):
     vl = \

@@ -97,37 +97,57 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p):
     # 1.  Can move from home to pre holding nothing with object placed at pose
     if preConf:
         pbs1 = pbs.copy().updatePermObjPose(objPlace).updateHeldBel(None, hand)
-        if debug('canPickPlaceTest'): print 'H->App, obj=pose (condition 1)'
+        if debug('canPickPlaceTest'):
+            pbs1.draw(p, 'W')
+            debugMsg('canPickPlaceTest', 'H->App, obj=pose (condition 1)')
         path, violations = canReachHome(pbs1, preConf, p, violations)
         if not path:
             debugMsg('canPickPlaceTest', 'Failed H->App, obj=pose (condition 1)')
             return None
+        elif debug('canPickPlaceTest'):
+            for c in path: c.draw('W', attached = pbs1.getShadowWorld(p).attached)
+            debugMsg('canPickPlaceTest', 'path 1')
     # 2 - Can move from home to pre holding the object
     obj = objGrasp.obj
     pbs2 = pbs.copy().excludeObjs([obj]).updateHeldBel(objGrasp, hand)
-    if debug('canPickPlaceTest'): print 'H->App, obj=held (condition 2)'
+    if debug('canPickPlaceTest'):
+        pbs2.draw(p, 'W')
+        debugMsg('canPickPlaceTest', 'H->App, obj=held (condition 2)')
     path, violations = canReachHome(pbs2, preConf, p, violations)
     if not path:
         debugMsg('canPickPlaceTest', 'Failed H->App, obj=held (condition 2)')
         return None
+    elif debug('canPickPlaceTest'):
+        for c in path: c.draw('W', attached = pbs2.getShadowWorld(p).attached)
+        debugMsg('canPickPlaceTest', 'path 2')
     # 3.  Can move from home to pick while obj is placed with zero variance
     oB = objPlace.modifyPoseD(var=4*(0.0,)) # ignore uncertainty
     oB.delta = 4*(0.0,)
     pbs3 = pbs.copy().updatePermObjPose(oB).updateHeldBel(None, hand)
-    if debug('canPickPlaceTest'): print 'H->Target, obj placed (0 var) (condition 3)'
+    if debug('canPickPlaceTest'):
+        pbs3.draw(p, 'W')
+        debugMsg('canPickPlaceTest', 'H->Target, obj placed (0 var) (condition 3)')
     path, violations = canReachHome(pbs3, pickConf, p, violations)
     if not path:
         debugMsg('canPickPlaceTest', 'Failed H->Target (condition 3)')
         return None
+    elif debug('canPickPlaceTest'):
+        for c in path: c.draw('W', attached = pbs3.getShadowWorld(p).attached)
+        debugMsg('canPickPlaceTest', 'path 3')
     # 4.  Can move from home to pick while holding obj with zero grasp variance
     gB = objGrasp.modifyPoseD(var=4*(0.0,)) # ignore uncertainty
     gB.delta = 4*(0.0,)
     pbs4 = pbs.copy().excludeObjs([obj]).updateHeldBel(gB, hand)
-    if debug('canPickPlaceTest'): print 'H->Target, holding obj (0 var) (condition 4)'
+    if debug('canPickPlaceTest'):
+        pbs4.draw(p, 'W')
+        debugMsg('canPickPlaceTest', 'H->Target, holding obj (0 var) (condition 4)')
     path, violations = canReachHome(pbs4, pickConf, p, violations)
     if not path:
         debugMsg('canPickPlaceTest', 'Failed H->Target (condition 4)')
         return None
+    elif debug('canPickPlaceTest'):
+        for c in path: c.draw('W', attached = pbs4.getShadowWorld(p).attached)
+        debugMsg('canPickPlaceTest', 'path 4')
     debugMsg('canPickPlaceTest', ('->', violations))
     return violations
 

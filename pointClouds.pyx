@@ -5,7 +5,8 @@ from cpython cimport bool
 
 cimport util
 import util
-
+Ident = util.Transform(np.eye(4))            # identity transform
+import transformations as transf
 cimport shapes
 import shapes
 
@@ -30,7 +31,7 @@ cdef class Scan:
         else:
             self.vertices = verts
         edges = np.zeros((self.vertices.shape[1], 2), dtype=np.int)
-        for i from 1 <= i < self.vertices.shape[1]:
+        for i in range(1, self.vertices.shape[1]):
             edges[i,0] = 0; edges[i,1] = i
         self.edges = edges
         self.bbox = vertsBBox(self.vertices, None)
@@ -111,6 +112,32 @@ cpdef np.ndarray[np.float64_t, ndim=2] scanVerts(tuple scanParams, util.Transfor
         v[0,0] = x * w; v[1,0] = y * w; v[2,0] = z * w
         verts[:, i+1] = np.dot(pose.matrix, v)[:,0]
     return verts
+
+scanCache = {}
+
+def simulatedScan(conf, scanParams, objects, name='scan', color=None):
+    lookCartConf = conf.robot.forwardKin(conf)
+    headTrans = lookCartConf['pr2Head']
+    if scanParams in scanCache:
+        laserScan = scanCache[scanParams]
+    else:
+        laserScan = Scan(Ident, scanParams)
+        scanCache[scanParams] = laserScan
+    scanTrans = headTrans.compose(util.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0))))
+    scan = laserScan.applyTrans(scanTrans)
+    n = scan.edges.shape[0]
+    dm = np.zeros(n); dm.fill(10.0)
+    contacts = n*[None]
+    for i, shape in enumerate(objects):
+        for objPrim in shapes.toPrims(shape):
+            updateDepthMap(scan, objPrim, dm, contacts, i)
+    verts = np.zeros((4, n))
+    for i in range(n):
+        if contacts[i]:
+            verts[:,i] = contacts[i][0]
+        else:
+            verts[:, i] = scan.vertices[:, i]
+    return Scan(headTrans, scanParams, verts=verts, name=name, color=color)
 
 ######################################
 # Below is based on collision.pyx
