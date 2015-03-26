@@ -670,7 +670,7 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
                  varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2),
                             'objA': (0.075**2,0.075**2,0.0000001,0.2**2)})
 
-    goal = State([B([Pose(['objA', 4]), p1.xyztTuple(),
+    goal = State([B([Pose(['objA', 4]), p2.xyztTuple(),
                      (0.001, 0.001, 0.001, 0.005),
                           (0.025,)*4, goalProb], True),
                   Bd([SupportFace(['objA']), 4, goalProb], True)])

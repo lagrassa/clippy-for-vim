@@ -11,6 +11,7 @@ import planGlobals as glob
 from planGlobals import debug, debugMsg
 import windowManager3D as wm
 from pr2Util import shadowWidths, supportFaceIndex
+from miscUtil import argmax
 
 import util
 import tables
@@ -164,7 +165,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             table = lookAtTable(targetObj)
             if not table: return None
             trueFace = supportFaceIndex(table)
-            return (targetObj, trueFace, table.origin())
+            return (targetObj, trueFace, tablePose(table))
         elif targetObj in placeBs:
             supportTable = findSupportTable(targetObj, self.world, placeBs)
             assert supportTable
@@ -174,17 +175,22 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                 if not table: return None
             else:
                 table = world.getObjectShapeAtOrigin(supportTable).applyLoc(placeB.objFrame())
-            surfacePolyPoly = makeROSPolygon(table)
-            score, objPlace = getObjDetections(self.world,
-                                               {targetObj: placeBs[targetObj]},
-                                               outConf, # the lookConf actually achieved
-                                               [surfacePoly])[0]
-            if debug('robotEnv'):
-                objPlace.draw('W', 'red')
-                raw_input(objPlace.name())
-
+            surfacePoly = makeROSPolygon(table)
+            ans = getObjDetections(self.world,
+                                   {targetObj: placeBs[targetObj]},
+                                   outConf, # the lookConf actually achieved
+                                   [surfacePoly])
+            if ans:
+                score, objPlace = ans[0]
+                if debug('robotEnv'):
+                    objPlace.draw('W', 'red')
+                    raw_input(objPlace.name())
+                else:
+                    print 'No detections'
+                    raw_input()
+                    return None
             trueFace = supportFaceIndex(objPlace)
-            return (objPlace, trueFace, objPlace.origin())
+            return (objPlace.name(), trueFace, objPlace.origin())
         else:
             raw_input('Unknown object: %s'%targetObj)
             return None
@@ -227,14 +233,16 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 def getObjDetections(world, obsTargets, robotConf, surfacePolys, maxFitness = 3):
     targetPoses = dict([(placeB.obj, placeB.poseD.mode()) \
                         for placeB in obsTargets.values()])
-    robotFrame = robotConf['pr2Base']
+    baseX, baseY, baseTh = robotConf['pr2Base']
+    robotFrame = util.Pose(baseX, baseY, 0.0, baseTh)
     robotFrameInv = robotFrame.inverse()
     targetPosesRobot = dict([(obj, robotFrameInv.compose(p)) \
                              for (obj, p) in targetPoses.items()])
     shWidths = [shadowWidths(pB.poseD.var, pB.delta, 0.99)[:3] \
                      for pB in obsTargets.values()]
-    targetDistsXY = [max(w[:2] + [0.05]) for w in shWidths]
-    targetDistsZ = [max(w[2:3] + [0.05]) for w in shWidths]
+    minDist = 1.0
+    targetDistsXY = [max(w[:2] + [minDist]) for w in shWidths]
+    targetDistsZ = [max(w[2:3] + [minDist]) for w in shWidths]
     if debug('robotEnv'):
         print 'Original target poses', targetPoses
         print 'Robot relative target poses', targetPosesRobot
@@ -266,7 +274,10 @@ def getObjDetections(world, obsTargets, robotConf, surfacePolys, maxFitness = 3)
     detections = []
     for obj in state.scene.objects:
         if obj.fitness_score < maxFitness:
-            objShape = world.getObjectShapeAtOrigin(obj.name).applyLoc(obj.pose)
+            #!! HACK
+            name = obsTargets.keys()[0]
+            trans = TransformFromROSMsg(obj.pose.position, obj.pose.orientation)
+            objShape = world.getObjectShapeAtOrigin(name).applyLoc(trans)
             detections.append((obj.fitness_score, objShape))
     detections.sort()                   # lower is better
     return detections
@@ -283,7 +294,8 @@ def getPointCloud(resolution = glob.cloudPointsResolution):
         response = None
         response = getCloudPts(reqC)
         print 'Got cloud points:', len(response.cloud.points)
-        headTrans = TransformFromROSMsg(response.cloud.eye)
+        trans = response.cloud.eye.transform
+        headTrans = TransformFromROSMsg(trans.translation, trans.rotation)
         eye = headTrans.point()
         print 'eye', eye
         points = np.zeros((4, len(response.cloud.points)+1), dtype=np.float64)
@@ -301,9 +313,9 @@ def getPointCloud(resolution = glob.cloudPointsResolution):
 
 def makeROSPolygon(obj, dz=0):
     points = []
-    verts = obj.xyPrim().verts()
+    verts = obj.xyPrim().vertices()
     zhi = obj.zRange()[1]
-    for p in verts.shape[1]:
+    for p in range(verts.shape[1]):
         (x, y, z) = verts[0:3,p]
         if abs(z - zhi) < 0.001:
             points.append(gm.Point(x, y, z))
@@ -314,9 +326,8 @@ def makeROSPose2D(pose):
     return gm.Pose2D(pose.x, pose.y, pose.theta)
 
 def makeROSPose3D(pose):
-    T = pose.matrix
-    (x,y,z,w) = T.quat().matrix
-    (px, py, pz) = T.matrix[0:3,3]
+    (x,y,z,w) = pose.quat().matrix
+    (px, py, pz) = pose.matrix[0:3,3]
     rpose = gm.Pose()
     rpose.position.x = px
     rpose.position.y = py
@@ -327,9 +338,7 @@ def makeROSPose3D(pose):
     rpose.orientation.w = w
     return rpose
 
-def TransformFromROSMsg(msg):
-    pos = msg.transform.translation
-    quat = msg.transform.rotation
+def TransformFromROSMsg(pos, quat):
     pos = np.array([[x] for x in [pos.x, pos.y, pos.z, 1.0]])
     quat = np.array([quat.x, quat.y, quat.z, quat.w])
     return util.Transform(p=pos, q=quat)
@@ -347,12 +356,16 @@ def wellLocalized(pB):
                                      4*(0.02,))))
 
 def findSupportTable(targetObj, world, placeBs):
-    tableBs = [pB for pB in placeBs.values if 'table' in pB.obj]
-    print 'tablesBs', tablesBs
+    tableBs = [pB for pB in placeBs.values() if 'table' in pB.obj]
+    print 'tablesBs', tableBs
     tableCenters = [pB.poseD.mode().point() for pB in tableBs]
-    targetB = [pB for pB in placeBs if targetObj == pB.obj]
+    targetB = placeBs[targetObj]
     assert targetB
-    targetCenter = targetB[0].poseD.mode().point()
+    targetCenter = targetB.poseD.mode().point()
     bestCenter = argmax(tableCenters, lambda c: -targetCenter.distance(c))
     ind = tableCenters.index(bestCenter)
     return tableBs[ind].obj
+
+def tablePose(table):
+    (x,y,z,t) = table.orgin.pose().xyztTuple()
+    return util.Pose(x,y,0.,t)

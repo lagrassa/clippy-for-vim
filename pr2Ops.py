@@ -622,6 +622,7 @@ def lookAtBProgress(details, args, obs):
     (o, _, _, _, _, _, _, _, _, _, _) = args
     opb = details.pbs.getPlaceB(o)
     if obs == None or o != obs[0]:
+        debugMsg('obsUpdate', 'Missed detection, wanted %s got %s'%(o, obs))
         # Increase the variance on o
         oldVar = opb.poseD.var
         # Bayes!
@@ -654,6 +655,7 @@ def lookAtBProgress(details, args, obs):
         if debug('obsUpdate'):
             objShape = details.pbs.getObjectShapeAtOrigin(o)
             objShape.applyTrans(pose).draw('Belief', 'cyan')
+            raw_input('obs is cyan')
             objShape.applyTrans(util.Pose(*newMu)).draw('Belief', 'magenta')
             raw_input('obs is cyan, newMu is magenta')
     details.pbs.shadowWorld = None # force recompute
