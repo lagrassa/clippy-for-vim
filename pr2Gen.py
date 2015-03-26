@@ -338,14 +338,19 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
         return
     # Have any output bindings been specified?
 
-    if obj == pbs.held[hand].mode():
-        graspB = copy.copy(pbs.graspB[hand])
-    elif obj == pbs.held[otherHand(hand)].mode():
-        graspB = copy.copy(pbs.graspB[otherHand(hand)])
-    else:
-        graspB = copy.copy(graspB)        
-    if graspB.grasp.mode() is None:
-        graspB.grasp = UniformDist(range(0,len(graspB.graspDesc)))
+    # if obj == pbs.held[hand].mode():
+    #     graspB = copy.copy(pbs.graspB[hand])
+    # elif obj == pbs.held[otherHand(hand)].mode():
+    #     graspB = copy.copy(pbs.graspB[otherHand(hand)])
+    # else:
+    #     graspB = copy.copy(graspB)        
+    # if graspB.grasp.mode() is None:
+    #     graspB.grasp = UniformDist(range(0,len(graspB.graspDesc)))
+
+    # LPK!!  Changed this to allow regrasping.  Later code will be
+    # sure to generate the current grasp first.
+    graspB.grasp = UniformDist(range(0,len(graspB.graspDesc)))
+        
     conf = None
     confAppr = None
     # Set up pbs
@@ -501,9 +506,11 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
 # 3. The conf of the robot (and an approach conf, but we won't vary that)
 def graspGen(pbs, obj, graspB, placeB=None, conf=None, hand=None, prob=None):
     # LPK:  maybe wrong.  If we're holding the object, suggest that grasp first
-    if hand and  pbs.getHeld(hand).mode() == obj:
-        gB = pbs.getGraspB(obj, hand)
-        yield gB  
+    # if hand and  pbs.getHeld(hand).mode() == obj:
+    #     gB = pbs.getGraspB(obj, hand)
+    #     if debug('graspGen'):
+    #         print 'graspGen: generating current grasp first=', gB
+    #     yield gB  
 
     grasps = list(graspB.grasp.support())
     random.shuffle(grasps)

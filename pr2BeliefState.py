@@ -66,7 +66,8 @@ class BeliefState:
         print '    Grasp stdev:', prettyStdev(gbr.poseD.varTuple()) \
                     if (gbr and gbr.poseD) else None
         print 'Objects:'
-        for (name, stuff) in self.pbs.moveObjBs.items():
+        for (name, stuff) in self.pbs.moveObjBs.items() + \
+                             self.pbs.fixObjBs.items():
             print name
             print '   prob:', self.poseModeProbs[name]
             print '   face:', stuff.support

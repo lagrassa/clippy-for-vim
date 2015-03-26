@@ -77,7 +77,7 @@ writeSearch = True
 
 useRight = True
 useHorizontal = True
-useVertical = False
+useVertical = True
 
 ######################################################################
 # Test Rig
@@ -508,7 +508,7 @@ tinyErrProbs = DomainProbs(\
             # variance in observations; diagonal for now
             obsVar = (0.00001**2, 0.00001**2, 1e-12, 0.00002**2),
             # get type of object wrong
-            obsTypeErrProb = 0.0,
+            obsTypeErrProb = 0.0000001,
             # fail to pick or place in the way characterized by the Gaussian
             pickFailProb = 0.0,
             placeFailProb = 0.0,
@@ -597,7 +597,7 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
           heuristic = habbs, easy = True):
 
     goalProb, errProbs = (0.2,smallErrProbs) if easy else (0.98,typicalErrProbs)
-    glob.rebindPenalty = 300
+    glob.rebindPenalty = 50
 
 
     t = PlanTest('test4',  errProbs, allOperators,
@@ -686,7 +686,7 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
     global moreGD
     if gd != 0: moreGD = True           # hack!
 
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.99,typicalErrProbs)
 
     p1 = util.Pose(0.95, 0.0, 0.61, 0.0)
@@ -723,7 +723,7 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
             heuristic = habbs, hand='left', flip = False, gd=1,
             easy = True):
 
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.98,typicalErrProbs)
     #glob.monotonicFirst = False
 
@@ -758,7 +758,7 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
 
 def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
           easy = True, rip = False):
-    glob.rebindPenalty = 200
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.98,typicalErrProbs)
 
     t = PlanTest('test9', errProbs, allOperators,
@@ -781,7 +781,7 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
 def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
            easy = True, rip = False):
     # need to look at A to clear path to b
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     
     t = PlanTest('test10',  errProbs, allOperators,
@@ -812,7 +812,7 @@ def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 
 def test11(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = True, rip = False):
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     glob.monotonicFirst = hierarchical
     glob.monotonicFirst = True
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
@@ -886,7 +886,7 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
     
 def test12(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = True, rip = False):
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
     t = PlanTest('test12',  errProbs, allOperators,
@@ -939,7 +939,7 @@ def test12(hpn = True, skeleton = False, hierarchical = False,
 
 def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
            easy = True, rip = False):
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     t = PlanTest('test13',  errProbs, allOperators,
                  objects=['table1', 'table2', 'objA', 'objB', 'objD',
@@ -1002,7 +1002,7 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     # Move A so we can look at B
     # Example isn't really constructed right
 
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
     p1 = util.Pose(0.9, 0.0, 0.61, 0.0)
@@ -1036,7 +1036,7 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
            heuristic=habbs, hierarchical=False, easy = True):
 
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
     global moreGD
@@ -1066,7 +1066,7 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
 # pick and place with more noise 
 def test16(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = True, rip = False):
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
     t = PlanTest('test16',  errProbs, allOperators,
@@ -1102,7 +1102,7 @@ def test16(hpn = True, skeleton = False, hierarchical = False,
 
 def test17(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = True, rip = False):
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
     front = util.Pose(0.95, 0.0, 0.61, 0.0)
@@ -1151,7 +1151,7 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
 def test18(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = True, rip = False):
 
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
     front = util.Pose(0.95, 0.0, 0.61, 0.0)
@@ -1200,7 +1200,7 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
 def test19(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = True, rip = False):
 
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
     front = util.Pose(0.95, 0.0, 0.61, 0.0)
@@ -1248,7 +1248,7 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
 
 def test19a(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = True):
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     glob.monotonicFirst = True
 
@@ -1328,7 +1328,7 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
 def test20(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = True, rip = False):
 
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     glob.monotonicFirst = True
 
@@ -1406,12 +1406,12 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
 def test20a(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = True, rip = False):
 
-    glob.rebindPenalty = 500
+    glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     glob.monotonicFirst = False
 
-    front = util.Pose(0.45, 0.0, 0.61, 0.0)
-    back = util.Pose(0.65, 0.0, 0.61, 0.0)
+    front = util.Pose(0.95, 0.0, 0.61, 0.0)
+    back = util.Pose(1.15, 0.0, 0.61, 0.0)
     t = PlanTest('test20a',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': front,
@@ -1437,6 +1437,8 @@ def test20a(hpn = True, skeleton = False, hierarchical = False,
                 move,
                 pick.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
                 move,
+                lookAt.applyBindings({'Obj' : 'objB'}),
+                move,                
                 place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
                 move]]
 
