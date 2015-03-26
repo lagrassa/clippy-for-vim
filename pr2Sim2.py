@@ -166,15 +166,15 @@ class RealWorld(WorldState):
         obstacles = [s for s in self.getObjectShapes() if \
                      s.name() != targetObj ]
 
-        if debug('tables'):
-            laserScanParams = (0.3, 0.1, 0.1, 2., 20)
-            scan = pc.simulatedScan(lookConf, laserScanParams, self.getObjectShapes())
-            scan.draw('W')
-            raw_input('Scan ok?')
-            for score, table in tables.getTables(self.world, self.world.objects.keys(), scan):
-                table.draw('W', 'red')
-                raw_input(table.name())
-            raw_input('Tables ok?')
+        # if debug('tables'):
+        #     laserScanParams = (0.3, 0.1, 0.1, 2., 20)
+        #     scan = pc.simulatedScan(lookConf, laserScanParams, self.getObjectShapes())
+        #     scan.draw('W')
+        #     raw_input('Scan ok?')
+        #     for score, table in tables.getTables(self.world, self.world.objects.keys(), scan):
+        #         table.draw('W', 'red')
+        #         raw_input(table.name())
+        #     raw_input('Tables ok?')
 
         if not targetObj in self.objectShapes:
             vis = False
