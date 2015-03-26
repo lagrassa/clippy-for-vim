@@ -765,7 +765,7 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
                  objects = ['table1'],
                  varDict = {'table1': (0.1**2, 0.1**2, 0, 0.3**2)})
 
-    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)
+    goalConf = makeConf(t.world.robot, 0.75, 1.0, 0.0)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
     goal = State([Conf([goalConf, confDeltas], True)])
     t.run(goal,
