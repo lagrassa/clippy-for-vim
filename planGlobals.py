@@ -1,3 +1,5 @@
+import platform
+
 ########################################
 # Default values of global values, can be overriden in local.py
 ########################################
@@ -6,7 +8,7 @@
 # System: LINUX and Mac OS X are supported
 ########################################
 
-LINUX = False # if path[:6] == '/Users' else True
+LINUX = (platform.system() == 'Linux')
 
 ########################################
 # ROS: Controlling robot 
@@ -87,6 +89,15 @@ minObjectVarianceTuple = minVarianceTuple
 maxVarianceTuple = (.1, .1)
 minPlaceInVarTuple = (.005, .005)        # Target variance for placing
 maxPlaceVarTuple = (.02, .02)            # Target variance for placing
+
+########################################
+# Table parameters
+########################################
+
+tableMaxShrink = 0.1
+minTableDim = 5.
+cloudPointsResolution = 0.01            # should be 0.1
+tableBadWeight = 5
 
 ########################################
 # Debugging

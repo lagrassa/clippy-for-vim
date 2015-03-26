@@ -6,20 +6,23 @@ import copy
 import time
 import transformations as transf
 
+import pointClouds as pc
 import planGlobals as glob
+from planGlobals import debug, debugMsg
 import windowManager3D as wm
+from pr2Util import shadowWidths
 
 import util
-import tables as tab
-reload(tab)
+import tables
+reload(tables)
 
 if glob.useROS:
     import rospy
-    import pr2_hpn.msg
-    import pr2_hpn.srv
-    from pr2_hpn.srv import *
     import roslib
-    roslib.load_manifest('pr2_hpn')
+    roslib.load_manifest('hpn_redux')
+    import hpn_redux.msg
+    import hpn_redux.srv
+    from hpn_redux.srv import *
     import kinematics_msgs.msg
     import kinematics_msgs.srv
     from std_msgs.msg import Header
@@ -40,21 +43,24 @@ if glob.useROS:
 
 def pr2GoToConf(cnfIn,                  # could be partial...
                 operation,              # a string
+                arm = 'both',
                 speedFactor = glob.speedFactor):
     if not glob.useROS: return None, None
     rospy.wait_for_service('pr2_goto_configuration')
     try:
         gotoConf = rospy.ServiceProxy('pr2_goto_configuration',
-                                      pr2_hpn.srv.GoToConf)
-        conf = pr2_hpn.msg.Conf()
+                                      hpn_redux.srv.GoToConf)
+        conf = hpn_redux.msg.Conf()
+        conf.arm = arm
         conf.base = map(float, cnfIn.get('pr2Base', []))
         conf.torso = map(float, cnfIn.get('pr2Torso', [])) 
         conf.left_joints = map(float, cnfIn.get('pr2LeftArm', []))
         conf.left_grip = map(float, cnfIn.get('pr2LeftGripper', []))
         conf.right_joints = map(float, cnfIn.get('pr2RightArm', []))
-        conf.rght_grip = map(float, cnfIn.get('pr2RightGripper', []))
-        # conf.head = map(float, cnfIn.get('pr2Head', []))
-        conf.head = []
+        conf.right_grip = map(float, cnfIn.get('pr2RightGripper', []))
+        conf.head = map(float, cnfIn.get('pr2Head', []))
+        if conf.head:
+            conf.head = [1.0, 0.0, 0.6]
 
         print operation, conf
         
@@ -81,58 +87,180 @@ def pr2GoToConf(cnfIn,                  # could be partial...
 # The key interface spec...
 # obs = env.executePrim(op, params)
 class RobotEnv:                         # plug compatible with RealWorld (simulator)
-    def __init__(self, world, probs):
-        pass
+    def __init__(self, world, **args):
+        self.world = world
+
     # dispatch on the operators...
-    def executePrim(self, op, params):
-        pass
+    def executePrim(self, op, params = None):
+        def endExec(obs):
+            print 'Executed', op.name, 'got obs', obs
+            return obs
+        if op.name == 'Move':
+            return endExec(self.executeMove(op, params))
+        elif op.name == 'LookAtHand':
+            return endExec(self.executeLookAtHand(op, params))
+        elif op.name == 'LookAt':
+            return endExec(self.executeLookAt(op, params))
+        elif op.name == 'Pick':
+            return endExec(self.executePick(op, params))
+        elif op.name == 'Place':
+            return endExec(self.executePlace(op, params))
+        else:
+            raise Exception, 'Unknown operator: '+str(op)
+
     def executePath(self, path):
-        pass
+        debugMsg('robotEnv', 'executePath')
+        for (i, conf) in enumerate(path):
+            debugMsg('robotEnv', '    conf[%d]'%i)
+            result, outConf = pr2GoToConf(conf, 'move')
+        return 'none'                   # !! check for collision?
+
     def executeMove(self, op, params):
-        pass
+        if params:
+            path = params
+            debugMsg('robotEnv', 'executeMove: path len = ', len(path))
+            obs = self.executePath(path)
+        else:
+            print op
+            raw_input('No path given')
+            obs = 'none'
+        return obs
+
     def executeLookAtHand(self, op, params):
         pass
+    
     def executeLookAt(self, op, params):
-        pass
+        def lookAtTable(tableName):
+            debugMsg('robotEnv', 'Get cloud?')
+            scan = getPointCloud()
+            score, table = tables.getTableDetections(self.world, [tableName], scan)[0]
+            if debug('robotEnv'):
+                table.draw('W', 'red')
+                raw_input(table.name())
+            return table
+
+        (targetObj, lookConf) = \
+                    (op.args[0], op.args[1])
+        if params:
+            placeBs = params
+        else:
+            print op
+            raw_input('No object distributions given')
+            return 'none'
+
+        debugMsg('robotEnv', 'executeLookAt', targetObj, lookConf.conf)
+        result, outConf = pr2GoToConf(lookConf, 'move')
+        if 'table' in targetObj:
+            table = lookAtTable(targetObj)
+            trueFace = supportFaceIndex(table)
+            return (targetObj, trueFace, table.origin())
+        elif targetObj in placeBs:
+            supportTable = findSupportTable(targetObj, self.world, placeBs)
+            assert supportTable
+            placeB = placeBs[supportTable]
+            if not wellLocalized(placeB):
+                table = lookAtTable(supportTable)
+            else:
+                table = world.getObjectShapeAtOrigin(supportTable).applyLoc(placeB.objFrame())
+            surfacePolyPoly = makeROSPolygon(table)
+            score, objPlace = getObjDetections(self.world,
+                                               {targetObj: placeBs[targetObj]},
+                                               outConf, # the lookConf actually achieved
+                                               [surfacePoly])[0]
+            if debug('robotEnv'):
+                objPlace.draw('W', 'red')
+                raw_input(objPlace.name())
+
+            trueFace = supportFaceIndex(objPlace)
+            return (objPlace, trueFace, objPlace.origin())
+        else:
+            raw_input('Unknown object: %s'%targetObj)
+            return 'none'
+
     def executePick(self, op, params):
-        pass
+        (hand, pickConf, approachConf) = \
+               (op.args[1], op.args[17], op.args[15])
+        gripper = 'pr2LeftGripper' if hand=='left' else 'pr2RightGripper'
+
+        debugMsg('robotEnv', 'executePick - open')
+        result, outConf = pr2GoToConf({gripper: 0.08}, 'move')
+        
+        debugMsg('robotEnv', 'executePick - move to pickConf')
+        result, outConf = pr2GoToConf(pickConf, 'move')
+
+        debugMsg('robotEnv', 'executePick - close')
+        result, outConf = pr2GoToConf({}, 'close', arm=hand[0]) # 'l' or 'r'
+
+        debugMsg('robotEnv', 'executePick - move to approachConf')
+        result, outConf = pr2GoToConf(approachConf, 'move')
+
+        return 'none'
+
     def executePlace(self, op, params):
-        pass
+        (hand, placeConf, approachConf) = \
+               (op.args[1], op.args[20], op.args[18])
+        gripper = 'pr2LeftGripper' if hand=='left' else 'pr2RightGripper'
 
-class PointCloud:
-    def __init__(self, matrix, eye):
-        self.pointMatrix = matrix
-        self.eye = eye
+        debugMsg('robotEnv', 'executePick - move to pickConf')
+        result, outConf = pr2GoToConf(pickConf, 'move')
 
-# obsTargets is dict: {name:ObjPlaceB or None, ...}
-def getTables(world, obsTargets, pointCloud):
-    tables = []
-    exclude = []
-    # A zone of interest
-    zone = shapes.BoxAligned(np.array([(0, -2, 0), (3, 2, 1.5)]), None)
-    for objName in obsTargets:
-        if 'table' in objName:
-            placeB = obsTargets[objName]
-            if not placeB or pointCloud.eye.applyToPoint(table.origin().point()).x > 0):
-                startTime = time.time()
-                tableShape = world.getObjectShapeAtOrigin(objName)
-                score, detection = tab.bestTable(zone, tableShape,
-                                                 pointCloud, exclude,
-                                                 angles = tab.anglesList(30),
-                                                 zthr = 0.05,
-                                                 debug=debug('getTables'))
-                print 'Table detection', detection, 'with score', score
-                print 'Running time for table detections =',  time.time() - startTime
-                if detection:
-                    tables.append((score, detection))
-                    exclude.append(detection)
-                    detection.draw('MAP', 'blue')
-                    debugMsg('getTables', 'Detection for table=%s'%objName)
-    return tables
+        debugMsg('robotEnv', 'executePick - open')
+        result, outConf = pr2GoToConf({gripper: 0.08}, 'move')
 
-def getPointCloud(resolution):
+        debugMsg('robotEnv', 'executePick - move to approachConf')
+        result, outConf = pr2GoToConf(approachConf, 'move')
+        
+        return 'none'
+
+def getObjDetections(world, obsTargets, robotConf, surfacePolys, maxFitness = 3):
+    targetPoses = dict([(placeB.obj, placeB.poseD.mode()) \
+                        for placeB in obsTargets.values()])
+    robotFrame = robotConf['pr2Base']
+    robotFrameInv = robotFrame.inverse()
+    targetPosesRobot = dict([(obj, robotFrameInv.compose(p)) \
+                             for (obj, p) in targetPoses.items()])
+    shWidths = [shadowWidths(pB.poseD.var, pB.delta, 0.99)[:3] \
+                     for pB in obsTargets.values()]
+    targetDistsXY = [max(w[:2] + [0.05]) for w in shWidths]
+    targetDistsZ = [max(w[2:3] + [0.05]) for w in shWidths]
+    if debug('robotEnv'):
+        print 'Original target poses', targetPoses
+        print 'Robot relative target poses', targetPosesRobot
+        print 'targetDistsXY', targetDistsXY
+        print 'targetDistsZ', targetDistsZ
+
+    rospy.wait_for_service('detect_models')
+    detect = rospy.ServiceProxy('detect_models', DetectModels)
+    # targetModels = [o.typeName for o in targetPoses if o.typeName]
+    targetModels = ['soda']
+    if debug('robotEnv'):
+        print 'calling perception with', targetModels
+    reqD = DetectModelsRequest(timeout = rospy.Duration(15),
+                               surface_polygons = surfacePolys,
+                               models = targetModels,
+                               initial_poses = [makeROSPose3D(targetPosesRobot[o]) for o in targetPosesRobot],
+                               max_dists_xy = targetDistsXY,
+                               max_dists_z = targetDistsZ)
+    reqD.header.frame_id = '/base_footprint'
+    reqD.header.stamp = rospy.Time.now()
+    state = None
+    try:
+        state = detect(reqD)
+        if debug('robotEnv'):
+            print 'perception state', state
+    except rospy.ServiceException, e:
+        print "Service call failed: %s"%e
+    assert state
+    detections = []
+    for obj in state.scene.objects:
+        if obj.fitness_score < maxFitness:
+            objShape = world.getObjectShapeAtOrigin(obj.name).applyLoc(obj.pose)
+            detections.append((obj.fitness_score, objShape))
+    detections.sort()                   # lower is better
+    return detections
+
+def getPointCloud(resolution = glob.cloudPointsResolution):
     rospy.wait_for_service('point_cloud')
-    debugMsg('getPointCloud', 'Got Cloud?')
     time.sleep(3)
     print 'Asking for cloud points'
     try:
@@ -143,10 +271,15 @@ def getPointCloud(resolution):
         response = None
         response = getCloudPts(reqC)
         print 'Got cloud points:', len(response.cloud.points)
-        points = np.zeros((4, len(response.cloud.points)), dtype=np.float64)
+        headTrans = TransformFromROSMsg(response.cloud.eye)
+        eye = headTrans.point()
+        print 'eye', eye
+        points = np.zeros((4, len(response.cloud.points)+1), dtype=np.float64)
+        points[:,0] = eye.matrix
         for i, pt in enumerate(response.cloud.points):
-            points[:, i] = (p.x, p.y, p.z, 1.0)
-        return PointCloud(points, TransformFromROSMsg(response.cloud.eye))
+            points[:, i+1] = (p.x, p.y, p.z, 1.0)
+        return pc.Scan(headTrans, None,
+                       verts=points, name='ROS')
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
         raw_input('Continue?')

@@ -9,7 +9,7 @@ from pr2Gen import pickGen, canReachHome, placeInGen, lookGen, canReachGen,canSe
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace
-from planGlobals import debugMsg, debug
+from planGlobals import debugMsg, debug, useROS
 
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
@@ -26,32 +26,8 @@ canSeeProb = 0.9
 #  are used during execution
 #
 ######################################################################
-'''
-def primPathDirect(bs, cs, ce, p):
-    path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs, draw=False)
-    if not viols:
-        bs.draw(p, 'W')
-        cs.draw('W', 'blue', attached=bs.getShadowWorld(p).attached)
-        ce.draw('W', 'pink', attached=bs.getShadowWorld(p).attached)
-        print 'startConf is blue; targetConf is pink'
-        print 'Failed to find direct path for primitive - going via home'
-        path1, v1 = canReachHome(bs, cs, p, Violations(), draw=False)
-        path2, v2 = canReachHome(bs, ce, p, Violations(), draw=False)
-        if v1.weight() > 0 or v2.weight() > 0:
-            if v1.weight() > 0: print 'start viol', v1
-            if v2.weight() > 0: print 'end viol', v2
-            print 'Potential collision in primitive path - continuing.'
-        else:
-            print 'Success'
-            return path1[::-1] + path2
-    elif viols.weight() > 0:
-        print viols
-        print 'Potential collision in primitive path - continuing'
-    if path:
-        return path
-    '''
 
-tryDirectPath = False
+tryDirectPath = useROS
 def primPath(bs, cs, ce, p):
     if tryDirectPath:
         path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs, draw=False)
@@ -141,7 +117,9 @@ def lookPrim(args, details):
     if debug('prim'):
         print '*** lookPrim'
         print zip(vl, args)
-    return None
+
+    # The distributions for the placed objects, to guide looking
+    return details.pbs.getPlacedObjBs()
 
 def lookHandPrim(args, details):
     # In the real vision system, we might pass in a more general
@@ -152,8 +130,9 @@ def lookHandPrim(args, details):
     if debug('prim'):
         print '*** lookHandPrim'
         print zip(vl, args)
-    return None
 
+    # The distributions for the grasped objects, to guide looking
+    return details.pbs.graspB
     
 def placePrim(args, details):
     vl = \

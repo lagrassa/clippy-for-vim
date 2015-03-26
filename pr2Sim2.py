@@ -2,7 +2,6 @@ import math
 import numpy as np
 import objects
 from objects import WorldState
-from pr2Robot2 import gripperTip
 import windowManager3D as wm
 import pr2Util
 from pr2Util import supportFaceIndex, DomainProbs
@@ -10,10 +9,14 @@ from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 import util
 from planGlobals import debugMsg, debug
-from pr2Robot import gripperTip, gripperFaceFrame
+from pr2Robot2 import gripperTip, gripperFaceFrame
 from pr2Visible import visible
 from time import sleep
 
+# debug tables
+import pointClouds as pc
+import tables
+reload(tables)
 
 ######################################################################
 #
@@ -162,6 +165,16 @@ class RealWorld(WorldState):
         debugMsg('sim', 'LookAt configuration')
         obstacles = [s for s in self.getObjectShapes() if \
                      s.name() != targetObj ]
+
+        if debug('tables'):
+            laserScanParams = (0.3, 0.1, 0.1, 2., 20)
+            scan = pc.simulatedScan(lookConf, laserScanParams, self.getObjectShapes())
+            scan.draw('W')
+            raw_input('Scan ok?')
+            for score, table in tables.getTables(self.world, self.world.objects.keys(), scan):
+                table.draw('W', 'red')
+                raw_input(table.name())
+            raw_input('Tables ok?')
 
         if not targetObj in self.objectShapes:
             vis = False
