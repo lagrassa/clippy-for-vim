@@ -115,7 +115,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                 conf.draw('W', 'blue')
         debugMsg('robotEnv', 'executePath')
         for (i, conf) in enumerate(path):
-            debugMsg('robotEnv', '    conf[%d]'%i)
+            debugMsg('robotEnvCareful', '    conf[%d]'%i)
             result, outConf = pr2GoToConf(conf, 'move')
         return None
 

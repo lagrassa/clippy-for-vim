@@ -651,6 +651,11 @@ def lookAtBProgress(details, args, obs):
         ff = details.pbs.getWorld().getFaceFrames(o)
         details.pbs.updateObjB(ObjPlaceB(o, ff, DeltaDist(pf),
                                          PoseD(util.Pose(*newMu), newSigma)))
+        if debug('obsUpdate'):
+            objShape = details.pbs.getObjectShapeAtOrigin(o)
+            objShape.applyTrans(pose).draw('Belief', 'cyan')
+            objShape.applyTrans(util.Pose(*newMu)).draw('Belief', 'magenta')
+            raw_input('obs is cyan, newMu is magenta')
     details.pbs.shadowWorld = None # force recompute
 
     debugMsg('beliefUpdate', 'look')

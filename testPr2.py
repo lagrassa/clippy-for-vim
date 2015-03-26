@@ -526,7 +526,7 @@ allOperators = [move, pick, place, lookAt, poseAchCanReach,
                #graspAchCanPickPlace]
 
 # Try to make a plan!     Just move
-def test1(hpn=True, skeleton=False, heuristic=habbs, hierarchical=False, easy=True):
+def test1(hpn=True, skeleton=False, heuristic=habbs, hierarchical=False, easy=False):
     t = PlanTest('test1', typicalErrProbs, allOperators)
     goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
@@ -538,7 +538,7 @@ def test1(hpn=True, skeleton=False, heuristic=habbs, hierarchical=False, easy=Tr
 
 # Pick something up! and move
 def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
-          heuristic=habbs, hierarchical=False, easy=True):
+          heuristic=habbs, hierarchical=False, easy=False):
     global moreGD
     if gd != 0: moreGD = True           # hack!
     t = PlanTest('test2', typicalErrProbs, allOperators,
@@ -566,7 +566,7 @@ def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
 
 # pick and place
 def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-          easy = True, rip = False):
+          easy = False, rip = False):
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.98,typicalErrProbs)
 
@@ -596,7 +596,7 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           )
 
 def test4(hpn = True, hierarchical = False, skeleton = False,
-          heuristic = habbs, easy = True):
+          heuristic = habbs, easy = False):
 
     goalProb, errProbs = (0.2,smallErrProbs) if easy else (0.98,typicalErrProbs)
     glob.rebindPenalty = 50
@@ -636,7 +636,7 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
 
 # Test placing in a region    
 def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False,
-          easy = True):
+          easy = False):
 
     goalProb, errProbs = (0.4,smallErrProbs) if easy else (0.98,typicalErrProbs)
 
@@ -658,7 +658,7 @@ def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False,
 
 # Test looking
 def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
-          easy = True, rip = False):
+          easy = False, rip = False):
 
     goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.98,typicalErrProbs)
         
@@ -667,7 +667,8 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
     t = PlanTest('test6', errProbs, allOperators,
                  objects=['table1', 'objA', 'table2'],
                  movePoses={'objA': p2},
-                 varDict = {'objA': (0.075**2,0.075**2,0.0,0.2**2)})
+                 varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2),
+                            'objA': (0.075**2,0.075**2,0.0000001,0.2**2)})
 
     goal = State([B([Pose(['objA', 4]), p1.xyztTuple(),
                      (0.001, 0.001, 0.001, 0.005),
@@ -684,7 +685,7 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
 
 # Test look, pick
 def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
-          hierarchical = False, easy = True, gd = 0, rip = False):
+          hierarchical = False, easy = False, gd = 0, rip = False):
     global moreGD
     if gd != 0: moreGD = True           # hack!
 
@@ -723,7 +724,7 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
 # Regrasp!
 def test8(hpn = True, skeleton=False, hierarchical = False, 
             heuristic = habbs, hand='left', flip = False, gd=1,
-            easy = True):
+            easy = False):
 
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.98,typicalErrProbs)
@@ -759,13 +760,13 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
           )
 
 def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
-          easy = True, rip = False):
+          easy = False, rip = False):
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.98,typicalErrProbs)
 
     t = PlanTest('test9', errProbs, allOperators,
                  objects = ['table1'],
-                 varDict = {'table1': (0.1**2, 0.0**2, 0, 0.0**2)})
+                 varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2)})
 
     goalConf = makeConf(t.world.robot, 1.1, 1.3, 0, 0.0)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
@@ -781,7 +782,7 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
           )
 
 def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-           easy = True, rip = False):
+           easy = False, rip = False):
     # need to look at A to clear path to b
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
@@ -813,7 +814,7 @@ def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 
 
 def test11(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True, rip = False):
+           heuristic = habbs, easy = False, rip = False):
     glob.rebindPenalty = 50
     glob.monotonicFirst = hierarchical
     glob.monotonicFirst = True
@@ -887,7 +888,7 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
           )
     
 def test12(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True, rip = False):
+           heuristic = habbs, easy = False, rip = False):
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
@@ -940,7 +941,7 @@ def test12(hpn = True, skeleton = False, hierarchical = False,
           )
 
 def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-           easy = True, rip = False):
+           easy = False, rip = False):
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     t = PlanTest('test13',  errProbs, allOperators,
@@ -1000,7 +1001,7 @@ def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           )
     
 def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-           easy = True, rip = False):
+           easy = False, rip = False):
     # Move A so we can look at B
     # Example isn't really constructed right
 
@@ -1036,7 +1037,7 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 
 # Test look at hand
 def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
-           heuristic=habbs, hierarchical=False, easy = True):
+           heuristic=habbs, hierarchical=False, easy = False):
 
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
@@ -1067,7 +1068,7 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
 
 # pick and place with more noise 
 def test16(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True, rip = False):
+           heuristic = habbs, easy = False, rip = False):
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
@@ -1103,7 +1104,7 @@ def test16(hpn = True, skeleton = False, hierarchical = False,
 # 21.  A in back, B in front -> A in front, B in back (whole enchilada)
 
 def test17(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True, rip = False):
+           heuristic = habbs, easy = False, rip = False):
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
@@ -1151,7 +1152,7 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
 # 18.  A in parking, B in parking -> A in front, B in back  (ordering)
 # Trivial with skeleton
 def test18(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True, rip = False):
+           heuristic = habbs, easy = False, rip = False):
 
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
@@ -1200,7 +1201,7 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
 
 # 19.  A in back, B in parking -> A in front, B in back (combination)    
 def test19(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True, rip = False):
+           heuristic = habbs, easy = False, rip = False):
 
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
@@ -1249,7 +1250,7 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
 
 
 def test19a(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True):
+           heuristic = habbs, easy = False):
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     glob.monotonicFirst = True
@@ -1328,7 +1329,7 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
 
 # 20.  Swap!
 def test20(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True, rip = False):
+           heuristic = habbs, easy = False, rip = False):
 
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
@@ -1406,7 +1407,7 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
 # 20a.  A situation we encounter if we serialize badly.  A is in
 # front, B is in the hand.
 def test20a(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True, rip = False):
+           heuristic = habbs, easy = False, rip = False):
 
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
@@ -1535,7 +1536,7 @@ def testStack(hpn = True, skeleton = False, hierarchical = False,
 
 # Empty hand
 def test21(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy=True):
+           heuristic = habbs, easy=False):
     p1 = util.Pose(0.95, 0.0, tZ, 0.0)
     p2 = util.Pose(0.95, 0.4, tZ, 0.0)
 
@@ -1604,7 +1605,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
 
 # Need to verify that hand is empty
 def test22(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy=True):
+           heuristic = habbs, easy=False):
     p1 = util.Pose(0.95, 0.0, tZ, 0.0)
     p2 = util.Pose(0.95, 0.4, tZ, 0.0)
 
