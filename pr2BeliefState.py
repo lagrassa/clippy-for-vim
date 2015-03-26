@@ -1,4 +1,5 @@
 import math
+import windowManager3D as wm
 from dist import GMU, MultivariateGaussianDistribution, UniformDist, \
      DeltaDist, chiSqFromP
 from miscUtil import prettyString
@@ -75,6 +76,7 @@ class BeliefState:
             print ' stdev :', prettyStdev(stuff.poseD.varTuple())
         print '------------  Belief -------------'
         print self.pbs.draw(0.9, w)
+        wm.getWindow(w).update()
 
 def diagToSq(d):
     return [[(d[i] if i==j else 0.0) \
