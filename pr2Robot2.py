@@ -255,7 +255,7 @@ rightStowAngles = [-2.1, 1.29, 0.000, -0.15, 0.000, -0.100, 0.000]
 leftStowAngles = [2.1, 1.29, 0.000, -0.15, 0.000, -0.100, 0.000]
 # This is a joint configuartion, specifying the joint angles for all the chains.
 pr2Init = {'pr2Base':[0.0,0.0,0.0],
-           'pr2Torso':[0.2],
+           'pr2Torso':[glob.torsoZ],
            'pr2LeftArm': leftStowAngles,
            'pr2LeftGripper': [0.02],
            'pr2RightArm': rightStowAngles,

@@ -646,7 +646,7 @@ def lookAtBProgress(details, args, obs):
         details.poseModeProbs[o] = newP
         newMu = tuple([(m * obsV + op * muV) / (obsV + muV) \
                        for (m, muV, op, obsV) in \
-                       zip(oldMu, oldSigma, pose.xyztTuple(), obsVar)])
+                       zip(oldMu, oldSigma, pose.pose().xyztTuple(), obsVar)])
         newSigma = tuple([(a * b) / (a + b) for (a, b) in zip(oldSigma,obsVar)])
         ff = details.pbs.getWorld().getFaceFrames(o)
         details.pbs.updateObjB(ObjPlaceB(o, ff, DeltaDist(pf),

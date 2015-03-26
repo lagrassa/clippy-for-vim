@@ -40,7 +40,7 @@ IKfastStep = 0.1
 rrtStep = 0.025
 rrtInterpolateStepSize = 10*rrtStep
 smoothSteps = 100
-torsoZ = 0.2
+torsoZ = 0.3
 skipRRT = False
 maxRRTIter = 200
 failRRTIter = 10
@@ -96,7 +96,7 @@ maxPlaceVarTuple = (.02, .02)            # Target variance for placing
 
 tableMaxShrink = 0.1
 minTableDim = 5.
-cloudPointsResolution = 0.01            # should be 0.1
+cloudPointsResolution = 0.1            # should be 0.1
 tableBadWeight = 5
 
 ########################################

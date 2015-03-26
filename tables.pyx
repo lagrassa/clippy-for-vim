@@ -34,6 +34,7 @@ def bestTable(zone, table, pointCloud, exclude,
     minTablePoints = int(glob.minTableDim / glob.cloudPointsResolution)
     height = table.zRange()[1] - table.zRange()[0]
     bb = table.bbox()
+    if debug('tables'): print 'table bbox=\n', bb
     radius = 0.75*math.sqrt((bb[1,0] - bb[0,0])**2 + (bb[1,1] - bb[0,1])**2)
     good = []
     below = []
@@ -55,6 +56,9 @@ def bestTable(zone, table, pointCloud, exclude,
                 good.append(p)          
         elif -0.25 <= points[2,p] < thrLo: # ignore the NaN => 10m points
             below.append(p)             # points below the plane
+
+    if debug('tables'):
+        print 'len(good)=', len(good), 'len(below)=', len(below)
     if len(good) < minTablePoints:
         return 0, None
     eye = headTrans.point().matrix.reshape(4,1)

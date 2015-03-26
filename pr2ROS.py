@@ -10,7 +10,7 @@ import pointClouds as pc
 import planGlobals as glob
 from planGlobals import debug, debugMsg
 import windowManager3D as wm
-from pr2Util import shadowWidths
+from pr2Util import shadowWidths, supportFaceIndex
 
 import util
 import tables
@@ -30,6 +30,7 @@ if glob.useROS:
     from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
     from cardboard.srv import *
     import geometry_msgs.msg as gm
+    # rospy.init_node('hpn'); print 'Starting ROS'
 
 ## Communicate with ROS controller to move the robot, just unpack the configuration.
 
@@ -109,11 +110,14 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             raise Exception, 'Unknown operator: '+str(op)
 
     def executePath(self, path):
+        if debug('robotEnv'):
+            for conf in path:
+                conf.draw('W', 'blue')
         debugMsg('robotEnv', 'executePath')
         for (i, conf) in enumerate(path):
             debugMsg('robotEnv', '    conf[%d]'%i)
             result, outConf = pr2GoToConf(conf, 'move')
-        return 'none'                   # !! check for collision?
+        return None
 
     def executeMove(self, op, params):
         if params:
@@ -123,7 +127,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         else:
             print op
             raw_input('No path given')
-            obs = 'none'
+            obs = None
         return obs
 
     def executeLookAtHand(self, op, params):
@@ -133,11 +137,17 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         def lookAtTable(tableName):
             debugMsg('robotEnv', 'Get cloud?')
             scan = getPointCloud()
-            score, table = tables.getTableDetections(self.world, [tableName], scan)[0]
-            if debug('robotEnv'):
-                table.draw('W', 'red')
-                raw_input(table.name())
-            return table
+            ans = tables.getTableDetections(self.world, [tableName], scan)
+            if ans:
+                score, table = ans[0]
+                if debug('robotEnv'):
+                    print 'score=', score, 'table=', table.name()
+                    table.draw('W', 'red')
+                    raw_input(table.name())
+                return table
+            else:
+                print 'No table found'
+                return None
 
         (targetObj, lookConf) = \
                     (op.args[0], op.args[1])
@@ -146,12 +156,13 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         else:
             print op
             raw_input('No object distributions given')
-            return 'none'
+            return None
 
         debugMsg('robotEnv', 'executeLookAt', targetObj, lookConf.conf)
         result, outConf = pr2GoToConf(lookConf, 'move')
         if 'table' in targetObj:
             table = lookAtTable(targetObj)
+            if not table: return None
             trueFace = supportFaceIndex(table)
             return (targetObj, trueFace, table.origin())
         elif targetObj in placeBs:
@@ -160,6 +171,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             placeB = placeBs[supportTable]
             if not wellLocalized(placeB):
                 table = lookAtTable(supportTable)
+                if not table: return None
             else:
                 table = world.getObjectShapeAtOrigin(supportTable).applyLoc(placeB.objFrame())
             surfacePolyPoly = makeROSPolygon(table)
@@ -175,7 +187,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             return (objPlace, trueFace, objPlace.origin())
         else:
             raw_input('Unknown object: %s'%targetObj)
-            return 'none'
+            return None
 
     def executePick(self, op, params):
         (hand, pickConf, approachConf) = \
@@ -194,7 +206,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         debugMsg('robotEnv', 'executePick - move to approachConf')
         result, outConf = pr2GoToConf(approachConf, 'move')
 
-        return 'none'
+        return None
 
     def executePlace(self, op, params):
         (hand, placeConf, approachConf) = \
@@ -210,7 +222,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         debugMsg('robotEnv', 'executePick - move to approachConf')
         result, outConf = pr2GoToConf(approachConf, 'move')
         
-        return 'none'
+        return None
 
 def getObjDetections(world, obsTargets, robotConf, surfacePolys, maxFitness = 3):
     targetPoses = dict([(placeB.obj, placeB.poseD.mode()) \
@@ -265,7 +277,7 @@ def getPointCloud(resolution = glob.cloudPointsResolution):
     print 'Asking for cloud points'
     try:
         getCloudPts = rospy.ServiceProxy('point_cloud', PointCloud)
-        reqC = PointCloudRequest(resolution = resolution)
+        reqC = PointCloudRequest(resolution = resolution/5)
         reqC.header.frame_id = '/base_footprint'
         reqC.header.stamp = rospy.Time.now()
         response = None
@@ -275,11 +287,13 @@ def getPointCloud(resolution = glob.cloudPointsResolution):
         eye = headTrans.point()
         print 'eye', eye
         points = np.zeros((4, len(response.cloud.points)+1), dtype=np.float64)
-        points[:,0] = eye.matrix
-        for i, pt in enumerate(response.cloud.points):
+        points[:,0] = eye.matrix[:,0]
+        for i, p in enumerate(response.cloud.points):
             points[:, i+1] = (p.x, p.y, p.z, 1.0)
-        return pc.Scan(headTrans, None,
+        scan = pc.Scan(headTrans, None,
                        verts=points, name='ROS')
+        scan.draw('W', 'red')
+        return scan
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
         raw_input('Continue?')
