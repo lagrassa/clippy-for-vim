@@ -4,9 +4,12 @@ __pycache__/
 
 # C extensions
 *.so
+*.so*
 *.c
 *.o
 *.dylib
+Makefile
+IK/Makefile
 
 # Distribution / packaging
 .Python
