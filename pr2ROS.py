@@ -327,3 +327,18 @@ def transformPoly(poly, x, y, z, theta):
                    transf.rotation_matrix(theta, (0,0,1)))
     points = [pt(numpy.dot(tr, [p.x, p.y, p.z, 1.0])) for p in poly.points]
     return gm.Polygon(points)
+
+def wellLocalized(pB):
+    return(all(x<=y for (x,y) in zip(shadowWidths(pB.poseD.var, pB.delta, 0.99),
+                                     4*(0.02,))))
+
+def findSupportTable(targetObj, world, placeBs):
+    tableBs = [pB for pB in placeBs.values if 'table' in pB.obj]
+    print 'tablesBs', tablesBs
+    tableCenters = [pB.poseD.mode().point() for pB in tableBs]
+    targetB = [pB for pB in placeBs if targetObj == pB.obj]
+    assert targetB
+    targetCenter = targetB[0].poseD.mode().point()
+    bestCenter = argmax(tableCenters, lambda c: -targetCenter.distance(c))
+    ind = tableCenters.index(bestCenter)
+    return tableBs[ind].obj
