@@ -571,7 +571,8 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.98,typicalErrProbs)
 
     t = PlanTest('test3',  errProbs, allOperators,
-                 objects=['table1', 'objA'])
+                 objects=['table1', 'objA'],
+                 varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2)})
     targetPose = (1.05, 0.25, tZ, 0.0)
     # large target var is no problem
     targetVar = (0.02, 0.02, 0.01, 0.05)
@@ -674,9 +675,11 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
                      (0.001, 0.001, 0.001, 0.005),
                           (0.025,)*4, goalProb], True),
                   Bd([SupportFace(['objA']), 4, goalProb], True)])
+
     t.run(goal,
           hpn = hpn,
-          skeleton = [[lookAt, move]] if skeleton else None,
+          skeleton = [[lookAt, move, lookAt, move],
+                      [place, move, pick, move]] if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
           heuristic = heuristic,
