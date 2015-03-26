@@ -1,4 +1,5 @@
 import math
+import windowManager3D as wm
 from dist import GMU, MultivariateGaussianDistribution, UniformDist, \
      DeltaDist, chiSqFromP
 from miscUtil import prettyString
@@ -66,7 +67,8 @@ class BeliefState:
         print '    Grasp stdev:', prettyStdev(gbr.poseD.varTuple()) \
                     if (gbr and gbr.poseD) else None
         print 'Objects:'
-        for (name, stuff) in self.pbs.moveObjBs.items():
+        for (name, stuff) in self.pbs.moveObjBs.items() + \
+                             self.pbs.fixObjBs.items():
             print name
             print '   prob:', self.poseModeProbs[name]
             print '   face:', stuff.support
@@ -74,6 +76,7 @@ class BeliefState:
             print ' stdev :', prettyStdev(stuff.poseD.varTuple())
         print '------------  Belief -------------'
         print self.pbs.draw(0.9, w)
+        wm.getWindow(w).update()
 
 def diagToSq(d):
     return [[(d[i] if i==j else 0.0) \

@@ -1244,7 +1244,7 @@ poseAchCanSee = Operator(\
 #
 ######################################################################
 
-magicRegraspCost = 50
+magicRegraspCost = 10
 
 hRegrasp = Operator(\
         'HeuristicRegrasp',
