@@ -55,8 +55,7 @@ traceGen  (compact summary of generators)
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-          'appOp:number', 'regression:inconsistent', 'canPickPlaceGen',
-          'regression:fail']
+           'placeGen', 'regression:fail']
 
 
 pauseOn = debugOn

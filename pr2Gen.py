@@ -1024,10 +1024,13 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
 
     viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
                              graspB1, placeB, prob)
-    newBS.draw(prob, 'W')
+    if debug('canPickPlaceGen'):
+        newBS.draw(prob, 'W')
     debugMsg('canPickPlaceGen', ('viol', viol))
     if not viol:                  # hopeless
         debugMsg('canPickPlaceGen', 'Violation is permanent; returning')
+        newBS.draw(prob, 'W')
+        raw_input('Impossible CanPickPlace')
         return
     if viol.empty():
         debugMsg('canPickPlaceGen', 'No obstacles or shadows; returning')

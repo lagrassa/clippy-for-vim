@@ -74,7 +74,8 @@ def search(initialState, goalTest, actions, successor,
            prevExpandF = None,
            multipleSuccessors = False,
            greedy = 0.5,
-           verbose = False, printFinal = True, maxHDelta = None):
+           verbose = False, printFinal = True, maxHDelta = None,
+           maxCost = float('inf')):
         """
         @param initialState: root of the search
         @param goalTest: function from state to Boolean
@@ -130,6 +131,10 @@ def search(initialState, goalTest, actions, successor,
                     debugMsg('heuristic', 'positive value at goal state',
                              n.state, getH(n.state))
                 return (n.path(), n.costs())
+            if n.cost > maxCost:
+                if somewhatVerbose or verbose:
+                    print "Search failed reaching cost", n.cost
+                return None, None
 
             if getH(n.state)== 0:
                 debugMsg('heuristic', 'zero value at non-goal state', n.state)
@@ -177,7 +182,8 @@ def search(initialState, goalTest, actions, successor,
                         if visitF: visitF(n.state, n.cost, n.heuristicCost, 
                                           a, newS, newN.cost, hValue)
                         if maxHDelta and n.heuristicCost - hValue > maxHDelta:
-                            print 'current h =', n.heuristicCost, 'new h =', hValue
+                            print 'current h =', n.heuristicCost, \
+                              'new h =', hValue
                             raw_input('H delta exceeded')
                         heappush(agenda,
                                  ((1 - greedy) * newN.cost + \

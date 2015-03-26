@@ -80,11 +80,23 @@ useVertical = True
 # Test Rig
 ######################################################################
 
+# Counts unsatisfied fluent groups
+def hEasy(s, g, ops, ancestors):
+    return g.easyH(s)
+
 def habbs(s, g, ops, ancestors):
     hops = ops + [hRegrasp]
     val = hAddBackBSetID(s, g, hops, ancestors, ddPartitionFn = partition,
                          maxK = 20)
-    return val
+    if val == 0:
+        # Just in case the addBack heuristic thinks we're at 0 when
+        # the goal is not yet satisfied.
+        easyVal = hEasy(s, g, ops, ancestors)
+        if easyVal != 0:
+            print '*** habbs is 0 but goal not sat ***'
+        return easyVal
+    else:
+        return val
 
 from timeout import timeout, TimeoutError
 
@@ -358,7 +370,7 @@ class PlanTest:
     def run(self, goal, skeleton = None, hpn = True,
             home=None, regions = frozenset([]), hierarchical = False,
             heuristic = None,
-            greedy = 0.7, simulateError = False,
+            greedy = 0.75, simulateError = False,
             initBelief = None, initWorld=None,
             rip = False):
         randomizedInitialPoses = rip
@@ -371,27 +383,33 @@ class PlanTest:
         for win in wm.windows:
             wm.getWindow(win).clear()
         self.buildBelief(home=home, regions = set(regions))
-        if initBelief: initBelief(self.bs)
-        self.bs.pbs.draw(0.9, 'Belief')
-        self.bs.pbs.draw(0.9, 'W')
+
         # Initialize simulator
         self.realWorld = RealWorld(self.bs.pbs.getWorld(),
                                    self.domainProbs) # simulator
         self.realWorld.setRobotConf(self.bs.pbs.conf)
+        heldLeft = self.bs.pbs.held['left'].mode()
+        heldRight = self.bs.pbs.held['right'].mode()
+
         # LPK!! add collision checking
         for obj in self.objects:
-            pb = self.bs.pbs.getPlaceB(obj)
-            objPose = pb.objFrame().pose()
-            if randomizedInitialPoses:
-                stDev = tuple([np.sqrt(v) for v in pb.poseD.variance()])
-                objPose = objPose.corruptGauss(0.0, stDev, noZ = True)
-            self.realWorld.setObjectPose(obj, objPose)
+            if not obj in (heldLeft, heldRight):
+                pb = self.bs.pbs.getPlaceB(obj)
+                objPose = pb.objFrame().pose()
+                if randomizedInitialPoses:
+                    stDev = tuple([np.sqrt(v) for v in pb.poseD.variance()])
+                    objPose = objPose.corruptGauss(0.0, stDev, noZ = True)
+                self.realWorld.setObjectPose(obj, objPose)
+
+        # Change stuff around
+        if initBelief: initBelief(self.bs)
         if initWorld: initWorld(self.bs, self.realWorld)
-        # if self.bs.pbs.held['left'].mode() != 'none':
-        #     self.realWorld.held['left'] = self.bs.pbs.held['left'].mode()
-        #     print 'Need to figure out grasp!'
-        #     assert False
+
+        # Draw
+        self.bs.pbs.draw(0.9, 'Belief')
+        self.bs.pbs.draw(0.9, 'W')
         self.realWorld.draw('World')
+
         s = State([], details = self.bs)
 
         print '**************', self.name,\
@@ -405,13 +423,15 @@ class PlanTest:
                 skeleton = skeleton,
                 h = heuristic,
                 verbose = False,
-                fileTag = self.name if writeSearch else None)
+                fileTag = self.name if writeSearch else None,
+                nonMonOps = [move])
         else:
             p = planBackward(s,
                              goal,
                              self.operators,
                              h = heuristic,
-                             fileTag = self.name if writeSearch else None)
+                             fileTag = self.name if writeSearch else None,
+                             nonMonOps = [move])
             if p:
                 makePlanObj(p, s).printIt(verbose = False)
             else:
@@ -483,8 +503,8 @@ tinyErrProbs = DomainProbs(\
             pickTolerance = (0.02, 0.02, 0.02, 0.02))
 
 allOperators = [move, pick, place, lookAt, poseAchCanReach,
-                poseAchCanSee, poseAchCanPickPlace, lookAtHand,
-                graspAchCanPickPlace]
+                poseAchCanSee, poseAchCanPickPlace, lookAtHand]
+               #graspAchCanPickPlace]
 
 # Try to make a plan!     Just move
 def test1(hpn=True, skeleton=False, heuristic=habbs, hierarchical=False, easy=True):
@@ -848,7 +868,7 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
           )
     
 def test12(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True):
+           heuristic = habbs, easy = True, rip = False):
     glob.rebindPenalty = 500
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
@@ -896,11 +916,12 @@ def test12(hpn = True, skeleton = False, hierarchical = False,
           hierarchical = hierarchical,
           # regions=['table2Top'],
           regions=['table2Top', 'table1Top'],
+          rip = rip,
           heuristic = heuristic
           )
 
 def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-           easy = True):
+           easy = True, rip = False):
     glob.rebindPenalty = 500
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     t = PlanTest('test13',  errProbs, allOperators,
@@ -955,11 +976,12 @@ def test13(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           skeleton = hskel if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top', 'table2Top'],
+          rip = rip,
           heuristic = heuristic
           )
     
 def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-           easy = True):
+           easy = True, rip = False):
     # Move A so we can look at B
     # Example isn't really constructed right
 
@@ -973,8 +995,8 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                           'cupboardSide1', 'cupboardSide2'],
                  movePoses={'objA': p1,
                             'objB': p2},
-                 varDict = {'objA': (0.05**2,)*4,
-                            'objB': (0.05**2,)*4})
+                 varDict = {'objA': (0.05**2,0.05**2,0.0,0.2**2),
+                            'objB': (0.05**2,0.05**2,0.0,0.2**2)})
 
     goal = State([ Bd([SupportFace(['objB']), 4, goalProb], True),
                    B([Pose(['objB', 4]), p2.xyztTuple(),
@@ -988,7 +1010,8 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                              if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
-          heuristic = heuristic
+          heuristic = heuristic,
+          rip = rip
           )
 
 
@@ -1025,14 +1048,14 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
 
 # pick and place with more noise 
 def test16(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True):
+           heuristic = habbs, easy = True, rip = False):
     glob.rebindPenalty = 500
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
     t = PlanTest('test16',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
-                 varDict = {'objA': (0.05**2,)*4},
-                 )
+                 varDict = {'objA': (0.05**2,0.05**2,0.0,0.2**2),
+                            'objB': (0.05**2,0.05**2,0.0,0.2**2)})
 
     targetPose = (0.55, 0.25, 0.61, 0.0)
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
@@ -1047,6 +1070,7 @@ def test16(hpn = True, skeleton = False, hierarchical = False,
                        if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
+          rip = rip,
           heuristic = heuristic
           )
 
@@ -1060,7 +1084,7 @@ def test16(hpn = True, skeleton = False, hierarchical = False,
 # 21.  A in back, B in front -> A in front, B in back (whole enchilada)
 
 def test17(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True):
+           heuristic = habbs, easy = True, rip = False):
     glob.rebindPenalty = 500
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
@@ -1070,7 +1094,9 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
     t = PlanTest('test17',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
-                            'objB': parking})
+                            'objB': parking},
+                 varDict = {'objA': (0.05**2,0.05**2,0.0,0.2**2),
+                            'objB': (0.05**2,0.05**2,0.0,0.2**2)})
 
     skel = [[place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
              move,
@@ -1098,6 +1124,7 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
           skeleton = skel if skeleton else None,
           heuristic = heuristic,
           hierarchical = hierarchical,
+          rip = rip,
           regions=['table1Top']
           )
 
@@ -1105,7 +1132,7 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
 # 18.  A in parking, B in parking -> A in front, B in back  (ordering)
 # Trivial with skeleton
 def test18(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True):
+           heuristic = habbs, easy = True, rip = False):
 
     glob.rebindPenalty = 500
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
@@ -1117,7 +1144,9 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
     t = PlanTest('test18',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': parking1,
-                            'objB': parking2})
+                            'objB': parking2},
+                 varDict = {'objA': (0.05**2,0.05**2,0.0,0.2**2),
+                            'objB': (0.05**2,0.05**2,0.0,0.2**2)})
 
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
              move,
@@ -1146,12 +1175,13 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
           skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           heuristic = heuristic,
-          regions=['table1Top']
+          regions=['table1Top'],
+          rip = rip
           )
 
 # 19.  A in back, B in parking -> A in front, B in back (combination)    
 def test19(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True):
+           heuristic = habbs, easy = True, rip = False):
 
     glob.rebindPenalty = 500
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
@@ -1163,7 +1193,9 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
     t = PlanTest('test19',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
-                            'objB': parking2})
+                            'objB': parking2},
+                 varDict = {'objA': (0.05**2,0.05**2,0.0,0.2**2),
+                            'objB': (0.05**2,0.05**2,0.0,0.2**2)})
 
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
              move,
@@ -1192,7 +1224,8 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
           skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           heuristic = heuristic,
-          regions=['table1Top']
+          regions=['table1Top'],
+          rip = rip
           )
 
 
@@ -1276,7 +1309,7 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
 
 # 20.  Swap!
 def test20(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = True):
+           heuristic = habbs, easy = True, rip = False):
 
     glob.rebindPenalty = 500
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
@@ -1290,7 +1323,9 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
     t = PlanTest('test20',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
-                            'objB': front})
+                            'objB': front},
+                 varDict = {'objA': (0.05**2,0.05**2,0.0,0.2**2),
+                            'objB': (0.05**2,0.05**2,0.0,0.2**2)})
 
     # This just gets us down the first left expansion
     hierSkel = [[place, place], #0
@@ -1345,9 +1380,100 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
           skeleton = hierSkel if skeleton else None,
           heuristic = heuristic,
           hierarchical = hierarchical,
+          rip = rip,
           regions=['table1Top']
           )
 
+# 20a.  A situation we encounter if we serialize badly.  A is in
+# front, B is in the hand.
+def test20a(hpn = True, skeleton = False, hierarchical = False,
+           heuristic = habbs, easy = True, rip = False):
+
+    glob.rebindPenalty = 500
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
+    glob.monotonicFirst = False
+
+    front = util.Pose(0.45, 0.0, 0.61, 0.0)
+    back = util.Pose(0.65, 0.0, 0.61, 0.0)
+    t = PlanTest('test20a',  errProbs, allOperators,
+                 objects=['table1', 'objA', 'objB'],
+                 movePoses={'objA': front,
+                            'objB': back},
+                 varDict = {'objA': (.01**2, .01**2, .001**2, .01**2)})
+
+    flatSkel = [[lookAt.applyBindings({'Obj' : 'objA'}),
+                move,
+                place.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
+                move,
+                lookAt.applyBindings({'Obj' : 'objB'}),
+                move,                
+                place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
+                move,
+                pick.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
+                move,
+                lookAt.applyBindings({'Obj' : 'objA'}),
+                move]]
+
+    flatSkelRegrasp = [[lookAt.applyBindings({'Obj' : 'objB'}),
+                move,
+                place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
+                move,
+                pick.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
+                move,
+                place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
+                move]]
+
+    grasped = 'objB'
+    hand = 'left'
+    def initBel(bs):
+        # Change pbs so obj B is in the hand
+        gm = (0, -0.025, 0, 0)
+        gv = (0.014**2, 0.014**2, 0.0001**2, 0.022**2)
+        gd = (1e-4,)*4
+        gf = 0
+        bs.pbs.updateHeld(grasped, gf, PoseD(gm, gv), hand, gd)
+        bs.pbs.excludeObjs([grasped])
+        bs.pbs.shadowWorld = None # force recompute
+
+    def initWorld(bs, realWorld):
+        attachedShape = bs.pbs.getRobot().\
+                         attachedObj(bs.pbs.getShadowWorld(0.9), hand)
+        shape = bs.pbs.getWorld().\
+               getObjectShapeAtOrigin(grasped).applyLoc(attachedShape.origin())
+        realWorld.robot.attach(shape, realWorld, hand)
+        robot = bs.pbs.getRobot()
+        cart = robot.forwardKin(realWorld.robotConf)
+        handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
+        pose = shape.origin()
+        realWorld.held[hand] = grasped
+        realWorld.grasp[hand] = handPose.inverse().compose(pose)
+        realWorld.delObjectState(grasped)    
+
+    # Small var
+    targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
+    targetDelta = (0.02, 0.02, 0.02, 0.05)
+    
+    goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
+                  B([Pose(['objA', 4]),
+                     front.xyztTuple(), targetVar, targetDelta,
+                     goalProb], True),
+                  Bd([SupportFace(['objB']), 4, goalProb], True),
+                  B([Pose(['objB', 4]),
+                     back.xyztTuple(), targetVar, targetDelta,
+                     goalProb], True)])
+
+    t.run(goal,
+          hpn = hpn,
+          skeleton = flatSkelRegrasp if skeleton else None,
+          heuristic = heuristic,
+          hierarchical = hierarchical,
+          rip = rip,
+          regions=['table1Top'],
+          initBelief = initBel,
+          initWorld = initWorld
+          )
+
+    
 # stack objects?
 def testStack(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs):

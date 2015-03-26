@@ -28,6 +28,9 @@ hmax = float('inf')  # prune a node if the h value is higher than this
 # Make the planner slightly greedy wrt heuristic
 plannerGreedy = 0.5  # UC = 0, A* = 0.5, BestFirst = 1.0
 
+# Stop monotonic planning if cost is bigger than this.
+maxMonoCost = 1000
+
 ######################################################################
 ## Planner support classes
 ######################################################################
@@ -75,7 +78,14 @@ class State:
             for f in fg:
                 maxCostInGroup = 0
                 groupActSet = set()
-                if not f.isGround() or start.fluentValue(f) != f.value:
+                
+                if not f.isGround():
+                    # See if it can be satisfied
+                    fSat = start.satisfies(State([f]))
+                else:
+                    fSat = (start.fluentValue(f) == f.value)
+                
+                if not fSat:
                     # Either False (if not defined), else a cost and a
                     # list of actions
                     hv = f.heuristicVal(start)
@@ -921,19 +931,18 @@ class Operator(object):
         for f in newBoundFluents:
             if f.isConditional():
 
-                # !! LPK take out extra evaluations
                 #print 'adding conditions to', f.prettyString()
                 # Preconds will not override results
-                v0 = f.valueInDetails(startState.details)
+                #v0 = f.valueInDetails(startState.details)
                 f.addConditions(explicitResults, startState.details)
-                v1 = f.valueInDetails(startState.details)
+                #v1 = f.valueInDetails(startState.details)
                 f.addConditions(explicitPreconds, startState.details)
-                v2 = f.valueInDetails(startState.details)
+                #v2 = f.valueInDetails(startState.details)
                 f.addConditions(explicitSE, startState.details)
-                v3 = f.valueInDetails(startState.details)
-                if v0 == True and v3 == False:
-                    print 'value in details:', v0, v1, v2, v3
-                    raw_input('made it false!')
+                #v3 = f.valueInDetails(startState.details)
+                # if v0 == True and v3 == False:
+                #     print 'value in details:', v0, v1, v2, v3
+                #     raw_input('made it false!')
                 f.update()
             newGoal.add(f, startState.details)
 
@@ -1136,9 +1145,7 @@ class RebindOp:
             debugMsg('rebind', 'successfully rebound local vars',
                      'costs', [c for (s, c) in results], 'minus',
                      glob.rebindPenalty)
-            #results[0][1] -= glob.rebindPenalty
-            for r in results:
-                r[1] -= op.instanceCost
+            results[0][1] -= op.instanceCost
         else:
             debugMsg('rebind', 'failed to rebind local vars')
         return results
@@ -1288,7 +1295,7 @@ nop = Operator('Nop', [], {1:[]}, [], [], None)
 
 # Only pop a level if we fall out of the enveope or satisfy the subgoal
 def HPNCommit(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
-        skeleton = None):
+        skeleton = None, nonMonOps = []):
     f = writePreamble(hpnFileTag or fileTag)
     ps = Stack()
     ancestors = []
@@ -1308,7 +1315,8 @@ def HPNCommit(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
                     writeSubgoalRefinement(f, p, subgoal)
                     p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
                                      skeleton = skeleton[subgoal.planNum]\
-                                     if skeleton else None)
+                                     if skeleton else None,
+                                     nonMonOps = nonMonOps)
                     assert p, 'Planning failed.'
                     planObj = makePlanObj(p, s)
                     planObj.printIt()
@@ -1321,7 +1329,7 @@ def HPNCommit(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
         writeCoda(f)
 
 def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
-        skeleton = None, verbose = False):
+        skeleton = None, verbose = False, nonMonOps = []):
     f = writePreamble(hpnFileTag or fileTag)
     ps = PlanStack()
     ancestors = []
@@ -1336,7 +1344,8 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
                 p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
                                  lastOp = op,
                                  skeleton = skeleton[subgoal.planNum]\
-                                            if skeleton else None)
+                                            if skeleton else None,
+                                 nonMonOps = nonMonOps)
                 assert p, 'Planning failed.'
                 planObj = makePlanObj(p, s)
                 planObj.printIt(verbose = verbose)
@@ -1659,8 +1668,9 @@ def hNum(start, goal, operators):
                 f.isGround() and start.fluentValue(f) != f.value])
 
 # Handling all binding choices (including objects) by the rebinding mechanism. 
+# Allow some operations to be nonmonotonic if they're on the nonMonOps list.
 def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
-                  monotonic = True, lastOp = None):
+                  monotonic = True, lastOp = None, nonMonOps = []):
 
     tag = 'applicableOps'
     result = set([])
@@ -1739,7 +1749,8 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                             rf.entails(gf, startState) != False) \
                            for rf in extraRfs for gf in g.fluents])
 
-                if allUseful and not dup and (mono or not monotonic):
+                if allUseful and not dup and \
+                    (mono or not monotonic or o in nonMonOps):
                     debugMsg('appOp:detail', 'adding binding', b, boundRFs)
                     bindingSet.append(b)
                 elif not allUseful:
@@ -1751,14 +1762,6 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                 elif monotonic:
                     debugMsg('appOp:detail', 'nonmon so skipping binding', b,
                              boundRFs)
-
-            # if len(bindingSet) > 1:
-            #     print 'Applicable op'
-            #     print newOp
-            #     print 'multiple bindings with same result set'
-            #     print bindingSet
-            #     raw_input('chill?')
-
             for b in bindingSet:
                 if b != False:
                     newOpBound = newOp.applyBindings(b, rename = True)
@@ -1770,11 +1773,6 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                         debugMsg('appOp:detail', 'redundant op', newOpBound)
 
     resultNames = [o.name for o in result]
-    # if len(resultNames) > len(set(resultNames)):
-    #     print 'multiple instances of same op applicable'
-    #     print resultNames
-    #     raw_input('chili?')
-
     if len(result) == 0:
         print g
         debugMsg('appOp:number', ('h', inHeuristic, 'number', len(result)))
@@ -1810,8 +1808,34 @@ def getGrounding(fluents, details):
     else:
         return None
 
+def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
+                    lastOp, nonMonOps, heuristic, h, visitF, expandF,
+                    prevExpandF, maxCost):
+    return ucSearch.search(goal,
+                           lambda subgoal: startState.satisfies(subgoal),
+                           lambda g: applicableOps(g, ops,
+                                                   startState,
+                                                   ancestors, skeleton,
+                                                   monotonic = monotonic,
+                                                   lastOp = lastOp,
+                                                   nonMonOps = nonMonOps),
+                           lambda s, o: o.regress(s, startState, 
+                                                  heuristic if h else h),
+                           heuristic = heuristic, 
+                           visitF = visitF,
+                           expandF = expandF,
+                           prevExpandF = prevExpandF,
+                           multipleSuccessors = True,
+                           maxNodes = 100000,
+                           maxHDelta = maxHDelta,
+                           hmax = hmax, 
+                           greedy = plannerGreedy,
+                           verbose = False,
+                           maxCost = maxCost)        
+
 def planBackward(startState, goal, ops, ancestors = [],
-                 h = None, fileTag = None, skeleton = None, lastOp = None):
+                 h = None, fileTag = None, skeleton = None, lastOp = None,
+                 nonMonOps = []):
 
     skel = copy.copy(skeleton)
     goal.depth = 0
@@ -1834,9 +1858,6 @@ def planBackward(startState, goal, ops, ancestors = [],
     else:
         (visitF, expandF, prevExpandF) = (None, None, None)
 
-    def testGoal(s, goal):
-        return s.satisfies(goal)
-
     if not hasattr(goal, 'planNum'):
         goal.planNum = 0
 
@@ -1844,57 +1865,23 @@ def planBackward(startState, goal, ops, ancestors = [],
     try:
         if fileTag:
             (f1, f2) = writeSearchPreamble(goal.planNum, fileTag)
-
         # Try monotonic first
         if glob.monotonicFirst: 
-            (p, c) = ucSearch.search(goal,
-                                 lambda subgoal: testGoal(startState, subgoal),
-                                 lambda g: applicableOps(g, ops,
-                                                         startState,
-                                                         ancestors, skeleton,
-                                                         monotonic = True,
-                                                         lastOp = lastOp),
-                                 lambda s, o: o.regress(s, startState, 
-                                                        heuristic if h else h),
-                                 heuristic = heuristic, 
-                                 visitF = visitF,
-                                 expandF = expandF,
-                                 prevExpandF = prevExpandF,
-                                 multipleSuccessors = True,
-                                 maxNodes = 100000,
-                                 maxHDelta = maxHDelta,
-                                 hmax = hmax, 
-                                 greedy = plannerGreedy,
-                                 verbose = False)
-
+            (p, c) = planBackwardAux(goal, startState, ops, ancestors, skeleton,
+                                     True, lastOp, nonMonOps, heuristic, h,
+                                     visitF, expandF, prevExpandF, maxMonoCost)
             if p:
                 if f1: writeSuccess(f1, f2, p)
                 return p
             if f1:  writeSearchCoda(f1, f2)
             debugMsg('nonmon', 'Monotonic failed')
-                     
         # Now try non-monotonic
         if fileTag:
             (f1, f2) = writeSearchPreamble(goal.planNum, fileTag+'NonMon')
         hCacheReset() # flush heuristic values
-        (p, c) = ucSearch.search(goal,
-                                 lambda subgoal: testGoal(startState, subgoal),
-                                 lambda g: applicableOps(g, ops,
-                                                         startState,
-                                                         ancestors, skeleton,
-                                                         monotonic = False,
-                                                         lastOp = lastOp),
-                                 lambda s, o: o.regress(s, startState,
-                                                        heuristic if h else h),
-                                 heuristic = heuristic, 
-                                 visitF = visitF,
-                                 expandF = expandF,
-                                 prevExpandF = prevExpandF,
-                                 multipleSuccessors = True,
-                                 maxNodes = 100000,
-                                 maxHDelta = maxHDelta,
-                                 greedy = plannerGreedy,
-                                 verbose = False)
+        (p, c) = planBackwardAux(goal, startState, ops, ancestors, skeleton,
+                                 False, lastOp, nonMonOps, heuristic, h,
+                                 visitF, expandF, prevExpandF, float('inf'))
         if p and f1:
             writeSuccess(f1, f2, p)
         if p: return p

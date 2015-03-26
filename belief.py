@@ -618,7 +618,11 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
               prettyString(op.instanceCost), op.name
         debugMsg('haddBack')
     if totalCost < float('inf') and not debug('hAddBack'):
-        print 'H', prettyString(totalCost)
+        def n(f):
+            return f.args[0].predicate if f.predicate in ('B', 'Bd') \
+                      else f.predicate
+
+        print 'H', prettyString(totalCost),[n(f) for f in goal.fluents]
     return totalCost
 
 def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,
@@ -632,7 +636,6 @@ def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,
                           ddPartitionFn = ddPartitionFn)
         if vk < float('inf'):
             break
-        #print('ID level '+str(k)+' done')
     result = min(vk, maxHeuristicValue)
     fbch.inHeuristic = False
     return result
