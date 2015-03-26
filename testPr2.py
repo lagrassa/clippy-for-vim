@@ -663,9 +663,9 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
     goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.98,typicalErrProbs)
         
     p1 = util.Pose(0.95, 0.0, tZ, 0.0)
-    p2 = util.Pose(1.1, 0.0, tZ, 0.0)
+    p2 = util.Pose(0.9, 0.0, tZ, 0.0)
     t = PlanTest('test6', errProbs, allOperators,
-                 objects=['table1', 'objA', 'table2'],
+                 objects=['table1', 'objA'],
                  movePoses={'objA': p2},
                  varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2),
                             'objA': (0.075**2,0.075**2,0.0000001,0.2**2)})
