@@ -281,28 +281,32 @@ class PBS:
             # The pose in the world is for the origin frame.
             objPose = objB.objFrame()
             # object is already in world, add it to sw
-            sw.setObjectPose(obj, objPose)
+            # sw.setObjectPose(obj, objPose)
             faceFrame = objB.faceFrames[objB.support.mode()]
             # Shadow relative to Identity pose
-            shadow = self.objShadow(obj, True, prob, objB, faceFrame)
+            shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
+            w.addObjectShape(shadow)
+            sw.setObjectPose(shadow.name(), objPose)
             if debug('getShadowWorld'):
                 print 'objB', objB
                 print obj, 'origin\n', sw.objectShapes[obj].origin()
                 print obj, 'shadow\n', shadow.bbox()
-                shadow.draw('W', 'brown')
+                sh.draw('W', 'brown')
                 print obj, 'shadow origin\n', shadow.origin().matrix
                 print obj, 'support pose\n', objB.poseD.mode().matrix
                 print obj, 'origin pose\n', objB.objFrame().matrix
                 raw_input('Shadow for %s'%obj)
-            w.addObjectShape(shadow)
-            sw.setObjectPose(shadow.name(), objPose)
-            if obj in self.fixObjBs and self.domainProbs and \
-                   all([x <= y for (x,y) in zip(objB.poseD.var, self.domainProbs.obsVarTuple)]):
-                sw.fixedObjects.add(shadow.name())
+            if all([x <= y for (x,y) in zip(objB.poseD.var, self.domainProbs.obsVarTuple)]):
+                objBMin = objB
+            else:
+                objBMin = objB.modifyPoseD(var=self.domainProbs.obsVarTuple)
+            shadowMin = self.objShadow(obj, obj, prob, objBMin, faceFrame) # use obj name
+            w.addObjectShape(shadowMin)
+            sw.setObjectPose(shadowMin.name(), objPose)
             if obj in avoidShadow:      # can't collide with these shadows
                 sw.fixedObjects.add(shadow.name())
             if  obj in self.fixObjBs:   # can't collide with these objects
-                sw.fixedObjects.add(obj)
+                sw.fixedObjects.add(shadowMin.name())
         # Add robot
         # sw.robot = PR2('MM', makePr2Chains('PR2', w.workspace, new=False))
         sw.robot = self.getRobot()
@@ -320,7 +324,8 @@ class PBS:
                 # The graspDesc frame is relative to object origin
                 # The graspB pose encodes finger tip relative to graspDesc frame
                 faceFrame = graspDesc.frame.compose(self.graspB[hand].poseD.mode())
-                shadow = self.objShadow(heldObj, True, prob, self.graspB[hand], faceFrame)
+                shadow = self.objShadow(heldObj, shadowName(heldObj), prob,
+                                        self.graspB[hand], faceFrame)
                 # graspShadow is expressed relative to wrist and attached to arm
                 # fingerFrame should map shodow (supported at graspDesc) into wrist frame
                 fingerFrame = robot.fingerSupportFrame(hand, graspDesc.dz*2)
@@ -348,11 +353,11 @@ class PBS:
         shadow = self.beliefContext.objectShadowCache.get(key, None)
         if shadow:
             return shadow
-        name = shadowName(shape) if shName else shape.name()
+        # name = shadowName(shape) if shName else shape.name()
         # Origin * Support = Pose => Origin = Pose * Support^-1
         frame = faceFrame.inverse()     # pose is indentity
         sh = shape.applyLoc(frame)      # the shape with the specified support
-        shadow = makeShadow(sh, prob, poseBel, name=name)
+        shadow = makeShadow(sh, prob, poseBel, name=shName)
         self.beliefContext.objectShadowCache[key] = shadow
         debugMsg('objShadow', key, ('->', shadow.bbox()))
         return shadow

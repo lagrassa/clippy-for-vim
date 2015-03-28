@@ -278,7 +278,7 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False):
     c = c.set('pr2LeftGripper', [g])
     if useRight:
         c = c.set('pr2RightGripper', [g])
-    cart = robot.forwardKin(c)
+    cart = c.cartConf()
     base = cart['pr2Base']
     if vertical:
         q = np.array([0.0, 0.7071067811865475, 0.0, 0.7071067811865475])
@@ -1501,7 +1501,7 @@ def test20a(hpn = True, skeleton = False, hierarchical = False,
                getObjectShapeAtOrigin(grasped).applyLoc(attachedShape.origin())
         realWorld.robot.attach(shape, realWorld, hand)
         robot = bs.pbs.getRobot()
-        cart = robot.forwardKin(realWorld.robotConf)
+        cart = realWorld.robotConf.cartConf()
         handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
         pose = shape.origin()
         realWorld.held[hand] = grasped
@@ -1621,7 +1621,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
         shape = bs.pbs.getWorld().getObjectShapeAtOrigin(grasped).applyLoc(attachedShape.origin())
         realWorld.robot.attach(shape, realWorld, hand)
         robot = bs.pbs.getRobot()
-        cart = robot.forwardKin(realWorld.robotConf)
+        cart = realWorld.robotConf.cartConf
         handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
         pose = shape.origin()
         realWorld.held[hand] = grasped

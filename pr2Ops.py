@@ -77,7 +77,7 @@ def movePrim(args, details):
     return path
 
 def printConf(conf):
-    cart = conf.robot.forwardKin(conf)
+    cart = conf.cartConf()
     pose = cart['pr2LeftArm'].pose(fail=False)
     if pose:
         hand = str(np.array(pose.xyztTuple()))
@@ -741,7 +741,7 @@ def gaussObsUpdate(oldMu, obs, oldSigma, obsVar, noZ = True):
     if noZ:
         newMu[2] = oldMu[2]
     print 'new sigma', newSigma
-    raw_input('okay?')
+    # raw_input('okay?')
     return (tuple(newMu), newSigma)
     
 # For now, assume obs has the form (obj, face, grasp) or None

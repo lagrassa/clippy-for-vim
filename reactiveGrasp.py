@@ -1,3 +1,5 @@
+# Given an approach conf and a target conf, interpolate cartesion
+# poses and check for contacts.
 
 # Mnemonic access indeces
 obsHandPose, obsGrip, obsTrigger, obsContacts = range(4)

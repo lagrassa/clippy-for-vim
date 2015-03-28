@@ -81,7 +81,7 @@ class RoadMap:
         self.moveChains = moveChains
         self.kdLeafSize = kdLeafSize
         self.homeConf = homeConf
-        cart = self.robot.forwardKin(homeConf)
+        cart = homeConf.cartConf()
         self.root = Node(homeConf, cart, self.pointFromCart(cart))
         self.nodeTooClose = 0.001      # is there a rational way of picking this?
         # The points in the main kdTree
@@ -134,7 +134,7 @@ class RoadMap:
         return point
             
     def addNode(self, conf, merge = True):
-        cart = self.robot.forwardKin(conf)
+        cart = conf.cartConf()
         point = self.pointFromCart(cart)
         n_new = Node(conf, cart, point)
         if merge:
@@ -241,7 +241,7 @@ class RoadMap:
             for c in rrt.interpolate(n_i.conf, n_f.conf,
                                      stepSize=0.5 if (fbch.inHeuristic or coarsePath) else 0.25,
                                      moveChains=self.moveChains):
-                cart = self.robot.forwardKin(c)
+                cart = c.cartConf()
                 for chain in self.robot.chainNames: #  fill in
                     if not chain in c.conf:
                         c[chain] = n_i.conf[chain]
@@ -270,7 +270,7 @@ class RoadMap:
         for c in rrt.interpolate(n_i.conf, n_f.conf,
                                  stepSize=0.5 if (fbch.inHeuristic or coarsePath) else 0.25,
                                  moveChains=self.moveChains):
-            cart = self.robot.forwardKin(c)
+            cart = c.cartConf()
             for chain in self.robot.chainNames: #  fill in
                 if not chain in c.conf:
                     c[chain] = n_i.conf[chain]

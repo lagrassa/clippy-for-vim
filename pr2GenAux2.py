@@ -201,7 +201,7 @@ approachBackoff = 0.10
 zBackoff = approachBackoff
 def findApproachConf(pbs, obj, placeB, conf, hand, prob):
     robot = pbs.getRobot()
-    cart = robot.forwardKin(conf)
+    cart = conf.cartConf()
     wristFrame = cart[robot.armChainNames[hand]]
     if abs(wristFrame.matrix[2,0]) < 0.1: # horizontal
         offset = util.Pose(-approachBackoff,0.,zBackoff,0.)
@@ -214,6 +214,8 @@ def findApproachConf(pbs, obj, placeB, conf, hand, prob):
         return confBack
     else:
         return None
+
+graspConfHistory = []
 
 def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, prob, nMax=None):
     if conf:
@@ -255,6 +257,8 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, prob, nMax=None):
                 conf.draw('W','green')
                 debugMsg('potentialGraspConfs', ('->', conf.conf))
             count += 1
+            # Brute force debugging tool...
+            # graspConfHistory.append([conf, viol, pbs, placeB, conf, hand, prob])
             yield conf, viol
         else:
             if debug('potentialGraspConfs'): conf.draw('W','red')
@@ -314,7 +318,7 @@ lookPoses = {'left': [trL(x) for x in [util.Pose(0.4, 0.35, 1.0, ang),
 def potentialLookHandConfGen(pbs, prob, hand):
     shWorld = pbs.getShadowWorld(prob)
     robot = pbs.conf.robot
-    curCartConf = robot.forwardKin(pbs.conf)
+    curCartConf = pbs.conf.cartConf()
     chain = robot.armChainNames[hand]
     baseFrame = curCartConf['pr2Base']
     for pose in lookPoses[hand]:

@@ -25,7 +25,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True):
         print 'visible from base=', conf['pr2Base'], 'head=', conf['pr2Head']
     lookConf = lookAtConf(conf, shape) if moveHead else conf
     if not lookConf: return False, []
-    lookCartConf = conf.robot.forwardKin(lookConf)
+    lookCartConf = lookConf.cartConf()
     headTrans = lookCartConf['pr2Head']
     if fbch.inHeuristic:
         if not laserScanSparseGlobal:
@@ -88,7 +88,7 @@ def countContacts(contacts, id):
 
 def lookAtConf(conf, shape):
     center = shape.center()
-    cartConf = conf.robot.forwardKin(conf)
+    cartConf = conf.cartConf()
     assert cartConf['pr2Head']
     lookCartConf = cartConf.set('pr2Head', util.Pose(*center.tolist()+[0.,]))
     lookConf = conf.robot.inverseKin(lookCartConf, conf=conf)

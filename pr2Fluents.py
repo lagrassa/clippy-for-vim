@@ -33,7 +33,7 @@ class In(Fluent):
         assert v == True
         return inTest(bState, obj, region, p)
 
-def confWithin(c1, c2, delta, robot):
+def confWithin(c1, c2, delta):
     def withinDelta(a, b):
         if isinstance(a, list):
             d = delta[0]                # !! hack
@@ -47,8 +47,9 @@ def confWithin(c1, c2, delta, robot):
 
     # We only care whether | conf - targetConf | <= delta
     # Check that the moving frames are all within specified delta
-    c1CartConf = robot.forwardKin(c1)
-    c2CartConf = robot.forwardKin(c2)
+    c1CartConf = c1.cartConf()
+    c2CartConf = c2.cartConf()
+    robot = c1.robot
 
     # Also be sure two head angles are the same
     (c1h1, c1h2) = c1['pr2Head']
@@ -65,8 +66,7 @@ class Conf(Fluent):
     predicate = 'Conf'
     def test(self, bState):
         (targetConf, delta) = self.args
-        robot = bState.pbs.beliefContext.world.robot
-        return confWithin(bState.pbs.conf, targetConf, delta, robot)
+        return confWithin(bState.pbs.conf, targetConf, delta)
 
     def getGrounding(self, details):
         assert self.value == True
@@ -96,18 +96,17 @@ class Conf(Fluent):
            applyBindings((sval, oval, sdelta, odelta), b)
 
         if isGround((bsval, boval, bsdelta, bodelta)):
-            robot = details.pbs.beliefContext.world.robot
             bigDelta = tuple([od + sd for (od, sd) in zip(odelta, sdelta)])
             smallDelta = (1e-4,)*4
 
             # Kind of hard to average the confs.  Just be cheap for now.
 
             # If intervals don't overlap, then definitely false.
-            if not confWithin(bsval, boval, bigDelta, robot):
+            if not confWithin(bsval, boval, bigDelta):
                 return False, {}
 
             # One contains the other
-            if confWithin(bsval, boval, smallDelta, robot):
+            if confWithin(bsval, boval, smallDelta):
                 if all([s < o  for (s, o) in zip(bsdelta,bodelta)]):
                     return self, b
                 else:

@@ -180,7 +180,7 @@ approachBackoff = 0.10
 zBackoff = approachBackoff
 def findApproachConf(bState, obj, placeB, conf, hand, prob):
     robot = bState.getRobot()
-    cart = robot.forwardKin(conf)
+    cart = conf.cartConf()
     wristFrame = cart[robot.armChainNames[hand]]
     wristFrameBack = wristFrame.compose(\
              util.Pose(-approachBackoff,0.,zBackoff,0.))
@@ -292,7 +292,7 @@ lookPoses = {'left': [trL(x) for x in [util.Pose(0.5,0.08,1.0, ang),
 def potentialLookHandConfGen(bState, prob, hand):
     shWorld = bState.getShadowWorld(prob)
     robot = bState.conf.robot
-    curCartConf = robot.forwardKin(bState.conf)
+    curCartConf = bState.conf.cartConf()
     chain = robot.armChainNames[hand]
     baseFrame = curCartConf['pr2Base']
     for pose in lookPoses[hand]:
