@@ -24,6 +24,21 @@ class World:
         # The frames are relative to the origin
         self.graspDesc = None               # dict {obj : [GDesc,...]}
         self.supportFrames = None           # dict {obj : [frame,..]}
+        # Mapping from strings to strings:  obj name to obj type name
+        self.objectTypes = {}
+        # Mapping from object types to symmetries.  If obj type not
+        # listed, assume no symmetries.  A symmetry entry has two
+        # parts: a mapping from faces to a canonical face; mapping
+        # from canonical faces to a set of 4D transforms
+        self.symmetries = {}
+
+    def getObjType(self, obj):
+        return self.objectTypes[obj]
+    def getSymmetries(self, objType):
+        if objType in self.symmetries:
+            return self.symmetries[objType]
+        else:
+            return ({}, {})
 
     def copy(self):
         cw = copy.copy(self)

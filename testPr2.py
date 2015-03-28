@@ -30,7 +30,8 @@ from pr2Util import *
 
 import dist
 reload(dist)
-from dist import DDist, DeltaDist
+from dist import DDist, DeltaDist, MultivariateGaussianDistribution, makeDiag
+MVG = MultivariateGaussianDistribution
 
 import pr2Robot2
 reload(pr2Robot2)
@@ -236,15 +237,24 @@ def testWorld(include = ['objA', 'objB', 'objC'],
                      (0.,0.,0.,1.)])
     for obj in manipulanda:
         world.graspDesc[obj] = []
-        if useHorizontal:
-            world.graspDesc[obj].extend([GDesc(obj, util.Transform(gMat0), # horizontal
+        if useHorizontal:             # horizontal
+            world.graspDesc[obj].extend([GDesc(obj, util.Transform(gMat0),
                                                0.05, 0.05, 0.025)])
-        if moreGD:
-            world.graspDesc[obj].extend([GDesc(obj, util.Transform(gMat1), # flipped
+        if moreGD:              # flipped
+            world.graspDesc[obj].extend([GDesc(obj, util.Transform(gMat1),
                                                0.05, 0.05, 0.025)])
-        if useVertical:
-            world.graspDesc[obj].extend([GDesc(obj, util.Transform(gMat3), # vertical
+        if useVertical:    # vertical
+            world.graspDesc[obj].extend([GDesc(obj, util.Transform(gMat3),
                                                0.05, 0.05, 0.025)])
+
+    def t(o):
+        if o[0:3] == 'obj': return 'soda'
+        if o[0:5] == 'table': return 'table'
+        return 'unknown'
+
+    world.objectTypes = dict([(o, t(o)) for o in include])
+    world.symmetries = {'soda' : ({4 : 4}, {4 : []}),
+                        'table' : ({4 : 4}, {4 : []})}
 
     robot = PR2('MM', makePr2Chains('PR2', world.workspace))
     # This affects randomConf and stepAlongLine, unless overriden
@@ -289,8 +299,7 @@ class PlanTest:
     def __init__(self, name, domainProbs, operators,
                  objects = ['table1','objA'],
                  movePoses = {}, held = None, grasp = None,
-                 multiplier = 8, var = 1.0e-10, randomizeObjects = False,
-                 varDict = None):
+                 multiplier = 8, var = 1.0e-10, varDict = None):
         self.name = name
         self.multiplier = multiplier
         self.objects = objects          # list of objects to consider
@@ -318,7 +327,7 @@ class PlanTest:
             print 'done'
         self.initConfs = initConfs
         print 'Using', len(self.initConfs), 'initial confs'
-        var4 = (var, var, 0.0, var)
+        var4 = (var, var, 1e-10, var)
         del0 = (0.0, 0.0, 0.0, 0.0)
         ff = lambda o: self.world.getFaceFrames(o) if o in objects else []
         # The poses of the supporting face frames (the placement)
@@ -357,7 +366,6 @@ class PlanTest:
                 oVar = varDict[name] if (varDict and name in varDict) else var4
                 self.move[name] = ObjPlaceB(name, ff(name), DeltaDist(supFace),
                                   moveObjPoses[name], oVar, del0)
-        self.randomizeObjects = randomizeObjects
         self.operators = operators
         wm.makeWindow('Belief', viewPort, 500)
         wm.makeWindow('World', viewPort, 500)
@@ -374,7 +382,7 @@ class PlanTest:
         belC.roadMap = rm
         pbs = PBS(belC, conf=pr2Home, fixObjBs = self.fix.copy(), moveObjBs = self.move.copy(),
         regions = frozenset(regions), domainProbs=self.domainProbs) 
-        pbs.draw(0.9, 'Belief')
+        pbs.draw(0.98, 'Belief')
         bs = BeliefState(pbs, self.domainProbs, 'table2Top')
         ### !!!!  LPK Awful modularity
         bs.partitionFn = partition
@@ -412,10 +420,30 @@ class PlanTest:
             for obj in self.objects:
                 if not obj in (heldLeft, heldRight):
                     pb = self.bs.pbs.getPlaceB(obj)
-                    objPose = pb.objFrame().pose()
+                    meanObjPose = pb.objFrame().pose()
                     if randomizedInitialPoses:
-                        stDev = tuple([np.sqrt(v) for v in pb.poseD.variance()])
-                        objPose = objPose.corruptGauss(0.0, stDev, noZ = True)
+                        for i in range(1):   # increas for debugging
+                            stDev = tuple([np.sqrt(v) for v in pb.poseD.variance()])
+                            objPose = meanObjPose.corruptGauss(0.0, stDev, noZ =True)
+                            # Check log likelihood
+                        #     d = MVG(np.mat(meanObjPose.xyztTuple()).T,
+                        #             makeDiag(pb.poseD.variance()))
+                        #     ll = float(d.logProb(np.mat(objPose.xyztTuple()).T))
+                        #     print 'Obj pose', obj
+                        #     print '  mean', meanObjPose
+                        #     print '  delta', [x-y for (x,y) in \
+                        #                       zip(meanObjPose.xyztTuple(),
+                        #                           objPose.xyztTuple())]
+                        #     print '  stdev', stDev
+                        #     print '  draw', objPose
+                        #     print '  log likelihood', ll
+                        #     objShape = self.bs.pbs.getObjectShapeAtOrigin(obj)
+                        #     objShape.applyLoc(objPose).draw('Belief', 'pink')
+
+                        # raw_input('okay?')
+                        # self.bs.pbs.draw(0.98, 'Belief')
+                    else:
+                        objPose = meanObjPose
                     self.realWorld.setObjectPose(obj, objPose)
 
         # Modify belief and world if these hooks are defined
@@ -474,7 +502,7 @@ typicalErrProbs = DomainProbs(\
             # stdev, as a percentage of the motion magnitude
             odoError = (0.05, 0.05, 0.05, 0.05),
             # variance in observations; diagonal for now
-            obsVar = (0.01**2, 0.01**2, 1e-12, 0.01**2),
+            obsVar = (0.01**2, 0.01**2,0.01**2, 0.01**2),
             # get type of object wrong
             obsTypeErrProb = 0.05,
             # fail to pick or place in the way characterized by the Gaussian
@@ -491,7 +519,7 @@ smallErrProbs = DomainProbs(\
             # stdev, as a percentage of the motion magnitude
             odoError = (0.01, 0.01, 0.01, 0.01),
             # variance in observations; diagonal for now
-            obsVar = (0.001**2, 0.001**2, 1e-12, 0.002**2),
+            obsVar = (0.001**2, 0.001**2, 1e-6, 0.002**2),
             # get type of object wrong
             obsTypeErrProb = 0.02,
             # fail to pick or place in the way characterized by the Gaussian
@@ -508,7 +536,7 @@ tinyErrProbs = DomainProbs(\
             # stdev, as a percentage of the motion magnitude
             odoError = (0.0001, 0.0001, 0.0001, 0.0001),
             # variance in observations; diagonal for now
-            obsVar = (0.00001**2, 0.00001**2, 1e-12, 0.00002**2),
+            obsVar = (0.00001**2, 0.00001**2, 1e-6, 0.00002**2),
             # get type of object wrong
             obsTypeErrProb = 0.0000001,
             # fail to pick or place in the way characterized by the Gaussian
@@ -572,7 +600,7 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 
     t = PlanTest('test3',  errProbs, allOperators,
                  objects=['table1', 'objA'],
-                 varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2)})
+                 varDict = {'table1': (0.1**2, 0.05**2, 1e-10, 0.1**2)})
     targetPose = (1.05, 0.25, tZ, 0.0)
     # large target var is no problem
     targetVar = (0.02, 0.02, 0.01, 0.05)
@@ -663,13 +691,12 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
 
     goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.98,typicalErrProbs)
         
-    p1 = util.Pose(0.95, 0.0, tZ, 0.0)
     p2 = util.Pose(0.9, 0.0, tZ, 0.0)
     t = PlanTest('test6', errProbs, allOperators,
                  objects=['table1', 'objA'],
                  movePoses={'objA': p2},
-                 varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2),
-                            'objA': (0.075**2,0.075**2,0.0000001,0.2**2)})
+                 varDict = {'table1': (0.1**2, 0.08**2, 0.000001, 0.1**2),
+                            'objA': (0.075**2,0.075**2,0.000001,0.2**2)})
 
     goal = State([B([Pose(['objA', 4]), p2.xyztTuple(),
                      (0.001, 0.001, 0.001, 0.005),
@@ -678,8 +705,10 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
 
     t.run(goal,
           hpn = hpn,
-          skeleton = [[lookAt, move, lookAt, move],
-                      [place, move, pick, move]] if skeleton else None,
+          skeleton = [[lookAt, move],
+                      [lookAt, move, place, move, pick, move,
+                       poseAchCanPickPlace, lookAt, move]]
+                      if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
           heuristic = heuristic,
@@ -703,7 +732,7 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
                  objects=['table1', 'objA', 'table2'],
                  movePoses={'objA': p2,
                             'objB': p1},
-                 varDict = {'objA': (0.075**2,0.075**2,0.0,0.2**2)})
+                 varDict = {'objA': (0.075**2,0.075**2, 1e-10,0.2**2)})
     if moreGD: moreGD = False
     targetPose = (1.05, 0.25, tZ, 0.0)
 
@@ -792,7 +821,7 @@ def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     
     t = PlanTest('test10',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
-                 varDict = {'objA': (0.075**2,0.075**2,0.0,0.2**2)})
+                 varDict = {'objA': (0.075**2,0.075**2, 1e-10,0.2**2)})
     targetPose = (1.05, 0.25, tZ, 0.0)
     targetPoseB = (1.05, -0.2, tZ, 0.0)
     targetVar = (0.01, 0.01, 0.01, 0.05) 
@@ -824,8 +853,8 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     t = PlanTest('test11',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
-                 varDict = {'objA': (0.075**2,0.075**2,0.0,0.2**2),
-                            'objB': (0.075**2,0.075**2,0.0,0.2**2)})
+                 varDict = {'objA': (0.075**2,0.075**2, 1e-10,0.2**2),
+                            'objB': (0.075**2,0.075**2, 1e-10,0.2**2)})
 
     targetPose = (1.05, 0.25, tZ, 0.0)
     targetPoseB = (1.05, -0.2, tZ, 0.0)
@@ -1018,8 +1047,8 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                           'cupboardSide1', 'cupboardSide2'],
                  movePoses={'objA': p1,
                             'objB': p2},
-                 varDict = {'objA': (0.05**2,0.05**2,0.0,0.2**2),
-                            'objB': (0.05**2,0.05**2,0.0,0.2**2)})
+                 varDict = {'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                            'objB': (0.05**2,0.05**2, 1e-10,0.2**2)})
 
     goal = State([ Bd([SupportFace(['objB']), 4, goalProb], True),
                    B([Pose(['objB', 4]), p2.xyztTuple(),
@@ -1077,8 +1106,8 @@ def test16(hpn = True, skeleton = False, hierarchical = False,
 
     t = PlanTest('test16',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
-                 varDict = {'objA': (0.05**2,0.05**2,0.0,0.2**2),
-                            'objB': (0.05**2,0.05**2,0.0,0.2**2)})
+                 varDict = {'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                            'objB': (0.05**2,0.05**2, 1e-10,0.2**2)})
 
     targetPose = (1.05, 0.25, tZ, 0.0)
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
@@ -1118,8 +1147,8 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
                             'objB': parking},
-                 varDict = {'objA': (0.05**2,0.05**2,0.0,0.2**2),
-                            'objB': (0.05**2,0.05**2,0.0,0.2**2)})
+                 varDict = {'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                            'objB': (0.05**2,0.05**2, 1e-10,0.2**2)})
 
     skel = [[place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
              move,
@@ -1168,8 +1197,8 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': parking1,
                             'objB': parking2},
-                 varDict = {'objA': (0.05**2,0.05**2,0.0,0.2**2),
-                            'objB': (0.05**2,0.05**2,0.0,0.2**2)})
+                 varDict = {'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                            'objB': (0.05**2,0.05**2, 1e-10,0.2**2)})
 
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
              move,
@@ -1217,8 +1246,8 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
                             'objB': parking2},
-                 varDict = {'objA': (0.05**2,0.05**2,0.0,0.2**2),
-                            'objB': (0.05**2,0.05**2,0.0,0.2**2)})
+                 varDict = {'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                            'objB': (0.05**2,0.05**2, 1e-10,0.2**2)})
 
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
              move,
@@ -1347,8 +1376,8 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
                             'objB': front},
-                 varDict = {'objA': (0.05**2,0.05**2,0.0,0.2**2),
-                            'objB': (0.05**2,0.05**2,0.0,0.2**2)})
+                 varDict = {'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                            'objB': (0.05**2,0.05**2, 1e-10,0.2**2)})
 
     # This just gets us down the first left expansion
     hierSkel = [[place, place], #0
@@ -1673,8 +1702,12 @@ def prof(test, n=50):
 
 
 # Evaluate on details and a fluent to flush the caches and evaluate
-def firstAid(details, fluent):
+def firstAid(pbs, fluent = None):
     glob.debugOn.extend(['confReachViol', 'confViolations'])
-    details.pbs.getRoadMap().confReachCache = {}
-    details.pbs.beliefContext.pathObstCache = {}
-    return fluent.valueInDetails(details)
+    pbs.getRoadMap().confReachCache = {}
+    pbs.beliefContext.pathObstCache = {}
+    if fluent:
+        return fluent.valueInDetails(details)
+
+
+

@@ -67,6 +67,7 @@ class PBS:
         self.avoidShadow = None                   # shadows to avoid, in cached obstacles
         self.heuristic = None                     # the robot shape depends on heuristic
         self.domainProbs = domainProbs
+        self.objNames = self.fixObjBs.keys() + self.moveObjBs.keys()
 
     def getWorld(self):
         return self.beliefContext.world

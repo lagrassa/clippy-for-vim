@@ -537,6 +537,12 @@ class MultivariateGaussianDistribution:
         diff = v - self.mu
         return exp(-0.5 * diff.T * self.sigma.I * diff) / norm
 
+    def logProb(self, v):
+        d = len(v)
+        norm = math.sqrt((2 * math.pi)**d * linalg.det(self.sigma))
+        diff = v - self.mu
+        return -0.5 * diff.T * self.sigma.I * diff - np.log(norm)
+    
     def marginal(self, indices):
         mmu = self.mu.take(indices).T
         mcov = self.sigma.take(indices, axis = 0).take(indices, axis = 1)

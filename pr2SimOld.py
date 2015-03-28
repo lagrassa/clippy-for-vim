@@ -138,7 +138,7 @@ class RealWorld(WorldState):
             else:
                 # TLP! Please fix.  Should check that the hand is actually
                 # visible
-                return endExec('none')
+                return endExec(None)
 
         elif op.name == 'LookAt':
             targetObj = op.args[0]
@@ -169,22 +169,25 @@ class RealWorld(WorldState):
             obsMissProb = self.domainProbs.obsTypeErrProb
             miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
             if miss:
-                raw_input('yet another missed observation')
+                raw_input('Missed observation')
                 return endExec(None)
             else:
                 obsVar = self.domainProbs.obsVar
                 obsPlace = MVG(truePlace, obsVar).draw()
+                objType = self.getObjType(targetObj)
+                print 'Obj type', targetObj, objType
+                raw_input('okay?')
 
                 # debugging
                 oShape = self.world.getObjectShapeAtOrigin(targetObj)
                 oShape.applyLoc(util.Pose(*obsPlace)).draw('World', 'black')
                 print 'True place', truePlace
-                print 'Obs place (in black)', obsPlace
+                print 'Obs place', obsPlace
                 print 'Delta',\
                           [abs(x - y) for (x, y) in zip(truePlace, obsPlace)]
                 print 'Stdev',[np.sqrt(v) for v in self.domainProbs.obsVarTuple]
                 #raw_input('Obs okay?')
-                return endExec((targetObj, trueFace, util.Pose(*obsPlace)))
+                return endExec((objType, trueFace, util.Pose(*obsPlace)))
 
 
         elif op.name == 'Pick':
