@@ -601,10 +601,13 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.98,typicalErrProbs)
+    varDict = {} if easy else {'table1': (0.1**2, 0.1**2, 1e-10, 0.5**2),
+                               'objA': (0.1**2, 0.1**2, 1e-10, 0.5**2)} 
+    varDict = {} if easy else {'objA': (0.1**2, 0.1**2, 1e-10, 0.5**2)}
 
     t = PlanTest('test3',  errProbs, allOperators,
                  objects=['table1', 'objA'],
-                 varDict = {'table1': (0.1**2, 0.05**2, 1e-10, 0.1**2)})
+                 varDict = varDict)
     targetPose = (1.05, 0.25, tZ, 0.0)
     # large target var is no problem
     targetVar = (0.02, 0.02, 0.01, 0.05)
