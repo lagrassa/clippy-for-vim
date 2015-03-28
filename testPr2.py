@@ -78,7 +78,7 @@ writeSearch = True
 
 useRight = True
 useHorizontal = True
-useVertical = True
+useVertical = False
 useCartesian = False
 
 ######################################################################

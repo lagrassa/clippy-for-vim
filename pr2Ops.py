@@ -650,13 +650,14 @@ def lookAtBProgress(details, args, obs):
                        zip(oldMu, oldSigma, pose.pose().xyztTuple(), obsVar)])
         newSigma = tuple([(a * b) / (a + b) for (a, b) in zip(oldSigma,obsVar)])
         ff = details.pbs.getWorld().getFaceFrames(o)
-        details.pbs.updateObjB(ObjPlaceB(o, ff, DeltaDist(pf),
-                                         PoseD(util.Pose(*newMu), newSigma)))
+        newB = ObjPlaceB(o, ff, DeltaDist(pf), PoseD(util.Pose(*newMu), newSigma))
+        details.pbs.updateObjB(newB)
         if debug('obsUpdate'):
             objShape = details.pbs.getObjectShapeAtOrigin(o)
-            objShape.applyTrans(pose).draw('Belief', 'cyan')
+            pB = ObjPlaceB(o, ff, DeltaDist(pf), PoseD(pose.pose(), newSigma))
+            objShape.applyTrans(pB.objFrame()).draw('Belief', 'cyan')
             raw_input('obs is cyan')
-            objShape.applyTrans(util.Pose(*newMu)).draw('Belief', 'magenta')
+            objShape.applyTrans(newB.objFrame()).draw('Belief', 'magenta')
             raw_input('obs is cyan, newMu is magenta')
     details.pbs.shadowWorld = None # force recompute
 

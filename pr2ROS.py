@@ -12,6 +12,7 @@ from planGlobals import debug, debugMsg
 import windowManager3D as wm
 from pr2Util import shadowWidths, supportFaceIndex
 from miscUtil import argmax
+from pr2Robot2 import JointConf
 
 import util
 import tables
@@ -65,13 +66,18 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         conf.head = map(float, cnfIn.get('pr2Head', []))
         if conf.head:
             cnfInCart = cnfIn.robot.forwardKin(cnfIn)
-            headTurned = cnfInCart['pr2Head'].compose(headTurn)
+            head = cnfInCart['pr2Head']
             # Transform relative to robot base
-            headTrans = cnfInCart['pr2Base'].inverse().compose(headTurned)
-            gaze = headTrans.applyToPoint(util.Point(np.array([1.,0.,0.,1.])))
-            conf.head = gaze.matrix.tolist()[:3]
+            headTrans = cnfInCart['pr2Base'].inverse().compose(head)
+            gaze = headTrans.applyToPoint(util.Point(np.array([0.,0.,1.,1.]).reshape(4,1)))
+            conf.head = gaze.matrix.reshape(4).tolist()[:3]
+            if conf.head[0] < 0:
+                print 'Dont look back!'
+                conf.head[0] = -conf.head[0]
+            if conf.head[2] > 1.5:
+                print 'Dont look up!'
+                conf.head[2] = 1.0
             print conf.head
-            raw_input('Head point')
 
         print operation, conf
         
@@ -87,8 +93,11 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         cnfOut['pr2LeftGripper'] = c.left_grip
         cnfOut['pr2RightArm'] = c.right_joints
         cnfOut['pr2RightGripper'] = c.right_grip
-        cnfOut['pr2Head'] = c.head
-        return resp.result, cnfOut
+        cnfOut['pr2Head'] = c.head or cnfIn.get('pr2Head', [0.,0.])
+        if cnfIn:
+            return resp.result, JointConf(cnfOut, cnfIn.robot)
+        else:
+            return resp.result, cnfOut  # !!
 
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
@@ -170,13 +179,13 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 
         debugMsg('robotEnv', 'executeLookAt', targetObj, lookConf.conf)
         result, outConf = pr2GoToConf(lookConf, 'move')
-        outConfCart = outConf.robot.forwardKin(outConf)
+        outConfCart = lookConf.robot.forwardKin(outConf)
         if 'table' in targetObj:
             table = lookAtTable(targetObj)
             if not table: return None
             trueFace = supportFaceIndex(table)
-            tablePoseRobot = tablePose(table)
-            tablePose = tablePoseRobot.applyTrans(outConfCart['pr2Base'])
+            tablePoseRobot = getSupportPose(table, trueFace)
+            tablePose = outConfCart['pr2Base'].compose(tablePoseRobot)
             return (targetObj, trueFace, tablePose)
         elif targetObj in placeBs:
             supportTable = findSupportTable(targetObj, self.world, placeBs)
@@ -196,17 +205,16 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             if ans:
                 # This is in robot coords
                 score, objPlaceRobot = ans[0]
-                objPlace
-                if debug('robotEnv'):
-                    objPlace.draw('W', 'red')
-                    raw_input(objPlace.name())
-                else:
+                if not objPlaceRobot:
                     print 'No detections'
                     raw_input()
                     return None
-            trueFace = supportFaceIndex(objPlace)
+            trueFace = supportFaceIndex(objPlaceRobot)
             objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
-            return (objPlace.name(), trueFace, objPlace.origin())
+            if debug('robotEnv'):
+                objPlace.draw('W', 'red')
+                raw_input(objPlace.name())
+            return (objPlace.name(), trueFace, getSupportPose(objPlace, trueFace))
         else:
             raw_input('Unknown object: %s'%targetObj)
             return None
@@ -217,13 +225,15 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         gripper = 'pr2LeftGripper' if hand=='left' else 'pr2RightGripper'
 
         debugMsg('robotEnv', 'executePick - open')
-        result, outConf = pr2GoToConf({gripper: 0.08}, 'move')
+        conf = approachConf.copy()
+        conf.conf[gripper] = 0.08
+        result, outConf = pr2GoToConf(conf, 'move')
         
         debugMsg('robotEnv', 'executePick - move to pickConf')
         result, outConf = pr2GoToConf(pickConf, 'move')
 
         debugMsg('robotEnv', 'executePick - close')
-        result, outConf = pr2GoToConf({}, 'close', arm=hand[0]) # 'l' or 'r'
+        result, outConf = pr2GoToConf(pickConf, 'close', arm=hand[0]) # 'l' or 'r'
 
         debugMsg('robotEnv', 'executePick - move to approachConf')
         result, outConf = pr2GoToConf(approachConf, 'move')
@@ -235,13 +245,15 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                (op.args[1], op.args[20], op.args[18])
         gripper = 'pr2LeftGripper' if hand=='left' else 'pr2RightGripper'
 
-        debugMsg('robotEnv', 'executePick - move to pickConf')
-        result, outConf = pr2GoToConf(pickConf, 'move')
+        debugMsg('robotEnv', 'executePlace - move to placeConf')
+        result, outConf = pr2GoToConf(placeConf, 'move')
 
-        debugMsg('robotEnv', 'executePick - open')
-        result, outConf = pr2GoToConf({gripper: 0.08}, 'move')
+        debugMsg('robotEnv', 'executePlace - open')
+        conf = placeConf.copy()
+        conf.conf[gripper] = 0.08
+        result, outConf = pr2GoToConf(conf, 'move')
 
-        debugMsg('robotEnv', 'executePick - move to approachConf')
+        debugMsg('robotEnv', 'executePlace - move to approachConf')
         result, outConf = pr2GoToConf(approachConf, 'move')
         
         return None
@@ -382,6 +394,9 @@ def findSupportTable(targetObj, world, placeBs):
     ind = tableCenters.index(bestCenter)
     return tableBs[ind].obj
 
-def tablePose(table):
-    (x,y,z,t) = table.orgin.pose().xyztTuple()
-    return util.Pose(x,y,0.,t)
+def getSupportPose(shape, supportFace):
+    pose = shape.origin().compose(shape.faceFrames()[supportFace])
+    print 'origin frame\n', shape.origin().matrix
+    print 'supportPose\n', pose.matrix
+    return pose
+
