@@ -928,3 +928,39 @@ def fwDist(arm, T, sol):
     for i in range(7): jtKin[i] = sol[i]
     (ik.fkRight if arm=='r' else ik.fkLeft)(jtKin, transKin, rotKin)
     return util.Point(np.resize(T[:,3], (1,4))).distance(util.Point(np.resize(np.array(list(transKin)+[1.]), (1,4))))
+
+
+###################
+# Interpolators
+##################
+
+def interpPose(self, pose_f, pose_i, minLength, ratio=0.5):
+    pr = pose_f.point()*ratio + pose_i.point()*(1-ratio)
+    qr = quaternion_slerp(pose_i.quat().matrix, pose_f.quat().matrix, ratio)
+    return util.Transform(None, pr.matrix, qr), \
+           pose_f.near(pose_i, minLength, minLength)
+
+def cartInterpolators(self, c_f, c_i, conf_i, minLength, depth=0):
+    if depth > 10:
+        raw_input('cartInterpolators depth > 10')
+    if c_f == c_i: return [c_f]
+    newVals = {}
+    terminal = True
+    for chain in c_f:
+        new, near = interpPose(c_f[chain], c_i[chain], minLength)
+        newVals[chain] = new
+        terminal = terminal and near
+    if terminal: return []        # no chain needs splitting
+    cart = CartConf(newVals, c_f.robot)
+    conf = self.robot.inverseKin(cart, conf=conf_i)
+    for chain in conf_i.robot.chainNames: #  fill in?
+        if not chain in conf.conf:
+            conf.conf[chain] = conf_i.conf[chain]
+    if all([conf.conf.values()]):
+        final = self.cartInterpolators(c_f, cart, conf_i, minLength, depth+1)
+        if final != None:
+            init = self.cartInterpolators(cart, c_i, conf_i, minLength, depth+1)
+            if init != None:
+                final.append(conf)
+                final.extend(init)
+    return final

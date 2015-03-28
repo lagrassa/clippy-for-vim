@@ -41,6 +41,7 @@ class Node:
         self.conf = conf
         self.cartConf = cartConf
         self.point = point
+        self.key = False
     def __str__(self):
         return 'Node:'+str(self.id)+str(self.point)
     def __hash__(self):
@@ -248,21 +249,50 @@ class RoadMap:
                 final.append(Node(c, cart, self.pointFromCart(cart)))
         return final
 
-    # Should this fall back on joint interpolation when necessary?
     # Returns list of nodes that go from initial node to final node
     def cartLineSteps(self, node_f, node_i, minLength):
-        # if fbch.inHeuristic:            # !! ?
-        #     return [node_i, node_f]
         interp = self.cartInterpolators(node_f, node_i, minLength)
         if interp is None:
             return
         elif node_i == node_f:
+            node_f.key = True
             return [node_f]
         else:
             nodes = [node_i]
             nodes.extend(interp[::-1])
             nodes.append(node_f)
+            for node in nodes: node.key = True
             return nodes
+
+    def jointInterpolators(self, n_f, n_i, minLength, depth=0):
+        if n_f.conf == n_i.conf: return [n_f]
+        final = []
+        for c in rrt.interpolate(n_i.conf, n_f.conf,
+                                 stepSize=0.5 if (fbch.inHeuristic or coarsePath) else 0.25,
+                                 moveChains=self.moveChains):
+            cart = self.robot.forwardKin(c)
+            for chain in self.robot.chainNames: #  fill in
+                if not chain in c.conf:
+                    c[chain] = n_i.conf[chain]
+                    c[chain] = n_i.cartConf[chain]
+            final.append(Node(c, cart, self.pointFromCart(cart)))
+        return final
+
+    # Returns list of nodes that go from initial node to final node
+    def jointLineSteps(self, node_f, node_i, minLength):
+        interp = self.jointInterpolators(node_f, node_i, minLength)
+        if interp is None:
+            return
+        elif node_i == node_f:
+            node_f.key = True
+            return [node_f]
+        else:
+            nodes = [node_i]
+            nodes.extend(interp[::-1])
+            nodes.append(node_f)
+            node_i.key = True; node_f.key = True
+            return nodes
+
 
     def robotSelfCollide(self, shape, heldDict={}):
         if fbch.inHeuristic: return False
@@ -403,8 +433,12 @@ class RoadMap:
                self.edges.get((node_i, node_f), empty)
         if not edge:
             edge = Edge(node_f, node_i)
-            edge.nodes = self.cartLineSteps(node_f, node_i,
-                                            minStepHeuristic if (fbch.inHeuristic or coarsePath) else minStep)
+            if self.cartesian:
+                edge.nodes = self.cartLineSteps(node_f, node_i,
+                                                minStepHeuristic if (fbch.inHeuristic or coarsePath) else minStep)
+            else:
+                edge.nodes = self.jointLineSteps(node_f, node_i,
+                                                 minStepHeuristic if (fbch.inHeuristic or coarsePath) else minStep)
             self.edges[(node_f, node_i)] = edge
         allObstacles = shWorld.getObjectShapes()
         permanent = shWorld.fixedObjects # set of names
@@ -628,8 +662,9 @@ class RoadMap:
                 # finalViolation, finalCost, path (list of confs)
                 yield finalViolation, costs[-1], confPath, nodePath
 
-    def confPathFromNodePath(self, nodePath):
+    def confPathFromNodePath(self, nodePathIn):
         confPath = []
+        nodePath = [node for node in nodePathIn if node.key]
         if len(nodePath) > 1:
             for i in range(len(nodePath)-1):
                 edge = self.edges.get((nodePath[i], nodePath[i+1]), None)

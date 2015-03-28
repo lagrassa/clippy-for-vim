@@ -80,6 +80,7 @@ writeSearch = True
 useRight = True
 useHorizontal = True
 useVertical = True
+useCartesian = False
 
 ######################################################################
 # Test Rig
@@ -245,6 +246,8 @@ def testWorld(include = ['objA', 'objB', 'objC'],
                                                0.05, 0.05, 0.025)])
         if useVertical:    # vertical
             world.graspDesc[obj].extend([GDesc(obj, util.Transform(gMat3),
+                                               0.05, 0.05, 0.025),
+                                         GDesc(obj, util.Transform(gMat2),
                                                0.05, 0.05, 0.025)])
 
     def t(o):
@@ -375,6 +378,7 @@ class PlanTest:
         belC = BeliefContext(world)
         pr2Home = home or makeConf(world.robot, 0.0, 0.0, 0.0)
         rm = RoadMap(pr2Home, world, kNearest = 10,
+                     cartesian = useCartesian,
                      moveChains = \
                      ['pr2Base', 'pr2LeftGripper', 'pr2LeftArm', 'pr2RightGripper', 'pr2RightArm'] if useRight \
                      else ['pr2Base', 'pr2LeftGripper', 'pr2LeftArm'],)

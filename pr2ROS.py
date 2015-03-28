@@ -43,6 +43,8 @@ if glob.useROS:
 # grab - use ROS grab
 # close - as hard as you can
 
+headTurn = util.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0)))
+
 def pr2GoToConf(cnfIn,                  # could be partial...
                 operation,              # a string
                 arm = 'both',
@@ -62,7 +64,14 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         conf.right_grip = map(float, cnfIn.get('pr2RightGripper', []))
         conf.head = map(float, cnfIn.get('pr2Head', []))
         if conf.head:
-            conf.head = [1.0, 0.0, 0.6]
+            cnfInCart = cnfIn.robot.forwardKin(cnfIn)
+            headTurned = cnfInCart['pr2Head'].compose(headTurn)
+            # Transform relative to robot base
+            headTrans = cnfInCart['pr2Base'].inverse().compose(headTurned)
+            gaze = headTrans.applyToPoint(util.Point(np.array([1.,0.,0.,1.])))
+            conf.head = gaze.matrix.tolist()[:3]
+            print conf.head
+            raw_input('Head point')
 
         print operation, conf
         
@@ -161,17 +170,21 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 
         debugMsg('robotEnv', 'executeLookAt', targetObj, lookConf.conf)
         result, outConf = pr2GoToConf(lookConf, 'move')
+        outConfCart = outConf.robot.forwardKin(outConf)
         if 'table' in targetObj:
             table = lookAtTable(targetObj)
             if not table: return None
             trueFace = supportFaceIndex(table)
-            return (targetObj, trueFace, tablePose(table))
+            tablePoseRobot = tablePose(table)
+            tablePose = tablePoseRobot.applyTrans(outConfCart['pr2Base'])
+            return (targetObj, trueFace, tablePose)
         elif targetObj in placeBs:
             supportTable = findSupportTable(targetObj, self.world, placeBs)
             assert supportTable
             placeB = placeBs[supportTable]
             if not wellLocalized(placeB):
-                table = lookAtTable(supportTable)
+                tableRobot = lookAtTable(supportTable)
+                table = tableRobot.applyTrans(outConfCart['pr2Base'])
                 if not table: return None
             else:
                 table = world.getObjectShapeAtOrigin(supportTable).applyLoc(placeB.objFrame())
@@ -181,7 +194,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                                    outConf, # the lookConf actually achieved
                                    [surfacePoly])
             if ans:
-                score, objPlace = ans[0]
+                # This is in robot coords
+                score, objPlaceRobot = ans[0]
+                objPlace
                 if debug('robotEnv'):
                     objPlace.draw('W', 'red')
                     raw_input(objPlace.name())
@@ -190,6 +205,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                     raw_input()
                     return None
             trueFace = supportFaceIndex(objPlace)
+            objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
             return (objPlace.name(), trueFace, objPlace.origin())
         else:
             raw_input('Unknown object: %s'%targetObj)

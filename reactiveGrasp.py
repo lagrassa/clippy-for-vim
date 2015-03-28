@@ -149,3 +149,50 @@ def pr2GoToConfGuarded(cnfIn, speedFactor = 0.25):
             return None, None
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
+
+    def guardedMove(self, conf1, conf2, n=4):
+        name = 'guardedMove'
+        hand1 = conf1.handPose.pose()
+        hand2 = conf2.handPose.compose(util.Pose(glob.pickOvershoot,0,0,0)).pose()
+        assert abs(util.fixAnglePlusMinusPi(hand1.theta - hand2.theta)) < 0.001
+        p1 = hand1.point()
+        p2 = hand2.point()
+        delta = (p2 - p1).scale(1.0/n)
+        for i in range(1, n+1):
+            hand = (p1 + delta.scale(i)).pose(hand1.theta)
+            kinConf = self.invKin(rob.Conf(conf1.basePose, hand, conf1.grip),
+                                  collisionAware = True)
+            
+            if not kinConf:
+                if self.world: self.draw(self.world.window, color = 'purple')
+                print name, 'Step', i
+                print 'Failute of inverse kinematics'
+                raw_input('Infeasible step in guarded move; enter to continue')
+                continue
+            
+            status, kc = self.kinPlaceGuarded(kinConf)
+            
+            print i, 'Moving to', hand, 'result is', status
+            if debug(name) and self.realRobot:
+                colors = ['red', 'orange', 'yellow', 'green', 'blue', 'purple']
+                if self.world: self.draw(self.world.window, color = colors[i%6])
+                print name, 'Step', i
+                print kinConf
+                raw_input('go?')
+
+            if not status == 'goal': return status
+        return 'goal'
+
+    def kinPlaceGuarded(self, kinConf, moveRealRobot = True):
+        if self.realRobot and moveRealRobot:
+            # Move real robot or environment simulated robot
+            if self.useROS:
+                # Move actual robot
+                (base, zth, gopen) = (kinConf.basePose, kinConf.angles,
+                                      kinConf.grip)
+                status, kc = pr2GoToConfGuarded(joints=zth[1:])
+                if kc:                  # actual KConf, update model
+                    self.kinPlace(kc, moveRealRobot = False)
+                else:
+                    raw_input('GoToConfGuarded failed')
+        return status, self.kinConf
