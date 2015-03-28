@@ -54,7 +54,8 @@ traceCRH
 traceGen  (compact summary of generators)
 
 '''
-debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise']
+debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
+           'obsUpdate']
 
 
 

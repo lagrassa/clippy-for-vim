@@ -622,7 +622,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
             return f.args[0].predicate if f.predicate in ('B', 'Bd') \
                       else f.predicate
 
-        print 'H', prettyString(totalCost),[n(f) for f in goal.fluents]
+        print 'H', prettyString(totalCost)
     return totalCost
 
 def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,

@@ -286,7 +286,7 @@ cdef class Pose(Transform):             # 2.5D transform
                             random.gauss(mu, stdDev[1]),
                             0.0 if noZ else random.gauss(mu, stdDev[2]),
                             random.gauss(mu, stdDev[3]))
-        return perturbation.compose(self).pose()
+        return self.compose(perturbation).pose()
 
     def __copy__(self):
         return Pose(self.x, self.y, self.z, self.theta)

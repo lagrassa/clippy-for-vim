@@ -1,9 +1,9 @@
 import numpy as np
 import util
 from dist import DeltaDist, varBeforeObs, DDist, probModeMoved, MixtureDist,\
-     UniformDist, chiSqFromP
+     UniformDist, chiSqFromP, MultivariateGaussianDistribution
 from fbch import Function, getMatchingFluents, Operator, simplifyCond
-from miscUtil import isVar, prettyString
+from miscUtil import isVar, prettyString, makeDiag
 from pr2Util import PoseD, shadowName, ObjGraspB, ObjPlaceB, Violations
 from pr2Gen import pickGen, canReachHome, placeInGen, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen
 from belief import Bd, B
@@ -415,7 +415,7 @@ def pickPoseVar((graspVar, prob), goal, start, vals):
     pickTolerance = start.domainProbs.pickTolerance[0]
     # What does the variance need to be so that we are within
     # pickTolerance with probability prob?
-    numStdDevs =  np.sqrt(chiSqFromP(1-prob, 2))
+    numStdDevs =  np.sqrt(chiSqFromP(1-prob, 3))
     # nstd * std < pickTol
     # std < pickTol / nstd
     tolerableVar = (pickTolerance / numStdDevs)**2
@@ -585,7 +585,7 @@ def pickBProgress(details, args, obs=None):
     failProb = details.domainProbs.pickFailProb
     # !! This is wrong!  The coordinate frames of the variances don't match.
     v = [x+y for x,y in zip(details.pbs.getPlaceB(o).poseD.var, pickVar)]
-    v[2] = 0.0
+    v[2] = 1e-8
     gv = tuple(v)
     details.graspModeProb[h] = (1 - failProb) * details.poseModeProbs[o]
     details.pbs.updateHeld(o, gf, PoseD(gm, gv), h, gd)
@@ -602,7 +602,7 @@ def placeBProgress(details, args, obs=None):
     # !! This is wrong!  The coordinate frames of the variances don't match.
     v = [x+y for x,y in \
          zip(details.pbs.getGraspB(o,h).poseD.var, placeVar)]
-    v[2] = 0.0
+    v[2] = 1e-8
     gv = tuple(v)
     details.poseModeProbs[o] = (1 - failProb) * details.graspModeProb[h]
     details.pbs.updateHeld('none', None, None, h, None)
@@ -620,48 +620,129 @@ def placeBProgress(details, args, obs=None):
 # Really, we'll get obj-type, face, relative pose
 def lookAtBProgress(details, args, obs):
     (o, _, _, _, _, _, _, _, _, _, _) = args
-    opb = details.pbs.getPlaceB(o)
-    if obs == None or o != obs[0]:
-        debugMsg('obsUpdate', 'Missed detection, wanted %s got %s'%(o, obs))
-        # Increase the variance on o
-        oldVar = opb.poseD.var
-        # Bayes!
-        oldP = details.poseModeProbs[o]
+    objectObsUpdate(details, obs, o)
+    details.pbs.shadowWorld = None # force recompute
+    debugMsg('beliefUpdate', 'look')
+
+llMatchThreshold = -100  # very liberal
+
+def objectObsUpdate(details, obs, soughtObject):
+    # Assume for now a single observed object.  Make this fancier when
+    # we can get multiple detections.
+    if obs == None:
+        debugMsg('obsUpdate', 'No good match for observation')
+        # Update modeprob
+        oldP = details.poseModeProbs[soughtObject]
         obsGivenH = details.domainProbs.obsTypeErrProb
         obsGivenNotH = (1 - details.domainProbs.obsTypeErrProb)
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
-        details.poseModeProbs[o] = newP
-        newVar = tuple([v*2 for v in oldVar])
-        opb.poseD.var = newVar
+        details.poseModeProbs[soughtObject] = newP
+        return
+    
+    (oType, obsFace, obsPose) = obs
+    pbs = details.pbs
+    w = pbs.beliefContext.world
+    symFacesType, symXformsType = w.getSymmetries(oType)
+    canonicalFace = symFacesType[obsFace]
+    symXForms = symXformsType[canonicalFace]
+    # Could make this more efficient by mapping to a canonical one, but
+    # seems risky
+    symPoses = [obsPose] + [obsPose.compose(xf) for xf in symXForms]
+
+    candidates = []
+
+    ff = pbs.beliefContext.world.getFaceFrames(soughtObject)[canonicalFace]
+
+    if debug('obsUpdate'):
+        ## LPK!!  Should really draw the detected object but I don't have
+        ## an immediate way to get the shape of a type.  Should fix that.
+        objShape = pbs.getObjectShapeAtOrigin(soughtObject)
+        objShape.applyLoc(obsPose.compose(ff.inverse())).draw('Belief', 'cyan')
+        raw_input('obs is cyan')
+
+    # Find the best matching pose mode.  Type must be equal, pose nearby.
+    for o in pbs.objNames:
+        # Type
+        if w.getObjType(o) != oType: continue
+
+        oldObjBel = pbs.getPlaceB(o)
+
+        # Face
+        oldPoseFace = oldObjBel.support.mode()
+        assert symFacesType[oldPoseFace] == oldPoseFace, \
+                                        'non canonical face in bel'
+        if oldPoseFace != canonicalFace: continue
+        
+        # Pose
+        # Create old distribution.
+        # !!LPK  add in obs variance
+        oldPoseMu = oldObjBel.poseD.mode()
+        oldSigma = oldObjBel.poseD.variance()
+        obsSigma = [v1 + v2 for (v1, v2) in zip(oldSigma,
+                                          details.domainProbs.obsVarTuple)]
+        obsD = MultivariateGaussianDistribution(np.mat(oldPoseMu.xyztTuple()).T,
+                                                makeDiag(obsSigma))
+        bestObs, bestLL = None, -float('inf')
+        for obsPoseCand in symPoses:
+            ll = float(obsD.logProb(np.mat(obsPoseCand.pose().xyztTuple()).T))
+            if ll > bestLL:
+                bestObs, bestLL = obsPoseCand, ll
+
+        debugMsg('obsUpdate', 'Potential match with', o, 'll', bestLL,
+                 bestLL > llMatchThreshold)
+        if bestLL > llMatchThreshold:
+            candidates.append((bestLL, o, obsPoseCand, oldPoseMu, oldSigma))
+
+    if len(candidates) == 0:
+        # No match for this observation
+        # !LPK: also do this if the best match isn't for the object we were
+        # looking for?
+        debugMsg('obsUpdate', 'No good match for observation')
+        # Update modeprob
+        oldP = details.poseModeProbs[soughtObject]
+        obsGivenH = details.domainProbs.obsTypeErrProb
+        obsGivenNotH = (1 - details.domainProbs.obsTypeErrProb)
+        newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
+        details.poseModeProbs[soughtObject] = newP
     else:
-        (o, pf, pose) = obs
-        # Cheapo obs update
-        oldMu = opb.poseD.mode().xyztTuple()
-        oldSigma = opb.poseD.variance()
-        obsVar = details.domainProbs.obsVarTuple
-        # Bayes!
-        oldP = details.poseModeProbs[o]
+        # Find the best candidate match and do the update.
+        candidates.sort(reverse = True)
+        (_, obj, pose, oldMu, oldSigma) = candidates[0]
+
+        # Update mode prob
+        oldP = details.poseModeProbs[obj]
         obsGivenH = (1 - details.domainProbs.obsTypeErrProb)
         obsGivenNotH = details.domainProbs.obsTypeErrProb
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
-        details.poseModeProbs[o] = newP
-        newMu = tuple([(m * obsV + op * muV) / (obsV + muV) \
-                       for (m, muV, op, obsV) in \
-                       zip(oldMu, oldSigma, pose.pose().xyztTuple(), obsVar)])
-        newSigma = tuple([(a * b) / (a + b) for (a, b) in zip(oldSigma,obsVar)])
-        ff = details.pbs.getWorld().getFaceFrames(o)
-        newB = ObjPlaceB(o, ff, DeltaDist(pf), PoseD(util.Pose(*newMu), newSigma))
-        details.pbs.updateObjB(newB)
-        if debug('obsUpdate'):
-            objShape = details.pbs.getObjectShapeAtOrigin(o)
-            pB = ObjPlaceB(o, ff, DeltaDist(pf), PoseD(pose.pose(), newSigma))
-            objShape.applyTrans(pB.objFrame()).draw('Belief', 'cyan')
-            raw_input('obs is cyan')
-            objShape.applyTrans(newB.objFrame()).draw('Belief', 'magenta')
-            raw_input('obs is cyan, newMu is magenta')
-    details.pbs.shadowWorld = None # force recompute
+        details.poseModeProbs[obj] = newP
 
-    debugMsg('beliefUpdate', 'look')
+        # Update mean and sigma
+        obsVar = details.domainProbs.obsVarTuple
+        (newMu, newSigma) = gaussObsUpdate(oldMu.pose().xyztTuple(),
+                                           pose.pose().xyztTuple(),
+                                           oldSigma, obsVar)
+        details.pbs.updateObjB(ObjPlaceB(obj, w.getFaceFrames(obj),
+                                         DeltaDist(oldPoseFace),
+                                         PoseD(util.Pose(*newMu), newSigma)))
+        if debug('obsUpdate'):
+            objShape = pbs.getObjectShapeAtOrigin(soughtObject)
+            objShape.applyLoc(util.Pose(*newMu).compose(ff.inverse())).\
+              draw('Belief', 'magenta')
+            raw_input('newMu is magenta')
+         
+
+# Temporary;  assumes diagonal cov; should use dist.MultivariateGaussian
+def gaussObsUpdate(oldMu, obs, oldSigma, obsVar, noZ = True):
+    # All tuples
+    newMu = [(m * obsV + op * muV) / (obsV + muV) \
+                       for (m, muV, op, obsV) in \
+                       zip(oldMu, oldSigma, obs, obsVar)]
+    newSigma = tuple([(a * b) / (a + b) for (a, b) in zip(oldSigma,obsVar)])
+    if noZ:
+        newMu[2] = oldMu[2]
+    print 'new sigma', newSigma
+    raw_input('okay?')
+    return (tuple(newMu), newSigma)
     
 # For now, assume obs has the form (obj, face, grasp) or None
 # Really, we'll get obj-type, face, relative pose
