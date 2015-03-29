@@ -233,3 +233,68 @@ def shadowWidths(variance, delta, probability):
     numStdDevs =  math.sqrt(chiSqFromP(1-probability, 3))
     assert all([v >= 0 for v in variance])
     return [numStdDevs*(v**0.5)+d for (v,d) in zip(variance, delta)]
+
+
+memoizerBufferN = 5
+class MemoizerViol:
+    def __init__(self, name, generator, values = None, bufN = memoizerBufferN):
+        self.name = name
+        self.generator = generator               # shared
+        self.values = values if values else [] # shared
+        self.bufN = bufN                       # shared
+        self.done = set([])             # not shared
+    def __iter__(self):
+        return self
+    def copy(self):
+        # shares the generator and values list, only index differs.
+        new = Memoizer(self.name, self.generator, self.values, self.bufN)
+        return new
+    def next(self):
+        dif = len(self.values) - len(self.done)
+        # Fill up the buffer, if possible
+        if dif < self.bufN:
+            for i in range(self.bufN - dif):
+                try:
+                    val = self.generator.next()
+                    self.values.append(val)
+                    if val[1].weight() < 1.0: break
+                except StopIteration:
+                    break
+        if len(self.values) > len(self.done):
+            elegible = set(range(len(self.values))) - self.done
+            # Find min weight index among elegible
+            nextI = argmax(list(elegible), lambda i: -self.values[i][1].weight())
+            self.done.add(nextI)
+            chosen = self.values[nextI]
+            debugMsg('Memoizer',
+                     self.name,
+                     ('weights', [self.values[i][1].weight() for i in elegible]),
+                     ('chosen', chosen[1].weight()))
+            # if chosen[1].weight() > 5:
+            #    raw_input('Big weight - Ok?')
+            return chosen
+        else:
+            raise StopIteration
+
+class Memoizer:
+    def __init__(self, name, generator, values = None):
+        self.name = name
+        self.generator = generator
+        self.values = values if values else []
+        self.i = 0
+    def __iter__(self):
+        return self
+    def copy(self):
+        # shares the generator and values list, only index differs.
+        new = Memoizer(self.name, self.generator, self.values)
+        return new
+    def next(self):
+        if self.i < len(self.values):
+            i = self.i
+            self.i += 1
+            return self.values[i]
+        else:
+            val = self.generator.next()
+            self.values.append(val)
+            self.i += 1
+            return val

@@ -121,7 +121,7 @@ class RealWorld(WorldState):
         else:
             print op
             raw_input('No path given')
-            obs = 'none'
+            obs = None
         return obs
 
     def executeLookAtHand(self, op, params):
@@ -136,7 +136,6 @@ class RealWorld(WorldState):
         _, attachedParts = self.robotConf.placementAux(self.attached,
                                                        getShapes=[])
         shapeInHand = attachedParts[hand]
-        objInHand = shapeInHand.name() if shapeInHand else 'none'
         if shapeInHand:
             gdIndex, graspTuple = graspFaceIndexAndPose(self.robotConf,
                                                         hand,
@@ -184,7 +183,7 @@ class RealWorld(WorldState):
                          obstacles, 0.75)
         if not vis:
             print 'Object', targetObj, 'is not visible'
-            return 'none'
+            return None
         else:
             print 'Object', targetObj, 'is visible'
         truePose = self.getObjectPose(targetObj)
@@ -270,7 +269,7 @@ class RealWorld(WorldState):
                 self.setObjectPose(o, newObjPose)
         else:
             print 'tried to pick but missed', o, oDist, pickSuccessDist
-        return 'none'
+        return None
 
     def executePlace(self, op, params):
         failProb = self.domainProbs.placeFailProb
@@ -309,7 +308,7 @@ class RealWorld(WorldState):
             self.setRobotConf(approachConf)
             self.robotPlace.draw('World', 'orchid')
             print 'retracted'
-        return 'none'
+        return None
 
     def copy(self):
         return copy.copy(self)

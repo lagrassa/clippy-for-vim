@@ -40,7 +40,7 @@ class BeliefContext:
         # Initialize generator caches
         self.genCaches = {}
         for gen in ['pickGen', 'placeGen', 'placeInGen', 'lookGen', 'clearGen',
-                    'getShadowWorld']:
+                    'easyGraspGen', 'getShadowWorld']:
             self.genCaches[gen] = {}
     def __repr__(self):
         return "Belief(%s)"%(str(self.world))
@@ -287,19 +287,16 @@ class PBS:
             shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
             w.addObjectShape(shadow)
             sw.setObjectPose(shadow.name(), objPose)
-            if debug('getShadowWorld'):
-                print 'objB', objB
-                print obj, 'origin\n', sw.objectShapes[obj].origin()
-                print obj, 'shadow\n', shadow.bbox()
-                sh.draw('W', 'brown')
-                print obj, 'shadow origin\n', shadow.origin().matrix
-                print obj, 'support pose\n', objB.poseD.mode().matrix
-                print obj, 'origin pose\n', objB.objFrame().matrix
-                raw_input('Shadow for %s'%obj)
-            if all([x <= y for (x,y) in zip(objB.poseD.var, self.domainProbs.obsVarTuple)]):
+
+            objBMinDelta = 4*(0.001,) # !!
+
+            if all([x <= y for (x,y) in zip(shadowWidths(objB.poseD.var, objB.delta, 0.99),
+                                            shadowWidths(self.domainProbs.obsVarTuple,
+                                                         objBMinDelta, prob))]):
                 objBMin = objB
             else:
                 objBMin = objB.modifyPoseD(var=self.domainProbs.obsVarTuple)
+                objBMin.delta = objBMinDelta
             shadowMin = self.objShadow(obj, obj, prob, objBMin, faceFrame) # use obj name
             w.addObjectShape(shadowMin)
             sw.setObjectPose(shadowMin.name(), objPose)
@@ -307,6 +304,17 @@ class PBS:
                 sw.fixedObjects.add(shadow.name())
             if  obj in self.fixObjBs:   # can't collide with these objects
                 sw.fixedObjects.add(shadowMin.name())
+            if debug('getShadowWorld'):
+                print 'objB', objB
+                shadow.draw('W', 'gray')
+                print 'objBMin', objBMin
+                shadowMin.draw('W', 'brown')
+                print obj, 'origin\n', sw.objectShapes[obj].origin()
+                print obj, 'shadow\n', shadow.bbox()
+                print obj, 'shadow origin\n', shadow.origin().matrix
+                print obj, 'support pose\n', objB.poseD.mode().matrix
+                print obj, 'origin pose\n', objB.objFrame().matrix
+                raw_input('Shadows for %s (brown in inner, gray is outer)'%obj)
         # Add robot
         # sw.robot = PR2('MM', makePr2Chains('PR2', w.workspace, new=False))
         sw.robot = self.getRobot()
