@@ -730,10 +730,20 @@ class RoadMap:
                 print 'startConf is blue; targetConf is pink'
                 raw_input('confReachViol')
 
-        # if fbch.inHeuristic:
-        #     prob = 0.99*prob             # make slightly easier
         if attached == None:
             attached = pbs.getShadowWorld(prob).attached
+
+        # Check the endpoints
+        cv = self.confViolations(targetConf, pbs, prob,
+                                 avoidShadow=avoidShadow, attached=attached)[0]
+        cv = self.confViolations(initConf, pbs, prob, initViol=cv,
+                                 avoidShadow=avoidShadow, attached=attached)[0]
+        if cv is None:
+            if debug('traceCRH'): print '    unreachable conf',
+            if debug('confReachViol'):
+                print 'targetConf is unreachable'
+            return exitWithAns((None, None, None, None))
+            
         if not fbch.inHeuristic and initConf in self.approachConfs:
             key = (targetConf, self.approachConfs[initConf], initViol, fbch.inHeuristic or coarsePath)
             if key in self.confReachCache:
@@ -747,12 +757,10 @@ class RoadMap:
                     if debug('confReachViolCache'):
                         debugMsg('confReachViolCache', 'confReachCache approach actual hit')
                     (viol2, cost2, path2, nodePath2) = ans
-                    cv = self.confViolations(initConf, pbs, prob,
-                                             avoidShadow=avoidShadow, attached=attached)[0]
-                    if cv:
-                        return (viol2.update(cv).update(realInitViol) if viol2 else viol2,
-                                cost2,
-                                [initConf] + path2)
+                    return (viol2.update(cv).update(realInitViol) if viol2 else viol2,
+                            cost2,
+                            [initConf] + path2)
+                
         key = (targetConf, initConf, initViol, fbch.inHeuristic or coarsePath)
         if debug('confReachViolCache'):
             debugMsg('confReachViolCache',
@@ -787,8 +795,8 @@ class RoadMap:
                     if viol2:
                         newViol = self.checkNodePath(nodePath2, pbs, prob,
                                                      pbs.getShadowWorld(prob).attached, avoidShadow)
-                        # newViol.obstacles<=viol2.obstacles and newViol.shadows<=viol2.shadows
-                        if newViol and newViol.weight() <= viol2.weight():
+                        # Don't accept unless the new violations don't add to the initial viols
+                        if newViol and newViol.weight() <= cv.weight():
                             ans = (newViol.update(realInitViol) if newViol else newViol, cost2, path2,
                                    nodePath2)
                             if debug('traceCRH'): print '    reusing path',
@@ -802,15 +810,6 @@ class RoadMap:
             if debug('confReachViolCache'): print 'confReachCache miss'
 
         drawProblem()
-        cv = self.confViolations(targetConf, pbs, prob,
-                                 avoidShadow=avoidShadow, attached=attached)[0]
-        cv = self.confViolations(initConf, pbs, prob, initViol=cv,
-                                 avoidShadow=avoidShadow, attached=attached)[0]
-        if cv is None:
-            if debug('traceCRH'): print '    unreachable conf',
-            if debug('confReachViol'):
-                print 'targetConf is unreachable'
-            return exitWithAns((None, None, None, None))
         cvi = initViol.update(cv)
         node = self.addNode(targetConf)
         if initConf == targetConf:
