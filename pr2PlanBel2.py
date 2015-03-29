@@ -296,9 +296,7 @@ class PBS:
                 objBMin = objB.modifyPoseD(var=objBMinVar)
                 objBMin.delta = objBMinDelta
 
-            print 'objBMin', objBMin
             shadowMin = self.objShadow(obj, obj, objBMinProb, objBMin, faceFrame) # use obj name
-
             w.addObjectShape(shadow)
             w.addObjectShape(shadowMin)
             sw.setObjectPose(shadow.name(), objPose)

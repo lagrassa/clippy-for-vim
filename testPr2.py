@@ -678,16 +678,16 @@ def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False,
     p1 = util.Pose(0.95, 0.0, tZ, 0.0)
     p2 = util.Pose(1.1, 0.0, tZ, 0.0)
     t = PlanTest('test5',  errProbs, allOperators,
-                 objects=['table1', 'objA'],
+                 objects=['table1', 'objA', 'table2'],
                  movePoses={'objA': p1,
                             'objB': p2})
 
-    goal = State([Bd([In(['objA', 'table1Top']), True, goalProb], True)])
+    goal = State([Bd([In(['objA', 'table2Top']), True, goalProb], True)])
 
     t.run(goal,
           hpn = hpn,
           skeleton = [[place, move, pick, move]] if skeleton else None,
-          regions=['table1Top'],
+          regions=['table1Top', 'table2Top'],
           heuristic = heuristic
           )
 
