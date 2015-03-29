@@ -285,16 +285,19 @@ class PBS:
             faceFrame = objB.faceFrames[objB.support.mode()]
             # Shadow relative to Identity pose
             shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
-            objBMinDelta = 4*(0.001,) # !!
-
+            # The irreducible shadow
+            objBMinDelta = self.domainProbs.placeVar
+            objBMinVar = self.domainProbs.obsVarTuple
+            objBMinProb = 0.95
             if all([x <= y for (x,y) in zip(shadowWidths(objB.poseD.var, objB.delta, 0.99),
-                                            shadowWidths(self.domainProbs.obsVarTuple,
-                                                         objBMinDelta, prob))]):
+                                            shadowWidths(objBMinVar, objBMinDelta, objBMinProb))]):
                 objBMin = objB
             else:
-                objBMin = objB.modifyPoseD(var=self.domainProbs.obsVarTuple)
+                objBMin = objB.modifyPoseD(var=objBMinVar)
                 objBMin.delta = objBMinDelta
-            shadowMin = self.objShadow(obj, obj, prob, objBMin, faceFrame) # use obj name
+
+            print 'objBMin', objBMin
+            shadowMin = self.objShadow(obj, obj, objBMinProb, objBMin, faceFrame) # use obj name
 
             w.addObjectShape(shadow)
             w.addObjectShape(shadowMin)
@@ -310,6 +313,8 @@ class PBS:
                 shadow.draw('W', 'gray')
                 print 'objBMin', objBMin
                 shadowMin.draw('W', 'brown')
+                print 'max shadow widths', shadowWidths(objB.poseD.var, objB.delta, prob)
+                print 'min shadow widths', shadowWidths(objBMinVar, objBMinDelta, objBMinProb)
                 print obj, 'origin\n', sw.objectShapes[obj].origin()
                 print obj, 'shadow\n', shadow.bbox()
                 print obj, 'shadow origin\n', shadow.origin().matrix

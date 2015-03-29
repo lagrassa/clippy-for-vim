@@ -961,7 +961,8 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
         for ans in moveOut(newBS, obsts[0], moveDelta):
             yield ans 
     else:
-        obst = objectName(list(viol.shadows)[0])
+        shadowName = list(viol.shadows)[0].name()
+        obst = objectName(shadowName)
         placeB = newBS.getPlaceB(obst)
         # !! It could be that sensing is not good enough to reduce the
         # shadow so that we can actually reach conf.
@@ -971,6 +972,9 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
         newBS2.updatePermObjPose(placeB2)
         path2, viol2 = canReachHome(newBS2, conf, prob, Violations())
         if path2 and viol2:
+            if shadowName in [x.name() for x in viol2.shadows]:
+                print 'canReachGen could not reduce the shadow for', obst
+                raw_input('Go?')
             if debug('canReachGen', skip=skip):
                 drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
                 debugMsg('canReachGen', 'Trying to reduce shadow (on W in red) %s'%obst)

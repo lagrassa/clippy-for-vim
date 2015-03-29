@@ -565,7 +565,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, han
             return pose
 
     def poseViolationWeight(pose):
-        pB = placeB.modifyPoseD(pose)
+        pB = placeB.modifyPoseD(mu=pose)
         c, v = next(potentialGraspConfGen(pbs, pB, graspB, None, hand, prob, nMax=1),
                     (None,None))
         if v:
