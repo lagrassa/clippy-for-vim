@@ -601,7 +601,7 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.98,typicalErrProbs)
-    varDict = {} if easy else {'table1': (0.12**2, 0.033**2, 1e-10, 0.3**2),
+    varDict = {} if easy else {'table1': (0.12**2, 0.032**2, 1e-10, 0.3**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
 
     t = PlanTest('test3',  errProbs, allOperators,

@@ -55,7 +55,7 @@ traceGen  (compact summary of generators)
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'obsUpdate', 'canReachGen']
+           'obsUpdate']
 
 
 
