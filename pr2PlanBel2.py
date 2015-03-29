@@ -285,8 +285,6 @@ class PBS:
             faceFrame = objB.faceFrames[objB.support.mode()]
             # Shadow relative to Identity pose
             shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
-            w.addObjectShape(shadow)
-
             objBMinDelta = 4*(0.001,) # !!
 
             if all([x <= y for (x,y) in zip(shadowWidths(objB.poseD.var, objB.delta, 0.99),
@@ -297,9 +295,12 @@ class PBS:
                 objBMin = objB.modifyPoseD(var=self.domainProbs.obsVarTuple)
                 objBMin.delta = objBMinDelta
             shadowMin = self.objShadow(obj, obj, prob, objBMin, faceFrame) # use obj name
+
+            w.addObjectShape(shadow)
             w.addObjectShape(shadowMin)
             sw.setObjectPose(shadow.name(), objPose)
             sw.setObjectPose(shadowMin.name(), objPose)
+
             if obj in avoidShadow:      # can't collide with these shadows
                 sw.fixedObjects.add(shadow.name())
             if  obj in self.fixObjBs:   # can't collide with these objects
@@ -398,20 +399,25 @@ class PBS:
 ####################
 
 def sigmaPoses(prob, poseD, poseDelta):
+    interpStep = math.pi/4
+    def interpAngle(lo, hi):
+        if hi - lo <= interpStep:
+            return [lo, hi]
+        else:
+            return interpAngle(lo, 0.5*(lo+hi))[:-1] + \
+                   interpAngle(0.5*(lo+hi), hi)
     widths = shadowWidths(poseD.variance(), poseDelta, prob)
-    if debug('getShadowWorld'):
-        print 'shadowWidths', widths
     n = len(widths)
     offsets = []
     (wx, wy, _, wt) = widths
-    offsets.append([-wx, 0, 0, -wt])
-    offsets.append([-wx, 0, 0, wt])
-    offsets.append([wx, 0, 0, -wt])
-    offsets.append([wx, 0, 0, wt])
-    offsets.append([0, -wy, 0, -wt])
-    offsets.append([0, -wy, 0, wt])
-    offsets.append([0, wy, 0, -wt])
-    offsets.append([0, wy, 0, wt])
+    angles = interpAngle(-wt, wt)
+    if debug('getShadowWorld'):
+        print 'shadowWidths', widths
+        print 'angles', angles
+    for a in angles: offsets.append([-wx, 0, 0, a])
+    for a in angles: offsets.append([wx, 0, 0, a])
+    for a in angles: offsets.append([0, -wy, 0, a])
+    for a in angles: offsets.append([0, wy, 0, a])
     poses = []
     # poseTuple = poseD.mode().xyztTuple()
     for offset in offsets:

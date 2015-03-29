@@ -26,7 +26,7 @@ objCollisionCost = 2.0
 shCollisionCost = 0.5
 maxSearchNodes = 2000                   # 5000
 maxExpandedNodes = 500                  # 1500
-searchGreedy = 0.75                     # slightly greedy
+searchGreedy = 0.5                     # slightly greedy
 minStep = 0.2                           # !! maybe 0.1 is better
 minStepHeuristic = 0.4
 confReachViolGenBatch = 10
@@ -903,6 +903,46 @@ class RoadMap:
         debugMsg('confReachViolGen', ('->', ans))
         yield ans
         return
+
+    def safePath(self, qf, qi, pbs, prob, attached):
+        for conf in rrt.interpolate(qf, qi, stepSize=0.5):
+            newViol, _ = self.confViolations(conf, pbs, prob,
+                                             attached=attached,
+                                             initViol=noViol)
+            if newViol is None or newViol.weight() > 0.:
+                return False
+        return True
+
+    def smoothPath(self, path, pbs, prob, verbose=True, nsteps = glob.smoothSteps):
+        n = len(path)
+        if n < 3: return path
+        if verbose: print 'Path has %s points'%str(n), '... smoothing'
+        smoothed = path[:]
+        checked = set([])
+        count = 0
+        step = 0
+        attached = pbs.getShadowWorld(prob).attached
+        while count < nsteps:
+            if verbose: print step, 
+            i = random.randrange(n)
+            j = random.randrange(n)
+            if j < i: i, j = j, i 
+            step += 1
+            if verbose: print i, j, len(checked)
+            if j-i < 2 or \
+                (smoothed[j], smoothed[i]) in checked:
+                count += 1
+                continue
+            else:
+                checked.add((smoothed[j], smoothed[i]))
+            if self.safePath(smoothed[j], smoothed[i], pbs, prob, attached):
+                count = 0
+                smoothed[i+1:j] = []
+                n = len(smoothed)
+                if verbose: print 'Smoothed path length is', n
+            else:
+                count += 1
+        return smoothed
 
     def __str__(self):
         return 'RoadMap:['+str(self.size+self.newSize)+']'

@@ -31,7 +31,7 @@ crashIsError = False
 
 simulateError = False
 
-animate = False
+animate = True
 
 pickSuccessDist = 0.1  # pretty big for now
 class RealWorld(WorldState):

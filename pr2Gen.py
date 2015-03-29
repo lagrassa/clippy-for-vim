@@ -972,7 +972,7 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
         path2, viol2 = canReachHome(newBS2, conf, prob, Violations())
         if path2 and viol2:
             if debug('canReachGen', skip=skip):
-                drawObjAndShadow(newBS2, placeB2, prob, 'W', color='red')
+                drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
                 debugMsg('canReachGen', 'Trying to reduce shadow (on W in red) %s'%obst)
             if debug('traceGen'):
                 print '    canReachGen() shadow:', obst

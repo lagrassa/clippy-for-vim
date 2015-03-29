@@ -36,7 +36,7 @@ probForGenerators = 0.95
 #
 ######################################################################
 
-tryDirectPath = useROS
+tryDirectPath = True
 def primPath(bs, cs, ce, p):
     if tryDirectPath:
         path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs,
@@ -46,7 +46,8 @@ def primPath(bs, cs, ce, p):
             raw_input('Collision in direct primitive path')
             # don't return, try the path via home
         else:
-            return path
+            smoothed = bs.getRoadMap().smoothPath(path, bs, p)
+            return smoothed
     path1, v1 = canReachHome(bs, cs, p, Violations(), draw=False)
     path2, v2 = canReachHome(bs, ce, p, Violations(), draw=False)
     if v1.weight() > 0 or v2.weight() > 0:
