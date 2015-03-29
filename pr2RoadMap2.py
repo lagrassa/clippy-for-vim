@@ -700,6 +700,8 @@ class RoadMap:
             else:
                 return g
         def exitWithAns(ans):
+            if not key in self.confReachCache:
+                self.confReachCache[key] = []
             self.confReachCache[key].append((pbs, prob, avoidShadow, ans))
             if ans and ans[0] and ans[2]:
                 (viol, cost, path, nodePath) = ans
@@ -733,6 +735,7 @@ class RoadMap:
         if attached == None:
             attached = pbs.getShadowWorld(prob).attached
 
+        key = (targetConf, initConf, initViol, fbch.inHeuristic or coarsePath)
         # Check the endpoints
         cv = self.confViolations(targetConf, pbs, prob,
                                  avoidShadow=avoidShadow, attached=attached)[0]
@@ -745,10 +748,10 @@ class RoadMap:
             return exitWithAns((None, None, None, None))
             
         if not fbch.inHeuristic and initConf in self.approachConfs:
-            key = (targetConf, self.approachConfs[initConf], initViol, fbch.inHeuristic or coarsePath)
-            if key in self.confReachCache:
+            keya = (targetConf, self.approachConfs[initConf], initViol, fbch.inHeuristic or coarsePath)
+            if keya in self.confReachCache:
                 if debug('confReachViolCache'): print 'confReachCache approach tentative hit'
-                cacheValues = self.confReachCache[key]
+                cacheValues = self.confReachCache[keya]
                 sortedCacheValues = sorted(cacheValues,
                                            key=lambda v: v[-1][0].weight() if v[-1][0] else v[-1][0])
                 ans = bsEntails(pbs, prob, avoidShadow, sortedCacheValues, loose=True)
@@ -760,8 +763,6 @@ class RoadMap:
                     return (viol2.update(cv).update(realInitViol) if viol2 else viol2,
                             cost2,
                             [initConf] + path2)
-                
-        key = (targetConf, initConf, initViol, fbch.inHeuristic or coarsePath)
         if debug('confReachViolCache'):
             debugMsg('confReachViolCache',
                      ('targetConf', targetConf.conf),
