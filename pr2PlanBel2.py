@@ -286,7 +286,6 @@ class PBS:
             # Shadow relative to Identity pose
             shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
             w.addObjectShape(shadow)
-            sw.setObjectPose(shadow.name(), objPose)
 
             objBMinDelta = 4*(0.001,) # !!
 
@@ -299,6 +298,7 @@ class PBS:
                 objBMin.delta = objBMinDelta
             shadowMin = self.objShadow(obj, obj, prob, objBMin, faceFrame) # use obj name
             w.addObjectShape(shadowMin)
+            sw.setObjectPose(shadow.name(), objPose)
             sw.setObjectPose(shadowMin.name(), objPose)
             if obj in avoidShadow:      # can't collide with these shadows
                 sw.fixedObjects.add(shadow.name())
@@ -357,17 +357,17 @@ class PBS:
     # Shadow over POSE variation.  Should only do finite number of poseVar/poseDelta values.
     def objShadow(self, obj, shName, prob, poseBel, faceFrame):
         shape = self.getObjectShapeAtOrigin(obj)
-        key = (shape, shName, prob, poseBel, faceFrame)
-        shadow = self.beliefContext.objectShadowCache.get(key, None)
-        if shadow:
-            return shadow
+        # key = (shape, shName, prob, poseBel, faceFrame)
+        # shadow = self.beliefContext.objectShadowCache.get(key, None)
+        # if shadow:
+        #    return shadow
         # name = shadowName(shape) if shName else shape.name()
         # Origin * Support = Pose => Origin = Pose * Support^-1
         frame = faceFrame.inverse()     # pose is indentity
         sh = shape.applyLoc(frame)      # the shape with the specified support
         shadow = makeShadow(sh, prob, poseBel, name=shName)
-        self.beliefContext.objectShadowCache[key] = shadow
-        debugMsg('objShadow', key, ('->', shadow.bbox()))
+        # self.beliefContext.objectShadowCache[key] = shadow
+        # debugMsg('objShadow', key, ('->', shadow.bbox()))
         return shadow
 
     def draw(self, p = 0.9, win = 'W', clear=True):

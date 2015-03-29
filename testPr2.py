@@ -601,9 +601,8 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.98,typicalErrProbs)
-    varDict = {} if easy else {'table1': (0.1**2, 0.1**2, 1e-10, 0.5**2),
-                               'objA': (0.1**2, 0.1**2, 1e-10, 0.5**2)} 
-    varDict = {} if easy else {'objA': (0.1**2, 0.1**2, 1e-10, 0.5**2)}
+    varDict = {} if easy else {'table1': (0.12**2, 0.033**2, 1e-10, 0.3**2),
+                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
 
     t = PlanTest('test3',  errProbs, allOperators,
                  objects=['table1', 'objA'],
@@ -807,7 +806,10 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
                  objects = ['table1'],
                  varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2)})
 
-    goalConf = makeConf(t.world.robot, 1.1, 1.3, 0, 0.0)
+    pr2RoadMap2.searchGreedy = 0.5
+
+    #goalConf = makeConf(t.world.robot, 1.1, 1.3, 0, 0.0)
+    goalConf = makeConf(t.world.robot, 1.2, 1.4, 0, 0.0)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
     goal = State([Conf([goalConf, confDeltas], True)])
     t.run(goal,
@@ -860,8 +862,10 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     t = PlanTest('test11',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
-                 varDict = {'objA': (0.075**2,0.075**2, 1e-10,0.2**2),
-                            'objB': (0.075**2,0.075**2, 1e-10,0.2**2)})
+                 # varDict = {'objA': (0.075**2,0.075**2, 1e-10,0.2**2),
+                 #            'objB': (0.075**2,0.075**2, 1e-10,0.2**2)})
+                 varDict = {'objA': (0.075**2, 0.15**2, 1e-10,0.2**2),
+                            'objB': (0.075**2, 0.15**2, 1e-10,0.2**2)})
 
     targetPose = (1.05, 0.25, tZ, 0.0)
     targetPoseB = (1.05, -0.2, tZ, 0.0)
@@ -871,11 +875,11 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
     goal = State([\
                   Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
-                     targetPose, targetVar, (0.02,)*4,
+                     targetPose, targetVar, (0.02, 0.02, 0.02, 0.08),
                      goalProb], True),
                   Bd([SupportFace(['objB']), 4, goalProb], True),
                   B([Pose(['objB', 4]),
-                     targetPoseB, targetVar, (0.02,)*4,
+                     targetPoseB, targetVar, (0.02, 0.02, 0.02, 0.08),
                      goalProb], True)])
 
     skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
@@ -905,13 +909,17 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
              move,
              pick.applyBindings({'Obj' : 'objA', 'Hand' : 'right'}),
              move,
+             poseAchCanPickPlace,
              lookAt.applyBindings({'Obj' : 'objB'}),
              move,
              place.applyBindings({'Obj' : 'objB', 'Hand' : 'right'}),
              move,
              pick.applyBindings({'Obj' : 'objB', 'Hand' : 'right'}),
              move,
-             poseAchCanPickPlace,
+             lookAt.applyBindings({'Obj' : 'objA'}),
+             move,
+             lookAt.applyBindings({'Obj' : 'objB'}),
+             move,
              lookAt.applyBindings({'Obj' : 'objA'}),
              move,
              lookAt.applyBindings({'Obj' : 'objB'}),
@@ -921,7 +929,7 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
           hpn = hpn,
           skeleton = hardSkel if skeleton else None,
           hierarchical = hierarchical,
-          regions=['table1Top'],
+          #regions=['table1Top'],
           heuristic = heuristic,
           rip = rip
           )
@@ -1709,10 +1717,10 @@ def prof(test, n=50):
 
 
 # Evaluate on details and a fluent to flush the caches and evaluate
-def firstAid(pbs, fluent = None):
+def firstAid(details, fluent = None):
     glob.debugOn.extend(['confReachViol', 'confViolations'])
-    pbs.getRoadMap().confReachCache = {}
-    pbs.beliefContext.pathObstCache = {}
+    details.pbs.getRoadMap().confReachCache = {}
+    details.pbs.beliefContext.pathObstCache = {}
     if fluent:
         return fluent.valueInDetails(details)
 

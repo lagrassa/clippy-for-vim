@@ -681,7 +681,6 @@ def objectObsUpdate(details, obs, soughtObject):
         
         # Pose
         # Create old distribution.
-        # !!LPK  add in obs variance
         oldPoseMu = oldObjBel.poseD.mode()
         oldSigma = oldObjBel.poseD.variance()
         obsSigma = [v1 + v2 for (v1, v2) in zip(oldSigma,
