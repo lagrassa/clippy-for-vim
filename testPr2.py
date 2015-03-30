@@ -819,7 +819,7 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
                  fixPoses={'table1': util.Pose(1.3, 0.0, 0.0, math.pi/2)}
                  )
 
-    pr2RoadMap2.searchGreedy = 0.5
+    #pr2RoadMap2.searchGreedy = 0.5
 
     #goalConf = makeConf(t.world.robot, 1.1, 1.3, 0, 0.0)
     goalConf = makeConf(t.world.robot, 1.2, 1.4, 0, 0.0)

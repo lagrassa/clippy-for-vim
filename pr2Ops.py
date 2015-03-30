@@ -451,9 +451,16 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     # !!!
     #if cappedVbo[0] > ve[0]:
     result.append([cappedVbo])
-    if vs[0] < maxPoseVar[0] and vs[0] > ve[0]:
+
+    startLessThanMax = any([a < b for (a, b) in zip(vs, maxPoseVar)])
+    startUseful = any([a > b for (a, b) in zip(vs, ve)])
+
+    if startLessThanMax and startUseful:
         # starting var is bigger, but not too big
         result.append([vs])
+
+    print 'genLookObjPrevVariance', result
+
     return result
 
 # starting var if it's legal, plus regression of the result var
