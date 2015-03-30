@@ -186,7 +186,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             trueFace = supportFaceIndex(table)
             tablePoseRobot = getSupportPose(table, trueFace)
             tablePose = outConfCart['pr2Base'].compose(tablePoseRobot)
-            return (targetObj, trueFace, tablePose)
+            #!! needs generalizing
+            return ('table', trueFace, tablePose)
         elif targetObj in placeBs:
             supportTable = findSupportTable(targetObj, self.world, placeBs)
             assert supportTable
