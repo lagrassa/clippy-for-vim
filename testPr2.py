@@ -628,6 +628,8 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              move,
              lookAt.applyBindings({'Obj' : 'objA'}),
              move,
+             lookAt.applyBindings({'Obj' : 'objA'}),
+             move,
              lookAt.applyBindings({'Obj' : 'table1'}),
              move]]
     t.run(goal,

@@ -1050,11 +1050,13 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         debugMsg('canPickPlaceGen', 'No obstacles or shadows; returning')
         return
     
-    # This delta can actually be quite large; we aren't trying to
-    # "find" this object in a specific position; mostly want to reduce
-    # the variance.
-    lookDelta = (0.01, 0.01, 0.01, 0.05)
-    moveDelta = (0.02, 0.02, 0.02, 0.04)
+    objBMinDelta = newBS.domainProbs.placeVar
+    objBMinVar = newBS.domainProbs.obsVarTuple
+    objBMinProb = 0.95
+
+    lookDelta = objBMinDelta
+    moveDelta = objBMinDelta
+
     # Try to fix one of the violations if any...
     if viol.obstacles:
         obsts = [o.name() for o in viol.obstacles \

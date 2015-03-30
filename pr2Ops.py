@@ -458,9 +458,6 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     if startLessThanMax and startUseful:
         # starting var is bigger, but not too big
         result.append([vs])
-
-    print 'genLookObjPrevVariance', result
-
     return result
 
 # starting var if it's legal, plus regression of the result var
