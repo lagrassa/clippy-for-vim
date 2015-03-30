@@ -261,11 +261,11 @@ class PBS:
             return self.shadowWorld
         else:
             cache = self.beliefContext.genCaches['getShadowWorld']
-            key = (self.items(), prob, tuple(avoidShadow), fbch.inHeuristic)
+            key = (self.items(), prob, tuple(avoidShadow))
             if key in cache:
                 ans = cache.get(key, None)
                 if ans != None:
-                    (self.shadowWorld, self.shadowProb, self.avoidShadow, self.heuristic) = ans
+                    (self.shadowWorld, self.shadowProb, self.avoidShadow) = ans
                     # print 'cached shadowWorld'
                     return self.shadowWorld
         # The world holds objects, but not poses or shapes
@@ -355,23 +355,22 @@ class PBS:
         sw.setRobotConf(self.conf)
         if debug('getShadowWorldGrasp') and not fbch.inHeuristic:
             sw.draw('W')
-        cache[key] = (sw, prob, avoidShadow, fbch.inHeuristic)
+        cache[key] = (sw, prob, avoidShadow)
         return sw
 
     # Shadow over POSE variation.  Should only do finite number of poseVar/poseDelta values.
     def objShadow(self, obj, shName, prob, poseBel, faceFrame):
         shape = self.getObjectShapeAtOrigin(obj)
-        # key = (shape, shName, prob, poseBel, faceFrame)
-        # shadow = self.beliefContext.objectShadowCache.get(key, None)
-        # if shadow:
-        #    return shadow
-        # name = shadowName(shape) if shName else shape.name()
+        key = (shape, shName, prob, poseBel, faceFrame)
+        shadow = self.beliefContext.objectShadowCache.get(key, None)
+        if shadow:
+            return shadow
         # Origin * Support = Pose => Origin = Pose * Support^-1
         frame = faceFrame.inverse()     # pose is indentity
         sh = shape.applyLoc(frame)      # the shape with the specified support
         shadow = makeShadow(sh, prob, poseBel, name=shName)
-        # self.beliefContext.objectShadowCache[key] = shadow
-        # debugMsg('objShadow', key, ('->', shadow.bbox()))
+        self.beliefContext.objectShadowCache[key] = shadow
+        debugMsg('objShadow', key, ('->', shadow.bbox()))
         return shadow
 
     def draw(self, p = 0.9, win = 'W', clear=True):
