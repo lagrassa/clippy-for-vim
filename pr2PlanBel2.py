@@ -376,10 +376,7 @@ class PBS:
 
     def draw(self, p = 0.9, win = 'W', clear=True):
         if clear: wm.getWindow(win).clear()
-        if self.shadowWorld:            # don't recompute
-            self.shadowWorld.draw(win)
-        else:
-            self.getShadowWorld(p).draw(win)
+        self.getShadowWorld(p).draw(win)
 
     def items(self):
         return (frozenset(self.held.items()),

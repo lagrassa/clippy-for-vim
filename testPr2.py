@@ -815,7 +815,7 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
                  objects = ['table1'],
                  varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2)})
 
-    pr2RoadMap2.searchGreedy = 0.5
+    #pr2RoadMap2.searchGreedy = 0.5
 
     #goalConf = makeConf(t.world.robot, 1.1, 1.3, 0, 0.0)
     goalConf = makeConf(t.world.robot, 1.2, 1.4, 0, 0.0)
