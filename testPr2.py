@@ -300,7 +300,7 @@ initConfs = []
 
 class PlanTest:
     def __init__(self, name, domainProbs, operators,
-                 objects = ['table1','objA'],
+                 objects = ['table1','objA'], fixPoses = {},
                  movePoses = {}, held = None, grasp = None,
                  multiplier = 8, var = 1.0e-10, varDict = None):
         self.name = name
@@ -351,6 +351,8 @@ class PlanTest:
                    
         moveObjPoses.update(movePoses)           # input poses
         print 'updated', moveObjPoses
+        fixObjPoses.update(fixPoses)           # input poses
+        print 'updated', fixObjPoses
         self.fix = {}
         for name in fixObjPoses:
             if name in self.objects:
@@ -813,7 +815,9 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
 
     t = PlanTest('test9', errProbs, allOperators,
                  objects = ['table1'],
-                 varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2)})
+                 varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2)},
+                 fixPoses={'table1': util.Pose(1.3, 0.0, 0.0, math.pi/2)}
+                 )
 
     pr2RoadMap2.searchGreedy = 0.5
 
@@ -1219,7 +1223,7 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
     parking2 = util.Pose(0.95, -0.3, tZ, 0.0)
     t = PlanTest('test18',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
-                 movePoses={'objA': parking1,
+                 fixPoses={'objA': parking1,
                             'objB': parking2},
                  varDict = {'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
                             'objB': (0.05**2,0.05**2, 1e-10,0.2**2)})
