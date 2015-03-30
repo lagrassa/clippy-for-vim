@@ -65,8 +65,9 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         conf.right_grip = map(float, cnfIn.get('pr2RightGripper', []))
         conf.head = map(float, cnfIn.get('pr2Head', []))
         if conf.head:
-            cnfInCart = cnfIn.robot.forwardKin(cnfIn)
+            cnfInCart = cnfIn.cartConf()
             head = cnfInCart['pr2Head']
+            headTurned = cnfInCart['pr2Head'].compose(headTurn)
             # Transform relative to robot base
             headTrans = cnfInCart['pr2Base'].inverse().compose(head)
             gaze = headTrans.applyToPoint(util.Point(np.array([0.,0.,1.,1.]).reshape(4,1)))

@@ -40,7 +40,7 @@ class BeliefContext:
         # Initialize generator caches
         self.genCaches = {}
         for gen in ['pickGen', 'placeGen', 'placeInGen', 'lookGen', 'clearGen',
-                    'getShadowWorld']:
+                    'easyGraspGen', 'getShadowWorld']:
             self.genCaches[gen] = {}
     def __repr__(self):
         return "Belief(%s)"%(str(self.world))
@@ -281,28 +281,44 @@ class PBS:
             # The pose in the world is for the origin frame.
             objPose = objB.objFrame()
             # object is already in world, add it to sw
-            sw.setObjectPose(obj, objPose)
+            # sw.setObjectPose(obj, objPose)
             faceFrame = objB.faceFrames[objB.support.mode()]
             # Shadow relative to Identity pose
-            shadow = self.objShadow(obj, True, prob, objB, faceFrame)
-            if debug('getShadowWorld'):
-                print 'objB', objB
-                print obj, 'origin\n', sw.objectShapes[obj].origin()
-                print obj, 'shadow\n', shadow.bbox()
-                shadow.draw('W', 'brown')
-                print obj, 'shadow origin\n', shadow.origin().matrix
-                print obj, 'support pose\n', objB.poseD.mode().matrix
-                print obj, 'origin pose\n', objB.objFrame().matrix
-                raw_input('Shadow for %s'%obj)
+            shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
+            # The irreducible shadow
+            objBMinDelta = self.domainProbs.placeVar
+            objBMinVar = self.domainProbs.obsVarTuple
+            objBMinProb = 0.95
+            if all([x <= y for (x,y) in zip(shadowWidths(objB.poseD.var, objB.delta, 0.99),
+                                            shadowWidths(objBMinVar, objBMinDelta, objBMinProb))]):
+                objBMin = objB
+            else:
+                objBMin = objB.modifyPoseD(var=objBMinVar)
+                objBMin.delta = objBMinDelta
+
+            shadowMin = self.objShadow(obj, obj, objBMinProb, objBMin, faceFrame) # use obj name
             w.addObjectShape(shadow)
+            w.addObjectShape(shadowMin)
             sw.setObjectPose(shadow.name(), objPose)
-            if obj in self.fixObjBs and self.domainProbs and \
-                   all([x <= y for (x,y) in zip(objB.poseD.var, self.domainProbs.obsVarTuple)]):
-                sw.fixedObjects.add(shadow.name())
+            sw.setObjectPose(shadowMin.name(), objPose)
+
             if obj in avoidShadow:      # can't collide with these shadows
                 sw.fixedObjects.add(shadow.name())
             if  obj in self.fixObjBs:   # can't collide with these objects
-                sw.fixedObjects.add(obj)
+                sw.fixedObjects.add(shadowMin.name())
+            if debug('getShadowWorld'):
+                print 'objB', objB
+                shadow.draw('W', 'gray')
+                print 'objBMin', objBMin
+                shadowMin.draw('W', 'brown')
+                print 'max shadow widths', shadowWidths(objB.poseD.var, objB.delta, prob)
+                print 'min shadow widths', shadowWidths(objBMinVar, objBMinDelta, objBMinProb)
+                print obj, 'origin\n', sw.objectShapes[obj].origin()
+                print obj, 'shadow\n', shadow.bbox()
+                print obj, 'shadow origin\n', shadow.origin().matrix
+                print obj, 'support pose\n', objB.poseD.mode().matrix
+                print obj, 'origin pose\n', objB.objFrame().matrix
+                raw_input('Shadows for %s (brown in inner, gray is outer)'%obj)
         # Add robot
         # sw.robot = PR2('MM', makePr2Chains('PR2', w.workspace, new=False))
         sw.robot = self.getRobot()
@@ -320,7 +336,8 @@ class PBS:
                 # The graspDesc frame is relative to object origin
                 # The graspB pose encodes finger tip relative to graspDesc frame
                 faceFrame = graspDesc.frame.compose(self.graspB[hand].poseD.mode())
-                shadow = self.objShadow(heldObj, True, prob, self.graspB[hand], faceFrame)
+                shadow = self.objShadow(heldObj, shadowName(heldObj), prob,
+                                        self.graspB[hand], faceFrame)
                 # graspShadow is expressed relative to wrist and attached to arm
                 # fingerFrame should map shodow (supported at graspDesc) into wrist frame
                 fingerFrame = robot.fingerSupportFrame(hand, graspDesc.dz*2)
@@ -344,17 +361,17 @@ class PBS:
     # Shadow over POSE variation.  Should only do finite number of poseVar/poseDelta values.
     def objShadow(self, obj, shName, prob, poseBel, faceFrame):
         shape = self.getObjectShapeAtOrigin(obj)
-        key = (shape, shName, prob, poseBel, faceFrame)
-        shadow = self.beliefContext.objectShadowCache.get(key, None)
-        if shadow:
-            return shadow
-        name = shadowName(shape) if shName else shape.name()
+        # key = (shape, shName, prob, poseBel, faceFrame)
+        # shadow = self.beliefContext.objectShadowCache.get(key, None)
+        # if shadow:
+        #    return shadow
+        # name = shadowName(shape) if shName else shape.name()
         # Origin * Support = Pose => Origin = Pose * Support^-1
         frame = faceFrame.inverse()     # pose is indentity
         sh = shape.applyLoc(frame)      # the shape with the specified support
-        shadow = makeShadow(sh, prob, poseBel, name=name)
-        self.beliefContext.objectShadowCache[key] = shadow
-        debugMsg('objShadow', key, ('->', shadow.bbox()))
+        shadow = makeShadow(sh, prob, poseBel, name=shName)
+        # self.beliefContext.objectShadowCache[key] = shadow
+        # debugMsg('objShadow', key, ('->', shadow.bbox()))
         return shadow
 
     def draw(self, p = 0.9, win = 'W', clear=True):
@@ -385,20 +402,25 @@ class PBS:
 ####################
 
 def sigmaPoses(prob, poseD, poseDelta):
+    interpStep = math.pi/4
+    def interpAngle(lo, hi):
+        if hi - lo <= interpStep:
+            return [lo, hi]
+        else:
+            return interpAngle(lo, 0.5*(lo+hi))[:-1] + \
+                   interpAngle(0.5*(lo+hi), hi)
     widths = shadowWidths(poseD.variance(), poseDelta, prob)
-    if debug('getShadowWorld'):
-        print 'shadowWidths', widths
     n = len(widths)
     offsets = []
     (wx, wy, _, wt) = widths
-    offsets.append([-wx, 0, 0, -wt])
-    offsets.append([-wx, 0, 0, wt])
-    offsets.append([wx, 0, 0, -wt])
-    offsets.append([wx, 0, 0, wt])
-    offsets.append([0, -wy, 0, -wt])
-    offsets.append([0, -wy, 0, wt])
-    offsets.append([0, wy, 0, -wt])
-    offsets.append([0, wy, 0, wt])
+    angles = interpAngle(-wt, wt)
+    if debug('getShadowWorld'):
+        print 'shadowWidths', widths
+        print 'angles', angles
+    for a in angles: offsets.append([-wx, 0, 0, a])
+    for a in angles: offsets.append([wx, 0, 0, a])
+    for a in angles: offsets.append([0, -wy, 0, a])
+    for a in angles: offsets.append([0, wy, 0, a])
     poses = []
     # poseTuple = poseD.mode().xyztTuple()
     for offset in offsets:

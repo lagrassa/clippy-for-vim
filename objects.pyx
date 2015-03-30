@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 
 from util cimport Ident, Transform, angleDiff, fixAnglePlusMinusPi
 from shapes cimport Shape
+from planGlobals import debug, debugMsg
 
 PI2 = 2*math.pi
 
@@ -19,6 +20,7 @@ class World:
     def __init__(self):
         self.world = self                 # so x.world works..
         self.objects = {}
+        self.regions = {}
         self.robot = None
         self.workspace = None
         # The frames are relative to the origin
@@ -56,11 +58,17 @@ class World:
     def delObject(self, name):
         del self.objects[name]
 
-    def addObjectRegion(self, objName, regName, regShape, regTr):
+    def addObjectRegionOld(self, objName, regName, regShape, regTr):
         chain = self.objects[objName]
         regChain = Permanent(regName, objName, regShape, regTr)
         newChain = MultiChain(objName, chain.chainsInOrder + [regChain])
         self.objects[objName] = newChain
+
+    def addObjectRegion(self, objName, regName, regShape, regTr):
+        if objName in self.regions:
+            self.regions[objName].append = (regName, regShape, regTr)
+        else:
+            self.regions[objName] = [(regName, regShape, regTr)]
 
     def setRobot(self, robot):
         self.robot = robot
@@ -119,6 +127,7 @@ class WorldState:
         cws.objectProps = self.objectProps.copy()
         cws.frames = self.frames.copy()
         cws.objectShapes = self.objectShapes.copy()
+        cws.regionShapes = self.regionShapes.copy()
         cws.robotConf = self.robotConf
         cws.robotPlace = self.robotPlace
         cws.held = self.held.copy()
@@ -126,7 +135,7 @@ class WorldState:
         cws.attached = self.attached.copy()
         return cws
         
-    def setObjectConf(self, objName, conf):
+    def setObjectConfOld(self, objName, conf):
         obj = self.world.objects[objName]
         if not isinstance(conf, dict):
             conf = {objName:conf}
@@ -148,6 +157,34 @@ class WorldState:
                 else:
                     self.regionShapes[part.name()] = part
                     # print 'Adding', part.name(), 'to regionShapes'
+            for fname, tr in zip(chain.fnames, chainTrans):
+                self.frames[fname] = tr
+
+    def setObjectConf(self, objName, conf):
+        obj = self.world.objects[objName]
+        if not isinstance(conf, dict):
+            conf = {objName:conf}
+        # Update the state of the world
+        self.objectConfs[objName] = conf
+        for chain in obj.chainsInOrder:
+            chainPlace, chainTrans = chain.placement(self.frames[chain.baseFname],
+                                                     conf[chain.name])
+            for part in chainPlace.parts():
+                self.objectShapes[part.name()] = part
+
+            if objName in self.world.regions:
+                for (regName, regShape, regTr) in self.world.regions[objName]:
+                    tr = self.objectShapes[objName].origin().compose(regTr)
+                    self.regionShapes[regName] = regShape.applyTrans(tr)
+                    if debug('addRegion'):
+                        print 'obj origin\n', self.objectShapes[objName].origin().matrix
+                        print 'regTr\n', regTr.matrix
+                        print 'tr\n', tr.matrix
+                        print 'obj bb\n', self.objectShapes[objName].bbox()
+                        print 'reg bb\n', self.regionShapes[regName].bbox()
+                        self.regionShapes[regName].draw('W')
+                        debugMsg('addRegion', 'adding %s'%regName)
+
             for fname, tr in zip(chain.fnames, chainTrans):
                 self.frames[fname] = tr
 

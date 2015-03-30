@@ -38,11 +38,13 @@ hAddBackV  (just values)
 heuristic (in ucSearch: positive value at goal or 0 value elsewhere)
 heuristicInversion  (prim actually achieves more than abs)
 infeasible (hierarchical subgoal)
+lookGen
 lookHandGen
 nextStep
 nonmon
 pickPlaceTest
 placeInGen
+potentialLookConfs'
 prim
 regression
 regression:fail
@@ -55,7 +57,8 @@ traceGen  (compact summary of generators)
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'obsUpdate']
+           'obsUpdate', 'hAddBackInf', 'regression:fail', 'placeGen',
+           'lookGen', 'traceGen', 'canReachGen', 'canPickPlaceGen']
 
 
 

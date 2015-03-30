@@ -181,6 +181,8 @@ class JointConf:
         c = self.copy()
         c.conf[name] = value
         return c
+    def cartConf(self):
+        return self.robot.forwardKin(self)
     def placement(self, attached=None, getShapes=True):
         return self.robot.placement(self, attached=attached, getShapes=getShapes)[0]
     def placementMod(self, place, attached=None):
@@ -940,7 +942,12 @@ def interpPose(self, pose_f, pose_i, minLength, ratio=0.5):
     return util.Transform(None, pr.matrix, qr), \
            pose_f.near(pose_i, minLength, minLength)
 
-def cartInterpolators(self, c_f, c_i, conf_i, minLength, depth=0):
+def cartInterpolators(self, conf_f, conf_i, minLength):
+    c_f = conf_f.cartConf()
+    c_i = conf_i.cartConf()
+    return cartInterpolatorsAux(c_f, c_i, conf_i, minLength)
+
+def cartInterpolatorsAux(c_f, c_i, conf_i, minLength, depth=0):
     if depth > 10:
         raw_input('cartInterpolators depth > 10')
     if c_f == c_i: return [c_f]
@@ -952,14 +959,14 @@ def cartInterpolators(self, c_f, c_i, conf_i, minLength, depth=0):
         terminal = terminal and near
     if terminal: return []        # no chain needs splitting
     cart = CartConf(newVals, c_f.robot)
-    conf = self.robot.inverseKin(cart, conf=conf_i)
+    conf = conf_i.robot.inverseKin(cart, conf=conf_i)
     for chain in conf_i.robot.chainNames: #  fill in?
         if not chain in conf.conf:
             conf.conf[chain] = conf_i.conf[chain]
     if all([conf.conf.values()]):
-        final = self.cartInterpolators(c_f, cart, conf_i, minLength, depth+1)
+        final = cartInterpolatorsAux(c_f, cart, conf_i, minLength, depth+1)
         if final != None:
-            init = self.cartInterpolators(cart, c_i, conf_i, minLength, depth+1)
+            init = cartInterpolatorsAux(cart, c_i, conf_i, minLength, depth+1)
             if init != None:
                 final.append(conf)
                 final.extend(init)

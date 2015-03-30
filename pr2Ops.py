@@ -14,11 +14,20 @@ from planGlobals import debugMsg, debug, useROS
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
+defaultPoseDelta = (0.0001, 0.0001, 0.0001, 0.001)
+lookConfDelta = (0.0001, 0.0001, 0.0001, 0.001)
 
 # Fixed accuracy to use for some standard preconditions
-canPPProb = 0.9
-otherHandProb = 0.9
-canSeeProb = 0.9
+canPPProb = 0.95
+otherHandProb = 0.95
+canSeeProb = 0.95
+# No prob can go above this
+maxProbValue = 0.999
+# How sure do we have to be of CRH for moving
+movePreProb = 0.98
+movePreProb = 0.8
+# Prob for generators.  Keep it high.   Should this be = maxProbValue?
+probForGenerators = 0.95
 
 ######################################################################
 #
@@ -27,16 +36,18 @@ canSeeProb = 0.9
 #
 ######################################################################
 
-tryDirectPath = useROS
+tryDirectPath = True
 def primPath(bs, cs, ce, p):
     if tryDirectPath:
-        path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs, draw=False)
+        path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs,
+                                   draw=False)
         if not viols or viols.weight() > 0:
             print 'viol', viols
             raw_input('Collision in direct primitive path')
             # don't return, try the path via home
         else:
-            return path
+            smoothed = bs.getRoadMap().smoothPath(path, bs, p)
+            return smoothed
     path1, v1 = canReachHome(bs, cs, p, Violations(), draw=False)
     path2, v2 = canReachHome(bs, ce, p, Violations(), draw=False)
     if v1.weight() > 0 or v2.weight() > 0:
@@ -77,7 +88,7 @@ def movePrim(args, details):
     return path
 
 def printConf(conf):
-    cart = conf.robot.forwardKin(conf)
+    cart = conf.cartConf()
     pose = cart['pr2LeftArm'].pose(fail=False)
     if pose:
         hand = str(np.array(pose.xyztTuple()))
@@ -337,10 +348,6 @@ def isBound(args, goal, start, vals):
     else:
         return [[]]
     
-
-# No prob can go above this
-maxProbValue = 0.999
-
 # Return as many values as there are args; overwrite any that are
 # variables with the minimum value
 def minP(args, goal, start, vals):
@@ -430,7 +437,7 @@ def pickPoseVar((graspVar, prob), goal, start, vals):
 
 # If it's bigger than this, we can't just plan to look and see it
 # Should be more subtle than this...
-maxPoseVar = (0.2**2, 0.2**2, 0.2**2, 0.5**2)
+maxPoseVar = (0.1**2, 0.1**2, 0.1**2, 0.2**2)
 
 # starting var if it's legal, plus regression of the result var
 def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
@@ -675,7 +682,6 @@ def objectObsUpdate(details, obs, soughtObject):
         
         # Pose
         # Create old distribution.
-        # !!LPK  add in obs variance
         oldPoseMu = oldObjBel.poseD.mode()
         oldSigma = oldObjBel.poseD.variance()
         obsSigma = [v1 + v2 for (v1, v2) in zip(oldSigma,
@@ -741,7 +747,7 @@ def gaussObsUpdate(oldMu, obs, oldSigma, obsVar, noZ = True):
     if noZ:
         newMu[2] = oldMu[2]
     print 'new sigma', newSigma
-    raw_input('okay?')
+    # raw_input('okay?')
     return (tuple(newMu), newSigma)
     
 # For now, assume obs has the form (obj, face, grasp) or None
@@ -830,9 +836,6 @@ def lookAtHandBProgress(details, args, obs):
 # the plan more likely to fail (cost be higher).  Making this higher
 # makes the plan work harder to be sure the preconds are satisfied.
 
-movePreProb = 0.98 # Very hard to satisfy until look is working
-
-movePreProb = 0.8
 
 def genMoveProbs(args, goal, start, vals):
     return [[movePreProb]*3]
@@ -881,8 +884,6 @@ move = Operator(\
     prim  = movePrim,
     argsToPrint = [0, 1],
     ignorableArgs = range(2,18))  # For abstraction
-
-defaultPoseDelta = (0.0001, 0.0001, 0.0001, 0.001)
 
 # Likelihood of success is p1 * p2 * p3
 
@@ -969,7 +970,8 @@ place = Operator(\
             Function(['Pose', 'PoseFace', 'GraspMu', 'GraspFace', 'GraspVar',
                       'PlaceConf', 'PreConf'],
                      ['Obj', 'Region','Pose', 'PoseFace', 'PoseVar', 'GraspVar',
-                      'PoseDelta', 'GraspDelta', 'ConfDelta', 'Hand', 'P2'],
+                      'PoseDelta', 'GraspDelta', 'ConfDelta', 'Hand',
+                     probForGenerators],
                      placeInGen, 'placeInGen')
 
             ],
@@ -1052,7 +1054,7 @@ pick = Operator(\
             Function(['Pose', 'PoseFace', 'PickConf', 'PreConf'],
                      ['Obj', 'GraspFace', 'GraspMu',
                       'PoseVar', 'RealGraspVar', 'PoseDelta', 'ConfDelta',
-                      'GraspDelta', 'Hand', 'P1'],
+                      'GraspDelta', 'Hand', probForGenerators],
                      pickGen, 'pickGen')
             ],
         cost = pickCostFun,
@@ -1061,9 +1063,8 @@ pick = Operator(\
         argsToPrint = [0, 1, 11, 12],
         ignorableArgs = range(2, 27))  # pays attention to pose
 
-lookConfDelta = (0.0001, 0.0001, 0.0001, 0.001)
-
 # P2 goes into success prob (cost)
+# Consider reducing prob without increasing var
 lookAt = Operator(\
     'LookAt',
     ['Obj', 'LookConf', 'PoseFace', 'Pose',
@@ -1091,7 +1092,7 @@ lookAt = Operator(\
                 genLookObjPrevVariance, 'genLookObjPrevVariance'),
         Function(['LookConf'],
                  ['Obj', 'Pose', 'PoseFace', 'PoseVarBefore', 'PoseDelta',
-                         lookConfDelta, 'P1'],
+                         lookConfDelta, probForGenerators],
                  lookGen, 'lookGen')
         ],
     cost = lookAtCostFun,
@@ -1127,7 +1128,7 @@ lookAtHand = Operator(\
                  genLookObjHandPrevVariance, 'genLookObjHandPrevVariance'),
         Function(['LookConf'],
                  ['Obj', 'Hand', 'GraspFace', 'Grasp', 'GraspVarBefore',
-                  'GraspDelta', 'P1'],
+                  'GraspDelta', probForGenerators],
                  lookHandGen, 'lookHandGen')
         ],
     cost = lookAtHandCostFun,
@@ -1196,7 +1197,7 @@ poseAchCanReach = Operator(\
                   ['CEnd', 'Hand',
                    'LObj', 'LFace', 'LGraspMu', 'RealGraspVarL', 'LGraspDelta',
                    'RObj', 'RFace', 'RGraspMu', 'RealGraspVarR', 'RGraspDelta',
-                   'P2', 'PostCond'], canReachGen, 'canReachGen'),
+                   'P1', 'PostCond'], canReachGen, 'canReachGen'),
          # Add the appropriate condition
          Function(['PreCond'],
                   ['PostCond',
@@ -1241,8 +1242,8 @@ poseAchCanPickPlace = Operator(\
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                          'OGraspDelta',
-                   'P2', 'PostCond'], canPickPlaceGen, 'canPickPlaceGen'),
+                          'OGraspDelta', 'P1', 'PostCond'],
+                          canPickPlaceGen, 'canPickPlaceGen'),
          # Add the appropriate condition
          Function(['PreCond'],
                   ['PostCond',
@@ -1322,7 +1323,7 @@ poseAchCanSee = Operator(\
          Function(['PreCond'],
                   ['PostCond',
                    'Occ', 'OccPoseFace', 'OccPose', 'OccPoseVar',
-                   'OccPoseDelta', 'P2'],
+                   'OccPoseDelta', 'P1'],
                   addPosePreCond, 'addPosePreCond')],
     cost = lambda al, args, details: 0.1)
 

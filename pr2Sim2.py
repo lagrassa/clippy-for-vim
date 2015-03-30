@@ -31,7 +31,7 @@ crashIsError = False
 
 simulateError = False
 
-animate = False
+animate = True
 
 pickSuccessDist = 0.1  # pretty big for now
 class RealWorld(WorldState):
@@ -76,7 +76,7 @@ class RealWorld(WorldState):
                 sleep(0.2)
             else:
                 self.robotPlace.draw('World', 'orchid')
-            cart = conf.robot.forwardKin(conf)
+            cart = conf.cartConf()
             leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
             rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
             debugMsg('path', 
@@ -96,7 +96,7 @@ class RealWorld(WorldState):
                 c = path[i-1]
                 self.setRobotConf(conf)
                 self.robotPlace.draw('World', 'orange')
-                cart = conf.robot.forwardKin(conf)
+                cart = conf.cartConf()
                 leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
                 rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
                 debugMsg('path',
@@ -121,7 +121,7 @@ class RealWorld(WorldState):
         else:
             print op
             raw_input('No path given')
-            obs = 'none'
+            obs = None
         return obs
 
     def executeLookAtHand(self, op, params):
@@ -136,7 +136,6 @@ class RealWorld(WorldState):
         _, attachedParts = self.robotConf.placementAux(self.attached,
                                                        getShapes=[])
         shapeInHand = attachedParts[hand]
-        objInHand = shapeInHand.name() if shapeInHand else 'none'
         if shapeInHand:
             gdIndex, graspTuple = graspFaceIndexAndPose(self.robotConf,
                                                         hand,
@@ -184,7 +183,7 @@ class RealWorld(WorldState):
                          obstacles, 0.75)
         if not vis:
             print 'Object', targetObj, 'is not visible'
-            return 'none'
+            return None
         else:
             print 'Object', targetObj, 'is visible'
         truePose = self.getObjectPose(targetObj)
@@ -235,7 +234,7 @@ class RealWorld(WorldState):
         oDist = None
         o = None
         robot = self.robot
-        cart = robot.forwardKin(self.robotConf)
+        cart = self.robotConf.cartConf()
         handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
         # Find closest object
         for oname in self.objectConfs:
@@ -270,7 +269,7 @@ class RealWorld(WorldState):
                 self.setObjectPose(o, newObjPose)
         else:
             print 'tried to pick but missed', o, oDist, pickSuccessDist
-        return 'none'
+        return None
 
     def executePlace(self, op, params):
         failProb = self.domainProbs.placeFailProb
@@ -293,7 +292,7 @@ class RealWorld(WorldState):
             obj = self.held[hand]
             #assert detached and obj == detached.name()
             if detached:
-                cart = robot.forwardKin(self.robotConf)
+                cart = self.robotConf.cartConf()
                 handPose = cart[robot.armChainNames[hand]].\
                   compose(gripperTip)
                 objPose = handPose.compose(self.grasp[hand]).pose()
@@ -309,7 +308,7 @@ class RealWorld(WorldState):
             self.setRobotConf(approachConf)
             self.robotPlace.draw('World', 'orchid')
             print 'retracted'
-        return 'none'
+        return None
 
     def copy(self):
         return copy.copy(self)
@@ -326,7 +325,7 @@ class RealWorld(WorldState):
 
 def graspFaceIndexAndPose(conf, hand, shape, graspDescs):
     robot = conf.robot
-    wristFrame = robot.forwardKin(conf)[robot.armChainNames[hand]]
+    wristFrame = conf.cartConf()[robot.armChainNames[hand]]
     fingerFrame = wristFrame.compose(gripperFaceFrame)
     objFrame = shape.origin()
     for g in range(len(graspDescs)):

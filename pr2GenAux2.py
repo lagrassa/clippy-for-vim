@@ -22,8 +22,8 @@ Ident = util.Transform(np.eye(4))            # identity transform
 # Basic tests for pick and place
 ################
 
-deltaThreshold = (0.01, 0.01, 0.01, 0.02)
 def legalGrasp(pbs, conf, hand, objGrasp, objPlace):
+    deltaThreshold = (0.01, 0.01, 0.01, 0.02)
     # !! This should check for kinematic feasibility over a range of poses.
     of = objectGraspFrame(pbs, objGrasp, objPlace)
     rf = robotGraspFrame(pbs, conf, hand)
@@ -155,53 +155,12 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p):
 ## GENERATORS
 ################
 
-memoizerBufferN = 5
-class Memoizer:
-    def __init__(self, name, generator, values = None, bufN = memoizerBufferN):
-        self.name = name
-        self.generator = generator               # shared
-        self.values = values if values else [] # shared
-        self.bufN = bufN                       # shared
-        self.done = set([])             # not shared
-    def __iter__(self):
-        return self
-    def copy(self):
-        # shares the generator and values list, only index differs.
-        new = Memoizer(self.name, self.generator, self.values, self.bufN)
-        return new
-    def next(self):
-        dif = len(self.values) - len(self.done)
-        # Fill up the buffer, if possible
-        if dif < self.bufN:
-            for i in range(self.bufN - dif):
-                try:
-                    val = self.generator.next()
-                    self.values.append(val)
-                    if val[1].weight() < 1.0: break
-                except StopIteration:
-                    break
-        if len(self.values) > len(self.done):
-            elegible = set(range(len(self.values))) - self.done
-            # Find min weight index among elegible
-            nextI = argmax(list(elegible), lambda i: -self.values[i][1].weight())
-            self.done.add(nextI)
-            chosen = self.values[nextI]
-            debugMsg('Memoizer',
-                     self.name,
-                     ('weights', [self.values[i][1].weight() for i in elegible]),
-                     ('chosen', chosen[1].weight()))
-            # if chosen[1].weight() > 5:
-            #    raw_input('Big weight - Ok?')
-            return chosen
-        else:
-            raise StopIteration
-
 # This needs generalization
 approachBackoff = 0.10
 zBackoff = approachBackoff
 def findApproachConf(pbs, obj, placeB, conf, hand, prob):
     robot = pbs.getRobot()
-    cart = robot.forwardKin(conf)
+    cart = conf.cartConf()
     wristFrame = cart[robot.armChainNames[hand]]
     if abs(wristFrame.matrix[2,0]) < 0.1: # horizontal
         offset = util.Pose(-approachBackoff,0.,zBackoff,0.)
@@ -214,6 +173,8 @@ def findApproachConf(pbs, obj, placeB, conf, hand, prob):
         return confBack
     else:
         return None
+
+graspConfHistory = []
 
 def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, prob, nMax=None):
     if conf:
@@ -255,6 +216,8 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, prob, nMax=None):
                 conf.draw('W','green')
                 debugMsg('potentialGraspConfs', ('->', conf.conf))
             count += 1
+            # Brute force debugging tool...
+            # graspConfHistory.append([conf, viol, pbs, placeB, conf, hand, prob])
             yield conf, viol
         else:
             if debug('potentialGraspConfs'): conf.draw('W','red')
@@ -290,9 +253,11 @@ def potentialLookConfGen(rm, shape, maxDist):
             if testPoseInv(rotBasePose.inverse()):
                 yield rotConf
         else:
-            yield node.conf
             if debug('potentialLookConfs'):
+                node.conf.draw('W')
                 print 'node.conf', node.conf['pr2Base']
+                raw_input('potential look conf')
+            yield node.conf
     return
 
 def otherHand(hand):
@@ -314,7 +279,7 @@ lookPoses = {'left': [trL(x) for x in [util.Pose(0.4, 0.35, 1.0, ang),
 def potentialLookHandConfGen(pbs, prob, hand):
     shWorld = pbs.getShadowWorld(prob)
     robot = pbs.conf.robot
-    curCartConf = robot.forwardKin(pbs.conf)
+    curCartConf = pbs.conf.cartConf()
     chain = robot.armChainNames[hand]
     baseFrame = curCartConf['pr2Base']
     for pose in lookPoses[hand]:
@@ -602,7 +567,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, han
             return pose
 
     def poseViolationWeight(pose):
-        pB = placeB.modifyPoseD(pose)
+        pB = placeB.modifyPoseD(mu=pose)
         c, v = next(potentialGraspConfGen(pbs, pB, graspB, None, hand, prob, nMax=1),
                     (None,None))
         if v:

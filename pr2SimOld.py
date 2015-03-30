@@ -53,7 +53,7 @@ class RealWorld(WorldState):
                 self.draw('World'); sleep(0.2)
             else:
                 self.robotPlace.draw('World', 'orchid')
-            cart = conf.robot.forwardKin(conf)
+            cart = conf.cartConf()
             leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
             rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
             debugMsg('path', 
@@ -73,7 +73,7 @@ class RealWorld(WorldState):
                 c = path[i-1]
                 self.setRobotConf(conf)
                 self.robotPlace.draw('World', 'orange')
-                cart = conf.robot.forwardKin(conf)
+                cart = conf.cartConf()
                 leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
                 rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
                 debugMsg('path',
@@ -211,7 +211,7 @@ class RealWorld(WorldState):
             oDist = None
             o = None
             robot = self.robot
-            cart = robot.forwardKin(self.robotConf)
+            cart = self.robotConf.cartConf()
             handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
             # Find closest object
             for oname in self.objectConfs:
@@ -269,7 +269,7 @@ class RealWorld(WorldState):
                 obj = self.held[hand]
                 #assert detached and obj == detached.name()
                 if detached:
-                    cart = robot.forwardKin(self.robotConf)
+                    cart = self.robotConf.cartConf()
                     handPose = cart[robot.armChainNames[hand]].\
                       compose(gripperTip)
                     objPose = handPose.compose(self.grasp[hand]).pose()
@@ -305,7 +305,7 @@ class RealWorld(WorldState):
 
 def graspFaceIndexAndPose(conf, hand, shape, graspDescs):
     robot = conf.robot
-    wristFrame = robot.forwardKin(conf)[robot.armChainNames[hand]]
+    wristFrame = conf.cartConf()[robot.armChainNames[hand]]
     fingerFrame = wristFrame.compose(gripperFaceFrame)
     objFrame = shape.origin()
     for g in range(len(graspDescs)):

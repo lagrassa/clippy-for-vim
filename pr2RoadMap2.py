@@ -26,7 +26,7 @@ objCollisionCost = 2.0
 shCollisionCost = 0.5
 maxSearchNodes = 2000                   # 5000
 maxExpandedNodes = 500                  # 1500
-searchGreedy = 0.75                     # slightly greedy
+searchGreedy = 0.5                     # slightly greedy
 minStep = 0.2                           # !! maybe 0.1 is better
 minStepHeuristic = 0.4
 confReachViolGenBatch = 10
@@ -81,7 +81,7 @@ class RoadMap:
         self.moveChains = moveChains
         self.kdLeafSize = kdLeafSize
         self.homeConf = homeConf
-        cart = self.robot.forwardKin(homeConf)
+        cart = homeConf.cartConf()
         self.root = Node(homeConf, cart, self.pointFromCart(cart))
         self.nodeTooClose = 0.001      # is there a rational way of picking this?
         # The points in the main kdTree
@@ -134,7 +134,7 @@ class RoadMap:
         return point
             
     def addNode(self, conf, merge = True):
-        cart = self.robot.forwardKin(conf)
+        cart = conf.cartConf()
         point = self.pointFromCart(cart)
         n_new = Node(conf, cart, point)
         if merge:
@@ -241,7 +241,7 @@ class RoadMap:
             for c in rrt.interpolate(n_i.conf, n_f.conf,
                                      stepSize=0.5 if (fbch.inHeuristic or coarsePath) else 0.25,
                                      moveChains=self.moveChains):
-                cart = self.robot.forwardKin(c)
+                cart = c.cartConf()
                 for chain in self.robot.chainNames: #  fill in
                     if not chain in c.conf:
                         c[chain] = n_i.conf[chain]
@@ -270,7 +270,7 @@ class RoadMap:
         for c in rrt.interpolate(n_i.conf, n_f.conf,
                                  stepSize=0.5 if (fbch.inHeuristic or coarsePath) else 0.25,
                                  moveChains=self.moveChains):
-            cart = self.robot.forwardKin(c)
+            cart = c.cartConf()
             for chain in self.robot.chainNames: #  fill in
                 if not chain in c.conf:
                     c[chain] = n_i.conf[chain]
@@ -700,6 +700,8 @@ class RoadMap:
             else:
                 return g
         def exitWithAns(ans):
+            if not key in self.confReachCache:
+                self.confReachCache[key] = []
             self.confReachCache[key].append((pbs, prob, avoidShadow, ans))
             if ans and ans[0] and ans[2]:
                 (viol, cost, path, nodePath) = ans
@@ -730,15 +732,26 @@ class RoadMap:
                 print 'startConf is blue; targetConf is pink'
                 raw_input('confReachViol')
 
-        # if fbch.inHeuristic:
-        #     prob = 0.99*prob             # make slightly easier
         if attached == None:
             attached = pbs.getShadowWorld(prob).attached
+
+        key = (targetConf, initConf, initViol, fbch.inHeuristic or coarsePath)
+        # Check the endpoints
+        cv = self.confViolations(targetConf, pbs, prob,
+                                 avoidShadow=avoidShadow, attached=attached)[0]
+        cv = self.confViolations(initConf, pbs, prob, initViol=cv,
+                                 avoidShadow=avoidShadow, attached=attached)[0]
+        if cv is None:
+            if debug('traceCRH'): print '    unreachable conf',
+            if debug('confReachViol'):
+                print 'targetConf is unreachable'
+            return exitWithAns((None, None, None, None))
+            
         if not fbch.inHeuristic and initConf in self.approachConfs:
-            key = (targetConf, self.approachConfs[initConf], initViol, fbch.inHeuristic or coarsePath)
-            if key in self.confReachCache:
+            keya = (targetConf, self.approachConfs[initConf], initViol, fbch.inHeuristic or coarsePath)
+            if keya in self.confReachCache:
                 if debug('confReachViolCache'): print 'confReachCache approach tentative hit'
-                cacheValues = self.confReachCache[key]
+                cacheValues = self.confReachCache[keya]
                 sortedCacheValues = sorted(cacheValues,
                                            key=lambda v: v[-1][0].weight() if v[-1][0] else v[-1][0])
                 ans = bsEntails(pbs, prob, avoidShadow, sortedCacheValues, loose=True)
@@ -747,13 +760,9 @@ class RoadMap:
                     if debug('confReachViolCache'):
                         debugMsg('confReachViolCache', 'confReachCache approach actual hit')
                     (viol2, cost2, path2, nodePath2) = ans
-                    cv = self.confViolations(initConf, pbs, prob,
-                                             avoidShadow=avoidShadow, attached=attached)[0]
-                    if cv:
-                        return (viol2.update(cv).update(realInitViol) if viol2 else viol2,
-                                cost2,
-                                [initConf] + path2)
-        key = (targetConf, initConf, initViol, fbch.inHeuristic or coarsePath)
+                    return (viol2.update(cv).update(realInitViol) if viol2 else viol2,
+                            cost2,
+                            [initConf] + path2)
         if debug('confReachViolCache'):
             debugMsg('confReachViolCache',
                      ('targetConf', targetConf.conf),
@@ -787,8 +796,8 @@ class RoadMap:
                     if viol2:
                         newViol = self.checkNodePath(nodePath2, pbs, prob,
                                                      pbs.getShadowWorld(prob).attached, avoidShadow)
-                        # newViol.obstacles<=viol2.obstacles and newViol.shadows<=viol2.shadows
-                        if newViol and newViol.weight() <= viol2.weight():
+                        # Don't accept unless the new violations don't add to the initial viols
+                        if newViol and newViol.weight() <= cv.weight():
                             ans = (newViol.update(realInitViol) if newViol else newViol, cost2, path2,
                                    nodePath2)
                             if debug('traceCRH'): print '    reusing path',
@@ -802,15 +811,6 @@ class RoadMap:
             if debug('confReachViolCache'): print 'confReachCache miss'
 
         drawProblem()
-        cv = self.confViolations(targetConf, pbs, prob,
-                                 avoidShadow=avoidShadow, attached=attached)[0]
-        cv = self.confViolations(initConf, pbs, prob, initViol=cv,
-                                 avoidShadow=avoidShadow, attached=attached)[0]
-        if cv is None:
-            if debug('traceCRH'): print '    unreachable conf',
-            if debug('confReachViol'):
-                print 'targetConf is unreachable'
-            return exitWithAns((None, None, None, None))
         cvi = initViol.update(cv)
         node = self.addNode(targetConf)
         if initConf == targetConf:
@@ -903,6 +903,46 @@ class RoadMap:
         debugMsg('confReachViolGen', ('->', ans))
         yield ans
         return
+
+    def safePath(self, qf, qi, pbs, prob, attached):
+        for conf in rrt.interpolate(qf, qi, stepSize=0.5):
+            newViol, _ = self.confViolations(conf, pbs, prob,
+                                             attached=attached,
+                                             initViol=noViol)
+            if newViol is None or newViol.weight() > 0.:
+                return False
+        return True
+
+    def smoothPath(self, path, pbs, prob, verbose=True, nsteps = glob.smoothSteps):
+        n = len(path)
+        if n < 3: return path
+        if verbose: print 'Path has %s points'%str(n), '... smoothing'
+        smoothed = path[:]
+        checked = set([])
+        count = 0
+        step = 0
+        attached = pbs.getShadowWorld(prob).attached
+        while count < nsteps:
+            if verbose: print step, 
+            i = random.randrange(n)
+            j = random.randrange(n)
+            if j < i: i, j = j, i 
+            step += 1
+            if verbose: print i, j, len(checked)
+            if j-i < 2 or \
+                (smoothed[j], smoothed[i]) in checked:
+                count += 1
+                continue
+            else:
+                checked.add((smoothed[j], smoothed[i]))
+            if self.safePath(smoothed[j], smoothed[i], pbs, prob, attached):
+                count = 0
+                smoothed[i+1:j] = []
+                n = len(smoothed)
+                if verbose: print 'Smoothed path length is', n
+            else:
+                count += 1
+        return smoothed
 
     def __str__(self):
         return 'RoadMap:['+str(self.size+self.newSize)+']'
