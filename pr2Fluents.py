@@ -199,6 +199,12 @@ class CanReachHome(Fluent):
             o.instanceCost = c
             shadowSum += c
         ops = set(obstOps + shadowOps)
+        if debug('hAddBack'):
+            print 'Heuristic val', self.predicate
+            print 'ops', ops, 'cost',\
+             prettyString(obstCost * len(obstOps) + \
+                          shadowCost * len(shadowOps))
+            raw_input('foo?')
         return (obstCost * len(obstacles) + shadowSum, ops)
 
     def prettyString(self, eq = True, includeValue = True):
@@ -308,9 +314,21 @@ class CanPickPlace(Fluent):
         for o in obstOps: o.instanceCost = obstCost
         shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
                      for o in shadows])
-        for o in shadowOps: o.instanceCost = shadowCost
-        ops = obstOps.union(shadowOps)
 
+        d = bState.details.domainProbs.placeVar
+        ep = bState.details.domainProbs.obsTypeErrProb
+        vo = bState.details.domainProbs.obsVarTuple
+        # compute shadow costs individually
+        shadowSum = 0
+        for o in shadowOps:
+            # Use variance in start state
+            obj = objectName(o.args[0])
+            vb = bState.details.pbs.getPlaceB('table1').poseD.variance()
+            deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
+            c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
+            o.instanceCost = c
+            shadowSum += c
+        ops = set(obstOps + shadowOps)
         if debug('hAddBack'):
             print 'Heuristic val', self.predicate
             print 'ops', ops, 'cost',\
@@ -318,7 +336,7 @@ class CanPickPlace(Fluent):
                           shadowCost * len(shadowOps))
             raw_input('foo?')
 
-        return (obstCost * len(obstOps) + shadowCost * len(shadowOps), ops)
+        return (obstCost * len(obstacles) + shadowSum, ops)
 
     def prettyString(self, eq = True, includeValue = True):
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
