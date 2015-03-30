@@ -74,6 +74,13 @@ class World:
         self.robot = robot
 
     def getObjectShapeAtOrigin(self, objName):
+        def simplify(shape):
+            if shape.name() == objName and \
+               len(shape.parts()) == 1 and  \
+               shape.parts()[0].name() == objName:
+                return simplify(shape.parts()[0])
+            else:
+                return shape
         obj = self.objects[objName]
         chains = obj.chainsInOrder
         assert isinstance(chains[0], Movable)
@@ -81,7 +88,9 @@ class World:
         conf = dict([[objName, [Ident]]] +\
                     [[chain.name, []] for chain in chains[1:]])
         shape = obj.placement(Ident, conf)[0]
-        return next((part for part in shape.parts() if part.name() == objName), None)
+        # return next((part for part in shape.parts() if part.name() == objName), None)
+        # To make sure that we remove unnesessary nestings
+        return simplify(shape)
 
     def getGraspDesc(self, obj):
         if obj == 'none':

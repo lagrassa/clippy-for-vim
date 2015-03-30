@@ -174,7 +174,8 @@ def testWorld(include = ['objA', 'objB', 'objC'],
                 ], name = 'walls')
     world.addObjectShape(walls)
     # Some tables
-    table1 = Sh([place((-0.603, 0.603), (-0.298, 0.298), (0.0, 0.67))], name = 'table1', color='brown')
+    # table1 = Sh([place((-0.603, 0.603), (-0.298, 0.298), (0.0, 0.67))], name = 'table1', color='brown')
+    table1 = makeTable(0.603, 0.298, 0.67, name = 'table1', color='brown')
     if 'table1' in include: world.addObjectShape(table1)
     table2 = Sh([place((-0.603, 0.603), (-0.298, 0.298), (0.0, 0.67))], name = 'table2', color='brown')
     if 'table2' in include: world.addObjectShape(table2)
@@ -296,6 +297,20 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False):
     c = robot.inverseKin(cart, conf=c)
     return c
 
+def makeTable(dx, dy, dz, name, width = 0.1, color = 'orange'):
+    legInset = 0.02
+    legOver = 0.02
+    return Sh([\
+        Ba([(-dx, -dy, dz-width), (dx, dy, dz)],
+           name=name+ 'top', color=color),
+        Ba([(-dx,      -dy, 0.0),
+            (-dx+width, dy, dz-width)],
+           name=name+' leg 1', color=color),
+        Ba([(dx-width, -dy, 0.0),
+            (dx,       dy, dz-width)],
+           name=name+' leg 2', color=color)
+        ], name = name, color=color)
+
 initConfs = []
 
 class PlanTest:
@@ -412,6 +427,9 @@ class PlanTest:
         ###   Initialize the world
         if glob.useROS:
             self.realWorld = RobotEnv(self.bs.pbs.getWorld())
+            # Move base to [0., 0., 0.]
+            cnfOut, result = pr2GoToConf({'pr2Base' : [0., 0., 0.]}, 'move')
+            # Reset the internal coordinate frames
             cnfOut, result = pr2GoToConf({}, 'reset')
             debugMsg('robotEnv', result, cnfOut)
         else:

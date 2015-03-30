@@ -61,7 +61,8 @@ def Ba(bb, **prop): return shapes.BoxAligned(np.array(bb), Ident, **prop)
 def Sh(*args, **prop): return shapes.Shape(list(args), Ident, **prop)
 dx = glob.baseGrowthX; dy = glob.baseGrowthY
 
-heuristicShapes = ['pr2Base', 'pr2RightGripper', 'pr2LeftGripper']
+# It's too confusing to have the robots be different.
+# heuristicShapes = ['pr2Base', 'pr2RightGripper', 'pr2LeftGripper']
 heuristicShapes = None
 
 # Small base and torso
@@ -523,7 +524,6 @@ class PR2:
         # Returns a Shape object and a dictionary of frames for each sub-chain.
         frame = wstate.getFrame(self.chains.baseFname) if wstate else Ident
         if fbch.inHeuristic and getShapes:
-            # shapeChains = ['pr2Base']
             shapeChains = heuristicShapes or getShapes
         else:
             shapeChains = getShapes

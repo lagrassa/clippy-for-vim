@@ -913,7 +913,7 @@ class RoadMap:
                 return False
         return True
 
-    def smoothPath(self, path, pbs, prob, verbose=True, nsteps = glob.smoothSteps):
+    def smoothPath(self, path, pbs, prob, verbose=False, nsteps = glob.smoothSteps):
         n = len(path)
         if n < 3: return path
         if verbose: print 'Path has %s points'%str(n), '... smoothing'
