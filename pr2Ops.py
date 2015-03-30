@@ -444,11 +444,10 @@ def pickPoseVar((graspVar, prob), goal, start, vals):
 
 # If it's bigger than this, we can't just plan to look and see it
 # Should be more subtle than this...
-maxPoseVar = (0.1**2, 0.1**2, 0.1**2, 0.2**2)
+maxPoseVar = (0.1**2, 0.1**2, 0.1**2, 0.3**2)
 
 # starting var if it's legal, plus regression of the result var
 def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
-    epsilon = 10e-5
     lookVar = start.domainProbs.obsVarTuple
     vs = tuple(start.poseModeDist(obj, face).mld().sigma.diagonal().tolist()[0])
     vbo = varBeforeObs(lookVar, ve)
@@ -460,7 +459,7 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     startLessThanMax = any([a < b for (a, b) in zip(vs, maxPoseVar)])
     startUseful = any([a > b for (a, b) in zip(vs, ve)])
     result.append([cappedVbo])
-    if startLessThanMax: # and startUseful:
+    if True: #startLessThanMax: # and startUseful:
         # starting var is bigger, but not too big
         result.append([vs])
     return result

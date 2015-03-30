@@ -605,7 +605,8 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
     for ff in partitionFn(goal.fluents):
         (ic, actSet) = aux(ff, idk, float('inf'))
         if ic == float('inf'):
-            debugMsg('hAddBackInf', ('infinite cost', idk, ff))
+            debugMsg('hAddBackInf', '*** Final ***',
+                     ('infinite cost', idk, ff))
             return ic
         totalActSet = totalActSet.union(actSet)
     totalCost = sum([op.instanceCost for op in totalActSet])
