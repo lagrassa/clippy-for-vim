@@ -1,8 +1,8 @@
 import util
 from util import nearAngle
 import numpy as np
-from pr2Util import PoseD, defaultPoseD, NextColor, shadowName, Violations, drawPath
-from dist import DeltaDist
+from pr2Util import PoseD, defaultPoseD, NextColor, shadowName, Violations, drawPath, objectName
+from dist import DeltaDist, probModeMoved
 from planGlobals import debugMsg, debugDraw, debug, pause
 import planGlobals as glob
 from miscUtil import isGround, isVar, prettyString, applyBindings
@@ -185,19 +185,21 @@ class CanReachHome(Fluent):
         for o in obstOps: o.instanceCost = obstCost
         shadowOps = [Operator('RemoveShadow', [o.name()],{},[]) \
                      for o in shadows]
-        d = bState.domainProbs.placeVar
-        ep = bState.domainProbs.obsTypeErrProb
-        vo = details.domainProbs.obsVarTuple
+        d = bState.details.domainProbs.placeVar
+        ep = bState.details.domainProbs.obsTypeErrProb
+        vo = bState.details.domainProbs.obsVarTuple
         # compute shadow costs individually
+        shadowSum = 0
         for o in shadowOps:
             # Use variance in start state
-            vb = tuple(bState.poseModeDist(obj, face).mld().\
-                       sigma.diagonal().tolist()[0])
+            obj = objectName(o.args[0])
+            vb = bState.details.pbs.getPlaceB('table1').poseD.variance()
             deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
-            c = o.cost / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
+            c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
             o.instanceCost = c
+            shadowSum += c
         ops = set(obstOps + shadowOps)
-        return (obstCost * len(obstacles) + shadowCost * len(shadows), ops)
+        return (obstCost * len(obstacles) + shadowSum, ops)
 
     def prettyString(self, eq = True, includeValue = True):
         (conf, hand, lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
