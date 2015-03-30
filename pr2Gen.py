@@ -532,9 +532,6 @@ def graspGen(pbs, obj, graspB, placeB=None, conf=None, hand=None, prob=None):
                        delta=graspB.delta)
         yield gB
 
-# !! Should derive this from the clearance in the region
-# Note that this is smaller than the variable in pr2Ops
-maxGraspVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2)
 
 # returns values for (?pose, ?poseFace, ?graspPose, ?graspFace, ?graspvar, ?conf, ?confAppr)
 def placeInGen(args, goalConds, bState, outBindings,
@@ -549,8 +546,11 @@ def placeInGen(args, goalConds, bState, outBindings,
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     world = bState.pbs.getWorld()
 
+    # !! Should derive this from the clearance in the region
+    domainPlaceVar = bState.domainProbs.obsVarTuple 
+
     if isAnyVar(graspV):
-        graspV = maxGraspVar
+        graspV = domainPlaceVar
     if isAnyVar(objV):
         objV = graspV
     if isAnyVar(support):
@@ -609,8 +609,6 @@ def placeInGenAway(args, goalConds, pbs, outBindings):
                           # preserve goalConds to get reachObsts
                           goalConds, pbs, [], away=True):
         yield ans
-
-maxPlaceVar = (0.001, 0.001, 0.001, 0.01)
 
 def placeInGenTop(args, goalConds, pbs, outBindings,
                   considerOtherIns = False, regrasp=False, away = False):
@@ -672,7 +670,8 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         
         newBS = pbs.copy()           #  not necessary
         # Shadow (at origin) for object to be placed.
-        pB = placeB.modifyPoseD(var=maxPlaceVar)
+        domainPlaceVar = newBS.domainProbs.obsVarTuple 
+        pB = placeB.modifyPoseD(var=domainPlaceVar)
         poseGen = potentialRegionPoseGen(newBS, obj, pB, prob, regShapes, reachObsts, hand, maxPoses=100)
         # Picks among possible target poses and then try to place it in region
         for ans,v in placeInGenAux1(newBS, poseGen, goalConds, confAppr, conf,
@@ -781,6 +780,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     newBS.updatePermObjPose(placeB)
 
     if goalConds and getConf(goalConds, None):
+        debugMsg('lookGen', 'Conf is specified so failing')
         # if conf is specified, just fail
         return
 
@@ -808,7 +808,8 @@ def lookGenTop(args, goalConds, pbs, outBindings):
             print '    lookGen(%s) viol='%obj, viol.weight() if viol else None
         if not path:
             debugMsg('lookGen', 'Failed to find a path to look conf.')
-            return
+            continue
+            # return     lpk
         conf = path[-1]
         lookConf = lookAtConf(conf, sh)
         if debug('lookGen', skip=skip):
@@ -940,23 +941,29 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
 
     path, viol = canReachHome(newBS, conf, prob, Violations())
     if not viol:                  # hopeless
+        debugMsg('canReachGen', 'Impossible dream')
         return
     if viol.empty():
         debugMsg('canReachGen', 'No obstacles or shadows; returning')
         return
     
-    # This delta can actually be quite large; we aren't trying to
-    # "find" this object in a specific position; mostly want to reduce
-    # the variance.
+    # If possible, it might be better to make the deltas big; but we
+    # have to be sure to use the same delta when generating paths.
 
-    lookDelta = (0.02, 0.02, 0.02, 0.05)
-    moveDelta = (0.02, 0.02, 0.02, 0.05)
-    # lookDelta = (0.01, 0.01, 0.01, 0.05)
-    # moveDelta = (0.01, 0.01, 0.01, 0.02)
+    objBMinDelta = newBS.domainProbs.placeVar
+    objBMinVar = newBS.domainProbs.obsVarTuple
+    objBMinProb = 0.95
+
+    lookDelta = objBMinDelta
+    moveDelta = objBMinDelta
+
     # Try to fix one of the violations if any...
     if viol.obstacles:
-        obsts = [o.name() for o in viol.obstacles if o.name() not in newBS.fixObjBs]
-        if not obsts: return       # nothing available
+        obsts = [o.name() for o in viol.obstacles \
+                 if o.name() not in newBS.fixObjBs]
+        if not obsts:
+            debugMsg('canReachGen', 'No movable obstacles to fix')
+            return       # nothing available
         # !! How carefully placed this object needs to be
         for ans in moveOut(newBS, obsts[0], moveDelta):
             yield ans 
@@ -974,6 +981,9 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
         if path2 and viol2:
             if shadowName in [x.name() for x in viol2.shadows]:
                 print 'canReachGen could not reduce the shadow for', obst
+                drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
+                print 'brown is as far as it goes'
+                drawObjAndShadow(newBS2, placeB2, prob, 'W', color='brown')
                 raw_input('Go?')
             if debug('canReachGen', skip=skip):
                 drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
@@ -1049,7 +1059,9 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     if viol.obstacles:
         obsts = [o.name() for o in viol.obstacles \
                  if o.name() not in newBS.fixObjBs]
-        if not obsts: return       # nothing available
+        if not obsts:
+            debugMsg('canPickPlaceGen', 'No fixed obstacles to remove')
+            return       # nothing available
         # !! How carefully placed this object needs to be
         for ans in moveOut(newBS, obsts[0], moveDelta):
             yield ans 

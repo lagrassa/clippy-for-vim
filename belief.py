@@ -591,7 +591,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                 actSet = set()
                 for f in fUp:
                     print '    ', f.shortName()
-                debugMsg('hAddBackInf',
+                debugMsg('hAddBackInfV',
                          'Warning: storing infinite value in hCache')
                 addToCachesSet(fUp, totalCost, set(), idk)
             thing = hCacheLookup(fUp, idk)

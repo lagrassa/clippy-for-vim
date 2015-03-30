@@ -22,8 +22,8 @@ Ident = util.Transform(np.eye(4))            # identity transform
 # Basic tests for pick and place
 ################
 
-deltaThreshold = (0.01, 0.01, 0.01, 0.02)
 def legalGrasp(pbs, conf, hand, objGrasp, objPlace):
+    deltaThreshold = (0.01, 0.01, 0.01, 0.02)
     # !! This should check for kinematic feasibility over a range of poses.
     of = objectGraspFrame(pbs, objGrasp, objPlace)
     rf = robotGraspFrame(pbs, conf, hand)
@@ -253,9 +253,11 @@ def potentialLookConfGen(rm, shape, maxDist):
             if testPoseInv(rotBasePose.inverse()):
                 yield rotConf
         else:
-            yield node.conf
             if debug('potentialLookConfs'):
+                node.conf.draw('W')
                 print 'node.conf', node.conf['pr2Base']
+                raw_input('potential look conf')
+            yield node.conf
     return
 
 def otherHand(hand):

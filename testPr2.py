@@ -601,13 +601,16 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.98,typicalErrProbs)
-    varDict = {} if easy else {'table1': (0.12**2, 0.032**2, 1e-10, 0.3**2),
+    varDict = {} if easy else {'table1': (0.12**2, 0.03**2, 1e-10, 0.3**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
+
+    front = util.Pose(0.9, 0.0, tZ, 0.0)
 
     t = PlanTest('test3',  errProbs, allOperators,
                  objects=['table1', 'objA'],
+                 movePoses={'objA': front},
                  varDict = varDict)
-    targetPose = (1.05, 0.25, tZ, 0.0)
+    targetPose = (0.9, 0.25, tZ, 0.0)
     # large target var is no problem
     targetVar = (0.02, 0.02, 0.01, 0.05)
     goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
@@ -616,11 +619,17 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                      goalProb], True)])
 
     skel = [[lookAt.applyBindings({'Obj' : 'objA'}),
-                 move,
-                 place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-                 move,
-                 pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-                 move]]
+             move,
+             place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+             move,
+             pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+             poseAchCanReach,
+             #poseAchCanPickPlace,
+             move,
+             lookAt.applyBindings({'Obj' : 'objA'}),
+             move,
+             lookAt.applyBindings({'Obj' : 'table1'}),
+             move]]
     t.run(goal,
           hpn = hpn,
           skeleton = skel if skeleton else None,

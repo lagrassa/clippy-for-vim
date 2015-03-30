@@ -437,7 +437,7 @@ def pickPoseVar((graspVar, prob), goal, start, vals):
 
 # If it's bigger than this, we can't just plan to look and see it
 # Should be more subtle than this...
-maxPoseVar = (0.2**2, 0.2**2, 0.2**2, 0.5**2)
+maxPoseVar = (0.1**2, 0.1**2, 0.1**2, 0.2**2)
 
 # starting var if it's legal, plus regression of the result var
 def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
@@ -1064,6 +1064,7 @@ pick = Operator(\
         ignorableArgs = range(2, 27))  # pays attention to pose
 
 # P2 goes into success prob (cost)
+# Consider reducing prob without increasing var
 lookAt = Operator(\
     'LookAt',
     ['Obj', 'LookConf', 'PoseFace', 'Pose',
