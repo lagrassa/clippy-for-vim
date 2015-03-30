@@ -434,6 +434,7 @@ class Fluent(object):
         return self.value
 
     def __str__(self):
+        #assert self.strStored == self.getStr()
         return self.strStored
 
     def getStr(self):
