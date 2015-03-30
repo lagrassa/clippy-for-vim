@@ -14,7 +14,7 @@ LINUX = (platform.system() == 'Linux')
 # ROS: Controlling robot 
 ########################################
 
-useROS = LINUX
+useROS = False
 speedFactor = 0.5
 
 ########################################
