@@ -56,7 +56,10 @@ traceCRH
 traceGen  (compact summary of generators)
 
 '''
-debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise']
+debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
+           'hAddBackInf']
+#           'placeGen', 'placeVar']
+#           'regression:fail', 'appOp:number', 'canReachGen', 'canPickPlaceGen']
  #      'obsUpdate', 'hAddBackInf', 'regression:fail', 'placeGen',
  # 'lookGen', 'traceGen', 'canReachGen', 'canPickPlaceGen',
  # 'confReachViol', 'confViolations']

@@ -388,7 +388,7 @@ class PlanTest:
         belC.roadMap = rm
         pbs = PBS(belC, conf=pr2Home, fixObjBs = self.fix.copy(), moveObjBs = self.move.copy(),
         regions = frozenset(regions), domainProbs=self.domainProbs) 
-        pbs.draw(0.98, 'Belief')
+        pbs.draw(0.95, 'Belief')
         bs = BeliefState(pbs, self.domainProbs, 'table2Top')
         ### !!!!  LPK Awful modularity
         bs.partitionFn = partition
@@ -447,7 +447,7 @@ class PlanTest:
                         #     objShape.applyLoc(objPose).draw('Belief', 'pink')
 
                         # raw_input('okay?')
-                        # self.bs.pbs.draw(0.98, 'Belief')
+                        # self.bs.pbs.draw(0.95, 'Belief')
                     else:
                         objPose = meanObjPose
                     self.realWorld.setObjectPose(obj, objPose)
@@ -506,7 +506,7 @@ class PlanTest:
 
 typicalErrProbs = DomainProbs(\
             # stdev, as a percentage of the motion magnitude
-            odoError = (0.05, 0.05, 0.05, 0.05),
+            odoError = (0.05, 0.05, 1e-11, 0.05),
             # variance in observations; diagonal for now
             obsVar = (0.01**2, 0.01**2,0.01**2, 0.01**2),
             # get type of object wrong
@@ -515,9 +515,9 @@ typicalErrProbs = DomainProbs(\
             pickFailProb = 0.02,
             placeFailProb = 0.02,
             # variance in grasp after picking
-            pickVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2),
+            pickVar = (0.01**2, 0.01**2, 1e-11, 0.02**2),
             # variance in grasp after placing
-            placeVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2),
+            placeVar = (0.01**2, 0.01**2, 1e-11, 0.02**2),
             # pickTolerance
             pickTolerance = (0.02, 0.02, 0.02, 0.02))
 
@@ -602,7 +602,7 @@ def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
 def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
-    goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.98,typicalErrProbs)
+    goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
     varDict = {} if easy else {'table1': (0.12**2, 0.03**2, 1e-10, 0.3**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
 
@@ -645,7 +645,7 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 def test4(hpn = True, hierarchical = False, skeleton = False,
           heuristic = habbs, easy = False):
 
-    goalProb, errProbs = (0.2,smallErrProbs) if easy else (0.98,typicalErrProbs)
+    goalProb, errProbs = (0.2,smallErrProbs) if easy else (0.95,typicalErrProbs)
     glob.rebindPenalty = 50
 
 
@@ -685,7 +685,7 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
 def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False,
           easy = False):
 
-    goalProb, errProbs = (0.4,smallErrProbs) if easy else (0.98,typicalErrProbs)
+    goalProb, errProbs = (0.4,smallErrProbs) if easy else (0.95,typicalErrProbs)
 
     p1 = util.Pose(0.95, 0.0, tZ, 0.0)
     p2 = util.Pose(1.1, 0.0, tZ, 0.0)
@@ -707,7 +707,7 @@ def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False,
 def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
           easy = False, rip = False):
 
-    goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.98,typicalErrProbs)
+    goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.95,typicalErrProbs)
         
     p2 = util.Pose(0.9, 0.0, tZ, 0.0)
     t = PlanTest('test6', errProbs, allOperators,
@@ -724,8 +724,12 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
     t.run(goal,
           hpn = hpn,
           skeleton = [[lookAt, move],
-                      [lookAt, move, place, move, pick, move,
-                       poseAchCanPickPlace, lookAt, move]]
+                      # need lookat to decrease prob
+                      [lookAt,
+                       move,
+                       place.applyBindings({'Hand' : 'left'}),
+                       move, pick, move,
+                       poseAchCanPickPlace, lookAt, move, lookAt, move]]
                       if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
@@ -777,7 +781,7 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
             easy = False):
 
     glob.rebindPenalty = 50
-    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.98,typicalErrProbs)
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
     #glob.monotonicFirst = False
 
     global moreGD
@@ -812,7 +816,7 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
 def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
           easy = False, rip = False):
     glob.rebindPenalty = 50
-    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.98,typicalErrProbs)
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
 
     t = PlanTest('test9', errProbs, allOperators,
                  objects = ['table1'],

@@ -48,6 +48,7 @@ def easyGraspGen(args, goalConds, bState, outBindings):
     if debug('traceGen'):
         print 'easyGraspGen(%s,%s) h='%(obj,hand), fbch.inHeuristic
     if obj == 'none' or (goalConds and getConf(goalConds, None)):
+        debugMsg('easyGraspGen', 'obj is none or conf in goal conds')
         return
     prob = 0.75
     # Set up pbs
@@ -61,7 +62,7 @@ def easyGraspGen(args, goalConds, bState, outBindings):
                graspVar, graspDelta)
         return
     if obj == newBS.held[otherHand(hand)].mode():
-        return                          # no easyGrasp with this hand
+        debugMsg('easyGraspGen', 'no easy grasp with this hand')
     rm = newBS.getRoadMap()
     placeB = newBS.getPlaceB(obj)
     graspB = ObjGraspB(obj, pbs.getWorld().getGraspDesc(obj), None,
@@ -339,9 +340,11 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
                            pbs.graspB['left'],
                            pbs.graspB['right'])))
     if obj == 'none' or not placeBs:
+        debugMsg('placeGen', 'objs is none or no placeB')
         return
     if goalConds and getConf(goalConds, None) and not away:
         # if conf is specified, just fail
+        debugMsg('placeGen', 'goal conf specified and not away')
         return
     # Have any output bindings been specified?
 
@@ -627,6 +630,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
 
     if goalConds and getConf(goalConds, None) and not away:
         # if conf is specified, just fail
+        debugMsg('placeInGen', 'conf is specified so failing')
         return
 
     if graspB.grasp is None:
@@ -795,11 +799,13 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     curr = newBS.conf
     # print 'Home base conf', home['pr2Base'], 'curr base conf', curr['pr2Base']
     def testFn(c):
-        if c['pr2Base'] == curr['pr2Base'] or c['pr2Base'] == home['pr2Base']:
-            return False
-        else:
-            print 'Trying base conf', c['pr2Base']
-            return visible(shWorld, c, sh, obst, prob)[0]
+        # LPK took this out.
+        # if c['pr2Base'] == curr['pr2Base'] or c['pr2Base'] == home['pr2Base']:
+        #     return False
+        # else:
+
+        print 'Trying base conf', c['pr2Base']
+        return visible(shWorld, c, sh, obst, prob)[0]
     for ans in rm.confReachViolGen(lookConfGen, newBS, prob,
                                    avoidShadow=[obj],
                                    testFn = testFn):
@@ -863,6 +869,7 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
             yield (lookConf,), Violations()
         return
     if goalConds and getConf(goalConds, None):
+        debugMsg('lookHandGen', 'conf is specified')
         # if conf is specified, just fail
         return
     rm = newBS.getRoadMap()
@@ -1050,11 +1057,13 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         debugMsg('canPickPlaceGen', 'No obstacles or shadows; returning')
         return
     
-    # This delta can actually be quite large; we aren't trying to
-    # "find" this object in a specific position; mostly want to reduce
-    # the variance.
-    lookDelta = (0.01, 0.01, 0.01, 0.05)
-    moveDelta = (0.02, 0.02, 0.02, 0.04)
+    objBMinDelta = newBS.domainProbs.placeVar
+    objBMinVar = newBS.domainProbs.obsVarTuple
+    objBMinProb = 0.95
+
+    lookDelta = objBMinDelta
+    moveDelta = objBMinDelta
+
     # Try to fix one of the violations if any...
     if viol.obstacles:
         obsts = [o.name() for o in viol.obstacles \

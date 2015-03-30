@@ -18,11 +18,11 @@ defaultPoseDelta = (0.0001, 0.0001, 0.0001, 0.001)
 lookConfDelta = (0.0001, 0.0001, 0.0001, 0.001)
 
 # Fixed accuracy to use for some standard preconditions
-canPPProb = 0.95
-otherHandProb = 0.95
-canSeeProb = 0.95
+canPPProb = 0.9
+otherHandProb = 0.9
+canSeeProb = 0.9
 # No prob can go above this
-maxProbValue = 0.999
+maxProbValue = 0.95  # was .999
 # How sure do we have to be of CRH for moving
 movePreProb = 0.98
 movePreProb = 0.8
@@ -408,10 +408,17 @@ def placeGraspVar((poseVar,), goal, start, vals):
         # For placing in a region; could let the place pick this, but
         # just do it for now
         defaultPoseVar = tuple([4*v for v in placeVar])
+        defaultPoseVar = placeVar
         poseVar = defaultPoseVar
     graspVar = tuple([min(gv - pv, m) for (gv, pv, m) \
                       in zip(poseVar, placeVar, maxGraspVar)])
     if any([x <= 0 for x in graspVar]):
+        if debug('placeVar'):
+            print 'negative grasp var'
+            print 'poseVar', poseVar
+            print 'placeVar', placeVar
+            print 'maxGraspVar', maxGraspVar
+            raw_input('poseVar - placeVar is negative')
         return []
     else:
         return [[graspVar]]
@@ -450,17 +457,12 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     # We might be looking to increase the mode prob, so don't fail
     # !!!
     #if cappedVbo[0] > ve[0]:
-    result.append([cappedVbo])
-
     startLessThanMax = any([a < b for (a, b) in zip(vs, maxPoseVar)])
     startUseful = any([a > b for (a, b) in zip(vs, ve)])
-
-    if startLessThanMax and startUseful:
+    result.append([cappedVbo])
+    if startLessThanMax: # and startUseful:
         # starting var is bigger, but not too big
         result.append([vs])
-
-    print 'genLookObjPrevVariance', result
-
     return result
 
 # starting var if it's legal, plus regression of the result var
