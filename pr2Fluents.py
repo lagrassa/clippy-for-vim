@@ -166,8 +166,12 @@ class CanReachHome(Fluent):
 
     def heuristicVal(self, bState, v, p):
         # Return cost estimate and a set of dummy operations
-        obstCost = 10
-        shadowCost = 5
+        (conf, hand,
+               lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
+               robj, rface, rgraspMu, rgraspVar, rgraspDelta, cond) = \
+                            self.args   # Args
+        
+        obstCost = 10  # move pick move place
         path, violations = self.getViols(bState.details, v, p, strict = False)
         if path == None:
             #!! should this happen?
@@ -181,7 +185,17 @@ class CanReachHome(Fluent):
         for o in obstOps: o.instanceCost = obstCost
         shadowOps = [Operator('RemoveShadow', [o.name()],{},[]) \
                      for o in shadows]
-        for o in shadowOps: o.instanceCost = shadowCost
+        d = bState.domainProbs.placeVar
+        ep = bState.domainProbs.obsTypeErrProb
+        vo = details.domainProbs.obsVarTuple
+        # compute shadow costs individually
+        for o in shadowOps:
+            # Use variance in start state
+            vb = tuple(bState.poseModeDist(obj, face).mld().\
+                       sigma.diagonal().tolist()[0])
+            deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
+            c = o.cost / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
+            o.instanceCost = c
         ops = set(obstOps + shadowOps)
         return (obstCost * len(obstacles) + shadowCost * len(shadows), ops)
 
