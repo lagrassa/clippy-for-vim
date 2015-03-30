@@ -286,7 +286,7 @@ class PBS:
             # Shadow relative to Identity pose
             shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
             # The irreducible shadow
-            objBMinDelta = self.domainProbs.placeVar
+            objBMinDelta = self.domainProbs.minDelta
             objBMinVar = self.domainProbs.obsVarTuple
             objBMinProb = 0.95
             if all([x <= y for (x,y) in zip(shadowWidths(objB.poseD.var, objB.delta, 0.99),

@@ -615,8 +615,8 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
         for thing in goal.fluents: print '   ', thing.shortName()
         print '     acts'
         for op in totalActSet: print '        ', \
-              prettyString(op.instanceCost), op.name
-        debugMsg('haddBack')
+              prettyString(op.instanceCost), op.name, op.args[0]
+        debugMsg('hAddBack', 'final')
     if totalCost < float('inf') and not debug('hAddBack'):
         def n(f):
             return f.args[0].predicate if f.predicate in ('B', 'Bd') \

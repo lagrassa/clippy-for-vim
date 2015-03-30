@@ -228,6 +228,7 @@ class DomainProbs:
         # Bad failures, like dropping
         self.pickFailProb = pickFailProb
         self.placeFailProb = placeFailProb
+        self.minDelta = tuple([2*x for x in self.placeStdev])
         
 def shadowWidths(variance, delta, probability):
     numStdDevs =  math.sqrt(chiSqFromP(1-probability, 3))

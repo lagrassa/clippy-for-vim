@@ -186,7 +186,7 @@ class CanReachHome(Fluent):
         for o in obstOps: o.instanceCost = obstCost
         shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
                      for o in shadows])
-        d = bState.details.domainProbs.placeVar
+        d = bState.details.domainProbs.minDelta
         ep = bState.details.domainProbs.obsTypeErrProb
         vo = bState.details.domainProbs.obsVarTuple
         # compute shadow costs individually
@@ -203,8 +203,7 @@ class CanReachHome(Fluent):
         if debug('hAddBack'):
             print 'Heuristic val', self.predicate
             print 'ops', ops, 'cost',\
-             prettyString(obstCost * len(obstOps) + \
-                          shadowCost * len(shadowOps))
+             prettyString(obstCost * len(obstOps) + shadowSum)
             raw_input('foo?')
         return (obstCost * len(obstacles) + shadowSum, ops)
 
@@ -316,7 +315,7 @@ class CanPickPlace(Fluent):
         shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
                      for o in shadows])
 
-        d = bState.details.domainProbs.placeVar
+        d = bState.details.domainProbs.minDelta
         ep = bState.details.domainProbs.obsTypeErrProb
         vo = bState.details.domainProbs.obsVarTuple
         # compute shadow costs individually
@@ -333,8 +332,7 @@ class CanPickPlace(Fluent):
         if debug('hAddBack'):
             print 'Heuristic val', self.predicate
             print 'ops', ops, 'cost',\
-             prettyString(obstCost * len(obstOps) + \
-                          shadowCost * len(shadowOps))
+             prettyString(obstCost * len(obstOps) + shadowSum)
             raw_input('foo?')
 
         return (obstCost * len(obstacles) + shadowSum, ops)

@@ -957,7 +957,7 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
     # If possible, it might be better to make the deltas big; but we
     # have to be sure to use the same delta when generating paths.
 
-    objBMinDelta = newBS.domainProbs.placeVar
+    objBMinDelta = newBS.domainProbs.minDelta
     objBMinVar = newBS.domainProbs.obsVarTuple
     objBMinProb = 0.95
 
@@ -1057,7 +1057,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         debugMsg('canPickPlaceGen', 'No obstacles or shadows; returning')
         return
     
-    objBMinDelta = newBS.domainProbs.placeVar
+    objBMinDelta = newBS.domainProbs.minDelta
     objBMinVar = newBS.domainProbs.obsVarTuple
     objBMinProb = 0.95
 
