@@ -610,6 +610,7 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 
     t = PlanTest('test3',  errProbs, allOperators,
                  objects=['table1', 'objA'],
+                 fixPoses={'table1': util.Pose(1.3, 0.0, 0.0, math.pi/2)},
                  movePoses={'objA': front},
                  varDict = varDict)
     targetPose = (0.9, 0.25, tZ, 0.0)
@@ -816,7 +817,7 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
     t = PlanTest('test9', errProbs, allOperators,
                  objects = ['table1'],
                  varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2)},
-                 fixPoses={'table1': util.Pose(1.3, 0.0, 0.0, math.pi/2)}
+                 # fixPoses={'table1': util.Pose(1.3, 0.0, 0.0, math.pi/2)}
                  )
 
     #pr2RoadMap2.searchGreedy = 0.5
@@ -834,6 +835,7 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
           skeleton = [[move, poseAchCanReach,
                        lookAt, move]] if skeleton else None,
           )
+    return t
 
 def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
            easy = False, rip = False):

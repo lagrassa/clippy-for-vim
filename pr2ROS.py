@@ -65,6 +65,7 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         conf.right_grip = map(float, cnfIn.get('pr2RightGripper', []))
         conf.head = map(float, cnfIn.get('pr2Head', []))
         if conf.head:
+            print 'commanded head angles', conf.head
             cnfInCart = cnfIn.cartConf()
             head = cnfInCart['pr2Head']
             headTurned = cnfInCart['pr2Head'].compose(headTurn)
