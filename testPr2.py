@@ -730,7 +730,7 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
                       [lookAt,
                        move,
                        place.applyBindings({'Hand' : 'left'}),
-                       move, pick, move]] \
+                       move, pick, move, lookAt, move]] \
                       if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
