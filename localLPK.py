@@ -57,7 +57,8 @@ traceGen  (compact summary of generators)
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'hAddBackInf', 'appOp:number']
+           'hAddBackInf', 'appOp:number', 'regression:fail',
+           'canPickPlaceGen']
 #           'placeGen', 'placeVar']
 #           'regression:fail', 'appOp:number', 'canReachGen', 'canPickPlaceGen']
  #      'obsUpdate', 'hAddBackInf', 'regression:fail', 'placeGen',
