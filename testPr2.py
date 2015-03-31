@@ -79,7 +79,7 @@ writeSearch = True
 
 useRight = True
 useHorizontal = True
-useVertical = False
+useVertical = True
 useCartesian = False
 
 ######################################################################
@@ -626,10 +626,6 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
     varDict = {} if easy else {'table1': (0.1**2, 0.03**2, 1e-10, 0.3**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
-    # varDict = {} if easy else {'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)}
-    # varDict = {} if easy else {'table1': (0.1**2, 0.03**2, 1e-10, 0.3**2)}
-
-
     front = util.Pose(1.1, 0.0, tZ, 0.0)
 
     t = PlanTest('test3',  errProbs, allOperators,
@@ -909,13 +905,15 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     t = PlanTest('test11',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
-                 # varDict = {'objA': (0.075**2,0.075**2, 1e-10,0.2**2),
-                 #            'objB': (0.075**2,0.075**2, 1e-10,0.2**2)})
-                 varDict = {'objA': (0.075**2, 0.15**2, 1e-10,0.2**2),
-                            'objB': (0.075**2, 0.15**2, 1e-10,0.2**2)})
+    # varDict = {} if easy else {'objA': (0.075**2, 0.1**2, 1e-10,0.2**2),
+    #                            'objB': (0.075**2, 0.1**2, 1e-10,0.2**2),
+    #                            'table1': (0.1**2, 0.03**2, 1e-10, 0.3**2)})
+    varDict = {} if easy else {'objA': (0.075**2, 0.1**2, 1e-10,0.2**2),
+                                'objB': (0.075**2, 0.1**2, 1e-10,0.2**2),
+                                'table1': (0.05**2, 0.03**2, 1e-10, 0.2**2)})
 
     targetPose = (1.05, 0.25, tZ, 0.0)
-    targetPoseB = (1.05, -0.2, tZ, 0.0)
+    targetPoseB = (1.05, -0.25, tZ, 0.0)
     # targetVar = (0.002, 0.002, 0.002, 0.005)  make this work!
     targetVar = (0.0005, 0.0005, 0.0005, 0.001) 
 
@@ -971,10 +969,23 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
              move,
              lookAt.applyBindings({'Obj' : 'objB'}),
              move]]*5
-        
+
+    hierSkel = [[lookAt.applyBindings({'Obj' : 'objB'}),
+                 lookAt.applyBindings({'Obj' : 'objA'}),
+                 place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
+                 place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'})],
+                [place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
+                 poseAchCanPickPlace.applyBindings({'Obj' : 'objB'})],
+                [poseAchCanPickPlace.applyBindings({'Obj' : 'objB'}),
+                 lookAt.applyBindings({'Obj' : 'objA'}),
+                 move,
+                 poseAchCanPickPlace.applyBindings({'Obj' : 'objB'}),
+                 lookAt.applyBindings({'Obj' : 'table1'}),
+                 move]]
+                 
     t.run(goal,
           hpn = hpn,
-          skeleton = hardSkel if skeleton else None,
+          skeleton = hierSkel if skeleton else None,
           hierarchical = hierarchical,
           #regions=['table1Top'],
           heuristic = heuristic,

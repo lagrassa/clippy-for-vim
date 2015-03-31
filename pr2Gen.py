@@ -606,7 +606,9 @@ def placeInGenAway(args, goalConds, pbs, outBindings):
     # !! Should search over regions and hands
     (obj, delta, prob) = args
     hand = 'left'
-    assert pbs.awayRegions(), 'Need some awayRegions'
+    if not pbs.awayRegions():
+        raw_input('Need some awayRegions')
+        return 
     for ans in placeInGen((obj, pbs.awayRegions(), '?x', '?x', '?x', '?x',
                            delta, delta, delta, hand, prob),
                           # preserve goalConds to get reachObsts

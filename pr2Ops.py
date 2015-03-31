@@ -462,6 +462,9 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     if True: #startLessThanMax: # and startUseful:
         # starting var is bigger, but not too big
         result.append([vs])
+
+    debugMsg('genLookObjPrevVariance', result)
+
     return result
 
 # starting var if it's legal, plus regression of the result var
@@ -1072,7 +1075,6 @@ pick = Operator(\
         ignorableArgs = range(2, 27))  # pays attention to pose
 
 # P2 goes into success prob (cost)
-# Consider reducing prob without increasing var
 lookAt = Operator(\
     'LookAt',
     ['Obj', 'LookConf', 'PoseFace', 'Pose',
@@ -1081,10 +1083,10 @@ lookAt = Operator(\
     # Pre
     {0: {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
          B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarBefore', 'PoseDelta',
-                 'P1'], True)},
-     1: {Bd([CanSeeFrom(['Obj', 'Pose', 'PoseFace', 'LookConf', []]),
-             True, 'P2'], True),
-         Conf(['LookConf', lookConfDelta], True)}},
+                 'P1'], True),
+         Bd([CanSeeFrom(['Obj', 'Pose', 'PoseFace', 'LookConf', []]),
+             True, 'P2'], True)},
+     1: {Conf(['LookConf', lookConfDelta], True)}},
     # Results
     [({B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
          'PR1'],True),
@@ -1186,8 +1188,8 @@ poseAchCanReach = Operator(\
      1: {Bd([CanReachHome(['CEnd', 'Hand', 
                    'LObj', 'LFace', 'LGraspMu', 'RealGraspVarL', 'LGraspDelta',
                    'RObj', 'RFace', 'RGraspMu', 'RealGraspVarR', 'RGraspDelta',
-                           'PreCond']),  True, 'P1'], True),
-         Bd([SupportFace(['Occ']), 'PoseFace', 'P2'], True),
+                           'PreCond']),  True, 'PR'], True),
+         Bd([SupportFace(['Occ']), 'PoseFace', 'PR'], True),
          B([Pose(['Occ', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta', 'P2'],
             True)}},
     # Result
@@ -1205,11 +1207,11 @@ poseAchCanReach = Operator(\
                   ['CEnd', 'Hand',
                    'LObj', 'LFace', 'LGraspMu', 'RealGraspVarL', 'LGraspDelta',
                    'RObj', 'RFace', 'RGraspMu', 'RealGraspVarR', 'RGraspDelta',
-                   'P1', 'PostCond'], canReachGen, 'canReachGen'),
+                   'PR', 'PostCond'], canReachGen, 'canReachGen'),
          # Add the appropriate condition
          Function(['PreCond'],
                   ['PostCond',
-                   'Occ', 'PoseFace', 'Pose', 'PoseVar', 'PoseDelta', 'P2'],
+                   'Occ', 'PoseFace', 'Pose', 'PoseVar', 'PoseDelta', 'PR'],
                   addPosePreCond, 'addPosePreCond')],
     cost = lambda al, args, details: 0.1,
     argsToPrint = [0, 14, 16],
@@ -1229,10 +1231,10 @@ poseAchCanPickPlace = Operator(\
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                          'OGraspDelta', 'PreCond']), True, 'P1'],True),
+                          'OGraspDelta', 'PreCond']), True, 'PR'],True),
          Bd([SupportFace(['Occ']), 'OccPoseFace', 'P2'], True),
          B([Pose(['Occ', 'OccPoseFace']), 'OccPose', 'OccPoseVar',
-                  'OccPoseDelta', 'P2'],
+                  'OccPoseDelta', 'PR'],
             True)}},
     # Result
     [({Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
@@ -1250,13 +1252,13 @@ poseAchCanPickPlace = Operator(\
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                          'OGraspDelta', 'P1', 'PostCond'],
+                          'OGraspDelta', 'PR', 'PostCond'],
                           canPickPlaceGen, 'canPickPlaceGen'),
          # Add the appropriate condition
          Function(['PreCond'],
                   ['PostCond',
                    'Occ', 'OccPoseFace', 'OccPose', 'OccPoseVar',
-                   'OccPoseDelta', 'P2'],
+                   'OccPoseDelta', 'PR'],
                   addPosePreCond, 'addPosePreCond')],
     cost = lambda al, args, details: 0.1,
     argsToPrint = [3, 2, 4, 19, 20],
@@ -1277,11 +1279,11 @@ graspAchCanPickPlace = Operator(\
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'PreGraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                          'OGraspDelta', 'Cond']), True, 'P1'],True),
-         Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'P2'], True),
+                          'OGraspDelta', 'Cond']), True, 'PR'],True),
+         Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'PR'], True),
          Bd([Holding(['Hand']), 'Obj', 'P2'], True),
          B([Grasp(['Obj', 'Hand', 'GraspFace']),
-             'GraspMu', 'PreGraspVar', 'GraspDelta', 'P2'], True)}},
+             'GraspMu', 'PreGraspVar', 'GraspDelta', 'PR'], True)}},
     # Result
     [({Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
@@ -1308,10 +1310,10 @@ poseAchCanSee = Operator(\
 
     {0: {Bd([CanSeeFrom(['Obj', 'TargetPose', 'TargetPoseFace', 'LookConf',
                          'PreCond']),
-             True, 'P1'], True)},
-     1: {Bd([SupportFace(['Occ']), 'OccPoseFace', 'P2'], True),
+             True, 'PR'], True)},
+     1: {Bd([SupportFace(['Occ']), 'OccPoseFace', 'PR'], True),
          B([Pose(['Occ', 'OccPoseFace']), 'OccPose', 'OccPoseVar',
-            'OccPoseDelta', 'P2'], True)}},
+            'OccPoseDelta', 'PR'], True)}},
     # Result
     [({Bd([CanSeeFrom(['Obj', 'TargetPose', 'TargetPoseFace', 'LookConf', 
                            'PostCond']),  True, 'PR'], True)}, {})],
@@ -1325,7 +1327,7 @@ poseAchCanSee = Operator(\
         # Call generator
         Function(['Occ', 'OccPose', 'OccPoseFace', 'OccPoseVar','OccPoseDelta'],
                   ['Obj', 'TargetPose', 'TargetPoseFace', 'TargetPoseVar',
-                   'TargetPoseDelta', 'LookConf', 'ConfDelta', 'P2'],
+                   'TargetPoseDelta', 'LookConf', 'ConfDelta', 'PR'],
                     canSeeGen, 'canSeeGen'),
          # Add the appropriate condition
          Function(['PreCond'],
