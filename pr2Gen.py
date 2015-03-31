@@ -71,10 +71,11 @@ def easyGraspGen(args, goalConds, bState, outBindings):
     cache = pbs.beliefContext.genCaches['easyGraspGen']
     key = (newBS, placeB, graspB, hand, prob)
     easyGraspGenCacheStats[0] += 1
-    if key in cache:
+    val = cache.get(key, None)
+    if val != None:
         easyGraspGenCacheStats[1] += 1
-        memo = cache[key].copy()
         cached = 'C'
+        memo = val.copy()
     else:
         memo = Memoizer('easyGraspGen',
                         easyGraspGenAux(newBS, placeB, graspB, hand, prob))
