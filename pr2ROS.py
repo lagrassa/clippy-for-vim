@@ -189,7 +189,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             tablePoseRobot = getSupportPose(table, trueFace)
             tablePose = outConfCart['pr2Base'].compose(tablePoseRobot)
             #!! needs generalizing
-            return ('table', trueFace, tablePose)
+            return (self.world.getObjType(targetObj), trueFace, tablePose)
         elif targetObj in placeBs:
             supportTable = findSupportTable(targetObj, self.world, placeBs)
             assert supportTable
@@ -217,7 +217,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             if debug('robotEnv'):
                 objPlace.draw('W', 'red')
                 raw_input(objPlace.name())
-            return (objPlace.name(), trueFace, getSupportPose(objPlace, trueFace))
+            return (self.world.getObjType(objPlace.name()),
+                    trueFace, getSupportPose(objPlace, trueFace))
         else:
             raw_input('Unknown object: %s'%targetObj)
             return None
@@ -403,3 +404,125 @@ def getSupportPose(shape, supportFace):
     print 'supportPose\n', pose.matrix
     return pose
 
+# Given an approach conf and a target conf, interpolate cartesion
+# poses and check for contacts.  We assume that the approach and
+# target have the same hand orientations, and only the origin is
+# displaced.
+
+# Mnemonic access indeces
+obsConf, obsGrip, obsTrigger, obsContacts = range(4)
+
+# x direction is approach direction.
+xoffset = 0.05
+yoffset = 0.01
+def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
+    if tries == 0:
+        print 'reactiveApproach failed'
+        return None
+    (obs, traj) = robot.tryGrasp(startConf, targetConf, hand)
+    print 'obs after tryGrasp', obs
+    if reactBoth(obs):
+        if abs(obs[obsGrip] - gripDes) < 0.02:
+            print 'holding'
+            return obs
+        else:
+            print 'opening', obs[obsGrip], 'did not match', gripDes
+            pr2GoToConf(gripOpen(obs[obsConf], hand), 'move')
+    if reactLeft(obs):
+        print 'reactLeft'
+        backConf = displaceHand(targetConf, hand, dx=-xoffset)
+        result, nConf = pr2GoToConf(backConf, 'move')
+        print 'backConf', handTrans(nConf, hand).point(), result
+        reactiveApproach(backConf, displaceHand(targetConf, hand, dy=yoffset),
+                         gripDes, hand, tries-1)
+    elif reactRight(obs):
+        print 'reactRight'
+        backConf = displaceHand(targetConf, hand, dx=-xoffset)
+        result, nConf = pr2GoToConf(backConf, 'move')
+        print 'backConf', handTrans(nConf, hand).point(), result
+        reactiveApproach(backConf, displaceHand(targetConf, hand, dy=-yoffset),
+                         gripDes, hand, tries-1)
+    else:
+        print 'reactiveApproach confused'
+        return None
+
+def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0):
+    trans = handTrans(conf, hand)
+    nTrans = trans.compose(util.Pose(dx, dy, dz, 0.0))
+    nCart = cart.set(handFrameName, nTrans)
+    nConf = conf.robot.inverseKin(nCart, conf=conf) # use conf to resolve
+    if all(nConf.conf.values()):
+        return nConf
+    else:
+        print 'displaceHand: failed kinematics'
+        return conf
+def reactBoth(obs):
+    return obs[obsContacts][1] and obs[obsContacts][3] 
+def reactRight(obs):
+    return obs[obsTrigger] in ('R_tip', 'R_pad') \
+           or obs[obsContacts][2] or obs[obsContacts][3]
+def reactLeft(obs):
+    return obs[obsTrigger] in ('L_tip', 'L_pad') \
+           or obs[obsContacts][0] or obs[obsContacts][1]
+def gripOpen(conf, hand):
+    return conf.set(conf.robot.gripperChainNames[hand], 0.08)
+def handTrans(conf, hand):
+    cart = conf.cartConf()
+    handFrameName = conf.robot.armChainNames[hand]
+    return cart[handFrameName]
+
+def tryGrasp(self, approachConf, graspConf, hand, stepSize = 0.01, verbose = False):
+    print 'tryGrasp'
+    print '    from', handTrans(approachConf, hand).point()
+    print '      to', handTrans(graspConf, hand).point()
+    pr2GoToConf(approachConf, 'move')     # move to approach conf
+    pr2GoToConf(approachConf, 'resetForce', arm=hand[0])
+    path = cartInterpolators(graspConf, approachConf, stepSize)
+    for i, p in enumerate(path):
+        print i,  handTrans(p, hand).point()
+    raw_input('Go?')
+    for conf in path:
+        result, curConf = pr2GoToConf(conf, 'moveGuarded')
+        print 'result', result, handTrans(curConf, hand).point()
+        if result in ('Acc', 'goal'):
+            result, curConf = compliantClose(curConf, hand, 0.005)
+            print 'compliantClose result', result
+            if result == 'LR_pad':
+                contacts = [False, True, False, True]
+            elif result == 'none':
+                contacts = 4*[False]
+            else:
+                raw_input('Unexpected result from compliantClose')
+                contacts = 4*[False]
+        obs = (curConf, curConf[conf.robot.gripperChainNames[hand]],
+               result, contacts)
+        return obs, (approachConf, curConf)
+
+def compliantClose(conf, hand, step = 0.01, n = 1):
+    if n > 5:
+        (result, cnfOut) = pr2GoToConf(conf, 'close', arm=hand[0])
+        return result
+    print 'compliantClose step=', step
+    result, curConf = pr2GoToConfGuarded(conf, 'closeGuarded', arm=hand[0])
+    print 'result', result, handTrans(curConf, hand).point()
+    # could displace to find contact with the other finger
+    # instead of repeatedly closing.
+    if result == 'LR_pad':
+        return result
+    elif result in ('L_pad', 'R_pad'):
+        off = step if result == 'L_pad' else -step
+        nConf = displaceHand(curConf, dy=off)
+        pr2GoToConf(nConf, 'move')      # should this be guarded?
+        return self.compliantClose(nConf, hand, step=0.9*step, n = n+1)
+    elif result == 'none':
+        return result
+    else:
+        raw_input('Bad result in compliantClose: %s'%str(result))
+        return result
+
+def testReactive(startConf, offset = (0.05, 0.0, 0.0), grip=0.04):
+    hand = 'left'
+    (dx,dy,dz) = offset
+    targetConf = displaceHand(startConf, hand, dx=dx, dy=dy, dz=dz)
+    print reactiveApproach(startConf, targetConf, grip, hand)
+    

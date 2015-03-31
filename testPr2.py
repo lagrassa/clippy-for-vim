@@ -69,7 +69,7 @@ from pr2Sim2 import RealWorld
 
 import pr2ROS
 reload(pr2ROS)
-from pr2ROS import RobotEnv, pr2GoToConf
+from pr2ROS import RobotEnv, pr2GoToConf, reactiveApproach, testReactive
 
 writeSearch = True
 
@@ -1772,4 +1772,10 @@ def firstAid(details, fluent = None):
         return fluent.valueInDetails(details)
 
 
+def testReact():
+    t = PlanTest('testReact', typicalErrProbs, allOperators)
+    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)
+    testReactive(startConf)
+    
 
+    

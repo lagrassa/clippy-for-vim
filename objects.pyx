@@ -88,9 +88,9 @@ class World:
         conf = dict([[objName, [Ident]]] +\
                     [[chain.name, []] for chain in chains[1:]])
         shape = obj.placement(Ident, conf)[0]
-        return next((part for part in shape.parts() if part.name() == objName), None)
+        # return next((part for part in shape.parts() if part.name() == objName), None)
         # To make sure that we remove unnesessary nestings
-        # return simplify(shape)
+        return simplify(shape)
 
     def getGraspDesc(self, obj):
         if obj == 'none':
