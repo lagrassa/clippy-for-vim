@@ -14,6 +14,10 @@ from pr2Util import shadowWidths, supportFaceIndex
 from miscUtil import argmax
 from pr2Robot2 import JointConf
 
+import pr2Robot2
+reload(pr2Robot2)
+from pr2Robot2 import cartInterpolators
+
 import util
 import tables
 reload(tables)
@@ -419,7 +423,7 @@ def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
     if tries == 0:
         print 'reactiveApproach failed'
         return None
-    (obs, traj) = robot.tryGrasp(startConf, targetConf, hand)
+    (obs, traj) = tryGrasp(startConf, targetConf, hand)
     print 'obs after tryGrasp', obs
     if reactBoth(obs):
         if abs(obs[obsGrip] - gripDes) < 0.02:
@@ -447,7 +451,9 @@ def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
         return None
 
 def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0):
-    trans = handTrans(conf, hand)
+    cart = conf.cartConf()
+    handFrameName = conf.robot.armChainNames[hand]
+    trans = cart[handFrameName]
     nTrans = trans.compose(util.Pose(dx, dy, dz, 0.0))
     nCart = cart.set(handFrameName, nTrans)
     nConf = conf.robot.inverseKin(nCart, conf=conf) # use conf to resolve
@@ -471,39 +477,50 @@ def handTrans(conf, hand):
     handFrameName = conf.robot.armChainNames[hand]
     return cart[handFrameName]
 
-def tryGrasp(self, approachConf, graspConf, hand, stepSize = 0.01, verbose = False):
+def tryGrasp(approachConf, graspConf, hand, stepSize = 0.3, verbose = False):
+    def close():
+        result = compliantClose(curConf, hand, 0.005)
+        print 'compliantClose result', result
+        if result == 'LR_pad':
+            contacts = [False, True, False, True]
+        elif result == 'none':
+            contacts = 4*[False]
+        else:
+            raw_input('Unexpected result from compliantClose')
+            contacts = 4*[False]
+        return contacts
     print 'tryGrasp'
     print '    from', handTrans(approachConf, hand).point()
     print '      to', handTrans(graspConf, hand).point()
     pr2GoToConf(approachConf, 'move')     # move to approach conf
     pr2GoToConf(approachConf, 'resetForce', arm=hand[0])
-    path = cartInterpolators(graspConf, approachConf, stepSize)
+    path = cartInterpolators(graspConf, approachConf, stepSize)[::-1]
     for i, p in enumerate(path):
         print i,  handTrans(p, hand).point()
     raw_input('Go?')
     for conf in path:
         result, curConf = pr2GoToConf(conf, 'moveGuarded')
         print 'result', result, handTrans(curConf, hand).point()
-        if result in ('Acc', 'goal'):
-            result, curConf = compliantClose(curConf, hand, 0.005)
-            print 'compliantClose result', result
-            if result == 'LR_pad':
-                contacts = [False, True, False, True]
-            elif result == 'none':
-                contacts = 4*[False]
-            else:
-                raw_input('Unexpected result from compliantClose')
-                contacts = 4*[False]
-        obs = (curConf, curConf[conf.robot.gripperChainNames[hand]],
-               result, contacts)
-        return obs, (approachConf, curConf)
+        if result in ('Acc', 'LR_tip', 'L_tip', 'R_tip',
+                      'LR_pad', 'L_pad', 'R_pad'):
+            contacts = close()
+            break
+        elif result == 'goal':
+            contacts = 4*[False]
+            continue
+        else:
+            raw_input('Unknown compliantClose result = %s'%result)
+            contacts = 4*[False]
+    obs = (curConf, curConf[conf.robot.gripperChainNames[hand]],
+           result, contacts)
+    return obs, (approachConf, curConf)
 
 def compliantClose(conf, hand, step = 0.01, n = 1):
     if n > 5:
         (result, cnfOut) = pr2GoToConf(conf, 'close', arm=hand[0])
         return result
     print 'compliantClose step=', step
-    result, curConf = pr2GoToConfGuarded(conf, 'closeGuarded', arm=hand[0])
+    result, curConf = pr2GoToConf(conf, 'closeGuarded', arm=hand[0])
     print 'result', result, handTrans(curConf, hand).point()
     # could displace to find contact with the other finger
     # instead of repeatedly closing.
@@ -511,9 +528,9 @@ def compliantClose(conf, hand, step = 0.01, n = 1):
         return result
     elif result in ('L_pad', 'R_pad'):
         off = step if result == 'L_pad' else -step
-        nConf = displaceHand(curConf, dy=off)
+        nConf = displaceHand(curConf, hand, dy=off)
         pr2GoToConf(nConf, 'move')      # should this be guarded?
-        return self.compliantClose(nConf, hand, step=0.9*step, n = n+1)
+        return compliantClose(nConf, hand, step=0.9*step, n = n+1)
     elif result == 'none':
         return result
     else:

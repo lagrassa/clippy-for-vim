@@ -1773,8 +1773,11 @@ def firstAid(details, fluent = None):
 
 
 def testReact():
-    t = PlanTest('testReact', typicalErrProbs, allOperators)
+    t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
     startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)
+    cnfOut, result = pr2GoToConf(startConf, 'move')
+    # Reset the internal coordinate frames
+    cnfOut, result = pr2GoToConf({}, 'reset')
     testReactive(startConf)
     
 

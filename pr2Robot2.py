@@ -4,6 +4,7 @@ import util
 import copy
 import itertools
 import transformations as transf
+from transformations import quaternion_slerp
 import numpy as np
 
 import shapes
@@ -936,13 +937,17 @@ def fwDist(arm, T, sol):
 # Interpolators
 ##################
 
-def interpPose(self, pose_f, pose_i, minLength, ratio=0.5):
-    pr = pose_f.point()*ratio + pose_i.point()*(1-ratio)
-    qr = quaternion_slerp(pose_i.quat().matrix, pose_f.quat().matrix, ratio)
-    return util.Transform(None, pr.matrix, qr), \
-           pose_f.near(pose_i, minLength, minLength)
+def interpPose(pose_f, pose_i, minLength, ratio=0.5):
+    if isinstance(pose_f, list):
+        return [f*ratio + i*(1-ratio) for (f,i) in zip(pose_f, pose_i)], \
+               all([abs(f-i)<=minLength for (f,i) in zip(pose_f, pose_i)])
+    else:
+        pr = pose_f.point()*ratio + pose_i.point()*(1-ratio)
+        qr = quaternion_slerp(pose_i.quat().matrix, pose_f.quat().matrix, ratio)
+        return util.Transform(None, pr.matrix, qr), \
+               pose_f.near(pose_i, minLength, minLength)
 
-def cartInterpolators(self, conf_f, conf_i, minLength):
+def cartInterpolators(conf_f, conf_i, minLength):
     c_f = conf_f.cartConf()
     c_i = conf_i.cartConf()
     return cartInterpolatorsAux(c_f, c_i, conf_i, minLength)
@@ -950,16 +955,17 @@ def cartInterpolators(self, conf_f, conf_i, minLength):
 def cartInterpolatorsAux(c_f, c_i, conf_i, minLength, depth=0):
     if depth > 10:
         raw_input('cartInterpolators depth > 10')
-    if c_f == c_i: return [c_f]
+    robot = conf_i.robot
+    if c_f == c_i: return [robot.inverseKin(c_f, conf_i)]
     newVals = {}
     terminal = True
-    for chain in c_f:
+    for chain in c_f.conf:
         new, near = interpPose(c_f[chain], c_i[chain], minLength)
         newVals[chain] = new
         terminal = terminal and near
     if terminal: return []        # no chain needs splitting
     cart = CartConf(newVals, c_f.robot)
-    conf = conf_i.robot.inverseKin(cart, conf=conf_i)
+    conf = robot.inverseKin(cart, conf=conf_i)
     for chain in conf_i.robot.chainNames: #  fill in?
         if not chain in conf.conf:
             conf.conf[chain] = conf_i.conf[chain]
