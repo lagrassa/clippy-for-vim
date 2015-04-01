@@ -907,7 +907,7 @@ def test11(hpn = True, skeleton = False, hierarchical = False,
                  objects=['table1', 'objA', 'objB'],
     # varDict = {} if easy else {'objA': (0.075**2, 0.1**2, 1e-10,0.2**2),
     #                            'objB': (0.075**2, 0.1**2, 1e-10,0.2**2),
-    #                            'table1': (0.1**2, 0.03**2, 1e-10, 0.3**2)})
+    #                            'table1': (0.1**2, 0.03**2, 1e-10, 0.3**2)}
     varDict = {} if easy else {'objA': (0.075**2, 0.1**2, 1e-10,0.2**2),
                                 'objB': (0.075**2, 0.1**2, 1e-10,0.2**2),
                                 'table1': (0.05**2, 0.03**2, 1e-10, 0.2**2)})
