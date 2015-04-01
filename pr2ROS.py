@@ -434,14 +434,14 @@ def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
             pr2GoToConf(gripOpen(obs[obsConf], hand), 'move')
     if reactLeft(obs):
         print 'reactLeft'
-        backConf = displaceHand(targetConf, hand, dx=-xoffset)
+        backConf = displaceHand(obs[obsConf], hand, dx=-xoffset)
         result, nConf = pr2GoToConf(backConf, 'move')
         print 'backConf', handTrans(nConf, hand).point(), result
         reactiveApproach(backConf, displaceHand(targetConf, hand, dy=yoffset),
                          gripDes, hand, tries-1)
     elif reactRight(obs):
         print 'reactRight'
-        backConf = displaceHand(targetConf, hand, dx=-xoffset)
+        backConf = displaceHand(obs[obsConf], hand, dx=-xoffset)
         result, nConf = pr2GoToConf(backConf, 'move')
         print 'backConf', handTrans(nConf, hand).point(), result
         reactiveApproach(backConf, displaceHand(targetConf, hand, dy=-yoffset),
@@ -477,7 +477,7 @@ def handTrans(conf, hand):
     handFrameName = conf.robot.armChainNames[hand]
     return cart[handFrameName]
 
-def tryGrasp(approachConf, graspConf, hand, stepSize = 0.3, verbose = False):
+def tryGrasp(approachConf, graspConf, hand, stepSize = 0.01, verbose = False):
     def close():
         result = compliantClose(curConf, hand, 0.005)
         print 'compliantClose result', result
@@ -492,9 +492,14 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.3, verbose = False):
     print 'tryGrasp'
     print '    from', handTrans(approachConf, hand).point()
     print '      to', handTrans(graspConf, hand).point()
-    pr2GoToConf(approachConf, 'move')     # move to approach conf
+    result, curConf = pr2GoToConf(approachConf, 'move')
     pr2GoToConf(approachConf, 'resetForce', arm=hand[0])
-    path = cartInterpolators(graspConf, approachConf, stepSize)[::-1]
+    moveChains = [approachConf.robot.armChainNames[hand]+'Frame']
+    path = cartInterpolators(graspConf, approachConf, stepSize, 
+                             moveChains=moveChains)[::-1]
+    if not path:
+        print 'No interpolation path'
+        contacts = 4*[False]
     for i, p in enumerate(path):
         print i,  handTrans(p, hand).point()
     raw_input('Go?')
@@ -515,7 +520,7 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.3, verbose = False):
            result, contacts)
     return obs, (approachConf, curConf)
 
-def compliantClose(conf, hand, step = 0.01, n = 1):
+def compliantClose(conf, hand, step = 0.1, n = 1):
     if n > 5:
         (result, cnfOut) = pr2GoToConf(conf, 'close', arm=hand[0])
         return result
@@ -537,7 +542,7 @@ def compliantClose(conf, hand, step = 0.01, n = 1):
         raw_input('Bad result in compliantClose: %s'%str(result))
         return result
 
-def testReactive(startConf, offset = (0.05, 0.0, 0.0), grip=0.04):
+def testReactive(startConf, offset = (0.1, 0.0, 0.0), grip=0.04):
     hand = 'left'
     (dx,dy,dz) = offset
     targetConf = displaceHand(startConf, hand, dx=dx, dy=dy, dz=dz)

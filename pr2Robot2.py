@@ -947,32 +947,37 @@ def interpPose(pose_f, pose_i, minLength, ratio=0.5):
         return util.Transform(None, pr.matrix, qr), \
                pose_f.near(pose_i, minLength, minLength)
 
-def cartInterpolators(conf_f, conf_i, minLength):
+def cartInterpolators(conf_f, conf_i, minLength, moveChains = []):
     c_f = conf_f.cartConf()
     c_i = conf_i.cartConf()
-    return cartInterpolatorsAux(c_f, c_i, conf_i, minLength)
+    return cartInterpolatorsAux(c_f, c_i, conf_i, minLength, 
+                                moveChains=moveChains)
 
-def cartInterpolatorsAux(c_f, c_i, conf_i, minLength, depth=0):
+def cartInterpolatorsAux(c_f, c_i, conf_i, minLength, depth=0,
+                         moveChains = []):
     if depth > 10:
         raw_input('cartInterpolators depth > 10')
     robot = conf_i.robot
     if c_f == c_i: return [robot.inverseKin(c_f, conf_i)]
     newVals = {}
     terminal = True
-    for chain in c_f.conf:
-        new, near = interpPose(c_f[chain], c_i[chain], minLength)
+    raw_input('interp?')
+    for chain in moveChains or c_i.conf:
+        new, near = interpPose(c_f.conf[chain], c_i.conf[chain], minLength)
         newVals[chain] = new
         terminal = terminal and near
     if terminal: return []        # no chain needs splitting
+    for chain in c_i.conf: #  fill in?
+        if not chain in newVals:
+            newVals[chain] = c_i.conf[chain]
     cart = CartConf(newVals, c_f.robot)
     conf = robot.inverseKin(cart, conf=conf_i)
-    for chain in conf_i.robot.chainNames: #  fill in?
-        if not chain in conf.conf:
-            conf.conf[chain] = conf_i.conf[chain]
     if all([conf.conf.values()]):
-        final = cartInterpolatorsAux(c_f, cart, conf_i, minLength, depth+1)
+        final = cartInterpolatorsAux(c_f, cart, conf_i, minLength, depth+1,
+                                     moveChains=moveChains)
         if final != None:
-            init = cartInterpolatorsAux(cart, c_i, conf_i, minLength, depth+1)
+            init = cartInterpolatorsAux(cart, c_i, conf_i, minLength, depth+1,
+                                        moveChains=moveChains)
             if init != None:
                 final.append(conf)
                 final.extend(init)
