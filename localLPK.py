@@ -58,8 +58,8 @@ traceGen  (compact summary of generators)
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
            'hAddBackInf', 'appOp:number','traceGen']
-#           'placeGen', 'placeVar']
-#           'regression:fail', 'appOp:number', 'canReachGen', 'canPickPlaceGen']
+    # , 'canPickPlaceGen',
+    #        'regression:fail', 'appOp:number']
  #      'obsUpdate', 'hAddBackInf', 'regression:fail', 'placeGen',
  # 'lookGen', 'traceGen', 'canReachGen', 'canPickPlaceGen',
  # 'confReachViol', 'confViolations']
@@ -72,20 +72,6 @@ pauseOn = debugOn
 
 
 '''
-- change HPN to hierarchically highest true kernel
-Current version is much too attached to its subgoals
-
-
-
-Python mode
-C-C C-C should leave you in bottom buffer
-Indentation should be better.
-
-LPK to do
-
-- Test7
-
-
 - If we want to make moveObjToClear hierarchical, and postpone the pose
 fluent, then we have to find a way to conditionalize so that everybody
 else knows the object is out of the way, even if not where

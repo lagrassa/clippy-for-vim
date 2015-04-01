@@ -111,11 +111,11 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p):
     obj = objGrasp.obj
     pbs2 = pbs.copy().excludeObjs([obj]).updateHeldBel(objGrasp, hand)
     if debug('canPickPlaceTest'):
-        pbs2.draw(p, 'W')
+        pbs2.draw(p, 'W'); preConf.draw('W', attached = pbs2.getShadowWorld(p).attached)
         debugMsg('canPickPlaceTest', 'H->App, obj=held (condition 2)')
     path, violations = canReachHome(pbs2, preConf, p, violations)
     if not path:
-        debugMsg('canPickPlaceTest', 'Failed H->App, obj=held (condition 2)')
+        raw_input('canPickPlaceTest' + 'Failed H->App, obj=held (condition 2)')
         return None
     elif debug('canPickPlaceTest'):
         for c in path: c.draw('W', attached = pbs2.getShadowWorld(p).attached)
@@ -139,7 +139,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p):
     gB.delta = 4*(0.0,)
     pbs4 = pbs.copy().excludeObjs([obj]).updateHeldBel(gB, hand)
     if debug('canPickPlaceTest'):
-        pbs4.draw(p, 'W')
+        pbs4.draw(p, 'W'); pickConf.draw('W', attached = pbs4.getShadowWorld(p).attached)
         debugMsg('canPickPlaceTest', 'H->Target, holding obj (0 var) (condition 4)')
     path, violations = canReachHome(pbs4, pickConf, p, violations)
     if not path:

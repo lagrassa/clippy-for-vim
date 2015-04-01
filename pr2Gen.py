@@ -71,10 +71,11 @@ def easyGraspGen(args, goalConds, bState, outBindings):
     cache = pbs.beliefContext.genCaches['easyGraspGen']
     key = (newBS, placeB, graspB, hand, prob)
     easyGraspGenCacheStats[0] += 1
-    if key in cache:
+    val = cache.get(key, None)
+    if val != None:
         easyGraspGenCacheStats[1] += 1
-        memo = cache[key].copy()
         cached = 'C'
+        memo = val.copy()
     else:
         memo = Memoizer('easyGraspGen',
                         easyGraspGenAux(newBS, placeB, graspB, hand, prob))
@@ -606,7 +607,9 @@ def placeInGenAway(args, goalConds, pbs, outBindings):
     # !! Should search over regions and hands
     (obj, delta, prob) = args
     hand = 'left'
-    assert pbs.awayRegions(), 'Need some awayRegions'
+    if not pbs.awayRegions():
+        raw_input('Need some awayRegions')
+        return 
     for ans in placeInGen((obj, pbs.awayRegions(), '?x', '?x', '?x', '?x',
                            delta, delta, delta, hand, prob),
                           # preserve goalConds to get reachObsts

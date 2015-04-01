@@ -483,6 +483,10 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.01, verbose = False):
         print 'compliantClose result', result
         if result == 'LR_pad':
             contacts = [False, True, False, True]
+        elif result == 'L_pad':
+            contacts = [False, True, False, False]
+        elif result == 'R_pad':
+            contacts = [False, False, False, True]
         elif result == 'none':
             contacts = 4*[False]
         else:

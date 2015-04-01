@@ -566,7 +566,7 @@ class RoadMap:
             (v, viol) = s
             successors = []
             near = self.kNearest
-            maxNear = 32.
+            maxNear = 48
             minFree = 4.
             while len(successors) < minFree and near <= maxNear:
                 nearN = self.nearest(v, near+1)
