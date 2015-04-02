@@ -2,6 +2,7 @@ import numpy as np
 import util
 from dist import DeltaDist, varBeforeObs, DDist, probModeMoved, MixtureDist,\
      UniformDist, chiSqFromP, MultivariateGaussianDistribution
+import fbch
 from fbch import Function, getMatchingFluents, Operator, simplifyCond
 from miscUtil import isVar, prettyString, makeDiag
 from pr2Util import PoseD, shadowName, ObjGraspB, ObjPlaceB, Violations
@@ -14,9 +15,9 @@ from planGlobals import debugMsg, debug, useROS
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
-defaultPoseDelta = (0.0001, 0.0001, 0.0001, 0.001)
-defaultTotalDelta = (0.001, 0.001, 0.001, 0.01)  # for place in region
-lookConfDelta = (0.0001, 0.0001, 0.0001, 0.001)
+defaultPoseDelta = (0.01, 0.01, 0.01, 0.03)
+defaultTotalDelta = (0.05, 0.05, 0.05, 0.1)  # for place in region
+lookConfDelta = (0.01, 0.01, 0.01, 0.01)
 
 # Fixed accuracy to use for some standard preconditions
 canPPProb = 0.9
@@ -584,20 +585,23 @@ def costFun(primCost, prob):
 def moveCostFun(al, args, details):
     (s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
     result = costFun(1.0, p1 * p2 * pcr)
-    debugMsg('cost', ('move', (p1, p2, pcr), result))
+    if not fbch.inHeuristic:
+        debugMsg('cost', ('move', (p1, p2, pcr), result))
     return result
 
 def placeCostFun(al, args, details):
     (_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,p1,p2,p3)\
        = args
     result = costFun(1.0, p1 * p2 * p3 * (1-details.domainProbs.placeFailProb))
-    debugMsg('cost', ('place', (p1, p2, p3), result))
+    if not fbch.inHeuristic:
+        debugMsg('cost', ('place', (p1, p2, p3), result))
     return result
 
 def pickCostFun(al, args, details):
     (_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,p1,p2,p3,p4,_,_,_) = args
     result = costFun(1.0, p1*p2*p3*p4 * (1 - details.domainProbs.pickFailProb))
-    debugMsg('cost', ('pick', (p1, p2, p3, p4), result))
+    if not fbch.inHeuristic:
+        debugMsg('cost', ('pick', (p1, p2, p3, p4), result))
     return result
 
 # Cost depends on likelihood of seeing the object and of moving the
@@ -614,8 +618,9 @@ def lookAtCostFun(al, args, details):
     deltaViolProb = probModeMoved(d[0], va[0], vo[0])
     result = costFun(1.0, pCanSee*placeProb*(1-deltaViolProb)*\
                      (1 - details.domainProbs.obsTypeErrProb))
-    debugMsg('cost',
-             ('lookAt',
+    if not fbch.inHeuristic:
+        debugMsg('cost',
+             ('lookAt', ('delta', d[0], 'var after', va[0], 'obsvar', vo[0]),
               (pCanSee, placeProb,
                1-deltaViolProb, 1-details.domainProbs.obsTypeErrProb),
                 result))
@@ -1146,7 +1151,7 @@ place = Operator(\
 
             # In case PoseDelta isn't defined
             Function(['PoseDelta'],[[defaultPoseDelta]], assign, 'assign'),
-            Function(['TotalDelta'],[[defaultPoseDelta]], assign, 'assign'),
+            Function(['TotalDelta'],[[defaultTotalDelta]], assign, 'assign'),
             # Divide delta evenly
             Function(['ConfDelta', 'GraspDelta', 'PoseDelta2'],
                      ['TotalDelta'], thirdVariance, 'thirdVar'),

@@ -22,11 +22,11 @@ from planGlobals import debugMsg, debug, debugDraw
 
 from pr2Util import Violations, NextColor, drawPath, NextColor, shadowWidths
 
-objCollisionCost = 2.0
-shCollisionCost = 0.5
+objCollisionCost = 1.0                    # !! was 2.0
+shCollisionCost = 0.25
 maxSearchNodes = 2000                   # 5000
 maxExpandedNodes = 500                  # 1500
-searchGreedy = 0.5                     # slightly greedy
+searchGreedy = 0.5
 minStep = 0.2                           # !! maybe 0.1 is better
 minStepHeuristic = 0.4
 confReachViolGenBatch = 10
@@ -566,7 +566,7 @@ class RoadMap:
             (v, viol) = s
             successors = []
             near = self.kNearest
-            maxNear = 32.
+            maxNear = 48.                 # !! was 32
             minFree = 4.
             while len(successors) < minFree and near <= maxNear:
                 nearN = self.nearest(v, near+1)

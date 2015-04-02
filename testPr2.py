@@ -585,7 +585,8 @@ allOperators = [move, pick, place, lookAt, poseAchCanReach,
 def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
-    glob.rebindPenalty = 200
+    glob.rebindPenalty = 700
+    glob.monotonicFirst = False
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
     errProbs = typicalErrProbs
@@ -593,6 +594,9 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
+    varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.05**2),
+                               'table2': (0.03**2, 0.03**2, 1e-10, 0.05**2),
+                               'objA': (0.05**2, 0.05**2, 1e-10, 0.05**2)} 
     front = util.Pose(1.1, 0.0, tZ, 0.0)
     table2Pose = util.Pose(1.0, -1.00, 0.0, 0.0)
     t = PlanTest('test1',  errProbs, allOperators,
@@ -609,8 +613,11 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                  varDict = varDict)
 
     skel = [[place, move, pick, move]]   # easy
-    skel = [[place, move, pick, move,
+    skel = [[#lookAt.applyBindings({'Obj' : 'objA'}), move,
+             place, move, pick, move,
              lookAt.applyBindings({'Obj' : 'objA'}), move,
+             lookAt.applyBindings({'Obj' : 'objA'}), move,
+             lookAt.applyBindings({'Obj' : 'table2'}), move,
              lookAt.applyBindings({'Obj' : 'table2'}), move]]
     
     t.run(goal,
