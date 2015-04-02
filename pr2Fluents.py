@@ -442,6 +442,34 @@ class Pose(Fluent):
         else:
            return {self, other}, {}
 
+class RelPose(Fluent):
+    predicate = 'Pose'
+    def dist(self, bState):
+        (obj1, face1, obj2, face2) = self.args
+        d1 = bState.poseModeDist(obj1, face1)
+        p1 = bState.poseModeProbs[obj1]
+        if obj2 == 'robot':
+            r = bState.pbs.conf['basePose']
+            mu = d1.mode().compose(r.inverse())
+            return GMU([(MVG(mu.xyztTuple(), d1.variance()), p1)])
+        else:
+            d2 = bState.poseModeDist(obj2, face2)
+            p2 = bState.poseModeProbs[obj2]
+            mu = d1.mode().compose(d2.mode().inverse())
+            variance = [a+b for (a, b) in zip(d1.varianceTuple(),
+                                              d2.varianceTuple())]
+            return GMU([(MVG(mu.xyztTuple(), diagToSq(variance)),
+                            p1 * p2)])
+
+    def fglb(self, other, bState = None):
+        if (other.predicate == 'Holding' and \
+            self.args[0] == other.value) or \
+           (other.predicate in ('Grasp', 'GraspFace') and \
+                 self.args[0] == other.args[0]):
+           return False, {}
+        else:
+           return {self, other}, {}
+
 class SupportFace(Fluent):
     predicate = 'SupportFace'
     def dist(self, bState):

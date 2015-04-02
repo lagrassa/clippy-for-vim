@@ -81,6 +81,7 @@ useRight = True
 useHorizontal = True
 useVertical = True
 useCartesian = False
+useLookAtHand = False
 
 ######################################################################
 # Test Rig
@@ -580,80 +581,35 @@ allOperators = [move, pick, place, lookAt, poseAchCanReach,
                 poseAchCanSee, poseAchCanPickPlace, lookAtHand]
                #graspAchCanPickPlace]
 
-# Try to make a plan!     Just move
-def test1(hpn=True, skeleton=False, heuristic=habbs, hierarchical=False, easy=False):
-    t = PlanTest('test1', typicalErrProbs, allOperators)
-    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)
-    confDeltas = (0.05, 0.05, 0.05, 0.05)
-    goal = State([Conf([goalConf, confDeltas], True)])
-    t.run(goal,
-          hpn = hpn,
-          heuristic=heuristic
-           )
-
-# Pick something up! and move
-def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
-          heuristic=habbs, hierarchical=False, easy=False):
-    global moreGD
-    if gd != 0: moreGD = True           # hack!
-    t = PlanTest('test2', typicalErrProbs, allOperators,
-                 objects=['table1', 'objA'])
-    if moreGD: moreGD = False
-    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)
-    confDeltas = (0.05, 0.05, 0.05, 0.05)
-    goal = State([Bd([Holding([hand]), 'objA', .6], True),
-                  Bd([GraspFace(['objA', hand]), gd, .6], True),
-                  B([Grasp(['objA', hand, gd]),
-                     (0,-0.025,0,0), (0.001, 0.001, 0.001, 0.001),
-                     (0.001,)*4, 0.6], True),
-                  Conf([goalConf, confDeltas], True)])
-    homeConf = makeConf(t.world.robot, 0.0, 0.0, math.pi) \
-                         if flip else None
-    t.run(goal,
-          hpn = hpn,
-          skeleton = [[move, lookAtHand, move, pick, move]] \
-                          if skeleton else None,
-          heuristic = heuristic,
-          regions= ['table1Top'],
-          home=homeConf
-          )
-    return t
-
-# pick and place
-def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+# pick and place into region
+def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
+    glob.rebindPenalty = 200
+
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
-    varDict = {} if easy else {'table1': (0.1**2, 0.03**2, 1e-10, 0.3**2),
+    varDict = {} if False else {'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
     front = util.Pose(1.1, 0.0, tZ, 0.0)
+    table2Pose = util.Pose(1.0, -1.00, 0.0, 0.0)
+    t = PlanTest('test1',  errProbs, allOperators,
+                 objects=['table1', 'objA', 'table2'],
+                 movePoses={'objA': front})
 
-    t = PlanTest('test3',  errProbs, allOperators,
-                 objects=['table1', 'objA'],
-                 fixPoses={'table1': util.Pose(1.3, 0.0, 0.0, math.pi/2)},
+    goal = State([Bd([In(['objA', 'table2Top']), True, goalProb], True)])
+
+    t = PlanTest('test1',  errProbs, allOperators,
+                 objects=['table1', 'objA', 'table2'],
+                 fixPoses={'table1': util.Pose(1.3, 0.0, 0.0, math.pi/2),
+                           'table2': table2Pose},
                  movePoses={'objA': front},
                  varDict = varDict)
-    targetPose = (1.1, 0.25, tZ, 0.0)
-    # large target var is no problem??
-    #targetVar = (0.02, 0.02, 0.01, 0.05)
-    targetVar = (0.02**2, 0.02**2, 0.01**2, 0.05**2)
-    goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
-                  B([Pose(['objA', 4]),
-                     targetPose, targetVar, (0.02, 0.02, 0.02, 0.05),
-                     goalProb], True)])
 
-    skel = [[lookAt.applyBindings({'Obj' : 'objA'}),
-             move,
-             place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             move,
-             pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             poseAchCanReach,
-             #poseAchCanPickPlace,
-             move,
-             lookAt.applyBindings({'Obj' : 'table1'}),
-             move,
-             lookAt.applyBindings({'Obj' : 'table1'}),
-             move]]
+    skel = [[place, move, pick, move]]   # easy
+    skel = [[place, move, pick, move,
+             lookAt.applyBindings({'Obj' : 'objA'}), move,
+             lookAt.applyBindings({'Obj' : 'table2'}), move]]
+    
     t.run(goal,
           hpn = hpn,
           skeleton = skel if skeleton else None,

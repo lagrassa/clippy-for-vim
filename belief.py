@@ -235,7 +235,7 @@ class B(BFluent):
         if isAnyVar(v):
             b[v] = dv.modeList()  # hack
         if isAnyVar(var):
-            b[var] = dv.varList()
+            b[var] = dv.varTuple()
         if isAnyVar(delta):
             b[delta] = [0.0]*len(dv.modeList())
         if isAnyVar(p):
