@@ -9,7 +9,7 @@ from planGlobals import debugMsg, debugDraw, debug, pause, torsoZ
 from miscUtil import argmax, isGround
 from dist import UniformDist, DDist
 from pr2Robot2 import CartConf, gripperFaceFrame
-from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName
+from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, Memoizer
 from fbch import getMatchingFluents
 from belief import Bd, B
 from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace
@@ -176,7 +176,25 @@ def findApproachConf(pbs, obj, placeB, conf, hand, prob):
 
 graspConfHistory = []
 
+graspConfGenCache = {}
+graspConfGenCacheStats = [0,0]
+
 def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, prob, nMax=None):
+    key = (pbs, placeB, graspB, conf, hand, prob, nMax)
+    cache = graspConfGenCache
+    val = cache.get(key, None)
+    graspConfGenCacheStats[0] += 1
+    if val != None:
+        graspConfGenCacheStats[1] += 1
+        memo = val.copy()
+    else:
+        memo = Memoizer('potentialGraspConfGen',
+                        potentialGraspConfGenAux(*key))
+        cache[key] = memo
+    for x in memo:
+        yield x
+
+def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, prob, nMax=None):
     if conf:
         yield conf, Violations()
         return

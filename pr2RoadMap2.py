@@ -26,8 +26,8 @@ objCollisionCost = 1.0                    # !! was 2.0
 shCollisionCost = 0.25
 maxSearchNodes = 2000                   # 5000
 maxExpandedNodes = 500                  # 1500
-searchGreedy = 0.5
-minStep = 0.2                           # !! maybe 0.1 is better
+searchGreedy = 0.9
+minStep = 0.4                           # !! normally 0.2
 minStepHeuristic = 0.4
 confReachViolGenBatch = 10
 coarsePath = False
@@ -82,6 +82,7 @@ class RoadMap:
         self.kdLeafSize = kdLeafSize
         self.homeConf = homeConf
         cart = homeConf.cartConf()
+        self.robotPlace = self.robot.placement(homeConf)[0]
         self.root = Node(homeConf, cart, self.pointFromCart(cart))
         self.nodeTooClose = 0.001      # is there a rational way of picking this?
         # The points in the main kdTree
@@ -512,6 +513,11 @@ class RoadMap:
             return None, (None, None)
         shWorld = pbs.getShadowWorld(prob, avoidShadow)
         robotShape, attachedPartsDict = conf.placementAux(attached=attached)
+        # robotShape, attachedPartsDict = conf.placementModAux(self.robotPlace, attached=attached)
+        # for (p,p1) in zip(robotShape.parts(), robotShape1.parts()):
+        #     assert p.name() == p1.name()
+        #     if abs(np.sum(p.bbox() - p1.bbox())) > 0.001:
+        #         raw_input('Boo hoo')
         attachedParts = [x for x in attachedPartsDict.values() if x]
         if debug('confViolations'):
             robotShape.draw('W', 'purple')
@@ -566,7 +572,7 @@ class RoadMap:
             (v, viol) = s
             successors = []
             near = self.kNearest
-            maxNear = 48.                 # !! was 32
+            maxNear = 32.                 # !! was 32
             minFree = 4.
             while len(successors) < minFree and near <= maxNear:
                 nearN = self.nearest(v, near+1)

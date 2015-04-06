@@ -13,12 +13,14 @@ from cut cimport *
 
 import windowManager3D as win
 import transformations as transf
+from planGlobals import debug, debugMsg
 
 #################################
 # Object classes: Thing, Prim, Shape
 #################################
 
 cdef float tiny = 1.0e-6
+ThingIndex = 0
 
 cdef class Thing:
     """Most general class of object, characterized by a bbox. The more specific
@@ -28,6 +30,7 @@ cdef class Thing:
                  np.ndarray[np.float64_t, ndim=2] bbox,
                  util.Transform origin,
                  **props):
+        global ThingIndex
         self.properties = props.copy()
         if not 'name' in self.properties:
             self.properties['name'] = util.gensym('Thing')
@@ -45,6 +48,11 @@ cdef class Thing:
         self.thingPrim = None
         self.thingFaceFrames = None
         self.thingString = None
+        self.index = ThingIndex
+        ThingIndex += 1
+
+    def getIndex(self):
+        return self.index
 
     cpdef str name(self):
         return self.properties.get('name', 'noName')
@@ -225,12 +233,18 @@ cdef class Prim(Thing):
         return self.primEdges
 
     cpdef Thing applyTrans(self, util.Transform trans, str frame='unspecified',):
+        if debug('mod'):
+            print trans.matrix
+            print self.vertices()
         return Prim(np.dot(trans.matrix, self.vertices()),
                     self.faces(),
                     trans.compose(self.thingOrigin),
                     **mergeProps(self.properties, {'frame':frame}))
 
     cpdef Thing applyTransMod(self, util.Transform trans, Thing shape, str frame='unspecified',):
+        if debug('mod'):
+            print trans.matrix
+            print 'Thing', self.getIndex(), '\n', self.vertices()
         shape.primVerts = np.dot(trans.matrix, self.vertices())
         shape.thingOrigin = trans.compose(self.thingOrigin)
         shape.thingBBox = vertsBBox(shape.primVerts, None)
@@ -302,9 +316,10 @@ cdef class Shape(Thing):
     def __init__(self, list parts, util.Transform origin, **props):
         self.compParts = parts
         if parts:
-            self.compVerts = np.hstack([p.vertices() for p in parts \
-                                        if not p.vertices() is None])
-            Thing.__init__(self, vertsBBox(self.compVerts, None), origin, **props)
+            # self.compVerts = np.hstack([p.vertices() for p in parts \
+            #                             if not p.vertices() is None])
+            self.compVerts = None
+            Thing.__init__(self, bboxUnion([x.bbox() for x in parts]), origin, **props)
             if not 'name' in self.properties:
                 self.properties['name'] = util.gensym('Shape')
         else:
@@ -321,19 +336,20 @@ cdef class Shape(Thing):
         return self.compVerts
 
     cpdef Thing applyTrans(self, util.Transform trans, str frame='unspecified'):
+        if debug('mod'): print 'Shape applyTrans', self.name()
         return Shape([p.applyTrans(trans, frame) for p in self.parts()],
                      trans.compose(self.thingOrigin),
                      **mergeProps(self.properties, {'frame':frame}))
 
     cpdef Thing applyTransMod(self, util.Transform trans, Thing shape, str frame='unspecified'):
-        if not shape.compVerts is None:
-            shape.compVerts = np.dot(trans.matrix, self.vertices())
-            shape.thingBBox = vertsBBox(shape.compVerts, None)
+        if debug('mod'): print 'Shape applyTransMod', self.name(), len(self.parts()), 'parts'
+        for p, pm in zip(self.parts(), shape.parts()):
+            p.applyTransMod(trans, pm)
+        if shape.parts():
+            shape.thingBBox = bboxUnion([x.bbox() for x in shape.parts()])
             shape.thingOrigin = trans.compose(self.thingOrigin)
             shape.thingFaceFrames = None
             shape.thingCenter = None
-        for p, pm in zip(self.parts(), shape.parts()):
-            p.applyTransMod(trans, pm)
 
     cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt):
         for p in self.parts():
@@ -385,12 +401,16 @@ cdef class Shape(Thing):
 
     # Compute 3d convex hull
     cpdef Prim prim(self):
-        return convexHullPrim(self.vertices(), self.thingOrigin) \
+        verts = np.hstack([p.vertices() for p in toPrims(self) \
+                           if not p.vertices() is None])
+        return convexHullPrim(verts, self.thingOrigin) \
                if self.parts() else None
 
     # Compute XY convex hull
     cpdef Prim xyPrim(self):
-        return xyPrimAux(self.vertices(), self.zRange(), self.thingOrigin, self.properties) \
+        verts = np.hstack([p.vertices() for p in toPrims(self) \
+                           if not p.vertices() is None])
+        return xyPrimAux(verts, self.zRange(), self.thingOrigin, self.properties) \
                if self.parts() else None
 
     # Compute least inertia box

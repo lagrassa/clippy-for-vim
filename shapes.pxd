@@ -12,6 +12,7 @@ cdef class Thing:
     cdef public Prim thingPrim
     cdef public util.Transform thingOrigin
     cdef public str thingString
+    cdef public int index
 
     cpdef np.ndarray[np.float64_t, ndim=2] bbox(self)
     cpdef str name(self)

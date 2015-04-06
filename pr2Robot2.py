@@ -62,10 +62,6 @@ def Ba(bb, **prop): return shapes.BoxAligned(np.array(bb), Ident, **prop)
 def Sh(*args, **prop): return shapes.Shape(list(args), Ident, **prop)
 dx = glob.baseGrowthX; dy = glob.baseGrowthY
 
-# It's too confusing to have the robots be different.
-# heuristicShapes = ['pr2Base', 'pr2RightGripper', 'pr2LeftGripper']
-heuristicShapes = None
-
 # Small base and torso
 pr2BaseLink = Sh(\
     Ba([(-0.33, -0.33, 0.0), (0.33, 0.33, 0.33)], name='base'),
@@ -167,6 +163,7 @@ class JointConf:
         global confIdnum
         self.conf = conf
         self.robot = robot
+        self.items = None
     def copy(self):
         return JointConf(self.conf.copy(), self.robot)
     def values(self):
@@ -206,8 +203,10 @@ class JointConf:
             return 'JointConf('+prettyString(self.conf['pr2Base'], eq)+')'
         else:
             return 'JointConf('+prettyString(self.conf, eq)+')'
-    def confItems(self, moveChains=None):
-        return frozenset([(chain, tuple(self.conf[chain])) for chain in (moveChains or self.conf)])
+    def confItems(self):
+        if not self.items:
+            self.items = frozenset([(chain, tuple(self.conf[chain])) for chain in self.conf])
+        return self.items
     def __str__(self):
         return 'JointConf('+str(self.conf)+')'
     def __getitem__(self, name):
@@ -226,6 +225,7 @@ class CartConf(JointConf):
     def __init__(self, conf, robot):
         self.conf = conf
         self.robot = robot
+        self.items = None
 
     def frameName(self, name):
         if 'Frame' in name or 'Gripper' in name or 'Torso' in name:
@@ -250,6 +250,19 @@ class CartConf(JointConf):
             assert value is None or isinstance(value, util.Transform)
             c.conf[name] = value
         return c
+    def confItems(self):
+        if not self.items:
+            vals = []
+            for chain in self.conf:
+                val = self.conf[chain]
+                if isinstance(val, list):
+                    vals.append(tuple(val))
+                elif isinstance(val, util.Transform):
+                    vals.append(repr(val))
+                else:
+                    vals.append(val)
+            self.items = frozenset(vals)
+        return self.items
     def copy(self):
         return CartConf(self.conf.copy(), self.robot)
     def __getitem__(self, name):
@@ -389,6 +402,9 @@ def ground(pose):
     params[2] = 0.0
     return util.Pose(*params)
 
+confCacheStats = [0, 0]
+kinCacheStats = [0, 0]
+
 # This basically implements a Chain type interface, execpt for the wstate
 # arguments to the methods.
 class PR2:
@@ -414,6 +430,8 @@ class PR2:
                                 'right': [fliph(p).inverse() for p in horizontalTrans]}
         self.verticalTrans = {'left': [p.inverse() for p in verticalTrans],
                                 'right': [flipv(p).inverse() for p in verticalTrans]}
+        self.confCache = {}
+        self.kinCache = {}
         if debug('PR2'): print 'New PR2!'
         return
 
@@ -512,7 +530,7 @@ class PR2:
             return place, trans
 
     def placementMod(self, conf, place, wstate=None, getShapes=True, attached=None):
-        place, attachedParts, trans = self.placementModeAux(conf, place, wstate, getShapes, attached)
+        place, attachedParts, trans = self.placementModAux(conf, place, wstate, getShapes, attached)
         if attached and getShapes:
             return shapes.Shape(place.parts() + [x for x in attachedParts.values() if x],
                                 place.origin(),
@@ -524,11 +542,15 @@ class PR2:
         # The placement is relative to the state in some world (provides the base frame)
         # Returns a Shape object and a dictionary of frames for each sub-chain.
         frame = wstate.getFrame(self.chains.baseFname) if wstate else Ident
-        if fbch.inHeuristic and getShapes:
-            shapeChains = heuristicShapes or getShapes
+        shapeChains = getShapes
+        key = (conf, frame, True if getShapes==True else tuple(getShapes))
+        confCacheStats[0] += 1
+        if key in self.confCache:
+            confCacheStats[1] += 1
+            place, trans = self.confCache[key]
         else:
-            shapeChains = getShapes
-        place, trans = self.chains.placement(frame, conf, getShapes=shapeChains)
+            place, trans = self.chains.placement(frame, conf, getShapes=shapeChains)
+            self.confCache[key] = (place, trans)
         attachedParts = {'left':None, 'right':None}
         if attached:
             for hand in ('left', 'right'):
@@ -541,10 +563,7 @@ class PR2:
         # The placement is relative to the state in some world (provides the base frame)
         # Returns a Shape object and a dictionary of frames for each sub-chain.
         frame = wstate.getFrame(self.chains.baseFname) if wstate else Ident
-        if fbch.inHeuristic and getShapes:
-            shapeChains = heuristicShapes or getShapes
-        else:
-            shapeChains = getShapes
+        shapeChains = getShapes
         place, trans = self.chains.placementMod(frame, conf, place, getShapes=shapeChains)
         attachedParts = {'left':None, 'right':None}
         if attached:
@@ -667,6 +686,13 @@ class PR2:
             assert wstate
         if conf == None:
             conf = wstate.robotConf if wstate else self.nominalConf
+        # This doesn't seem to pay off
+        # key = (cart, conf, returnAll, collisionAware)
+        # val = self.kinCache.get(key, None)
+        # kinCacheStats[0] += 1
+        # if val != None:
+        #     kinCacheStats[1] += 1
+        #     return val
         torsoChain = self.chains.chainsByName['pr2Torso']
         baseChain = self.chains.chainsByName['pr2Base']
         # if wstate:
@@ -741,6 +767,7 @@ class PR2:
         if 'pr2RightGripper' in cart.conf:
             g = cart.conf['pr2RightGripper']
             conf = conf.set('pr2RightGripper', g if isinstance(g, (list,tuple)) else [g])
+        # self.kinCache[key] = conf
         return conf
 
 ########################################

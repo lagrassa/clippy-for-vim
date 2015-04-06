@@ -55,6 +55,10 @@ import pr2BeliefState
 reload(pr2BeliefState)
 from pr2BeliefState import BeliefState
 
+import pr2Visible
+reload(pr2Visible)
+pr2Visible.cache = {}
+
 import pr2Gen
 reload(pr2Gen)
 
@@ -138,7 +142,7 @@ def cl(window='W'):
 def Ba(bb, **prop): return shapes.BoxAligned(np.array(bb), None, **prop)
 def Sh(args, **prop): return shapes.Shape(list(args), None, **prop)
 
-workspace = ((-1.0, -2.5, 0.0), (3.0, 2.0, 2.0))
+workspace = ((-1.0, -2.5, 0.0), (3.0, 2.5, 2.0))
 ((x0, y0, _), (x1, y1, dz)) = workspace
 viewPort = [x0, x1, y0, y1, 0, dz]
 
@@ -518,7 +522,7 @@ class PlanTest:
             testResults[(self.name, hierarchical)].append(runTime)
         print '**************', self.name, \
                 'Hierarchical' if hierarchical else '', \
-                'Time =', runTime, '***************'      
+                'Time =', runTime, '***************'
 
 ######################################################################
 # Test Cases
@@ -639,6 +643,7 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           heuristic = heuristic,
           rip = rip
           )
+    return t
 
 def test4(hpn = True, hierarchical = False, skeleton = False,
           heuristic = habbs, easy = False):

@@ -39,7 +39,7 @@ probForGenerators = 0.98
 #
 ######################################################################
 
-tryDirectPath = True
+tryDirectPath = False
 def primPath(bs, cs, ce, p):
     if tryDirectPath:
         path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs,
@@ -60,7 +60,9 @@ def primPath(bs, cs, ce, p):
         return path1[::-1] + path2
     else:
         print 'Success'
-        return path1[::-1] + path2
+        path = path1[::-1] + path2
+        smoothed = bs.getRoadMap().smoothPath(path, bs, p)
+        return smoothed
 
 def movePrim(args, details):
     vl = \

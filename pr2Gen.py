@@ -737,6 +737,8 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
                 sh = objShadow.applyTrans(pose)
                 if all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
                     viol2 = canPickPlaceTest(pbs, ca, cf, hand, gB, pB, prob)
+                    print 'viol', viol
+                    print 'viol2', viol2
                     if viol2 and viol2.weight() <= viol.weight():
                         if debug('traceGen'):
                             w = viol2.weight() if viol2 else None
