@@ -50,7 +50,7 @@ debugOn = ['traceGen', 'traceCRH', 'confReachViol', 'canPickPlaceGen', 'pickGen'
 debugOn = ['traceGen', 'traceCRH', 'prim', 'getShadowWorldGrasp']
 # debugOn = []
 debugOn = ['traceGen', 'traceCRH', 'robotEnv', 'tables', 'obsUpdate', 'skeleton']
-debugOn = ['traceGen', 'traceCRH', 'hAddBackInf', 'skeleton', 'confReachViol']
+debugOn = ['traceGen', 'traceCRH', 'hAddBackInf', 'skeleton', 'confReachViol', 'minViolPath']
 #          'getShadowWorld', 'confReachViol', 'confViolations', 'lookGen', 'canReachGen'
 
 pauseOn = debugOn

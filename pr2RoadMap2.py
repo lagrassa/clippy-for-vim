@@ -22,8 +22,8 @@ from planGlobals import debugMsg, debug, debugDraw
 
 from pr2Util import Violations, NextColor, drawPath, NextColor, shadowWidths
 
-objCollisionCost = 2.0                    # !! was 2.0
-shCollisionCost = 0.5
+objCollisionCost = 10.0                    # !! was 2.0
+shCollisionCost = 2.0
 maxSearchNodes = 2000                   # 5000
 maxExpandedNodes = 500                  # 1500
 searchGreedy = 0.5
