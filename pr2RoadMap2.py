@@ -22,13 +22,14 @@ from planGlobals import debugMsg, debug, debugDraw
 
 from pr2Util import Violations, NextColor, drawPath, NextColor, shadowWidths
 
-objCollisionCost = 1.0                    # !! was 2.0
-shCollisionCost = 0.25
+objCollisionCost = 2.0                    # !! was 2.0
+shCollisionCost = 0.5
 maxSearchNodes = 2000                   # 5000
 maxExpandedNodes = 500                  # 1500
-searchGreedy = 0.9
-minStep = 0.4                           # !! normally 0.2
-minStepHeuristic = 0.4
+searchGreedy = 0.5
+# minStep = 0.2                           # !! normally 0.2 for cartesian
+minStep = 0.75              # !! normally 0.25 for joint interpolation
+maxNear = 48
 confReachViolGenBatch = 10
 coarsePath = False
 heuristicShapes = ['pr2Base', 'pr2RightGripper', 'pr2LeftGripper']
@@ -269,8 +270,7 @@ class RoadMap:
         if n_f.conf == n_i.conf: return [n_f]
         final = []
         for c in rrt.interpolate(n_i.conf, n_f.conf,
-                                 stepSize=0.5 if (fbch.inHeuristic or coarsePath) else 0.25,
-                                 moveChains=self.moveChains):
+                                 minLength, moveChains=self.moveChains):
             cart = c.cartConf()
             for chain in self.robot.chainNames: #  fill in
                 if not chain in c.conf:
@@ -436,10 +436,10 @@ class RoadMap:
             edge = Edge(node_f, node_i)
             if self.cartesian:
                 edge.nodes = self.cartLineSteps(node_f, node_i,
-                                                minStepHeuristic if (fbch.inHeuristic or coarsePath) else minStep)
+                                                2*minStep if (fbch.inHeuristic or coarsePath) else minStep)
             else:
                 edge.nodes = self.jointLineSteps(node_f, node_i,
-                                                 minStepHeuristic if (fbch.inHeuristic or coarsePath) else minStep)
+                                                 2*minStep if (fbch.inHeuristic or coarsePath) else minStep)
             self.edges[(node_f, node_i)] = edge
         allObstacles = shWorld.getObjectShapes()
         permanent = shWorld.fixedObjects # set of names
@@ -572,7 +572,6 @@ class RoadMap:
             (v, viol) = s
             successors = []
             near = self.kNearest
-            maxNear = 32.                 # !! was 32
             minFree = 4.
             while len(successors) < minFree and near <= maxNear:
                 nearN = self.nearest(v, near+1)
