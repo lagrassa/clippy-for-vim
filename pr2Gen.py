@@ -25,7 +25,9 @@ import pr2GenAux2
 from pr2GenAux2 import *
 reload(pr2GenAux2)
 
-pickPlaceBatchSize = 5
+#  How many candidates to generate at a time...  Larger numbers will
+#  generally lead to better solutions.
+pickPlaceBatchSize = 1
 
 # Generators:
 #   INPUT:
@@ -922,19 +924,25 @@ def lookHandGen(args, goalConds, bState, outBindings):
 
 def lookHandGenTop(args, goalConds, pbs, outBindings):
     def objInHand(conf, hand):
-        attached = shWorld.attached
-        if not attached[hand]:
-            attached = attached.copy()
-            attached[hand] = Box(0.1,0.05,0.1, None, name='virtualObject').applyLoc(gripperTip)
-        _, attachedParts = conf.placementAux(attached, getShapes=[])
-        return attachedParts[hand]
+        if (conf, hand) not in handObj:
+            attached = shWorld.attached
+            if not attached[hand]:
+                attached = attached.copy()
+                attached[hand] = Box(0.1,0.05,0.1, None, name='virtualObject').applyLoc(gripperTip)
+            _, attachedParts = conf.placementAux(attached, getShapes=[])
+            handObj[(conf, hand)] = attachedParts[hand]
+        return handObj[(conf, hand)]
 
     def testFn(c):
+        if c not in placements:
+            placements[c] = c.placement()
         ans = visible(shWorld, c, objInHand(c, hand),
-                       [c.placement()]+obst, prob)[0]
+                       [placements[c]]+obst, prob)[0]
         return ans
 
     (obj, hand, graspB, prob) = args
+    placements = {}
+    handObj = {}
     if debug('traceGen'): print 'lookHandGen(%s) h='%obj, fbch.inHeuristic
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     newBS = pbs.copy()

@@ -195,6 +195,18 @@ def testWorld(include = ['objA', 'objB', 'objC'],
             print 'Region', regName, '\n', bbox
             world.addObjectRegion(name, regName, Sh([Ba(bbox)], name=regName),
                                   util.Pose(0,0,2*bbox[1,2],0))
+            bboxLeft = np.empty_like(bbox); bboxLeft[:] = bbox
+            bboxLeft[0][0] = 0.5*(bbox[0][0] + bbox[1][0])
+            regName = name+'Left'
+            print 'Region', regName, '\n', bboxLeft
+            world.addObjectRegion(name, regName, Sh([Ba(bboxLeft)], name=regName),
+                                  util.Pose(0,0,2*bbox[1,2],0))
+            bboxRight = np.empty_like(bbox); bboxRight = bbox
+            bboxRight[1][0] = 0.5*(bbox[0][0] + bbox[1][0])
+            regName = name+'Right'
+            print 'Region', regName, '\n', bbox
+            world.addObjectRegion(name, regName, Sh([Ba(bboxRight)], name=regName),
+                                  util.Pose(0,0,2*bbox[1,2],0))
 
     # Other permanent objects
     cupboard1 = Sh([place((-0.25, 0.25), (-0.05, 0.05), (0.0, 0.4))],
@@ -488,6 +500,9 @@ class PlanTest:
         self.bs.pbs.draw(0.9, 'W')
         if not glob.useROS:
             self.realWorld.draw('World')
+        for regName in self.bs.pbs.regions:
+            self.realWorld.regionShapes[regName].draw('World', 'purple')
+        if self.bs.pbs.regions: raw_input('Regions')
 
         s = State([], details = self.bs)
 
@@ -590,7 +605,7 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
     glob.rebindPenalty = 700
-    glob.monotonicFirst = False
+    glob.monotonicFirst = True
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
     errProbs = typicalErrProbs
@@ -603,10 +618,11 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     front = util.Pose(1.1, 0.0, tZ, 0.0)
     table2Pose = util.Pose(1.0, -1.00, 0.0, 0.0)
     t = PlanTest('test1',  errProbs, allOperators,
-                 objects=['table1', 'objA', 'table2'],
+                 objects=['table1', 'objA'],
                  movePoses={'objA': front})
 
-    goal = State([Bd([In(['objA', 'table2Top']), True, goalProb], True)])
+    region = 'table2Left'
+    goal = State([Bd([In(['objA', region]), True, goalProb], True)])
 
     t = PlanTest('test1',  errProbs, allOperators,
                  objects=['table1', 'objA', 'table2'],
@@ -639,7 +655,7 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           hpn = hpn,
           skeleton = hSkel if skeleton else None,
           hierarchical = hierarchical,
-          regions=['table1Top'],
+          regions=[region],
           heuristic = heuristic,
           rip = rip
           )
@@ -1753,7 +1769,7 @@ def prof(test, n=50):
     cProfile.run(test, 'prof')
     p = pstats.Stats('prof')
     p.sort_stats('cumulative').print_stats(n)
-    p.sort_stats('cumulative').print_callers(n)
+    # p.sort_stats('cumulative').print_callers(n)
 
 
 # Evaluate on details and a fluent to flush the caches and evaluate

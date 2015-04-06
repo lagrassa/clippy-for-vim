@@ -66,7 +66,7 @@ class World:
 
     def addObjectRegion(self, objName, regName, regShape, regTr):
         if objName in self.regions:
-            self.regions[objName].append = (regName, regShape, regTr)
+            self.regions[objName].append((regName, regShape, regTr))
         else:
             self.regions[objName] = [(regName, regShape, regTr)]
 
