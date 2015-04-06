@@ -1345,7 +1345,9 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
                 p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
                                  lastOp = op,
                                  skeleton = skeleton[subgoal.planNum]\
-                                            if skeleton else None,
+                                            if (skeleton and \
+                                                len(skeleton)>subgoal.planNum) \
+                                                else None,
                                  nonMonOps = nonMonOps)
                 assert p, 'Planning failed.'
                 planObj = makePlanObj(p, s)

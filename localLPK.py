@@ -57,18 +57,8 @@ traceGen  (compact summary of generators)
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'hAddBackInf', 'appOp:number','traceGen', 'traceCRH',
-           'regression:fail', 'cost', 'applicableOps', 'regression',
-           'regression:inconsistent']
-
-    # , 'canPickPlaceGen',
-    #        'regression:fail', 'appOp:number']
- #      'obsUpdate', 'hAddBackInf', 'regression:fail', 'placeGen',
- # 'lookGen', 'traceGen', 'canReachGen', 'canPickPlaceGen',
- # 'confReachViol', 'confViolations']
-
-
-
+           'hAddBackInf', 'traceGen', 'traceCRH', 'placeGen']
+#            'appOp:number', 'hAddBack', 'hAddBackV']
 
 pauseOn = debugOn
 

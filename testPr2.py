@@ -61,7 +61,7 @@ reload(pr2Gen)
 import pr2Ops
 reload(pr2Ops)
 from pr2Ops import move, pick, place, lookAt, poseAchCanReach, poseAchCanSee,\
-      lookAtHand, hRegrasp, poseAchCanPickPlace, graspAchCanPickPlace
+      lookAtHand, hRegrasp, poseAchCanPickPlace, graspAchCanPickPlace, poseAchIn
 
 import pr2Sim2
 reload(pr2Sim2)
@@ -138,7 +138,7 @@ def cl(window='W'):
 def Ba(bb, **prop): return shapes.BoxAligned(np.array(bb), None, **prop)
 def Sh(args, **prop): return shapes.Shape(list(args), None, **prop)
 
-workspace = ((-1.00, -1.75, 0.0), (2.50, 1.75, 2.))
+workspace = ((-1.0, -2.5, 0.0), (3.0, 2.0, 2.0))
 ((x0, y0, _), (x1, y1, dz)) = workspace
 viewPort = [x0, x1, y0, y1, 0, dz]
 
@@ -149,7 +149,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
               draw = True):
     ((x0, y0, _), (x1, y1, dz)) = workspace
     w = 0.1
-    wm.makeWindow('W', viewPort, 800)
+    wm.makeWindow('W', viewPort, 600)   # was 800
     if useROS: wm.makeWindow('MAP', viewPort)
     def hor((x0, x1), y, w):
         return Ba(np.array([(x0, y-w/2, 0), (x1, y+w/2.0, dz)]))
@@ -578,7 +578,7 @@ tinyErrProbs = DomainProbs(\
             pickTolerance = (0.02, 0.02, 0.02, 0.02))
 
 allOperators = [move, pick, place, lookAt, poseAchCanReach,
-                poseAchCanSee, poseAchCanPickPlace, lookAtHand]
+                poseAchCanSee, poseAchCanPickPlace, poseAchIn] #lookAtHand]
                #graspAchCanPickPlace]
 
 # pick and place into region
@@ -590,7 +590,6 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
     errProbs = typicalErrProbs
-    goalProb = 0.5
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
@@ -612,17 +611,29 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                  movePoses={'objA': front},
                  varDict = varDict)
 
-    skel = [[place, move, pick, move]]   # easy
     skel = [[#lookAt.applyBindings({'Obj' : 'objA'}), move,
              place, move, pick, move,
              lookAt.applyBindings({'Obj' : 'objA'}), move,
              lookAt.applyBindings({'Obj' : 'objA'}), move,
              lookAt.applyBindings({'Obj' : 'table2'}), move,
              lookAt.applyBindings({'Obj' : 'table2'}), move]]
+
+    skel = [[poseAchIn, place, move, pick, move, lookAt, move, lookAt, move]]
+
+    hSkel = [[poseAchIn,
+              lookAt.applyBindings({'Obj' : 'objA'}),
+              place.applyBindings({'Obj' : 'objA'}),
+              lookAt.applyBindings({'Obj' : 'table2'})],
+              [lookAt.applyBindings({'Obj' : 'table2'}),
+               move],
+              [move],
+              [place.applyBindings({'Obj' : 'objA'})]]
+              
+              
     
     t.run(goal,
           hpn = hpn,
-          skeleton = skel if skeleton else None,
+          skeleton = hSkel if skeleton else None,
           hierarchical = hierarchical,
           regions=['table1Top'],
           heuristic = heuristic,

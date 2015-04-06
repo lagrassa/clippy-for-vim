@@ -6,10 +6,11 @@ import fbch
 from fbch import Function, getMatchingFluents, Operator, simplifyCond
 from miscUtil import isVar, prettyString, makeDiag
 from pr2Util import PoseD, shadowName, ObjGraspB, ObjPlaceB, Violations
-from pr2Gen import pickGen, canReachHome, placeInGen, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen
+from pr2Gen import pickGen, canReachHome, placeInGen, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen, placeInRegionGen, placeGen
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
-     SupportFace, In, CanSeeFrom, Graspable, CanPickPlace, RelPose
+     SupportFace, In, CanSeeFrom, Graspable, CanPickPlace, RelPose,\
+     findRegionParent
 from planGlobals import debugMsg, debug, useROS
 
 zeroPose = zeroVar = (0.0,)*4
@@ -24,12 +25,12 @@ canPPProb = 0.9
 otherHandProb = 0.9
 canSeeProb = 0.9
 # No prob can go above this
-maxProbValue = 0.95  # was .999
+maxProbValue = 0.98  # was .999
 # How sure do we have to be of CRH for moving
 movePreProb = 0.98
 movePreProb = 0.8
 # Prob for generators.  Keep it high.   Should this be = maxProbValue?
-probForGenerators = 0.95
+probForGenerators = 0.98
 
 ######################################################################
 #
@@ -149,18 +150,17 @@ def lookHandPrim(args, details):
     
 def placePrim(args, details):
     vl = \
-       ['Obj', 'Hand', 'OtherHand', 'Region',
-        'PoseFace', 'Pose', 'PoseVar', 'RealPoseVar', 'PoseDelta',
-        'GraspFace', 'Grasp', 'GraspVar', 'GraspDelta',
-        'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta',         
-        'PreConf', 'ConfDelta', 'PlaceConf',
-        'PR1', 'PR2', 'PR3', 'PR4', 'P1', 'P2', 'P3']
-    (o, h, oh, r, pf, p, pv, rpv, pd,
-     o2, o2p, pv2, pd2, pf2, tv, td,
+        ['Obj', 'Hand', 'OtherHand',
+         'PoseFace', 'Pose', 'PoseVar', 'RealPoseVar', 'PoseDelta',
+         'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
+         'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 'OGraspDelta',         
+         'PreConf', 'ConfDelta', 'PlaceConf',
+         'PR1', 'PR2', 'PR3', 'P1', 'P2', 'P3']
+    (o, h, oh, pf, p, pv, rpv, pd,
      gf, gm, gv, gd,
      ro, rf, rgm, rgv, rgd,
      prc, cd, pc, 
-     pr1, pr2, pr3, pr4, p1, p2, p3) = args
+     pr1, pr2, pr3, p1, p2, p3) = args
 
     bs = details.pbs.copy()
     # Plan a path from cs to ce
@@ -303,14 +303,7 @@ def regionParent(args, goal, start, vals):
     if isVar(region):
         # Trying to place at a pose.  Doesn't matter.
         return [['none']]
-        
-    regs = start.pbs.getWorld().regions
-    for (obj, stuff) in regs.items():
-        for (regName, regShape, regTr) in stuff:
-            if regName == region:
-                return [[obj]]
-    raw_input('No parent object for region '+str(region))
-    return []
+    return [[findRegionParent(start, region)]]
 
 def poseInStart(args, goal, start, vals):
     [obj] = args
@@ -384,12 +377,12 @@ def minP(args, goal, start, vals):
     return [[minVal if isVar(a) else a for a in args]]
 
 # Regression:  what does the mode need to be beforehand, assuming a good
-# outcome
+# outcome.  Don't let it go down too fast...
 def obsModeProb(args, goal, start, vals):
     p = max([a for a in args if not isVar(a)])
     pFalsePos = pFalseNeg = start.domainProbs.obsTypeErrProb
     pr = p * pFalsePos / ((1 - p) * (1 - pFalseNeg) + p * pFalsePos)
-    return [[max(0.1, pr)]]
+    return [[max(0.1, pr, p - 0.2)]]
 
 # Compute the nth root of the maximum defined prob value
 
@@ -430,6 +423,14 @@ def maxGraspVarFun((var,), goal, start, vals):
 def realPoseVar((graspVar,), goal, start, vals):
     placeVar = start.domainProbs.placeVar
     return [[tuple([gv+pv for (gv, pv) in zip(graspVar, placeVar)])]]
+
+def defaultPoseVar(args, goal, start, vals):
+    pv = [v*3 for v in start.domainProbs.placeVar]
+    pv[2] = pv[0]
+    return [[tuple(pv)]]
+
+def times2((thing,), goal, start, vals):
+    return [[tuple([v*2 for v in thing])]]
 
 # For place, grasp var is desired poseVar minus fixed placeVar
 # Don't let it be bigger than maxGraspVar 
@@ -590,7 +591,7 @@ def moveCostFun(al, args, details):
     return result
 
 def placeCostFun(al, args, details):
-    (_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,p1,p2,p3)\
+    (_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,p1,p2,p3)\
        = args
     result = costFun(1.0, p1 * p2 * p3 * (1-details.domainProbs.placeFailProb))
     if not fbch.inHeuristic:
@@ -675,7 +676,7 @@ def pickBProgress(details, args, obs=None):
 
 def placeBProgress(details, args, obs=None):
     # Assume robot ends up at preconf, so no conf change
-    (o,h,_,r,pf,p,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_) =\
+    (o,h,_,pf,p,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_) =\
        args
     placeVar = details.domainProbs.placeVar
     failProb = details.domainProbs.placeFailProb
@@ -958,17 +959,49 @@ move = Operator(\
     argsToPrint = [0, 1],
     ignorableArgs = range(2,18))  # For abstraction
 
+poseAchIn = Operator(\
+             'PosesAchIn', ['Obj1', 'Region',
+                            'ObjPose1', 'PoseFace1',
+                            'Obj2', 'ObjPose2', 'PoseFace2',
+                            'PoseVar', 'TotalVar', 'P1', 'P2', 'PR'],
+            # Pre
+            {0 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
+                               defaultPoseDelta, 'P1'], True),
+                  Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True),
+                  B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
+                               defaultPoseDelta, 'P2'], True),
+                  Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)}},
+            # Results
+            [({Bd([In(['Obj1', 'Region']), True, 'PR'], True)},{})],
+            functions = [\
+              Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2'),
+              # Object region is defined wrto
+              Function(['Obj2'], ['Region'], regionParent, 'regionParent'),
+              # Assume it doesn't move
+              Function(['PoseFace2', 'ObjPose2'], ['Obj2'],
+                       poseInStart, 'poseInStart'),
+              # totalVar = 2 * poseVar; totalDelta = 2 * poseDelta
+              Function(['PoseVar'], [], defaultPoseVar, 'defaultPoseVar'),
+              Function(['TotalVar'], ['PoseVar'], times2, 'times2'),
+              # call main generator
+              Function(['ObjPose1', 'PoseFace1'],
+                     ['Obj1', 'Region', 'TotalVar',
+                      tuple([d*2 for d in defaultPoseDelta]),
+                      probForGenerators],
+                     placeInRegionGen, 'placeInRegionGen')],
+            argsToPrint = [0, 1],
+            ignorableArgs = range(2,11))
+
 # Likelihood of success is p1 * p2 * p3
 
-'''
 place = Operator(\
         'Place',
         ['Obj', 'Hand', 'OtherHand',
-         'Region', 'PoseFace', 'Pose', 'PoseVar', 'RealPoseVar', 'PoseDelta',
+         'PoseFace', 'Pose', 'PoseVar', 'RealPoseVar', 'PoseDelta',
          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
          'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 'OGraspDelta',         
          'PreConf', 'ConfDelta', 'PlaceConf',
-         'PR1', 'PR2', 'PR3', 'PR4', 'P1', 'P2', 'P3'],
+         'PR1', 'PR2', 'PR3', 'P1', 'P2', 'P3'],
         # Pre
         {0 : {Graspable(['Obj'], True)},
          1 : {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
@@ -988,8 +1021,7 @@ place = Operator(\
          3 : {Conf(['PreConf', 'ConfDelta'], True)}
         },
         # Results
-        [({Bd([In(['Obj', 'Region']), True, 'PR4'], True)}, {}),
-         ({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
+        [({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
            B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta','PR2'],
                  True)},{}),
          ({Bd([Holding(['Hand']), 'none', 'PR3'], True)}, {})],
@@ -998,21 +1030,15 @@ place = Operator(\
             # Get both hands and object!
             Function(['Obj', 'Hand', 'OtherHand'], ['Obj', 'Hand'],
                      getObjAndHands, 'getObjAndHands'),
-            # Either Obj is bound (because we're trying to place it) or
-            # Hand is bound (because we're trying to make it empty)
-            # If Obj is not bound then: get it from the start state;
-            #  also, let region be awayRegion
-            Function(['Region'], ['Region', 'Pose'], awayRegionIfNecessary,
-                                   'awayRegionIfNecessary'),
             
             # Be sure all result probs are bound.  At least one will be.
-            Function(['PR1', 'PR2', 'PR3', 'PR4'],
-                     ['PR1', 'PR2', 'PR3', 'PR4'], minP,'minP'),
+            Function(['PR1', 'PR2', 'PR3'],
+                     ['PR1', 'PR2', 'PR3'], minP,'minP'),
 
             # Compute precond probs.  Assume that crash is observable.
             # So, really, just move the obj holding prob forward into
             # the result.  Use canned probs for the other ones.
-            Function(['P2'], ['PR1', 'PR2', 'PR3', 'PR4'], 
+            Function(['P2'], ['PR1', 'PR2', 'PR3'], 
                      regressProb(1, 'placeFailProb'), 'regressProb1'),
             Function(['P1', 'P3'], [[canPPProb, otherHandProb]],
                      assign, 'assign'),
@@ -1028,8 +1054,7 @@ place = Operator(\
                      ['GraspVar'], realPoseVar, 'realPoseVar'),
             
             # In case PoseDelta isn't defined
-            Function(['PoseDelta'],[],lambda a,g,s,v: [[defaultPoseDelta]],
-                     'defaultPoseDelta'),
+            Function(['PoseDelta'],[defaultPoseDelta], assign, 'assign'),
             # Divide delta evenly
             Function(['ConfDelta', 'GraspDelta'], ['PoseDelta'],
                       halveVariance, 'halveVar'),
@@ -1041,142 +1066,18 @@ place = Operator(\
 
             # Not modeling the fact that the object's shadow should
             # grow a bit as we move to pick it.   Build that into pickGen.
-            Function(['Pose', 'PoseFace', 'GraspMu', 'GraspFace', 'GraspVar',
-                      'PlaceConf', 'PreConf'],
-                     ['Obj', 'Region','Pose', 'PoseFace', 'PoseVar', 'GraspVar',
+            Function(['GraspMu', 'GraspFace', 'PlaceConf', 'PreConf'],
+                     ['Obj', 'Pose', 'PoseFace', 'PoseVar', 'GraspVar',
                       'PoseDelta', 'GraspDelta', 'ConfDelta', 'Hand',
                      probForGenerators],
-                     placeInGen, 'placeInGen')
+                     placeGen, 'placeGen')
 
             ],
         cost = placeCostFun, 
         f = placeBProgress,
         prim = placePrim,
         argsToPrint = [0, 1, 3, 4, 5],
-        ignorableArgs = range(2, 27))
-'''        
-
-# Do we want both Pose and RelPose results?  Or just put condition on
-# other pose var for in?
-
-# Try it with just Pose.  Focus on In
-
-place = Operator(\
-        'Place',
-        ['Obj1', 'Hand', 'OtherHand',
-         'Region', 'PoseFace', 'Pose', 'PoseVar', 'RealPoseVar',
-         'PoseDelta',
-         'Obj2', 'ObjPose2', 'PoseVar2', 'PoseDelta2', 'PoseFace2',
-         'TotalVar', 'TotalDelta',
-         'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-         'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 'OGraspDelta',         
-         'PreConf', 'ConfDelta', 'PlaceConf',
-         'PR1', 'PR2', 'PR3', 'PR4', 'P1', 'P2', 'P3'],
-        # Pre
-        {0 : {Graspable(['Obj1'], True)},
-         1 : {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj1', 'Pose',
-                               'RealPoseVar', 'PoseDelta', 'PoseFace',
-                               'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                               'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                               'OGraspDelta', []]), True, 'P1'], True)},
-         2 : {Bd([Holding(['Hand']), 'Obj1', 'P2'], True),
-              Bd([GraspFace(['Obj1', 'Hand']), 'GraspFace', 'P2'], True),
-              B([Grasp(['Obj1', 'Hand', 'GraspFace']),
-                 'GraspMu', 'GraspVar', 'GraspDelta', 'P2'], True),
-              # Bookkeeping for other hand
-              Bd([Holding(['OtherHand']), 'OObj', 'P3'], True),
-              Bd([GraspFace(['OObj', 'OtherHand']), 'OFace', 'P3'], True),
-              B([Grasp(['OObj', 'OtherHand', 'OFace']),
-                       'OGraspMu', 'OGraspVar', 'OGraspDelta', 'P3'], True)},
-         3 : {Conf(['PreConf', 'ConfDelta'], True)}
-        },
-        # Results
-        [({Bd([In(['Obj1', 'Region']), True, 'PR4'], True)},
-          {3 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar2',
-                               'PoseDelta2', 'P1'], True),
-                Bd([SupportFace(['Obj2']), 'PoseFace2', 'P1'], True),}}),
-         ({Bd([SupportFace(['Obj1']), 'PoseFace', 'PR1'], True),
-           # B([RelPose(['Obj1', 'PoseFace1', 'Obj2', 'PoseFace2']),
-           #    'RelPose', 'RelPoseVar', 'RelPoseDelta','PR2'], True)
-           B([Pose(['Obj1', 'PoseFace']),
-              'Pose', 'PoseVar', 'PoseDelta','PR2'], True)},{}),
-         ({Bd([Holding(['Hand']), 'none', 'PR3'], True)}, {})],
-        # Functions
-        functions = [\
-            # Get both hands and object!
-            Function(['Obj1', 'Hand', 'OtherHand'], ['Obj1', 'Hand'],
-                     getObjAndHands, 'getObjAndHands'),
-            # Either Obj is bound (because we're trying to place it) or
-            # Hand is bound (because we're trying to make it empty)
-            # If Obj is not bound then: get it from the start state;
-            #  also, let region be awayRegion
-            Function(['Region'], ['Region', 'Pose'], awayRegionIfNecessary,
-                                   'awayRegionIfNecessary'),
-            
-            # Object region is defined wrto
-            Function(['Obj2'], ['Region'], regionParent, 'regionParent'),
-            
-            # Be sure all result probs are bound.  At least one will be.
-            Function(['PR1', 'PR2', 'PR3', 'PR4'],
-                     ['PR1', 'PR2', 'PR3', 'PR4'], minP,'minP'),
-
-            # Compute precond probs.  Assume that crash is observable.
-            # So, really, just move the obj holding prob forward into
-            # the result.  Use canned probs for the other ones.
-            Function(['P2'], ['PR1', 'PR2', 'PR3', 'PR4'], 
-                     regressProb(1, 'placeFailProb'), 'regressProb1'),
-            Function(['P1', 'P3'], [[canPPProb, otherHandProb]],
-                     assign, 'assign'),
-
-            # Pick a total variance (for placement into the region) if not
-            # otherwise specified.
-            Function(['TotalVar'], [[(.05**2, .05**2, .02**2, .1**2)]],
-                     assign, 'assign'),
-            # Same for the pose of the base object.  
-            Function(['PoseVar2'], [], obsVar, 'obsVar'),
-
-            # TotalVar = PoseVar2 + GraspVar + PlaceVar,
-            # GraspVar = min(maxGraspVar, TotalVar - PlaceVar - PoseVar2)
-            Function(['GraspVar'], ['TotalVar', 'PoseVar2'],
-                     placeGraspVar2, 'placeGraspVar'),
-
-            # Real pose var might be much less than pose var if the
-            # original pos var was very large
-            # RealPoseVar = GraspVar + PlaceVar
-            Function(['RealPoseVar'],
-                     ['GraspVar'], realPoseVar, 'realPoseVar'),
-
-            Function(['PoseFace2', 'ObjPose2'],
-                     ['Obj2'], poseInStart, 'poseInStart'),
-
-            # In case PoseDelta isn't defined
-            Function(['PoseDelta'],[[defaultPoseDelta]], assign, 'assign'),
-            Function(['TotalDelta'],[[defaultTotalDelta]], assign, 'assign'),
-            # Divide delta evenly
-            Function(['ConfDelta', 'GraspDelta', 'PoseDelta2'],
-                     ['TotalDelta'], thirdVariance, 'thirdVar'),
-
-            # Values for what is in the other hand
-            Function(['OObj', 'OFace', 'OGraspMu', 'OGraspVar', 'OGraspDelta'],
-                       ['OtherHand', 'Obj1'], genGraspStuffHand,
-                       'genGraspStuffHand'),
-
-            # Not modeling the fact that the object's shadow should
-            # grow a bit as we move to place it.   Build that into placeGen.
-            Function(['Pose', 'PoseFace', 'GraspMu', 'GraspFace', 'GraspVar',
-                      'PlaceConf', 'PreConf'],
-                     ['Obj1', 'Region','Pose', 'PoseFace', 'TotalVar',
-                      'GraspVar', 'TotalDelta', 'GraspDelta', 'ConfDelta',
-                      'Hand',
-                     probForGenerators],
-                     placeInGen, 'placeInGen')
-
-            ],
-        cost = placeCostFun, 
-        f = placeBProgress,
-        prim = placePrim,
-        argsToPrint = [0, 1, 3, 4, 5],
-        ignorableArgs = range(1, 34))
+        ignorableArgs = range(2, 25))
 
 pick = Operator(\
         'Pick',
@@ -1281,7 +1182,7 @@ lookAt = Operator(\
     # Functions
     functions = [\
         Function(['P2'], [[canSeeProb]], assign, 'assign'),
-        # Look increases probability.  For now, just a fixed amount.  Ugly.
+        # Look increases probability.  
         Function(['P1'], ['PR1', 'PR2'], obsModeProb, 'obsModeProb'),
         # How confident do we need to be before the look?
         Function(['PoseVarBefore'], ['PoseVarAfter', 'Obj', 'PoseFace'],
@@ -1296,6 +1197,8 @@ lookAt = Operator(\
     prim = lookPrim,
     argsToPrint = [0, 1],
     ignorableArgs = range(1, 11))
+
+
 
 lookAtHand = Operator(\
     'LookAtHand',
@@ -1532,17 +1435,21 @@ poseAchCanSee = Operator(\
 
 magicRegraspCost = 10
 
+# Not sure how to make this be called less often; it's relevant to any
+# "Holding" goal.  Hopefully the easyGrasp cache works well.  Will try
+# attenuating the probabilities.
+
 hRegrasp = Operator(\
         'HeuristicRegrasp',
         ['Obj', 'Hand', 'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
          'PrevGraspFace', 'PrevGraspMu', 'PrevGraspVar', 'PrevGraspDelta',
-         'PR1', 'PR2', 'PR3'],
+         'P1', 'P2', 'P3', 'PR1', 'PR2', 'PR3'],
 
         # Pre
-        {0 : {Bd([Holding(['Hand']), 'Obj', 'PR1'], True),
-              Bd([GraspFace(['Obj', 'Hand']), 'PrevGraspFace', 'PR2'], True),
+        {0 : {Bd([Holding(['Hand']), 'Obj', 'P1'], True),
+              Bd([GraspFace(['Obj', 'Hand']), 'PrevGraspFace', 'P2'], True),
               B([Grasp(['Obj', 'Hand', 'PrevGraspFace']),
-                  'PrevGraspMu', 'GraspVar', 'GraspDelta', 'PR3'], True)}},
+                  'PrevGraspMu', 'GraspVar', 'GraspDelta', 'P3'], True)}},
 
         # Results
         [({Bd([Holding(['Hand']), 'Obj', 'PR1'], True), 
@@ -1554,6 +1461,9 @@ hRegrasp = Operator(\
         functions = [\
             # Be sure obj is not none
             Function([], ['Obj'], notNone, 'notNone', True),
+            Function(['P1', 'P2', 'P3'], ['PR1', 'PR2', 'PR3'], 
+                     regressProb(3, 'pickFailProb'), 'regressProb3'),
+
             Function(['PrevGraspFace', 'PrevGraspMu', 'PrevGraspVar',
                       'PrevGraspDelta'],
                       ['Obj', 'Hand'], easyGraspGen, 'easyGraspGen'),
@@ -1563,5 +1473,4 @@ hRegrasp = Operator(\
                      notEqual2, 'notEqual2', True),
             ],
         cost = lambda al, args, details: magicRegraspCost,
-        argsToPrint = [0, 1],
-        ignorableArgs = range(2, 12))  # pays attention to pose
+        argsToPrint = [0, 1])

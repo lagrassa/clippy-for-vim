@@ -679,15 +679,30 @@ def canReachHome(pbs, conf, prob, initViol,
 
     return path, viol
 
-# !! Should this specify the support surface??
+def findRegionParent(bState, region):
+    regs = bState.pbs.getWorld().regions
+    for (obj, stuff) in regs.items():
+        for (regName, regShape, regTr) in stuff:
+            if regName == region:
+                return obj
+    raw_input('No parent object for region '+str(region))
+    return None
+
+# probability is: pObj * pParent * pObjFitsGivenRelativeVar = prob
 def inTest(bState, obj, regName, prob, pB=None):
+    regs = bState.pbs.getWorld().regions
+    parent = findRegionParent(bState, regName)
+    pObj = bState.poseModeProbs[obj]
+    pParent = bState.poseModeProbs[parent]
+    pFits = prob / (pObj * pParent)
+    if pFits > 1: return False
+
     # compute a shadow for this object
     placeB = pB or bState.pbs.getPlaceB(obj)
     faceFrame = placeB.faceFrames[placeB.support.mode()]
 
     # !! Clean this up
-    
-    sh = bState.pbs.objShadow(obj, True, prob, placeB, faceFrame)
+    sh = bState.pbs.objShadow(obj, True, pFits, placeB, faceFrame)
     shadow = sh.applyLoc(placeB.objFrame()) # !! is this right?
     shWorld = bState.pbs.getShadowWorld(prob)
     region = shWorld.regionShapes[regName]

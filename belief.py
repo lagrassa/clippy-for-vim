@@ -434,7 +434,7 @@ maxHeuristicValue = 1000
 # See if we can get some branch-and-bound action to work.  Advantage is
 # finishing early;  risk is not filling up cache effectively
 
-hAddBackEntail = False
+hAddBackEntail = True
 
 def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                  staticEval = lambda f: float('inf'),
