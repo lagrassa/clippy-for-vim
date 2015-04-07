@@ -619,8 +619,6 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
     for ff in partitionFn(goal.fluents):
         (ic, actSet) = aux(ff, idk, float('inf'))
         if ic == float('inf'):
-            debugMsg('hAddBackInf', '*** Final ***',
-                     ('infinite cost', idk, ff))
             return ic
         totalActSet = totalActSet.union(actSet)
     totalCost = sum([op.instanceCost for op in totalActSet])
@@ -652,5 +650,11 @@ def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,
         if vk < float('inf'):
             break
     result = min(vk, maxHeuristicValue)
+    if vk == float('inf'):
+        print '**** Final heuristic value is infinite ****'
+        print 'Searched to depth', maxK
+        for thing in goal.fluents: print thing
+        raw_input('You should probably stop and debug')
+
     fbch.inHeuristic = False
     return result

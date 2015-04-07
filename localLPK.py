@@ -57,7 +57,7 @@ traceGen  (compact summary of generators)
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'traceGen', 'traceCRH', 'obsUpdate']
+           'traceGen', 'traceCRH', 'hAddBackInf']
 #    , 'traceCRH', 'placeGen']
 #            'appOp:number', 'hAddBack', 'hAddBackV']
            # 'hAddBackInf', 'appOp:number','traceGen', 'canReachHome',

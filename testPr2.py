@@ -84,6 +84,7 @@ writeSearch = True
 useRight = True
 useHorizontal = True
 useVertical = False if useROS else True
+useVertical = False
 useCartesian = False
 useLookAtHand = False
 
@@ -662,7 +663,7 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     return t
 
 
-# pick and place into region
+# Weird initial conditions
 def test2(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
