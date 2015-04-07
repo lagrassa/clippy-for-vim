@@ -938,7 +938,7 @@ def fwDist(arm, T, sol):
 ##################
 
 def interpPose(pose_f, pose_i, minLength, ratio=0.5):
-    if isinstance(pose_f, list):
+    if isinstance(pose_f, (tuple, list)):
         return [f*ratio + i*(1-ratio) for (f,i) in zip(pose_f, pose_i)], \
                all([abs(f-i)<=minLength for (f,i) in zip(pose_f, pose_i)])
     else:
@@ -947,37 +947,33 @@ def interpPose(pose_f, pose_i, minLength, ratio=0.5):
         return util.Transform(None, pr.matrix, qr), \
                pose_f.near(pose_i, minLength, minLength)
 
-def cartInterpolators(conf_f, conf_i, minLength, moveChains = []):
+def cartInterpolators(conf_f, conf_i, minLength):
     c_f = conf_f.cartConf()
     c_i = conf_i.cartConf()
-    return cartInterpolatorsAux(c_f, c_i, conf_i, minLength, 
-                                moveChains=moveChains)
+    return cartInterpolatorsAux(c_f, c_i, conf_i, minLength)
 
-def cartInterpolatorsAux(c_f, c_i, conf_i, minLength, depth=0,
-                         moveChains = []):
+def cartInterpolatorsAux(c_f, c_i, conf_i, minLength, depth=0):
     if depth > 10:
         raw_input('cartInterpolators depth > 10')
     robot = conf_i.robot
-    if c_f == c_i: return [robot.inverseKin(c_f, conf_i)]
+    if c_f == c_i: 
+        conf = robot.inverseKin(c_f, conf_i)
+        conf['pr2Head'] = conf_i['pr2Head']
+        return [conf]
     newVals = {}
     terminal = True
-    raw_input('interp?')
-    for chain in moveChains or c_i.conf:
+    for chain in c_i.conf:
         new, near = interpPose(c_f.conf[chain], c_i.conf[chain], minLength)
         newVals[chain] = new
         terminal = terminal and near
     if terminal: return []        # no chain needs splitting
-    for chain in c_i.conf: #  fill in?
-        if not chain in newVals:
-            newVals[chain] = c_i.conf[chain]
     cart = CartConf(newVals, c_f.robot)
     conf = robot.inverseKin(cart, conf=conf_i)
+    conf.conf['pr2Head'] = conf_i['pr2Head']
     if all([conf.conf.values()]):
-        final = cartInterpolatorsAux(c_f, cart, conf_i, minLength, depth+1,
-                                     moveChains=moveChains)
+        final = cartInterpolatorsAux(c_f, cart, conf_i, minLength, depth+1)
         if final != None:
-            init = cartInterpolatorsAux(cart, c_i, conf_i, minLength, depth+1,
-                                        moveChains=moveChains)
+            init = cartInterpolatorsAux(cart, c_i, conf_i, minLength, depth+1)
             if init != None:
                 final.append(conf)
                 final.extend(init)

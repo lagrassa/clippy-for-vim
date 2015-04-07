@@ -1788,7 +1788,7 @@ def testReact():
     startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)
     cnfOut, result = pr2GoToConf(startConf, 'move')
     # Reset the internal coordinate frames
-    cnfOut, result = pr2GoToConf({}, 'reset')
+    cnfOut, result = pr2GoToConf(startConf, 'reset')
     testReactive(startConf)
     
 
