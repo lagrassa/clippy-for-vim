@@ -1,0 +1,225 @@
+------------  Belief -------------
+Conf:
+    pr2LeftGripper [0.070]
+    pr2RightArm [-1.683, 1.062, -2.100, -1.875, 2.055, -0.491, -1.628]
+    pr2Base [0.000, 0.000, 0.000]
+    pr2Torso [0.300]
+    pr2RightGripper [0.070]
+    pr2Head [-0.011, 0.811]
+    pr2LeftArm [1.683, 1.062, 2.100, -1.875, -2.055, -0.491, 1.628]
+Held Left: DDist('none': 1.000) mode prob 1.000
+    Grasp type: None
+    Grasp mean: None
+    Grasp stdev: None
+Held Right: DDist('none': 1.000) mode prob 1.000
+    Grasp type: None
+    Grasp mean: None
+    Grasp stdev: None
+Objects:
+objA
+   prob: 1.0
+   face: DDist(4: 1.000)
+   pose: (1.218, -0.079, 0.680, 3.060)
+ stdev : [0.010, 0.010, 0.000, 0.010]
+table1
+   prob: 1.0
+   face: DDist(4: 1.000)
+   pose: (1.329, -0.165, 0.000, 1.468)
+ stdev : [0.010, 0.009, 0.000, 0.010]
+------------  Belief -------------
+
+calling perception with ['soda']
+perception state scene: 
+  header: 
+    seq: 0
+    stamp: 
+      secs: 1428416995
+      nsecs: 208125817
+    frame_id: /base_footprint
+  objects: 
+    - 
+      name: soda
+      pose: 
+        position: 
+          x: 1.2146602869
+          y: -0.085848338902
+          z: 0.725463330746
+        orientation: 
+          x: 0.0
+          y: 0.0
+          z: -0.0459822639823
+          w: 0.998942255974
+      fitness_score: 0.53691649437
+      cluster_id: 0
+objA
+origin frame
+[[ 0.99590427  0.09041394  0.          1.21165082]
+ [-0.09041394  0.99590427  0.         -0.0859011 ]
+ [ 0.          0.          1.          0.72546333]
+ [ 0.          0.          0.          1.        ]]
+supportPose
+[[ 0.99590427  0.09041394  0.          1.21165082]
+ [-0.09041394  0.99590427  0.         -0.0859011 ]
+ [ 0.          0.          1.          0.66671336]
+ [ 0.          0.          0.          1.        ]]
+Executed LookAt got obs ('soda', 4, util.Transform(p=[[ 1.21165082 -0.0859011   0.66671336  1.        ]], q=[ 0.          0.         -0.04525333  0.99897556]))
+obs is cyan
+obsUpdate :
+     Potential match with
+     objA
+     ll
+     4.81746880321
+     True
+obsUpdate-Go?
+new sigma (9.900990099009902e-05, 9.900990099009902e-05, 9.999990000010002e-11, 9.988901220865705e-05)
+------------  Belief -------------
+Conf:
+    pr2LeftGripper [0.070]
+    pr2RightArm [-1.683, 1.062, -2.100, -1.875, 2.055, -0.491, -1.628]
+    pr2Base [0.000, 0.000, 0.000]
+    pr2Torso [0.300]
+    pr2RightGripper [0.070]
+    pr2Head [-0.011, 0.811]
+    pr2LeftArm [1.683, 1.062, 2.100, -1.875, -2.055, -0.491, 1.628]
+Held Left: DDist('none': 1.000) mode prob 1.000
+    Grasp type: None
+    Grasp mean: None
+    Grasp stdev: None
+Held Right: DDist('none': 1.000) mode prob 1.000
+    Grasp type: None
+    Grasp mean: None
+    Grasp stdev: None
+Objects:
+objA
+   prob: 1.0
+   face: DDist(4: 1.000)
+   pose: (1.211, -0.085, 0.680, -0.090)
+ stdev : [0.010, 0.010, 0.000, 0.010]
+table1
+   prob: 1.0
+   face: DDist(4: 1.000)
+   pose: (1.338, -0.170, 0.000, 1.572)
+ stdev : [0.010, 0.009, 0.000, 0.010]
+------------  Belief -------------
+
+calling perception with ['soda']
+perception state scene: 
+  header: 
+    seq: 0
+    stamp: 
+      secs: 1428417071
+      nsecs: 356442955
+    frame_id: /base_footprint
+  objects: 
+    - 
+      name: soda
+      pose: 
+        position: 
+          x: 1.21674001217
+          y: -0.0795088410378
+          z: 0.723932921886
+        orientation: 
+          x: 0.0
+          y: 0.0
+          z: 0.999735891819
+          w: 0.0229827668518
+      fitness_score: 0.734375417233
+      cluster_id: 0
+objA
+origin frame
+[[-0.99900954 -0.04449391  0.          1.21370382]
+ [ 0.04449391 -0.99900954  0.         -0.07965828]
+ [ 0.          0.          1.          0.72393292]
+ [ 0.          0.          0.          1.        ]]
+supportPose
+[[-0.99900931 -0.0444939   0.          1.21370382]
+ [ 0.0444939  -0.99900931  0.         -0.07965828]
+ [ 0.          0.          1.          0.66518295]
+ [ 0.          0.          0.          1.        ]]
+Executed LookAt got obs ('soda', 4, util.Transform(p=[[ 1.21370382 -0.07965828  0.66518295  1.        ]], q=[ 0.          0.          0.99975228  0.02225246]))
+obs is cyan
+obsUpdate :
+     Potential match with
+     objA
+     ll
+     -25402.316579
+     False
+obsUpdate-Go?
+obsUpdate :
+     No good match for observation
+ ===================================
+
+calling perception with ['soda']
+perception state scene: 
+  header: 
+    seq: 0
+    stamp: 
+      secs: 1428418449
+      nsecs: 660378361
+    frame_id: /base_footprint
+  objects: 
+    - 
+      name: soda
+      pose: 
+        position: 
+          x: 1.21433746815
+          y: -0.083063557744
+          z: 0.726001560688
+        orientation: 
+          x: 0.0
+          y: 0.0
+          z: -0.0101073868573
+          w: 0.999948918819
+      fitness_score: 0.535804986954
+      cluster_id: 0
+objA
+origin frame
+[[ 0.99982997  0.01843977  0.          1.21166105]
+ [-0.01843977  0.99982997  0.         -0.08275121]
+ [ 0.          0.          1.          0.72600156]
+ [ 0.          0.          0.          1.        ]]
+supportPose
+[[ 0.99982997  0.01843977  0.          1.21166105]
+ [-0.01843977  0.99982997  0.         -0.08275121]
+ [ 0.          0.          1.          0.66725159]
+ [ 0.          0.          0.          1.        ]]
+Executed LookAt got obs ('soda', 4, util.Transform(p=[[ 1.21166105 -0.08275121  0.66725159  1.        ]], q=[ 0.          0.         -0.00922028  0.9999575 ]))
+obs is cyan
+obsUpdate :
+     Potential match with
+     objA
+     ll
+     4.95731998056
+     True
+obsUpdate-Go?
+new sigma (9.900990099009902e-05, 9.900990099009902e-05, 9.999990000010002e-11, 9.988901220865705e-05)
+newMu is magenta
+------------  Belief -------------
+Conf:
+    pr2LeftGripper [0.070]
+    pr2RightArm [-1.683, 1.062, -2.100, -1.875, 2.055, -0.491, -1.628]
+    pr2Base [0.000, 0.000, 0.000]
+    pr2Torso [0.300]
+    pr2RightGripper [0.070]
+    pr2Head [-0.011, 0.811]
+    pr2LeftArm [1.683, 1.062, 2.100, -1.875, -2.055, -0.491, 1.628]
+Held Left: DDist('none': 1.000) mode prob 1.000
+    Grasp type: None
+    Grasp mean: None
+    Grasp stdev: None
+Held Right: DDist('none': 1.000) mode prob 1.000
+    Grasp type: None
+    Grasp mean: None
+    Grasp stdev: None
+Objects:
+objA
+   prob: 1.0
+   face: DDist(4: 1.000)
+   pose: (1.211, -0.082, 0.680, 3.120)
+ stdev : [0.010, 0.010, 0.000, 0.010]
+table1
+   prob: 1.0
+   face: DDist(4: 1.000)
+   pose: (1.338, -0.148, 0.000, -1.562)
+ stdev : [0.010, 0.009, 0.000, 0.010]
+------------  Belief -------------
