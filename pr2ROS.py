@@ -244,7 +244,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         result, outConf = pr2GoToConf(conf, 'move')
         
         debugMsg('robotEnv', 'executePick - move to pickConf')
-        result, outConf = pr2GoToConf(pickConf, 'move')
+        # result, outConf = pr2GoToConf(pickConf, 'move')
+        reactiveApproach(approachConf, pickConf, 0.06, hand)
 
         debugMsg('robotEnv', 'executePick - close')
         result, outConf = pr2GoToConf(pickConf, 'close', arm=hand[0]) # 'l' or 'r'

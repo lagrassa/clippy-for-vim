@@ -83,7 +83,7 @@ writeSearch = True
 
 useRight = True
 useHorizontal = True
-useVertical = True
+useVertical = False if useROS else True
 useCartesian = False
 useLookAtHand = False
 
@@ -196,13 +196,13 @@ def testWorld(include = ['objA', 'objB', 'objC'],
             world.addObjectRegion(name, regName, Sh([Ba(bbox)], name=regName),
                                   util.Pose(0,0,2*bbox[1,2],0))
             bboxLeft = np.empty_like(bbox); bboxLeft[:] = bbox
-            bboxLeft[0][0] = 0.5*(bbox[0][0] + bbox[1][0])
+            bboxLeft[0][0] = 0.5*(bbox[0][0] + bbox[1][0]) + 0.2
             regName = name+'Left'
             print 'Region', regName, '\n', bboxLeft
             world.addObjectRegion(name, regName, Sh([Ba(bboxLeft)], name=regName),
                                   util.Pose(0,0,2*bbox[1,2],0))
             bboxRight = np.empty_like(bbox); bboxRight = bbox
-            bboxRight[1][0] = 0.5*(bbox[0][0] + bbox[1][0])
+            bboxRight[1][0] = 0.5*(bbox[0][0] + bbox[1][0]) - 0.2
             regName = name+'Right'
             print 'Region', regName, '\n', bbox
             world.addObjectRegion(name, regName, Sh([Ba(bboxRight)], name=regName),
@@ -274,8 +274,10 @@ def testWorld(include = ['objA', 'objB', 'objC'],
         return 'unknown'
 
     world.objectTypes = dict([(o, t(o)) for o in include])
-    world.symmetries = {'soda' : ({4 : 4}, {4 : []}),
-                        'table' : ({4 : 4}, {4 : []})}
+    world.symmetries = {'soda' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.),
+                                                 util.Pose(0.,0.,0.,math.pi)]}),
+                        'table' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.),
+                                                 util.Pose(0.,0.,0.,math.pi)]})}
 
     robot = PR2('MM', makePr2Chains('PR2', world.workspace))
     # This affects randomConf and stepAlongLine, unless overriden
@@ -447,12 +449,12 @@ class PlanTest:
         if glob.useROS:
             world = self.bs.pbs.getWorld()
             self.realWorld = RobotEnv(world)
+            startConf = self.bs.pbs.conf.copy()
             # Move base to [0., 0., 0.]
-            cnfOut, result = pr2GoToConf(JointConf({'pr2Base' : [0., 0., 0.]},
-                                                   world.robot),
-                                         'move')
+            startConf.set('pr2Base', 3*[0.])
+            result, cnfOut = pr2GoToConf(startConf,'move')
             # Reset the internal coordinate frames
-            cnfOut, result = pr2GoToConf({}, 'reset')
+            result, cnfOut = pr2GoToConf(cnfOut, 'reset')
             debugMsg('robotEnv', result, cnfOut)
         else:
             self.realWorld = RealWorld(self.bs.pbs.getWorld(),
@@ -500,9 +502,9 @@ class PlanTest:
         self.bs.pbs.draw(0.9, 'W')
         if not glob.useROS:
             self.realWorld.draw('World')
-        for regName in self.bs.pbs.regions:
-            self.realWorld.regionShapes[regName].draw('World', 'purple')
-        if self.bs.pbs.regions: raw_input('Regions')
+            for regName in self.bs.pbs.regions:
+                self.realWorld.regionShapes[regName].draw('World', 'purple')
+            if self.bs.pbs.regions: raw_input('Regions')
 
         s = State([], details = self.bs)
 
@@ -1784,9 +1786,9 @@ def firstAid(details, fluent = None):
 def testReact():
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
     startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)
-    cnfOut, result = pr2GoToConf(startConf, 'move')
+    result, cnfOut = pr2GoToConf(startConf, 'move')
     # Reset the internal coordinate frames
-    cnfOut, result = pr2GoToConf(startConf, 'reset')
+    result, cnfOut = pr2GoToConf(startConf, 'reset')
     testReactive(startConf)
     
 
