@@ -60,6 +60,14 @@ debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
            'traceGen', 'traceCRH']
 #    , 'traceCRH', 'placeGen']
 #            'appOp:number', 'hAddBack', 'hAddBackV']
+           # 'hAddBackInf', 'appOp:number','traceGen', 'canReachHome',
+           # 'visible']
+           
+
+
+
+
+>>>>>>> Stashed changes
 
 pauseOn = debugOn
 
