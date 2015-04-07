@@ -70,7 +70,7 @@ class SearchNode:
 
 def search(initialState, goalTest, actions, successor,
            heuristic = lambda s: 0, maxNodes = 10000,
-           visitF = None, expandF = None, hmax = 1.0e3,
+           visitF = None, expandF = None, hmax = float('inf'),
            prevExpandF = None,
            multipleSuccessors = False,
            greedy = 0.5,
@@ -99,6 +99,10 @@ def search(initialState, goalTest, actions, successor,
                                getH(initialState))
         if goalTest(initialState):
             return startNode.path(), [0]
+        if startNode.heuristicCost >= hmax:
+            print 'Root has infinite heuristic value'
+            return None, None
+            
         agenda = []
         count = 1
         countExpanded = 0

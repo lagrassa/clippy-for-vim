@@ -654,7 +654,7 @@ def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,
         print '**** Final heuristic value is infinite ****'
         print 'Searched to depth', maxK
         for thing in goal.fluents: print thing
-        raw_input('You should probably stop and debug')
-
+        debugMsg('hAddBackInf', 'Bad if this is the root')
+        return vk
     fbch.inHeuristic = False
     return result
