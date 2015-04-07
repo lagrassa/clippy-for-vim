@@ -1362,7 +1362,7 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
             # Decide what to do next
             # will pop levels we don't need any more, so that p is on the top
             # op will be None if we are done
-            (op, subgoal) = ps.nextStep(s)
+            (op, subgoal) = ps.nextStep(s, f)
             # Possibly pop ancestors
             ancestors = ancestors[0:ps.size()]
     finally:
@@ -1386,7 +1386,7 @@ class PlanStack(Stack):
     # Ask each layer what it wants its next step to be
     # If it's different than the subgoal at the next layer below, pop all
     #    lower layers
-    def nextStep(self, s):
+    def nextStep(self, s, f = None):
         layers = self.guts()
         numLayers = len(layers)
         preImages = self.computePreimages()
@@ -1394,7 +1394,7 @@ class PlanStack(Stack):
         (upperOp, upperSubgoal) = self.nextLayerStep(layers[0], preImages[0],s)
         for i in range(1, len(layers)):
             # Op and subgoal layer i wants to execute
-            (op, subgoal) = self.nextLayerStep(layers[i], preImages[i], s)
+            (op, subgoal) = self.nextLayerStep(layers[i], preImages[i], s, f)
             # Ultimate goal of layer i
             lowerGoal = layers[i].steps[-1][1]
             if not op or upperSubgoal != lowerGoal:
@@ -1411,6 +1411,8 @@ class PlanStack(Stack):
                     currentUpperIndex = layers[i-1].subgoalIndex(upperSubgoal)
 
                     if previousUpperIndex != currentUpperIndex -1 :
+                        writeSurprise(f, layers[i-1], previousUpperIndex,
+                                      currentUpperIndex)
                         debugMsg('executionSurprise', ('layer', i-1),
                              ('prevIndex', previousUpperIndex),
                              ('currIndex', currentUpperIndex),
@@ -1433,7 +1435,7 @@ class PlanStack(Stack):
         return (upperOp, upperSubgoal)
 
     # Return op and subgoal in this layer to be addressed next
-    def nextLayerStep(self, layer, preImages, s):
+    def nextLayerStep(self, layer, preImages, s, f = None):
         # If the final subgoal holds, then we're done
         if any([s.satisfies(sg) for sg in preImages[-1]]):
             if debug('nextStep'):
@@ -1465,15 +1467,23 @@ class PlanStack(Stack):
         # Not in the envelope
         debugMsg('nextStep', 'not in envelope')
         
+
+        fooFluents = []
+        for fl in layer.steps[layer.lastStepExecuted][1].fluents:
+            fv = s.fluentValue(fl, recompute = True)
+            if fl.value != fv:
+                fooFluents.append(fl)
+        writeFailure(f, layer, fooFluents)
+        
         if debug('executionFail'):
             print 'Next step: failed to satisfy any pre-image'
             print 'Was expecting to satisfy preimage', layer.lastStepExecuted
             glob.debugOn.append('testVerbose')
-            for f in layer.steps[layer.lastStepExecuted][1].fluents:
-                fv = s.fluentValue(f, recompute = True)
-                if f.value != fv:
-                    print 'wanted:', f.value, 'got:', fv
-                    print '    ', f.prettyString()
+            for fl in layer.steps[layer.lastStepExecuted][1].fluents:
+                fv = s.fluentValue(fl, recompute = True)
+                if fl.value != fv:
+                    print 'wanted:', fl.value, 'got:', fv
+                    print '    ', fl.prettyString()
             glob.debugOn.pop()
             raw_input('execution fail')
         return None, None
@@ -2073,19 +2083,12 @@ def writeCoda(f):
         f.close()
 
 # For HPN trees
-#subtaskStyle = 'shape=box, style=filled, color=thistle1'  # plum1
 subtaskStyle = 'shape=box, style=filled, colorscheme=pastel16, color=4'
-defStyle = 'shape=box, style=filled, color=gainsboro'
-#primitiveStyle = 'shape=box, style=filled, color=darkseagreen1'
 primitiveStyle = 'shape=box, style=filled, colorscheme=pastel16, color=3'
-#planGoalStyle = 'shape=box, style=filled, color=lightsteelblue1'
 planGoalStyle = 'shape=box, style=filled, colorscheme=pastel16, color=2'
+surpriseStyle = 'shape=box, style=filled, colorscheme=pastel16, color=1'
 planStepArrowStyle = ''
 refinementArrowStyle = 'style=dashed'
-replanStyle = 'shape=box, style=filled, color=goldenrod1' 
-afStyle = 'shape=box, style=filled, color="#FFAA88"'
-serenStyle = 'shape=box, style=filled, color=khaki1'
-gsStyle = 'shape=box, style=filled, color="#FFAA88"'
 indent = '    '
 arrow = ' -> '
 eol = ';\n'  # terminate a line in a dot file
@@ -2113,6 +2116,22 @@ def writeGoalNode(f, goal):
         wf(f, indent + goalNodeName + styleStr(planGoalStyle + ', label=' +\
                                                goalLabel) + eol)
 
+def writeSurpriseNode(f, surpriseNodeName, prevIndex, currIndex):
+    if f:
+        nodeLabel = name('Surprise'+nl+\
+                         'Upper step ' + str(currIndex-1))
+                          # +nl+\'Got index ' + str(currIndex))
+        wf(f, indent + surpriseNodeName + styleStr(surpriseStyle + ', label=' +\
+                                               nodeLabel) + eol)
+
+def writeFailureNode(f, nodeName, fluents):
+    if f:
+        g = State(fluents)
+        nodeLabel = name('Failure.  Expected'+nl+\
+                         g.prettyString(False, None))
+        wf(f, indent + nodeName + styleStr(surpriseStyle + ', label=' +\
+                                               nodeLabel) + eol)
+
 def writeSubgoalRefinement(f, p, subgoal):
     writeGoalNode(f, subgoal)
     if f and p.steps[1][0] != top:  # if task 1 is top, this is a root
@@ -2120,12 +2139,34 @@ def writeSubgoalRefinement(f, p, subgoal):
         wf(f, indent + p.subtasksNodeName + arrow + subgoalNodeName + \
            styleStr(refinementArrowStyle) + eol)
 
+surpriseCount = 0
+def writeSurprise(f, p, prevIndex, currIndex):
+    global surpriseCount
+    surpriseCount += 1
+    surpriseNodeName =  name(p.subtasksNodeName[1:-1]+':'+str(prevIndex)+':'\
+                                 +str(currIndex)+':'+str(surpriseCount))
+    writeSurpriseNode(f, surpriseNodeName, prevIndex, currIndex)
+    if f and p.steps[1][0] != top:  # if task 1 is top, this is a root
+        wf(f, indent + p.subtasksNodeName + arrow + surpriseNodeName + \
+           styleStr(refinementArrowStyle) + eol)
+
+failureCount = 0
+def writeFailure(f, p, fluents):
+    global failureCount
+    failureCount += 1
+    failNodeName =  name(p.subtasksNodeName[1:-1]+':'+str(surpriseCount))
+    writeFailureNode(f, failNodeName, fluents)
+    if f and p.steps[1][0] != top:  # if task 1 is top, this is a root
+        wf(f, indent + p.subtasksNodeName + arrow + failNodeName + \
+           styleStr(refinementArrowStyle) + eol)
+
 def writeSubtasks(f, p, goal):
     tasks = [step[0] for step in p.steps[1:]]
     if f:
         goalNodeName =  name(goal.goalName())
         subtasksNodeName = name(','.join([t.uniqueStr() for t in tasks]))
-        subtasksLabel = name('\\n'.join([t.prettyString(False) for t in tasks]))
+        subtasksLabel = name('\\n'.join(\
+         [str(i)+': '+t.prettyString(False) for (i, t) in enumerate(tasks)]))
         wf(f, indent + subtasksNodeName + \
               styleStr(subtaskStyle + ', label=' + subtasksLabel) + eol)
         wf(f, indent + goalNodeName + arrow + subtasksNodeName + \

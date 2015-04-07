@@ -608,7 +608,7 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     glob.monotonicFirst = True
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
-    errProbs = typicalErrProbs
+
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
