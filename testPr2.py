@@ -619,16 +619,77 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     #                            'objA': (0.05**2, 0.05**2, 1e-10, 0.05**2)} 
     front = util.Pose(1.1, 0.0, tZ, 0.0)
     table2Pose = util.Pose(1.0, -1.00, 0.0, 0.0)
+    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+
+    region = 'table2Left'
+    goal = State([Bd([In(['objA', region]), True, goalProb], True)])
+
     t = PlanTest('test1',  errProbs, allOperators,
-                 objects=['table1', 'objA'],
-                 movePoses={'objA': front})
+                 objects=['table1', 'objA', 'table2'],
+                 fixPoses={'table1': table1Pose,
+                           'table2': table2Pose},
+                 movePoses={'objA': front},
+                 varDict = varDict)
+
+    skel = [[#lookAt.applyBindings({'Obj' : 'objA'}), move,
+             place, move, pick, move,
+             lookAt.applyBindings({'Obj' : 'objA'}), move,
+             lookAt.applyBindings({'Obj' : 'objA'}), move,
+             lookAt.applyBindings({'Obj' : 'table2'}), move,
+             lookAt.applyBindings({'Obj' : 'table2'}), move]]
+
+    skel = [[poseAchIn, place, move, pick, move, lookAt, move, lookAt, move]]
+
+    hSkel = [[poseAchIn,
+              lookAt.applyBindings({'Obj' : 'objA'}),
+              place.applyBindings({'Obj' : 'objA'}),
+              lookAt.applyBindings({'Obj' : 'table2'})],
+              [lookAt.applyBindings({'Obj' : 'table2'}),
+               move],
+              [move],
+              [place.applyBindings({'Obj' : 'objA'})]]
+              
+              
+    
+    t.run(goal,
+          hpn = hpn,
+          skeleton = hSkel if skeleton else None,
+          hierarchical = hierarchical,
+          regions=[region],
+          heuristic = heuristic,
+          rip = rip
+          )
+    return t
+
+
+# pick and place into region
+def test2(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+          easy = False, rip = False):
+
+    glob.rebindPenalty = 700
+    glob.monotonicFirst = True
+
+    goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
+    # varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.05**2),
+    #                            'table2': (0.03**2, 0.03**2, 1e-10, 0.05**2),
+    #                            'objA': (0.05**2, 0.05**2, 1e-10, 0.05**2)} 
+    front = util.Pose(1.1, 0.0, tZ, 0.0)
+    table2Pose = util.Pose(1.0, -1.00, 0.0, 0.0)
+    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+
+    front = util.Pose(1.211, -0.082, 0.680, 3.120)
+    table1Pose = util.Pose(1.338, -0.148, 0.000, 1.562)
 
     region = 'table1Left'
     goal = State([Bd([In(['objA', region]), True, goalProb], True)])
 
-    t = PlanTest('test1',  errProbs, allOperators,
+    t = PlanTest('test2',  errProbs, allOperators,
                  objects=['table1', 'objA'],
-                 fixPoses={'table1': util.Pose(1.3, 0.0, 0.0, math.pi/2),
+                 fixPoses={'table1': table1Pose,
                            'table2': table2Pose},
                  movePoses={'objA': front},
                  varDict = varDict)
