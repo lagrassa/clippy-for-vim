@@ -1,4 +1,3 @@
-# cython: profile=True
 import transformations as transf
 import copy
 import math
@@ -9,6 +8,7 @@ import xml.etree.ElementTree as ET
 from util cimport Ident, Transform, angleDiff, fixAnglePlusMinusPi
 from shapes cimport Shape
 from planGlobals import debug, debugMsg
+from geom import bboxUnion
 
 PI2 = 2*math.pi
 
@@ -66,7 +66,7 @@ class World:
 
     def addObjectRegion(self, objName, regName, regShape, regTr):
         if objName in self.regions:
-            self.regions[objName].append = (regName, regShape, regTr)
+            self.regions[objName].append((regName, regShape, regTr))
         else:
             self.regions[objName] = [(regName, regShape, regTr)]
 
@@ -88,9 +88,9 @@ class World:
         conf = dict([[objName, [Ident]]] +\
                     [[chain.name, []] for chain in chains[1:]])
         shape = obj.placement(Ident, conf)[0]
-        # return next((part for part in shape.parts() if part.name() == objName), None)
+        return next((part for part in shape.parts() if part.name() == objName), None)
         # To make sure that we remove unnesessary nestings
-        return simplify(shape)
+        # return simplify(shape)
 
     def getGraspDesc(self, obj):
         if obj == 'none':
@@ -319,7 +319,7 @@ cdef class MultiChain:
         cfg = conf.copy()
         frames = {self.baseFname : base}
         pr = False
-        for chain, part in zip(self.chainsInOrder, place.parts):
+        for chain, part in zip(self.chainsInOrder, place.parts()):
             if getShapes is True:
                 chainShape = getShapes
             else:
@@ -329,6 +329,7 @@ cdef class MultiChain:
                 print ' **Placement**', chain.name, cfg[chain.name]
             for joint, tr in zip(chain.joints, trs):
                 frames[joint.name] = tr
+        place.thingBBox = bboxUnion([x.bbox() for x in place.parts()])
         return place, frames
 
     def __str__(self):
@@ -410,10 +411,18 @@ cdef class Chain:
         trs = self.frameTransforms(base, jointValues)
         if trs:
             if getShapes:
-                # !! applyTrans??
-                return Shape([p.applyLoc(tr) for (p, tr) in zip(self.links, trs) if p],
-                                    None,   # origin
-                                    name = self.name), trs
+                if debug('mod'):
+                    print 'Non mod', self.name
+                parts = []
+                for p, tr in zip(self.links, trs):
+                    if p:
+                        parts.append(p.applyLoc(tr))
+                        if debug('mod'):
+                            print p.name(), '\n', parts[-1].vertices()
+                shape = Shape(parts,
+                              None,   # origin
+                              name = self.name)
+                return shape, trs
             else:
                 return None, trs
         else:
@@ -424,10 +433,19 @@ cdef class Chain:
         the frames for each link."""
         trs = self.frameTransforms(base, jointValues)
         if trs:
-            for ((p, pM), tr) in zip(zip(self.links, place.parts()), trs):
+            if debug('mod'): print 'Mod', self.name, place.name()
+            index = 0
+            parts = place.parts()
+            for (p, tr) in zip(self.links, trs):
                 if not isinstance(tr, util.Transform):
                     raw_input('Foo')
-                if p: p.applyLocMod(tr, pM)
+                if p:
+                    pM = parts[index]
+                    index += 1
+                    p.applyLocMod(tr, pM)
+                    if debug('mod'):
+                        print p.name(), '\n', pM.vertices()
+            place.thingBBox = bboxUnion([x.bbox() for x in place.parts()])
             return None, trs
         else:
             print 'Placement failed for', self, jointValues
@@ -584,7 +602,7 @@ cdef class GripperChain(Chain):
     cpdef placement(self, base, jointValues, getShapes=True):
         width = jointValues[-1]
         return Chain.placement(self, base, [0.5*width, width], getShapes=getShapes)
-    cpdef placementMod(self, base, place, jointValues):
+    cpdef placementMod(self, base, jointValues, place):
         width = jointValues[-1]
         return Chain.placementMod(self, base, [0.5*width, width], place)
     cpdef stepAlongLine(self, jvf, jvi, stepSize):

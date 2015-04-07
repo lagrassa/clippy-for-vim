@@ -6,7 +6,7 @@ import copy
 import time
 import windowManager3D as wm
 from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ, debugOn
-from miscUtil import isAnyVar, argmax, isGround, tuplify
+from miscUtil import isAnyVar, argmax, isGround, tuplify, roundrobin
 from dist import DeltaDist, UniformDist
 from pr2Robot2 import CartConf, gripperTip, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, \
@@ -25,7 +25,9 @@ import pr2GenAux2
 from pr2GenAux2 import *
 reload(pr2GenAux2)
 
-pickPlaceBatchSize = 5
+#  How many candidates to generate at a time...  Larger numbers will
+#  generally lead to better solutions.
+pickPlaceBatchSize = 1
 
 # Generators:
 #   INPUT:
@@ -142,6 +144,9 @@ def pickGenTop(args, goalConds, pbs, outBindings,
     if debug('traceGen'):
         print 'pickGen(%s,%s,%d) h='%(obj,hand,graspB.grasp.mode()), fbch.inHeuristic
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
+
+    graspDelta = pbs.domainProbs.pickStdev
+
     debugMsgSkip('pickGen', skip,
                  zip(('obj', 'graspB', 'placeB', 'hand', 'prob'), args),
                  ('goalConds', goalConds),
@@ -312,8 +317,14 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
         yield (pB, cf, ca), viol
     debugMsg('pickGen', 'out of values')
 
+# Returns (graspMu, graspFace, graspConf,  preConf)
+
 def placeGen(args, goalConds, bState, outBindings):
     (obj, poses, support, objV, graspV, objDelta, graspDelta, confDelta, hand, prob) = args
+
+    if not isinstance(poses[0], (list, tuple, frozenset)):
+        poses = frozenset([poses])
+
     world = bState.pbs.getWorld()
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
                        PoseD(None, graspV), delta=graspDelta)
@@ -536,7 +547,71 @@ def graspGen(pbs, obj, graspB, placeB=None, conf=None, hand=None, prob=None):
                        delta=graspB.delta)
         yield gB
 
+# Return objPose, poseFace.
+def placeInRegionGen(args, goalConds, bState, outBindings):
+    (obj, region, var, delta, prob) = args
 
+    if not isinstance(region, (list, tuple, frozenset)):
+        regions = frozenset([region])
+    elif len(region) == 0:
+        raise Exception, 'need a region to place into'
+    else:
+        regions = frozenset(region)
+
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    pbs = bState.pbs
+    world = pbs.getWorld()
+
+    # !! Should derive this from the clearance in the region
+    domainPlaceVar = bState.domainProbs.obsVarTuple 
+
+    # Reasonable?
+    graspV = domainPlaceVar
+    graspDelta = bState.domainProbs.pickStdev
+
+    if bState.pbs.getPlaceB(obj, default=False):
+        # If it is currently placed, use that support
+        support = bState.pbs.getPlaceB(obj).support 
+    elif obj == bState.pbs.held['left'].mode():
+        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
+                                                   'left')
+        shape = pbs.getWorld().getObjectShapeAtOrigin(obj).\
+                                        applyLoc(attachedShape.origin())
+        support = supportFaceIndex(shape)
+    elif obj == bState.pbs.held['right'].mode():
+        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
+                                                   'right')
+        shape = pbs.getWorld().getObjectShapeAtOrigin(obj).\
+                                        applyLoc(attachedShape.origin())
+        support = supportFaceIndex(shape)
+    else:
+        assert None, 'Cannot determine support'
+
+    graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
+                       PoseD(None, graspV), delta=graspDelta)
+
+    # Put all variance on the object being placed
+    placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
+                       PoseD(None, var), delta=delta)
+
+    shWorld = bState.pbs.getShadowWorld(prob)
+    regShapes = [shWorld.regionShapes[region] for region in regions]
+    if debug('placeInGen'):
+        shWorld.draw('W')
+        for rs in regShapes: rs.draw('W', 'purple')
+        debugMsgSkip('placeInGen', skip, 'Target region in purple')
+
+    alternateHands = \
+      roundrobin(placeInGenTop((obj, regShapes, graspB, placeB, 'left', prob),
+                          goalConds, bState.pbs, outBindings),
+                placeInGenTop((obj, regShapes, graspB, placeB, 'right', prob),
+                          goalConds, bState.pbs, outBindings))
+        
+    for ans, viol in alternateHands:
+        (pB, gB, cf, ca) = ans
+        yield (pB.poseD.mode().xyztTuple(), pB.support.mode())
+
+    
 # returns values for (?pose, ?poseFace, ?graspPose, ?graspFace, ?graspvar, ?conf, ?confAppr)
 def placeInGen(args, goalConds, bState, outBindings,
                considerOtherIns = False, regrasp = False, away=False):
@@ -664,6 +739,8 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
                 sh = objShadow.applyTrans(pose)
                 if all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
                     viol2 = canPickPlaceTest(pbs, ca, cf, hand, gB, pB, prob)
+                    print 'viol', viol
+                    print 'viol2', viol2
                     if viol2 and viol2.weight() <= viol.weight():
                         if debug('traceGen'):
                             w = viol2.weight() if viol2 else None
@@ -847,19 +924,25 @@ def lookHandGen(args, goalConds, bState, outBindings):
 
 def lookHandGenTop(args, goalConds, pbs, outBindings):
     def objInHand(conf, hand):
-        attached = shWorld.attached
-        if not attached[hand]:
-            attached = attached.copy()
-            attached[hand] = Box(0.1,0.05,0.1, None, name='virtualObject').applyLoc(gripperTip)
-        _, attachedParts = conf.placementAux(attached, getShapes=[])
-        return attachedParts[hand]
+        if (conf, hand) not in handObj:
+            attached = shWorld.attached
+            if not attached[hand]:
+                attached = attached.copy()
+                attached[hand] = Box(0.1,0.05,0.1, None, name='virtualObject').applyLoc(gripperTip)
+            _, attachedParts = conf.placementAux(attached, getShapes=[])
+            handObj[(conf, hand)] = attachedParts[hand]
+        return handObj[(conf, hand)]
 
     def testFn(c):
+        if c not in placements:
+            placements[c] = c.placement()
         ans = visible(shWorld, c, objInHand(c, hand),
-                       [c.placement()]+obst, prob)[0]
+                       [placements[c]]+obst, prob)[0]
         return ans
 
     (obj, hand, graspB, prob) = args
+    placements = {}
+    handObj = {}
     if debug('traceGen'): print 'lookHandGen(%s) h='%obj, fbch.inHeuristic
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     newBS = pbs.copy()

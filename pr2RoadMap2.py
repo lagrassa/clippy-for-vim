@@ -22,16 +22,19 @@ from planGlobals import debugMsg, debug, debugDraw
 
 from pr2Util import Violations, NextColor, drawPath, NextColor, shadowWidths
 
-objCollisionCost = 2.0
-shCollisionCost = 0.5
+objCollisionCost = 10.0                    # !! was 2.0
+shCollisionCost = 2.0
+
 maxSearchNodes = 2000                   # 5000
 maxExpandedNodes = 500                  # 1500
-searchGreedy = 0.5                     # slightly greedy
-minStep = 0.2                           # !! maybe 0.1 is better
-minStepHeuristic = 0.4
+searchGreedy = 0.9
+
+# minStep = 0.2                           # !! normally 0.2 for cartesian
+minStep = 0.75              # !! normally 0.25 for joint interpolation
+maxNear = 48                # max number of near neighbors
+minFree = 4                # min number of free neighbors
+
 confReachViolGenBatch = 10
-coarsePath = False
-heuristicShapes = ['pr2Base', 'pr2RightGripper', 'pr2LeftGripper']
 
 node_idnum = 0
 class Node:
@@ -82,6 +85,7 @@ class RoadMap:
         self.kdLeafSize = kdLeafSize
         self.homeConf = homeConf
         cart = homeConf.cartConf()
+        self.robotPlace = self.robot.placement(homeConf)[0]
         self.root = Node(homeConf, cart, self.pointFromCart(cart))
         self.nodeTooClose = 0.001      # is there a rational way of picking this?
         # The points in the main kdTree
@@ -239,7 +243,7 @@ class RoadMap:
             # Switch to joint interpolation if cartesian interpolation fails!!
             final = []
             for c in rrt.interpolate(n_i.conf, n_f.conf,
-                                     stepSize=0.5 if (fbch.inHeuristic or coarsePath) else 0.25,
+                                     stepSize=0.5 if fbch.inHeuristic else 0.25,
                                      moveChains=self.moveChains):
                 cart = c.cartConf()
                 for chain in self.robot.chainNames: #  fill in
@@ -268,8 +272,7 @@ class RoadMap:
         if n_f.conf == n_i.conf: return [n_f]
         final = []
         for c in rrt.interpolate(n_i.conf, n_f.conf,
-                                 stepSize=0.5 if (fbch.inHeuristic or coarsePath) else 0.25,
-                                 moveChains=self.moveChains):
+                                 minLength, moveChains=self.moveChains):
             cart = c.cartConf()
             for chain in self.robot.chainNames: #  fill in
                 if not chain in c.conf:
@@ -401,7 +404,7 @@ class RoadMap:
         elif len(nodes) == 1:
             node = nodes[0]
             if not node in rshapes:
-                rshapes[node] = node.conf.placement(getShapes=heuristicShapes if coarsePath else True)
+                rshapes[node] = node.conf.placement(getShapes=True)
                 if self.robotSelfCollide(rshapes[node]):
                     ecoll['robotSelfCollision'] = True
                     return None
@@ -435,20 +438,20 @@ class RoadMap:
             edge = Edge(node_f, node_i)
             if self.cartesian:
                 edge.nodes = self.cartLineSteps(node_f, node_i,
-                                                minStepHeuristic if (fbch.inHeuristic or coarsePath) else minStep)
+                                                2*minStep if fbch.inHeuristic else minStep)
             else:
                 edge.nodes = self.jointLineSteps(node_f, node_i,
-                                                 minStepHeuristic if (fbch.inHeuristic or coarsePath) else minStep)
+                                                 2*minStep if fbch.inHeuristic else minStep)
             self.edges[(node_f, node_i)] = edge
         allObstacles = shWorld.getObjectShapes()
         permanent = shWorld.fixedObjects # set of names
         # We don't want to confuse the robot model during heuristic
         # with the one for regular planning.
-        coll = self.edgeCollide(True, (fbch.inHeuristic or coarsePath), edge.robotCollisions, edge.robotShapes,
+        coll = self.edgeCollide(True, fbch.inHeuristic, edge.robotCollisions, edge.robotShapes,
                                 attached, edge.nodes, allObstacles, permanent, coll, viol)
         if coll is None:
             return coll
-        key = tuple([pbs.graspB[h] for h in ['left', 'right']] + [fbch.inHeuristic or coarsePath])
+        key = tuple([pbs.graspB[h] for h in ['left', 'right']] + [fbch.inHeuristic])
         coll = self.edgeCollide(False, key, edge.heldCollisions, edge.heldShapes,
                                 attached, edge.nodes, allObstacles, permanent, coll, viol)
         return coll
@@ -512,6 +515,11 @@ class RoadMap:
             return None, (None, None)
         shWorld = pbs.getShadowWorld(prob, avoidShadow)
         robotShape, attachedPartsDict = conf.placementAux(attached=attached)
+        # robotShape, attachedPartsDict = conf.placementModAux(self.robotPlace, attached=attached)
+        # for (p,p1) in zip(robotShape.parts(), robotShape1.parts()):
+        #     assert p.name() == p1.name()
+        #     if abs(np.sum(p.bbox() - p1.bbox())) > 0.001:
+        #         raw_input('Boo hoo')
         attachedParts = [x for x in attachedPartsDict.values() if x]
         if debug('confViolations'):
             robotShape.draw('W', 'purple')
@@ -566,8 +574,6 @@ class RoadMap:
             (v, viol) = s
             successors = []
             near = self.kNearest
-            maxNear = 48
-            minFree = 4.
             while len(successors) < minFree and near <= maxNear:
                 nearN = self.nearest(v, near+1)
                 for n in nearN:
@@ -687,7 +693,6 @@ class RoadMap:
     def confReachViol(self, targetConf, pbs, prob, initViol=noViol, avoidShadow = [],
                         objCost = objCollisionCost, shCost = shCollisionCost,
                         maxNodes = maxSearchNodes, startConf = None, attached = None):
-        global coarsePath
         realInitViol = initViol
         initViol = noViol
         initConf = startConf or self.homeConf
@@ -735,7 +740,7 @@ class RoadMap:
         if attached == None:
             attached = pbs.getShadowWorld(prob).attached
 
-        key = (targetConf, initConf, initViol, fbch.inHeuristic or coarsePath)
+        key = (targetConf, initConf, initViol, fbch.inHeuristic)
         # Check the endpoints
         cv = self.confViolations(targetConf, pbs, prob,
                                  avoidShadow=avoidShadow, attached=attached)[0]
@@ -748,7 +753,7 @@ class RoadMap:
             return exitWithAns((None, None, None, None))
             
         if not fbch.inHeuristic and initConf in self.approachConfs:
-            keya = (targetConf, self.approachConfs[initConf], initViol, fbch.inHeuristic or coarsePath)
+            keya = (targetConf, self.approachConfs[initConf], initViol, fbch.inHeuristic)
             if keya in self.confReachCache:
                 if debug('confReachViolCache'): print 'confReachCache approach tentative hit'
                 cacheValues = self.confReachCache[keya]

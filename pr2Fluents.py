@@ -442,6 +442,36 @@ class Pose(Fluent):
         else:
            return {self, other}, {}
 
+# Not currently in use       
+class RelPose(Fluent):
+    predicate = 'Pose'
+    def dist(self, bState):
+        (obj1, face1, obj2, face2) = self.args
+        d1 = bState.poseModeDist(obj1, face1)
+        p1 = bState.poseModeProbs[obj1]
+        if obj2 == 'robot':
+            r = bState.pbs.conf['basePose']
+            mu = d1.mode().compose(r.inverse())
+            return GMU([(MVG(mu.xyztTuple(), d1.variance()), p1)])
+        else:
+            d2 = bState.poseModeDist(obj2, face2)
+            p2 = bState.poseModeProbs[obj2]
+            mu = d1.mode().compose(d2.mode().inverse())
+            variance = [a+b for (a, b) in zip(d1.varianceTuple(),
+                                              d2.varianceTuple())]
+            return GMU([(MVG(mu.xyztTuple(), diagToSq(variance)),
+                            p1 * p2)])
+
+    def fglb(self, other, bState = None):
+        assert False, 'Not implemented'
+        if (other.predicate == 'Holding' and \
+            self.args[0] == other.value) or \
+           (other.predicate in ('Grasp', 'GraspFace') and \
+                 self.args[0] == other.args[0]):
+           return False, {}
+        else:
+           return {self, other}, {}
+
 class SupportFace(Fluent):
     predicate = 'SupportFace'
     def dist(self, bState):
@@ -651,15 +681,30 @@ def canReachHome(pbs, conf, prob, initViol,
 
     return path, viol
 
-# !! Should this specify the support surface??
+def findRegionParent(bState, region):
+    regs = bState.pbs.getWorld().regions
+    for (obj, stuff) in regs.items():
+        for (regName, regShape, regTr) in stuff:
+            if regName == region:
+                return obj
+    raw_input('No parent object for region '+str(region))
+    return None
+
+# probability is: pObj * pParent * pObjFitsGivenRelativeVar = prob
 def inTest(bState, obj, regName, prob, pB=None):
+    regs = bState.pbs.getWorld().regions
+    parent = findRegionParent(bState, regName)
+    pObj = bState.poseModeProbs[obj]
+    pParent = bState.poseModeProbs[parent]
+    pFits = prob / (pObj * pParent)
+    if pFits > 1: return False
+
     # compute a shadow for this object
     placeB = pB or bState.pbs.getPlaceB(obj)
     faceFrame = placeB.faceFrames[placeB.support.mode()]
 
     # !! Clean this up
-    
-    sh = bState.pbs.objShadow(obj, True, prob, placeB, faceFrame)
+    sh = bState.pbs.objShadow(obj, True, pFits, placeB, faceFrame)
     shadow = sh.applyLoc(placeB.objFrame()) # !! is this right?
     shWorld = bState.pbs.getShadowWorld(prob)
     region = shWorld.regionShapes[regName]

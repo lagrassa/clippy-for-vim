@@ -55,13 +55,17 @@ import pr2BeliefState
 reload(pr2BeliefState)
 from pr2BeliefState import BeliefState
 
+import pr2Visible
+reload(pr2Visible)
+pr2Visible.cache = {}
+
 import pr2Gen
 reload(pr2Gen)
 
 import pr2Ops
 reload(pr2Ops)
 from pr2Ops import move, pick, place, lookAt, poseAchCanReach, poseAchCanSee,\
-      lookAtHand, hRegrasp, poseAchCanPickPlace, graspAchCanPickPlace
+      lookAtHand, hRegrasp, poseAchCanPickPlace, graspAchCanPickPlace, poseAchIn
 
 import pr2Sim2
 reload(pr2Sim2)
@@ -81,6 +85,7 @@ useRight = True
 useHorizontal = True
 useVertical = True
 useCartesian = False
+useLookAtHand = False
 
 ######################################################################
 # Test Rig
@@ -137,7 +142,7 @@ def cl(window='W'):
 def Ba(bb, **prop): return shapes.BoxAligned(np.array(bb), None, **prop)
 def Sh(args, **prop): return shapes.Shape(list(args), None, **prop)
 
-workspace = ((-1.00, -1.75, 0.0), (2.50, 1.75, 2.))
+workspace = ((-1.0, -2.5, 0.0), (3.0, 2.5, 2.0))
 ((x0, y0, _), (x1, y1, dz)) = workspace
 viewPort = [x0, x1, y0, y1, 0, dz]
 
@@ -148,7 +153,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
               draw = True):
     ((x0, y0, _), (x1, y1, dz)) = workspace
     w = 0.1
-    wm.makeWindow('W', viewPort, 800)
+    wm.makeWindow('W', viewPort, 600)   # was 800
     if useROS: wm.makeWindow('MAP', viewPort)
     def hor((x0, x1), y, w):
         return Ba(np.array([(x0, y-w/2, 0), (x1, y+w/2.0, dz)]))
@@ -189,6 +194,18 @@ def testWorld(include = ['objA', 'objB', 'objC'],
             regName = name+'Top'
             print 'Region', regName, '\n', bbox
             world.addObjectRegion(name, regName, Sh([Ba(bbox)], name=regName),
+                                  util.Pose(0,0,2*bbox[1,2],0))
+            bboxLeft = np.empty_like(bbox); bboxLeft[:] = bbox
+            bboxLeft[0][0] = 0.5*(bbox[0][0] + bbox[1][0])
+            regName = name+'Left'
+            print 'Region', regName, '\n', bboxLeft
+            world.addObjectRegion(name, regName, Sh([Ba(bboxLeft)], name=regName),
+                                  util.Pose(0,0,2*bbox[1,2],0))
+            bboxRight = np.empty_like(bbox); bboxRight = bbox
+            bboxRight[1][0] = 0.5*(bbox[0][0] + bbox[1][0])
+            regName = name+'Right'
+            print 'Region', regName, '\n', bbox
+            world.addObjectRegion(name, regName, Sh([Ba(bboxRight)], name=regName),
                                   util.Pose(0,0,2*bbox[1,2],0))
 
     # Other permanent objects
@@ -483,6 +500,9 @@ class PlanTest:
         self.bs.pbs.draw(0.9, 'W')
         if not glob.useROS:
             self.realWorld.draw('World')
+        for regName in self.bs.pbs.regions:
+            self.realWorld.regionShapes[regName].draw('World', 'purple')
+        if self.bs.pbs.regions: raw_input('Regions')
 
         s = State([], details = self.bs)
 
@@ -517,7 +537,7 @@ class PlanTest:
             testResults[(self.name, hierarchical)].append(runTime)
         print '**************', self.name, \
                 'Hierarchical' if hierarchical else '', \
-                'Time =', runTime, '***************'      
+                'Time =', runTime, '***************'
 
 ######################################################################
 # Test Cases
@@ -577,91 +597,69 @@ tinyErrProbs = DomainProbs(\
             pickTolerance = (0.02, 0.02, 0.02, 0.02))
 
 allOperators = [move, pick, place, lookAt, poseAchCanReach,
-                poseAchCanSee, poseAchCanPickPlace, lookAtHand]
+                poseAchCanSee, poseAchCanPickPlace, poseAchIn] #lookAtHand]
                #graspAchCanPickPlace]
 
-# Try to make a plan!     Just move
-def test1(hpn=True, skeleton=False, heuristic=habbs, hierarchical=False, easy=False):
-    t = PlanTest('test1', typicalErrProbs, allOperators)
-    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)
-    confDeltas = (0.05, 0.05, 0.05, 0.05)
-    goal = State([Conf([goalConf, confDeltas], True)])
-    t.run(goal,
-          hpn = hpn,
-          heuristic=heuristic
-           )
-
-# Pick something up! and move
-def test2(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
-          heuristic=habbs, hierarchical=False, easy=False):
-    global moreGD
-    if gd != 0: moreGD = True           # hack!
-    t = PlanTest('test2', typicalErrProbs, allOperators,
-                 objects=['table1', 'objA'])
-    if moreGD: moreGD = False
-    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)
-    confDeltas = (0.05, 0.05, 0.05, 0.05)
-    goal = State([Bd([Holding([hand]), 'objA', .6], True),
-                  Bd([GraspFace(['objA', hand]), gd, .6], True),
-                  B([Grasp(['objA', hand, gd]),
-                     (0,-0.025,0,0), (0.001, 0.001, 0.001, 0.001),
-                     (0.001,)*4, 0.6], True),
-                  Conf([goalConf, confDeltas], True)])
-    homeConf = makeConf(t.world.robot, 0.0, 0.0, math.pi) \
-                         if flip else None
-    t.run(goal,
-          hpn = hpn,
-          skeleton = [[move, lookAtHand, move, pick, move]] \
-                          if skeleton else None,
-          heuristic = heuristic,
-          regions= ['table1Top'],
-          home=homeConf
-          )
-    return t
-
-# pick and place
-def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+# pick and place into region
+def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
-    goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
-    varDict = {} if easy else {'table1': (0.1**2, 0.03**2, 1e-10, 0.3**2),
-                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
-    front = util.Pose(1.1, 0.0, tZ, 0.0)
+    glob.rebindPenalty = 700
+    glob.monotonicFirst = True
 
-    t = PlanTest('test3',  errProbs, allOperators,
+    goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
+    # varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.05**2),
+    #                            'table2': (0.03**2, 0.03**2, 1e-10, 0.05**2),
+    #                            'objA': (0.05**2, 0.05**2, 1e-10, 0.05**2)} 
+    front = util.Pose(1.1, 0.0, tZ, 0.0)
+    table2Pose = util.Pose(1.0, -1.00, 0.0, 0.0)
+    t = PlanTest('test1',  errProbs, allOperators,
                  objects=['table1', 'objA'],
-                 fixPoses={'table1': util.Pose(1.3, 0.0, 0.0, math.pi/2)},
+                 movePoses={'objA': front})
+
+    region = 'table1Left'
+    goal = State([Bd([In(['objA', region]), True, goalProb], True)])
+
+    t = PlanTest('test1',  errProbs, allOperators,
+                 objects=['table1', 'objA'],
+                 fixPoses={'table1': util.Pose(1.3, 0.0, 0.0, math.pi/2),
+                           'table2': table2Pose},
                  movePoses={'objA': front},
                  varDict = varDict)
-    targetPose = (1.1, 0.25, tZ, 0.0)
-    # large target var is no problem??
-    #targetVar = (0.02, 0.02, 0.01, 0.05)
-    targetVar = (0.02**2, 0.02**2, 0.01**2, 0.05**2)
-    goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
-                  B([Pose(['objA', 4]),
-                     targetPose, targetVar, (0.02, 0.02, 0.02, 0.05),
-                     goalProb], True)])
 
-    skel = [[lookAt.applyBindings({'Obj' : 'objA'}),
-             move,
-             place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             move,
-             pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-             poseAchCanReach,
-             #poseAchCanPickPlace,
-             move,
-             lookAt.applyBindings({'Obj' : 'table1'}),
-             move,
-             lookAt.applyBindings({'Obj' : 'table1'}),
-             move]]
+    skel = [[#lookAt.applyBindings({'Obj' : 'objA'}), move,
+             place, move, pick, move,
+             lookAt.applyBindings({'Obj' : 'objA'}), move,
+             lookAt.applyBindings({'Obj' : 'objA'}), move,
+             lookAt.applyBindings({'Obj' : 'table2'}), move,
+             lookAt.applyBindings({'Obj' : 'table2'}), move]]
+
+    skel = [[poseAchIn, place, move, pick, move, lookAt, move, lookAt, move]]
+
+    hSkel = [[poseAchIn,
+              lookAt.applyBindings({'Obj' : 'objA'}),
+              place.applyBindings({'Obj' : 'objA'}),
+              lookAt.applyBindings({'Obj' : 'table2'})],
+              [lookAt.applyBindings({'Obj' : 'table2'}),
+               move],
+              [move],
+              [place.applyBindings({'Obj' : 'objA'})]]
+              
+              
+    
     t.run(goal,
           hpn = hpn,
-          skeleton = skel if skeleton else None,
+          skeleton = hSkel if skeleton else None,
           hierarchical = hierarchical,
-          regions=['table1Top'],
+          regions=[region],
           heuristic = heuristic,
           rip = rip
           )
+    return t
 
 def test4(hpn = True, hierarchical = False, skeleton = False,
           heuristic = habbs, easy = False):
@@ -1771,7 +1769,7 @@ def prof(test, n=50):
     cProfile.run(test, 'prof')
     p = pstats.Stats('prof')
     p.sort_stats('cumulative').print_stats(n)
-    p.sort_stats('cumulative').print_callers(n)
+    # p.sort_stats('cumulative').print_callers(n)
 
 
 # Evaluate on details and a fluent to flush the caches and evaluate

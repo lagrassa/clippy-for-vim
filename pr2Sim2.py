@@ -275,10 +275,11 @@ class RealWorld(WorldState):
         failProb = self.domainProbs.placeFailProb
         success = DDist({True : 1 - failProb, False : failProb}).draw()
         if success:
-        # Execute the place prim, starting at c1, aiming for c2.
+            # Execute the place prim, starting at c1, aiming for c2.
+            # Every kind of horrible, putting these indices here..
             hand = op.args[1]
-            placeConf = op.args[20]
-            approachConf = op.args[18]
+            placeConf = op.args[-7]
+            approachConf = op.args[-9]
             self.setRobotConf(placeConf)
             self.robotPlace.draw('World', 'orchid')            
             if not self.attached[hand]:
