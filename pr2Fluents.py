@@ -442,6 +442,7 @@ class Pose(Fluent):
         else:
            return {self, other}, {}
 
+# Not currently in use       
 class RelPose(Fluent):
     predicate = 'Pose'
     def dist(self, bState):
@@ -462,6 +463,7 @@ class RelPose(Fluent):
                             p1 * p2)])
 
     def fglb(self, other, bState = None):
+        assert False, 'Not implemented'
         if (other.predicate == 'Holding' and \
             self.args[0] == other.value) or \
            (other.predicate in ('Grasp', 'GraspFace') and \

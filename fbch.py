@@ -1391,7 +1391,8 @@ class PlanStack(Stack):
         numLayers = len(layers)
         preImages = self.computePreimages()
         # Subgoal layer i-1 is executing
-        (upperOp, upperSubgoal) = self.nextLayerStep(layers[0], preImages[0],s)
+        (upperOp, upperSubgoal) = self.nextLayerStep(layers[0], preImages[0],
+                                                     s, f)
         for i in range(1, len(layers)):
             # Op and subgoal layer i wants to execute
             (op, subgoal) = self.nextLayerStep(layers[i], preImages[i], s, f)
@@ -1417,7 +1418,12 @@ class PlanStack(Stack):
                              ('prevIndex', previousUpperIndex),
                              ('currIndex', currentUpperIndex),
                              ('popping layers', i, 'through', len(layers)-1))
-
+            
+                # For purposes of drawing in the tree, find the next
+                # step at each level below
+                for j in range(i+1, len(layers)):
+                    self.nextLayerStep(layers[j], preImages[j], s, f,
+                                       quiet = True)
 
                 # Get rid of layers i and below
                 self.popTo(i)
@@ -1435,7 +1441,7 @@ class PlanStack(Stack):
         return (upperOp, upperSubgoal)
 
     # Return op and subgoal in this layer to be addressed next
-    def nextLayerStep(self, layer, preImages, s, f = None):
+    def nextLayerStep(self, layer, preImages, s, f = None, quiet = False):
         # If the final subgoal holds, then we're done
         if any([s.satisfies(sg) for sg in preImages[-1]]):
             if debug('nextStep'):
@@ -1445,10 +1451,12 @@ class PlanStack(Stack):
             return None, None
         # Work backwards to find the latest subgoal that's satisfied
         for i in range(layer.length-1, -1, -1):
-            debugMsg('nextStep', [s.satisfies(sg) for sg in preImages[i]])
+            if not quiet:
+                debugMsg('nextStep', [s.satisfies(sg) for sg in preImages[i]])
             if any([s.satisfies(sg) for sg in preImages[i]]):
                 layer.lastStepExecuted = i+1
-                debugMsg('nextStep', 'returning', layer.steps[i+1])
+                if not quiet:
+                    debugMsg('nextStep', 'returning', layer.steps[i+1])
 
                 (op, _) = layer.steps[i+1]
                 if op.prim == None and not (op.isAbstract() or op == top):
@@ -1475,7 +1483,7 @@ class PlanStack(Stack):
                 fooFluents.append(fl)
         writeFailure(f, layer, fooFluents)
         
-        if debug('executionFail'):
+        if debug('executionFail') and not quiet:
             print 'Next step: failed to satisfy any pre-image'
             print 'Was expecting to satisfy preimage', layer.lastStepExecuted
             glob.debugOn.append('testVerbose')
@@ -2086,7 +2094,8 @@ def writeCoda(f):
 subtaskStyle = 'shape=box, style=filled, colorscheme=pastel16, color=4'
 primitiveStyle = 'shape=box, style=filled, colorscheme=pastel16, color=3'
 planGoalStyle = 'shape=box, style=filled, colorscheme=pastel16, color=2'
-surpriseStyle = 'shape=box, style=filled, colorscheme=pastel16, color=1'
+surpriseStyle = 'shape=box, style=filled, colorscheme=pastel16, color=5'
+failureStyle = 'shape=box, style=filled, colorscheme=pastel16, color=1'
 planStepArrowStyle = ''
 refinementArrowStyle = 'style=dashed'
 indent = '    '
@@ -2129,7 +2138,7 @@ def writeFailureNode(f, nodeName, fluents):
         g = State(fluents)
         nodeLabel = name('Failure.  Expected'+nl+\
                          g.prettyString(False, None))
-        wf(f, indent + nodeName + styleStr(surpriseStyle + ', label=' +\
+        wf(f, indent + nodeName + styleStr(failureStyle + ', label=' +\
                                                nodeLabel) + eol)
 
 def writeSubgoalRefinement(f, p, subgoal):
@@ -2143,6 +2152,8 @@ surpriseCount = 0
 def writeSurprise(f, p, prevIndex, currIndex):
     global surpriseCount
     surpriseCount += 1
+    if not hasattr(p, 'subtasksNodeName'):
+        p.subtasksNodeName = '"Top"'
     surpriseNodeName =  name(p.subtasksNodeName[1:-1]+':'+str(prevIndex)+':'\
                                  +str(currIndex)+':'+str(surpriseCount))
     writeSurpriseNode(f, surpriseNodeName, prevIndex, currIndex)

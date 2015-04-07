@@ -105,7 +105,11 @@ class Bd(BFluent):
         if hasattr(rFluent, 'bTest'):
             return rFluent.bTest(b, v, p)
 
-        return rFluent.dist(b).prob(v) >= p
+        if v == '*':
+            mpe = rFluent.dist(b).maxProbElt()
+            return rFluent.dist(b).prob(mpe) >= p
+        else:
+            return rFluent.dist(b).prob(v) >= p
 
     def heuristicVal(self, b):
         (rFluent, v, p) = self.args
@@ -163,11 +167,16 @@ class B(BFluent):
     # - variance is less than var
     # - mixture weight is greater than p
 
+    # If value is '*', then we are just checking variance and p
+
     def __init__(self, (f, val, var, delta, p), value = None):
+        # Equal lengths
         assert isVar(val) or isVar(var) or isVar(delta) or \
-               val == None or var == None or delta == None or \
+               val == None or var == None or delta == None or val == '*' or \
                  len(val) == len(var) == len(delta)
-        assert isVar(delta) or delta == None or all([float(dv) != 0.0 for dv in delta])
+        # No zero deltas!
+        assert isVar(delta) or delta == None or delta == '*' or \
+                    all([float(dv) != 0.0 for dv in delta])
 
         # Make sure numeric args are floats.  Allow None.
         def g(v):
@@ -222,7 +231,12 @@ class B(BFluent):
             print '    Target p', p
             print '    Modep >= p', dp >= p
 
-        return (abs(dc.mode() - np.array(v)) <= np.array(delta)).all() \
+        if v == '*':
+            # Just checking variance and p
+            return (dc.sigma.diagonal() <= np.array(var)).all() \
+                   and dp >= p
+        else:
+             return (abs(dc.mode() - np.array(v)) <= np.array(delta)).all() \
                    and (dc.sigma.diagonal() <= np.array(var)).all() \
                    and dp >= p
 
