@@ -765,15 +765,23 @@ def objectObsUpdate(details, obs, soughtObject):
         obsD = MultivariateGaussianDistribution(np.mat(oldPoseMu.xyztTuple()).T,
                                                 makeDiag(obsSigma))
         bestObs, bestLL = None, -float('inf')
+
+        if debug('obsUpdate'):
+            print 'oldPoseMu', oldPoseMu.pose()
+
         for obsPoseCand in symPoses:
             ll = float(obsD.logProb(np.mat(obsPoseCand.pose().xyztTuple()).T))
+            if debug('obsUpdate'):
+                print '    obsPoseCand', obsPoseCand.pose(), 'll', ll
             if ll > bestLL:
+                if debug('obsUpdate'):
+                    print '   new best'
                 bestObs, bestLL = obsPoseCand, ll
 
         debugMsg('obsUpdate', 'Potential match with', o, 'll', bestLL,
-                 bestLL > llMatchThreshold)
+                 bestObs, bestLL > llMatchThreshold)
         if bestLL > llMatchThreshold:
-            candidates.append((bestLL, o, obsPoseCand, oldPoseMu, oldSigma))
+            candidates.append((bestLL, o, bestObs, oldPoseMu, oldSigma))
 
     if len(candidates) == 0:
         # No match for this observation
@@ -799,6 +807,7 @@ def objectObsUpdate(details, obs, soughtObject):
         details.poseModeProbs[obj] = newP
 
         # Update mean and sigma
+        ## Be sure handling angle right.
         obsVar = details.domainProbs.obsVarTuple
         (newMu, newSigma) = gaussObsUpdate(oldMu.pose().xyztTuple(),
                                            pose.pose().xyztTuple(),
@@ -819,11 +828,22 @@ def gaussObsUpdate(oldMu, obs, oldSigma, obsVar, noZ = True):
     newMu = [(m * obsV + op * muV) / (obsV + muV) \
                        for (m, muV, op, obsV) in \
                        zip(oldMu, oldSigma, obs, obsVar)]
+    # That was not the right way to do the angle update!  Quick and dirty here.
+    oldTh, obsTh, muV, obsV = oldMu[3], obs[3], oldSigma[3], obsVar[3]
+    oldX, oldY = np.cos(oldTh), np.sin(oldTh)
+    obsX, obsY = np.cos(obsTh), np.sin(obsTh)
+    newX = (oldX * obsV + obsX * muV) / (obsV + muV)
+    newY = (oldY * obsV + obsY * muV) / (obsV + muV)
+    newTh = np.arctan2(newY, newX)
+    newMu[3] = newTh
+    if debug('obsUpdate'):
+        print 'Angle obs update'
+        print '  oldTh', oldTh, 'obsTh', obsTh, 'newTh', newTh
+        raw_input('okay?')
+
     newSigma = tuple([(a * b) / (a + b) for (a, b) in zip(oldSigma,obsVar)])
     if noZ:
         newMu[2] = oldMu[2]
-    print 'new sigma', newSigma
-    # raw_input('okay?')
     return (tuple(newMu), newSigma)
     
 # For now, assume obs has the form (obj, face, grasp) or None
