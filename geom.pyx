@@ -190,7 +190,13 @@ cpdef np.ndarray bboxDims(np.ndarray[np.float64_t, ndim=2] bb):
     return bb[1] - bb[0]
 
 cpdef np.ndarray bboxUnion(list bboxes):
-    return vertsBBox(np.vstack(bboxes), None)
+    minVals = 3*[float('inf')]
+    maxVals = 3*[-float('inf')]
+    for bb in bboxes:
+        for i in range(3):
+            minVals[i] = min(minVals[i], bb[0][i])
+            maxVals[i] = max(maxVals[i], bb[1][i])
+    return np.array([minVals, maxVals])
 
 cpdef np.ndarray bboxIsect(list bboxes):
     return np.array([np.max(np.vstack([bb[0] for bb in bboxes])),

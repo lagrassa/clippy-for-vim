@@ -18,13 +18,20 @@ minVisiblePoints = 5
 
 colors = ['red', 'green', 'blue', 'orange', 'cyan', 'purple']
 
+cache = {}
+
 # !! Cache visibility computations
 def visible(ws, conf, shape, obstacles, prob, moveHead=True):
     global laserScanGlobal, laserScanSparseGlobal
+    key = (ws, conf, shape, tuple(obstacles), prob, fbch.inHeuristic)
+    if key in cache:
+        return cache[key]
     if debug(visible):
         print 'visible from base=', conf['pr2Base'], 'head=', conf['pr2Head']
     lookConf = lookAtConf(conf, shape) if moveHead else conf
-    if not lookConf: return False, []
+    if not lookConf:
+        cache[key] = (False, [])
+        return False, []
     lookCartConf = lookConf.cartConf()
     headTrans = lookCartConf['pr2Head']
     if fbch.inHeuristic:
@@ -48,6 +55,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True):
             scan.draw('W')
             print total, 'hit points'
             debugMsg('visible', 'Not enough hit points')
+        cache[key] = (False, [])
         return False, []
     occluders = []
     for i, objShape in enumerate(obstacles):
@@ -77,6 +85,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True):
     if debug('visible'):
         print 'sorted occluders', occluders
         print 'total', total, 'final', final, '->', ans
+    cache[key] = ans
     return ans
 
 def countContacts(contacts, id):

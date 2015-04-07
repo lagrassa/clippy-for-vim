@@ -2,7 +2,7 @@ import operator
 import datetime
 import numpy as np
 import collections
-from itertools import chain, combinations
+from itertools import chain, combinations, cycle
 import copy
 
 def timeString():
@@ -412,3 +412,16 @@ def roundUp(v, prec):
         return int(v * prec + 1) / prec
     else:
         return vt
+
+def roundrobin(*iterables):
+    "roundrobin('ABC', 'D', 'EF') --> A D E B F C"
+    # Recipe credited to George Sakkis
+    pending = len(iterables)
+    nexts = cycle(iter(it).next for it in iterables)
+    while pending:
+        try:
+            for next in nexts:
+                yield next()
+        except StopIteration:
+            pending -= 1
+            nexts = cycle(islice(nexts, pending))    
