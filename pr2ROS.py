@@ -47,6 +47,7 @@ if glob.useROS:
 # closeGuarded - use ROS guarded grip
 # grab - use ROS grab
 # close - as hard as you can
+# open - to commanded width
 
 headTurn = util.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0)))
 
@@ -64,9 +65,14 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         conf.base = map(float, cnfIn.get('pr2Base', []))
         conf.torso = map(float, cnfIn.get('pr2Torso', [])) 
         conf.left_joints = map(float, cnfIn.get('pr2LeftArm', []))
-        conf.left_grip = map(float, cnfIn.get('pr2LeftGripper', []))
         conf.right_joints = map(float, cnfIn.get('pr2RightArm', []))
-        conf.right_grip = map(float, cnfIn.get('pr2RightGripper', []))
+        if operation == 'open':
+            conf.left_grip = map(float, cnfIn.get('pr2LeftGripper', []))
+            conf.right_grip = map(float, cnfIn.get('pr2RightGripper', []))
+            operation = 'move'
+        else:
+            conf.left_grip = []
+            conf.right_grip = []
         if cnfIn['pr2Head'] == None: 
             raw_input('Head conf is None')
         else:
@@ -218,10 +224,12 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             if ans:
                 # This is in robot coords
                 score, objPlaceRobot = ans[0]
-                if not objPlaceRobot:
-                    print 'No detections'
-                    raw_input()
-                    return None
+            else:
+                objPlaceRobot = None
+            if not objPlaceRobot:
+                print 'No detections'
+                raw_input()
+                return None
             trueFace = supportFaceIndex(objPlaceRobot)
             objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
             if debug('robotEnv'):
@@ -239,12 +247,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         gripper = 'pr2LeftGripper' if hand=='left' else 'pr2RightGripper'
 
         debugMsg('robotEnv', 'executePick - open')
-        conf = approachConf.copy()
-        conf.conf[gripper] = 0.08
-        result, outConf = pr2GoToConf(conf, 'move')
+        result, outConf = pr2GoToConf(approachConf, 'move')
         
         debugMsg('robotEnv', 'executePick - move to pickConf')
-        # result, outConf = pr2GoToConf(pickConf, 'move')
         reactiveApproach(approachConf, pickConf, 0.06, hand)
 
         debugMsg('robotEnv', 'executePick - close')
@@ -258,15 +263,11 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
     def executePlace(self, op, params):
         (hand, placeConf, approachConf) = \
                (op.args[1], op.args[20], op.args[18])
-        gripper = 'pr2LeftGripper' if hand=='left' else 'pr2RightGripper'
-
         debugMsg('robotEnv', 'executePlace - move to placeConf')
         result, outConf = pr2GoToConf(placeConf, 'move')
 
         debugMsg('robotEnv', 'executePlace - open')
-        conf = placeConf.copy()
-        conf.conf[gripper] = 0.08
-        result, outConf = pr2GoToConf(conf, 'move')
+        result, outConf = pr2GoToConf(placeConf, 'open')
 
         debugMsg('robotEnv', 'executePlace - move to approachConf')
         result, outConf = pr2GoToConf(approachConf, 'move')
@@ -424,14 +425,42 @@ def getSupportPose(shape, supportFace):
 obsConf, obsGrip, obsTrigger, obsContacts = range(4)
 
 # x direction is approach direction.
-xoffset = 0.05
+xoffset = 0.03
 yoffset = 0.01
+
 def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
+    headConf = startConf['pr2Head']
+    print '***closing'
+    startConfClose = gripOpen(startConf, hand, 0.01)
+    startConfClose.conf['pr2Head'] = headConf
+    pr2GoToConf(startConfClose, 'move')
+    pr2GoToConf(startConfClose, 'open')
+    targetConfClose = gripOpen(targetConf, hand, 0.01)
+    targetConfClose.conf['pr2Head'] = headConf
+    (obs, traj) = tryGrasp(startConfClose, targetConfClose, hand)
+    print 'obs after tryGrasp', obs
+    curConf = obs[obsConf]
+    print '***Contact'
+    backConf = displaceHand(curConf, hand, dx=-xoffset, dz=0.01)
+    backConf.conf['pr2Head'] = headConf
+    result, nConf = pr2GoToConf(backConf, 'move')
+    backConf = displaceHand(backConf, hand, zFrom=targetConf)
+    result, nConf = pr2GoToConf(backConf, 'move')
+    backConf = gripOpen(backConf, hand)
+    result, nConf = pr2GoToConf(backConf, 'open')
+    print 'backConf', handTrans(nConf, hand).point(), result
+    reactiveApproachLoop(backConf, 
+                         displaceHand(curConf, hand, dx=2*xoffset, zFrom=targetConf),
+                         gripDes, hand)
+
+def reactiveApproachLoop(startConf, targetConf, gripDes, hand, tries = 10):
     spaces = (10-tries)*' '
     if tries == 0:
         print spaces+'reactiveApproach failed'
         return None
     headConf = startConf['pr2Head']
+    startConf = gripOpen(startConf, hand)
+    targetConf = gripOpen(targetConf, hand)
     (obs, traj) = tryGrasp(startConf, targetConf, hand)
     print spaces+'obs after tryGrasp', obs
     curConf = obs[obsConf]
@@ -443,35 +472,34 @@ def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
             print spaces+'***opening', obs[obsGrip], 'did not match', gripDes
             closeConf = gripOpen(curConf, hand)
             closeConf.conf['pr2Head'] = headConf
-            pr2GoToConf(closeConf, 'move')
+            pr2GoToConf(closeConf, 'open')
     if reactLeft(obs):
         print spaces+'***reactLeft'
         backConf = displaceHand(curConf, hand, dx=-xoffset)
         backConf.conf['pr2Head'] = headConf
         result, nConf = pr2GoToConf(backConf, 'move')
         print spaces+'backConf', handTrans(nConf, hand).point(), result
-        reactiveApproach(backConf, 
-                         # displaceHand(targetConf, hand, dy=yoffset),
-                         displaceHand(curConf, hand, dx=xoffset, dy=yoffset),
-                         gripDes, hand, tries-1)
-    elif reactRight(obs):
+        reactiveApproachLoop(backConf, 
+                             displaceHand(curConf, hand, dx=2*xoffset, dy=yoffset),
+                             gripDes, hand, tries-1)
+    else:                           # default, just to do something...
         print spaces+'***reactRight'
         backConf = displaceHand(curConf, hand, dx=-xoffset)
         backConf.conf['pr2Head'] = headConf
         result, nConf = pr2GoToConf(backConf, 'move')
         print spaces+'backConf', handTrans(nConf, hand).point(), result
-        reactiveApproach(backConf, 
-                         # displaceHand(targetConf, hand, dy=-yoffset),
-                         displaceHand(curConf, hand, dx=xoffset, dy=-yoffset),
-                         gripDes, hand, tries-1)
-    else:
-        print spaces+'***reactiveApproach confused'
-        return None
+        reactiveApproachLoop(backConf, 
+                             displaceHand(curConf, hand, dx=2*xoffset, dy=-yoffset),
+                             gripDes, hand, tries-1)
 
-def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0):
+def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0, zFrom=None):
     cart = conf.cartConf()
     handFrameName = conf.robot.armChainNames[hand]
     trans = cart[handFrameName]
+    if zFrom:
+        toZ = zFrom.cartConf()[handFrameName].matrix[2,3]
+        curZ = trans.matrix[2,3]
+        dz = toZ - curZ
     nTrans = trans.compose(util.Pose(dx, dy, dz, 0.0))
     nCart = cart.set(handFrameName, nTrans)
     nConf = conf.robot.inverseKin(nCart, conf=conf) # use conf to resolve
@@ -489,14 +517,14 @@ def reactRight(obs):
 def reactLeft(obs):
     return obs[obsTrigger] in ('L_tip', 'L_pad') \
            or obs[obsContacts][0] or obs[obsContacts][1]
-def gripOpen(conf, hand):
-    return conf.set(conf.robot.gripperChainNames[hand], [0.08])
+def gripOpen(conf, hand, width=0.08):
+    return conf.set(conf.robot.gripperChainNames[hand], [width])
 def handTrans(conf, hand):
     cart = conf.cartConf()
     handFrameName = conf.robot.armChainNames[hand]
     return cart[handFrameName]
 
-def tryGrasp(approachConf, graspConf, hand, stepSize = 0.02, verbose = False):
+def tryGrasp(approachConf, graspConf, hand, stepSize = 0.02, maxSteps = 6, verbose = False):
     def parseContacts(result):
         if result == 'LR_pad':
             contacts = [False, True, False, True]
@@ -528,6 +556,15 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.02, verbose = False):
     pr2GoToConf(approachConf, 'resetForce', arm=hand[0])
     moveChains = [approachConf.robot.armChainNames[hand]+'Frame']
     path = cartInterpolators(graspConf, approachConf, stepSize)[::-1]
+    if len(path) > maxSteps:
+        inc = len(path)/(maxSteps - 1)
+        ind = 0
+        npath = [path[0]]
+        while len(npath) < (maxSteps - 1):
+            ind += inc
+            npath.append(path[int(ind)])
+        npath.append(path[-1])
+        path = npath
     if not path:
         print 'No interpolation path'
         contacts = 4*[False]
@@ -552,7 +589,7 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.02, verbose = False):
         else:
             raw_input('Unknown compliantClose result = %s'%result)
             contacts = 4*[False]
-    if result in ('goal'):      # ignore Acc
+    if result in ('goal', 'Acc'):
         contacts = close()
     obs = (curConf, curConf[conf.robot.gripperChainNames[hand]][0],
            result, contacts)
@@ -581,7 +618,7 @@ def compliantClose(conf, hand, step = 0.01, n = 1):
         raw_input('Bad result in compliantClose: %s'%str(result))
         return result
 
-def testReactive(startConf, offset = (0.1, 0.0, 0.0), grip=0.06):
+def testReactive(startConf, offset = (0.1, 0.0, -0.1), grip=0.06):
     hand = 'left'
     (dx,dy,dz) = offset
     targetConf = displaceHand(startConf, hand, dx=dx, dy=dy, dz=dz)

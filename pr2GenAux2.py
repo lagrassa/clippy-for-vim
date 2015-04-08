@@ -213,10 +213,10 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, prob, nMax=None):
                          'pr2Torso':[torsoZ]}, robot)
         if hand == 'left':
             cart.conf['pr2LeftArmFrame'] = wrist 
-            cart.conf['pr2LeftGripper'] = 0.08 # !! pick better value
+            cart.conf['pr2LeftGripper'] = [0.08] # !! pick better value
         else:
             cart.conf['pr2RightArmFrame'] = wrist 
-            cart.conf['pr2RightGripper'] = 0.08
+            cart.conf['pr2RightGripper'] = [0.08]
         # Check inverse kinematics
         conf = robot.inverseKin(cart, complain=debug('potentialGraspConfs'))
         if None in conf.values(): continue

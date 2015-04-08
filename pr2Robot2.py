@@ -987,7 +987,7 @@ def cartInterpolatorsAux(c_f, c_i, conf_i, minLength, depth=0):
         raw_input('cartInterpolators depth > 10')
     robot = conf_i.robot
     if c_f == c_i: 
-        conf = robot.inverseKin(c_f, conf_i)
+        conf = robot.inverseKin(c_f, conf=conf_i)
         conf['pr2Head'] = conf_i['pr2Head']
         return [conf]
     newVals = {}

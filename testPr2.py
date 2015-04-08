@@ -149,7 +149,6 @@ viewPort = [x0, x1, y0, y1, 0, dz]
 
 tZ = 0.68
 
-moreGD = False
 def testWorld(include = ['objA', 'objB', 'objC'],
               draw = True):
     ((x0, y0, _), (x1, y1, dz)) = workspace
@@ -259,9 +258,8 @@ def testWorld(include = ['objA', 'objB', 'objC'],
         world.graspDesc[obj] = []
         if useHorizontal:             # horizontal
             world.graspDesc[obj].extend([GDesc(obj, util.Transform(gMat0),
-                                               0.05, 0.05, 0.025)])
-        if moreGD:              # flipped
-            world.graspDesc[obj].extend([GDesc(obj, util.Transform(gMat1),
+                                               0.05, 0.05, 0.025),
+                                         GDesc(obj, util.Transform(gMat1),
                                                0.05, 0.05, 0.025)])
         if useVertical:    # vertical
             world.graspDesc[obj].extend([GDesc(obj, util.Transform(gMat3),
@@ -293,7 +291,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
 
     return world
 
-def makeConf(robot,x,y,th,g=0.07, vertical=False):
+def makeConf(robot,x,y,th,g=0.07, vertical=False, dz = 0.):
     c = JointConf(pr2Init.copy(), robot)
     c = c.set('pr2Base', [x, y, th])
     c = c.set('pr2LeftGripper', [g])
@@ -309,10 +307,10 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False):
             hr = util.Transform(p=np.array([[a] for a in [ 0.4, -0.3,  0.9, 1.]]), q=q)
             cart = cart.set('pr2RightArm', base.compose(hr))
     else:
-        h = util.Pose(0.2,0.33,0.75,0.)
+        h = util.Pose(0.2,0.33,0.75+dz,0.)
         cart = cart.set('pr2LeftArm', base.compose(h))
         if useRight:
-            hr = util.Pose(0.2,-0.33,0.75,0.)
+            hr = util.Pose(0.2,-0.33,0.75+dz,0.)
             cart = cart.set('pr2RightArm', base.compose(hr))
     c = robot.inverseKin(cart, conf=c)
     return c
@@ -781,6 +779,39 @@ def test2a(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           )
     return t
 
+# pick and place into region... one table, for robot.
+def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+          easy = False, rip = False):
+
+    glob.rebindPenalty = 700
+    glob.monotonicFirst = True
+
+    goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
+    front = util.Pose(1.1, 0.0, tZ, 0.0)
+    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+
+    region = 'table1Left'
+    goal = State([Bd([In(['objA', region]), True, goalProb], True)])
+
+    t = PlanTest('test1',  errProbs, allOperators,
+                 objects=['table1', 'objA'],
+                 fixPoses={'table1': table1Pose},
+                 movePoses={'objA': front},
+                 varDict = varDict)
+
+    t.run(goal,
+          hpn = hpn,
+          skeleton = hSkel if skeleton else None,
+          hierarchical = hierarchical,
+          regions=[region],
+          heuristic = heuristic,
+          rip = rip
+          )
+    return t
+
 def test4(hpn = True, hierarchical = False, skeleton = False,
           heuristic = habbs, easy = False):
 
@@ -883,9 +914,6 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
 # Test look, pick
 def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
           hierarchical = False, easy = False, gd = 0, rip = False):
-    global moreGD
-    if gd != 0: moreGD = True           # hack!
-
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.99,typicalErrProbs)
 
@@ -898,7 +926,6 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
                  movePoses={'objA': p2,
                             'objB': p1},
                  varDict = {'objA': (0.075**2,0.075**2, 1e-10,0.2**2)})
-    if moreGD: moreGD = False
     targetPose = (1.05, 0.25, tZ, 0.0)
 
     goal = State([Bd([Holding(['left']), 'objA', goalProb], True),
@@ -927,11 +954,8 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
     #glob.monotonicFirst = False
 
-    global moreGD
-    if gd != 0: moreGD = True
     t = PlanTest('test8', errProbs, allOperators,
                  objects=['table1', 'table3', 'objA'])
-    if moreGD: moreGD = False
     goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)
     goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
                   Bd([GraspFace(['objA', hand]), gd, goalProb], True),
@@ -1265,11 +1289,8 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
-    global moreGD
-    if gd != 0: moreGD = True           # hack!
     t = PlanTest('test15', errProbs, allOperators,
                  objects=['table1', 'objA'])
-    if moreGD: moreGD = False
     goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)
     confDeltas = (0.05, 0.05, 0.05, 0.05)
     goal = State([Bd([Holding([hand]), 'objA', .6], True),
@@ -1903,7 +1924,7 @@ def firstAid(details, fluent = None):
 
 def testReact():
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
-    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)
+    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0, dz=0.1)
     result, cnfOut = pr2GoToConf(startConf, 'move')
     # Reset the internal coordinate frames
     result, cnfOut = pr2GoToConf(startConf, 'reset')
