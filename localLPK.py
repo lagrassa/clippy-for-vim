@@ -42,6 +42,7 @@ lookGen
 lookHandGen
 nextStep
 nonmon
+obsUpdate
 pickPlaceTest
 placeInGen
 potentialLookConfs'
@@ -57,12 +58,7 @@ traceGen  (compact summary of generators)
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'traceGen', 'traceCRH', 'hAddBackInf']
-#    , 'traceCRH', 'placeGen']
-#            'appOp:number', 'hAddBack', 'hAddBackV']
-           # 'hAddBackInf', 'appOp:number','traceGen', 'canReachHome',
-           # 'visible']
-           
+           'traceGen', 'traceCRH', 'obsUpdate']
 
 pauseOn = debugOn
 

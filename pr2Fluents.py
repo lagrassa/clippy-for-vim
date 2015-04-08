@@ -511,6 +511,74 @@ class CanSeeFrom(Fluent):
         ans, _ = visible(shWorld, conf, sh, obstacles, p)
         return ans
 
+    def getViols(self, bState, v, p, strict = True):
+        assert v == True
+        (obj, pose, poseFace, conf, cond) = self.args
+         
+        # Note that all object poses are permanent, no collisions can be ignored
+        newPBS = bState.pbs.copy()
+        if strict:
+            newPBS.updateFromAllPoses(cond, updateHeld=False)
+        else:
+            newPBS.updateFromGoalPoses(cond, updateHeld=False)
+
+        placeB = newPBS.getPlaceB(obj)
+        if placeB.support.mode() != poseFace:
+            placeB.support = DeltaDist(poseFace)
+        if placeB.poseD.mode() != pose:
+            newPBS.updatePermObjPose(placeB.modifyPoseD(mu=pose))
+        shWorld = newPBS.getShadowWorld(p)
+        shName = shadowName(obj)
+        sh = shWorld.objectShapes[shName]
+        obstacles = [s for s in shWorld.getNonShadowShapes() if \
+                     s.name() != obj ]
+        ans, occluders = visible(shWorld, conf, sh, obstacles, p)
+
+        debugMsg('CanSeeFrom',
+                ('obj', obj, pose), ('conf', conf),
+                 ('->', occluders))
+        return ans, occluders
+
+    def heuristicVal(self, bState, v, p):
+        # Return cost estimate and a set of dummy operations
+        (obj, pose, poseFace, conf, cond) = self.args
+        
+        obstCost = 10  # move pick move place
+        path, occluders = self.getViols(bState.details, v, p, strict = False)
+        if path == None:
+            #!! should this happen?
+            print '&&&&&&', self, v, p
+            print 'hv infinite'
+            raw_input('go?')
+            return float('inf'), {}
+        obstacles = occluders
+        shadows = [] # I think these are never shadows?
+        obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
+                       for o in obstacles])
+        for o in obstOps: o.instanceCost = obstCost
+        shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
+                     for o in shadows])
+        d = bState.details.domainProbs.minDelta
+        ep = bState.details.domainProbs.obsTypeErrProb
+        vo = bState.details.domainProbs.obsVarTuple
+        # compute shadow costs individually
+        shadowSum = 0
+        for o in shadowOps:
+            # Use variance in start state
+            obj = objectName(o.args[0])
+            vb = bState.details.pbs.getPlaceB('table1').poseD.variance()
+            deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
+            c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
+            o.instanceCost = c
+            shadowSum += c
+        ops = obstOps.union(shadowOps)
+        if debug('hAddBack'):
+            print 'Heuristic val', self.predicate
+            print 'ops', ops, 'cost',\
+             prettyString(obstCost * len(obstOps) + shadowSum)
+            raw_input('foo?')
+        return (obstCost * len(obstacles) + shadowSum, ops)
+
     def prettyString(self, eq = True, includeValue = True):
         (obj, pose, poseFace, conf, cond) = self.args
         argStr = prettyString(self.args) if eq else \

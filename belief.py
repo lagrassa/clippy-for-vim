@@ -650,7 +650,7 @@ def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,
         if vk < float('inf'):
             break
     result = min(vk, maxHeuristicValue)
-    if vk == float('inf'):
+    if vk == float('inf') and debug('hAddBackInf'):
         print '**** Final heuristic value is infinite ****'
         print 'Searched to depth', maxK
         for thing in goal.fluents: print thing
