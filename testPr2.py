@@ -665,6 +665,9 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 def test2(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
+    global moreGD
+    moreGD = True
+
     glob.rebindPenalty = 700
     glob.monotonicFirst = True
 
@@ -692,6 +695,8 @@ def test2(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                            'table2': table2Pose},
                  movePoses={'objA': front},
                  varDict = varDict)
+
+    moreGD = False
 
     skel = [[#lookAt.applyBindings({'Obj' : 'objA'}), move,
              place, move, pick, move,

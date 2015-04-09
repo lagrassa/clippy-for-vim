@@ -48,6 +48,7 @@ if glob.useROS:
 # grab - use ROS grab
 # close - as hard as you can
 # open - to commanded width
+# look - move head to look at target
 
 headTurn = util.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0)))
 
@@ -73,27 +74,14 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         else:
             conf.left_grip = []
             conf.right_grip = []
-        if cnfIn['pr2Head'] == None: 
-            raw_input('Head conf is None')
+        if operation == 'look':
+            assert cnfIn.get('pr2Head', None)
+            gaze = gazeCoords(cnfIn)
+            conf.head = map(float, gaze) # a look point relative to robot
+            raw_input('Looking at %s'%gaze)
+            operation = 'move'
         else:
-            conf.head = map(float, cnfIn.get('pr2Head', [0.,0.]))
-        if conf.head:
-            if debug('pr2GoToConf'):
-                print 'commanded head angles', conf.head
-            cnfInCart = cnfIn.cartConf()
-            head = cnfInCart['pr2Head']
-            headTurned = cnfInCart['pr2Head'].compose(headTurn)
-            # Transform relative to robot base
-            headTrans = cnfInCart['pr2Base'].inverse().compose(head)
-            gaze = headTrans.applyToPoint(util.Point(np.array([0.,0.,1.,1.]).reshape(4,1)))
-            conf.head = gaze.matrix.reshape(4).tolist()[:3]
-            if conf.head[0] < 0:
-                if debug('pr2GoToConf'):  print 'Dont look back!'
-                conf.head[0] = -conf.head[0]
-            if conf.head[2] > 1.5:
-                if debug('pr2GoToConf'): print 'Dont look up!'
-                conf.head[2] = 1.0
-            if debug('pr2GoToConf'): print conf.head
+            conf.head = []
 
         if debug('pr2GoToConf'): print operation, conf
         
@@ -109,9 +97,7 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         cnfOut['pr2LeftGripper'] = c.left_grip
         cnfOut['pr2RightArm'] = c.right_joints
         cnfOut['pr2RightGripper'] = c.right_grip
-        # !!
-        cnfOut['pr2Head'] = cnfIn.get('pr2Head', [0.,0.])
-        if not cnfOut['pr2Head']: cnfOut['pr2Head'] = [0., 0.]
+        cnfOut['pr2Head'] = cnfIn.get('pr2Head', [1.,0.,1.])
         if cnfIn:
             return resp.result, JointConf(cnfOut, cnfIn.robot)
         else:
@@ -121,6 +107,24 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         print "Service call failed: %s"%e
         raw_input('Continue?')
         return None, None               # should we pretend it worked?
+
+def gazeCoords(cnfIn):
+    cnfInCart = cnfIn.cartConf()
+    head = cnfInCart['pr2Head']
+    headTurned = cnfInCart['pr2Head'].compose(headTurn)
+    # Transform relative to robot base
+    headTrans = cnfInCart['pr2Base'].inverse().compose(head)
+    gaze = headTrans.applyToPoint(util.Point(np.array([0.,0.,1.,1.]).reshape(4,1)))
+    confHead = gaze.matrix.reshape(4).tolist()[:3]
+    if confHead[0] < 0:
+        if debug('pr2GoToConf'):  print 'Dont look back!'
+        confEad[0] = -conf.head[0]
+    if confHead[2] > 1.5:
+        if debug('pr2GoToConf'): print 'Dont look up!'
+        confHead[2] = 1.0
+    if debug('pr2GoToConf'):
+        print confHead
+    return confHead
 
 # The key interface spec...
 # obs = env.executePrim(op, params)
@@ -196,7 +200,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             return None
 
         debugMsg('robotEnv', 'executeLookAt', targetObj, lookConf.conf)
-        result, outConf = pr2GoToConf(lookConf, 'move')
+        result, outConf = pr2GoToConf(lookConf, 'look')
         outConfCart = lookConf.robot.forwardKin(outConf)
         if 'table' in targetObj:
             table = lookAtTable(targetObj)
@@ -396,8 +400,9 @@ def transformPoly(poly, x, y, z, theta):
     return gm.Polygon(points)
 
 def wellLocalized(pB):
-    return(all(x<=y for (x,y) in zip(shadowWidths(pB.poseD.var, pB.delta, 0.99),
-                                     4*(0.02,))))
+    widths = shadowWidths(pB.poseD.var, pB.delta, 0.95)
+    print pB.obj, 'well localized?', widths, '<', 4*(0.02,)
+    return(all(x<=y for (x,y) in zip(widths, 4*(0.02,))))
 
 def findSupportTable(targetObj, world, placeBs):
     tableBs = [pB for pB in placeBs.values() if 'table' in pB.obj]
@@ -429,20 +434,16 @@ xoffset = 0.03
 yoffset = 0.01
 
 def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
-    headConf = startConf['pr2Head']
     print '***closing'
     startConfClose = gripOpen(startConf, hand, 0.01)
-    startConfClose.conf['pr2Head'] = headConf
     pr2GoToConf(startConfClose, 'move')
     pr2GoToConf(startConfClose, 'open')
     targetConfClose = gripOpen(targetConf, hand, 0.01)
-    targetConfClose.conf['pr2Head'] = headConf
     (obs, traj) = tryGrasp(startConfClose, targetConfClose, hand)
     print 'obs after tryGrasp', obs
     curConf = obs[obsConf]
     print '***Contact'
     backConf = displaceHand(curConf, hand, dx=-xoffset, dz=0.01)
-    backConf.conf['pr2Head'] = headConf
     result, nConf = pr2GoToConf(backConf, 'move')
     backConf = displaceHand(backConf, hand, zFrom=targetConf)
     result, nConf = pr2GoToConf(backConf, 'move')
@@ -458,7 +459,6 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, tries = 10):
     if tries == 0:
         print spaces+'reactiveApproach failed'
         return None
-    headConf = startConf['pr2Head']
     startConf = gripOpen(startConf, hand)
     targetConf = gripOpen(targetConf, hand)
     (obs, traj) = tryGrasp(startConf, targetConf, hand)
@@ -471,12 +471,10 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, tries = 10):
         else:
             print spaces+'***opening', obs[obsGrip], 'did not match', gripDes
             closeConf = gripOpen(curConf, hand)
-            closeConf.conf['pr2Head'] = headConf
             pr2GoToConf(closeConf, 'open')
     if reactLeft(obs):
         print spaces+'***reactLeft'
         backConf = displaceHand(curConf, hand, dx=-xoffset)
-        backConf.conf['pr2Head'] = headConf
         result, nConf = pr2GoToConf(backConf, 'move')
         print spaces+'backConf', handTrans(nConf, hand).point(), result
         reactiveApproachLoop(backConf, 
@@ -485,7 +483,6 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, tries = 10):
     else:                           # default, just to do something...
         print spaces+'***reactRight'
         backConf = displaceHand(curConf, hand, dx=-xoffset)
-        backConf.conf['pr2Head'] = headConf
         result, nConf = pr2GoToConf(backConf, 'move')
         print spaces+'backConf', handTrans(nConf, hand).point(), result
         reactiveApproachLoop(backConf, 
@@ -503,7 +500,6 @@ def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0, zFrom=None):
     nTrans = trans.compose(util.Pose(dx, dy, dz, 0.0))
     nCart = cart.set(handFrameName, nTrans)
     nConf = conf.robot.inverseKin(nCart, conf=conf) # use conf to resolve
-    nConf.conf['pr2Head'] = conf['pr2Head']
     if nConf.conf[handFrameName]:
         return nConf
     else:
@@ -545,15 +541,13 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.02, maxSteps = 6, verbo
             contacts = 4*[False]
         return contacts
     def close():
-        curConf.conf['pr2Head'] = headConf
         result = compliantClose(curConf, hand, 0.005)
         return parseContacts(result)
     print 'tryGrasp'
     print '    from', handTrans(approachConf, hand).point()
     print '      to', handTrans(graspConf, hand).point()
-    headConf = approachConf['pr2Head']
     result, curConf = pr2GoToConf(approachConf, 'move')
-    pr2GoToConf(approachConf, 'resetForce', arm=hand[0])
+    resuly, curConf = pr2GoToConf(approachConf, 'resetForce', arm=hand[0])
     moveChains = [approachConf.robot.armChainNames[hand]+'Frame']
     path = cartInterpolators(graspConf, approachConf, stepSize)[::-1]
     if len(path) > maxSteps:
@@ -572,7 +566,7 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.02, maxSteps = 6, verbo
         print i,  handTrans(p, hand).point()
     raw_input('Go?')
     for conf in path:
-        conf.conf['pr2Head'] = headConf
+        bigAngleWarn(curConf, conf)
         result, curConf = pr2GoToConf(conf, 'moveGuarded')
         print 'tryGrasp result', result, handTrans(curConf, hand).point()
         if result in ('LR_tip', 'L_tip', 'R_tip',
@@ -595,6 +589,13 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.02, maxSteps = 6, verbo
            result, contacts)
     return obs, (approachConf, curConf)
 
+def bigAngleWarn(conf1, conf2):
+    for chain in ['pr2LeftArm', 'pr2RightArm']:
+        for angle1, angle2 in zip(conf1[chain], conf2[chain]):
+            if abs(angle1 - angle2) >= 2*math.pi:
+                print 'chain', angle1, angle2
+                raw_input('Big angle change')
+
 def compliantClose(conf, hand, step = 0.01, n = 1):
     if n > 5:
         (result, cnfOut) = pr2GoToConf(conf, 'close', arm=hand[0])
@@ -609,7 +610,6 @@ def compliantClose(conf, hand, step = 0.01, n = 1):
     elif result in ('L_pad', 'R_pad'):
         off = step if result == 'L_pad' else -step
         nConf = displaceHand(curConf, hand, dy=off)
-        nConf.conf['pr2Head'] = conf['pr2Head']
         pr2GoToConf(nConf, 'move')      # should this be guarded?
         return compliantClose(nConf, hand, step=0.9*step, n = n+1)
     elif result == 'none':
@@ -623,4 +623,3 @@ def testReactive(startConf, offset = (0.1, 0.0, -0.1), grip=0.06):
     (dx,dy,dz) = offset
     targetConf = displaceHand(startConf, hand, dx=dx, dy=dy, dz=dz)
     print reactiveApproach(startConf, targetConf, grip, hand)
-    

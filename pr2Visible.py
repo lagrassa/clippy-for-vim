@@ -2,6 +2,7 @@ import math
 import numpy as np
 from pointClouds import Scan, updateDepthMap
 import util
+from geom import bboxCenter
 from shapes import toPrims, pointBox
 import transformations as transf
 from pr2Util import shadowName
@@ -96,7 +97,7 @@ def countContacts(contacts, id):
     return final
 
 def lookAtConf(conf, shape):
-    center = shape.center()
+    center = bboxCenter(shape.bbox(), base=True)
     cartConf = conf.cartConf()
     assert cartConf['pr2Head']
     lookCartConf = cartConf.set('pr2Head', util.Pose(*center.tolist()+[0.,]))

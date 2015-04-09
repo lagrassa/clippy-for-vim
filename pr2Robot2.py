@@ -279,7 +279,7 @@ pr2Init = {'pr2Base':[0.0,0.0,0.0],
            'pr2LeftGripper': [0.02],
            'pr2RightArm': rightStowAngles,
            'pr2RightGripper': [0.02],
-           'pr2Head': [0.0, 0.0]}
+           'pr2Head': [0.0, 0.0, 1.0, 0.0, 1.0]} # 2 angles and look position relative to robot
 # In a cartesian configuration, we specify frames for base, left and right
 # hands, and head.
 
@@ -845,124 +845,6 @@ def torsoInvKin(chains, base, target, wstate, collisionAware = False):
     # not to change the current value if possible.
     return glob.torsoZ
 
-# def armInvKin(chains, arm, torso, target, tool, conf, robot,
-#               collisionAware = False, returnAll = False):
-#     name = 'ArmInvKin'
-#     armName = 'pr2LeftArm' if arm=='l' else 'pr2RightArm'
-#     cfg = conf.copy()             # this will be modified by safeTest
-#     def safeTest(armAngles):
-#         if collisionAware:
-#             cfg[armName] = armAngles
-#             return wstate.robot.safeConf(cfg, wstate)
-#         else:
-#             return True
-#     # The tool pose relative to the torso frame 
-#     newHandPoseRel = reduce(np.dot, [torso.inverse().matrix,
-#                                      target.matrix,
-#                                      tool.matrix])
-#     newArmAngles = pr2KinIKfast(arm, newHandPoseRel, conf[armName],
-#                                 chain=chains.chainsByName[armName],
-#                                 safeTest=safeTest, returnAll=returnAll)
-#     if False:                            # debug
-#         print 'arm', arm
-#         print 'newHandPoseRel\n', newHandPoseRel
-#         print 'current angles', conf[armName]
-#         print 'IKfast angles:', newArmAngles
-#     return newArmAngles
-
-# # This should be in Cython...
-# #create a Ctypes array of type 'type' ('double' or 'int')
-# def createCtypesArr(type, size):
-#     if type == 'int':
-#         arraytype = c_int * size
-#     else:
-#         arraytype = c_double * size
-#     return arraytype()
-
-# nsolnsKin = 10
-# rotKin = createCtypesArr('float', 9)
-# transKin = createCtypesArr('float', 3)
-# freeKin = createCtypesArr('float', 1)
-# solnsKin = createCtypesArr('float', 7*nsolnsKin)
-# jtKin = createCtypesArr('float', 7)
-
-# def pr2KinIKfast(arm, T, current, chain, safeTest, returnAll = False):
-#     sols = pr2KinIKfastAll(arm, T, current, chain, safeTest)
-#     if not sols: return None
-#     if returnAll:
-#         return sols
-#     else:
-#         best = util.argmax(sols, lambda s: -solnDist(current, s)) if sols else None
-#         # print 'best', best
-#         # fwTest(arm, T, best)
-#         return best
-
-# def pr2KinIKfastAll(arm, T, current, chain, safeTest):
-#     def collectSafe(n):
-#         sols = []
-#         for i in range(n):
-#             sol = solnsKin[i*7 : (i+1)*7]
-#             if sol and chain.valid(sol):  # inside joint limits
-#                 if (not safeTest) or safeTest(sol): # doesn't collide
-#                     sols.append(sol)
-#         return sols
-#     for i in range(3):
-#         for j in range(3):
-#             rotKin[i*3+j] = T[i, j]
-#     for i in range(3):
-#         transKin[i] = T[i, 3]
-#     if arm=='r':
-#         # bug in right arm kinematics, this is the distance between the shoulders
-#         transKin[1] += 0.376
-#     step = glob.IKfastStep
-#     lower, upper = chain.limits()[2]
-#     th0 = current[2]
-#     if not lower <= th0 <= upper: return []
-#     nsteps = max((upper-th0)/step, (th0-lower)/step)
-#     solver = ik.ikRight if arm=='r' else ik.ikLeft
-#     sols = []
-#     for i in range(int(nsteps)):
-#         stepsize = i*step
-#         freeKin[0] = th0 + stepsize
-#         if freeKin[0] <= upper:
-#             n = solver(transKin, rotKin, freeKin, nsolnsKin, solnsKin)
-#             # print 'th', th0 + stepsize, 'n', n
-#             if n > 0:
-#                 sols.extend(collectSafe(n))
-#                 # if sols: break
-#         freeKin[0] = th0 - stepsize
-#         if freeKin[0] >= lower:
-#             n = solver(transKin, rotKin, freeKin, nsolnsKin, solnsKin)
-#             # print 'th', th0 - stepsize, 'n', n
-#             if n > 0:
-#                 sols.extend(collectSafe(n))
-#                 # if sols: break
-#     # print 'IKFast sols', sols
-#     return sols
-
-# def solnDist(sol1, sol2):
-#     total = 0.0
-#     for (th1, th2) in zip(sol1, sol2):
-#         total += abs(util.angleDiff(th1, th2))
-#     return total
-
-# def fwTest(arm, T, sol):
-#     for i in range(7): jtKin[i] = sol[i]
-#     (ik.fkRight if arm=='r' else ik.fkLeft)(jtKin, transKin, rotKin)
-#     dist = util.Point(np.resize(T[:,3], (1,4))).distance(util.Point(np.resize(np.array(list(transKin)+[1.]), (1,4))))
-#     if dist > 0.001:
-#         print 'Target\n', T
-#         print 'Sol', sol
-#         print list(rotKin)
-#         print list(transKin)
-#         print 'distance', dist
-
-# def fwDist(arm, T, sol):
-#     for i in range(7): jtKin[i] = sol[i]
-#     (ik.fkRight if arm=='r' else ik.fkLeft)(jtKin, transKin, rotKin)
-#     return util.Point(np.resize(T[:,3], (1,4))).distance(util.Point(np.resize(np.array(list(transKin)+[1.]), (1,4))))
-
-
 ###################
 # Interpolators
 ##################
@@ -1001,7 +883,7 @@ def cartInterpolatorsAux(c_f, c_i, conf_i, minLength, depth=0):
     conf = robot.inverseKin(cart, conf=conf_i)
     conf.conf['pr2Head'] = conf_i['pr2Head']
     if all([conf.conf.values()]):
-        final = cartInterpolatorsAux(c_f, cart, conf_i, minLength, depth+1)
+        final = cartInterpolatorsAux(c_f, cart, conf, minLength, depth+1)
         if final != None:
             init = cartInterpolatorsAux(cart, c_i, conf_i, minLength, depth+1)
             if init != None:

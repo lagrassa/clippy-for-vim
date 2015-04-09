@@ -72,8 +72,18 @@ cpdef pr2KinIKfast(arm, T, current, chain, safeTest, returnAll = False):
 cpdef float solnDist(sol1, sol2):
     total = 0.0
     for (th1, th2) in zip(sol1, sol2):
-        total += abs(util.angleDiff(th1, th2))
+        total += abs(angleDiff(th1, th2))
     return total
+
+cpdef float angleDiff(float x, float y):
+    cdef:
+        float twoPi = 2*math.pi
+        float z = (x - y)%twoPi
+        float w = float(int((x - y)/twoPi))
+    if z > math.pi:
+        return w*twoPi + (z - twoPi)
+    else:
+        return w*twoPi + z
 
 def pr2KinIKfastAll(arm, T, current, chain, safeTest):
     def collectSafe(n):
