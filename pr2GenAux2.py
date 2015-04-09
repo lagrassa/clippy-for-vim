@@ -491,7 +491,7 @@ def potentialRegionPoseGenCut(pbs, obj, placeB, prob, regShapes, reachObsts, max
             if debug('potentialRegionPoseGen'):
                 sh.draw('W', 'brown')
                 wm.getWindow('W').update()
-            if all([rs.containsPt(p) for p in sh.vertices().T]) and \
+            if all([rs.contains(p) for p in sh.vertices().T]) and \
                all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
                 return pose
     clearance = 0.01
@@ -575,14 +575,17 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, han
     def genPose(rs, angle, point):
         (x,y,z,_) = point
         # Support pose, we assume that sh is on support face
-        pose = util.Pose(x,y,z, angle)
+        pose = util.Pose(x,y,z, 0.)     # shRotations is already rotated
         sh = shRotations[angle].applyTrans(pose)
         if debug('potentialRegionPoseGen'):
             sh.draw('W', 'brown')
             wm.getWindow('W').update()
-        if all([rs.containsPt(p) for p in sh.vertices().T]) and \
+        if all([np.all(np.dot(rs.planes(), p) <= 1.0e-6) for p in sh.vertices().T]) and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
+            debugMsg('potentialRegionPoseGen', ('-> pose', pose))
             return pose
+        else:
+            debugMsg('potentialRegionPoseGen', ('fail pose', pose))
 
     def poseViolationWeight(pose):
         pB = placeB.modifyPoseD(mu=pose)
@@ -623,7 +626,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, han
                 continue
             elif debug('potentialRegionPoseGen'):
                 bI.draw('W', 'cyan')
-                debugMsg('potentialRegionPoseGen', 'Region interior in cyan')
+                debugMsg('potentialRegionPoseGen', 'Region interior in cyan for angle', angle)
             coFixed = [xyCO(shRot, o) for o in shWorld.getObjectShapes() \
                        if o.name() in shWorld.fixedObjects]
             coObst = [xyCO(shRot, o) for o in shWorld.getNonShadowShapes() \
