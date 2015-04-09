@@ -429,7 +429,9 @@ class Grasp(Fluent):
 class Pose(Fluent):
     predicate = 'Pose'
     def dist(self, bState):
-        (obj, face) = self.args              
+        (obj, face) = self.args
+        if face == '*':
+            face = bState.pbs.getPlaceB(obj).support.mode()
         result = bState.poseModeDist(obj, face)
         return result
 
@@ -496,13 +498,22 @@ class CanSeeFrom(Fluent):
     def bTest(self, details, v, p):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
+
         # Note that all object poses are permanent, no collisions can be ignored
         newPBS = details.pbs.copy()
+
+        if pose == '*' and \
+          (newPBS.getHeld('left').mode() == obj or \
+           newPBS.getHeld('right').mode() == obj):
+           # Can't see it (in the usual way) if it's in the hand and a pose
+           # isn't specified
+           return False
+         
         newPBS.updateFromAllPoses(cond)
         placeB = newPBS.getPlaceB(obj)
-        if placeB.support.mode() != poseFace:
+        if placeB.support.mode() != poseFace and poseFace != '*':
             placeB.support = DeltaDist(poseFace)
-        if placeB.poseD.mode() != pose:
+        if placeB.poseD.mode() != pose and pose != '*':
             newPBS.updatePermObjPose(placeB.modifyPoseD(mu=pose))
         shWorld = newPBS.getShadowWorld(p)
         shName = shadowName(obj)

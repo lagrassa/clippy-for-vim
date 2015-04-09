@@ -32,6 +32,9 @@ movePreProb = 0.8
 # Prob for generators.  Keep it high.   Should this be = maxProbValue?
 probForGenerators = 0.98
 
+planVar = (0.02**2, 0.02**2, 0.01**2, 0.03**2)
+planP = 0.95
+
 ######################################################################
 #
 # Prim functions map an operator's arguments to some parameters that
@@ -313,6 +316,7 @@ def poseInStart(args, goal, start, vals):
     pd = pbs.getPlaceB(obj)
     face = pd.support.mode()
     mu = pd.poseD.mu.xyztTuple()
+    debugMsg('poseInStart', ('->', (face, mu)))
     return [(face, mu)]
 
 # Get grasp-relevant stuff for one hand.  Used by move, place, pick
@@ -345,6 +349,13 @@ def assign(args, goal, start, vals):
 # Be sure the argument is not 'none'
 def notNone(args, goal, start, vals):
     if args[0] == 'none':
+        return None
+    else:
+        return [[]]
+
+# Be sure the argument is not '*'
+def notStar(args, goal, start, vals):
+    if args[0] == '*':
         return None
     else:
         return [[]]
@@ -615,10 +626,12 @@ def lookAtCostFun(al, args, details):
     (_,_,_,_,vb,d,va,pb,pCanSee,pPoseR,pFaceR) = args
     placeProb = min(pPoseR, pFaceR)
     vo = details.domainProbs.obsVarTuple
-    deltaViolProb = probModeMoved(d[0], vb[0], vo[0])
-    # Switched to using var *after* look because if look reliability
-    # is very high then var before is huge and so is the cost.
-    deltaViolProb = probModeMoved(d[0], va[0], vo[0])
+    if d == '*':
+        deltaViolProb = 0.0
+    else:
+        # Switched to using var *after* look because if look reliability
+        # is very high then var before is huge and so is the cost.
+        deltaViolProb = probModeMoved(d[0], vb[0], vo[0])
     result = costFun(1.0, pCanSee*placeProb*(1-deltaViolProb)*\
                      (1 - details.domainProbs.obsTypeErrProb))
     if not fbch.inHeuristic:
@@ -966,13 +979,18 @@ poseAchIn = Operator(\
                             'ObjPose1', 'PoseFace1',
                             'Obj2', 'ObjPose2', 'PoseFace2',
                             'PoseVar', 'TotalVar', 'P1', 'P2', 'PR'],
-            # Pre
-            {0 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
-                               defaultPoseDelta, 'P1'], True),
-                  Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True),
-                  B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
+            # Very prescriptive:  find objects, then nail down obj2, then
+            # obj 1
+            {0 : {B([Pose(['Obj1', '*']), '*', planVar, '*', planP], True),
+                  Bd([SupportFace(['Obj1']), '*', planP], True),
+                  B([Pose(['Obj2', '*']), '*', planVar, '*', planP], True),
+                  Bd([SupportFace(['Obj2']), '*', planP], True)},
+             1 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
                                defaultPoseDelta, 'P2'], True),
-                  Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)}},
+                  Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)},
+             2 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
+                               defaultPoseDelta, 'P1'], True),
+                  Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True)}},
             # Results
             [({Bd([In(['Obj1', 'Region']), True, 'PR'], True)},{})],
             functions = [\
@@ -1029,6 +1047,10 @@ place = Operator(\
          ({Bd([Holding(['Hand']), 'none', 'PR3'], True)}, {})],
         # Functions
         functions = [\
+            # Not appropriate when we're just trying to decrease variance
+            Function([], ['Pose'], notStar, 'notStar', True),
+            Function([], ['PoseFace'], notStar, 'notStar', True),
+        
             # Get both hands and object!
             Function(['Obj', 'Hand', 'OtherHand'], ['Obj', 'Hand'],
                      getObjAndHands, 'getObjAndHands'),
@@ -1090,17 +1112,18 @@ pick = Operator(\
          'P1', 'P2', 'P3', 'P4', 'PR1', 'PR2', 'PR3'],
         # Pre
         {0 : {Graspable(['Obj'], True),
-              Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
+              B([Pose(['Obj', '*']), '*', planVar, '*', planP], True)},
+         1 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
               B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta',
                  'P1'], True)},
-         1 : {Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
+         2 : {Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
                                'PoseVar', 'PoseDelta', 'PoseFace',
                                'GraspFace', 'GraspMu', 'RealGraspVar',
                                'GraspDelta',
                                'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
                                'OGraspDelta', []]), True, 'P2'], True)},
             # Implicitly, CanPick should be true, too
-         2  : {Conf(['PreConf', 'ConfDelta'], True),
+         3 : {Conf(['PreConf', 'ConfDelta'], True),
              Bd([Holding(['Hand']), 'none', 'P3'], True),
              # Bookkeeping for other hand
              Bd([Holding(['OtherHand']), 'OObj', 'P4'], True),
@@ -1197,7 +1220,7 @@ lookAt = Operator(\
     cost = lookAtCostFun,
     f = lookAtBProgress,
     prim = lookPrim,
-    argsToPrint = [0, 1],
+    argsToPrint = [0, 1, 3],
     ignorableArgs = range(1, 11))
 
 

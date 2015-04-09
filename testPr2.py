@@ -208,6 +208,22 @@ def testWorld(include = ['objA', 'objB', 'objC'],
             world.addObjectRegion(name, regName, Sh([Ba(bboxRight)], name=regName),
                                   util.Pose(0,0,2*bbox[1,2],0))
 
+    # Some handy regions on table 1
+    bbox = world.getObjectShapeAtOrigin('table1').bbox()
+    mfbbox = np.empty_like(bbox); mfbbox[:] = bbox
+    mfbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
+    mfbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
+    mfbbox[1][1] = 0.5*(bbox[0][1] + bbox[1][1])
+    world.addObjectRegion('table1', 'table1MidFront', 
+                           Sh([Ba(mfbbox)], name='table1MidFront'),
+                                  util.Pose(0,0,2*bbox[1,2],0))
+    mrbbox = np.empty_like(bbox); mrbbox[:] = bbox
+    mrbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
+    mrbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
+    mrbbox[0][1] = 0.5*(bbox[0][1] + bbox[1][1])
+    world.addObjectRegion('table1', 'table1MidRear', 
+                           Sh([Ba(mrbbox)], name='table1MidRear'),
+                                  util.Pose(0,0,2*bbox[1,2],0))
     # Other permanent objects
     cupboard1 = Sh([place((-0.25, 0.25), (-0.05, 0.05), (0.0, 0.4))],
                      name = 'cupboardSide1', color='brown')
@@ -612,9 +628,11 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
-    varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.05**2),
-                               'table2': (0.03**2, 0.03**2, 1e-10, 0.05**2),
-                               'objA': (0.05**2, 0.05**2, 1e-10, 0.05**2)} 
+
+    # varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.05**2),
+    #                            'table2': (0.03**2, 0.03**2, 1e-10, 0.05**2),
+    #                            'objA': (0.05**2, 0.05**2, 1e-10, 0.05**2)} 
+
     front = util.Pose(1.1, 0.0, tZ, 0.0)
     table2Pose = util.Pose(1.0, -1.00, 0.0, 0.0)
     t = PlanTest('test1',  errProbs, allOperators,
@@ -661,6 +679,61 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           )
     return t
 
+#  Swap!
+def testSwap(hpn = True, skeleton = False, hierarchical = False,
+           heuristic = habbs, easy = False, rip = False):
+
+    glob.rebindPenalty = 50
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
+    glob.monotonicFirst = True
+    table2Pose = util.Pose(1.0, -1.00, 0.0, 0.0)
+    
+    front = util.Pose(0.95, 0.0, tZ, 0.0)
+    # Put this back to make the problem harder
+    #back = util.Pose(1.1, 0.0, tZ, 0.0)
+    back = util.Pose(1.25, 0.0, tZ, 0.0)
+    parking1 = util.Pose(0.95, 0.3, tZ, 0.0)
+    parking2 = util.Pose(0.95, -0.3, tZ, 0.0)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
+
+
+    t = PlanTest('testSwap',  errProbs, allOperators,
+                 objects=['table1', 'table2', 'objA', 'objB',
+                          'cupboardSide1', 'cupboardSide2'],
+                 movePoses={'objA': back,
+                            'objB': front},
+                 fixPoses={'table2': table2Pose},
+                 varDict = varDict)
+
+    goal = State([Bd([In(['objA', 'table1MidFront']), True, goalProb], True),
+                  Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
+
+    goal1 = State([Bd([In(['objB', 'table2Top']), True, goalProb], True)])
+    skel1 = [[poseAchIn, lookAt, move,
+              place.applyBindings({'Hand' : 'right'}),
+              move, pick, move, lookAt, move, lookAt, move]]
+
+    goal2 = State([Bd([In(['objB', 'table2Top']), True, goalProb], True),
+                   Bd([In(['objA', 'table2Top']), True, goalProb], True)])
+
+    goal3 = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
+
+    t.run(goal3,
+          hpn = hpn,
+          skeleton = skel1 if skeleton else None,
+          heuristic = heuristic,
+          hierarchical = hierarchical,
+          rip = rip,
+          regions=['table1Top', 'table2Top', 'table1MidFront', 'table1MidRear']
+          )
+
+######################################################################
+#    Old tests    
+
 def test4(hpn = True, hierarchical = False, skeleton = False,
           heuristic = habbs, easy = False):
 
@@ -675,22 +748,8 @@ def test4(hpn = True, hierarchical = False, skeleton = False,
     targetVar = (0.001, 0.001, 0.001, 0.005)
     targetDelta = (.02, .02, .02, .04)
 
-    goal = State([Bd([SupportFace(['objA']), 4, goalProb], True),
-                  B([Pose(['objA', 4]),
-                     targetPose, targetVar, targetDelta, goalProb], True),
-                  Bd([SupportFace(['objB']), 4, goalProb], True),
-                  B([Pose(['objB', 4]),
-                     targetPoseB, targetVar, targetDelta, goalProb], True)])
-
-    # Probably wrong, with typicalErrProbs
-    skel = [[place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-                 move,
-                 pick.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
-                 move,
-                 place.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-                 move,
-                 pick.applyBindings({'Obj' : 'objB', 'Hand' : 'left'}),
-                 move]]
+    goal = State([Bd([In(['objA', 'table1MidFront']), True, goalProb], True),
+                  Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
 
     t.run(goal,
           hpn = hpn,

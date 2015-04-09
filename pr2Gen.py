@@ -6,7 +6,7 @@ import copy
 import time
 import windowManager3D as wm
 from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ, debugOn
-from miscUtil import isAnyVar, argmax, isGround, tuplify, roundrobin
+from miscUtil import isVar, argmax, isGround, tuplify, roundrobin
 from dist import DeltaDist, UniformDist
 from pr2Robot2 import CartConf, gripperTip, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, \
@@ -628,11 +628,11 @@ def placeInGen(args, goalConds, bState, outBindings,
     # !! Should derive this from the clearance in the region
     domainPlaceVar = bState.domainProbs.obsVarTuple 
 
-    if isAnyVar(graspV):
+    if isVar(graspV):
         graspV = domainPlaceVar
-    if isAnyVar(objV):
+    if isVar(objV):
         objV = graspV
-    if isAnyVar(support):
+    if isVar(support):
         if bState.pbs.getPlaceB(obj, default=False):
             support = bState.pbs.getPlaceB(obj).support # !! Don't change support
         elif obj == bState.pbs.held[hand].mode():
@@ -649,7 +649,7 @@ def placeInGen(args, goalConds, bState, outBindings,
                        PoseD(None, objV), delta=objDelta)
 
     # If pose is specified, just call placeGen
-    if pose and not isAnyVar(pose):
+    if pose and not isVar(pose):
         if debug('placeInGen'):
             bState.pbs.draw(prob, 'W')
             debugMsgSkip('placeInGen', skip, ('Pose specified', pose))
@@ -685,7 +685,7 @@ def placeInGenAway(args, goalConds, pbs, outBindings):
     if not pbs.awayRegions():
         raw_input('Need some awayRegions')
         return 
-    for ans in placeInGen((obj, pbs.awayRegions(), '?x', '?x', '?x', '?x',
+    for ans in placeInGen((obj, pbs.awayRegions(), 'X1', 'X2', 'X3', 'X4',
                            delta, delta, delta, hand, prob),
                           # preserve goalConds to get reachObsts
                           goalConds, pbs, [], away=True):
@@ -845,9 +845,17 @@ maxLookDist = 1.5
 def lookGen(args, goalConds, bState, outBindings):
     (obj, pose, support, objV, objDelta, lookDelta, prob) = args
     world = bState.pbs.getWorld()
-    
-    placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
-                       PoseD(pose, objV),
+
+    if pose == '*':
+        poseD = bState.pbs.getPlaceB(obj).poseD
+    else: 
+        poseD = PoseD(pose, objV)
+    if isVar(support) or support == '*':
+        support = bState.pbs.getPlaceB(obj).support.mode()
+    if objDelta == '*':
+        objDelta = lookDelta
+        
+    placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support, poseD,
                        # Pretend that the object has bigger delta
                        delta=tuple([o+l for (o,l) in zip(objDelta, lookDelta)]))
 
@@ -1193,9 +1201,18 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
 def canSeeGen(args, goalConds, bState, outBindings):
     (obj, pose, support, objV, objDelta, lookConf, lookDelta, prob) = args
     world = bState.pbs.getWorld()
+
+    if pose == '*':
+        poseD = bState.pbs.getPlaceB(obj).poseD
+    else: 
+        poseD = PoseD(pose, objV)
+    if isVar(support) or support == '*':
+        support = bState.pbs.getPlaceB(obj).support.mode()
+    if objDelta == '*':
+        objDelta = lookDelta
     
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
-                       PoseD(pose, objV),
+                       poseD,
                        # Pretend that the object has bigger delta
                        delta=tuple([o+l for (o,l) in zip(objDelta, lookDelta)]))
 

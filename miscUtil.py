@@ -38,7 +38,7 @@ def tuplify(x):
 def floatify(x):
     if type(x) in (tuple, list):
         return tuple([floatify(y) for y in x])
-    elif isAnyVar(x):
+    elif isAnyVar(x) or type(x) == str:
         return x
     else:
         return float(x)
@@ -325,20 +325,20 @@ def matchLists(s1, s2, bindings = {}):
         if bindings == None: return bindings
     return bindings
 
-# Returns bindings, no side effect.  If the terms are rFluents,
-# dig in one more level.
-# If noConstraintVars is True, then don't allow constraint vars to be
-# given bindings
+# Returns bindings, no side effect.  One-sided wrt '*': that is a
+# constant in t1 will match a * in t2, but not vv.
 def matchTerms(t1, t2, bindings = {}):
     if bindings == None: return None
     bt1 = applyBindings1(t1, bindings)
     bt2 = applyBindings1(t2, bindings)
     if bt1 == bt2 or t1 == t2:
-        return bindings
+        pass
     elif isVar(bt1):
         bindings = extendBindings(bindings, bt1, t2)
     elif isVar(bt2):
         bindings = extendBindings(bindings, bt2, t1)
+    elif bt2 == '*':
+        pass
     elif hasattr(bt1, 'matches') and hasattr(bt2, 'matches'):
         # maybe not a great test test...trying to see if they are both B fluents
         bindings = bt1.matches(bt2, bindings)

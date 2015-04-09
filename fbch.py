@@ -520,10 +520,13 @@ class Fluent(object):
     def glb(self, other, details = None):
         b = copy.copy(self.matches(other))
         bnv = copy.copy(self.matches(other, noValue = True))
+        b2 = copy.copy(other.matches(self))
+        bnv2 = copy.copy(other.matches(self, noValue = True))
         if b != None:
-            # See if bindings will do the job
             result = self, b
-        elif bnv != None:
+        elif b2 != None:
+            result = other, b2
+        elif bnv != None or bnv2 != None:
             # Fluents match but values disagree
             result = (False, {})
         elif self.fglb != None:
@@ -1067,6 +1070,7 @@ class Operator(object):
                 debugMsg('regression:fail', 'infinite cost')
             return [[rebindLater, rebindCost]]
         newGoal.operator.instanceCost = cost
+
         return [[newGoal, cost], [rebindLater, rebindCost]]
 
     def prettyString(self, eq = True):
@@ -1917,33 +1921,6 @@ def planBackward(startState, goal, ops, ancestors = [],
 # Binding stuff
 #
 ############################################################################
-
-# Bind all result fluents or fail.
-# Returns a list of possible bindings (maybe empty)
-
-'''
-def getBindingsBetween(resultFs, goalFs, startState):
-    if len(resultFs) == 0:
-        debugMsg('gbb:detail', resultFs, [{}])
-        return [{}]
-    else:
-        result = []
-        rf = resultFs[0]
-        debugMsg('gbb:detail', 'working on', rf)
-        restAnswer = getBindingsBetween(resultFs[1:], goalFs, startState)
-        debugMsg('gbb:detail', 'rest of answer', restAnswer)
-        for b in restAnswer:
-            for gf in goalFs:
-                newB = rf.applyBindings(b).entails(gf, startState.details)
-                if newB != False:
-                    debugMsg('gbb:detail', 'entails', b, gf.applyBindings(b),
-                              ('newB', newB))
-                    newB.update(b)
-                    result.append(newB)
-                    debugMsg('gbb:detail', 'appended updated newB', newB)
-        debugMsg('gbb', 'handled', rf, result)
-        return result
-'''    
 
 # Bind at least one result
 # Returns a list of possible bindings (maybe empty)

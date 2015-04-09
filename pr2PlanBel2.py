@@ -477,7 +477,8 @@ def getGoalPoseBels(goalConds, getFaceFrames):
                                       DeltaDist(b['Face']),
                                       util.Pose(* b['Mu']),
                                       b['Var'], b['Delta'])) \
-                 for (f, b) in fbs if isGround(b.values())])
+                 for (f, b) in fbs if \
+                      (isGround(b.values()) and not ('*' in b.values()))])
     return ans
 
 # Overrides is a list of fluents
