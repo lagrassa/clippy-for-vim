@@ -97,7 +97,11 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         cnfOut['pr2LeftGripper'] = c.left_grip
         cnfOut['pr2RightArm'] = c.right_joints
         cnfOut['pr2RightGripper'] = c.right_grip
-        cnfOut['pr2Head'] = cnfIn.get('pr2Head', [1.,0.,1.])
+        # cnfOut['pr2Head'] = cnfIn.get('pr2Head', [0.,0.])
+        cnfOut['pr2Head'] = [0., 0.]
+
+        print 'cnfOut[ pr2Head]=', cnfOut['pr2Head']
+
         if cnfIn:
             return resp.result, JointConf(cnfOut, cnfIn.robot)
         else:
@@ -118,7 +122,7 @@ def gazeCoords(cnfIn):
     confHead = gaze.matrix.reshape(4).tolist()[:3]
     if confHead[0] < 0:
         if debug('pr2GoToConf'):  print 'Dont look back!'
-        confEad[0] = -conf.head[0]
+        confHead[0] = -conf.head[0]
     if confHead[2] > 1.5:
         if debug('pr2GoToConf'): print 'Dont look up!'
         confHead[2] = 1.0
@@ -231,8 +235,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             else:
                 objPlaceRobot = None
             if not objPlaceRobot:
-                print 'No detections'
-                raw_input()
+                raw_input('No detections')
                 return None
             trueFace = supportFaceIndex(objPlaceRobot)
             objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
@@ -258,6 +261,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 
         debugMsg('robotEnv', 'executePick - close')
         result, outConf = pr2GoToConf(pickConf, 'close', arm=hand[0]) # 'l' or 'r'
+        raw_input('Closed?')
 
         debugMsg('robotEnv', 'executePick - move to approachConf')
         result, outConf = pr2GoToConf(approachConf, 'move')
@@ -490,6 +494,9 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, tries = 10):
                              gripDes, hand, tries-1)
 
 def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0, zFrom=None):
+
+    print 'displaceHand pr2Head', conf['pr2Head']
+
     cart = conf.cartConf()
     handFrameName = conf.robot.armChainNames[hand]
     trans = cart[handFrameName]
@@ -501,6 +508,9 @@ def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0, zFrom=None):
     nCart = cart.set(handFrameName, nTrans)
     nConf = conf.robot.inverseKin(nCart, conf=conf) # use conf to resolve
     if nConf.conf[handFrameName]:
+
+        print 'displaceHand out pr2Head', nConf['pr2Head']
+
         return nConf
     else:
         print 'displaceHand: failed kinematics'
@@ -591,10 +601,12 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.02, maxSteps = 6, verbo
 
 def bigAngleWarn(conf1, conf2):
     for chain in ['pr2LeftArm', 'pr2RightArm']:
+        joint = 0
         for angle1, angle2 in zip(conf1[chain], conf2[chain]):
             if abs(angle1 - angle2) >= 2*math.pi:
-                print 'chain', angle1, angle2
-                raw_input('Big angle change')
+                print chain, joint, angle1, angle2
+                debugMsg('bigAngleChange', 'Big angle change')
+            joint += 1
 
 def compliantClose(conf, hand, step = 0.01, n = 1):
     if n > 5:

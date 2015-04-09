@@ -313,6 +313,7 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False, dz = 0.):
             hr = util.Pose(0.2,-0.33,0.75+dz,0.)
             cart = cart.set('pr2RightArm', base.compose(hr))
     c = robot.inverseKin(cart, conf=c)
+    c.conf['pr2Head'] = [0., 0.]
     return c
 
 def makeTable(dx, dy, dz, name, width = 0.1, color = 'orange'):
@@ -1931,6 +1932,7 @@ def testReact():
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
     startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0, dz=0.1)
     result, cnfOut = pr2GoToConf(startConf, 'move')
+    result, cnfOut = pr2GoToConf(startConf, 'look')
     # Reset the internal coordinate frames
     result, cnfOut = pr2GoToConf(startConf, 'reset')
     testReactive(startConf)

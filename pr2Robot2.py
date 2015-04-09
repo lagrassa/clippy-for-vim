@@ -279,7 +279,7 @@ pr2Init = {'pr2Base':[0.0,0.0,0.0],
            'pr2LeftGripper': [0.02],
            'pr2RightArm': rightStowAngles,
            'pr2RightGripper': [0.02],
-           'pr2Head': [0.0, 0.0, 1.0, 0.0, 1.0]} # 2 angles and look position relative to robot
+           'pr2Head': [0.0, 0.0]}
 # In a cartesian configuration, we specify frames for base, left and right
 # hands, and head.
 
