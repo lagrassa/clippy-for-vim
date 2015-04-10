@@ -17,6 +17,7 @@ from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCO
 
 Ident = util.Transform(np.eye(4))            # identity transform
+tiny = 1.0e-6
 
 ################
 # Basic tests for pick and place
@@ -640,12 +641,13 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, han
                 for co in coShadow: co.draw('W', 'orange')
             z0 = bI.bbox()[0,2] + clearance
             for point in bboxGridCoords(bI.bbox(), z=z0):
-                if any(co.containsPt(point) for co in coFixed): continue
+                pt = point.reshape(4,1)
+                if any(np.all(np.dot(co.planes(), pt) <= tiny) for co in coFixed): continue
                 cost = 0
                 for co in coObst:
-                    if co.containsPt(point): cost += obstCost
+                    if np.all(np.dot(co.planes(), pt) <= tiny): cost += obstCost
                 for co in coObst:
-                    if co.containsPt(point): cost += 0.5*obstCost
+                    if np.all(np.dot(co.planes(), pt) <= tiny): cost += 0.5*obstCost
                 points.append((angle, point.tolist()))
                 hyp = (count, 1./cost if cost else 1.)
                 # if debug('potentialRegionPoseGen'):
@@ -733,7 +735,7 @@ def inside(obj, reg):
     verts = obj.vertices()
     for i in range(verts.shape[1]):
         # reg.containsPt() completely fails to work here.
-        if not np.all(np.dot(reg.planes(), verts[:,i]) <= 1.0e-6):
+        if not np.all(np.dot(reg.planes(), verts[:,i]) <= tiny):
             return False
     return True
     

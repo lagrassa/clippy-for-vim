@@ -2,7 +2,7 @@ import operator
 import datetime
 import numpy as np
 import collections
-from itertools import chain, combinations, cycle
+from itertools import chain, combinations, cycle, islice
 import copy
 
 def timeString():

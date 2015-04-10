@@ -11,6 +11,8 @@ from fbch import Fluent, getMatchingFluents, Operator
 from belief import B, Bd
 from pr2Visible import visible
 
+tiny = 1.0e-6
+
 ################################################################
 ## Fluent definitions
 ################################################################
@@ -736,7 +738,7 @@ def inTest(bState, obj, regName, prob, pB=None):
     shWorld = bState.pbs.getShadowWorld(prob)
     region = shWorld.regionShapes[regName]
     
-    ans = np.all(region.containsPts(shadow.vertices().T))
+    ans = np.all(np.all(np.dot(region.planes(), shadow.vertices()) <= tiny, axis=1))
 
     if debug('testVerbose') or debug('inTest'):
         shadow.draw('W', 'brown')

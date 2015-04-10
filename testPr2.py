@@ -710,8 +710,8 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
                  fixPoses={'table2': table2Pose},
                  varDict = varDict)
 
-    goal = State([Bd([In(['objA', 'table1MidFront']), True, goalProb], True),
-                  Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
+    goal = State([Bd([In(['objA', 'table1MidRear']), True, goalProb], True),
+                  Bd([In(['objB', 'table1MidFront']), True, goalProb], True)])
 
     goal1 = State([Bd([In(['objB', 'table2Top']), True, goalProb], True)])
     skel1 = [[poseAchIn, lookAt, move,
@@ -721,9 +721,9 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
     goal2 = State([Bd([In(['objB', 'table2Top']), True, goalProb], True),
                    Bd([In(['objA', 'table2Top']), True, goalProb], True)])
 
-    goal3 = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
+    goal3 = State([Bd([In(['objB', 'table1MidFront']), True, goalProb], True)])
 
-    t.run(goal3,
+    t.run(goal2,
           hpn = hpn,
           skeleton = skel1 if skeleton else None,
           heuristic = heuristic,

@@ -41,11 +41,11 @@ def bestTable(zone, table, pointCloud, exclude,
     for p in range(1, points.shape[1]):   # index 0 is eye
         if thrLo <= points[2,p] <= thrHi: # points on the plane
             pt = points[:,p]
-            if not zone.containsPt(pt):
+            if not np.all(np.dot(zone.planes(), pt) <= tiny):
                 continue
             inside = False
             for obj in exclude:
-                if obj.containsPt(pt):
+                if np.all(np.dot(obj.planes(), pt) <= tiny):
                     inside = True
                     break
             if not inside:
