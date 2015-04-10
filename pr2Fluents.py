@@ -511,15 +511,31 @@ class CanSeeFrom(Fluent):
          
         newPBS.updateFromAllPoses(cond)
         placeB = newPBS.getPlaceB(obj)
+
+        # LPK! Forcing the variance to be very small.  Currently it's
+        # using variance from the initial state, and then overriding
+        # it based on conditions.  This is incoherent.  Could change
+        # it to put variance explicitly in the fluent.
+        placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
+
         if placeB.support.mode() != poseFace and poseFace != '*':
             placeB.support = DeltaDist(poseFace)
         if placeB.poseD.mode() != pose and pose != '*':
-            newPBS.updatePermObjPose(placeB.modifyPoseD(mu=pose))
+            placeB = placeB.modifyPose(mu = pose)
+        newPBS.updatePermObjPose(placeB)
+
+        # LPK! Force recompute
+        newPBS.shadowWorld = None
+
         shWorld = newPBS.getShadowWorld(p)
         shName = shadowName(obj)
         sh = shWorld.objectShapes[shName]
         obstacles = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
         ans, _ = visible(shWorld, conf, sh, obstacles, p)
+
+        if ans != True:
+            raw_input('CanSeeFrom is false')
+
         return ans
 
     def prettyString(self, eq = True, includeValue = True):
@@ -722,9 +738,13 @@ def inTest(bState, obj, regName, prob, pB=None):
     
     ans = np.all(region.containsPts(shadow.vertices().T))
 
-    if debug('testVerbose'):
+    if debug('testVerbose') or debug('inTest'):
         shadow.draw('W', 'brown')
         region.draw('W', 'purple')
+
+        print 'shadow', shadow.bbox()
+        print 'region', region.bbox()
+
         print 'shadow in brown, region in purple'
         print 'inTest', obj, '->', ans
         raw_input('Ok?')

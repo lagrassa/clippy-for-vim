@@ -58,7 +58,8 @@ traceGen  (compact summary of generators)
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'traceGen', 'traceCRH', 'placeInGen']
+           'traceGen', 'traceCRH', 'placeInGen', 'inTest', 'visible',
+           'lookGen']
 
 pauseOn = debugOn
 
