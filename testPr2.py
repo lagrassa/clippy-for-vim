@@ -214,16 +214,16 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     mfbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
     mfbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
     mfbbox[1][1] = 0.5*(bbox[0][1] + bbox[1][1])
-    world.addObjectRegion('table1', 'table1MidFront', 
-                           Sh([Ba(mfbbox)], name='table1MidFront'),
-                                  util.Pose(0,0,2*bbox[1,2],0))
-    mrbbox = np.empty_like(bbox); mrbbox[:] = bbox
-    mrbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
-    mrbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
-    mrbbox[0][1] = 0.5*(bbox[0][1] + bbox[1][1])
     world.addObjectRegion('table1', 'table1MidRear', 
-                           Sh([Ba(mrbbox)], name='table1MidRear'),
+                           Sh([Ba(mfbbox)], name='table1MidRear'),
                                   util.Pose(0,0,2*bbox[1,2],0))
+    # mrbbox = np.empty_like(bbox); mrbbox[:] = bbox
+    # mrbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
+    # mrbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
+    # mrbbox[0][1] = 0.5*(bbox[0][1] + bbox[1][1])
+    # world.addObjectRegion('table1', 'table1MidFront', 
+    #                        Sh([Ba(mrbbox)], name='table1MidFront'),
+    #                               util.Pose(0,0,2*bbox[1,2],0))
     # Other permanent objects
     cupboard1 = Sh([place((-0.25, 0.25), (-0.05, 0.05), (0.0, 0.4))],
                      name = 'cupboardSide1', color='brown')
@@ -702,7 +702,8 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
 
 
     t = PlanTest('testSwap',  errProbs, allOperators,
-                 objects=['table1', 'table2', 'objA', 'objB',
+                 objects=['table1', 'table2', #'objA',
+                          'objB',
                           'cupboardSide1', 'cupboardSide2'],
                  movePoses={'objA': back,
                             'objB': front},
@@ -728,7 +729,8 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
           heuristic = heuristic,
           hierarchical = hierarchical,
           rip = rip,
-          regions=['table1Top', 'table2Top', 'table1MidFront', 'table1MidRear']
+          regions=['table1Top', 'table2Top', #'table1MidFront',
+                   'table1MidRear']
           )
 
 ######################################################################
