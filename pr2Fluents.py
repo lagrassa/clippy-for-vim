@@ -521,7 +521,7 @@ class CanSeeFrom(Fluent):
         if placeB.support.mode() != poseFace and poseFace != '*':
             placeB.support = DeltaDist(poseFace)
         if placeB.poseD.mode() != pose and pose != '*':
-            placeB = placeB.modifyPose(mu = pose)
+            placeB = placeB.modifyPoseD(mu = pose)
         newPBS.updatePermObjPose(placeB)
 
         # LPK! Force recompute
