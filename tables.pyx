@@ -201,12 +201,14 @@ def anglesList(n = 8):
     return [i*delta for i in xrange(n)]
 
 # obsTargets is dict: {name:ObjPlaceB or None, ...}
-def getTableDetections(world, obsTargets, pointCloud):
+def getTableDetections(world, obsPlaceBs, pointCloud):
     tables = []
     exclude = []
     # A zone of interest
     zone = shapes.BoxAligned(np.array([(0, -2, 0), (3, 2, 1.5)]), None)
-    for objName in obsTargets:
+    allAngles = anglesList(30)
+    for placeB in obsPlaceBs:
+        objName = placeB.obj
         if 'table' in objName:
             startTime = time.time()
             tableShape = world.getObjectShapeAtOrigin(objName)
@@ -214,9 +216,18 @@ def getTableDetections(world, obsTargets, pointCloud):
             height = 0.5*(zr[1] - zr[0])
             dz = height - tableShape.origin().matrix[2,3]
             tableShape = tableShape.applyTrans(util.Pose(0, 0, dz, 0))
+            # Use the mode and variance to limit angles to consider.
+            pose = placeB.poseD.mode().pose()
+            var = placeB.poseD.variance()
+            std = var[-1]**0.5          # std for angles
+            angles = [angle for angle in allAngles if \
+                      abs(util.angleDiff(angle, pose.theta)) <= 4*std] + [pose.theta]
+            angles.sort()
+            if debug('tables'):
+                print 'Candidate table angles:', angles
             score, detection = \
                    bestTable(zone, tableShape, pointCloud, exclude,
-                             angles = anglesList(30), zthr = 0.05)
+                             angles = angles, zthr = 0.05)
             print 'Table detection', detection, 'with score', score
             print 'Running time for table detections =',  time.time() - startTime
             if detection:

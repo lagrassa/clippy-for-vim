@@ -179,10 +179,10 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         pass
     
     def executeLookAt(self, op, params):
-        def lookAtTable(tableName):
+        def lookAtTable(placeB):
             debugMsg('robotEnv', 'Get cloud?')
             scan = getPointCloud()
-            ans = tables.getTableDetections(self.world, [tableName], scan)
+            ans = tables.getTableDetections(self.world, [placeB], scan)
             if ans:
                 score, table = ans[0]
                 if debug('robotEnv'):
@@ -207,7 +207,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         result, outConf = pr2GoToConf(lookConf, 'look')
         outConfCart = lookConf.robot.forwardKin(outConf)
         if 'table' in targetObj:
-            table = lookAtTable(targetObj)
+            table = lookAtTable(targetObj, placeBs[targetObj])
             if not table: return None
             trueFace = supportFaceIndex(table)
             tablePoseRobot = getSupportPose(table, trueFace)
@@ -219,7 +219,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             assert supportTable
             placeB = placeBs[supportTable]
             if not wellLocalized(placeB):
-                tableRobot = lookAtTable(supportTable)
+                tableRobot = lookAtTable(supportTable, placeB)
                 table = tableRobot.applyTrans(outConfCart['pr2Base'])
                 if not table: return None
             else:
@@ -405,8 +405,8 @@ def transformPoly(poly, x, y, z, theta):
 
 def wellLocalized(pB):
     widths = shadowWidths(pB.poseD.var, pB.delta, 0.95)
-    print pB.obj, 'well localized?', widths, '<', 4*(0.02,)
-    return(all(x<=y for (x,y) in zip(widths, 4*(0.02,))))
+    print pB.obj, 'well localized?', widths, '<', 4*(0.03,)
+    return(all(x<=y for (x,y) in zip(widths, 4*(0.03,))))
 
 def findSupportTable(targetObj, world, placeBs):
     tableBs = [pB for pB in placeBs.values() if 'table' in pB.obj]
@@ -434,7 +434,7 @@ def getSupportPose(shape, supportFace):
 obsConf, obsGrip, obsTrigger, obsContacts = range(4)
 
 # x direction is approach direction.
-xoffset = 0.03
+xoffset = 0.05
 yoffset = 0.01
 
 def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):

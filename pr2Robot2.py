@@ -785,6 +785,12 @@ def headInvKin(chains, torso, targetFrame, wstate,
     headSensorOffsetZ = reduce(np.dot, [j.trans for j in headChain.joints[1:-1]]).matrix
 
     headRotationFrameZ = np.dot(torso, headChain.joints[0].trans)
+
+    relFramePoint = torso.inverse().compose(targetFrame).point()
+    if abs(relFramePoint.matrix[0,0]) < 0.1:
+        # If the frame is just the head frame, then displace it.
+        targetFrame = targetFrame.compose(util.Pose(0.,0., 0.1, 0.0))
+
     targetZ = headRotationFrameZ.inverse().applyToPoint(targetFrame.point()).matrix
     angles1 = tangentSol(targetZ[0,0], targetZ[1,0], headSensorOffsetZ[0,3], headSensorOffsetZ[1,3])    
     angles1 += list(limits[0])
