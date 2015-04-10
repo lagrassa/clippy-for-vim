@@ -580,7 +580,8 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, han
         if debug('potentialRegionPoseGen'):
             sh.draw('W', 'brown')
             wm.getWindow('W').update()
-        if all([np.all(np.dot(rs.planes(), p) <= 1.0e-6) for p in sh.vertices().T]) and \
+            
+        if inside(sh, rs) and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
             debugMsg('potentialRegionPoseGen', ('-> pose', pose))
             return pose
@@ -726,3 +727,15 @@ def bboxGridCoords(bb, n=5, z=None, res=None):
             y = y0 + j*dy
             points.append(np.array([x, y, z, 1.]))
     return points
+
+def inside(obj, reg):
+    # all([np.all(np.dot(reg.planes(), p) <= 1.0e-6) for p in obj.vertices().T])
+    verts = obj.vertices()
+    for i in range(verts.shape[1]):
+        # reg.containsPt() completely fails to work here.
+        if not np.all(np.dot(reg.planes(), verts[:,i]) <= 1.0e-6):
+            return False
+    return True
+    
+        
+    
