@@ -254,10 +254,11 @@ def potentialLookConfGen(rm, shape, maxDist):
     visionPlanes = np.array([[1.,0.,0.,0.]])
     tested = set([])
     for node in rm.nodes:
-        if node.conf['pr2Base'] in tested:
+        base = tuple(node.conf['pr2Base'])
+        if base in tested:
             continue
         else:
-            tested.add(node.conf['pr2Base'])
+            tested.add(base)
         basePose = node.cartConf['pr2Base']
         dist = centerPoint.distance(basePose.point())
         if dist > maxDist:
