@@ -79,12 +79,14 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True):
     occluders = [x[1] for x in occluders]
     final = countContacts(contacts, 0)
     if fbch.inHeuristic:
-        ans = float(final)/float(total) >= 0.5*prob, occluders # !! be generous
+        threshold = 0.5*prob            # generous
     else:
-        ans = float(final)/float(total) >= 0.8*prob, occluders
+        threshold = 0.75*prob
+    ratio = float(final)/float(total)
+    ans = ratio >= threshold, occluders
     if debug('visible'):
         print 'sorted occluders', occluders
-        print 'total', total, 'final', final, '->', ans
+        print 'total', total, 'final', final, '(', ratio, ')', 'thr', threshold, '->', ans
     cache[key] = ans
     return ans
 

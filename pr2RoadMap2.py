@@ -855,7 +855,7 @@ class RoadMap:
                 if self.confViolations(c, pbs, prob, avoidShadow=avoidShadow, attached=attached)[0] != None:
                     count += 1
                     trialConfs.append(c)
-                    if initConf == c:
+                    if initConf == c and testFn(c):
                         ans = initViol or Violations(), 0, [initConf]
                         yield ans
                         return

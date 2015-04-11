@@ -882,16 +882,10 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
     rm = newBS.getRoadMap()
     lookConfGen = potentialLookConfGen(rm, sh, maxLookDist)
-    # !! BIG UGLY COMMENT -- THIS IS STUPID
     home = newBS.getRoadMap().homeConf
     curr = newBS.conf
     # print 'Home base conf', home['pr2Base'], 'curr base conf', curr['pr2Base']
     def testFn(c):
-        # LPK took this out.
-        # if c['pr2Base'] == curr['pr2Base'] or c['pr2Base'] == home['pr2Base']:
-        #     return False
-        # else:
-
         print 'Trying base conf', c['pr2Base']
         return visible(shWorld, c, sh, obst, prob)[0]
     for ans in rm.confReachViolGen(lookConfGen, newBS, prob,
@@ -903,7 +897,6 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         if not path:
             debugMsg('lookGen', 'Failed to find a path to look conf.')
             continue
-            # return     lpk
         conf = path[-1]
         lookConf = lookAtConf(conf, sh)
         if debug('lookGen', skip=skip):
@@ -977,7 +970,7 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
             print '    lookHandGen(%s) viol='%obj, viol.weight() if viol else None
         if not path:
             debugMsg('lookHandGen', 'Failed to find a path to look conf.')
-            return
+            continue
         conf = path[-1]
         lookConf = lookAtConf(conf, objInHand(conf, hand))
         if lookConf is None: continue # can't look at it.
