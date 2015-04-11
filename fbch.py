@@ -1017,10 +1017,16 @@ class Operator(object):
             primOp.abstractionLevel = primOp.concreteAbstractionLevel
             primOpRegr = primOp.regress(goal, startState)
  
-            if hNew == float('inf') or len(primOpRegr) == 0:
+            if hNew == float('inf'):
                 # This is hopeless.  Give up now.
-                 debugMsg('infeasible', newGoal)
-                 cost = float('inf')
+                debugMsg('infeasible', 'New goal is infeasible', newGoal)
+                cost = float('inf')
+            elif len(primOpRegr) == 0:
+                # Looks good abstractly, but can't apply concrete op
+                if not inHeuristic or debug('debugInHeuristic'):
+                    debugMsg('infeasible', 'Concrete op not applicable',
+                             goal)
+                cost = float('inf')
             else:
                 # Do one step of primitive regression on the old
                 # state and then compute the heuristic on that.
@@ -1029,16 +1035,15 @@ class Operator(object):
                 (sp, cp) = primOpRegr[0]
                 # Cost to get from start to one primitive step before
                 # newGoal, plus the cost of the last step
-                hOld = hh(sp) + cp
+                primPrecondCost = hh(sp)
+                if primPrecondCost == float('inf'):
+                    debugMsg('infeasible', 'Prim preconds infeasible', sp)
+    
+                hOld = primPrecondCost + cp
                 # Difference between that cost, and the cost of
                 # the regression of the abstract action.  This is
                 # an estimate of the cost of the abstract action.
                 cost = hOld - hNew
-                
-                # if not inHeuristic:
-                #     print 'AbsCost', self.name, prettyString(hOld), '-',\
-                #       prettyString(hNew), '=',  prettyString(cost)
-                #     raw_input('okay?')
 
                 if cost < 0:
                     cost = cp
@@ -1048,8 +1053,6 @@ class Operator(object):
 
                 # Store the bindings we made in this process!
                 # But keep the abstract preconditions
-                # Maybe they should be "backtrackable";  this could be
-                # risky
                 if not inHeuristic:
                     psb = primOpRegr[0][0].bindings
                     newOp = newGoal.operator.applyBindings(psb)

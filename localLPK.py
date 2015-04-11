@@ -60,7 +60,7 @@ visible
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'traceGen', 'traceCRH', 'visible', 'lookGen']
+           'traceGen', 'traceCRH', 'infeasible']
 
 pauseOn = debugOn
 

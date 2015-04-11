@@ -994,7 +994,8 @@ poseAchIn = Operator(\
             # Results
             [({Bd([In(['Obj1', 'Region']), True, 'PR'], True)},{})],
             functions = [\
-              Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2'),
+              Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2',
+                       True),
               # Object region is defined wrto
               Function(['Obj2'], ['Region'], regionParent, 'regionParent'),
               # Assume it doesn't move
@@ -1063,7 +1064,7 @@ place = Operator(\
             # So, really, just move the obj holding prob forward into
             # the result.  Use canned probs for the other ones.
             Function(['P2'], ['PR1', 'PR2', 'PR3'], 
-                     regressProb(1, 'placeFailProb'), 'regressProb1'),
+                     regressProb(1, 'placeFailProb'), 'regressProb1', True),
             Function(['P1', 'P3'], [[canPPProb, otherHandProb]],
                      assign, 'assign'),
 
@@ -1151,7 +1152,7 @@ pick = Operator(\
             # Compute precond probs.  Only regress object placecement P1.
             # Consider failure prob
             Function(['P1'], ['PR1', 'PR2'], 
-                     regressProb(1, 'pickFailProb'), 'regressProb1'),
+                     regressProb(1, 'pickFailProb'), 'regressProb1', True),
             Function(['P2', 'P3', 'P4'],[[canPPProb, canPPProb, otherHandProb]],
                     assign, 'assign'),
             Function(['RealGraspVar'], ['GraspVar'], maxGraspVarFun,
@@ -1315,7 +1316,7 @@ poseAchCanReach = Operator(\
     # Functions
     functions = [\
         # Compute precond probs
-        Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2'),
+        Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2', True),
         # Call generator
         Function(['Occ', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta'],
                   ['CEnd', 'Hand',
@@ -1359,7 +1360,7 @@ poseAchCanPickPlace = Operator(\
     # Functions
     functions = [\
         # Compute precond probs
-        Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2'),
+        Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2', True),
         # Call generator
         Function(['Occ', 'OccPose', 'OccPoseFace', 'OccPoseVar','OccPoseDelta'],
                   ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
@@ -1407,7 +1408,7 @@ graspAchCanPickPlace = Operator(\
     # Functions
     functions = [\
         # Compute precond probs
-        Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2'),
+        Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2', True),
         # Call generator, just to see if reducing graspvar would be useful
         Function(['PreGraspVar'],['Obj', 'GraspVar'],
                    graspVarCanPickPlaceGen, 'graspVarCanPickPlaceGen')],
@@ -1434,7 +1435,7 @@ poseAchCanSee = Operator(\
     # Functions
     functions = [\
         # Compute precond probs
-        Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2'),
+        Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2', True),
         # Only want to see the mean, assume robot at conf
         Function(['TargetPoseVar', 'TargetPoseDelta', 'ConfDelta'], [],
                  lambda a, c, b, o: [[(0.0,)*4, (0.0,)*4, (0.0,)*4]], 'zeros'),
@@ -1488,7 +1489,7 @@ hRegrasp = Operator(\
             # Be sure obj is not none
             Function([], ['Obj'], notNone, 'notNone', True),
             Function(['P1', 'P2', 'P3'], ['PR1', 'PR2', 'PR3'], 
-                     regressProb(3, 'pickFailProb'), 'regressProb3'),
+                     regressProb(3, 'pickFailProb'), 'regressProb3', True),
 
             Function(['PrevGraspFace', 'PrevGraspMu', 'PrevGraspVar',
                       'PrevGraspDelta'],

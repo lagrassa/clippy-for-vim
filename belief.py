@@ -453,7 +453,7 @@ def hCacheEntailsSet(fs, k):
 def setEntails(fs1, fs2):
     return all([any([f1.entails(f2) != False for f1 in fs1]) for f2 in fs2])
 
-maxHeuristicValue = 1000
+maxHeuristicValue = float('inf')
     
 # See if we can get some branch-and-bound action to work.  Advantage is
 # finishing early;  risk is not filling up cache effectively

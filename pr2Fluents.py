@@ -535,9 +535,6 @@ class CanSeeFrom(Fluent):
         obstacles = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
         ans, _ = visible(shWorld, conf, sh, obstacles, p)
 
-        if ans != True:
-            raw_input('CanSeeFrom is false')
-
         return ans
 
     def prettyString(self, eq = True, includeValue = True):

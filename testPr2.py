@@ -683,7 +683,7 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 def testSwap(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = False, rip = False):
 
-    glob.rebindPenalty = 50
+    glob.rebindPenalty = 150
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
     glob.monotonicFirst = True
     table2Pose = util.Pose(1.0, -1.00, 0.0, 0.0)
@@ -723,9 +723,28 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
 
     goal3 = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
 
+    skel3 = [[poseAchIn,
+              lookAt.applyBindings({'Obj' : 'objB'}), move,
+              place.applyBindings({'Hand' : 'right', 'Obj' : 'objB'}), move,
+              pick, move,
+              poseAchCanPickPlace,
+              lookAt.applyBindings({'Obj' : 'objA'}), move,
+              place.applyBindings({'Hand' : 'left', 'Obj' : 'objA'}), move,
+              pick, move,
+              lookAt.applyBindings({'Obj' : 'objA'}), move,
+              lookAt.applyBindings({'Obj' : 'objA'}), move,
+              lookAt.applyBindings({'Obj' : 'objB'}), move,
+              lookAt.applyBindings({'Obj' : 'objB'}), move,
+              lookAt.applyBindings({'Obj' : 'table1'}), move,
+              poseAchCanPickPlace,
+              poseAchCanPickPlace,
+              lookAt.applyBindings({'Obj' : 'table1'}), move,
+              lookAt.applyBindings({'Obj' : 'table2'}), move,
+              lookAt.applyBindings({'Obj' : 'table2'}), move]]
+
     t.run(goal3,
           hpn = hpn,
-          skeleton = skel1 if skeleton else None,
+          skeleton = skel3 if skeleton else None,
           heuristic = heuristic,
           hierarchical = hierarchical,
           rip = rip,
