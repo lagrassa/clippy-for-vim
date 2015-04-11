@@ -291,7 +291,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
 
     return world
 
-def makeConf(robot,x,y,th,g=0.07, vertical=False, dz = 0.):
+def makeConf(robot,x,y,th,g=0.07, vertical=False, dx = 0, dy = 0, dz = 0.):
     c = JointConf(pr2Init.copy(), robot)
     c = c.set('pr2Base', [x, y, th])
     c = c.set('pr2LeftGripper', [g])
@@ -307,10 +307,10 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False, dz = 0.):
             hr = util.Transform(p=np.array([[a] for a in [ 0.4, -0.3,  0.9, 1.]]), q=q)
             cart = cart.set('pr2RightArm', base.compose(hr))
     else:
-        h = util.Pose(0.2,0.33,0.75+dz,0.)
+        h = util.Pose(0.2+dx,0.33+dy,0.75+dz,0.)
         cart = cart.set('pr2LeftArm', base.compose(h))
         if useRight:
-            hr = util.Pose(0.2,-0.33,0.75+dz,0.)
+            hr = util.Pose(0.2+dx,-(0.33+dy),0.75+dz,0.)
             cart = cart.set('pr2RightArm', base.compose(hr))
     c = robot.inverseKin(cart, conf=c)
     c.conf['pr2Head'] = [0., 0.]
@@ -1930,7 +1930,7 @@ def firstAid(details, fluent = None):
 
 def testReact():
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
-    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0, dz=0.1)
+    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0, dx=0.1, dz=0.1)
     result, cnfOut = pr2GoToConf(startConf, 'move')
     result, cnfOut = pr2GoToConf(startConf, 'look')
     # Reset the internal coordinate frames

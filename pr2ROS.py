@@ -207,7 +207,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         result, outConf = pr2GoToConf(lookConf, 'look')
         outConfCart = lookConf.robot.forwardKin(outConf)
         if 'table' in targetObj:
-            table = lookAtTable(targetObj, placeBs[targetObj])
+            table = lookAtTable(placeBs[targetObj])
             if not table: return None
             trueFace = supportFaceIndex(table)
             tablePoseRobot = getSupportPose(table, trueFace)
@@ -261,6 +261,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 
         debugMsg('robotEnv', 'executePick - close')
         result, outConf = pr2GoToConf(pickConf, 'close', arm=hand[0]) # 'l' or 'r'
+        g = confGrip(outConf, hand)
+        gripConf = gripOpen(outConf, hand, g-0.01)
+        result, outConf = pr2GoToConf(gripConf, 'open')
         raw_input('Closed?')
 
         debugMsg('robotEnv', 'executePick - move to approachConf')
@@ -454,9 +457,9 @@ def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
     backConf = gripOpen(backConf, hand)
     result, nConf = pr2GoToConf(backConf, 'open')
     print 'backConf', handTrans(nConf, hand).point(), result
-    reactiveApproachLoop(backConf, 
-                         displaceHand(curConf, hand, dx=2*xoffset, zFrom=targetConf),
-                         gripDes, hand)
+    return reactiveApproachLoop(backConf, 
+                                displaceHand(curConf, hand, dx=2*xoffset, zFrom=targetConf),
+                                gripDes, hand)
 
 def reactiveApproachLoop(startConf, targetConf, gripDes, hand, tries = 10):
     spaces = (10-tries)*' '
@@ -481,17 +484,17 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, tries = 10):
         backConf = displaceHand(curConf, hand, dx=-xoffset)
         result, nConf = pr2GoToConf(backConf, 'move')
         print spaces+'backConf', handTrans(nConf, hand).point(), result
-        reactiveApproachLoop(backConf, 
-                             displaceHand(curConf, hand, dx=2*xoffset, dy=yoffset),
-                             gripDes, hand, tries-1)
+        return reactiveApproachLoop(backConf, 
+                                    displaceHand(curConf, hand, dx=2*xoffset, dy=yoffset),
+                                    gripDes, hand, tries-1)
     else:                           # default, just to do something...
         print spaces+'***reactRight'
         backConf = displaceHand(curConf, hand, dx=-xoffset)
         result, nConf = pr2GoToConf(backConf, 'move')
         print spaces+'backConf', handTrans(nConf, hand).point(), result
-        reactiveApproachLoop(backConf, 
-                             displaceHand(curConf, hand, dx=2*xoffset, dy=-yoffset),
-                             gripDes, hand, tries-1)
+        return reactiveApproachLoop(backConf, 
+                                    displaceHand(curConf, hand, dx=2*xoffset, dy=-yoffset),
+                                    gripDes, hand, tries-1)
 
 def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0, zFrom=None):
 
@@ -525,6 +528,8 @@ def reactLeft(obs):
            or obs[obsContacts][0] or obs[obsContacts][1]
 def gripOpen(conf, hand, width=0.08):
     return conf.set(conf.robot.gripperChainNames[hand], [width])
+def confGrip(conf, hand):
+    return conf.get(conf.robot.gripperChainNames[hand])[0]
 def handTrans(conf, hand):
     cart = conf.cartConf()
     handFrameName = conf.robot.armChainNames[hand]
@@ -618,6 +623,7 @@ def compliantClose(conf, hand, step = 0.01, n = 1):
     # could displace to find contact with the other finger
     # instead of repeatedly closing.
     if result == 'LR_pad':
+        (result, cnfOut) = pr2GoToConf(conf, 'close', arm=hand[0])
         return result
     elif result in ('L_pad', 'R_pad'):
         off = step if result == 'L_pad' else -step
@@ -634,4 +640,13 @@ def testReactive(startConf, offset = (0.1, 0.0, -0.1), grip=0.06):
     hand = 'left'
     (dx,dy,dz) = offset
     targetConf = displaceHand(startConf, hand, dx=dx, dy=dy, dz=dz)
-    print reactiveApproach(startConf, targetConf, grip, hand)
+    obs = reactiveApproach(startConf, targetConf, grip, hand)
+    curConf = obs[obsConf]
+    g = confGrip(curConf, hand)
+    print 'grip after reactive', g
+    gripConf = gripOpen(curConf, hand, 0.04)
+    result, outConf = pr2GoToConf(gripConf, 'open')
+    g = confGrip(outConf, hand)
+    print 'grip after tightening', g
+    raw_input('Done?')
+
