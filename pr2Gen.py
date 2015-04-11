@@ -859,6 +859,10 @@ def lookGen(args, goalConds, bState, outBindings):
                        # Pretend that the object has bigger delta
                        delta=tuple([o+l for (o,l) in zip(objDelta, lookDelta)]))
 
+    # Don't try to look at the whole shadow
+    placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
+
+
     for ans, viol in lookGenTop((obj, placeB, lookDelta, prob),
                                 goalConds, bState.pbs, outBindings):
         yield ans
