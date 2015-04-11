@@ -878,6 +878,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     if goalConds and getConf(goalConds, None):
         debugMsg('lookGen', 'Conf is specified so failing')
         # if conf is specified, just fail
+        # yield (getConf(goalConds, None),), Violations()
         return
 
     shWorld = newBS.getShadowWorld(prob)
