@@ -274,8 +274,12 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
     def executePlace(self, op, params):
         (hand, placeConf, approachConf) = \
                (op.args[1], op.args[20], op.args[18])
+
+        debugMsg('robotEnv', 'executePlace - move to approachConf')
+        result, outConf = pr2GoToConf(approachConf, 'move')
+        
         debugMsg('robotEnv', 'executePlace - move to placeConf')
-        result, outConf = pr2GoToConf(placeConf, 'move')
+        result, outConf = pr2GoToConf(placeConf, 'moveGuarded') # look for a contact
 
         debugMsg('robotEnv', 'executePlace - open')
         result, outConf = pr2GoToConf(placeConf, 'open')
@@ -457,11 +461,10 @@ def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
     backConf = gripOpen(backConf, hand)
     result, nConf = pr2GoToConf(backConf, 'open')
     print 'backConf', handTrans(nConf, hand).point(), result
-    return reactiveApproachLoop(backConf, 
-                                displaceHand(curConf, hand, dx=2*xoffset, zFrom=targetConf),
-                                gripDes, hand)
+    target = displaceHand(curConf, hand, dx=2*xoffset, zFrom=targetConf)
+    return reactiveApproachLoop(backConf, target, gripDes, hand, maxTarget=target)
 
-def reactiveApproachLoop(startConf, targetConf, gripDes, hand, tries = 10):
+def reactiveApproachLoop(startConf, targetConf, gripDes, hand, maxTarget, tries = 10):
     spaces = (10-tries)*' '
     if tries == 0:
         print spaces+'reactiveApproach failed'
@@ -485,18 +488,20 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, tries = 10):
         result, nConf = pr2GoToConf(backConf, 'move')
         print spaces+'backConf', handTrans(nConf, hand).point(), result
         return reactiveApproachLoop(backConf, 
-                                    displaceHand(curConf, hand, dx=2*xoffset, dy=yoffset),
-                                    gripDes, hand, tries-1)
+                                    displaceHand(curConf, hand,
+                                                 dx=2*xoffset, dy=yoffset, maxTarget=maxTarget),
+                                    gripDes, hand, maxTarget, tries-1)
     else:                           # default, just to do something...
         print spaces+'***reactRight'
         backConf = displaceHand(curConf, hand, dx=-xoffset)
         result, nConf = pr2GoToConf(backConf, 'move')
         print spaces+'backConf', handTrans(nConf, hand).point(), result
         return reactiveApproachLoop(backConf, 
-                                    displaceHand(curConf, hand, dx=2*xoffset, dy=-yoffset),
-                                    gripDes, hand, tries-1)
+                                    displaceHand(curConf, hand,
+                                                 dx=2*xoffset, dy=-yoffset, maxTarget=maxTarget),
+                                    gripDes, hand, maxTarget, tries-1)
 
-def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0, zFrom=None):
+def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0, zFrom=None, maxTarget=None):
 
     print 'displaceHand pr2Head', conf['pr2Head']
 
@@ -507,13 +512,16 @@ def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0, zFrom=None):
         toZ = zFrom.cartConf()[handFrameName].matrix[2,3]
         curZ = trans.matrix[2,3]
         dz = toZ - curZ
+    if maxTarget:
+        diff = conf.inverse().compose(maxTarget)
+        max_dx = diff.matrix[0,3]
+        print 'displaceHand', 'dx', dx, 'max_dx', max_dx
+        dx = max(0., min(dx, max_dx)) # don't go past maxTrans
     nTrans = trans.compose(util.Pose(dx, dy, dz, 0.0))
     nCart = cart.set(handFrameName, nTrans)
     nConf = conf.robot.inverseKin(nCart, conf=conf) # use conf to resolve
+    nConf.prettyPrint('displaceHand Conf:')
     if nConf.conf[handFrameName]:
-
-        print 'displaceHand out pr2Head', nConf['pr2Head']
-
         return nConf
     else:
         print 'displaceHand: failed kinematics'
@@ -535,7 +543,11 @@ def handTrans(conf, hand):
     handFrameName = conf.robot.armChainNames[hand]
     return cart[handFrameName]
 
-def tryGrasp(approachConf, graspConf, hand, stepSize = 0.02, maxSteps = 6, verbose = False):
+# Could use 2 to not do interpolation.
+cartInterpolationSteps = 6
+
+def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
+             maxSteps = cartInterpolationSteps, verbose = False):
     def parseContacts(result):
         if result == 'LR_pad':
             contacts = [False, True, False, True]

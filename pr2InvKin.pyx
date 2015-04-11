@@ -73,16 +73,16 @@ cpdef pr2KinIKfast(arm, T, current, chain, safeTest, returnAll = False):
 cpdef float solnDist(sol1, sol2):
     total = 0.0
     for (th1, th2) in zip(sol1, sol2):
-        total += abs(angleDiff(th1, th2))
+        total += absAngleDiff(th1, th2)
     return total
 
-cpdef float angleDiff(float x, float y):
+cpdef float absAngleDiff(float x, float y):
     cdef:
         float twoPi = 2*math.pi
-        float z = (x - y)%twoPi
-        float w = float(int((x - y)/twoPi))
+        float z = (x - y)%twoPi         # z is always positive
+        float w = float(abs(int((x - y)/twoPi)))
     if z > math.pi:
-        return w*twoPi + (z - twoPi)
+        return w*twoPi + abs(z - twoPi)
     else:
         return w*twoPi + z
 
