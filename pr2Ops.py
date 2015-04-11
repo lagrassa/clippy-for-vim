@@ -1449,6 +1449,7 @@ poseAchCanSee = Operator(\
                    'Occ', 'OccPoseFace', 'OccPose', 'OccPoseVar',
                    'OccPoseDelta', 'P1'],
                   addPosePreCond, 'addPosePreCond')],
+    argsToPrint = [0, 1, 5],
     cost = lambda al, args, details: 0.1)
 
 
