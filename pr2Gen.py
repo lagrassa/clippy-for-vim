@@ -442,12 +442,15 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
             count = 0
             for c,_ in graspConfGen:
                 ca = findApproachConf(pbs, obj, pB, c, hand, prob)
-                if not ca: continue
+                if not ca:
+                    debugMsg('placeGen', 'Could not find approachConf')
+                    continue
                 if debug('placeGen', skip=skip):
                     c.draw('W', 'orange')
                 approached[ca] = c
                 count += 1
                 context[ca] = (pB, gB)
+                debugMsg('placeGen', 'Yielding conf')
                 yield ca
             if debug('placeGen', skip=skip):
                 print '    placeGen: found', count, 'confs'
@@ -727,7 +730,8 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     if not considerOtherIns:
         placeInGenCache = pbs.beliefContext.genCaches['placeInGen']
         key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away, fbch.inHeuristic)
-        if key in placeInGenCache:
+        val = placeInGenCache.get(key, None)
+        if val != None:
             ff = placeB.faceFrames[placeB.support.mode()]
             objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
             for ans in placeInGenCache[key]:

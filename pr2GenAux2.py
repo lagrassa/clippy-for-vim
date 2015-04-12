@@ -646,7 +646,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, han
                 for co in coObst: co.draw('W', 'brown')
                 for co in coShadow: co.draw('W', 'orange')
             z0 = bI.bbox()[0,2] + clearance
-            for point in bboxGridCoords(bI.bbox(), z=z0):
+            for point in bboxGridCoords(bI.bbox(), res = 0.02, z=z0):
                 pt = point.reshape(4,1)
                 if any(np.all(np.dot(co.planes(), pt) <= tiny) for co in coFixed): continue
                 cost = 0
@@ -725,13 +725,21 @@ def baseDist(c1, c2):
 
 def bboxGridCoords(bb, n=5, z=None, res=None):
     ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)
-    dx = res or float(x1 - x0)/n
-    dy = res or float(y1 - y0)/n
+    if res:
+        dx = res
+        dy = res
+        nx = int(float(x1 - x0)/res)
+        ny = int(float(y1 - y0)/res)
+    else:
+        dx = float(x1 - x0)/n
+        dy = float(y1 - y0)/n
+        nx, ny = n
+    print 'dx', dx, 'dy', dy, 'nx', nx, 'ny', ny
     if z is None: z = z0
     points = []
-    for i in range(n+1):
+    for i in range(nx+1):
         x = x0 + i*dx
-        for j in range(n+1):
+        for j in range(ny+1):
             y = y0 + j*dy
             points.append(np.array([x, y, z, 1.]))
     return points
