@@ -84,7 +84,6 @@ writeSearch = True
 useRight = True
 useHorizontal = True
 useVertical = False if useROS else True
-useVertical = False
 useCartesian = False
 useLookAtHand = False
 

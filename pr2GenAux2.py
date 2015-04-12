@@ -725,7 +725,7 @@ def baseDist(c1, c2):
 
 def bboxGridCoords(bb, n=5, z=None, res=None):
     ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)
-    if res:
+    if False:
         dx = res
         dy = res
         nx = int(float(x1 - x0)/res)
@@ -733,7 +733,7 @@ def bboxGridCoords(bb, n=5, z=None, res=None):
     else:
         dx = float(x1 - x0)/n
         dy = float(y1 - y0)/n
-        nx, ny = n
+        nx = ny = n
     print 'dx', dx, 'dy', dy, 'nx', nx, 'ny', ny
     if z is None: z = z0
     points = []

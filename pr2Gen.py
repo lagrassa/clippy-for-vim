@@ -728,33 +728,32 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         raw_input('%d reachObsts - in brown'%len(reachObsts))
     # If we are not considering other objects, pick a pose and call placeGen
     if not considerOtherIns:
-        placeInGenCache = pbs.beliefContext.genCaches['placeInGen']
-        key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away, fbch.inHeuristic)
-        val = placeInGenCache.get(key, None)
-        if val != None:
-            ff = placeB.faceFrames[placeB.support.mode()]
-            objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
-            for ans in val:
-                ((pB, gB, cf, ca), viol) = ans
-                pose = pB.poseD.mode() if pB else None
-                sup = pB.support.mode() if pB else None
-                grasp = gB.grasp.mode() if gB else None
-                pg = (sup, grasp)
-                sh = objShadow.applyTrans(pose)
-                if all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
-                    viol2 = canPickPlaceTest(pbs, ca, cf, hand, gB, pB, prob)
-                    print 'viol', viol
-                    print 'viol2', viol2
-                    if viol2 and viol2.weight() <= viol.weight():
-                        if debug('traceGen'):
-                            w = viol2.weight() if viol2 else None
-                            print '    reusing placeInGen',
-                            print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
-                                  fbch.inHeuristic, 'v=', w, '(p,g)=', pg, pose
-                        yield ans[0], viol2
-        else:
-            placeInGenCache[key] = []
-            val = placeInGenCache[key]
+        # placeInGenCache = pbs.beliefContext.genCaches['placeInGen']
+        # key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away, fbch.inHeuristic)
+        # val = placeInGenCache.get(key, None)
+        # if val != None:
+        #     ff = placeB.faceFrames[placeB.support.mode()]
+        #     objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
+        #     for ans in val:
+        #         ((pB, gB, cf, ca), viol) = ans
+        #         pose = pB.poseD.mode() if pB else None
+        #         sup = pB.support.mode() if pB else None
+        #         grasp = gB.grasp.mode() if gB else None
+        #         pg = (sup, grasp)
+        #         sh = objShadow.applyTrans(pose)
+        #         if all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
+        #             viol2 = canPickPlaceTest(pbs, ca, cf, hand, gB, pB, prob)
+        #             print 'viol', viol
+        #             print 'viol2', viol2
+        #             if viol2 and viol2.weight() <= viol.weight():
+        #                 if debug('traceGen'):
+        #                     w = viol2.weight() if viol2 else None
+        #                     print '    reusing placeInGen',
+        #                     print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
+        #                           fbch.inHeuristic, 'v=', w, '(p,g)=', pg, pose
+        #                 yield ans[0], viol2
+        # else:
+        #     placeInGenCache[key] = val
         newBS = pbs.copy()           #  not necessary
         # Shadow (at origin) for object to be placed.
         domainPlaceVar = newBS.domainProbs.obsVarTuple 
@@ -771,7 +770,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
                 pg = (sup, grasp)
                 print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
                       v.weight() if v else None, '(p,g)=', pg, pose
-            val.append((ans, v))
+            #val.append((ans, v))
             yield ans,v
     else:
         assert False           # !! not ready for this
