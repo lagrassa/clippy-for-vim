@@ -734,7 +734,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         if val != None:
             ff = placeB.faceFrames[placeB.support.mode()]
             objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
-            for ans in placeInGenCache[key]:
+            for ans in val:
                 ((pB, gB, cf, ca), viol) = ans
                 pose = pB.poseD.mode() if pB else None
                 sup = pB.support.mode() if pB else None
@@ -754,7 +754,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
                         yield ans[0], viol2
         else:
             placeInGenCache[key] = []
-            pass
+            val = placeInGenCache[key]
         newBS = pbs.copy()           #  not necessary
         # Shadow (at origin) for object to be placed.
         domainPlaceVar = newBS.domainProbs.obsVarTuple 
@@ -771,7 +771,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
                 pg = (sup, grasp)
                 print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
                       v.weight() if v else None, '(p,g)=', pg, pose
-            # placeInGenCache[key].append((ans, v))
+            val.append((ans, v))
             yield ans,v
     else:
         assert False           # !! not ready for this

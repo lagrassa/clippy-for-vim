@@ -315,19 +315,19 @@ def varNameToObj(vname):
     if '(' in vname:
         return vname[vname.index('(')+1 : vname.index(')')]
 
-def matchLists(s1, s2, bindings = {}):
+def matchLists(s1, s2, bindings = {}, starIsWild = True):
     if bindings == None or len(s1) != len(s2):
         return None
     if bindings != {}:
         bindings = copy.copy(bindings)
     for (a1, a2) in zip(s1, s2):
-        bindings = matchTerms(a1, a2, bindings)
+        bindings = matchTerms(a1, a2, bindings, starIsWild = starIsWild)
         if bindings == None: return bindings
     return bindings
 
 # Returns bindings, no side effect.  One-sided wrt '*': that is a
 # constant in t1 will match a * in t2, but not vv.
-def matchTerms(t1, t2, bindings = {}):
+def matchTerms(t1, t2, bindings = {}, starIsWild = True):
     if bindings == None: return None
     bt1 = applyBindings1(t1, bindings)
     bt2 = applyBindings1(t2, bindings)
@@ -337,7 +337,7 @@ def matchTerms(t1, t2, bindings = {}):
         bindings = extendBindings(bindings, bt1, t2)
     elif isVar(bt2):
         bindings = extendBindings(bindings, bt2, t1)
-    elif bt2 == '*':
+    elif bt2 == '*' and starIsWild:
         pass
     elif hasattr(bt1, 'matches') and hasattr(bt2, 'matches'):
         # maybe not a great test test...trying to see if they are both B fluents
