@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "testPr2.py", line 832, in test3
+    rip = rip
+  File "testPr2.py", line 538, in run
+    nonMonOps = [move])
+  File "fbch.py", line 1380, in HPN
+    executePrim(op, s, env, f)
+  File "fbch.py", line 1399, in executePrim
+    obs = env.executePrim(op, params)
+  File "pr2ROS.py", line 153, in executePrim
+    return endExec(self.executePlace(op, params))
+  File "pr2ROS.py", line 279, in executePlace
+    result, outConf = pr2GoToConf(approachConf, 'move')
+  File "pr2ROS.py", line 66, in pr2GoToConf
+    conf.base = map(float, cnfIn.get('pr2Base', []))
+AttributeError: 'tuple' object has no attribute 'get'
