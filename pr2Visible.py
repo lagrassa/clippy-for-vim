@@ -58,8 +58,28 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True):
             debugMsg('visible', 'Not enough hit points')
         cache[key] = (False, [])
         return False, []
+    if fbch.inHeuristic:
+        threshold = 0.5*prob            # generous
+    else:
+        threshold = 0.75*prob
     occluders = []
-    for i, objShape in enumerate(obstacles):
+    fix = [obj for obj in obstacles if obj.name() in ws.fixedObjects]
+    move = [obj for obj in obstacles if obj.name() not in ws.fixedObjects]
+    for i, objShape in enumerate(fix):
+        if debug('visible'):
+            print 'updating depth with', objShape.name()
+        for objPrim in toPrims(objShape):
+            updateDepthMap(scan, objPrim, dm, contacts, i+1, onlyUpdate=range(i+2))
+        count = countContacts(contacts, i+1)
+        if count > 0:                   #  should these be included?
+            occluders.append((count, objShape.name()))
+    if debug('visible'):
+        print 'fixed occluders', occluders
+    # acceptance is based on occlusion by fixed obstacles
+    final = countContacts(contacts, 0)
+    ratio = float(final)/float(total)
+    for j, objShape in enumerate(move):
+        i = len(fix) + j
         if debug('visible'):
             print 'updating depth with', objShape.name()
         for objPrim in toPrims(objShape):
@@ -78,14 +98,10 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True):
         debugMsg('visible', 'Admire')
     occluders.sort(reverse=True)
     occluders = [x[1] for x in occluders]
-    final = countContacts(contacts, 0)
-    if fbch.inHeuristic:
-        ans = float(final)/float(total) >= 0.5*prob, occluders # !! be generous
-    else:
-        ans = float(final)/float(total) >= 0.8*prob, occluders
+    ans = ratio >= threshold, occluders
     if debug('visible'):
         print 'sorted occluders', occluders
-        print 'total', total, 'final', final, '->', ans
+        print 'total', total, 'final', final, '(', ratio, ')', 'thr', threshold, '->', ans
     cache[key] = ans
     return ans
 

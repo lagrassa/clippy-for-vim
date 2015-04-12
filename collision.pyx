@@ -9,6 +9,8 @@ import shapes
 # Basic collision tests
 #################################
 
+tiny = 1.0e-6
+
 # cpdef bool primPrimCollides(shapes.Prim p1, shapes.Prim p2):
 #     # Are any points from one prim inside the other prim?
 #     if np.any(p1.containsPts(p2.vertices())) or \
@@ -106,7 +108,7 @@ cpdef bool edgeCross(np.ndarray[np.float64_t, ndim=1] p0, # row vector
         t = - d0/(d1 - d0)
         assert 0 <= t <= 1
         pt = p0 + t*diff
-        if thing.containsPt(pt):          # brute force
+        if np.all(np.dot(thing.planes(), pt.reshape(4,1)) <= tiny):          # brute force
             return True
     return False
 

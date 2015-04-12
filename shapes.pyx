@@ -253,8 +253,7 @@ cdef class Prim(Thing):
         shape.thingCenter = None
 
     cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt):
-        # Due to a Cython bug... cannot convert numpy.bool_ to bool
-        return True if np.all(np.dot(self.planes(), pt) <= tiny) else False
+        return True if np.all(np.dot(self.planes(), pt.reshape(4,1)) <= tiny) else False
 
     cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts):
         """Returns array of booleans"""

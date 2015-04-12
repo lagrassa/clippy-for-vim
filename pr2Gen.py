@@ -6,7 +6,7 @@ import copy
 import time
 import windowManager3D as wm
 from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ, debugOn
-from miscUtil import isAnyVar, argmax, isGround, tuplify, roundrobin
+from miscUtil import isVar, argmax, isGround, tuplify, roundrobin
 from dist import DeltaDist, UniformDist
 from pr2Robot2 import CartConf, gripperTip, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, \
@@ -442,12 +442,15 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
             count = 0
             for c,_ in graspConfGen:
                 ca = findApproachConf(pbs, obj, pB, c, hand, prob)
-                if not ca: continue
+                if not ca:
+                    debugMsg('placeGen', 'Could not find approachConf')
+                    continue
                 if debug('placeGen', skip=skip):
                     c.draw('W', 'orange')
                 approached[ca] = c
                 count += 1
                 context[ca] = (pB, gB)
+                debugMsg('placeGen', 'Yielding conf')
                 yield ca
             if debug('placeGen', skip=skip):
                 print '    placeGen: found', count, 'confs'
@@ -628,11 +631,11 @@ def placeInGen(args, goalConds, bState, outBindings,
     # !! Should derive this from the clearance in the region
     domainPlaceVar = bState.domainProbs.obsVarTuple 
 
-    if isAnyVar(graspV):
+    if isVar(graspV):
         graspV = domainPlaceVar
-    if isAnyVar(objV):
+    if isVar(objV):
         objV = graspV
-    if isAnyVar(support):
+    if isVar(support):
         if bState.pbs.getPlaceB(obj, default=False):
             support = bState.pbs.getPlaceB(obj).support # !! Don't change support
         elif obj == bState.pbs.held[hand].mode():
@@ -649,7 +652,7 @@ def placeInGen(args, goalConds, bState, outBindings,
                        PoseD(None, objV), delta=objDelta)
 
     # If pose is specified, just call placeGen
-    if pose and not isAnyVar(pose):
+    if pose and not isVar(pose):
         if debug('placeInGen'):
             bState.pbs.draw(prob, 'W')
             debugMsgSkip('placeInGen', skip, ('Pose specified', pose))
@@ -685,7 +688,7 @@ def placeInGenAway(args, goalConds, pbs, outBindings):
     if not pbs.awayRegions():
         raw_input('Need some awayRegions')
         return 
-    for ans in placeInGen((obj, pbs.awayRegions(), '?x', '?x', '?x', '?x',
+    for ans in placeInGen((obj, pbs.awayRegions(), 'X1', 'X2', 'X3', 'X4',
                            delta, delta, delta, hand, prob),
                           # preserve goalConds to get reachObsts
                           goalConds, pbs, [], away=True):
@@ -725,33 +728,33 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         raw_input('%d reachObsts - in brown'%len(reachObsts))
     # If we are not considering other objects, pick a pose and call placeGen
     if not considerOtherIns:
-        # placeInGenCache = pbs.beliefContext.genCaches['placeInGen']
-        # key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away, fbch.inHeuristic)
-        # if key in placeInGenCache:
-        #     ff = placeB.faceFrames[placeB.support.mode()]
-        #     objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
-        #     for ans in placeInGenCache[key]:
-        #         ((pB, gB, cf, ca), viol) = ans
-        #         pose = pB.poseD.mode() if pB else None
-        #         sup = pB.support.mode() if pB else None
-        #         grasp = gB.grasp.mode() if gB else None
-        #         pg = (sup, grasp)
-        #         sh = objShadow.applyTrans(pose)
-        #         if all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
-        #             viol2 = canPickPlaceTest(pbs, ca, cf, hand, gB, pB, prob)
-        #             print 'viol', viol
-        #             print 'viol2', viol2
-        #             if viol2 and viol2.weight() <= viol.weight():
-        #                 if debug('traceGen'):
-        #                     w = viol2.weight() if viol2 else None
-        #                     print '    reusing placeInGen',
-        #                     print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
-        #                           fbch.inHeuristic, 'v=', w, '(p,g)=', pg, pose
-        #                 yield ans[0], viol2
-        # else:
-        #     placeInGenCache[key] = []
-        #     pass
-        
+        placeInGenCache = pbs.beliefContext.genCaches['placeInGen']
+        key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away, fbch.inHeuristic)
+        val = placeInGenCache.get(key, None)
+        if val != None:
+            ff = placeB.faceFrames[placeB.support.mode()]
+            objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
+            for ans in placeInGenCache[key]:
+                ((pB, gB, cf, ca), viol) = ans
+                pose = pB.poseD.mode() if pB else None
+                sup = pB.support.mode() if pB else None
+                grasp = gB.grasp.mode() if gB else None
+                pg = (sup, grasp)
+                sh = objShadow.applyTrans(pose)
+                if all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
+                    viol2 = canPickPlaceTest(pbs, ca, cf, hand, gB, pB, prob)
+                    print 'viol', viol
+                    print 'viol2', viol2
+                    if viol2 and viol2.weight() <= viol.weight():
+                        if debug('traceGen'):
+                            w = viol2.weight() if viol2 else None
+                            print '    reusing placeInGen',
+                            print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
+                                  fbch.inHeuristic, 'v=', w, '(p,g)=', pg, pose
+                        yield ans[0], viol2
+        else:
+            placeInGenCache[key] = []
+            pass
         newBS = pbs.copy()           #  not necessary
         # Shadow (at origin) for object to be placed.
         domainPlaceVar = newBS.domainProbs.obsVarTuple 
@@ -845,11 +848,23 @@ maxLookDist = 1.5
 def lookGen(args, goalConds, bState, outBindings):
     (obj, pose, support, objV, objDelta, lookDelta, prob) = args
     world = bState.pbs.getWorld()
-    
-    placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
-                       PoseD(pose, objV),
+
+    if pose == '*':
+        poseD = bState.pbs.getPlaceB(obj).poseD
+    else: 
+        poseD = PoseD(pose, objV)
+    if isVar(support) or support == '*':
+        support = bState.pbs.getPlaceB(obj).support.mode()
+    if objDelta == '*':
+        objDelta = lookDelta
+        
+    placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support, poseD,
                        # Pretend that the object has bigger delta
                        delta=tuple([o+l for (o,l) in zip(objDelta, lookDelta)]))
+
+    # Don't try to look at the whole shadow
+    placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
+
 
     for ans, viol in lookGenTop((obj, placeB, lookDelta, prob),
                                 goalConds, bState.pbs, outBindings):
@@ -866,6 +881,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     if goalConds and getConf(goalConds, None):
         debugMsg('lookGen', 'Conf is specified so failing')
         # if conf is specified, just fail
+        # yield (getConf(goalConds, None),), Violations()
         return
 
     shWorld = newBS.getShadowWorld(prob)
@@ -874,16 +890,10 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
     rm = newBS.getRoadMap()
     lookConfGen = potentialLookConfGen(rm, sh, maxLookDist)
-    # !! BIG UGLY COMMENT -- THIS IS STUPID
     home = newBS.getRoadMap().homeConf
     curr = newBS.conf
     # print 'Home base conf', home['pr2Base'], 'curr base conf', curr['pr2Base']
     def testFn(c):
-        # LPK took this out.
-        # if c['pr2Base'] == curr['pr2Base'] or c['pr2Base'] == home['pr2Base']:
-        #     return False
-        # else:
-
         print 'Trying base conf', c['pr2Base']
         return visible(shWorld, c, sh, obst, prob)[0]
     for ans in rm.confReachViolGen(lookConfGen, newBS, prob,
@@ -895,7 +905,6 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         if not path:
             debugMsg('lookGen', 'Failed to find a path to look conf.')
             continue
-            # return     lpk
         conf = path[-1]
         lookConf = lookAtConf(conf, sh)
         if debug('lookGen', skip=skip):
@@ -969,7 +978,7 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
             print '    lookHandGen(%s) viol='%obj, viol.weight() if viol else None
         if not path:
             debugMsg('lookHandGen', 'Failed to find a path to look conf.')
-            return
+            continue
         conf = path[-1]
         lookConf = lookAtConf(conf, objInHand(conf, hand))
         if lookConf is None: continue # can't look at it.
@@ -1193,9 +1202,18 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
 def canSeeGen(args, goalConds, bState, outBindings):
     (obj, pose, support, objV, objDelta, lookConf, lookDelta, prob) = args
     world = bState.pbs.getWorld()
+
+    if pose == '*':
+        poseD = bState.pbs.getPlaceB(obj).poseD
+    else: 
+        poseD = PoseD(pose, objV)
+    if isVar(support) or support == '*':
+        support = bState.pbs.getPlaceB(obj).support.mode()
+    if objDelta == '*':
+        objDelta = lookDelta
     
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
-                       PoseD(pose, objV),
+                       poseD,
                        # Pretend that the object has bigger delta
                        delta=tuple([o+l for (o,l) in zip(objDelta, lookDelta)]))
 

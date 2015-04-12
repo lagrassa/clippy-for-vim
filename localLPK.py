@@ -38,6 +38,8 @@ hAddBackV  (just values)
 heuristic (in ucSearch: positive value at goal or 0 value elsewhere)
 heuristicInversion  (prim actually achieves more than abs)
 infeasible (hierarchical subgoal)
+inHeuristic (turn on debugging inside heuristic)
+inTest
 lookGen
 lookHandGen
 nextStep
@@ -55,10 +57,11 @@ sim
 skeleton
 traceCRH
 traceGen  (compact summary of generators)
+visible
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'traceGen', 'traceCRH', 'obsUpdate']
+           'traceGen', 'traceCRH', 'infeasible', 'regression:inconsistent']
 
 pauseOn = debugOn
 

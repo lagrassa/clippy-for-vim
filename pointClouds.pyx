@@ -13,6 +13,8 @@ import shapes
 cimport geom
 from geom import vertsBBox, bboxContains
 
+tiny = 1.0e-6
+
 ######################################
 # Simulated point clouds
 ######################################
@@ -181,7 +183,8 @@ cpdef bool updateDepthMap(Scan scan, shapes.Thing thing,
                 t = - d0/(d1 - d0)
                 assert 0 <= t <= 1
                 pt = p0 + (t+1.0e-5)*diff
-                if thing.containsPt(pt): # brute force test, could be optimized
+                if np.all(np.dot(thing.planes(), pt.reshape(4,1)) <= tiny):
+                    # brute force test, could be optimized
                     if t < depth[e]:
                         depth[e] = t
                         contacts[e] = (pt, objId)
@@ -205,7 +208,8 @@ cpdef float edgeCross(np.ndarray[np.float64_t, ndim=1] p0, # row vector
         t = - d0/(d1 - d0)
         assert 0 <= t <= 1
         pt = p0 + t*diff
-        if thing.containsPt(pt):        # brute force test, could be optimized
+        if np.all(np.dot(thing.planes(), pt.reshape(4,1)) <= tiny):
+            # brute force test, could be optimized
             return t
     return 10.0                         # out of bounds
 

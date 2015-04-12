@@ -224,6 +224,11 @@ class State:
     def isConsistent(self, fluentList, details = None):
         return not any([self.contradicts(f, details) for f in fluentList])
 
+    # Return True if any fluent in the list binds with some fluent in the state
+    def couldBeClobbered(self, fluentList, details = None):
+        return any([f1.couldClobber(f2, details) for f1 in fluentList \
+                    for f2 in self.fluents])
+    
     # Return the value of the fluent in this state.
     def fluentValue(self, fluent, recompute = False):
         cache = None if recompute else \
@@ -520,10 +525,13 @@ class Fluent(object):
     def glb(self, other, details = None):
         b = copy.copy(self.matches(other))
         bnv = copy.copy(self.matches(other, noValue = True))
+        b2 = copy.copy(other.matches(self))
+        bnv2 = copy.copy(other.matches(self, noValue = True))
         if b != None:
-            # See if bindings will do the job
             result = self, b
-        elif bnv != None:
+        elif b2 != None:
+            result = other, b2
+        elif bnv != None or bnv2 != None:
             # Fluents match but values disagree
             result = (False, {})
         elif self.fglb != None:
@@ -543,6 +551,10 @@ class Fluent(object):
             return b
         else:
             return False
+
+    def couldClobber(self, other, details = None):
+        b = self.entails(other, details)
+        return b != False and b != {}
 
     def contradicts(self, other, details = None):
         glb, b = self.glb(other, details)
@@ -961,20 +973,30 @@ class Operator(object):
             return []
 
         # Could fold the boundPrecond part of this in to addSet later
-        if not newGoal.isConsistent(boundPreconds + boundSE,
-                                    startState.details):
+        if not newGoal.isConsistent(boundPreconds, startState.details):
             if not inHeuristic or debug('debugInHeuristic'):
                 if debug('regression:inconsistent'):
-                    for f1 in boundPreconds + boundSE:
+                    for f1 in boundPreconds:
                         for f2 in newGoal.fluents:
                             if f1.contradicts(f2, startState.details):
                                 print '    contradiction\n', f1, '\n', f2
                     debugMsg('regression:inconsistent', self,
                              'preconds inconsistent with goal',
-                             ('newGoal', newGoal), ('preconds', boundPreconds),
-                             ('sideEffects', boundSE))
+                             ('newGoal', newGoal), ('preconds', boundPreconds))
             bindingsNoGood = True
-        else: bindingsNoGood = False
+        elif newGoal.couldBeClobbered(boundSE, startState.details):
+            if not inHeuristic or debug('debugInHeuristic'):
+                if debug('regression:inconsistent'):
+                    for f1 in boundSE:
+                        for f2 in newGoal.fluents:
+                            if f1.couldClobber(f2, startState.details):
+                                print '    might clobber\n', f2, '\n', f1
+                    debugMsg('regression:inconsistent', self,
+                             'side effects may be inconsistent with goal',
+                             ('newGoal', newGoal), ('sideEffects', boundSE))
+            bindingsNoGood = True
+        else:
+            bindingsNoGood = False
 
 
         # Make another result, which is a place-holder for rebinding
@@ -1014,10 +1036,16 @@ class Operator(object):
             primOp.abstractionLevel = primOp.concreteAbstractionLevel
             primOpRegr = primOp.regress(goal, startState)
  
-            if hNew == float('inf') or len(primOpRegr) == 0:
+            if hNew == float('inf'):
                 # This is hopeless.  Give up now.
-                 debugMsg('infeasible', newGoal)
-                 cost = float('inf')
+                debugMsg('infeasible', 'New goal is infeasible', newGoal)
+                cost = float('inf')
+            elif len(primOpRegr) == 0:
+                # Looks good abstractly, but can't apply concrete op
+                if not inHeuristic or debug('debugInHeuristic'):
+                    debugMsg('infeasible', 'Concrete op not applicable',
+                             goal)
+                cost = float('inf')
             else:
                 # Do one step of primitive regression on the old
                 # state and then compute the heuristic on that.
@@ -1026,28 +1054,32 @@ class Operator(object):
                 (sp, cp) = primOpRegr[0]
                 # Cost to get from start to one primitive step before
                 # newGoal, plus the cost of the last step
-                hOld = hh(sp) + cp
+                primPrecondCost = hh(sp)
+                if primPrecondCost == float('inf'):
+                    debugMsg('infeasible', 'Prim preconds infeasible', sp)
+
+                    # !!!LPK Just because this one fails doesn't mean
+                    # !!!they're infeasible; could try to backtrack
+                    # !!!here.
+
+    
+                hOld = primPrecondCost + cp
                 # Difference between that cost, and the cost of
                 # the regression of the abstract action.  This is
                 # an estimate of the cost of the abstract action.
                 cost = hOld - hNew
-                
-                # if not inHeuristic:
-                #     print 'AbsCost', self.name, prettyString(hOld), '-',\
-                #       prettyString(hNew), '=',  prettyString(cost)
-                #     raw_input('okay?')
 
                 if cost < 0:
                     cost = cp
 
-                # Try this!
                 rebindCost = hOld + rebindCost
 
-                # Store the bindings we made in this process!
-                # But keep the abstract preconditions
-                # Maybe they should be "backtrackable";  this could be
-                # risky
-                if not inHeuristic:
+                # LPK!!  This is a way to cut down on generator calls
+                # but is potentially risky.  Disabled for now.
+                # Store the bindings we
+                # made in this process!  But keep the abstract
+                # preconditions
+                if False: #not inHeuristic:
                     psb = primOpRegr[0][0].bindings
                     newOp = newGoal.operator.applyBindings(psb)
                     newGoal.operator = newOp
@@ -1067,6 +1099,7 @@ class Operator(object):
                 debugMsg('regression:fail', 'infinite cost')
             return [[rebindLater, rebindCost]]
         newGoal.operator.instanceCost = cost
+
         return [[newGoal, cost], [rebindLater, rebindCost]]
 
     def prettyString(self, eq = True):
@@ -1917,33 +1950,6 @@ def planBackward(startState, goal, ops, ancestors = [],
 # Binding stuff
 #
 ############################################################################
-
-# Bind all result fluents or fail.
-# Returns a list of possible bindings (maybe empty)
-
-'''
-def getBindingsBetween(resultFs, goalFs, startState):
-    if len(resultFs) == 0:
-        debugMsg('gbb:detail', resultFs, [{}])
-        return [{}]
-    else:
-        result = []
-        rf = resultFs[0]
-        debugMsg('gbb:detail', 'working on', rf)
-        restAnswer = getBindingsBetween(resultFs[1:], goalFs, startState)
-        debugMsg('gbb:detail', 'rest of answer', restAnswer)
-        for b in restAnswer:
-            for gf in goalFs:
-                newB = rf.applyBindings(b).entails(gf, startState.details)
-                if newB != False:
-                    debugMsg('gbb:detail', 'entails', b, gf.applyBindings(b),
-                              ('newB', newB))
-                    newB.update(b)
-                    result.append(newB)
-                    debugMsg('gbb:detail', 'appended updated newB', newB)
-        debugMsg('gbb', 'handled', rf, result)
-        return result
-'''    
 
 # Bind at least one result
 # Returns a list of possible bindings (maybe empty)

@@ -17,6 +17,7 @@ from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCO
 
 Ident = util.Transform(np.eye(4))            # identity transform
+tiny = 1.0e-6
 
 ################
 # Basic tests for pick and place
@@ -251,7 +252,13 @@ def potentialLookConfGen(rm, shape, maxDist):
     centerPoint = util.Point(np.resize(np.hstack([shape.center(), [1]]), (4,1)))
     # visionPlanes = np.array([[1.,1.,0.,0.], [-1.,1.,0.,0.]])
     visionPlanes = np.array([[1.,0.,0.,0.]])
+    tested = set([])
     for node in rm.nodes:
+        base = tuple(node.conf['pr2Base'])
+        if base in tested:
+            continue
+        else:
+            tested.add(base)
         basePose = node.cartConf['pr2Base']
         dist = centerPoint.distance(basePose.point())
         if dist > maxDist:
@@ -491,7 +498,7 @@ def potentialRegionPoseGenCut(pbs, obj, placeB, prob, regShapes, reachObsts, max
             if debug('potentialRegionPoseGen'):
                 sh.draw('W', 'brown')
                 wm.getWindow('W').update()
-            if all([rs.containsPt(p) for p in sh.vertices().T]) and \
+            if all([rs.contains(p) for p in sh.vertices().T]) and \
                all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
                 return pose
     clearance = 0.01
@@ -575,14 +582,18 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, han
     def genPose(rs, angle, point):
         (x,y,z,_) = point
         # Support pose, we assume that sh is on support face
-        pose = util.Pose(x,y,z, 0.)
+        pose = util.Pose(x,y,z, 0.)     # shRotations is already rotated
         sh = shRotations[angle].applyTrans(pose)
         if debug('potentialRegionPoseGen'):
             sh.draw('W', 'brown')
             wm.getWindow('W').update()
-        if all([rs.containsPt(p) for p in sh.vertices().T]) and \
+            
+        if inside(sh, rs) and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
+            debugMsg('potentialRegionPoseGen', ('-> pose', pose))
             return pose
+        else:
+            debugMsg('potentialRegionPoseGen', ('fail pose', pose))
 
     def poseViolationWeight(pose):
         pB = placeB.modifyPoseD(mu=pose)
@@ -623,7 +634,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, han
                 continue
             elif debug('potentialRegionPoseGen'):
                 bI.draw('W', 'cyan')
-                debugMsg('potentialRegionPoseGen', 'Region interior in cyan')
+                debugMsg('potentialRegionPoseGen', 'Region interior in cyan for angle', angle)
             coFixed = [xyCO(shRot, o) for o in shWorld.getObjectShapes() \
                        if o.name() in shWorld.fixedObjects]
             coObst = [xyCO(shRot, o) for o in shWorld.getNonShadowShapes() \
@@ -635,13 +646,14 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, han
                 for co in coObst: co.draw('W', 'brown')
                 for co in coShadow: co.draw('W', 'orange')
             z0 = bI.bbox()[0,2] + clearance
-            for point in bboxGridCoords(bI.bbox(), z=z0):
-                if any(co.containsPt(point) for co in coFixed): continue
+            for point in bboxGridCoords(bI.bbox(), res = 0.02, z=z0):
+                pt = point.reshape(4,1)
+                if any(np.all(np.dot(co.planes(), pt) <= tiny) for co in coFixed): continue
                 cost = 0
                 for co in coObst:
-                    if co.containsPt(point): cost += obstCost
+                    if np.all(np.dot(co.planes(), pt) <= tiny): cost += obstCost
                 for co in coObst:
-                    if co.containsPt(point): cost += 0.5*obstCost
+                    if np.all(np.dot(co.planes(), pt) <= tiny): cost += 0.5*obstCost
                 points.append((angle, point.tolist()))
                 hyp = (count, 1./cost if cost else 1.)
                 # if debug('potentialRegionPoseGen'):
@@ -713,13 +725,33 @@ def baseDist(c1, c2):
 
 def bboxGridCoords(bb, n=5, z=None, res=None):
     ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)
-    dx = res or float(x1 - x0)/n
-    dy = res or float(y1 - y0)/n
+    if res:
+        dx = res
+        dy = res
+        nx = int(float(x1 - x0)/res)
+        ny = int(float(y1 - y0)/res)
+    else:
+        dx = float(x1 - x0)/n
+        dy = float(y1 - y0)/n
+        nx, ny = n
+    print 'dx', dx, 'dy', dy, 'nx', nx, 'ny', ny
     if z is None: z = z0
     points = []
-    for i in range(n+1):
+    for i in range(nx+1):
         x = x0 + i*dx
-        for j in range(n+1):
+        for j in range(ny+1):
             y = y0 + j*dy
             points.append(np.array([x, y, z, 1.]))
     return points
+
+def inside(obj, reg):
+    # all([np.all(np.dot(reg.planes(), p) <= 1.0e-6) for p in obj.vertices().T])
+    verts = obj.vertices()
+    for i in range(verts.shape[1]):
+        # reg.containsPt() completely fails to work here.
+        if not np.all(np.dot(reg.planes(), verts[:,i]) <= tiny):
+            return False
+    return True
+    
+        
+    

@@ -11,6 +11,8 @@ from fbch import Fluent, getMatchingFluents, Operator
 from belief import B, Bd
 from pr2Visible import visible
 
+tiny = 1.0e-6
+
 ################################################################
 ## Fluent definitions
 ################################################################
@@ -429,7 +431,9 @@ class Grasp(Fluent):
 class Pose(Fluent):
     predicate = 'Pose'
     def dist(self, bState):
-        (obj, face) = self.args              
+        (obj, face) = self.args
+        if face == '*':
+            face = bState.pbs.getPlaceB(obj).support.mode()
         result = bState.poseModeDist(obj, face)
         return result
 
@@ -496,19 +500,41 @@ class CanSeeFrom(Fluent):
     def bTest(self, details, v, p):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
+
         # Note that all object poses are permanent, no collisions can be ignored
         newPBS = details.pbs.copy()
+
+        if pose == '*' and \
+          (newPBS.getHeld('left').mode() == obj or \
+           newPBS.getHeld('right').mode() == obj):
+           # Can't see it (in the usual way) if it's in the hand and a pose
+           # isn't specified
+           return False
+         
         newPBS.updateFromAllPoses(cond)
         placeB = newPBS.getPlaceB(obj)
-        if placeB.support.mode() != poseFace:
+
+        # LPK! Forcing the variance to be very small.  Currently it's
+        # using variance from the initial state, and then overriding
+        # it based on conditions.  This is incoherent.  Could change
+        # it to put variance explicitly in the fluent.
+        placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
+
+        if placeB.support.mode() != poseFace and poseFace != '*':
             placeB.support = DeltaDist(poseFace)
-        if placeB.poseD.mode() != pose:
-            newPBS.updatePermObjPose(placeB.modifyPoseD(mu=pose))
+        if placeB.poseD.mode() != pose and pose != '*':
+            placeB = placeB.modifyPoseD(mu = pose)
+        newPBS.updatePermObjPose(placeB)
+
+        # LPK! Force recompute
+        newPBS.shadowWorld = None
+
         shWorld = newPBS.getShadowWorld(p)
         shName = shadowName(obj)
         sh = shWorld.objectShapes[shName]
         obstacles = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
         ans, _ = visible(shWorld, conf, sh, obstacles, p)
+
         return ans
 
     def getViols(self, bState, v, p, strict = True):
@@ -777,11 +803,15 @@ def inTest(bState, obj, regName, prob, pB=None):
     shWorld = bState.pbs.getShadowWorld(prob)
     region = shWorld.regionShapes[regName]
     
-    ans = np.all(region.containsPts(shadow.vertices().T))
+    ans = np.all(np.all(np.dot(region.planes(), shadow.vertices()) <= tiny, axis=1))
 
-    if debug('testVerbose'):
+    if debug('testVerbose') or debug('inTest'):
         shadow.draw('W', 'brown')
         region.draw('W', 'purple')
+
+        print 'shadow', shadow.bbox()
+        print 'region', region.bbox()
+
         print 'shadow in brown, region in purple'
         print 'inTest', obj, '->', ans
         raw_input('Ok?')

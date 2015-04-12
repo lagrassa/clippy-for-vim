@@ -106,8 +106,8 @@ class Bd(BFluent):
             return rFluent.bTest(b, v, p)
 
         if v == '*':
-            mpe = rFluent.dist(b).maxProbElt()
-            return rFluent.dist(b).prob(mpe) >= p
+            (mpe, mp) = rFluent.dist(b).maxProbElt()
+            return mp >= p
         else:
             return rFluent.dist(b).prob(v) >= p
 
@@ -222,14 +222,20 @@ class B(BFluent):
             print '    ModeProb', dp
             print '    Actual mode', dc
             print '    Target mean', v
-            print '    Mean diff', abs(dc.mode() - np.array(v))
-            print '    Delta', delta
-            print '    Mean diff < delta', \
+            if v != '*':
+                print '    Mean diff', abs(dc.mode() - np.array(v))
+                print '    Delta', delta
+                print '    Mean diff < delta', \
                  (abs(dc.mode() - np.array(v)) <= np.array(delta))
             print '    Target var', var
             print '    Sigma < var', (dc.sigma.diagonal() <= np.array(var))
             print '    Target p', p
             print '    Modep >= p', dp >= p
+
+            print '    value with star', \
+              (dc.sigma.diagonal() <= np.array(var)).all() \
+                   and dp >= p
+            raw_input('okay?')
 
         if v == '*':
             # Just checking variance and p
@@ -297,7 +303,11 @@ class B(BFluent):
 
         # Find the glb.  Find interval of overlap, then pick mean, to get
         # new values of val and delta
-        if isGround((sval, oval, sdelta, odelta)):
+        if sval == '*':
+            newVal, newDelta = oval, odelta
+        elif oval == '*':
+            newVal, newDelta = sval, sdelta
+        elif isGround((sval, oval, sdelta, odelta)):
             newVal, newDelta = getOverlap(sval, oval, sdelta, odelta)
             if newVal == False:
                 return False, {}
@@ -443,7 +453,7 @@ def hCacheEntailsSet(fs, k):
 def setEntails(fs1, fs2):
     return all([any([f1.entails(f2) != False for f1 in fs1]) for f2 in fs2])
 
-maxHeuristicValue = 1000
+maxHeuristicValue = float('inf')
     
 # See if we can get some branch-and-bound action to work.  Advantage is
 # finishing early;  risk is not filling up cache effectively
