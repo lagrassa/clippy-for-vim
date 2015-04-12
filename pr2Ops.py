@@ -32,7 +32,10 @@ movePreProb = 0.8
 # Prob for generators.  Keep it high.   Should this be = maxProbValue?
 probForGenerators = 0.98
 
+
 planVar = (0.02**2, 0.02**2, 0.01**2, 0.03**2)
+# Made smaller to avoid replanning for pick.  Maybe not right.
+planVar = (0.008**2, 0.008**2, 0.008**2, 0.008**2)
 planP = 0.95
 
 ######################################################################
@@ -1175,7 +1178,7 @@ pick = Operator(\
             Function(['P1'], ['PR1', 'PR2'], 
                      regressProb(1, 'pickFailProb'), 'regressProb1', True),
             Function(['P2', 'P3', 'P4'],[[canPPProb, canPPProb, otherHandProb]],
-                    assign, 'assign'),
+                    assign, 'assign', True),
             Function(['RealGraspVar'], ['GraspVar'], maxGraspVarFun,
                      'realGraspVar'),
                      
@@ -1187,10 +1190,11 @@ pick = Operator(\
             Function(['ConfDelta', 'PoseDelta'], ['GraspDelta'],
                       halveVariance, 'halveVar'),
 
-            # Values for what is in the other
+            # Values for what is in the other hand.
+            # Force to be bound early to avoid side-effect trouble
             Function(['OObj', 'OFace', 'OGraspMu', 'OGraspVar', 'OGraspDelta'],
                        ['OtherHand', 'Obj'], genGraspStuffHand,
-                       'genGraspStuffHand'),
+                       'genGraspStuffHand', True),
 
             # Not modeling the fact that the object's shadow should
             # grow a bit as we move to pick it.   Build that into pickGen.
@@ -1243,7 +1247,7 @@ lookAt = Operator(\
     f = lookAtBProgress,
     prim = lookPrim,
     argsToPrint = [0, 1, 3],
-    ignorableArgs = range(1, 11))
+    ignorableArgs = range(4, 11))
 
 
 

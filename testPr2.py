@@ -84,7 +84,6 @@ writeSearch = True
 useRight = False if useROS else True
 useHorizontal = True
 useVertical = False if useROS else True
-useVertical = False
 useCartesian = False
 useLookAtHand = False
 
@@ -520,7 +519,7 @@ class PlanTest:
             self.realWorld.draw('World')
             for regName in self.bs.pbs.regions:
                 self.realWorld.regionShapes[regName].draw('World', 'purple')
-            if self.bs.pbs.regions: raw_input('Regions')
+            #if self.bs.pbs.regions: raw_input('Regions')
 
         s = State([], details = self.bs)
 

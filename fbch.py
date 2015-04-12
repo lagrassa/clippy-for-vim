@@ -730,7 +730,7 @@ class Operator(object):
             if i not in self.ignorableArgs:
                 selfArgs.append(selfAllArgs[i])
                 aArgs.append(aAllArgs[i])
-        return matchLists(selfArgs, aArgs) != None
+        return matchLists(selfArgs, aArgs, starIsWild = False) != None
 
     # Horrible.  Make more efficient.
     # Ancestors is the stack of plans above this one.
@@ -744,7 +744,7 @@ class Operator(object):
             level = min(lastAL+1, self.concreteAbstractionLevel)
             if ancestorList:
                 debugMsg('abstractionLevel', self, ancestorList,
-                         level)
+                              level)    
             self.abstractionLevel = level
 
     def uniqueStr(self):
@@ -839,21 +839,9 @@ class Operator(object):
                     break
             if not entailed:
                 pendingFluents.append(gf.copy())
-            
 
         # Figure out which variables, and therefore which functions, we need.
         necessaryFunctions = self.getNecessaryFunctions()
-
-        if not inHeuristic and False:
-            print '========== op =============='
-            print self
-            print '========== preconds =============='
-            for f in self.preconditionSet():
-                print f
-            print '========== necessary funs =============='
-            for f in necessaryFunctions:
-                print f
-            raw_input('good funs?')
 
         # Call backtracker to get bindings of unbound vars
         newBindings = btGetBindings(necessaryFunctions,
@@ -997,7 +985,6 @@ class Operator(object):
             bindingsNoGood = True
         else:
             bindingsNoGood = False
-
 
         # Make another result, which is a place-holder for rebinding
         rebindLater = goal.copy()
