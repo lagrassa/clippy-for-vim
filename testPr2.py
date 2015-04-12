@@ -81,7 +81,7 @@ writeSearch = True
 # Right Arm??
 ######################################################################
 
-useRight = True
+useRight = False if useROS else True
 useHorizontal = True
 useVertical = False if useROS else True
 useVertical = False
@@ -2013,6 +2013,7 @@ def testReact():
     result, cnfOut = pr2GoToConf(startConf, 'look')
     # Reset the internal coordinate frames
     result, cnfOut = pr2GoToConf(startConf, 'reset')
+    glob.debugOn.append('invkin')
     testReactive(startConf)
     
 

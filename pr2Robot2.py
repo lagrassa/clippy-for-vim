@@ -731,7 +731,7 @@ class PR2:
                                       # The kinematics has a tool offset built in
                                       gripperToolOffset,
                                       # if a nominal conf is available use as reference
-                                      self.nominalConf or conf,
+                                      conf or self.nominalConf,
                                       wstate, returnAll = returnAll,
                                       collisionAware=collisionAware)
             if not leftArmAngles:
@@ -748,7 +748,7 @@ class PR2:
                                        # The kinematics has a tool offset built in
                                        gripperToolOffset,
                                        # if a nominal conf is available use as reference
-                                       self.nominalConf or conf,
+                                       conf or self.nominalConf,
                                        wstate, returnAll = returnAll,
                                        collisionAware=collisionAware)
             if not rightArmAngles:
