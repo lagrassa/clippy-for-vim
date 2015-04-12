@@ -87,6 +87,10 @@ useVertical = False if useROS else True
 useCartesian = False
 useLookAtHand = False
 
+useRight = False
+useVertical = False
+
+
 ######################################################################
 # Test Rig
 ######################################################################
