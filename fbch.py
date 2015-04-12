@@ -224,6 +224,11 @@ class State:
     def isConsistent(self, fluentList, details = None):
         return not any([self.contradicts(f, details) for f in fluentList])
 
+    # Return True if any fluent in the list binds with some fluent in the state
+    def couldBeClobbered(self, fluentList, details = None):
+        return any([f1.couldClobber(f2, details) for f1 in fluentList \
+                    for f2 in self.fluents])
+    
     # Return the value of the fluent in this state.
     def fluentValue(self, fluent, recompute = False):
         cache = None if recompute else \
@@ -546,6 +551,10 @@ class Fluent(object):
             return b
         else:
             return False
+
+    def couldClobber(self, other, details = None):
+        b = self.entails(other, details)
+        return b != False and b != {}
 
     def contradicts(self, other, details = None):
         glb, b = self.glb(other, details)
@@ -964,20 +973,30 @@ class Operator(object):
             return []
 
         # Could fold the boundPrecond part of this in to addSet later
-        if not newGoal.isConsistent(boundPreconds + boundSE,
-                                    startState.details):
+        if not newGoal.isConsistent(boundPreconds, startState.details):
             if not inHeuristic or debug('debugInHeuristic'):
                 if debug('regression:inconsistent'):
-                    for f1 in boundPreconds + boundSE:
+                    for f1 in boundPreconds:
                         for f2 in newGoal.fluents:
                             if f1.contradicts(f2, startState.details):
                                 print '    contradiction\n', f1, '\n', f2
                     debugMsg('regression:inconsistent', self,
                              'preconds inconsistent with goal',
-                             ('newGoal', newGoal), ('preconds', boundPreconds),
-                             ('sideEffects', boundSE))
+                             ('newGoal', newGoal), ('preconds', boundPreconds))
             bindingsNoGood = True
-        else: bindingsNoGood = False
+        elif newGoal.couldBeClobbered(boundSE, startState.details):
+            if not inHeuristic or debug('debugInHeuristic'):
+                if debug('regression:inconsistent'):
+                    for f1 in boundSE:
+                        for f2 in newGoal.fluents:
+                            if f1.couldClobber(f2, startState.details):
+                                print '    might clobber\n', f2, '\n', f1
+                    debugMsg('regression:inconsistent', self,
+                             'side effects may be inconsistent with goal',
+                             ('newGoal', newGoal), ('sideEffects', boundSE))
+            bindingsNoGood = True
+        else:
+            bindingsNoGood = False
 
 
         # Make another result, which is a place-holder for rebinding
@@ -1038,6 +1057,11 @@ class Operator(object):
                 primPrecondCost = hh(sp)
                 if primPrecondCost == float('inf'):
                     debugMsg('infeasible', 'Prim preconds infeasible', sp)
+
+                    # !!!LPK Just because this one fails doesn't mean
+                    # !!!they're infeasible; could try to backtrack
+                    # !!!here.
+
     
                 hOld = primPrecondCost + cp
                 # Difference between that cost, and the cost of
@@ -1048,12 +1072,14 @@ class Operator(object):
                 if cost < 0:
                     cost = cp
 
-                # Try this!
                 rebindCost = hOld + rebindCost
 
-                # Store the bindings we made in this process!
-                # But keep the abstract preconditions
-                if not inHeuristic:
+                # LPK!!  This is a way to cut down on generator calls
+                # but is potentially risky.  Disabled for now.
+                # Store the bindings we
+                # made in this process!  But keep the abstract
+                # preconditions
+                if False: #not inHeuristic:
                     psb = primOpRegr[0][0].bindings
                     newOp = newGoal.operator.applyBindings(psb)
                     newGoal.operator = newOp

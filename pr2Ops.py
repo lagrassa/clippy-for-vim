@@ -1070,7 +1070,8 @@ place = Operator(\
 
             # PoseVar = GraspVar + PlaceVar,
             # GraspVar = min(maxGraspVar, PoseVar - PlaceVar)
-            Function(['GraspVar'], ['PoseVar'], placeGraspVar, 'placeGraspVar'),
+            Function(['GraspVar'], ['PoseVar'], placeGraspVar, 'placeGraspVar',
+                     True),
 
             # Real pose var might be much less than pose var if the
             # original pos var was very large
