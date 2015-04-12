@@ -305,8 +305,10 @@ class B(BFluent):
         # new values of val and delta
         if sval == '*':
             newVal, newDelta = oval, odelta
+            needNewFluent = True
         elif oval == '*':
             newVal, newDelta = sval, sdelta
+            needNewFluent = True
         elif isGround((sval, oval, sdelta, odelta)):
             newVal, newDelta = getOverlap(sval, oval, sdelta, odelta)
             if newVal == False:

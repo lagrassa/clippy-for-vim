@@ -128,44 +128,10 @@ class State:
 
     def add(self, newF, moreDetails = None):
         details = self.details or moreDetails
-        allB = {}
-        removal = set()
-        additions = set()
-        addNew = True
-        for oldF in self.fluents:
-            boundF = oldF.applyBindings(allB)
-            glb, b = boundF.glb(newF, details)
-            if glb == False:
-                # Contradiction
-                raw_input('adding fluent causes contradiction')
-                return False
-            elif isinstance(glb, set):
-                # Just add the new guy
-                pass
-            elif glb == oldF:
-                # New guy is subsumed by oldF
-                addNew = False
-            else:
-                # glb is either the same as newF or is a real glb.
-                # in either case, remove oldF and add the glb
-                if glb != newF:
-                    additions.add(glb)
-                    addNew = False
-                else:
-                    addNew = True
-                removal.add(oldF)
-            allB.update(b)
-        if addNew: additions.add(newF)
-        # Remove fluents that were entailed; add new ones
-        debugMsg('add', 'about to update',
-                 ('new', newF),
-                 ('old', self.fluents), ('removing', removal),
-                 ('adding', additions))
-        self.fluents = (self.fluents - removal) | additions
-        # Apply bindings
-        self.fluents = set([f.applyBindings(allB) for f in self.fluents])
+        (newFluentSet,newBindings) = addFluentToSet(self.fluents, newF, details)
+        self.fluents = newFluentSet
         self.internalTest(details) 
-        return allB
+        return newBindings
         
     # Test for redudancy and consistency
     def internalTest(self, details):
@@ -348,6 +314,42 @@ class State:
         return other == None or self.signature() != other.signature()
     def __hash__(self):
         return self.signature().__hash__()
+
+# Should be consistent
+def addFluentToSet(fluentSet, newF, details = None):
+    allB = {}
+    removal = set()
+    additions = set()
+    addNew = True
+    for oldF in fluentSet:
+        boundF = oldF.applyBindings(allB)
+        glb, b = boundF.glb(newF, details)
+        if glb == False:
+            # Contradiction
+            raw_input('adding fluent causes contradiction')
+            return False
+        elif isinstance(glb, set):
+            # Just add the new guy
+            pass
+        elif glb == oldF:
+            # New guy is subsumed by oldF
+            addNew = False
+        else:
+            # glb is either the same as newF or is a real glb.
+            # in either case, remove oldF and add the glb
+            if glb != newF:
+                additions.add(glb)
+                addNew = False
+            else:
+                addNew = True
+            removal.add(oldF)
+        allB.update(b)
+    if addNew: additions.add(newF)
+    # Remove fluents that were entailed; add new ones
+    fluentSet = (fluentSet - removal) | additions
+    # Apply bindings
+    fluentSet = set([f.applyBindings(allB) for f in fluentSet])
+    return fluentSet, allB
 
 # Return a list of fluent, bindings pairs
 def getMatchingFluents(fluentList, pattern):
@@ -916,6 +918,7 @@ class Operator(object):
         # Bound preconditions, too!
         boundPreconds = [f.applyBindings(newBindings) \
                          for f in self.preconditionSet()]
+
         boundSE = [f.applyBindings(newBindings) for f in self.sideEffectSet()]
 
         explicitResults = [r for r in boundResults \
@@ -1086,6 +1089,13 @@ class Operator(object):
                 debugMsg('regression:fail', 'infinite cost')
             return [[rebindLater, rebindCost]]
         newGoal.operator.instanceCost = cost
+
+
+        for thing in newGoal.fluents:
+            if '*' in thing.args:
+                print 'goal fluent with *', thing
+                raw_input('regression')
+        
 
         return [[newGoal, cost], [rebindLater, rebindCost]]
 

@@ -650,13 +650,6 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                  movePoses={'objA': front},
                  varDict = varDict)
 
-    skel = [[#lookAt.applyBindings({'Obj' : 'objA'}), move,
-             place, move, pick, move,
-             lookAt.applyBindings({'Obj' : 'objA'}), move,
-             lookAt.applyBindings({'Obj' : 'objA'}), move,
-             lookAt.applyBindings({'Obj' : 'table2'}), move,
-             lookAt.applyBindings({'Obj' : 'table2'}), move]]
-
     skel = [[poseAchIn, place, move, pick, move, lookAt, move, lookAt, move]]
 
     hSkel = [[poseAchIn,
@@ -821,6 +814,16 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     region = 'table1Left'
     goal = State([Bd([In(['objA', region]), True, goalProb], True)])
 
+    skel = [[poseAchIn,
+             lookAt.applyBindings({'Obj' : 'objA'}), move,
+             lookAt.applyBindings({'Obj' : 'objA'}), move,
+             place.applyBindings({'Obj' : 'objA'}), move,
+             pick.applyBindings({'Obj' : 'objA'}), move,
+             lookAt.applyBindings({'Obj' : 'objA'}), move,
+             lookAt.applyBindings({'Obj' : 'table1'}), move,
+             lookAt.applyBindings({'Obj' : 'objA'}), move,
+             lookAt.applyBindings({'Obj' : 'table1'}), move]]
+
     t = PlanTest('test1',  errProbs, allOperators,
                  objects=['table1', 'objA'],
                  fixPoses={'table1': table1Pose},
@@ -829,7 +832,7 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 
     t.run(goal,
           hpn = hpn,
-          skeleton = hSkel if skeleton else None,
+          skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           regions=[region],
           heuristic = heuristic,

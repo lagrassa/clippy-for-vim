@@ -64,7 +64,5 @@ visible
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
            'traceGen', 'traceCRH', 'infeasible']
-           #'placeInRegionGen', 'placeInGen', 'placeGen',
-           
 
 pauseOn = debugOn
