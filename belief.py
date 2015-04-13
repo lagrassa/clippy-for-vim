@@ -47,9 +47,12 @@ class BFluent(Fluent):
         if b == {}:
             # The same
             return False
-        if '*' in other.args:
+        if '*' in other.args or '*' in self.args:
             ## LPK pretty bogus
-            # starts can't clobber
+            # stars can't clobber or be clobbered
+            return False
+        if glb == self:
+            # self entails other (so can't make it false!)
             return False
         return True
 
@@ -316,10 +319,10 @@ class B(BFluent):
 
         # Find the glb.  Find interval of overlap, then pick mean, to get
         # new values of val and delta
-        if sval == '*':
+        if sval == '*' and not isVar(oval):
             newVal, newDelta = oval, odelta
             needNewFluent = True
-        elif oval == '*':
+        elif oval == '*' and not isVar(sval):
             newVal, newDelta = sval, sdelta
             needNewFluent = True
         elif isGround((sval, oval, sdelta, odelta)):
@@ -358,7 +361,7 @@ class B(BFluent):
             return B([fglb, newVal, newVar, newDelta, newP], True), b
         else:
             # This is pure entailment
-            return self, b
+            return self.applyBindings(b), b
 
 def getOverlap(vl1, vl2, dl1, dl2):
     def go(v1, v2, d1, d2):

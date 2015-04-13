@@ -530,9 +530,9 @@ class Fluent(object):
         b2 = copy.copy(other.matches(self))
         bnv2 = copy.copy(other.matches(self, noValue = True))
         if b != None:
-            result = self, b
+            result = self.applyBindings(b), b
         elif b2 != None:
-            result = other, b2
+            result = other.applyBindings(b2), b2
         elif bnv != None or bnv2 != None:
             # Fluents match but values disagree
             result = (False, {})
@@ -981,11 +981,14 @@ class Operator(object):
                     for f1 in boundSE:
                         for f2 in newGoal.fluents:
                             if f1.couldClobber(f2, startState.details):
-                                print '    might clobber\n', f2, '\n', f1
+                                print '    might clobber\n', f1, '\n', f2
                     debugMsg('regression:inconsistent', self,
                              'side effects may be inconsistent with goal',
                              ('newGoal', newGoal), ('sideEffects', boundSE))
-            bindingsNoGood = True
+            # Idea!  If this happens, try the operator at a more concrete level
+            #bindingsNoGood = True
+            print 'possible clobbering...ignoring for now'
+            bindingsNoGood = False
         else:
             bindingsNoGood = False
 
@@ -1802,8 +1805,10 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                 # Require these to be ground?  Or, definitely, not all
                 # variables
                 extraRfs = set(allBoundRfs).difference(set(boundRFs))
+                # Asking this question backward.  We want to know whether there
+                # are bindings that would make rf entail gf.
                 dup = any([(rf.isPartiallyBound() and \
-                            rf.entails(gf, startState) != False) \
+                            gf.entails(rf, startState) != False) \
                            for rf in extraRfs for gf in g.fluents])
 
                 if allUseful and not dup and \
@@ -1970,7 +1975,8 @@ def getBindingsBetween(resultFs, goalFs, startState):
         for b in restAnswer:
             matched = False
             for gf in goalFs:
-                newB = rf.applyBindings(b).entails(gf, startState.details)
+                rfb = rf.applyBindings(b)
+                newB = gf.entails(rfb, startState.details)
                 if newB != False:
                     matched = True
                     debugMsg('gbb:detail', 'entails', b, gf.applyBindings(b),

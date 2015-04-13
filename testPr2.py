@@ -831,8 +831,6 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                  movePoses={'objA': front},
                  varDict = varDict)
 
-    skel = [[poseAchIn, lookAt, move, place, lookAtHand, move, pick, move, lookAt, move, lookAt, move]]
-              
     t.run(goal,
           hpn = hpn,
           skeleton = skel if skeleton else None,
