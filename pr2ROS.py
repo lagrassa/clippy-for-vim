@@ -219,7 +219,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             assert supportTable
             placeB = placeBs[supportTable]
             if not wellLocalized(placeB):
-                tableRobot = lookAtTable(supportTable, placeB)
+                tableRobot = lookAtTable(placeB)
                 table = tableRobot.applyTrans(outConfCart['pr2Base'])
                 if not table: return None
             else:
@@ -264,7 +264,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         g = confGrip(outConf, hand)
         gripConf = gripOpen(outConf, hand, g-0.01)
         result, outConf = pr2GoToConf(gripConf, 'open')
-        raw_input('Closed?')
+        if debug('robotEnv'):
+            raw_input('Closed?')
 
         debugMsg('robotEnv', 'executePick - move to approachConf')
         result, outConf = pr2GoToConf(approachConf, 'move')
@@ -279,9 +280,10 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         result, outConf = pr2GoToConf(approachConf, 'move')
         
         debugMsg('robotEnv', 'executePlace - move to placeConf')
-        result, outConf = pr2GoToConf(placeConf, 'moveGuarded') # look for a contact
+        result, outConf = pr2GoToConf(placeConf, 'move')
 
         debugMsg('robotEnv', 'executePlace - open')
+        placeConf = gripOpen(outConf, hand, 0.08) # keep height
         result, outConf = pr2GoToConf(placeConf, 'open')
 
         debugMsg('robotEnv', 'executePlace - move to approachConf')
@@ -550,7 +552,7 @@ def handTrans(conf, hand):
     return cart[handFrameName]
 
 # Could use 2 to not do interpolation.
-cartInterpolationSteps = 2
+cartInterpolationSteps = 6
 
 def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
              maxSteps = cartInterpolationSteps, verbose = False):
@@ -582,8 +584,8 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
     result, curConf = pr2GoToConf(approachConf, 'move')
     resuly, curConf = pr2GoToConf(approachConf, 'resetForce', arm=hand[0])
     moveChains = [approachConf.robot.armChainNames[hand]+'Frame']
-    # path = cartInterpolators(graspConf, approachConf, stepSize)[::-1]
-    path = [approachConf, graspConf]
+    path = cartInterpolators(graspConf, approachConf, stepSize)[::-1]
+    # path = [approachConf, graspConf]
     if len(path) > maxSteps:
         inc = len(path)/(maxSteps - 1)
         ind = 0
@@ -598,14 +600,15 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
         contacts = 4*[False]
     for i, p in enumerate(path):
         print i,  handTrans(p, hand).point()
-    raw_input('Go?')
+    if debug('robotEnv'):
+        raw_input('Go?')
     prevConf = None
     for i, conf in enumerate(path):
         conf.prettyPrint('tryGrasp conf %d'%i)
         if prevConf:
             bigAngleWarn(prevConf, conf)
         prevConf = conf
-        result, curConf = pr2GoToConf(conf, 'moveGuarded')
+        result, curConf = pr2GoToConf(conf, 'moveGuarded', speedFactor=0.1)
         print 'tryGrasp result', result, handTrans(curConf, hand).point()
         if result in ('LR_tip', 'L_tip', 'R_tip',
                       'LR_pad', 'L_pad', 'R_pad'):
@@ -646,12 +649,12 @@ def compliantClose(conf, hand, step = 0.01, n = 1):
     # could displace to find contact with the other finger
     # instead of repeatedly closing.
     if result == 'LR_pad':
-        (result, cnfOut) = pr2GoToConf(conf, 'close', arm=hand[0])
+        (result, cnfOut) = pr2GoToConf(conf, 'close', arm=hand[0], speedFactor=0.1)
         return result
     elif result in ('L_pad', 'R_pad'):
         off = step if result == 'L_pad' else -step
         nConf = displaceHand(curConf, hand, dy=off, nearTo=conf)
-        pr2GoToConf(nConf, 'move')      # should this be guarded?
+        pr2GoToConf(nConf, 'move', speedFactor=0.1)      # should this be guarded?
         return compliantClose(nConf, hand, step=0.9*step, n = n+1)
     elif result == 'none':
         return result

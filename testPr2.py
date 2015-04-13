@@ -859,7 +859,8 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     region = 'table1Left'
-    goal = State([Bd([In(['objA', region]), True, goalProb], True)])
+    goal = State([Bd([In(['objA', region]), True, goalProb], True)],
+                 [Bd([In(['objB', region]), True, goalProb], True)])
 
     t = PlanTest('test1',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
@@ -952,7 +953,7 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
 
 ######################################################################
 #    Old tests    
-
+'''
 def test4(hpn = True, hierarchical = False, skeleton = False,
           heuristic = habbs, easy = False):
 
@@ -2030,7 +2031,8 @@ def test22(hpn = True, skeleton = False, hierarchical = False,
           initBelief = initBel,
           regions = ['table1Top']
           )
-    
+'''
+
 def prof(test, n=50):
     import cProfile
     import pstats
@@ -2058,6 +2060,4 @@ def testReact():
     result, cnfOut = pr2GoToConf(startConf, 'reset')
     glob.debugOn.append('invkin')
     testReactive(startConf)
-    
 
-    
