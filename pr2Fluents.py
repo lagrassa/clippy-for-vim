@@ -579,11 +579,11 @@ class CanSeeFrom(Fluent):
             return float('inf'), {}
         obstacles = occluders
         shadows = [] # I think these are never shadows?
-        obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
-                       for o in obstacles])
+        obstOps = set([Operator('RemoveObst', [oName],{},[]) \
+                       for oName in obstacles])
         for o in obstOps: o.instanceCost = obstCost
-        shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
-                     for o in shadows])
+        shadowOps = set([Operator('RemoveShadow', [oName],{},[]) \
+                     for oName in shadows])
         d = bState.details.domainProbs.minDelta
         ep = bState.details.domainProbs.obsTypeErrProb
         vo = bState.details.domainProbs.obsVarTuple

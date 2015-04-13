@@ -881,6 +881,11 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 def testSwap(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = False, rip = False):
 
+
+    # Seems to need this
+    global useRight, useVertical
+    useRight, useVertical = True, True
+
     glob.rebindPenalty = 150
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
     glob.monotonicFirst = True
@@ -923,6 +928,7 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
 
     skel3 = [[poseAchIn,
               lookAt.applyBindings({'Obj' : 'objB'}), move,
+              lookAt.applyBindings({'Obj' : 'objB'}), move,
               place.applyBindings({'Hand' : 'right', 'Obj' : 'objB'}), move,
               pick, move,
               poseAchCanPickPlace,
@@ -935,9 +941,9 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
               lookAt.applyBindings({'Obj' : 'objB'}), move,
               lookAt.applyBindings({'Obj' : 'table1'}), move,
               poseAchCanPickPlace,
-              poseAchCanPickPlace,
               lookAt.applyBindings({'Obj' : 'table1'}), move,
               lookAt.applyBindings({'Obj' : 'table2'}), move,
+              poseAchCanPickPlace,
               lookAt.applyBindings({'Obj' : 'table2'}), move]]
 
     t.run(goal3,

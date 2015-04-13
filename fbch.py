@@ -1024,13 +1024,33 @@ class Operator(object):
             hNew = hh(newGoal)
             primOp = self.applyBindings(newBindings) # was self.copy()
             primOp.abstractionLevel = primOp.concreteAbstractionLevel
-            primOpRegr = primOp.regress(goal, startState)
+
+            numRegressSamples = 5
+            tempGoal = goal
+            for i in range(numRegressSamples):
+                primOpRegr = primOp.regress(tempGoal, startState)
+                if len(primOpRegr) == 0:
+                    print 'Prim op regr: no applicable op: failing'
+                    break
+                elif len(primOpRegr) == 1:
+                    print 'Retrying primOpRegr:  rebind op only'
+                    tempGoal = primOpRegr[0][0]
+                    continue
+                else:
+                    (sp, cp) = primOpRegr[0]
+                    primPrecondCost = hh(sp)
+                    if primPrecondCost == float('inf'):
+                        print 'Retrying primOpRegr:  preconds infeasible'
+                        tempGoal = primOpRegr[1][0]
+                    else:
+                        # good to go
+                        break
  
             if hNew == float('inf'):
                 # This is hopeless.  Give up now.
                 debugMsg('infeasible', 'New goal is infeasible', newGoal)
                 cost = float('inf')
-            elif len(primOpRegr) == 0:
+            elif len(primOpRegr) < 2:
                 # Looks good abstractly, but can't apply concrete op
                 if not inHeuristic or debug('debugInHeuristic'):
                     debugMsg('infeasible', 'Concrete op not applicable',
@@ -1041,17 +1061,10 @@ class Operator(object):
                 # state and then compute the heuristic on that.
                 # This is an estimate of how hard it is to
                 # establish all the preconds
-                (sp, cp) = primOpRegr[0]
                 # Cost to get from start to one primitive step before
                 # newGoal, plus the cost of the last step
-                primPrecondCost = hh(sp)
                 if primPrecondCost == float('inf'):
                     debugMsg('infeasible', 'Prim preconds infeasible', sp)
-
-                    # !!!LPK Just because this one fails doesn't mean
-                    # !!!they're infeasible; could try to backtrack
-                    # !!!here.
-
     
                 hOld = primPrecondCost + cp
                 # Difference between that cost, and the cost of
