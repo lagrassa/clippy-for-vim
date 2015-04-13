@@ -93,7 +93,7 @@ def movePrim(args, details):
     path = primPath(bs, cs, ce, pcr)
     if debug('prim'):
         print '*** movePrim'
-        print zip(vl, args)
+        print list(enumerate(zip(vl, args)))
         print 'path length', len(path)
     assert path
     return path
@@ -127,7 +127,7 @@ def pickPrim(args, details):
     # !! Should close the fingers as well?
     if debug('prim'):
         print '*** pickPrim'
-        print zip(vl, args)
+        print list(enumerate(zip(vl, args)))
     return None
 
 def lookPrim(args, details):
@@ -138,7 +138,7 @@ def lookPrim(args, details):
      'P1', 'P2', 'PR1', 'PR2']
     if debug('prim'):
         print '*** lookPrim'
-        print zip(vl, args)
+        print list(enumerate(zip(vl, args)))
 
     # The distributions for the placed objects, to guide looking
     return details.pbs.getPlacedObjBs()
@@ -151,7 +151,7 @@ def lookHandPrim(args, details):
      'P1', 'P2', 'PR1', 'PR2']
     if debug('prim'):
         print '*** lookHandPrim'
-        print zip(vl, args)
+        print list(enumerate(zip(vl, args)))
 
     # The distributions for the grasped objects, to guide looking
     return details.pbs.graspB
@@ -181,7 +181,7 @@ def placePrim(args, details):
     # !! Should open the fingers as well
     if debug('prim'):
         print '*** placePrim'
-        print zip(vl, args)
+        print list(enumerate(zip(vl, args)))
 
     return None
 

@@ -273,7 +273,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 
     def executePlace(self, op, params):
         (hand, placeConf, approachConf) = \
-               (op.args[1], op.args[20], op.args[18])
+               (op.args[1], op.args[19], op.args[17])
 
         debugMsg('robotEnv', 'executePlace - move to approachConf')
         result, outConf = pr2GoToConf(approachConf, 'move')
