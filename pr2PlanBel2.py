@@ -61,6 +61,7 @@ class PBS:
         self.moveObjBs = moveObjBs or {}          # {obj: objPlaceB}
         self.regions = regions
         self.pbs = self
+        self.useRight = True
         # cache
         self.shadowWorld = None                   # cached obstacles
         self.shadowProb = None                    # shadow probability

@@ -467,7 +467,8 @@ def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
     return reactiveApproachLoop(backConf, target, gripDes, hand,
                                 maxTarget=target)
 
-def reactiveApproachLoop(startConf, targetConf, gripDes, hand, maxTarget, tries = 10):
+def reactiveApproachLoop(startConf, targetConf, gripDes, hand, maxTarget,
+                         ystep = 0.04, tries = 10):
     spaces = (10-tries)*' '
     if tries == 0:
         print spaces+'reactiveApproach failed'
@@ -492,9 +493,10 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, maxTarget, tries 
         print spaces+'backConf', handTrans(nConf, hand).point(), result
         return reactiveApproachLoop(backConf, 
                                     displaceHand(curConf, hand,
-                                                 dx=2*xoffset, dy=yoffset,
+                                                 dx=2*xoffset, dy=ystep,
                                                  maxTarget=maxTarget, nearTo=startConf),
-                                    gripDes, hand, maxTarget, tries-1)
+                                    gripDes, hand, maxTarget,
+                                    ystep = max(0.01, ystep/2), tries=tries-1)
     else:                           # default, just to do something...
         print spaces+'***reactRight'
         backConf = displaceHand(curConf, hand, dx=-xoffset, nearTo=startConf)
@@ -502,9 +504,10 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, maxTarget, tries 
         print spaces+'backConf', handTrans(nConf, hand).point(), result
         return reactiveApproachLoop(backConf, 
                                     displaceHand(curConf, hand,
-                                                 dx=2*xoffset, dy=-yoffset,
+                                                 dx=2*xoffset, dy=-ystep,
                                                  maxTarget=maxTarget, nearTo=startConf),
-                                    gripDes, hand, maxTarget, tries-1)
+                                    gripDes, hand, maxTarget,
+                                    ystep = max(0.01, ystep/2), tries=tries-1)
 
 def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0,
                  zFrom=None, maxTarget=None, nearTo=None):

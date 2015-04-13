@@ -221,7 +221,13 @@ def getObjAndHands(args, goal, start, stuff):
             # For now, fail.
             result = []
         else:
-            result = [(hh, h, oh(h))]
+            if not start.pbs.useRight:
+                if h == 'right':
+                    return []
+                else:
+                    result = [(hh, 'left', 'right')]
+            else:
+                result = [(hh, h, oh(h))]
     else:
         if o == 'none' and heldLeft == 'none' and heldRight == 'none':
             return []
@@ -240,7 +246,10 @@ def getObjAndHands(args, goal, start, stuff):
             hands = ['left', 'right']
         else:
             hands = ['right', 'left']
-        result = [(o, hand, oh(hand)) for hand in hands]
+        if not start.pbs.useRight:
+            result = [(o, 'left', 'right')]
+        else:
+            result = [(o, hand, oh(hand)) for hand in hands]
     return result
 
 # Return a tuple (obj, face, mu, var, delta).  Values taken from the start state
