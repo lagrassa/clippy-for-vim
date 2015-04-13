@@ -869,6 +869,10 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                  movePoses={'objA': right, 'objB':front},
                  varDict = varDict)
 
+    skel = [[poseAchIn.applyBindings({'Obj1' : 'objA'}),
+             poseAchIn.applyBindings({'Obj1' : 'objB'}),
+             lookAt, lookAt, lookAt, lookAt]]
+
     t.run(goal,
           hpn = hpn,
           skeleton = skel if skeleton else None,
