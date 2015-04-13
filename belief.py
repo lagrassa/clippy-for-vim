@@ -39,6 +39,20 @@ class BFluent(Fluent):
         av = [v0] + [isVar(a) for a in self.args[1:]]
         return (True in av) and (False in av)
 
+    def couldClobber(self, other, details = None):
+        glb, b = self.glb(other, details)
+        if glb == False or type(glb) == set:
+            # Don't match at all
+            return False
+        if b == {}:
+            # The same
+            return False
+        if '*' in other.args:
+            ## LPK pretty bogus
+            # starts can't clobber
+            return False
+        return True
+
     def argsGround(self):
         return self.args[0].isGround()
 
@@ -265,7 +279,6 @@ class B(BFluent):
     def beliefMode(self, details = None):
         # Mode of the rfluent's value distribution
         return self.args[1].dist().mode()
-
     
     def glb(self, other, details = None):
         # Quick test

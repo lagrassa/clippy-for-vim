@@ -66,5 +66,4 @@ debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
            'traceGen', 'traceCRH', 'infeasible',
             'hAddBackInf']
 
-
 pauseOn = debugOn

@@ -859,14 +859,18 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     region = 'table1Left'
-    goal = State([Bd([In(['objA', region]), True, goalProb], True)],
-                 [Bd([In(['objB', region]), True, goalProb], True)])
+    goal = State([Bd([In(['objA', region]), True, goalProb], True),
+                  Bd([In(['objB', region]), True, goalProb], True)])
 
     t = PlanTest('test1',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  fixPoses={'table1': table1Pose},
                  movePoses={'objA': right, 'objB':front},
                  varDict = varDict)
+
+    skel = [[poseAchIn.applyBindings({'Obj1' : 'objA'}),
+             poseAchIn.applyBindings({'Obj1' : 'objB'}),
+             lookAt, lookAt, lookAt, lookAt]]
 
     t.run(goal,
           hpn = hpn,
