@@ -1090,13 +1090,6 @@ class Operator(object):
             return [[rebindLater, rebindCost]]
         newGoal.operator.instanceCost = cost
 
-
-        for thing in newGoal.fluents:
-            if '*' in thing.args:
-                print 'goal fluent with *', thing
-                raw_input('regression')
-        
-
         return [[newGoal, cost], [rebindLater, rebindCost]]
 
     def prettyString(self, eq = True):
