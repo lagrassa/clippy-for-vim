@@ -120,6 +120,7 @@ def gazeCoords(cnfIn):
     headTrans = cnfInCart['pr2Base'].inverse().compose(head)
     gaze = headTrans.applyToPoint(util.Point(np.array([0.,0.,1.,1.]).reshape(4,1)))
     confHead = gaze.matrix.reshape(4).tolist()[:3]
+    confHead[2] = confHead[2] - 0.2     # brute force correction
     if confHead[0] < 0:
         if debug('pr2GoToConf'):  print 'Dont look back!'
         confHead[0] = -conf.head[0]
