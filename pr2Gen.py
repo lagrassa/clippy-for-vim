@@ -362,10 +362,14 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
                            pbs.graspB['right'])))
     if obj == 'none' or not placeBs:
         debugMsg('placeGen', 'objs is none or no placeB')
+        if debug('traceGen'):
+            print '    ',  'placeGen: objs is none or no placeB'
         return
     if goalConds and getConf(goalConds, None) and not away:
         # if conf is specified, just fail
         debugMsg('placeGen', 'goal conf specified and not away')
+        if debug('traceGen'):
+            print '    ',  'placeGen: goal conf specified and not away'
         return
     # Have any output bindings been specified?
 

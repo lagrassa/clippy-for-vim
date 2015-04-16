@@ -960,6 +960,56 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
                    'table1MidRear']
           )
 
+#  Hold
+def testHold(hpn = True, skeleton = False, hierarchical = False,
+           heuristic = habbs, easy = False, rip = False):
+    # Seems to need this
+    global useRight, useVertical
+    useRight, useVertical = True, True
+
+    glob.rebindPenalty = 150
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
+    glob.monotonicFirst = True
+    table2Pose = util.Pose(1.0, -1.20, 0.0, 0.0)
+    
+    front = util.Pose(0.95, 0.0, tZ, 0.0)
+    # Put this back to make the problem harder
+    #back = util.Pose(1.1, 0.0, tZ, 0.0)
+    back = util.Pose(1.25, 0.0, tZ, 0.0)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
+
+    t = PlanTest('testHold',  errProbs, allOperators,
+                 objects=['table1', 'table2', 'objA', 'objB',
+                          'cupboardSide1', 'cupboardSide2'],
+                 movePoses={'objA': back,
+                            'objB': front},
+                 fixPoses={'table2': table2Pose},
+                 varDict = varDict)
+
+    obj = 'objB'
+    hand = 'right'
+    grasp = 0
+    delta = (0.01,)*4
+
+    goal = State([Bd([Holding([hand]), obj, goalProb], True),
+                  Bd([GraspFace([obj, hand]), grasp, goalProb], True),
+                  B([Grasp([obj, hand,  grasp]),
+                     (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), delta,
+                     goalProb], True)])
+
+    t.run(goal,
+          hpn = hpn,
+          skeleton = skel3 if skeleton else None,
+          heuristic = heuristic,
+          hierarchical = hierarchical,
+          rip = rip,
+          regions=['table1Top']
+          )
+
 ######################################################################
 #    Old tests    
 '''
