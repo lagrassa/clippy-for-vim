@@ -207,6 +207,20 @@ def otherHand((hand,), goal, start, vals):
 def obsVar(args, goal, start, vals):
     return [[start.domainProbs.obsVarTuple]]
 
+def getObj(args, goal, start, stuff):
+    (h,) = args
+    heldLeft = start.pbs.getHeld('left').mode()        
+    heldRight = start.pbs.getHeld('right').mode()        
+    result = []
+    hh = heldLeft if h == 'left' else heldRight
+    if hh == 'none' or h == 'right' and not start.pbs.useRight:
+        # If there is nothing in the hand right now, then we
+        # should technically iterate through all possible objects.
+        # For now, fail.
+        return []
+    else:
+        return [hh]
+
 def getObjAndHands(args, goal, start, stuff):
     (o, h) = args
     heldLeft = start.pbs.getHeld('left').mode()        
@@ -1083,10 +1097,14 @@ place = Operator(\
             # Not appropriate when we're just trying to decrease variance
             Function([], ['Pose'], notStar, 'notStar', True),
             Function([], ['PoseFace'], notStar, 'notStar', True),
-        
+
             # Get both hands and object!
-            Function(['Obj', 'Hand', 'OtherHand'], ['Obj', 'Hand'],
-                     getObjAndHands, 'getObjAndHands'),
+            # Function(['Obj', 'Hand', 'OtherHand'], ['Obj', 'Hand'],
+            #          getObjAndHands, 'getObjAndHands'),
+
+            # Get object.  Only if the var is unbound.  Try first the
+            # objects that are currently in the hands.
+            Function(['Obj'], ['Obj', 'Hand'], getObj, 'getObjAndHands'),
             
             # Be sure all result probs are bound.  At least one will be.
             Function(['PR1', 'PR2', 'PR3'],
@@ -1124,11 +1142,19 @@ place = Operator(\
 
             # Not modeling the fact that the object's shadow should
             # grow a bit as we move to pick it.   Build that into pickGen.
-            Function(['GraspMu', 'GraspFace', 'PlaceConf', 'PreConf'],
+            Function(['Hand', 
+                      'GraspMu', 'GraspFace', 'PlaceConf', 'PreConf'],
                      ['Obj', 'Pose', 'PoseFace', 'PoseVar', 'GraspVar',
-                      'PoseDelta', 'GraspDelta', 'ConfDelta', 'Hand',
-                     probForGenerators],
-                     placeGen, 'placeGen')
+                      'PoseDelta', 'GraspDelta', 'ConfDelta',probForGenerators],
+                     placeGen, 'placeGen'),
+
+            # Other hand
+            Function(['OtherHand'], ['Hand'], otherHand, 'otherHand'),
+
+            # Values for what is in the other hand
+            Function(['OObj', 'OFace', 'OGraspMu', 'OGraspVar', 'OGraspDelta'],
+                       ['OtherHand', 'Obj'], genGraspStuffHand,
+                       'genGraspStuffHand')
 
             ],
         cost = placeCostFun, 

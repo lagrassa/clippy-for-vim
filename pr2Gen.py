@@ -292,10 +292,11 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
     shWorld = pbs.getShadowWorld(prob)
     # !! Needs to look for plausible regions...
     regShapes = regShapes = [shWorld.regionShapes[region] for region in pbs.awayRegions()]
-    plGen = placeInGenTop((obj, regShapes, graspB, placeB, hand, prob),
+    plGen = placeInGenTop((obj, regShapes, graspB, placeB, prob),
                           goalConds, pbs, [],
                           considerOtherIns = False,
-                          regrasp = True)
+                          regrasp = True,
+                          hand = hand)
     for pl, viol in plGen:
         (pB, gB, cf, ca) = pl
         v = pickable(ca, cf, pB)
@@ -317,10 +318,10 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
         yield (pB, cf, ca), viol
     debugMsg('pickGen', 'out of values')
 
-# Returns (graspMu, graspFace, graspConf,  preConf)
-
+# Returns (hand, graspMu, graspFace, graspConf,  preConf)
 def placeGen(args, goalConds, bState, outBindings):
-    (obj, poses, support, objV, graspV, objDelta, graspDelta, confDelta, hand, prob) = args
+    (obj, poses, support, objV, graspV, objDelta, graspDelta, confDelta, prob)\
+       = args
 
     if not isinstance(poses[0], (list, tuple, frozenset)):
         poses = frozenset([poses])
@@ -330,10 +331,18 @@ def placeGen(args, goalConds, bState, outBindings):
                        PoseD(None, graspV), delta=graspDelta)
     placeBs = [ObjPlaceB(obj, world.getFaceFrames(obj), support,
                          PoseD(pose, objV), delta=objDelta) for pose in poses]
-    for ans, viol in placeGenTop((obj, graspB, placeBs, hand, prob),
-                                 goalConds, bState.pbs, outBindings):
+
+    gen = roundrobin(placeGenTop((obj, graspB, placeBs, 'left', prob),
+                                 goalConds, bState.pbs, outBindings),
+                     placeGenTop((obj, graspB, placeBs, 'right', prob),
+                                 goalConds, bState.pbs, outBindings)) \
+            if bState.pbs.useRight else \
+                 placeGenTop((obj, graspB, placeBs, 'left', prob),
+                             goalConds, bState.pbs, outBindings)
+
+    for ans, viol, hand in gen:
         (gB, pB, c, ca) = ans
-        yield (gB.poseD.mode().xyztTuple(), gB.grasp.mode(), c, ca)
+        yield (hand, gB.poseD.mode().xyztTuple(), gB.grasp.mode(), c, ca)
 
 # returns values for (?graspPose, ?graspFace, ?conf, ?confAppr)
 def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
@@ -395,7 +404,7 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
             pg = (pB.support.mode(), grasp)
             w = v.weight() if v else None
             print '    placeGen(%s,%s) viol='%(obj,hand), w, '(p,g)=', pg, pose, '(t=', time.clock()-startTime, ')'
-        yield x,v
+        yield x,v, hand
 
 def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
                 regrasp=False, pbsOrig=None):
@@ -551,7 +560,7 @@ def graspGen(pbs, obj, graspB, placeB=None, conf=None, hand=None, prob=None):
         yield gB
 
 # Return objPose, poseFace.
-def placeInRegionGen(args, goalConds, bState, outBindings):
+def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
     (obj, region, var, delta, prob) = args
 
     if not isinstance(region, (list, tuple, frozenset)):
@@ -604,17 +613,14 @@ def placeInRegionGen(args, goalConds, bState, outBindings):
         for rs in regShapes: rs.draw('W', 'purple')
         debugMsgSkip('placeInGen', skip, 'Target region in purple')
 
-    alternateHands = \
-      roundrobin(placeInGenTop((obj, regShapes, graspB, placeB, 'left', prob),
-                          goalConds, bState.pbs, outBindings),
-                placeInGenTop((obj, regShapes, graspB, placeB, 'right', prob),
-                          goalConds, bState.pbs, outBindings))
+    gen = placeInGenTop((obj, regShapes, graspB, placeB, prob),
+                          goalConds, bState.pbs, outBindings, away = away)
         
-    for ans, viol in alternateHands:
+    for ans, viol in gen:
         (pB, gB, cf, ca) = ans
         yield (pB.poseD.mode().xyztTuple(), pB.support.mode())
 
-    
+'''    
 # returns values for (?pose, ?poseFace, ?graspPose, ?graspFace, ?graspvar, ?conf, ?confAppr)
 def placeInGen(args, goalConds, bState, outBindings,
                considerOtherIns = False, regrasp = False, away=False):
@@ -680,6 +686,7 @@ def placeInGen(args, goalConds, bState, outBindings,
         (pB, gB, cf, ca) = ans
         yield (pB.poseD.mode().xyztTuple(), pB.support.mode(),
                gB.poseD.mode().xyztTuple(), gB.grasp.mode(), graspV, cf, ca)
+'''
 
 def placeInGenAway(args, goalConds, pbs, outBindings):
     # !! Should search over regions and hands
@@ -687,26 +694,28 @@ def placeInGenAway(args, goalConds, pbs, outBindings):
     hand = 'left'
     if not pbs.awayRegions():
         raw_input('Need some awayRegions')
-        return 
-    for ans in placeInGen((obj, pbs.awayRegions(), 'X1', 'X2', 'X3', 'X4',
-                           delta, delta, delta, hand, prob),
+        return
+    domainPlaceVar = pbs.domainProbs.obsVarTuple     
+    for ans in placeInRegionGen((obj, pbs.awayRegions(),
+                                          domainPlaceVar,
+                                          delta, prob),
                           # preserve goalConds to get reachObsts
                           goalConds, pbs, [], away=True):
         yield ans
 
 def placeInGenTop(args, goalConds, pbs, outBindings,
                   considerOtherIns = False, regrasp=False, away = False):
-    (obj, regShapes, graspB, placeB, hand, prob) = args
+    (obj, regShapes, graspB, placeB, prob) = args
     if debug('traceGen'):
-        print 'placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), fbch.inHeuristic
+        print 'placeInGen(%s,%s) h='%(obj,[x.name() for x in regShapes]), fbch.inHeuristic
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     debugMsgSkip('placeInGen', skip,
-             zip(('obj', 'regShapes', 'graspB', 'placeB', 'hand', 'prob'), args),
+             zip(('obj', 'regShapes', 'graspB', 'placeB', 'prob'), args),
              outBindings)
     if obj == 'none' or not regShapes:
         # Nothing to do
         if debug('traceGen'):
-            print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), fbch.inHeuristic, 'nothing to do'
+            print '    placeInGen(%s,%s) h='%(obj,[x.name() for x in regShapes]), fbch.inHeuristic, 'nothing to do'
         return
 
     if goalConds and getConf(goalConds, None) and not away:
@@ -729,7 +738,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     # If we are not considering other objects, pick a pose and call placeGen
     if not considerOtherIns:
         # placeInGenCache = pbs.beliefContext.genCaches['placeInGen']
-        # key = (obj, tuple(regShapes), graspB, placeB, hand, prob, regrasp, away, fbch.inHeuristic)
+        # key = (obj, tuple(regShapes), graspB, placeB, prob, regrasp, away, fbch.inHeuristic)
         # val = placeInGenCache.get(key, None)
         # if val != None:
         #     ff = placeB.faceFrames[placeB.support.mode()]
@@ -742,7 +751,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         #         pg = (sup, grasp)
         #         sh = objShadow.applyTrans(pose)
         #         if all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
-        #             viol2 = canPickPlaceTest(pbs, ca, cf, hand, gB, pB, prob)
+        #             viol2 = canPickPlaceTest(pbs, ca, cf, gB, pB, prob)
         #             print 'viol', viol
         #             print 'viol2', viol2
         #             if viol2 and viol2.weight() <= viol.weight():
@@ -758,17 +767,28 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         # Shadow (at origin) for object to be placed.
         domainPlaceVar = newBS.domainProbs.obsVarTuple 
         pB = placeB.modifyPoseD(var=domainPlaceVar)
-        poseGen = potentialRegionPoseGen(newBS, obj, pB, prob, regShapes, reachObsts, hand, maxPoses=100)
+        poseGenLeft = potentialRegionPoseGen(newBS, obj, pB, prob, regShapes,
+                                            reachObsts, 'left', maxPoses=100)
+        poseGenRight = potentialRegionPoseGen(newBS, obj, pB, prob, regShapes,
+                                           reachObsts, 'right', maxPoses=100)
+
+        mainLeftGen = placeInGenAux1(newBS, poseGenLeft, goalConds, confAppr,
+                 conf, placeB, graspB, 'left', prob, regrasp=regrasp, away=away)
+        mainRightGen = placeInGenAux1(newBS, poseGenRight, goalConds, confAppr,
+                conf, placeB, graspB, 'right', prob, regrasp=regrasp, away=away)
+        mainGen = roundrobin(mainLeftGen, mainRightGen) \
+                   if pbs.useRight else mainLeftGen
+        
         # Picks among possible target poses and then try to place it in region
-        for ans,v in placeInGenAux1(newBS, poseGen, goalConds, confAppr, conf,
-                                  placeB, graspB, hand, prob, regrasp=regrasp, away=away):
+        for ans,v in mainGen:
             if debug('traceGen'):
                 (pB, gB, c, ca) = ans
                 pose = pB.poseD.mode() if pB else None
                 grasp = gB.grasp.mode() if gB else None
                 sup = pB.support.mode() if pB else None
                 pg = (sup, grasp)
-                print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
+                print '    placeInGen(%s,%s) h='%(obj,[x.name() \
+                                                       for x in regShapes]), \
                       v.weight() if v else None, '(p,g)=', pg, pose
             #val.append((ans, v))
             yield ans,v
@@ -795,15 +815,16 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         for x in memo: yield x
 
 # Don't try to place all objects at once
-def placeInGenAux1(pbs, poseGen, goalConds, confAppr, conf, placeB, graspB, hand, prob,
-                   regrasp=False, away=False):
+def placeInGenAux1(pbs, poseGen, goalConds, confAppr, conf, placeB, graspB,
+                   hand, prob, regrasp=False, away=False):
     def placeBGen():
         for pose in poseGen:
             yield placeB.modifyPoseD(mu=pose)
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     tries = 0
-    for ans, viol in placeGenTop((graspB.obj, graspB, placeBGen(), hand, prob),
-                                 goalConds, pbs, [], regrasp=regrasp, away=away):
+    for ans, viol, hand in placeGenTop((graspB.obj, graspB, placeBGen(),
+                                        hand, prob),
+                               goalConds, pbs, [], regrasp=regrasp, away=away):
         (gB, pB, cf, ca) = ans
         if debug('placeInGen', skip=skip):
             drawPoseConf(pbs, pB, cf, ca, prob, 'W', 'blue')
@@ -1028,11 +1049,12 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
     def moveOut(newBS, obst, delta):
         if debug('traceGen') or debug('canReachGen'):
             print '    canReachGen() obst:', obst
+        domainPlaceVar = bState.domainProbs.obsVarTuple 
         if not isinstance(obst, str):
             obst = obst.name()
         for ans in placeInGenAway((obst, delta, prob), goalConds, newBS, None):
-            (pose, poseFace, _, _, gV, _, _) = ans
-            yield (obst, pose, poseFace, gV, delta)
+            (pose, poseFace) = ans
+            yield (obst, pose, poseFace, domainPlaceVar, delta)
     
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
@@ -1113,9 +1135,10 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
             print '    canPickPlaceGen() obst:', obst
         if not isinstance(obst, str):
             obst = obst.name()
+        domainPlaceVar = bState.domainProbs.obsVarTuple 
         for ans in placeInGenAway((obst, delta, prob), goalConds, newBS, None):
-            (pose, poseFace, _, _, gV, _, _) = ans
-            yield (obst, pose, poseFace, gV, delta)
+            (pose, poseFace) = ans
+            yield (obst, pose, poseFace, domainPlaceVar, delta)
 
     debugMsg('canPickPlaceGen', args)
     if debug('traceGen') or debug('canPickPlaceGen'):
@@ -1230,11 +1253,12 @@ def canSeeGenTop(args, goalConds, pbs, outBindings):
     def moveOut(newBS, obst, delta):
         if debug('traceGen') or debug('canSeeGen'):
             print '    canSeeGen(%s) obst='%obj, obst
+        domainPlaceVar = pbs.domainProbs.obsVarTuple 
         if not isinstance(obst, str):
             obst = obst.name()
         for ans in placeInGenAway((obst, delta, prob), goalConds, newBS, None):
-            (pose, poseFace, _, _, gV, _, _) = ans
-            yield (obst, pose, poseFace, gV, delta)
+            (pose, poseFace) = ans
+            yield (obst, pose, poseFace, domainPlaceVar, delta)
 
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
