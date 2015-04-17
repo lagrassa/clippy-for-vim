@@ -203,7 +203,8 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, prob, nMax=None):
     rm = pbs.getRoadMap()
     wrist = objectGraspFrame(pbs, graspB, placeB)
     if debug('potentialGraspConfs'):
-        print 'wrist', wrist
+        print 'potentialGraspConfGen', hand, placeB.obj, graspB.grasp
+        print wrist
         pbs.draw(prob, 'W')
     count = 0
     tried = 0
@@ -241,8 +242,8 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, prob, nMax=None):
             yield conf, viol
         else:
             if debug('potentialGraspConfs'): conf.draw('W','red')
-    if debug('potentialGraspConfs'):
-        print 'Tried', tried, 'Found', count, 'potential grasp confs'
+    debugMsg('potentialGraspConfs',
+             ('Tried', tried, 'Found', count, 'potential grasp confs'))
     return
 
 def potentialLookConfGen(rm, shape, maxDist):
@@ -621,6 +622,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, prob, regShapes, reachObsts, han
     hyps = []                         # (index, cost)
     points = []                       # [(angle, xyz1)]
     count = 0
+    # !! Should we loop over the grasps or rely on sampling one grasp...
     graspB = pbs.defaultGraspB(obj)  # all grasps...
     world = pbs.getWorld()
     for rs in regShapes:
