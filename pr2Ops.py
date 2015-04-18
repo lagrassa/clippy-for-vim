@@ -712,7 +712,7 @@ def pickBProgress(details, args, obs=None):
     failProb = details.domainProbs.pickFailProb
     # !! This is wrong!  The coordinate frames of the variances don't match.
     v = [x+y for x,y in zip(details.pbs.getPlaceB(o).poseD.var, pickVar)]
-    v[2] = 1e-8
+    v[2] = 1e-20
     gv = tuple(v)
     details.graspModeProb[h] = (1 - failProb) * details.poseModeProbs[o]
     details.pbs.updateHeld(o, gf, PoseD(gm, gv), h, gd)
@@ -729,7 +729,7 @@ def placeBProgress(details, args, obs=None):
     # !! This is wrong!  The coordinate frames of the variances don't match.
     v = [x+y for x,y in \
          zip(details.pbs.getGraspB(o,h).poseD.var, placeVar)]
-    v[2] = 1e-8
+    v[2] = 1e-20
     gv = tuple(v)
     details.poseModeProbs[o] = (1 - failProb) * details.graspModeProb[h]
     details.pbs.updateHeld('none', None, None, h, None)
