@@ -331,8 +331,8 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
 
 # Returns (hand, graspMu, graspFace, graspConf,  preConf)
 def placeGen(args, goalConds, bState, outBindings):
-    (obj, poses, support, objV, graspV, objDelta, graspDelta, confDelta, prob)\
-       = args
+    (obj, hand, poses, support, objV, graspV, objDelta, graspDelta, confDelta,
+     prob) = args
 
     if not isinstance(poses[0], (list, tuple, frozenset)):
         poses = frozenset([poses])
@@ -343,13 +343,21 @@ def placeGen(args, goalConds, bState, outBindings):
     placeBs = [ObjPlaceB(obj, world.getFaceFrames(obj), support,
                          PoseD(pose, objV), delta=objDelta) for pose in poses]
 
-    gen = roundrobin(placeGenTop((obj, graspB, placeBs, 'left', prob),
-                                 goalConds, bState.pbs, outBindings),
-                     placeGenTop((obj, graspB, placeBs, 'right', prob),
-                                 goalConds, bState.pbs, outBindings)) \
-            if bState.pbs.useRight else \
-                 placeGenTop((obj, graspB, placeBs, 'left', prob),
-                             goalConds, bState.pbs, outBindings)
+    assert not (bState.pbs.useRight == False and hand == 'right')
+
+    mustUseLeft = (hand == 'left' or not bState.pbs.useRight)
+    mustUseRight = (hand == 'right')
+    leftGen = placeGenTop((obj, graspB, placeBs, 'left', prob),
+                                 goalConds, bState.pbs, outBindings)
+    rightGen = placeGenTop((obj, graspB, placeBs, 'right', prob),
+                                 goalConds, bState.pbs, outBindings)
+
+    if mustUseLeft:
+        gen = leftGen
+    elif mustUseRight:
+        gen = rightGen
+    else:
+        gen = roundrobin(leftGen, rightGen)
 
     for ans, viol, hand in gen:
         (gB, pB, c, ca) = ans

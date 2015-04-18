@@ -1158,7 +1158,8 @@ place = Operator(\
             # grow a bit as we move to pick it.   Build that into pickGen.
             Function(['Hand', 
                       'GraspMu', 'GraspFace', 'PlaceConf', 'PreConf'],
-                     ['Obj', 'Pose', 'PoseFace', 'RealPoseVar', 'GraspVar',
+                     ['Obj', 'Hand', 'Pose', 'PoseFace', 'RealPoseVar',
+                      'GraspVar',
                       'PoseDelta', 'GraspDelta', 'ConfDelta',probForGenerators],
                      placeGen, 'placeGen'),
 
