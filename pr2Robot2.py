@@ -1,4 +1,5 @@
 import pdb
+import random
 import math
 import util
 import copy
@@ -441,7 +442,7 @@ class PR2:
         if debug('PR2'): print 'New PR2!'
         return
 
-    def potentialBasePosesGen(self, wrist, hand):
+    def potentialBasePosesGen(self, wrist, hand, n=None):
         xAxisZ = wrist.matrix[2,0]
         if abs(xAxisZ) < 0.01:
             trs = self.horizontalTrans[hand]
@@ -450,7 +451,9 @@ class PR2:
         else:
             print 'wrist=\n', wrist.matrix
             raw_input('Illegal wrist trans for base pose')
-        for tr in trs:
+        random.shuffle(trs)             # !!
+        for i, tr in enumerate(trs):
+            if n and i > n: return
             ans = wrist.compose(tr).pose(fail=False)
             if ans is None:
                 print 'wrist=\n', wrist.matrix

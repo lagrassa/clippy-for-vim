@@ -440,8 +440,7 @@ class PlanTest:
         rm.batchAddNodes(self.initConfs)
         belC.roadMap = rm
         pbs = PBS(belC, conf=pr2Home, fixObjBs = self.fix.copy(), moveObjBs = self.move.copy(),
-        regions = frozenset(regions), domainProbs=self.domainProbs) 
-        pbs.useRight = useRight
+        regions = frozenset(regions), domainProbs=self.domainProbs, useRight=useRight) 
         pbs.draw(0.95, 'Belief')
         bs = BeliefState(pbs, self.domainProbs, 'table2Top')
         ### !!!!  LPK Awful modularity
@@ -1023,11 +1022,11 @@ JointConf({'pr2LeftGripper': [0.08], 'pr2RightArm': [-1.6833516359329224, 1.0618
     skel3 = [[poseAchIn,
               lookAt.applyBindings({'Obj' : 'objB'}), move,
               lookAt.applyBindings({'Obj' : 'objB'}), move,
-              place.applyBindings({'Hand' : 'right', 'Obj' : 'objB'}), move,
+              place.applyBindings({'Obj' : 'objB'}), move,
               pick, move,
               poseAchCanPickPlace,
               lookAt.applyBindings({'Obj' : 'objA'}), move,
-              place.applyBindings({'Hand' : 'left', 'Obj' : 'objA'}), move,
+              place.applyBindings({'Obj' : 'objA'}), move,
               pick, move,
               lookAt.applyBindings({'Obj' : 'objA'}), move,
               lookAt.applyBindings({'Obj' : 'objA'}), move,

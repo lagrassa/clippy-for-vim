@@ -49,8 +49,7 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
 debugOn = ['traceGen', 'traceCRH', 'confReachViol', 'canPickPlaceGen', 'pickGen']
 debugOn = ['traceGen', 'traceCRH', 'prim', 'getShadowWorldGrasp']
 # debugOn = []
-debugOn = ['traceGen', 'traceCRH', 'skeleton', 'hAddBackInf', 'placeGen',
-           'potentialRegionPoseGen', 'potentialGraspConfs']
+debugOn = ['traceGen', 'traceCRH', 'skeleton', 'hAddBackInf']
 #           'potentialGraspConfs', 'potentialRegionPoseGen', 'infeasible'
 #          'getShadowWorld', 'confReachViol', 'confViolations', 'lookGen', 'canReachGen', 'visible', 'lookGen'
 
