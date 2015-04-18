@@ -987,7 +987,7 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
     def moveOut(newBS, obst, delta):
         if debug('traceGen') or debug('canReachGen'):
             print '    canReachGen() obst:', obst
-        domainPlaceVar = bState.domainProbs.obsVarTuple 
+        domainPlaceVar = newBS.domainProbs.obsVarTuple 
         if not isinstance(obst, str):
             obst = obst.name()
         for ans in placeInGenAway((obst, delta, prob), goalConds, newBS, None):

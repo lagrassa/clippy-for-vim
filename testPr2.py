@@ -45,7 +45,7 @@ from pr2RoadMap2 import RoadMap
 import pr2Fluents
 reload(pr2Fluents)
 from pr2Fluents import Conf, SupportFace, Pose, Holding, GraspFace, Grasp,\
-     partition, In
+     partition, In, CanPickPlace
 
 import pr2PlanBel2
 reload(pr2PlanBel2)
@@ -566,6 +566,7 @@ class PlanTest:
 ######################################################################
 
 # No Z error in observations for now!  Address this eventually.
+# Turned down pickVar until we can look at hand
 
 typicalErrProbs = DomainProbs(\
             # stdev, as a percentage of the motion magnitude
@@ -578,7 +579,8 @@ typicalErrProbs = DomainProbs(\
             pickFailProb = 0.02,
             placeFailProb = 0.02,
             # variance in grasp after picking
-            pickVar = (0.01**2, 0.01**2, 1e-11, 0.02**2),
+            # pickVar = (0.01**2, 0.01**2, 1e-11, 0.02**2),
+            pickVar = (0.005**2, 0.005**2, 1e-11, 0.005**2),
             # variance in grasp after placing
             placeVar = (0.01**2, 0.01**2, 1e-11, 0.02**2),
             # pickTolerance
@@ -910,8 +912,7 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
 
     t = PlanTest('testSwap',  errProbs, allOperators,
                  objects=['table1', 'table2', 'objA',
-                          'objB',
-                          'cupboardSide1', 'cupboardSide2'],
+                          'objB'], #,'cupboardSide1', 'cupboardSide2'],
                  movePoses={'objA': back,
                             'objB': front},
                  fixPoses={'table2': table2Pose},
@@ -960,7 +961,72 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
                    'table1MidRear']
           )
 
-#  Hold
+#  
+def testFrotz(hpn = True, skeleton = False, hierarchical = False,
+           heuristic = habbs, easy = False, rip = False):
+    # Seems to need this
+    global useRight, useVertical
+    useRight, useVertical = True, True
+
+    glob.rebindPenalty = 150
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
+    glob.monotonicFirst = True
+    table2Pose = util.Pose(1.0, -1.20, 0.0, 0.0)
+    table1Pose = util.Pose(1.101, 0.009, 0.000, 1.569)
+    
+    front = util.Pose(0.947, 0.003, tZ, 0.001)
+    back = util.Pose(1.25, 0.0, tZ, 0.0)
+
+    varDict = {} if easy else {'table1': (0.007**2, 0.007**2, 1e-10, 0.007**2),
+                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objB': (0.007**2,0.007**2, 1e-10,0.007**2)}
+
+    t = PlanTest('testHold',  errProbs, allOperators,
+                 objects=['table1', 'objA', 'objB',   # 'table2'
+                          'cupboardSide1', 'cupboardSide2'],
+                 movePoses={'objA': back,
+                            'objB': front},
+                 fixPoses={'table2': table2Pose,
+                           'table1': table1Pose},
+                 varDict = varDict)
+
+    obj = 'objB'
+    hand = 'right'
+    grasp = 0
+    delta = (0.01,)*4
+
+    goal = State([Bd([CanPickPlace([
+        JointConf({'pr2LeftGripper': [0.08], 'pr2RightArm': [-1.6833515167236328, 1.0618836879730225, -2.0999999046325684, -1.8750070333480835, 2.055434465408325, -0.49070966243743896, -1.6279093027114868], 'pr2Base': [1.8830066919326782, 0.7301344275474548, 2.356194496154785], 'pr2Torso': [0.3], 'pr2RightGripper': [0.07], 'pr2Head': [-2.0649600894148774, 5.504898941438661e-12], 'pr2LeftArm': [2.029942035675049, -0.029148640111088753, 1.7999999523162842, -1.050041675567627, 1.4296925067901611, -1.3872668743133545, 0.21086381375789642]}, t.world.robot),
+JointConf({'pr2LeftGripper': [0.08], 'pr2RightArm': [-1.6833516359329224, 1.0618836879730225, -2.0999999046325684, -1.8750070333480835, 2.055434465408325, -0.4907096028327942, -1.6279094219207764], 'pr2Base': [1.8830066919326782, 0.7301344275474548, 2.356194496154785], 'pr2Torso': [0.3], 'pr2RightGripper': [0.07], 'pr2Head': [0.0, 0.0], 'pr2LeftArm': [2.0088162422180176, 0.1509757786989212, 1.7999999523162842, -0.9659018516540527, 1.5666221380233765, -1.2970997095108032, 0.24068012833595276]}, t.world.robot),
+'left',
+'objB',
+(1.3166142702102661, 0.02232048660516739, 0.6800000071525574, 0.0),
+(0.0005, 0.0005, 0.00040000001000000003, 0.0084),
+(0.01, 0.01, 0.01, 0.03),
+4,
+2,
+(0.0, -0.02500000037252903, 0.0, 0.0),
+(0.0004, 0.0004, 0.0004, 0.008),
+(0.005, 0.005, 0.005, 0.015),
+'none',
+0,
+(0.0, 0.0, 0.0, 0.0),
+(0.0, 0.0, 0.0, 0.0),
+(0.001, 0.001, 0.001, 0.001),
+[]]), True, 0.9], True)])
+
+    goal3 = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
+
+    t.run(goal3,
+          hpn = hpn,
+          skeleton = skel if skeleton else None,
+          heuristic = heuristic,
+          hierarchical = hierarchical,
+          rip = rip,
+          regions=['table1Top']
+          )
+
 def testHold(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = False, rip = False):
     # Seems to need this
@@ -1009,6 +1075,7 @@ def testHold(hpn = True, skeleton = False, hierarchical = False,
           rip = rip,
           regions=['table1Top']
           )
+
 
 ######################################################################
 #    Old tests    
