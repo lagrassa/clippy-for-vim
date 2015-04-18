@@ -278,8 +278,8 @@ class RealWorld(WorldState):
             # Execute the place prim, starting at c1, aiming for c2.
             # Every kind of horrible, putting these indices here..
             hand = op.args[1]
-            placeConf = op.args[-7]
-            approachConf = op.args[-9]
+            placeConf = op.args[-8]
+            approachConf = op.args[-10]
             self.setRobotConf(placeConf)
             self.robotPlace.draw('World', 'orchid')            
             if not self.attached[hand]:
