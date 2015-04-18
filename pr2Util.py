@@ -281,7 +281,7 @@ class Memoizer:
     def __init__(self, name, generator, values = None):
         self.name = name
         self.generator = generator
-        self.values = values if values else []
+        self.values = values if values else [name]
         self.i = 0
     def __iter__(self):
         return self
@@ -290,10 +290,10 @@ class Memoizer:
         new = Memoizer(self.name, self.generator, self.values)
         return new
     def next(self):
-        if self.i < len(self.values):
+        if self.i < len(self.values)-1:
             i = self.i
             self.i += 1
-            return self.values[i]
+            return self.values[i+1]
         else:
             val = self.generator.next()
             self.values.append(val)

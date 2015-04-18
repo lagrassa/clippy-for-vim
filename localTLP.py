@@ -58,5 +58,3 @@ if platform.system() == 'Linux':
         if not x in debugOn: debugOn.append(x)
 
 pauseOn = debugOn
-
-

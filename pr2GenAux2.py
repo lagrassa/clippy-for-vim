@@ -631,11 +631,10 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             if v:
                 if debug('potentialRegionPoseGen'):
                     c.draw('W')
-                    raw_input('weight=%s'%str(v.weight()))
+                    debugMsg('potentialRegionPoseGen', 'weight=%s'%str(v.weight()))
                 return v.weight()
         return None
 
-    print 'potentialRegionPoseGen', obj
     clearance = 0.01
     if debug('potentialRegionPoseGen'):
         pbs.draw(prob, 'W')
@@ -652,6 +651,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     count = 0
     world = pbs.getWorld()
     for rs in regShapes:
+        print 'potentialRegionPoseGen', obj, rs.name(), hand
         if debug('potentialRegionPoseGen'):
             print 'Considering region', rs.name()
         for (angle, shRot) in shRotations.items():
@@ -740,8 +740,8 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                 print '->', pose, 'prob=', pointDist.prob(index), 'max prob=', max(pointDist.d.values())
                 shRotations[angle].applyTrans(pose).draw('W', 'green')
             yield pose
-    if debug('potentialRegionPoseGen'):
-        print 'Returned', count, 'for regions', [r.name() for r in regShapes]
+    if True: # debug('potentialRegionPoseGen'):
+        print 'Tried', tries, 'returned', count, 'for regions', [r.name() for r in regShapes]
     return
 
 def baseDist(c1, c2):

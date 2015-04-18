@@ -306,7 +306,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
                           goalConds, pbs, [],
                           considerOtherIns = False,
                           regrasp = True,
-                          hand = hand   # !! not any more...
+                          # !! hand = hand   # !! not any more...
                           )
     for pl, viol in plGen:
         (pB, gB, cf, ca) = pl
@@ -340,8 +340,11 @@ def placeGen(args, goalConds, bState, outBindings):
     world = bState.pbs.getWorld()
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
                        PoseD(None, graspV), delta=graspDelta)
-    placeBs = [ObjPlaceB(obj, world.getFaceFrames(obj), support,
-                         PoseD(pose, objV), delta=objDelta) for pose in poses]
+    def placeBGen():
+        for pose in poses:
+            yield ObjPlaceB(obj, world.getFaceFrames(obj), support,
+                            PoseD(pose, objV), delta=objDelta)
+    placeBs = Memoizer('placeBGen_placeGen', placeBGen())
 
     assert not (bState.pbs.useRight == False and hand == 'right')
 
@@ -360,6 +363,7 @@ def placeGen(args, goalConds, bState, outBindings):
         gen = roundrobin(leftGen, rightGen)
 
     for ans, viol, hand in gen:
+        print 'placeGen ->', hand
         (gB, pB, c, ca) = ans
         yield (hand, gB.poseD.mode().xyztTuple(), gB.grasp.mode(), c, ca)
 
@@ -411,7 +415,7 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
         for gc in goalConds: print gc
         newBS.draw(prob, 'W')
         debugMsg('placeGen', 'Goal conditions')
-    gen = placeGenAux(newBS, obj, confAppr, conf, placeBs, graspB, hand, prob,
+    gen = placeGenAux(newBS, obj, confAppr, conf, placeBs.copy(), graspB, hand, prob,
                       regrasp=regrasp, pbsOrig = pbs)
     # !! double check reachObst collision?
     for x,v in gen:
@@ -461,9 +465,14 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
         else: return 0
 
     def placeApproachConfGen(gB):
-        for pB in placeBs:
+        placeBsCopy = placeBs.copy()
+        assert placeBsCopy.values is placeBs.values
+
+        for pB in placeBsCopy:          # re-generate
             if debug('placeGen', skip=skip):
                 print 'placeGen: considering grasps for ', pB
+                print 'placeGen: for grasp class', gB.grasp
+                print 'placeBsCopy.values', len(placeBsCopy.values)
             if regrasp:
                 checkRegraspable(pB)
             graspConfGen = potentialGraspConfGen(pbs, pB, gB, conf, hand, prob)
@@ -630,6 +639,9 @@ def placeInGenAway(args, goalConds, pbs, outBindings):
                           goalConds, pbs, [], away=True):
         yield ans
 
+placeInGenMaxPoses  = 50
+placeInGenMaxPosesH = 10
+
 def placeInGenTop(args, goalConds, pbs, outBindings,
                   considerOtherIns = False, regrasp=False, away = False):
     (obj, regShapes, graspB, placeB, prob) = args
@@ -692,11 +704,18 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         # Shadow (at origin) for object to be placed.
         domainPlaceVar = newBS.domainProbs.obsVarTuple 
         pB = placeB.modifyPoseD(var=domainPlaceVar)
-        poseGenLeft = potentialRegionPoseGen(newBS, obj, pB, graspB, prob, regShapes,
-                                            reachObsts, 'left', maxPoses=100)
-        poseGenRight = potentialRegionPoseGen(newBS, obj, pB, graspB, prob, regShapes,
-                                           reachObsts, 'right', maxPoses=100)
+        nPoses = placeInGenMaxPosesH if fbch.inHeuristic else placeInGenMaxPoses
+        poseGenLeft = Memoizer('regionPosesLeft',
+                               potentialRegionPoseGen(newBS, obj, pB, graspB, prob, regShapes,
+                                                      reachObsts, 'left',
+                                                      maxPoses=nPoses))
+        poseGenRight = Memoizer('regionPosesRight',
+                                potentialRegionPoseGen(newBS, obj, pB, graspB, prob, regShapes,
+                                                       reachObsts, 'right',
+                                                       maxPoses=nPoses))
 
+        assert pbs.useRight == False
+    
         mainLeftGen = placeInGenAux1(newBS, poseGenLeft, goalConds, confAppr,
                  conf, placeB, graspB, 'left', prob, regrasp=regrasp, away=away)
         mainRightGen = placeInGenAux1(newBS, poseGenRight, goalConds, confAppr,
@@ -744,12 +763,12 @@ def placeInGenAux1(pbs, poseGen, goalConds, confAppr, conf, placeB, graspB,
                    hand, prob, regrasp=False, away=False):
 
     def placeBGen():
-        for pose in poseGen:
+        for pose in poseGen.copy():
             yield placeB.modifyPoseD(mu=pose)
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     tries = 0
-    for ans, viol, hand in placeGenTop((graspB.obj, graspB, placeBGen(),
-                                        hand, prob),
+    gen = Memoizer('placeBGen_placeInGenAux1', placeBGen())
+    for ans, viol, hand in placeGenTop((graspB.obj, graspB, gen, hand, prob),
                                goalConds, pbs, [], regrasp=regrasp, away=away):
         (gB, pB, cf, ca) = ans
         if debug('placeInGen', skip=skip):
@@ -1242,7 +1261,10 @@ def placeInGenOld(args, goalConds, bState, outBindings,
             bState.pbs.draw(prob, 'W')
             debugMsgSkip('placeInGen', skip, ('Pose specified', pose))
         oplaceB = placeB.modifyPoseD(mu=util.Pose(*pose))
-        for ans, viol in placeGenTop((obj, graspB, [oplaceB], hand, prob),
+        def placeBGen():
+            yield oplaceB
+        placeBs = Memoizer('placeBGen', placeBGen())
+        for ans, viol in placeGenTop((obj, graspB, placeBs, hand, prob),
                                      goalConds, bState.pbs, [], away=away):
             (gB, pB, cf, ca) = ans
             yield (pose, oplaceB.support.mode(),
