@@ -714,8 +714,6 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
                                                        reachObsts, 'right',
                                                        maxPoses=nPoses))
 
-        assert pbs.useRight == False
-    
         mainLeftGen = placeInGenAux1(newBS, poseGenLeft, goalConds, confAppr,
                  conf, placeB, graspB, 'left', prob, regrasp=regrasp, away=away)
         mainRightGen = placeInGenAux1(newBS, poseGenRight, goalConds, confAppr,
