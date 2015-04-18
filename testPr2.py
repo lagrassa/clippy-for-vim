@@ -983,8 +983,8 @@ def testFrotz(hpn = True, skeleton = False, hierarchical = False,
                                'objB': (0.007**2,0.007**2, 1e-10,0.007**2)}
 
     t = PlanTest('testHold',  errProbs, allOperators,
-                 objects=['table1', 'objA', 'objB',   # 'table2'
-                          'cupboardSide1', 'cupboardSide2'],
+                 objects=['table1', 'objA', 'objB'],   # 'table2'
+                           #'cupboardSide1', 'cupboardSide2'],
                  movePoses={'objA': back,
                             'objB': front},
                  fixPoses={'table2': table2Pose,
@@ -996,6 +996,7 @@ def testFrotz(hpn = True, skeleton = False, hierarchical = False,
     grasp = 0
     delta = (0.01,)*4
 
+    # Make it possible to place B where A currently is.
     goal = State([Bd([CanPickPlace([
         JointConf({'pr2LeftGripper': [0.08], 'pr2RightArm': [-1.6833515167236328, 1.0618836879730225, -2.0999999046325684, -1.8750070333480835, 2.055434465408325, -0.49070966243743896, -1.6279093027114868], 'pr2Base': [1.8830066919326782, 0.7301344275474548, 2.356194496154785], 'pr2Torso': [0.3], 'pr2RightGripper': [0.07], 'pr2Head': [-2.0649600894148774, 5.504898941438661e-12], 'pr2LeftArm': [2.029942035675049, -0.029148640111088753, 1.7999999523162842, -1.050041675567627, 1.4296925067901611, -1.3872668743133545, 0.21086381375789642]}, t.world.robot),
 JointConf({'pr2LeftGripper': [0.08], 'pr2RightArm': [-1.6833516359329224, 1.0618836879730225, -2.0999999046325684, -1.8750070333480835, 2.055434465408325, -0.4907096028327942, -1.6279094219207764], 'pr2Base': [1.8830066919326782, 0.7301344275474548, 2.356194496154785], 'pr2Torso': [0.3], 'pr2RightGripper': [0.07], 'pr2Head': [0.0, 0.0], 'pr2LeftArm': [2.0088162422180176, 0.1509757786989212, 1.7999999523162842, -0.9659018516540527, 1.5666221380233765, -1.2970997095108032, 0.24068012833595276]}, t.world.robot),
@@ -1016,11 +1017,29 @@ JointConf({'pr2LeftGripper': [0.08], 'pr2RightArm': [-1.6833516359329224, 1.0618
 (0.001, 0.001, 0.001, 0.001),
 []]), True, 0.9], True)])
 
+    # Place obj B where A currently is
     goal3 = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
+
+    skel3 = [[poseAchIn,
+              lookAt.applyBindings({'Obj' : 'objB'}), move,
+              lookAt.applyBindings({'Obj' : 'objB'}), move,
+              place.applyBindings({'Hand' : 'right', 'Obj' : 'objB'}), move,
+              pick, move,
+              poseAchCanPickPlace,
+              lookAt.applyBindings({'Obj' : 'objA'}), move,
+              place.applyBindings({'Hand' : 'left', 'Obj' : 'objA'}), move,
+              pick, move,
+              lookAt.applyBindings({'Obj' : 'objA'}), move,
+              lookAt.applyBindings({'Obj' : 'objA'}), move,
+              lookAt.applyBindings({'Obj' : 'objB'}), move,
+              lookAt.applyBindings({'Obj' : 'objB'}), move,
+              lookAt.applyBindings({'Obj' : 'table1'}), move,
+              poseAchCanPickPlace,
+              lookAt.applyBindings({'Obj' : 'table1'}), move]]
 
     t.run(goal3,
           hpn = hpn,
-          skeleton = skel if skeleton else None,
+          skeleton = skel3 if skeleton else None,
           heuristic = heuristic,
           hierarchical = hierarchical,
           rip = rip,
