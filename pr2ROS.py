@@ -208,12 +208,12 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         outConfCart = lookConf.robot.forwardKin(outConf)
         if 'table' in targetObj:
             table = lookAtTable(placeBs[targetObj])
-            if not table: return None
+            if not table: return []
             trueFace = supportFaceIndex(table)
             tablePoseRobot = getSupportPose(table, trueFace)
             tablePose = outConfCart['pr2Base'].compose(tablePoseRobot)
             #!! needs generalizing
-            return (self.world.getObjType(targetObj), trueFace, tablePose)
+            return [(self.world.getObjType(targetObj), trueFace, tablePose)]
         elif targetObj in placeBs:
             supportTable = findSupportTable(targetObj, self.world, placeBs)
             assert supportTable
@@ -221,7 +221,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             if not wellLocalized(placeB):
                 tableRobot = lookAtTable(placeB)
                 table = tableRobot.applyTrans(outConfCart['pr2Base'])
-                if not table: return None
+                if not table: return []
             else:
                 table = self.world.getObjectShapeAtOrigin(supportTable).applyLoc(placeB.objFrame())
             surfacePoly = makeROSPolygon(table)
@@ -248,7 +248,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             return obs
         else:
             raw_input('Unknown object: %s'%targetObj)
-            return None
+            return []
 
     def lookObjShape(self, placeB):
         shape = self.world.getObjectShapeAtOrigin(placeB.obj)
