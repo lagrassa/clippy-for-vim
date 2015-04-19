@@ -128,7 +128,7 @@ def pickPrim(args, details):
     if debug('prim'):
         print '*** pickPrim'
         print list(enumerate(zip(vl, args)))
-    return None
+    return details.pbs.getPlacedObjBs()
 
 def lookPrim(args, details):
     # In the real vision system, we might pass in a more general
@@ -183,7 +183,7 @@ def placePrim(args, details):
         print '*** placePrim'
         print list(enumerate(zip(vl, args)))
 
-    return None
+    return details.pbs.getPlacedObjBs()
 
 
 ################################################################

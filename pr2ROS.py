@@ -12,11 +12,10 @@ from planGlobals import debug, debugMsg
 import windowManager3D as wm
 from pr2Util import shadowWidths, supportFaceIndex
 from miscUtil import argmax
-from pr2Robot2 import JointConf, CartConf
-
+from pr2Visible import lookAtConf
 import pr2Robot2
 reload(pr2Robot2)
-from pr2Robot2 import cartInterpolators
+from pr2Robot2 import cartInterpolators, JointConf, CartConf
 
 import util
 import tables
@@ -251,13 +250,27 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             raw_input('Unknown object: %s'%targetObj)
             return None
 
+    def lookObjShape(self, placeB):
+        shape = self.world.getObjectShapeAtOrigin(placeB.obj)
+        return shape.applyLoc(placeB.objFrame())
+
     def executePick(self, op, params):
-        (hand, pickConf, approachConf) = \
-               (op.args[1], op.args[17], op.args[15])
+        (obj, hand, pickConf, approachConf) = \
+               (op.args[0], op.args[1], op.args[17], op.args[15])
+
+        if params:
+            placeBs = params
+        else:
+            print op
+            raw_input('No object distributions given')
+            return None
+
         gripper = 'pr2LeftGripper' if hand=='left' else 'pr2RightGripper'
 
         debugMsg('robotEnv', 'executePick - open')
         result, outConf = pr2GoToConf(approachConf, 'move')
+        result, outConf = pr2GoToConf(lookAtConf(approachConf, self.lookObjShape(placeBs[obj])),
+                                      'look')
         
         debugMsg('robotEnv', 'executePick - move to pickConf')
         reactiveApproach(approachConf, pickConf, 0.06, hand)
