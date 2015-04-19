@@ -754,9 +754,7 @@ def lookAtBProgress(details, args, obs):
 llMatchThreshold = -100  # very liberal
 
 def objectObsUpdate(details, obs, soughtObject):
-    # Assume for now a single observed object.  Make this fancier when
-    # we can get multiple detections.
-    if obs == None:
+    if obs == []:
         debugMsg('obsUpdate', 'No good match for observation')
         # Update modeprob
         oldP = details.poseModeProbs[soughtObject]
@@ -764,8 +762,116 @@ def objectObsUpdate(details, obs, soughtObject):
         obsGivenNotH = (1 - details.domainProbs.obsTypeErrProb)
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
         details.poseModeProbs[soughtObject] = newP
-        return
+    else:
+        singleTargetUpdate(details, obs, soughtObject)
+
+# Gets multiple observations and tries to find the one that best
+# matches sought object
+def singleTargetUpdate(details, obsList, soughtObject):
+    pbs = details.pbs
+    obsVar = details.domainProbs.obsVarTuple
+    # Create old distribution.
+    oldObjBel = pbs.getPlaceB(soughtObject)
+    oldPoseFace = oldObjBel.support.mode()
+    oldPoseMu = oldObjBel.poseD.mode()
+    oldVar = oldObjBel.poseD.variance()
+    obsCov = [v1 + v2 for (v1, v2) in zip(oldVar, obsVar)]
+    obsPoseD = MultivariateGaussianDistribution(np.mat(oldPoseMu.xyztTuple()).T,
+                                                    makeDiag(obsCov))
+    if debug('obsUpdate'):
+        print 'oldPoseMu', oldPoseMu.pose()
+
+    bestObs, bestLL, bestFace = None, -float('inf'), None
+    for obs in obsList:
+        (obsPose, ll, face) = \
+          scoreObsSoughtObj(details, obs, soughtObject,
+                                          obsPoseD, oldPoseFace)
+        if ll > bestLL:
+             (bestObs, bestLL, bestFace) = (obsPose, ll, face)
+
+    if bestLL < llMatchThreshold:
+        # Update modeprob if we don't get a good score
+        debugMsg('obsUpdate', 'No match above threshold')
+        oldP = details.poseModeProbs[soughtObject]
+        obsGivenH = details.domainProbs.obsTypeErrProb
+        obsGivenNotH = (1 - details.domainProbs.obsTypeErrProb)
+        newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
+        details.poseModeProbs[soughtObject] = newP
+    else:
+        # Update mode prob if we do get a good score
+        oldP = details.poseModeProbs[soughtObject]
+        obsGivenH = (1 - details.domainProbs.obsTypeErrProb)
+        obsGivenNotH = details.domainProbs.obsTypeErrProb
+        newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
+        details.poseModeProbs[soughtObject] = newP
+
+        # Should update face!!
+        
+        # Update mean and sigma
+        ## Be sure handling angle right.
+        (newMu, newSigma) = gaussObsUpdate(oldPoseMu.pose().xyztTuple(),
+                                           bestObs.pose().xyztTuple(),
+                                           oldVar, obsVar)
+        w = details.pbs.beliefContext.world
+        ff = w.getFaceFrames(soughtObject)[bestFace]
+        details.pbs.updateObjB(ObjPlaceB(soughtObject,
+                                         w.getFaceFrames(soughtObject),
+                                         DeltaDist(oldPoseFace),
+                                         PoseD(util.Pose(*newMu), newSigma)))
+        if debug('obsUpdate'):
+            objShape = pbs.getObjectShapeAtOrigin(soughtObject)
+            objShape.applyLoc(util.Pose(*newMu).compose(ff.inverse())).\
+              draw('Belief', 'magenta')
+            raw_input('newMu is magenta')
     
+def scoreObsSoughtObj(details, obs, soughtObject, obsPoseD, oldPoseFace):
+    (oType, obsFace, obsPose) = obs
+    pbs = details.pbs
+    w = pbs.beliefContext.world
+    symFacesType, symXformsType = w.getSymmetries(oType)
+    canonicalFace = symFacesType[obsFace]
+    symXForms = symXformsType[canonicalFace]
+    # Could make this more efficient by mapping to a canonical one, but
+    # seems risky
+    symPoses = [obsPose] + [obsPose.compose(xf) for xf in symXForms]
+    ff = pbs.beliefContext.world.getFaceFrames(soughtObject)[canonicalFace]
+    if debug('obsUpdate'):
+        ## LPK!!  Should really draw the detected object but I don't have
+        ## an immediate way to get the shape of a type.  Should fix that.
+        objShape = pbs.getObjectShapeAtOrigin(soughtObject)
+        objShape.applyLoc(obsPose.compose(ff.inverse())).draw('Belief', 'cyan')
+        raw_input('obs is cyan')
+
+    # Find the best matching pose mode.  Type and face must be equal,
+    # pose nearby.
+    #!!LPK handle faces better
+
+    # Type
+    if w.getObjType(soughtObject) != oType:
+        return -float(inf)
+    # Face
+    assert symFacesType[oldPoseFace] == oldPoseFace, \
+                                    'non canonical face in bel'
+    if oldPoseFace != canonicalFace:
+                return -float(inf)
+    # Iterate over symmetries for this object
+    bestObs, bestLL = None, -float('inf')
+    for obsPoseCand in symPoses:
+        ll = float(obsPoseD.logProb(np.mat(obsPoseCand.pose().xyztTuple()).T))
+        if debug('obsUpdate'):
+            print '    obsPoseCand', obsPoseCand.pose(), 'll', ll
+        if ll > bestLL:
+            if debug('obsUpdate'):
+                print '   new best'
+            bestObs, bestLL = obsPoseCand, ll
+    debugMsg('obsUpdate', 'Potential match with', soughtObject, 'll', bestLL,
+                 bestObs, bestLL > llMatchThreshold)
+    return bestObs, bestLL, canonicalFace
+
+'''    
+# Maybe not used any more. Gets a single observation and tries to
+# associate it with best matching object.
+def singleObsUpdate(details, obs, soughtObject):    
     (oType, obsFace, obsPose) = obs
     pbs = details.pbs
     w = pbs.beliefContext.world
@@ -864,7 +970,7 @@ def objectObsUpdate(details, obs, soughtObject):
             objShape.applyLoc(util.Pose(*newMu).compose(ff.inverse())).\
               draw('Belief', 'magenta')
             raw_input('newMu is magenta')
-         
+'''         
 
 # Temporary;  assumes diagonal cov; should use dist.MultivariateGaussian
 def gaussObsUpdate(oldMu, obs, oldSigma, obsVar, noZ = True):
