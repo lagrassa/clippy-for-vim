@@ -89,7 +89,8 @@ useLookAtHand = False
 
 # DEBUG
 useRight = False
-useVertical = False
+useVertical = True
+useHorizontal = False
 
 ######################################################################
 # Test Rig

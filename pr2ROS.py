@@ -230,21 +230,23 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                                    {targetObj: placeBs[targetObj]},
                                    outConf, # the lookConf actually achieved
                                    [surfacePoly])
-            if ans:
-                # This is in robot coords
-                score, objPlaceRobot = ans[0]
-            else:
-                objPlaceRobot = None
-            if not objPlaceRobot:
-                raw_input('No detections')
-                return None
-            trueFace = supportFaceIndex(objPlaceRobot)
-            objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
-            if debug('robotEnv'):
-                objPlace.draw('W', 'red')
-                raw_input(objPlace.name())
-            return (self.world.getObjType(objPlace.name()),
-                    trueFace, getSupportPose(objPlace, trueFace))
+            obs = []
+            for (score, objPlaceRobot) in ans:
+                if not objPlaceRobot:
+                    continue
+                trueFace = supportFaceIndex(objPlaceRobot)
+                objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
+                pose = getSupportPose(objPlace, trueFace)
+                obs.append((self.world.getObjType(objPlace.name()),
+                            trueFace, pose))
+                if debug('robotEnv'):
+                    print 'Obs', objPlace.name(), 'score=', score,
+                    print 'face=', trueFace, 'pose=', pose
+                    objPlace.draw('W', 'cyan')
+                    raw_input(objPlace.name())
+            if debug('robotEnv') and not obs:
+                raw_input('Got no observations for %s'%targetObj)
+            return obs
         else:
             raw_input('Unknown object: %s'%targetObj)
             return None
@@ -335,7 +337,7 @@ def getObjDetections(world, obsTargets, robotConf, surfacePolys, maxFitness = 3)
     assert state
     detections = []
     for obj in state.scene.objects:
-        if obj.fitness_score < maxFitness:
+        if obj.fitness_score < maxFitness: # fitness is in std dev, so high is bad
             #!! HACK
             name = obsTargets.keys()[0]
             trans = TransformFromROSMsg(obj.pose.position, obj.pose.orientation)
@@ -519,9 +521,12 @@ def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0,
     handFrameName = conf.robot.armChainNames[hand]
     trans = cart[handFrameName]
     if zFrom:
-        toZ = zFrom.cartConf()[handFrameName].matrix[2,3]
-        curZ = trans.matrix[2,3]
-        dz = toZ - curZ
+        diff = trans.inverse().compose(zFrom.cartConf()[handFrameName])
+        dz = diff.matrix[2,3]
+        print 'trans\n', trans.matrix
+        print 'zFrom\n', zFrom.cartConf()[handFrameName].matrix
+        print 'dz', dz
+        raw_input('Ok?')
     if maxTarget:
         diff = trans.inverse().compose(maxTarget.cartConf()[handFrameName])
         max_dx = diff.matrix[0,3]

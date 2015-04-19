@@ -162,56 +162,40 @@ class RealWorld(WorldState):
         self.setRobotConf(lookConf)
         self.robotPlace.draw('World', 'orchid')
         debugMsg('sim', 'LookAt configuration')
-        obstacles = [s for s in self.getObjectShapes() if \
-                     s.name() != targetObj ]
-
-        # if debug('tables'):
-        #     laserScanParams = (0.3, 0.1, 0.1, 2., 20)
-        #     scan = pc.simulatedScan(lookConf, laserScanParams, self.getObjectShapes())
-        #     scan.draw('W')
-        #     raw_input('Scan ok?')
-        #     for score, table in tables.getTables(self.world, self.world.objects.keys(), scan):
-        #         table.draw('W', 'red')
-        #         raw_input(table.name())
-        #     raw_input('Tables ok?')
-
-        if not targetObj in self.objectShapes:
-            vis = False
-        else:
+        objType = self.world.getObjType(targetObj)
+        obs = []
+        for shape in self.getObjectShapes():
+            curObj = shape.name()
+            if self.world.getObjectType(curObj) != objType:
+                continue
+            obstacles = [s for s in self.getObjectShapes() if \
+                         s.name() != curObj ]
             vis, _ = visible(self, self.robotConf,
-                             self.objectShapes[targetObj],
-                         obstacles, 0.75)
-        if not vis:
-            print 'Object', targetObj, 'is not visible'
-            return None
-        else:
-            print 'Object', targetObj, 'is visible'
-        truePose = self.getObjectPose(targetObj)
-        # Have to get the resting face.  And add noise.
-        trueFace = supportFaceIndex(self.objectShapes[targetObj])
-        print 'observed Face', trueFace
-        ff = self.objectShapes[targetObj].faceFrames()[trueFace]
-        obsMissProb = self.domainProbs.obsTypeErrProb
-        miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
-        if miss:
-            raw_input('Missed observation')
-            return None
-        else:
-            obsVar = self.domainProbs.obsVar
-            obsPose = util.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
-            obsPlace = obsPose.compose(ff).pose().xyztTuple()
-            objType = self.world.getObjType(targetObj)
-
-            # debugging
-            # oShape = self.world.getObjectShapeAtOrigin(targetObj)
-            # oShape.applyLoc(obsPose).draw('World', 'black')
-            # print 'True pose', truePose
-            # print 'Obs pose (in black)', obsPose
-            # print 'Obs place (in black)', obsPlace
-            # print 'Stdev',[np.sqrt(v) for v in self.domainProbs.obsVarTuple]
-            # print (objType, trueFace, obsPlace)
-            # raw_input('Obs okay?')
-            return (objType, trueFace, util.Pose(*obsPlace))
+                             self.objectShapes[curObj],
+                             obstacles, 0.75)
+            if not vis:
+                print 'Object', curObj, 'is not visible'
+                return None
+            else:
+                print 'Object', curObj, 'is visible'
+            truePose = self.getObjectPose(curObj)
+            # Have to get the resting face.  And add noise.
+            trueFace = supportFaceIndex(self.objectShapes[curObj])
+            print 'observed Face', trueFace
+            ff = self.objectShapes[curObj].faceFrames()[trueFace]
+            obsMissProb = self.domainProbs.obsTypeErrProb
+            miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
+            if miss:
+                raw_input('Missed observation')
+                continue
+            else:
+                obsVar = self.domainProbs.obsVar
+                obsPose = util.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
+                obsPlace = obsPose.compose(ff).pose().xyztTuple()
+                objType = self.world.getObjType(curObj)
+                obs.append((objType, trueFace, util.Pose(*obsPlace)))
+        print 'Observation', obs
+        return obs
 
     def executePick(self, op, params):
         # Execute the pick prim, starting at c1, aiming for c2.
