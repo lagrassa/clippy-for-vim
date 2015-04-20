@@ -13,9 +13,9 @@ import windowManager3D as wm
 from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn
 from miscUtil import argmax
 from pr2Visible import lookAtConf
-import pr2Robot2
-reload(pr2Robot2)
-from pr2Robot2 import cartInterpolators, JointConf, CartConf
+import pr2Robot
+reload(pr2Robot)
+from pr2Robot import cartInterpolators, JointConf, CartConf
 
 import util
 import tables

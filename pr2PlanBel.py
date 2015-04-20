@@ -8,7 +8,7 @@ import shapes
 from miscUtil import isGround
 from dist import UniformDist,  DeltaDist
 from objects import World, WorldState
-from pr2Robot2 import PR2, pr2Init, makePr2Chains
+from pr2Robot import PR2, pr2Init, makePr2Chains
 from planGlobals import debugMsg, debugDraw, debug, pause
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
 from pr2Util import ObjGraspB, ObjPlaceB, shadowName, shadowWidths

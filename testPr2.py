@@ -33,23 +33,23 @@ reload(dist)
 from dist import DDist, DeltaDist, MultivariateGaussianDistribution, makeDiag
 MVG = MultivariateGaussianDistribution
 
-import pr2Robot2
-reload(pr2Robot2)
-from pr2Robot2 import makePr2Chains, PR2, JointConf, CartConf, pr2Init, \
+import pr2Robot
+reload(pr2Robot)
+from pr2Robot import makePr2Chains, PR2, JointConf, CartConf, pr2Init, \
      gripperTip
 
-import pr2RoadMap2
-reload(pr2RoadMap2)
-from pr2RoadMap2 import RoadMap
+import pr2RoadMap
+reload(pr2RoadMap)
+from pr2RoadMap import RoadMap
 
 import pr2Fluents
 reload(pr2Fluents)
 from pr2Fluents import Conf, SupportFace, Pose, Holding, GraspFace, Grasp,\
      partition, In, CanPickPlace
 
-import pr2PlanBel2
-reload(pr2PlanBel2)
-from pr2PlanBel2 import BeliefContext, PBS
+import pr2PlanBel
+reload(pr2PlanBel)
+from pr2PlanBel import BeliefContext, PBS
 
 import pr2BeliefState
 reload(pr2BeliefState)
@@ -67,9 +67,9 @@ reload(pr2Ops)
 from pr2Ops import move, pick, place, lookAt, poseAchCanReach, poseAchCanSee,\
       lookAtHand, hRegrasp, poseAchCanPickPlace, graspAchCanPickPlace, poseAchIn
 
-import pr2Sim2
-reload(pr2Sim2)
-from pr2Sim2 import RealWorld
+import pr2Sim
+reload(pr2Sim)
+from pr2Sim import RealWorld
 
 import pr2ROS
 reload(pr2ROS)
@@ -132,7 +132,7 @@ def testRepeat(n, repeat=3, **args):
 testResults = {}
 
 def testAll(indices, repeat=3, crashIsError=True, **args):
-    pr2Sim2.crashIsError = crashIsError
+    pr2Sim.crashIsError = crashIsError
     for i in indices:
         if i == 0: continue
         testRepeat(i, repeat=repeat, **args)
@@ -461,7 +461,7 @@ class PlanTest:
         startTime = time.clock()
         fbch.flatPlan = not hierarchical
         fbch.plannerGreedy = greedy  # somewhat greedy by default
-        pr2Sim2.simulateError = simulateError
+        pr2Sim.simulateError = simulateError
         for win in wm.windows:
             wm.getWindow(win).clear()
         self.buildBelief(home=home, regions = set(regions))

@@ -8,7 +8,7 @@ import windowManager3D as wm
 from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ, debugOn
 from miscUtil import isVar, argmax, isGround, tuplify, roundrobin
 from dist import DeltaDist, UniformDist
-from pr2Robot2 import CartConf, gripperTip, gripperFaceFrame
+from pr2Robot import CartConf, gripperTip, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, \
      NextColor, supportFaceIndex, Memoizer
 import fbch
@@ -16,14 +16,14 @@ from fbch import getMatchingFluents
 from belief import Bd
 from pr2Fluents import CanReachHome, canReachHome, inTest
 from pr2Visible import visible, lookAtConf
-from pr2PlanBel2 import getConf
+from pr2PlanBel import getConf
 from shapes import Box
 
 Ident = util.Transform(np.eye(4))            # identity transform
 
-import pr2GenAux2
-from pr2GenAux2 import *
-reload(pr2GenAux2)
+import pr2GenAux
+from pr2GenAux import *
+reload(pr2GenAux)
 
 #  How many candidates to generate at a time...  Larger numbers will
 #  generally lead to better solutions.

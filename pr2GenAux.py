@@ -8,7 +8,7 @@ import shapes
 from planGlobals import debugMsg, debugDraw, debug, pause, torsoZ
 from miscUtil import argmax, isGround
 from dist import UniformDist, DDist
-from pr2Robot2 import CartConf, gripperFaceFrame
+from pr2Robot import CartConf, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, Memoizer
 from fbch import getMatchingFluents
 from belief import Bd, B

@@ -9,7 +9,7 @@ from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 import util
 from planGlobals import debugMsg, debug
-from pr2Robot2 import gripperTip, gripperFaceFrame
+from pr2Robot import gripperTip, gripperFaceFrame
 from pr2Visible import visible
 from time import sleep
 

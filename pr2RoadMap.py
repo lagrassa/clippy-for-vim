@@ -8,7 +8,7 @@ import windowManager3D as wm
 import numpy as np
 import shapes
 from ranges import *
-from pr2Robot2 import CartConf
+from pr2Robot import CartConf
 from objects import WorldState
 from geom import bboxOverlap, bboxUnion
 from transformations import quaternion_slerp
