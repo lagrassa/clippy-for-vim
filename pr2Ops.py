@@ -58,8 +58,8 @@ def primPath(bs, cs, ce, p):
         else:
             smoothed = bs.getRoadMap().smoothPath(path, bs, p)
             return smoothed
-    path1, v1 = canReachHome(bs, cs, p, Violations(), optimize=True, draw=False)
-    path2, v2 = canReachHome(bs, ce, p, Violations(), optimize=True, draw=False)
+    path1, v1 = canReachHome(bs, cs, p, Violations(), optimize=True, noViol=True, draw=False)
+    path2, v2 = canReachHome(bs, ce, p, Violations(), optimize=True, noViol=True, draw=False)
     if v1.weight() > 0 or v2.weight() > 0:
         if v1.weight() > 0: print 'start viol', v1
         if v2.weight() > 0: print 'end viol', v2

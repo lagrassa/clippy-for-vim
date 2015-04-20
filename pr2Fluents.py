@@ -710,7 +710,7 @@ def partition(fluents):
 
 def canReachHome(pbs, conf, prob, initViol,
                  avoidShadow = [], startConf = None,
-                 optimize = False, draw=True):
+                 optimize = False, noViol = False, draw=True):
     rm = pbs.getRoadMap()
     robot = pbs.getRobot()
     initConf = startConf or rm.homeConf
@@ -719,7 +719,7 @@ def canReachHome(pbs, conf, prob, initViol,
                                            initViol,
                                            avoidShadow=avoidShadow,
                                            startConf=conf,
-                                           optimize = optimize)
+                                           optimize = optimize, noViol = noViol)
     path = pathRev[::-1] if pathRev else pathRev
 
     if debug('checkCRH') and fbch.inHeuristic:
