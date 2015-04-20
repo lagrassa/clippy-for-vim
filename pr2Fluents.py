@@ -709,7 +709,8 @@ def partition(fluents):
 ###
 
 def canReachHome(pbs, conf, prob, initViol,
-                 avoidShadow = [], startConf = None, draw=True):
+                 avoidShadow = [], startConf = None,
+                 optimize = False, draw=True):
     rm = pbs.getRoadMap()
     robot = pbs.getRobot()
     initConf = startConf or rm.homeConf
@@ -717,7 +718,8 @@ def canReachHome(pbs, conf, prob, initViol,
     viol, cost, pathRev = rm.confReachViol(initConf, pbs, prob,
                                            initViol,
                                            avoidShadow=avoidShadow,
-                                           startConf=conf)
+                                           startConf=conf,
+                                           optimize = optimize)
     path = pathRev[::-1] if pathRev else pathRev
 
     if debug('checkCRH') and fbch.inHeuristic:
@@ -730,7 +732,8 @@ def canReachHome(pbs, conf, prob, initViol,
         viol2, cost2, pathRev2 = rm.confReachViol(initConf, pbs, prob,
                                                   initViol,
                                                   avoidShadow=avoidShadow,
-                                                  startConf=conf)
+                                                  startConf=conf,
+                                                  optimize = optimize)
         fbch.inHeuristic = True
         # Check for heuristic (viol) being worse than actual (viol2)
         if viol != viol2 and viol2 != None \

@@ -12,6 +12,7 @@ from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace, RelPose,\
      findRegionParent
 from planGlobals import debugMsg, debug, useROS
+import pr2RRT as rrt
 
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
@@ -57,8 +58,8 @@ def primPath(bs, cs, ce, p):
         else:
             smoothed = bs.getRoadMap().smoothPath(path, bs, p)
             return smoothed
-    path1, v1 = canReachHome(bs, cs, p, Violations(), draw=False)
-    path2, v2 = canReachHome(bs, ce, p, Violations(), draw=False)
+    path1, v1 = canReachHome(bs, cs, p, Violations(), optimize=True, draw=False)
+    path2, v2 = canReachHome(bs, ce, p, Violations(), optimize=True, draw=False)
     if v1.weight() > 0 or v2.weight() > 0:
         if v1.weight() > 0: print 'start viol', v1
         if v2.weight() > 0: print 'end viol', v2
@@ -68,7 +69,14 @@ def primPath(bs, cs, ce, p):
         print 'Success'
         path = path1[::-1] + path2
         smoothed = bs.getRoadMap().smoothPath(path, bs, p)
-        return smoothed
+        interpolated = []
+        for i in range(1, len(smoothed)):
+            qf = smoothed[i]
+            qi = smoothed[i-1]
+            confs = rrt.interpolate(qf, qi, stepSize=0.25)
+            print i, 'path segment has', len(confs), 'confs'
+            interpolated.extend(confs)
+        return smoothed, interpolated
 
 def movePrim(args, details):
     vl = \
@@ -90,13 +98,13 @@ def movePrim(args, details):
     print 'movePrim (start, end)'
     printConf(cs); printConf(ce)
 
-    path = primPath(bs, cs, ce, pcr)
+    path, interpolated = primPath(bs, cs, ce, pcr)
     if debug('prim'):
         print '*** movePrim'
         print list(enumerate(zip(vl, args)))
         print 'path length', len(path)
     assert path
-    return path
+    return path, interpolated
 
 def printConf(conf):
     cart = conf.cartConf()
@@ -176,7 +184,7 @@ def placePrim(args, details):
 
     print 'placePrim (start, end)'
     # printConf(prc); printConf(pc)
-    # path = primPath(bs, prc, pc, p2)
+    # path, interpolated = primPath(bs, prc, pc, p2)
 
     # !! Should open the fingers as well
     if debug('prim'):

@@ -30,9 +30,9 @@ maxExpandedNodes = 500                  # 1500
 searchGreedy = 0.9
 
 # minStep = 0.2                           # !! normally 0.2 for cartesian
-minStep = 0.75              # !! normally 0.25 for joint interpolation
-maxNear = 48                # max number of near neighbors
-minFree = 4                # min number of free neighbors
+minStep = 0.5               # !! normally 0.25 for joint interpolation
+maxNear = 128               # max number of near neighbors
+minFree = 4                 # min number of free neighbors
 
 confReachViolGenBatch = 10
 
@@ -560,7 +560,8 @@ class RoadMap:
     def minViolPathGen(self, targetConfNodes, pbs, prob, avoidShadow=[], startConf = None,
                        initViol=noViol, objCost=1.0, shCost=0.5, maxNodes=maxSearchNodes,
                        attached = None, testFn = lambda x: True,
-                       goalCostFn = lambda x: 0, draw=False, maxExpanded= maxExpandedNodes):
+                       goalCostFn = lambda x: 0, draw=False, maxExpanded= maxExpandedNodes,
+                       optimize = False):
 
         def testConnection(v, w, viol):
             wObjs = self.colliders(v, w, pbs, prob, viol, attached=attached)
@@ -643,7 +644,8 @@ class RoadMap:
                                    maxNodes = maxNodes, maxExpanded = maxExpanded,
                                    maxHDelta = None,
                                    expandF = minViolPathDebug if debug('expand') else None,
-                                   greedy = searchGreedy, printFinal = False)
+                                   greedy = 0.5 if optimize else searchGreedy,
+                                   printFinal = False)
             for ans in gen:
                 (path, costs) = ans
                 if not path:
@@ -691,8 +693,9 @@ class RoadMap:
 
     # Cached version of the call to minViolPath
     def confReachViol(self, targetConf, pbs, prob, initViol=noViol, avoidShadow = [],
-                        objCost = objCollisionCost, shCost = shCollisionCost,
-                        maxNodes = maxSearchNodes, startConf = None, attached = None):
+                      objCost = objCollisionCost, shCost = shCollisionCost,
+                      maxNodes = maxSearchNodes, startConf = None, attached = None,
+                      optimize = False):
         realInitViol = initViol
         initViol = noViol
         initConf = startConf or self.homeConf
@@ -781,7 +784,9 @@ class RoadMap:
                      ('initViol', ([x.name() for x in initViol.obstacles],
                                    [x.name() for x in initViol.shadows]) if initViol else None),
                      ('avoidShadow', avoidShadow))
-        if key in self.confReachCache:
+        if optimize:
+            pass
+        elif key in self.confReachCache:
             if debug('confReachViolCache'): print 'confReachCache tentative hit'
             cacheValues = self.confReachCache[key]
             sortedCacheValues = sorted(cacheValues,
@@ -831,7 +836,8 @@ class RoadMap:
         hsave = fbch.inHeuristic
         gen = self.minViolPathGen([node], pbs, prob, avoidShadow,
                                   initConf, cvi,
-                                  objCost, shCost, maxNodes, attached=attached)
+                                  objCost, shCost, maxNodes, attached=attached,
+                                  optimize=optimize)
         ans = gen.next()        
         return exitWithAns(ans)
 
@@ -910,7 +916,7 @@ class RoadMap:
         return
 
     def safePath(self, qf, qi, pbs, prob, attached):
-        for conf in rrt.interpolate(qf, qi, stepSize=0.5):
+        for conf in rrt.interpolate(qf, qi, stepSize=minStep):
             newViol, _ = self.confViolations(conf, pbs, prob,
                                              attached=attached,
                                              initViol=noViol)

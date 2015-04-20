@@ -383,7 +383,7 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
                            pbs.graspB['left'],
                            pbs.graspB['right'])))
     if obj == 'none' or not placeBs:
-        tracep('placeGen', '    placeGen: objs is none or no placeB')
+        tracep('placeGen', '    objs is none or no placeB')
         return
     if goalConds and getConf(goalConds, None) and not away:
         # if conf is specified, just fail
@@ -823,7 +823,9 @@ def lookGen(args, goalConds, bState, outBindings):
     world = bState.pbs.getWorld()
 
     if pose == '*':
-        poseD = bState.pbs.getPlaceB(obj).poseD
+        # This could produce a mode of None
+        pB = bState.pbs.getPlaceB(obj, default=False)
+        poseD = pB.poseD if pB else PoseD(None, 4*(0.,))
     else: 
         poseD = PoseD(pose, objV)
     if isVar(support) or support == '*':
@@ -849,11 +851,18 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
+    if placeB.poseD.mode() == None:
+        tracep('lookGen', '    object is in the hand')
+        return
     newBS.updatePermObjPose(placeB)
 
     if goalConds and getConf(goalConds, None):
         # if conf is specified, just fail
-        tracep('lookGen', '    lookGen: Conf is specified so failing')
+        tracep('lookGen', '    Conf is specified so failing')
+        return
+
+    if obj in [newBS.held[hand].mode() for hand in ['left', 'right']]:
+        tracep('lookGen', '    object is in the hand')
         return
 
     shWorld = newBS.getShadowWorld(prob)
@@ -875,6 +884,9 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         trace('    lookGen(%s) viol='%obj, viol.weight() if viol else None)
         if not path:
             tracep('lookGen', 'Failed to find a path to look conf.')
+
+            raw_input('Failed to find a path to look conf.')
+
             continue
         conf = path[-1]
         lookConf = lookAtConf(conf, sh)
@@ -1087,6 +1099,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
             (pose, poseFace) = ans
             trace('    canPickPlaceGen() obst:', obst, pose)
             yield (obst, pose, poseFace, domainPlaceVar, delta)
+        trace('    canPickPlaceGen() obst:', obst, 'no more poses')
 
     debugMsg('canPickPlaceGen', args)
     trace('canPickPlaceGen() h=', fbch.inHeuristic)
@@ -1133,7 +1146,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         obsts = [o.name() for o in viol.obstacles \
                  if o.name() not in newBS.fixObjBs]
         if not obsts:
-            tracep('canPickPlaceGen', 'No fixed obstacles to remove')
+            tracep('canPickPlaceGen', 'No movable obstacles to remove')
             return       # nothing available
         # !! How carefully placed this object needs to be
         for ans in moveOut(newBS, obsts[0], moveDelta):
@@ -1155,7 +1168,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
                 drawObjAndShadow(newBS2, pB2, prob, 'W', color='red')
                 debugMsg('canPickPlaceGen',
                          'Trying to reduce shadow (on W in red) %s'%obst)
-                trace('    canPickPlaceGen() shadow:', obst, pB.poseD.mode().xyztTuple())
+            trace('    canPickPlaceGen() shadow:', obst, pB.poseD.mode().xyztTuple())
             yield (obst, pB.poseD.mode().xyztTuple(), pB.support.mode(),
                    lookVar, lookDelta)
         # Either reducing the shadow is not enough or we failed and

@@ -88,9 +88,10 @@ useCartesian = False
 useLookAtHand = False
 
 # DEBUG
-useRight = False
-useVertical = True
-useHorizontal = False
+if useROS:
+    useRight = False
+    useVertical = True
+    useHorizontal = False
 
 ######################################################################
 # Test Rig

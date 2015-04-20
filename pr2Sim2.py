@@ -4,7 +4,7 @@ import objects
 from objects import WorldState
 import windowManager3D as wm
 import pr2Util
-from pr2Util import supportFaceIndex, DomainProbs
+from pr2Util import supportFaceIndex, DomainProbs, bigAngleWarn
 from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 import util
@@ -32,6 +32,7 @@ crashIsError = False
 simulateError = False
 
 animate = True
+animateSleep = 0.2
 
 pickSuccessDist = 0.1  # pretty big for now
 class RealWorld(WorldState):
@@ -61,19 +62,19 @@ class RealWorld(WorldState):
             raise Exception, 'Unknown operator: '+str(op)
 
     # Be sure there are no collisions.  If so, stop early.
-    def executePath(self, path):
+    def executePath(self, path, interpolated=None):
         def getObjShapes():
             held = self.held.values()
             return [self.objectShapes[obj] \
                     for obj in self.objectShapes if not obj in held]
         objShapes = getObjShapes()
         obs = None
-        for (i, conf) in enumerate(path):
+        for (i, conf) in enumerate(interpolated or path):
             # !! Add noise to conf
             self.setRobotConf(conf)
             if animate:
                 self.draw('World')
-                sleep(0.2)
+                sleep(animateSleep)
             else:
                 self.robotPlace.draw('World', 'orchid')
             cart = conf.cartConf()
@@ -113,11 +114,11 @@ class RealWorld(WorldState):
             'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta',
             'P1', 'P2', 'PCR']
         if params:
-            path = params
+            path, interpolated  = params
             debugMsg('path', 'path len = ', len(path))
             if not path:
                 raw_input('No path!!')
-            obs = self.executePath(path)
+            obs = self.executePath(path, interpolated)
         else:
             print op
             raw_input('No path given')
@@ -213,6 +214,7 @@ class RealWorld(WorldState):
         # Try to execute pick
         (hand, pickConf, approachConf) = \
                  (op.args[1], op.args[17], op.args[15])
+        bigAngleWarn(approachConf, pickConf)
         self.setRobotConf(pickConf)
         self.robotPlace.draw('World', 'orchid')
         oDist = None
@@ -264,6 +266,7 @@ class RealWorld(WorldState):
             hand = op.args[1]
             placeConf = op.args[-8]
             approachConf = op.args[-10]
+            bigAngleWarn(approachConf, placeConf)
             self.setRobotConf(placeConf)
             self.robotPlace.draw('World', 'orchid')            
             if not self.attached[hand]:

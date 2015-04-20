@@ -10,7 +10,7 @@ import pointClouds as pc
 import planGlobals as glob
 from planGlobals import debug, debugMsg
 import windowManager3D as wm
-from pr2Util import shadowWidths, supportFaceIndex
+from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn
 from miscUtil import argmax
 from pr2Visible import lookAtConf
 import pr2Robot2
@@ -166,7 +166,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 
     def executeMove(self, op, params):
         if params:
-            path = params
+            path, interpolated = params
             debugMsg('robotEnv', 'executeMove: path len = ', len(path))
             obs = self.executePath(path)
         else:
@@ -651,15 +651,6 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
     obs = (curConf, curConf[conf.robot.gripperChainNames[hand]][0],
            result, contacts)
     return obs, (approachConf, curConf)
-
-def bigAngleWarn(conf1, conf2):
-    for chain in ['pr2LeftArm', 'pr2RightArm']:
-        joint = 0
-        for angle1, angle2 in zip(conf1[chain], conf2[chain]):
-            if abs(angle1 - angle2) >= 2*math.pi:
-                print chain, joint, angle1, angle2
-                debugMsg('bigAngleChange', 'Big angle change')
-            joint += 1
 
 def compliantClose(conf, hand, step = 0.01, n = 1):
     if n > 5:
