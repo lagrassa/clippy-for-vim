@@ -117,7 +117,7 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob):
                 yield ca
 
     def pickable(ca, c, pB, gB):
-        return canPickPlaceTest(newBS, ca, c, hand, gB, pB, prob)
+        return canPickPlaceTest(newBS, ca, c, hand, gB, pB, prob, op='pick')
 
     obj = placeB.obj
     approached = {}
@@ -228,7 +228,7 @@ def pickGenTop(args, goalConds, pbs, outBindings,
 def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
                goalConds, onlyCurrent = False):
     def pickable(ca, c, pB):
-        return canPickPlaceTest(pbs, ca, c, hand, graspB, pB, prob)
+        return canPickPlaceTest(pbs, ca, c, hand, graspB, pB, prob, op='pick')
 
     def checkInfeasible(conf):
         newBS = pbs.copy()
@@ -433,7 +433,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
                 regrasp=False, pbsOrig=None):
     def placeable(ca, c):
         (pB, gB) = context[ca]
-        ans = canPickPlaceTest(pbs, ca, c, hand, gB, pB, prob)
+        ans = canPickPlaceTest(pbs, ca, c, hand, gB, pB, prob, op='place')
         return ans
 
     def checkRegraspable(pB):
@@ -702,7 +702,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         #         pg = (sup, grasp)
         #         sh = objShadow.applyTrans(pose)
         #         if all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
-        #             viol2 = canPickPlaceTest(pbs, ca, cf, gB, pB, prob)
+        #             viol2 = canPickPlaceTest(pbs, ca, cf, gB, pB, prob, op='place')
         #             print 'viol', viol
         #             print 'viol2', viol2
         #             if viol2 and viol2.weight() <= viol.weight():
@@ -1093,7 +1093,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     (preconf, ppconf, hand,
      obj, pose, realPoseVar, poseDelta, poseFace,
      graspFace, graspMu, graspVar, graspDelta, oobj, oface, oGraspMu, oGraspVar,
-     oGraspDelta, prob, cond) = args
+     oGraspDelta, prob, cond, op) = args
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     
     def moveOut(newBS, obst, delta):
@@ -1126,7 +1126,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     newBS.updateHeldBel(graspB2, otherHand(hand))
 
     viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
-                             graspB1, placeB, prob)
+                             graspB1, placeB, prob, op=op)
     if debug('canPickPlaceGen'):
         newBS.draw(prob, 'W')
     debugMsg('canPickPlaceGen', ('viol', viol))
@@ -1166,7 +1166,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         pB2.delta = lookDelta
         newBS2.updatePermObjPose(pB2)
         viol2 = canPickPlaceTest(newBS2, preconf, ppconf, hand,
-                                 graspB1, placeB, prob)
+                                 graspB1, placeB, prob, op=op)
         debugMsg('canPickPlaceGen', ('viol2', viol2))
         if viol2:
             if debug('canPickPlaceGen', skip=skip):

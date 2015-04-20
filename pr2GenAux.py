@@ -80,8 +80,9 @@ def InPlaceDeproach(*x): return True
 # place1. move home->place with hand empty
 # place2. move home->pre with obj at place pose
 
-def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p):
+def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
     args = (preConf, pickConf, hand, objGrasp, objPlace, p, pbs)
+    obj = objGrasp.obj
     if debug('canPickPlaceTest'):
         print zip(('preConf', 'pickConf', 'hand', 'objGrasp', 'objPlace', 'p', 'pbs'),
                   args)
@@ -101,7 +102,8 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p):
         if debug('canPickPlaceTest'):
             pbs1.draw(p, 'W')
             debugMsg('canPickPlaceTest', 'H->App, obj=pose (condition 1)')
-        path, violations = canReachHome(pbs1, preConf, p, violations)
+        path, violations = canReachHome(pbs1, preConf, p, violations,
+                                        avoidShadow=([obj] if op='place' else []))
         if not path:
             debugMsg('canPickPlaceTest', 'Failed H->App, obj=pose (condition 1)')
             return None
@@ -109,7 +111,6 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p):
             for c in path: c.draw('W', attached = pbs1.getShadowWorld(p).attached)
             debugMsg('canPickPlaceTest', 'path 1')
     # 2 - Can move from home to pre holding the object
-    obj = objGrasp.obj
     pbs2 = pbs.copy().excludeObjs([obj]).updateHeldBel(objGrasp, hand)
     if debug('canPickPlaceTest'):
         pbs2.draw(p, 'W'); preConf.draw('W', attached = pbs2.getShadowWorld(p).attached)
