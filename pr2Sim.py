@@ -31,7 +31,7 @@ crashIsError = False
 
 simulateError = False
 
-animate = True
+animate = False
 animateSleep = 0.2
 
 pickSuccessDist = 0.1  # pretty big for now
@@ -69,7 +69,8 @@ class RealWorld(WorldState):
                     for obj in self.objectShapes if not obj in held]
         objShapes = getObjShapes()
         obs = None
-        for (i, conf) in enumerate(interpolated or path):
+        path = interpolated or path
+        for (i, conf) in enumerate(path):
             # !! Add noise to conf
             self.setRobotConf(conf)
             if animate:

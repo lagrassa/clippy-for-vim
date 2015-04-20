@@ -455,24 +455,28 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
             return False
 
     def checkOrigGrasp(gB):
-        score = 0
+        # 0 if currently true
+        # 1 if could be used on object's current position
+        # 2 otherwise
+        
         # Prefer current grasp
-        if obj == pbs.held[hand].mode():
-            currGraspB = pbs.graspB[hand]
-            # print 'Comparing curr grasp to another',  currGraspB, gB, \
-            #   currGraspB == gB
-            # raw_input('cool?')
-            if gB == currGraspB:
-                score += 1
+        if obj == pbsOrig.held[hand].mode():
+            currGraspB = pbsOrig.graspB[hand]
+            match = (gB.grasp.mode() == currGraspB.grasp.mode()) and \
+                      gB.poseD.mode().near(currGraspB.poseD.mode(), .01, .01)
+            if match:
+                return 0
+
         pB = pbsOrig.getPlaceB(obj, default=False) # check we know where obj is.
         if pbsOrig and pbsOrig.held[hand].mode() != obj and pB:
-            if next(potentialGraspConfGen(pbsOrig, pB, gB, conf, hand, prob, nMax=1),
+            if next(potentialGraspConfGen(pbsOrig, pB, gB, conf, hand,
+                                          prob, nMax=1),
                     (None,None))[0]:
-                return 0
+                return 1
             else:
-                return 1 + score
+                return 2
         else:
-            return 0
+            return 1
 
     def placeApproachConfGen(gB):
         placeBsCopy = placeBs.copy()
@@ -825,6 +829,7 @@ def lookGen(args, goalConds, bState, outBindings):
     if pose == '*':
         # This could produce a mode of None
         pB = bState.pbs.getPlaceB(obj, default=False)
+        assert pB, 'Trying to reduce variance on object pose but obj is in hand'
         poseD = pB.poseD if pB else PoseD(None, 4*(0.,))
     else: 
         poseD = PoseD(pose, objV)

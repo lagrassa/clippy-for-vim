@@ -58,8 +58,16 @@ def primPath(bs, cs, ce, p):
         else:
             smoothed = bs.getRoadMap().smoothPath(path, bs, p)
             return smoothed
-    path1, v1 = canReachHome(bs, cs, p, Violations(), optimize=True, noViol=True, draw=False)
-    path2, v2 = canReachHome(bs, ce, p, Violations(), optimize=True, noViol=True, draw=False)
+    path1, v1 = canReachHome(bs, cs, p, Violations(), optimize=True,
+                             noViol = True, draw=False)
+    if not path1:
+        path1, v1 = canReachHome(bs, cs, p, Violations(), noViol = True,
+                                 draw=False)
+    path2, v2 = canReachHome(bs, ce, p, Violations(), optimize=True,
+                             noViol = True, draw=False)
+    if not path2:
+        path2, v2 = canReachHome(bs, ce, p, Violations(), noViol = True,
+                                 draw=False)
     if v1.weight() > 0 or v2.weight() > 0:
         if v1.weight() > 0: print 'start viol', v1
         if v2.weight() > 0: print 'end viol', v2
@@ -759,7 +767,7 @@ def lookAtBProgress(details, args, obs):
     details.pbs.shadowWorld = None # force recompute
     debugMsg('beliefUpdate', 'look')
 
-llMatchThreshold = -100  # very liberal
+llMatchThreshold = 0  
 
 def objectObsUpdate(details, obs, soughtObject):
     if obs == []:

@@ -63,8 +63,7 @@ visible
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'traceGen', 'traceCRH', 'infeasible', 'hAddBackInf',
-           'obsUpdate']
+           'traceGen', 'traceCRH', 'infeasible', 'hAddBackInf']
             # 'hAddBackInf', 'regression:fail', 'regression:inconsistent',
             # 'appOp:detail']
 
