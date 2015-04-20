@@ -713,7 +713,7 @@ class RoadMap:
             if not optimize:
                 if not key in self.confReachCache:
                     self.confReachCache[key] = []
-                    self.confReachCache[key].append((pbs, prob, avoidShadow, ans))
+                self.confReachCache[key].append((pbs, prob, avoidShadow, ans))
             if ans and ans[0] and ans[2]:
                 (viol, cost, path, nodePath) = ans
                 if debug('confReachViol') and (not fbch.inHeuristic or debug('drawInHeuristic')):
