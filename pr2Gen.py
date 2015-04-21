@@ -29,16 +29,6 @@ reload(pr2GenAux)
 #  generally lead to better solutions.
 pickPlaceBatchSize = 1
 
-# Generators:
-#   INPUT:
-#   list of specific args such as region, object(s), variance, probability
-#   conditions from the goal state, e.g. Pose, Conf, Grasp, Reachable, In,
-#   are constraints
-#   initial state
-#   some pre-bindings of output variables.
-#   OUTPUT:
-#   ordered list of ordered value lists
-
 easyGraspGenCacheStats = [0,0]
 
 def trace(*msg):

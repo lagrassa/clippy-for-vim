@@ -177,7 +177,7 @@ class RealWorld(WorldState):
                              obstacles, 0.75)
             if not vis:
                 print 'Object', curObj, 'is not visible'
-                return None
+                continue
             else:
                 print 'Object', curObj, 'is visible'
             truePose = self.getObjectPose(curObj)

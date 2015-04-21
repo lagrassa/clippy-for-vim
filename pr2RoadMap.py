@@ -27,12 +27,12 @@ shCollisionCost = 2.0
 
 maxSearchNodes = 2000                   # 5000
 maxExpandedNodes = 500                  # 1500
-searchGreedy = 0.9
+searchGreedy = 0.75
+searchOpt = 0.75                        # should be 0.5 ideally, but it's slow...
 
-# minStep = 0.2                           # !! normally 0.2 for cartesian
-minStep = 0.5               # !! normally 0.25 for joint interpolation
-maxNear = 128               # max number of near neighbors
-minFree = 4                 # min number of free neighbors
+minStep = 0.25               # !! normally 0.25 for joint interpolation
+maxNear = 64                 # max number of near neighbors
+minFree = 4                  # min number of free neighbors
 
 confReachViolGenBatch = 10
 
@@ -404,13 +404,16 @@ class RoadMap:
         elif len(nodes) == 1:
             node = nodes[0]
             if not node in rshapes:
-                rshapes[node] = node.conf.placement(getShapes=True)
-                if self.robotSelfCollide(rshapes[node]):
+                # Let the placement method do any caching
+                placement = node.conf.placement(getShapes=True)
+                if self.robotSelfCollide(placement):
                     ecoll['robotSelfCollision'] = True
                     return None
-            if any(o for o in permanentObst if rshapes[node].collides(o)):
+            else:
+                placement = rshapes[node]
+            if any(o for o in permanentObst if placement.collides(o)):
                 return None
-            coll = set([o for o in obstacles if rshapes[node].collides(o)])
+            coll = set([o for o in obstacles if placement.collides(o)])
             return None if (coll and noViol) else coll
         else:
             mid = len(nodes)/2
@@ -646,7 +649,7 @@ class RoadMap:
                                    maxNodes = maxNodes, maxExpanded = maxExpanded,
                                    maxHDelta = None,
                                    expandF = minViolPathDebug if debug('expand') else None,
-                                   greedy = 0.5 if optimize else searchGreedy,
+                                   greedy = searchOpt if optimize else searchGreedy,
                                    printFinal = False)
             for ans in gen:
                 (path, costs) = ans
