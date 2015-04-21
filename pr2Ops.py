@@ -1116,7 +1116,7 @@ move = Operator(\
     {0 : {Bd([CanReachHome(['CEnd', 'left',
                     'LObj', 'LFace', 'LGraspMu', 'RealGraspVarL', 'LGraspDelta',
                     'RObj', 'RFace', 'RGraspMu', 'RealGraspVarR', 'RGraspDelta',
-                            []]),  True, 'PCR'], True)},
+                     False, []]),  True, 'PCR'], True)},
      1 : {Conf(['CStart', 'DEnd'], True),
           Bd([Holding(['left']), 'LObj', 'P1'], True),
           Bd([GraspFace(['LObj', 'left']), 'LFace', 'P1'], True),
@@ -1202,7 +1202,7 @@ place = Operator(\
                                'RealPoseVar', 'PoseDelta', 'PoseFace',
                                'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                                'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                               'OGraspDelta', []]), True, 'P1'], True)},
+                               'OGraspDelta', 'place', []]), True, 'P1'],True)},
          2 : {Bd([Holding(['Hand']), 'Obj', 'P2'], True),
               Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'P2'], True),
               B([Grasp(['Obj', 'Hand', 'GraspFace']),
@@ -1319,7 +1319,7 @@ pick = Operator(\
                                'GraspFace', 'GraspMu', 'RealGraspVar',
                                'GraspDelta',
                                'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                               'OGraspDelta', []]), True, 'P2'], True)},
+                               'OGraspDelta', 'place', []]), True, 'P2'],True)},
             # Implicitly, CanPick should be true, too
          3 : {Conf(['PreConf', 'ConfDelta'], True),
              Bd([Holding(['Hand']), 'none', 'P3'], True),
@@ -1501,7 +1501,7 @@ poseAchCanReach = Operator(\
      1: {Bd([CanReachHome(['CEnd', 'Hand', 
                    'LObj', 'LFace', 'LGraspMu', 'RealGraspVarL', 'LGraspDelta',
                    'RObj', 'RFace', 'RGraspMu', 'RealGraspVarR', 'RGraspDelta',
-                           'PreCond']),  True, 'PR'], True),
+                    False, 'PreCond']),  True, 'PR'], True),
          Bd([SupportFace(['Occ']), 'PoseFace', 'PR'], True),
          B([Pose(['Occ', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta', 'P2'],
             True)}},
@@ -1509,7 +1509,7 @@ poseAchCanReach = Operator(\
     [({Bd([CanReachHome(['CEnd', 'Hand',
                    'LObj', 'LFace', 'LGraspMu', 'RealGraspVarL', 'LGraspDelta',
                    'RObj', 'RFace', 'RGraspMu', 'RealGraspVarR', 'RGraspDelta',
-                           'PostCond']),  True, 'PR'], True)}, {})],
+                    False, 'PostCond']),  True, 'PR'], True)}, {})],
 
     # Functions
     functions = [\
@@ -1537,14 +1537,14 @@ poseAchCanPickPlace = Operator(\
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
                           'OGraspDelta', 'PreCond', 'PostCond',
-     'Occ', 'OccPose', 'OccPoseFace', 'OccPoseVar', 'OccPoseDelta',
+     'Occ', 'OccPose', 'OccPoseFace', 'OccPoseVar', 'OccPoseDelta', 'Op',
      'P1', 'P2', 'PR'],
     {0: {},
      1: {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                          'OGraspDelta', 'PreCond']), True, 'PR'],True),
+                          'OGraspDelta', 'Op', 'PreCond']), True, 'PR'],True),
          Bd([SupportFace(['Occ']), 'OccPoseFace', 'P2'], True),
          B([Pose(['Occ', 'OccPoseFace']), 'OccPose', 'OccPoseVar',
                   'OccPoseDelta', 'PR'],
@@ -1554,7 +1554,8 @@ poseAchCanPickPlace = Operator(\
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                          'OGraspDelta', 'PostCond']), True, 'PR'],True)}, {})],
+                          'OGraspDelta', 'Op', 'PostCond']), True, 'PR'],True)},
+                          {})],
     # Functions
     functions = [\
         # Compute precond probs
@@ -1565,7 +1566,7 @@ poseAchCanPickPlace = Operator(\
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                          'OGraspDelta', 'PR', 'PostCond'],
+                          'OGraspDelta', 'PR', 'PostCond', 'Op'],
                           canPickPlaceGen, 'canPickPlaceGen'),
          # Add the appropriate condition
          Function(['PreCond'],
@@ -1586,13 +1587,13 @@ graspAchCanPickPlace = Operator(\
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
                           'OGraspDelta', 'Cond',
-                          'PreGraspVar', 'P1', 'P2', 'PR'],
+                          'PreGraspVar', 'Op', 'P1', 'P2', 'PR'],
     {0: {},
      1: {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'PreGraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                          'OGraspDelta', 'Cond']), True, 'PR'],True),
+                          'OGraspDelta', 'Op', 'Cond']), True, 'PR'],True),
          Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'PR'], True),
          Bd([Holding(['Hand']), 'Obj', 'P2'], True),
          B([Grasp(['Obj', 'Hand', 'GraspFace']),
@@ -1602,7 +1603,7 @@ graspAchCanPickPlace = Operator(\
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                           'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                          'OGraspDelta', 'Cond']), True, 'PR'],True)}, {})],
+                          'OGraspDelta', 'Op', 'Cond']), True,'PR'],True)},{})],
     # Functions
     functions = [\
         # Compute precond probs

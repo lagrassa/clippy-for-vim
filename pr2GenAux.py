@@ -103,7 +103,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
             pbs1.draw(p, 'W')
             debugMsg('canPickPlaceTest', 'H->App, obj=pose (condition 1)')
         path, violations = canReachHome(pbs1, preConf, p, violations,
-                                        avoidShadow=([obj] if op='place' else []))
+                                    avoidShadow=([obj] if op=='place' else []))
         if not path:
             debugMsg('canPickPlaceTest', 'Failed H->App, obj=pose (condition 1)')
             return None
@@ -445,12 +445,12 @@ def pathObst(cs, lgb, rgb, cd, p, pbs, name):
 
 def getReachObsts(goalConds, pbs):
     fbs = getMatchingFluents(goalConds,
-                             Bd([CanPickPlace(['Preconf', 'Ppconf', 'Hand', 'Obj', 'Pose',
-                                                'Posevar', 'Posedelta', 'Poseface',
-                                                'Graspface', 'Graspmu', 'Graspvar', 'Graspdelta',
-                                                'Oobj', 'Oface', 'Ograspmu', 'Ograspvar',
-                                                'Ograspdelta', 'Inconds']),
-                                 True, 'P'], True))
+             Bd([CanPickPlace(['Preconf', 'Ppconf', 'Hand', 'Obj', 'Pose',
+                               'Posevar', 'Posedelta', 'Poseface',
+                               'Graspface', 'Graspmu', 'Graspvar', 'Graspdelta',
+                               'Oobj', 'Oface', 'Ograspmu', 'Ograspvar',
+                               'Ograspdelta', 'Op', 'Inconds']),
+                                True, 'P'], True))
     obstacles = []
     for (f, b) in fbs:
         crhObsts = getCRHObsts([Bd([fc, True, b['P']], True) \
@@ -465,7 +465,7 @@ def getCRHObsts(goalConds, pbs):
                              Bd([CanReachHome(['C', 'H',
                                                'LO', 'LF', 'LGM', 'LGV', 'LGD',
                                                'RO', 'RF', 'RGM', 'RGV', 'RGD',
-                                               'Cond']),
+                                               'LAP', 'Cond']),
                                  True, 'P'], True))
     world = pbs.getWorld()
     obsts = []
