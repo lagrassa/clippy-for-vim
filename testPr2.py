@@ -222,13 +222,13 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     world.addObjectRegion('table1', 'table1MidRear', 
                            Sh([Ba(mfbbox)], name='table1MidRear'),
                                   util.Pose(0,0,2*bbox[1,2],0))
-    # mrbbox = np.empty_like(bbox); mrbbox[:] = bbox
-    # mrbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
-    # mrbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
-    # mrbbox[0][1] = 0.5*(bbox[0][1] + bbox[1][1])
-    # world.addObjectRegion('table1', 'table1MidFront', 
-    #                        Sh([Ba(mrbbox)], name='table1MidFront'),
-    #                               util.Pose(0,0,2*bbox[1,2],0))
+    mrbbox = np.empty_like(bbox); mrbbox[:] = bbox
+    mrbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
+    mrbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
+    mrbbox[0][1] = 0.5*(bbox[0][1] + bbox[1][1])
+    world.addObjectRegion('table1', 'table1MidFront', 
+                           Sh([Ba(mrbbox)], name='table1MidFront'),
+                                  util.Pose(0,0,2*bbox[1,2],0))
     # Other permanent objects
     cupboard1 = Sh([place((-0.25, 0.25), (-0.05, 0.05), (0.0, 0.4))],
                      name = 'cupboardSide1', color='brown')
@@ -919,8 +919,8 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
                  fixPoses={'table2': table2Pose},
                  varDict = varDict)
 
-    goal = State([Bd([In(['objA', 'table1MidRear']), True, goalProb], True),
-                  Bd([In(['objB', 'table1MidFront']), True, goalProb], True)])
+    goal = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True),
+                  Bd([In(['objA', 'table1MidFront']), True, goalProb], True)])
 
     goal1 = State([Bd([In(['objB', 'table2Top']), True, goalProb], True)])
     skel1 = [[poseAchIn, lookAt, move,
@@ -952,13 +952,13 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
               poseAchCanPickPlace,
               lookAt.applyBindings({'Obj' : 'table2'}), move]]
 
-    t.run(goal3,
+    t.run(goal,
           hpn = hpn,
           skeleton = skel3 if skeleton else None,
           heuristic = heuristic,
           hierarchical = hierarchical,
           rip = rip,
-          regions=['table1Top', 'table2Top', #'table1MidFront',
+          regions=['table1Top', 'table2Top', 'table1MidFront',
                    'table1MidRear']
           )
 
@@ -2195,6 +2195,10 @@ def firstAid(details, fluent = None):
     details.pbs.beliefContext.pathObstCache = {}
     if fluent:
         return fluent.valueInDetails(details)
+# Get false fluents
+def ff(g, details):
+    return [thing for thing in g.fluents if thing.isGround() \
+            and thing.valueInDetails(details) == False]
 
 
 def testReact():

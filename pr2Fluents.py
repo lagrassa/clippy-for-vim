@@ -446,8 +446,27 @@ class Pose(Fluent):
     def dist(self, bState):
         (obj, face) = self.args
         if face == '*':
-            face = bState.pbs.getPlaceB(obj).support.mode()
-        result = bState.poseModeDist(obj, face)
+            hl = bState.pbs.getHeld('left').mode()
+            hr = bState.pbs.getHeld('right').mode()
+            if hl == obj:
+                hand = 'left'
+                graspFace = bState.pbs.getGraspB(obj, hand).grasp.mode() 
+                result = bState.graspModeDist(obj, hand, face)
+            elif hr == obj:
+                hand = 'right'
+                graspFace = bState.pbs.getGraspB(obj, hand).grasp.mode() 
+                result = bState.graspModeDist(obj, hand, face)
+            else:
+                face = bState.pbs.getPlaceB(obj).support.mode()
+                result = bState.poseModeDist(obj, face)
+        elif face in ('left', 'right'):
+            # Actually, the grasp dist, if the face is a hand!
+            hand = face
+            graspFace = bState.pbs.getGraspB(obj, hand).grasp.mode() 
+            result = bState.graspModeDist(obj, hand, face)
+        else:
+            # normal case
+            result = bState.poseModeDist(obj, face)            
         return result
 
     def fglb(self, other, bState = None):
@@ -493,8 +512,15 @@ class SupportFace(Fluent):
     predicate = 'SupportFace'
     def dist(self, bState):
         (obj,) = self.args               # args
-        # Mode should be 'none' if the object is in the hand
-        return bState.pbs.getPlaceB(obj).support # a DDist (over integers)
+        # Mode should be 'left' or 'right' if the object is in the hand
+        hl = bState.pbs.getHeld('left').mode()
+        hr = bState.pbs.getHeld('right').mode()
+        if hl == obj:
+            return DeltaDist('left')
+        elif hr == obj:
+            return DeltaDist('right')
+        else:
+            return bState.pbs.getPlaceB(obj).support # a DDist (over integers)
 
     def fglb(self, other, bState = None):
         if (other.predicate == 'Holding' and \
@@ -562,9 +588,9 @@ class CanSeeFrom(Fluent):
             newPBS.updateFromGoalPoses(cond, updateHeld=False)
 
         placeB = newPBS.getPlaceB(obj)
-        if placeB.support.mode() != poseFace:
+        if placeB.support.mode() != poseFace and poseFace != '*':
             placeB.support = DeltaDist(poseFace)
-        if placeB.poseD.mode() != pose:
+        if placeB.poseD.mode() != pose and pose != '*':
             newPBS.updatePermObjPose(placeB.modifyPoseD(mu=pose))
         shWorld = newPBS.getShadowWorld(p)
         shName = shadowName(obj)

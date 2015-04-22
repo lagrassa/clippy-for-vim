@@ -36,7 +36,7 @@ probForGenerators = 0.98
 
 planVar = (0.02**2, 0.02**2, 0.01**2, 0.03**2)
 # Made smaller to avoid replanning for pick.  Maybe not right.
-planVar = (0.008**2, 0.008**2, 0.008**2, 0.008**2)
+planVar = (0.009**2, 0.009**2, 0.009**2, 0.009**2)
 planP = 0.95
 
 ######################################################################
@@ -1154,14 +1154,15 @@ poseAchIn = Operator(\
                             'PoseVar', 'TotalVar', 'P1', 'P2', 'PR'],
             # Very prescriptive:  find objects, then nail down obj2, then
             # obj 1
-            {0 : {B([Pose(['Obj1', '*']), '*', planVar, '*', planP], True),
+            {0 : set(),
+             1 : {B([Pose(['Obj1', '*']), '*', planVar, '*', planP], True),
                   Bd([SupportFace(['Obj1']), '*', planP], True),
                   B([Pose(['Obj2', '*']), '*', planVar, '*', planP], True),
                   Bd([SupportFace(['Obj2']), '*', planP], True)},
-             1 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
+             2 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
                                defaultPoseDelta, 'P2'], True),
                   Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)},
-             2 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
+             3 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
                                defaultPoseDelta, 'P1'], True),
                   Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True)}},
             # Results
