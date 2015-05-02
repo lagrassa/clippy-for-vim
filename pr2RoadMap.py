@@ -8,7 +8,7 @@ import windowManager3D as wm
 import numpy as np
 import shapes
 from ranges import *
-from pr2Robot2 import CartConf
+from pr2Robot import CartConf
 from objects import WorldState
 from geom import bboxOverlap, bboxUnion
 from transformations import quaternion_slerp
@@ -27,12 +27,12 @@ shCollisionCost = 2.0
 
 maxSearchNodes = 2000                   # 5000
 maxExpandedNodes = 500                  # 1500
-searchGreedy = 0.9
+searchGreedy = 0.75
+searchOpt = 0.75                        # should be 0.5 ideally, but it's slow...
 
-# minStep = 0.2                           # !! normally 0.2 for cartesian
-minStep = 0.75              # !! normally 0.25 for joint interpolation
-maxNear = 48                # max number of near neighbors
-minFree = 4                # min number of free neighbors
+minStep = 0.25               # !! normally 0.25 for joint interpolation
+maxNear = 64                 # max number of near neighbors
+minFree = 4                  # min number of free neighbors
 
 confReachViolGenBatch = 10
 
@@ -67,7 +67,7 @@ class Edge:
     def __hash__(self):
         return self.id
  
-noViol = Violations()
+viol0 = Violations()
 stats = {'newRob':0, 'newHeld':0, 'oldRob':0, 'oldHeld':0,
          'newTest':0, 'oldTest':0}
 
@@ -334,7 +334,7 @@ class RoadMap:
 
     # The compiler does not like this as def...
     def edgeCollide(self, rob, key, collisions, robotShapes, attached, \
-                    nodes, allObstacles, permanent, coll, viol):
+                    nodes, allObstacles, permanent, coll, viol, noViol):
         ecoll = collisions.get(key, None)
         if ecoll is None:
             ecoll = {}
@@ -372,7 +372,7 @@ class RoadMap:
             if obstacle in ecoll:       # already checked
                 val = ecoll[obstacle]
                 if val:
-                    if obstacle.name() in permanent:
+                    if obstacle.name() in permanent or noViol:
                         return None
                     else:
                         coll.add(obstacle)
@@ -381,7 +381,7 @@ class RoadMap:
                     permanentObst.append(obstacle)
                 else:
                     obst.append(obstacle)
-        val = self.checkCollisions(obst, nodes, rshapes, ecoll, permanentObst)
+        val = self.checkCollisions(obst, nodes, rshapes, ecoll, permanentObst, noViol)
         # print [o.name() for o in obst], [o.name() for o in permanentObst], [o.name() for o in val] if val else val
         if val is None:
             # collision with permanent object, permanency can
@@ -398,37 +398,42 @@ class RoadMap:
             coll.add(o)
         return coll
 
-    def checkCollisions(self, obstacles, nodes, rshapes, ecoll, permanentObst):
+    def checkCollisions(self, obstacles, nodes, rshapes, ecoll, permanentObst, noViol):
         if len(nodes) == 0 or (len(obstacles) == 0 and len(permanentObst) == 0):
             return set([])
         elif len(nodes) == 1:
             node = nodes[0]
             if not node in rshapes:
-                rshapes[node] = node.conf.placement(getShapes=True)
-                if self.robotSelfCollide(rshapes[node]):
+                # Let the placement method do any caching
+                placement = node.conf.placement(getShapes=True)
+                if self.robotSelfCollide(placement):
                     ecoll['robotSelfCollision'] = True
                     return None
-            if any(o for o in permanentObst if rshapes[node].collides(o)):
+            else:
+                placement = rshapes[node]
+            if any(o for o in permanentObst if placement.collides(o)):
                 return None
-            return set([o for o in obstacles if rshapes[node].collides(o)])
+            coll = set([o for o in obstacles if placement.collides(o)])
+            return None if (coll and noViol) else coll
         else:
             mid = len(nodes)/2
-            c2 = self.checkCollisions(obstacles, nodes[mid:mid+1], rshapes, ecoll, permanentObst)
+            c2 = self.checkCollisions(obstacles, nodes[mid:mid+1], rshapes, ecoll, permanentObst, noViol)
             if c2 is None: return None
             elif c2:
                 obstacles = [o for o in obstacles if o not in c2]
-            c1 = self.checkCollisions(obstacles, nodes[0:mid], rshapes, ecoll, permanentObst)
+            c1 = self.checkCollisions(obstacles, nodes[0:mid], rshapes, ecoll, permanentObst, noViol)
             if c1 is None: return None
             elif c1:
                 obstacles = [o for o in obstacles if o not in c1]
-            c3 = self.checkCollisions(obstacles, nodes[mid+1:len(nodes)], rshapes, ecoll, permanentObst)
-            if c3 is None: return None
+            c3 = self.checkCollisions(obstacles, nodes[mid+1:len(nodes)], rshapes, ecoll, permanentObst, noViol)
+            if c3 is None or (c3 and noViol): return None
             return c1.union(c2).union(c3)
 
     # We want edge to depend only on endpoints so we can cache the
     # interpolated confs.  The collisions depend on the robot variance
     # as well as the particular obstacles (and their varince).
-    def colliders(self, node_f, node_i, pbs, prob, viol, avoidShadow=[], attached=None):
+    def colliders(self, node_f, node_i, pbs, prob, viol,
+                  avoidShadow=[], attached=None, noViol=False):
         shWorld = pbs.getShadowWorld(prob, avoidShadow)
         coll = set([])
         empty = {}
@@ -448,16 +453,16 @@ class RoadMap:
         # We don't want to confuse the robot model during heuristic
         # with the one for regular planning.
         coll = self.edgeCollide(True, fbch.inHeuristic, edge.robotCollisions, edge.robotShapes,
-                                attached, edge.nodes, allObstacles, permanent, coll, viol)
+                                attached, edge.nodes, allObstacles, permanent, coll, viol, noViol)
         if coll is None:
             return coll
         key = tuple([pbs.graspB[h] for h in ['left', 'right']] + [fbch.inHeuristic])
         coll = self.edgeCollide(False, key, edge.heldCollisions, edge.heldShapes,
-                                attached, edge.nodes, allObstacles, permanent, coll, viol)
+                                attached, edge.nodes, allObstacles, permanent, coll, viol, noViol)
         return coll
 
     def checkPath(self, path, pbs, prob, attached, avoidShadow=[]):
-        newViol = noViol
+        newViol = viol0
         for conf in path:
             newViol, _ = self.confViolations(conf, pbs, prob,
                                              attached=attached,
@@ -481,7 +486,7 @@ class RoadMap:
         v = nodePath[0]
         for w in nodePath[1:]:
             assert self.edges.get((v,w), {}) or self.edges.get((w,v), {})
-            c = self.colliders(v, w, pbs, prob, noViol,
+            c = self.colliders(v, w, pbs, prob, viol0,
                                attached=attached, avoidShadow=avoidShadow)
             if c is None: return None
             ecoll = ecoll.union(c)
@@ -505,10 +510,10 @@ class RoadMap:
             #     raw_input('Go?')
             return Violations(obst, shad)
         else:
-            return noViol
+            return viol0
 
     def confViolations(self, conf, pbs, prob,
-                       initViol=noViol,
+                       initViol=viol0,
                        avoidShadow=[], attached=None,
                        additionalObsts = []):
         if initViol is None:
@@ -558,12 +563,13 @@ class RoadMap:
 
     # !! Should do additional sampling to connect confs.
     def minViolPathGen(self, targetConfNodes, pbs, prob, avoidShadow=[], startConf = None,
-                       initViol=noViol, objCost=1.0, shCost=0.5, maxNodes=maxSearchNodes,
+                       initViol=viol0, objCost=1.0, shCost=0.5, maxNodes=maxSearchNodes,
                        attached = None, testFn = lambda x: True,
-                       goalCostFn = lambda x: 0, draw=False, maxExpanded= maxExpandedNodes):
+                       goalCostFn = lambda x: 0, draw=False, maxExpanded= maxExpandedNodes,
+                       optimize = False, noViol = False):
 
         def testConnection(v, w, viol):
-            wObjs = self.colliders(v, w, pbs, prob, viol, attached=attached)
+            wObjs = self.colliders(v, w, pbs, prob, viol, attached=attached, noViol=noViol)
             if wObjs is None or not wObjs.isdisjoint(staticObstSet):
                 return None
             obst = wObjs.intersection(obstacleSet)
@@ -643,7 +649,8 @@ class RoadMap:
                                    maxNodes = maxNodes, maxExpanded = maxExpanded,
                                    maxHDelta = None,
                                    expandF = minViolPathDebug if debug('expand') else None,
-                                   greedy = searchGreedy, printFinal = False)
+                                   greedy = searchOpt if optimize else searchGreedy,
+                                   printFinal = False)
             for ans in gen:
                 (path, costs) = ans
                 if not path:
@@ -690,11 +697,12 @@ class RoadMap:
         return confPath
 
     # Cached version of the call to minViolPath
-    def confReachViol(self, targetConf, pbs, prob, initViol=noViol, avoidShadow = [],
-                        objCost = objCollisionCost, shCost = shCollisionCost,
-                        maxNodes = maxSearchNodes, startConf = None, attached = None):
+    def confReachViol(self, targetConf, pbs, prob, initViol=viol0, avoidShadow = [],
+                      objCost = objCollisionCost, shCost = shCollisionCost,
+                      maxNodes = maxSearchNodes, startConf = None, attached = None,
+                      optimize = False, noViol = False):
         realInitViol = initViol
-        initViol = noViol
+        initViol = viol0
         initConf = startConf or self.homeConf
         initConfNode = self.addNode(initConf)
 
@@ -705,9 +713,10 @@ class RoadMap:
             else:
                 return g
         def exitWithAns(ans):
-            if not key in self.confReachCache:
-                self.confReachCache[key] = []
-            self.confReachCache[key].append((pbs, prob, avoidShadow, ans))
+            if not optimize:
+                if not key in self.confReachCache:
+                    self.confReachCache[key] = []
+                self.confReachCache[key].append((pbs, prob, avoidShadow, ans))
             if ans and ans[0] and ans[2]:
                 (viol, cost, path, nodePath) = ans
                 if debug('confReachViol') and (not fbch.inHeuristic or debug('drawInHeuristic')):
@@ -746,7 +755,7 @@ class RoadMap:
                                  avoidShadow=avoidShadow, attached=attached)[0]
         cv = self.confViolations(initConf, pbs, prob, initViol=cv,
                                  avoidShadow=avoidShadow, attached=attached)[0]
-        if cv is None:
+        if cv is None or (noViol and cv.weight() > 0):
             if debug('traceCRH'): print '    unreachable conf',
             if debug('confReachViol'):
                 print 'targetConf is unreachable'
@@ -781,7 +790,9 @@ class RoadMap:
                      ('initViol', ([x.name() for x in initViol.obstacles],
                                    [x.name() for x in initViol.shadows]) if initViol else None),
                      ('avoidShadow', avoidShadow))
-        if key in self.confReachCache:
+        if optimize or noViol:
+            pass
+        elif key in self.confReachCache:
             if debug('confReachViolCache'): print 'confReachCache tentative hit'
             cacheValues = self.confReachCache[key]
             sortedCacheValues = sorted(cacheValues,
@@ -831,11 +842,12 @@ class RoadMap:
         hsave = fbch.inHeuristic
         gen = self.minViolPathGen([node], pbs, prob, avoidShadow,
                                   initConf, cvi,
-                                  objCost, shCost, maxNodes, attached=attached)
+                                  objCost, shCost, maxNodes, attached=attached,
+                                  optimize=optimize, noViol=noViol)
         ans = gen.next()        
         return exitWithAns(ans)
 
-    def confReachViolGen(self, targetConfs, pbs, prob, initViol=noViol, avoidShadow = [],
+    def confReachViolGen(self, targetConfs, pbs, prob, initViol=viol0, avoidShadow = [],
                          objCost = objCollisionCost, shCost = shCollisionCost,
                          maxNodes = maxSearchNodes, testFn = lambda x: True, goalCostFn = lambda x: 0,
                          startConf = None, attached = None, draw=False):
@@ -910,10 +922,10 @@ class RoadMap:
         return
 
     def safePath(self, qf, qi, pbs, prob, attached):
-        for conf in rrt.interpolate(qf, qi, stepSize=0.5):
+        for conf in rrt.interpolate(qf, qi, stepSize=minStep):
             newViol, _ = self.confViolations(conf, pbs, prob,
                                              attached=attached,
-                                             initViol=noViol)
+                                             initViol=viol0)
             if newViol is None or newViol.weight() > 0.:
                 return False
         return True

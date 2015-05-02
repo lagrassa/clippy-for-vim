@@ -8,7 +8,7 @@ import shapes
 from miscUtil import isGround
 from dist import UniformDist,  DeltaDist
 from objects import World, WorldState
-from pr2Robot2 import PR2, pr2Init, makePr2Chains
+from pr2Robot import PR2, pr2Init, makePr2Chains
 from planGlobals import debugMsg, debugDraw, debug, pause
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
 from pr2Util import ObjGraspB, ObjPlaceB, shadowName, shadowWidths
@@ -50,7 +50,8 @@ class BeliefContext:
 # Marginal distributions over object poses, relative to the robot
 class PBS:
     def __init__(self, beliefContext, held=None, conf=None,
-                 graspB=None, fixObjBs=None, moveObjBs=None, regions=[], domainProbs=None):
+                 graspB=None, fixObjBs=None, moveObjBs=None, regions=[],
+                 domainProbs=None, useRight=True):
         self.beliefContext = beliefContext
         self.conf = conf or None
         self.held = held or \
@@ -61,7 +62,7 @@ class PBS:
         self.moveObjBs = moveObjBs or {}          # {obj: objPlaceB}
         self.regions = regions
         self.pbs = self
-        self.useRight = True
+        self.useRight = useRight
         # cache
         self.shadowWorld = None                   # cached obstacles
         self.shadowProb = None                    # shadow probability
@@ -129,7 +130,7 @@ class PBS:
     def copy(self):
         return PBS(self.beliefContext, self.held.copy(), self.conf.copy(),
                    self.graspB.copy(), self.fixObjBs.copy(), self.moveObjBs.copy(),
-                   self.regions, self.domainProbs)
+                   self.regions, self.domainProbs, self.useRight)
 
     def objectsInPBS(self):
         objects = []

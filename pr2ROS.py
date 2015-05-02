@@ -10,13 +10,12 @@ import pointClouds as pc
 import planGlobals as glob
 from planGlobals import debug, debugMsg
 import windowManager3D as wm
-from pr2Util import shadowWidths, supportFaceIndex
+from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn
 from miscUtil import argmax
-from pr2Robot2 import JointConf, CartConf
-
-import pr2Robot2
-reload(pr2Robot2)
-from pr2Robot2 import cartInterpolators
+from pr2Visible import lookAtConf
+import pr2Robot
+reload(pr2Robot)
+from pr2Robot import cartInterpolators, JointConf, CartConf
 
 import util
 import tables
@@ -120,6 +119,7 @@ def gazeCoords(cnfIn):
     headTrans = cnfInCart['pr2Base'].inverse().compose(head)
     gaze = headTrans.applyToPoint(util.Point(np.array([0.,0.,1.,1.]).reshape(4,1)))
     confHead = gaze.matrix.reshape(4).tolist()[:3]
+    confHead[2] = confHead[2] - 0.2     # brute force correction
     if confHead[0] < 0:
         if debug('pr2GoToConf'):  print 'Dont look back!'
         confHead[0] = -conf.head[0]
@@ -166,7 +166,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 
     def executeMove(self, op, params):
         if params:
-            path = params
+            path, interpolated = params
             debugMsg('robotEnv', 'executeMove: path len = ', len(path))
             obs = self.executePath(path)
         else:
@@ -208,12 +208,12 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         outConfCart = lookConf.robot.forwardKin(outConf)
         if 'table' in targetObj:
             table = lookAtTable(placeBs[targetObj])
-            if not table: return None
+            if not table: return []
             trueFace = supportFaceIndex(table)
             tablePoseRobot = getSupportPose(table, trueFace)
             tablePose = outConfCart['pr2Base'].compose(tablePoseRobot)
             #!! needs generalizing
-            return (self.world.getObjType(targetObj), trueFace, tablePose)
+            return [(self.world.getObjType(targetObj), trueFace, tablePose)]
         elif targetObj in placeBs:
             supportTable = findSupportTable(targetObj, self.world, placeBs)
             assert supportTable
@@ -221,7 +221,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             if not wellLocalized(placeB):
                 tableRobot = lookAtTable(placeB)
                 table = tableRobot.applyTrans(outConfCart['pr2Base'])
-                if not table: return None
+                if not table: return []
             else:
                 table = self.world.getObjectShapeAtOrigin(supportTable).applyLoc(placeB.objFrame())
             surfacePoly = makeROSPolygon(table)
@@ -229,32 +229,48 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                                    {targetObj: placeBs[targetObj]},
                                    outConf, # the lookConf actually achieved
                                    [surfacePoly])
-            if ans:
-                # This is in robot coords
-                score, objPlaceRobot = ans[0]
-            else:
-                objPlaceRobot = None
-            if not objPlaceRobot:
-                raw_input('No detections')
-                return None
-            trueFace = supportFaceIndex(objPlaceRobot)
-            objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
-            if debug('robotEnv'):
-                objPlace.draw('W', 'red')
-                raw_input(objPlace.name())
-            return (self.world.getObjType(objPlace.name()),
-                    trueFace, getSupportPose(objPlace, trueFace))
+            obs = []
+            for (score, objPlaceRobot) in ans:
+                if not objPlaceRobot:
+                    continue
+                trueFace = supportFaceIndex(objPlaceRobot)
+                objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
+                pose = getSupportPose(objPlace, trueFace)
+                obs.append((self.world.getObjType(objPlace.name()),
+                            trueFace, pose))
+                if debug('robotEnv'):
+                    print 'Obs', objPlace.name(), 'score=', score,
+                    print 'face=', trueFace, 'pose=', pose
+                    objPlace.draw('W', 'cyan')
+                    raw_input(objPlace.name())
+            if debug('robotEnv') and not obs:
+                raw_input('Got no observations for %s'%targetObj)
+            return obs
         else:
             raw_input('Unknown object: %s'%targetObj)
-            return None
+            return []
+
+    def lookObjShape(self, placeB):
+        shape = self.world.getObjectShapeAtOrigin(placeB.obj)
+        return shape.applyLoc(placeB.objFrame())
 
     def executePick(self, op, params):
-        (hand, pickConf, approachConf) = \
-               (op.args[1], op.args[17], op.args[15])
+        (obj, hand, pickConf, approachConf) = \
+               (op.args[0], op.args[1], op.args[17], op.args[15])
+
+        if params:
+            placeBs = params
+        else:
+            print op
+            raw_input('No object distributions given')
+            return None
+
         gripper = 'pr2LeftGripper' if hand=='left' else 'pr2RightGripper'
 
         debugMsg('robotEnv', 'executePick - open')
         result, outConf = pr2GoToConf(approachConf, 'move')
+        result, outConf = pr2GoToConf(lookAtConf(approachConf, self.lookObjShape(placeBs[obj])),
+                                      'look')
         
         debugMsg('robotEnv', 'executePick - move to pickConf')
         reactiveApproach(approachConf, pickConf, 0.06, hand)
@@ -334,7 +350,7 @@ def getObjDetections(world, obsTargets, robotConf, surfacePolys, maxFitness = 3)
     assert state
     detections = []
     for obj in state.scene.objects:
-        if obj.fitness_score < maxFitness:
+        if obj.fitness_score < maxFitness: # fitness is in std dev, so high is bad
             #!! HACK
             name = obsTargets.keys()[0]
             trans = TransformFromROSMsg(obj.pose.position, obj.pose.orientation)
@@ -518,9 +534,12 @@ def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0,
     handFrameName = conf.robot.armChainNames[hand]
     trans = cart[handFrameName]
     if zFrom:
-        toZ = zFrom.cartConf()[handFrameName].matrix[2,3]
-        curZ = trans.matrix[2,3]
-        dz = toZ - curZ
+        diff = trans.inverse().compose(zFrom.cartConf()[handFrameName])
+        dz = diff.matrix[2,3]
+        print 'trans\n', trans.matrix
+        print 'zFrom\n', zFrom.cartConf()[handFrameName].matrix
+        print 'dz', dz
+        raw_input('Ok?')
     if maxTarget:
         diff = trans.inverse().compose(maxTarget.cartConf()[handFrameName])
         max_dx = diff.matrix[0,3]
@@ -632,15 +651,6 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
     obs = (curConf, curConf[conf.robot.gripperChainNames[hand]][0],
            result, contacts)
     return obs, (approachConf, curConf)
-
-def bigAngleWarn(conf1, conf2):
-    for chain in ['pr2LeftArm', 'pr2RightArm']:
-        joint = 0
-        for angle1, angle2 in zip(conf1[chain], conf2[chain]):
-            if abs(angle1 - angle2) >= 2*math.pi:
-                print chain, joint, angle1, angle2
-                debugMsg('bigAngleChange', 'Big angle change')
-            joint += 1
 
 def compliantClose(conf, hand, step = 0.01, n = 1):
     if n > 5:

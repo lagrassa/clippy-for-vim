@@ -49,14 +49,12 @@ debugOn = ['prim', 'skeleton', 'executionFail', 'executePath', 'traceGen', 'trac
 debugOn = ['traceGen', 'traceCRH', 'confReachViol', 'canPickPlaceGen', 'pickGen']
 debugOn = ['traceGen', 'traceCRH', 'prim', 'getShadowWorldGrasp']
 # debugOn = []
-debugOn = ['traceGen', 'traceCRH', 'skeleton']
+debugOn = ['traceGen', 'traceCRH', 'skeleton', 'hAddBackInf']
 #           'potentialGraspConfs', 'potentialRegionPoseGen', 'infeasible'
 #          'getShadowWorld', 'confReachViol', 'confViolations', 'lookGen', 'canReachGen', 'visible', 'lookGen'
 
 if platform.system() == 'Linux':
-    for x in ['robotEnv', 'tables', 'obsUpdate']:
+    for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:
         if not x in debugOn: debugOn.append(x)
 
 pauseOn = debugOn
-
-

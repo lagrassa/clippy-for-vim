@@ -1,4 +1,5 @@
 import pdb
+import random
 import math
 import util
 import copy
@@ -6,6 +7,7 @@ import itertools
 import transformations as transf
 from transformations import quaternion_slerp
 import numpy as np
+from collections import deque
 
 import shapes
 import cspace
@@ -408,8 +410,20 @@ def ground(pose):
     params[2] = 0.0
     return util.Pose(*params)
 
+# fkCount, fkCache, placeCount, placeCache
 confCacheStats = [0, 0, 0, 0]
-kinCacheStats = [0, 0]
+
+# Controls size of confCache - bigger cache leads to faster motion
+# planning, but makes Python bigger, which can lead to swapping.
+maxConfCacheSize = 150*10**3
+print '*** pr2Robot.maxConfCacheSize', maxConfCacheSize, '***'
+
+# (additions, deletions)
+confCacheUpdateStats = [0, 0]
+def printStats():
+    print 'maxConfCacheSize', maxConfCacheSize
+    print 'confCacheStats = (fkCount, fkCache, placeCount, placeCache)\n', confCacheStats
+    print 'confCacheUpdateStats = (additions, deletions)\n', confCacheUpdateStats
 
 # This basically implements a Chain type interface, execpt for the wstate
 # arguments to the methods.
@@ -437,11 +451,11 @@ class PR2:
         self.verticalTrans = {'left': [p.inverse() for p in verticalTrans],
                                 'right': [flipv(p).inverse() for p in verticalTrans]}
         self.confCache = {}
-        self.kinCache = {}
+        self.confCacheKeys = deque([])  # in order of arrival
         if debug('PR2'): print 'New PR2!'
         return
 
-    def potentialBasePosesGen(self, wrist, hand):
+    def potentialBasePosesGen(self, wrist, hand, n=None):
         xAxisZ = wrist.matrix[2,0]
         if abs(xAxisZ) < 0.01:
             trs = self.horizontalTrans[hand]
@@ -450,7 +464,9 @@ class PR2:
         else:
             print 'wrist=\n', wrist.matrix
             raw_input('Illegal wrist trans for base pose')
-        for tr in trs:
+        random.shuffle(trs)             # !!
+        for i, tr in enumerate(trs):
+            if n and i > n: return
             ans = wrist.compose(tr).pose(fail=False)
             if ans is None:
                 print 'wrist=\n', wrist.matrix
@@ -544,6 +560,15 @@ class PR2:
         else:
             return place, trans
 
+    def updateConfCache(self, key, value):
+        while len(self.confCacheKeys) > maxConfCacheSize:
+            confCacheUpdateStats[1] += 1
+            oldKey = self.confCacheKeys.popleft()
+            del(self.confCache[oldKey])
+        confCacheUpdateStats[0] += 1
+        self.confCacheKeys.append(key)
+        self.confCache[key] = value
+
     def placementAux(self, conf, wstate=None, getShapes=True, attached=None):
         # The placement is relative to the state in some world (provides the base frame)
         # Returns a Shape object and a dictionary of frames for each sub-chain.
@@ -557,7 +582,7 @@ class PR2:
             place, trans = self.confCache[key]
         else:
             place, trans = self.chains.placement(frame, conf, getShapes=shapeChains)
-            self.confCache[key] = (place, trans)
+            self.updateConfCache(key, (place, trans))
         attachedParts = {'left':None, 'right':None}
         if attached:
             for hand in ('left', 'right'):
@@ -693,13 +718,6 @@ class PR2:
             assert wstate
         if conf == None:
             conf = wstate.robotConf if wstate else self.nominalConf
-        # This doesn't seem to pay off
-        # key = (cart, conf, returnAll, collisionAware)
-        # val = self.kinCache.get(key, None)
-        # kinCacheStats[0] += 1
-        # if val != None:
-        #     kinCacheStats[1] += 1
-        #     return val
         torsoChain = self.chains.chainsByName['pr2Torso']
         baseChain = self.chains.chainsByName['pr2Base']
         # if wstate:
@@ -774,7 +792,6 @@ class PR2:
         if 'pr2RightGripper' in cart.conf:
             g = cart.conf['pr2RightGripper']
             conf = conf.set('pr2RightGripper', g if isinstance(g, (list,tuple)) else [g])
-        # self.kinCache[key] = conf
         return conf
 
 ########################################

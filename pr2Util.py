@@ -5,6 +5,7 @@ from colors import RGBToPyColor, HSVtoRGB
 from dist import chiSqFromP
 import numpy as np
 import dist
+from planGlobals import debug, debugMsg
 
 class Hashable:
     def __eq__(self, other):
@@ -281,7 +282,7 @@ class Memoizer:
     def __init__(self, name, generator, values = None):
         self.name = name
         self.generator = generator
-        self.values = values if values else []
+        self.values = values if values else [name]
         self.i = 0
     def __iter__(self):
         return self
@@ -290,12 +291,23 @@ class Memoizer:
         new = Memoizer(self.name, self.generator, self.values)
         return new
     def next(self):
-        if self.i < len(self.values):
+        if self.i < len(self.values)-1:
             i = self.i
             self.i += 1
-            return self.values[i]
+            return self.values[i+1]
         else:
             val = self.generator.next()
             self.values.append(val)
             self.i += 1
             return val
+
+def bigAngleWarn(conf1, conf2, thr = math.pi/8.):
+    if not debug('bigAngleChange'): return
+    for chain in ['pr2LeftArm', 'pr2RightArm']:
+        joint = 0
+        for angle1, angle2 in zip(conf1[chain], conf2[chain]):
+            if abs(util.angleDiff(angle1, angle2)) >= thr:
+                print chain, joint, angle1, angle2
+                debugMsg('bigAngleChange', 'Big angle change')
+            joint += 1
+

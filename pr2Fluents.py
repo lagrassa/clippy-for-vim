@@ -129,7 +129,8 @@ class CanReachHome(Fluent):
         assert v == True
         (conf, hand,
                lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
-               robj, rface, rgraspMu, rgraspVar, rgraspDelta, cond) = \
+               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
+               firstCondPerm, cond) = \
                             self.args   # Args
         # Note that all object poses are permanent, no collisions can be ignored
         newPBS = bState.pbs.copy()
@@ -152,8 +153,16 @@ class CanReachHome(Fluent):
         
         newPBS.updateHeld(lobj, lface, lgraspD, 'left', lgraspDelta)
         newPBS.updateHeld(robj, rface, rgraspD, 'right', rgraspDelta)
-        
+
+        if firstCondPerm:
+            fc = cond[0]
+            assert fc.args[0].predicate == 'Pose'
+            avoidShadow = [fc.args[0].args[0]]
+        else:
+            avoidShadow = []
+
         path, violations = canReachHome(newPBS, conf, p, Violations(),
+                                        avoidShadow = avoidShadow,
                                         draw=False)
         debugMsg('CanReachHome',
                  ('conf', conf),
@@ -170,7 +179,8 @@ class CanReachHome(Fluent):
         # Return cost estimate and a set of dummy operations
         (conf, hand,
                lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
-               robj, rface, rgraspMu, rgraspVar, rgraspDelta, cond) = \
+               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
+               firstCondPerm, cond) = \
                             self.args   # Args
         
         obstCost = 10  # move pick move place
@@ -211,8 +221,8 @@ class CanReachHome(Fluent):
 
     def prettyString(self, eq = True, includeValue = True):
         (conf, hand, lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
-               robj, rface, rgraspMu, rgraspVar, rgraspDelta, cond) = \
-                            self.args   # Args
+               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
+               firstObjPerm, cond) = self.args   # Args
         if hand == 'right':
             (lobj, lface, lgraspMu, lgraspVar, lgraspDelta, \
              robj, rface, rgraspMu, rgraspVar, rgraspDelta) =  \
@@ -239,7 +249,8 @@ class CanPickPlace(Fluent):
     # in contradiction.  How to test, exactly?
 
 
-    # Override the default version of this so that the component conds will be recalculated
+    # Override the default version of this so that the component conds
+    # will be recalculated
     def addConditions(self, newConds, details = None):
         self.conds = None
         Fluent.addConditions(self, newConds, details)
@@ -249,7 +260,8 @@ class CanPickPlace(Fluent):
         # won't have this attribute
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
           graspFace, graspMu, graspVar, graspDelta,
-         oObj, oFace, oGraspMu, oGraspVar, oGraspDelta, inconds) = self.args
+         oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
+        opType, inconds) = self.args
     
         assert obj != 'none'
 
@@ -260,25 +272,26 @@ class CanPickPlace(Fluent):
                                    tinyDelta,1.0], True)
             self.conds = \
           [# 1.  Home to approach, holding nothing, obj in place
+           # If it's a place operation, the shadow is irreducible
               CanReachHome([preConf, hand,
                         'none', 0, zeroPose, zeroVar, tinyDelta,
                         oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-                      [objInPlace]]),
+                        opType == 'place', [objInPlace]]),
               # 2.  Home to approach with object in hand
               CanReachHome([preConf, hand, obj,
                                 graspFace, graspMu, graspVar, graspDelta,
                                 oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-                                []]),
+                                False, []]),
               # 3.  Home to pick with hand empty, obj in place with zero var
               CanReachHome([ppConf, hand, 
                                'none', 0, zeroPose, zeroVar, tinyDelta,
                                 oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-                       [objInPlaceZeroVar]]),
+                                False, [objInPlaceZeroVar]]),
              # 4. Home to pick with the object in hand with zero var and delta
               CanReachHome([ppConf, hand,
                                 obj, graspFace, graspMu, zeroVar, tinyDelta,
                                 oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-                        []])]
+                                False, []])]
             for c in self.conds: c.addConditions(inconds, details)
         return self.conds
 
@@ -342,7 +355,7 @@ class CanPickPlace(Fluent):
     def prettyString(self, eq = True, includeValue = True):
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
           face, graspMu, graspVar, graspDelta,
-          oobj, oface, ograspMu, ograspVar, ograspDelta, conds) = self.args
+          oobj, oface, ograspMu, ograspVar, ograspDelta, op, conds) = self.args
         assert obj != 'none'
 
         argStr = prettyString(self.args) if eq else \
@@ -433,8 +446,27 @@ class Pose(Fluent):
     def dist(self, bState):
         (obj, face) = self.args
         if face == '*':
-            face = bState.pbs.getPlaceB(obj).support.mode()
-        result = bState.poseModeDist(obj, face)
+            hl = bState.pbs.getHeld('left').mode()
+            hr = bState.pbs.getHeld('right').mode()
+            if hl == obj:
+                hand = 'left'
+                graspFace = bState.pbs.getGraspB(obj, hand).grasp.mode() 
+                result = bState.graspModeDist(obj, hand, face)
+            elif hr == obj:
+                hand = 'right'
+                graspFace = bState.pbs.getGraspB(obj, hand).grasp.mode() 
+                result = bState.graspModeDist(obj, hand, face)
+            else:
+                face = bState.pbs.getPlaceB(obj).support.mode()
+                result = bState.poseModeDist(obj, face)
+        elif face in ('left', 'right'):
+            # Actually, the grasp dist, if the face is a hand!
+            hand = face
+            graspFace = bState.pbs.getGraspB(obj, hand).grasp.mode() 
+            result = bState.graspModeDist(obj, hand, face)
+        else:
+            # normal case
+            result = bState.poseModeDist(obj, face)            
         return result
 
     def fglb(self, other, bState = None):
@@ -480,8 +512,15 @@ class SupportFace(Fluent):
     predicate = 'SupportFace'
     def dist(self, bState):
         (obj,) = self.args               # args
-        # Mode should be 'none' if the object is in the hand
-        return bState.pbs.getPlaceB(obj).support # a DDist (over integers)
+        # Mode should be 'left' or 'right' if the object is in the hand
+        hl = bState.pbs.getHeld('left').mode()
+        hr = bState.pbs.getHeld('right').mode()
+        if hl == obj:
+            return DeltaDist('left')
+        elif hr == obj:
+            return DeltaDist('right')
+        else:
+            return bState.pbs.getPlaceB(obj).support # a DDist (over integers)
 
     def fglb(self, other, bState = None):
         if (other.predicate == 'Holding' and \
@@ -549,9 +588,9 @@ class CanSeeFrom(Fluent):
             newPBS.updateFromGoalPoses(cond, updateHeld=False)
 
         placeB = newPBS.getPlaceB(obj)
-        if placeB.support.mode() != poseFace:
+        if placeB.support.mode() != poseFace and poseFace != '*':
             placeB.support = DeltaDist(poseFace)
-        if placeB.poseD.mode() != pose:
+        if placeB.poseD.mode() != pose and pose != '*':
             newPBS.updatePermObjPose(placeB.modifyPoseD(mu=pose))
         shWorld = newPBS.getShadowWorld(p)
         shName = shadowName(obj)
@@ -709,7 +748,8 @@ def partition(fluents):
 ###
 
 def canReachHome(pbs, conf, prob, initViol,
-                 avoidShadow = [], startConf = None, draw=True):
+                 avoidShadow = [], startConf = None,
+                 optimize = False, noViol = False, draw=True):
     rm = pbs.getRoadMap()
     robot = pbs.getRobot()
     initConf = startConf or rm.homeConf
@@ -717,7 +757,8 @@ def canReachHome(pbs, conf, prob, initViol,
     viol, cost, pathRev = rm.confReachViol(initConf, pbs, prob,
                                            initViol,
                                            avoidShadow=avoidShadow,
-                                           startConf=conf)
+                                           startConf=conf,
+                                           optimize = optimize, noViol = noViol)
     path = pathRev[::-1] if pathRev else pathRev
 
     if debug('checkCRH') and fbch.inHeuristic:
@@ -730,7 +771,8 @@ def canReachHome(pbs, conf, prob, initViol,
         viol2, cost2, pathRev2 = rm.confReachViol(initConf, pbs, prob,
                                                   initViol,
                                                   avoidShadow=avoidShadow,
-                                                  startConf=conf)
+                                                  startConf=conf,
+                                                  optimize = optimize)
         fbch.inHeuristic = True
         # Check for heuristic (viol) being worse than actual (viol2)
         if viol != viol2 and viol2 != None \

@@ -4,12 +4,12 @@ import objects
 from objects import WorldState
 import windowManager3D as wm
 import pr2Util
-from pr2Util import supportFaceIndex, DomainProbs
+from pr2Util import supportFaceIndex, DomainProbs, bigAngleWarn
 from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 import util
 from planGlobals import debugMsg, debug
-from pr2Robot2 import gripperTip, gripperFaceFrame
+from pr2Robot import gripperTip, gripperFaceFrame
 from pr2Visible import visible
 from time import sleep
 
@@ -31,7 +31,8 @@ crashIsError = False
 
 simulateError = False
 
-animate = True
+animate = False
+animateSleep = 0.2
 
 pickSuccessDist = 0.1  # pretty big for now
 class RealWorld(WorldState):
@@ -61,19 +62,20 @@ class RealWorld(WorldState):
             raise Exception, 'Unknown operator: '+str(op)
 
     # Be sure there are no collisions.  If so, stop early.
-    def executePath(self, path):
+    def executePath(self, path, interpolated=None):
         def getObjShapes():
             held = self.held.values()
             return [self.objectShapes[obj] \
                     for obj in self.objectShapes if not obj in held]
         objShapes = getObjShapes()
         obs = None
+        path = interpolated or path
         for (i, conf) in enumerate(path):
             # !! Add noise to conf
             self.setRobotConf(conf)
             if animate:
                 self.draw('World')
-                sleep(0.2)
+                sleep(animateSleep)
             else:
                 self.robotPlace.draw('World', 'orchid')
             cart = conf.cartConf()
@@ -113,11 +115,11 @@ class RealWorld(WorldState):
             'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta',
             'P1', 'P2', 'PCR']
         if params:
-            path = params
+            path, interpolated  = params
             debugMsg('path', 'path len = ', len(path))
             if not path:
                 raw_input('No path!!')
-            obs = self.executePath(path)
+            obs = self.executePath(path, interpolated)
         else:
             print op
             raw_input('No path given')
@@ -162,56 +164,40 @@ class RealWorld(WorldState):
         self.setRobotConf(lookConf)
         self.robotPlace.draw('World', 'orchid')
         debugMsg('sim', 'LookAt configuration')
-        obstacles = [s for s in self.getObjectShapes() if \
-                     s.name() != targetObj ]
-
-        # if debug('tables'):
-        #     laserScanParams = (0.3, 0.1, 0.1, 2., 20)
-        #     scan = pc.simulatedScan(lookConf, laserScanParams, self.getObjectShapes())
-        #     scan.draw('W')
-        #     raw_input('Scan ok?')
-        #     for score, table in tables.getTables(self.world, self.world.objects.keys(), scan):
-        #         table.draw('W', 'red')
-        #         raw_input(table.name())
-        #     raw_input('Tables ok?')
-
-        if not targetObj in self.objectShapes:
-            vis = False
-        else:
+        objType = self.world.getObjType(targetObj)
+        obs = []
+        for shape in self.getObjectShapes():
+            curObj = shape.name()
+            if self.world.getObjType(curObj) != objType:
+                continue
+            obstacles = [s for s in self.getObjectShapes() if \
+                         s.name() != curObj ]
             vis, _ = visible(self, self.robotConf,
-                             self.objectShapes[targetObj],
-                         obstacles, 0.75)
-        if not vis:
-            print 'Object', targetObj, 'is not visible'
-            return None
-        else:
-            print 'Object', targetObj, 'is visible'
-        truePose = self.getObjectPose(targetObj)
-        # Have to get the resting face.  And add noise.
-        trueFace = supportFaceIndex(self.objectShapes[targetObj])
-        print 'observed Face', trueFace
-        ff = self.objectShapes[targetObj].faceFrames()[trueFace]
-        obsMissProb = self.domainProbs.obsTypeErrProb
-        miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
-        if miss:
-            raw_input('Missed observation')
-            return None
-        else:
-            obsVar = self.domainProbs.obsVar
-            obsPose = util.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
-            obsPlace = obsPose.compose(ff).pose().xyztTuple()
-            objType = self.world.getObjType(targetObj)
-
-            # debugging
-            # oShape = self.world.getObjectShapeAtOrigin(targetObj)
-            # oShape.applyLoc(obsPose).draw('World', 'black')
-            # print 'True pose', truePose
-            # print 'Obs pose (in black)', obsPose
-            # print 'Obs place (in black)', obsPlace
-            # print 'Stdev',[np.sqrt(v) for v in self.domainProbs.obsVarTuple]
-            # print (objType, trueFace, obsPlace)
-            # raw_input('Obs okay?')
-            return (objType, trueFace, util.Pose(*obsPlace))
+                             self.objectShapes[curObj],
+                             obstacles, 0.75)
+            if not vis:
+                print 'Object', curObj, 'is not visible'
+                continue
+            else:
+                print 'Object', curObj, 'is visible'
+            truePose = self.getObjectPose(curObj)
+            # Have to get the resting face.  And add noise.
+            trueFace = supportFaceIndex(self.objectShapes[curObj])
+            print 'observed Face', trueFace
+            ff = self.objectShapes[curObj].faceFrames()[trueFace]
+            obsMissProb = self.domainProbs.obsTypeErrProb
+            miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
+            if miss:
+                raw_input('Missed observation')
+                continue
+            else:
+                obsVar = self.domainProbs.obsVar
+                obsPose = util.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
+                obsPlace = obsPose.compose(ff).pose().xyztTuple()
+                objType = self.world.getObjType(curObj)
+                obs.append((objType, trueFace, util.Pose(*obsPlace)))
+        print 'Observation', obs
+        return obs
 
     def executePick(self, op, params):
         # Execute the pick prim, starting at c1, aiming for c2.
@@ -229,6 +215,7 @@ class RealWorld(WorldState):
         # Try to execute pick
         (hand, pickConf, approachConf) = \
                  (op.args[1], op.args[17], op.args[15])
+        bigAngleWarn(approachConf, pickConf)
         self.setRobotConf(pickConf)
         self.robotPlace.draw('World', 'orchid')
         oDist = None
@@ -278,8 +265,9 @@ class RealWorld(WorldState):
             # Execute the place prim, starting at c1, aiming for c2.
             # Every kind of horrible, putting these indices here..
             hand = op.args[1]
-            placeConf = op.args[-7]
-            approachConf = op.args[-9]
+            placeConf = op.args[-8]
+            approachConf = op.args[-10]
+            bigAngleWarn(approachConf, placeConf)
             self.setRobotConf(placeConf)
             self.robotPlace.draw('World', 'orchid')            
             if not self.attached[hand]:
