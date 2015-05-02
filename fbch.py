@@ -1078,7 +1078,11 @@ class Operator(object):
                 if cost < 0:
                     cost = cp
 
-                rebindCost = hOld + rebindCost
+                if hOld != float('inf'):
+                    rebindCost = hOld + rebindCost
+                else:
+                    # Try a smaller penalty here to encourage rebinding
+                    rebindCost = 10
 
                 # LPK!!  This is a way to cut down on generator calls
                 # but is potentially risky.  Disabled for now.
