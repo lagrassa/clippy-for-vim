@@ -5,6 +5,7 @@ import util
 import copy
 import windowManager3D as wm
 import shapes
+import planGlobals as glob
 from planGlobals import debugMsg, debugDraw, debug, pause, torsoZ
 from miscUtil import argmax, isGround
 from dist import UniformDist, DDist
@@ -99,11 +100,11 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
     # 1.  Can move from home to pre holding nothing with object placed at pose
     if preConf:
         pbs1 = pbs.copy().updatePermObjPose(objPlace).updateHeldBel(None, hand)
+        if op == 'place': pbs1.updateAvoidShadow([obj])
         if debug('canPickPlaceTest'):
             pbs1.draw(p, 'W')
             debugMsg('canPickPlaceTest', 'H->App, obj=pose (condition 1)')
-        path, violations = canReachHome(pbs1, preConf, p, violations,
-                                    avoidShadow=([obj] if op=='place' else []))
+        path, violations = canReachHome(pbs1, preConf, p, violations)
         if not path:
             debugMsg('canPickPlaceTest', 'Failed H->App, obj=pose (condition 1)')
             return None
@@ -117,6 +118,12 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
         debugMsg('canPickPlaceTest', 'H->App, obj=held (condition 2)')
     path, violations = canReachHome(pbs2, preConf, p, violations)
     if not path:
+        # print 'canPickPlaceTest' + 'Failed H->App, obj=held (condition 2)'
+        # save = glob.debugOn[:]
+        # glob.debugOn.extend(['successors', 'confReachViol', 'confReachViolGen', 'minViolPath'])
+        # pbs.getRoadMap().confReachCache = {}
+        # canReachHome(pbs2, preConf, p, Violations())
+        # glob.debugOn = save
         raw_input('canPickPlaceTest' + 'Failed H->App, obj=held (condition 2)')
         return None
     elif debug('canPickPlaceTest'):
@@ -258,7 +265,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, prob, nMax=10):
             conf.conf['pr2LeftArm'] = pbs.conf['pr2LeftArm']
             conf.conf['pr2LeftGripper'] = pbs.conf['pr2LeftGripper']
         # Check for collisions
-        viol, _ = rm.confViolations(conf, pbs, prob) # don't include attached...
+        viol, _ = rm.confViolations(conf, pbs, prob, ignoreAttached=True) # don't include attached...
         if viol and findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob):
             if debug('potentialGraspConfs'):
                 conf.draw('W','green')
@@ -282,13 +289,14 @@ def potentialLookConfGen(rm, shape, maxDist):
     # visionPlanes = np.array([[1.,1.,0.,0.], [-1.,1.,0.,0.]])
     visionPlanes = np.array([[1.,0.,0.,0.]])
     tested = set([])
-    for node in rm.nodes:
+    for node in rm.nodes():             # !!
         base = tuple(node.conf['pr2Base'])
         if base in tested:
             continue
         else:
             tested.add(base)
-        basePose = node.cartConf['pr2Base']
+        x,y,th = base
+        basePose = util.Pose(x,y,0,th)
         dist = centerPoint.distance(basePose.point())
         if dist > maxDist:
             continue

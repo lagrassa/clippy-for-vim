@@ -50,6 +50,7 @@ debugOn = ['traceGen', 'traceCRH', 'confReachViol', 'canPickPlaceGen', 'pickGen'
 debugOn = ['traceGen', 'traceCRH', 'prim', 'getShadowWorldGrasp']
 # debugOn = []
 debugOn = ['traceGen', 'traceCRH', 'skeleton', 'hAddBackInf']
+# 'successors', 'confReachViol', 'confReachViolGen', 'minViolPath'
 #           'potentialGraspConfs', 'potentialRegionPoseGen', 'infeasible'
 #          'getShadowWorld', 'confReachViol', 'confViolations', 'lookGen', 'canReachGen', 'visible', 'lookGen'
 

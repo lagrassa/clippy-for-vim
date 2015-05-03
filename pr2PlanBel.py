@@ -63,11 +63,10 @@ class PBS:
         self.regions = regions
         self.pbs = self
         self.useRight = useRight
+        self.avoidShadow = []                   # shadows to avoid, in cached obstacles
+        self.shadowProb = None
         # cache
         self.shadowWorld = None                   # cached obstacles
-        self.shadowProb = None                    # shadow probability
-        self.avoidShadow = None                   # shadows to avoid, in cached obstacles
-        self.heuristic = None                     # the robot shape depends on heuristic
         self.domainProbs = domainProbs
         self.objNames = self.fixObjBs.keys() + self.moveObjBs.keys()
 
@@ -140,6 +139,9 @@ class PBS:
         objects.extend(self.fixObjBs.keys())
         objects.extend(self.moveObjBs.keys())
         return set(objects)
+
+    def updateAvoidShadow(self, avoidShadow):
+        self.avoidShadow = avoidShadow
 
     def updateFromAllPoses(self, goalConds, updateHeld=True, updateConf=True):
         initialObjects = self.objectsInPBS()
@@ -255,19 +257,17 @@ class PBS:
             bs.fixObjBs[obj] = objBs[obj]
         return bs
     
-    def getShadowWorld(self, prob, avoidShadow = []):
-        if self.shadowWorld and self.shadowProb == prob \
-           and self.heuristic == fbch.inHeuristic \
-           and set(avoidShadow) == set(self.avoidShadow):
-            # print 'same shadowWorld'
+    def getShadowWorld(self, prob):
+        if self.shadowWorld and self.shadowProb == prob:
             return self.shadowWorld
         else:
             cache = self.beliefContext.genCaches['getShadowWorld']
-            key = (self.items(), prob, tuple(avoidShadow))
+            key = (self.items(), prob, tuple(self.avoidShadow))
             if key in cache:
                 ans = cache.get(key, None)
                 if ans != None:
-                    (self.shadowWorld, self.shadowProb, self.avoidShadow) = ans
+                    self.shadowWorld = ans
+                    self.shadowProb = prob
                     # print 'cached shadowWorld'
                     return self.shadowWorld
         # The world holds objects, but not poses or shapes
@@ -275,8 +275,6 @@ class PBS:
         # the shadow world is a WorldState.  Cache it.
         self.shadowWorld = WorldState(w)
         self.shadowProb = prob
-        self.avoidShadow = avoidShadow
-        self.heuristic = fbch.inHeuristic
         # Add the objects and shadows
         sw = self.shadowWorld
         for (obj, objB) in self.getPlacedObjBs().iteritems():
@@ -304,7 +302,7 @@ class PBS:
             sw.setObjectPose(shadow.name(), objPose)
             sw.setObjectPose(shadowMin.name(), objPose)
 
-            if obj in avoidShadow:      # can't collide with these shadows
+            if obj in self.avoidShadow:      # can't collide with these shadows
                 sw.fixedObjects.add(shadow.name())
             if  obj in self.fixObjBs:   # can't collide with these objects
                 sw.fixedObjects.add(shadowMin.name())
@@ -357,7 +355,7 @@ class PBS:
         sw.setRobotConf(self.conf)
         if debug('getShadowWorldGrasp') and not fbch.inHeuristic:
             sw.draw('W')
-        cache[key] = (sw, prob, avoidShadow)
+        cache[key] = sw
         return sw
 
     # Shadow over POSE variation.  Should only do finite number of poseVar/poseDelta values.
@@ -382,7 +380,7 @@ class PBS:
     def items(self):
         return (frozenset(self.held.items()),
                 frozenset(self.graspB.items()),
-                self.conf,
+                self.conf, frozenset(self.avoidShadow),
                 frozenset(self.fixObjBs.items()),
                 frozenset(self.moveObjBs.items()))
     def __eq__(self, other):

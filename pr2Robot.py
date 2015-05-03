@@ -464,6 +464,7 @@ class PR2:
         else:
             print 'wrist=\n', wrist.matrix
             raw_input('Illegal wrist trans for base pose')
+            return
         random.shuffle(trs)             # !!
         for i, tr in enumerate(trs):
             if n and i > n: return
