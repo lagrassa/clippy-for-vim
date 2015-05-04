@@ -24,6 +24,17 @@ class Graspable(Fluent):
         (objName,) = self.args
         return objName[0:3] == 'obj'
 
+class SameBase(Fluent):
+    predicate = 'SameBase'
+    immutable = True
+    def test(self, details):
+
+        #### !!!!! temporary
+        return True
+        
+        (c1, c2) = self.args
+        return c1['pr2Base'] == c2['pr2Base']
+
 # Assumption is that the robot is holding at most one object, but it
 # could be in either hand.
 
@@ -173,7 +184,14 @@ class CanReachHome(Fluent):
 
     def bTest(self, bState, v, p):
         path, violations = self.getViols(bState, v, p)
-        return bool(path and violations.empty())
+
+        result = bool(path and violations.empty())
+        # if result == False:
+        #     print 'canReachHomeTest failed'
+        #     print path
+        #     print violations
+        #     raw_input('okay?')
+        return result
 
     def heuristicVal(self, bState, v, p):
         # Return cost estimate and a set of dummy operations
@@ -233,6 +251,137 @@ class CanReachHome(Fluent):
                   prettyString([conf, lobj, robj, 'Conds'], eq)
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
+
+# LPK: Better if we could share code with CanReachHome
+class CanReachNB(Fluent):
+    predicate = 'CanReachNB'
+    implicit = True
+    conditional = True
+
+    def getViols(self, bState, v, p, strict = True):
+        assert v == True
+        (startConf, endConf, hand,
+               lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
+               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
+               firstCondPerm, cond) = self.args   # Args
+
+        # Note that all object poses are permanent, no collisions can be ignored
+        newPBS = bState.pbs.copy()
+        if strict:
+            newPBS.updateFromAllPoses(cond, updateHeld=False)
+        else:
+            newPBS.updateFromGoalPoses(cond, updateHeld=False)
+
+        if hand == 'right':
+            # Swap arguments!
+            (lobj, lface, lgraspMu, lgraspVar, lgraspDelta, \
+             robj, rface, rgraspMu, rgraspVar, rgraspDelta) =  \
+            (robj, rface, rgraspMu, rgraspVar, rgraspDelta, \
+             lobj, lface, lgraspMu, lgraspVar, lgraspDelta)
+        
+        lgraspD = PoseD(util.Pose(*lgraspMu), lgraspVar) \
+                          if lobj != 'none' else None
+        rgraspD = PoseD(util.Pose(*rgraspMu), rgraspVar) \
+                          if robj != 'none' else None
+        
+        newPBS.updateHeld(lobj, lface, lgraspD, 'left', lgraspDelta)
+        newPBS.updateHeld(robj, rface, rgraspD, 'right', rgraspDelta)
+
+        if firstCondPerm:
+            fc = cond[0]
+            assert fc.args[0].predicate == 'Pose'
+            avoidShadow = [fc.args[0].args[0]]
+        else:
+            avoidShadow = []
+
+        path, violations = canReachNB(newPBS, startConf, endConf, p,
+                                      Violations(),
+                                       avoidShadow = avoidShadow,
+                                       draw=False)
+        debugMsg('CanReachNB',
+                 ('confs', startConf, endConf),
+                 ('lobjGrasp', lobj, lface, lgraspD),
+                 ('robjGrasp', robj, rface, rgraspD),
+                 ('->', violations))
+        return path, violations
+
+    def bTest(self, bState, v, p):
+        #### !!!!! temporary
+        path, violations = self.getViols(bState, v, p)
+        return bool(path and violations.empty())
+
+        ## Real version
+        (startConf, endConf) = (self.args[0], self.args[1])
+
+        if startConf['pr2Base'] != endConf['pr2Base']:
+            # Bases have to be equal!
+            return False
+        
+        path, violations = self.getViols(bState, v, p)
+        return bool(path and violations.empty())
+
+
+    # Exactly the same as for CanReachHome
+    def heuristicVal(self, bState, v, p):
+        # Return cost estimate and a set of dummy operations
+        (conf, hand,
+               lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
+               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
+               firstCondPerm, cond) = \
+                            self.args   # Args
+        
+        obstCost = 10  # move pick move place
+        path, violations = self.getViols(bState.details, v, p, strict = False)
+        if path == None:
+            #!! should this happen?
+            print '&&&&&&', self, v, p
+            print 'hv infinite'
+            raw_input('go?')
+            return float('inf'), {}
+        obstacles = violations.obstacles
+        shadows = violations.shadows
+        obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
+                       for o in obstacles])
+        for o in obstOps: o.instanceCost = obstCost
+        shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
+                     for o in shadows])
+        d = bState.details.domainProbs.minDelta
+        ep = bState.details.domainProbs.obsTypeErrProb
+        vo = bState.details.domainProbs.obsVarTuple
+        # compute shadow costs individually
+        shadowSum = 0
+        for o in shadowOps:
+            # Use variance in start state
+            obj = objectName(o.args[0])
+            vb = bState.details.pbs.getPlaceB('table1').poseD.variance()
+            deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
+            c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
+            o.instanceCost = c
+            shadowSum += c
+        ops = obstOps.union(shadowOps)
+        if debug('hAddBack'):
+            print 'Heuristic val', self.predicate
+            print 'ops', ops, 'cost',\
+             prettyString(obstCost * len(obstOps) + shadowSum)
+            raw_input('foo?')
+        return (obstCost * len(obstacles) + shadowSum, ops)
+
+    def prettyString(self, eq = True, includeValue = True):
+        (startConf, endConf, hand,
+               lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
+               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
+               firstObjPerm, cond) = self.args   # Args
+        if hand == 'right':
+            (lobj, lface, lgraspMu, lgraspVar, lgraspDelta, \
+             robj, rface, rgraspMu, rgraspVar, rgraspDelta) =  \
+            (robj, rface, rgraspMu, rgraspVar, rgraspDelta, \
+             lobj, lface, lgraspMu, lgraspVar, lgraspDelta)
+
+        argStr = prettyString(self.args) if eq else \
+                  prettyString([startConf, endConf, lobj, robj, 'Conds'], eq)
+        valueStr = ' = ' + prettyString(self.value) if includeValue else ''
+        return self.predicate + ' ' + argStr + valueStr
+
 
 zeroPose = zeroVar = (0.0,)*4
 tinyDelta = (1e-8,)*4
@@ -671,6 +820,10 @@ def partition(fluents):
     fluents = set(fluents)
     while len(fluents) > 0:
         f = fluents.pop()
+
+        if not f.isGround():
+            continue
+        
         newSet = set([f])
         if f.predicate in ('B', 'Bd'):
             rf = f.args[0]
@@ -747,6 +900,83 @@ def partition(fluents):
 # Tests
 ###
 
+# LPK: canReachNB which is like canReachHome, but without moving
+# the base.  args are pbs, startConf, endConf, prob, initViol, ...
+# (rest the same as canReachHome).
+
+# !!!! needs fixing
+
+def canReachNB(pbs, startConf, conf, prob, initViol,
+                 avoidShadow = [], 
+                 optimize = False, noViol = False, draw=True):
+    rm = pbs.getRoadMap()
+    robot = pbs.getRobot()
+    initConf = startConf or rm.homeConf
+    # Reverse start and target
+    viol, cost, pathRev = rm.confReachViol(initConf, pbs, prob,
+                                           initViol,
+                                           avoidShadow=avoidShadow,
+                                           startConf=conf,
+                                           optimize = optimize, noViol = noViol)
+    path = pathRev[::-1] if pathRev else pathRev
+
+    if debug('checkCRH') and fbch.inHeuristic:
+        pbs.draw(prob, 'W')
+        fbch.inHeuristic = False
+        pbs.shadowWorld = None
+        pbs.draw(prob, 'W', clear=False) # overlay
+        conf.draw('W', 'blue')
+        initConf.draw('W', 'pink')
+        viol2, cost2, pathRev2 = rm.confReachViol(initConf, pbs, prob,
+                                                  initViol,
+                                                  avoidShadow=avoidShadow,
+                                                  startConf=conf,
+                                                  optimize = optimize)
+        fbch.inHeuristic = True
+        # Check for heuristic (viol) being worse than actual (viol2)
+        if viol != viol2 and viol2 != None \
+               and ((viol == None and viol2 != None) \
+                    or (viol.weight() > viol2.weight())):
+            print 'viol with full model', viol2
+            print 'viol with min  model', viol
+            if viol2:
+                [o.draw('W', 'red') for o in viol2.obstacles]
+                [o.draw('W', 'orange') for o in viol2.shadows]
+            if viol:
+                [o.draw('W', 'purple') for o in viol.obstacles]
+                [o.draw('W', 'pink') for o in viol.shadows]
+            raw_input('Continue?')
+
+    if debug('traceCRH'):
+        print '    canReachNB h=', fbch.inHeuristic, 'viol=:', viol.weight() if viol else None
+    if not path:
+        if fbch.inHeuristic and debug('extraTests'):
+            pbs.draw(prob, 'W')
+            print 'canReachHome failed with inHeuristic=True'
+            fbch.inHeuristic = False
+            viol, cost, path = rm.confReachViol(conf, pbs, prob,
+                                                initViol,
+                                                avoidShadow=avoidShadow,
+                                                startConf=startConf)
+            if path:
+                raw_input('Inconsistency')
+            else:
+                print 'Consistent result with inHeuristic=False'
+            fbch.inHeuristic = True
+
+    if (not fbch.inHeuristic) or debug('drawInHeuristic'):
+        if debug('canReachNB'):
+            pbs.draw(prob, 'W')
+            if path:
+                drawPath(path, viol=viol,
+                         attached=pbs.getShadowWorld(prob).attached)
+            else:
+                print 'viol, cost, path', viol, cost, path
+        debugMsg('canReachNB', ('viol', viol))
+
+    return path, viol
+
+# 
 def canReachHome(pbs, conf, prob, initViol,
                  avoidShadow = [], startConf = None,
                  optimize = False, noViol = False, draw=True):

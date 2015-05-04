@@ -591,7 +591,8 @@ class Operator(object):
                  prim = None,
                  sideEffects = None,
                  ignorableArgs = [],
-                 argsToPrint = None):
+                 argsToPrint = None,
+                 specialRegress = None):
         self.name = name # string
         self.args = args # list of vars or constants
         self.preconditions = preconditions
@@ -621,6 +622,7 @@ class Operator(object):
         self.argsToPrint = argsToPrint
         self.ignorableArgs = ignorableArgs
         self.instanceCost = 'none'
+        self.specialRegress = specialRegress
 
     def verifyArgs(self):
         varsUsed = set({})
@@ -782,7 +784,8 @@ class Operator(object):
                       dict([(v, [f.applyBindings(rb) for f in preConds]) \
                             for (v, preConds) in self.sideEffects.items()]),
                       self.ignorableArgs,
-                      self.argsToPrint)
+                      self.argsToPrint,
+                      self.specialRegress)
         op.abstractionLevel = self.abstractionLevel
         op.instanceCost = self.instanceCost
         return op
@@ -894,7 +897,8 @@ class Operator(object):
         # in the plan, so we have to accumulate and store then
         bp = {}
         
-        # Discharge conditions that are entailed by this result
+        # Discharge conditions that are entailed by this result and
+        # apply the special regression function if there is one
         newFluents = []
         for gf in goal.fluents: 
             entailed = False
@@ -909,7 +913,11 @@ class Operator(object):
                     # print 'discharged', gf
                     break
             if not entailed:
-                newFluents.append(gf.copy())
+                if self.specialRegress:
+                    nf = self.specialRegress(gf)
+                else:
+                    nf = gf.copy()
+                newFluents.append(nf)
 
         newBoundFluents = [f.applyBindings(newBindings) for f in newFluents]
 
@@ -956,7 +964,7 @@ class Operator(object):
                  ('newGoal', newGoal.fluents))
 
         # Stop right away if an immutable precond is false
-        if any([(p.immutable and \
+        if any([(p.immutable and p.isGround() and \
                  not startState.fluentValue(p) == p.getValue()) \
                 for p in boundPreconds]):
             if not inHeuristic or debug('debugInHeuristic'):
@@ -1781,8 +1789,8 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                              o.functions, o.f, o.cost, o.prim,
                              o.sideEffects,
                              o.ignorableArgs,
-                             o.argsToPrint)
-
+                             o.argsToPrint,
+                             o.specialRegress)
             bigBindingSet = getBindingsBetween(list(results), list(g.fluents),
                                                startState)
             bindingSet = []
@@ -1856,6 +1864,7 @@ def opEquiv(o1, o2):
     m1 = matchLists(o1.args, o2.args)
     m2 = matchLists(o2.args, o1.args)
     return m1 != None and m2 != None and \
+        o1.name == o2.name and \
         len(m1.keys()) == len(set(m1.values())) and \
         len(m2.keys()) == len(set(m2.values()))
 
