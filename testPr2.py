@@ -88,10 +88,17 @@ useCartesian = False
 useLookAtHand = False
 
 # DEBUG
+<<<<<<< HEAD
+useRight = True
+useVertical = True
+
+if useRight: assert not useROS
+=======
 if useROS:
     useRight = False
     useVertical = True
     useHorizontal = False
+>>>>>>> master
 
 ######################################################################
 # Test Rig
@@ -896,7 +903,11 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 150
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
     glob.monotonicFirst = True
+<<<<<<< HEAD
+    table2Pose = util.Pose(1.0, -1.2, 0.0, 0.0)
+=======
     table2Pose = util.Pose(1.0, -1.20, 0.0, 0.0)
+>>>>>>> master
     
     front = util.Pose(0.95, 0.0, tZ, 0.0)
     # Put this back to make the problem harder
