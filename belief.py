@@ -486,7 +486,8 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
     def partitionFn(fs):
         immu = frozenset([f for f in fs if f.immutable])
         notImmu = [f for f in fs if not f.immutable]
-        return ([immu] if immu else []) + ddPartitionFn(notImmu)
+        return [frozenset([immuF]) for immuF in immu if immuF.isGround()] + \
+                     ddPartitionFn(notImmu)
 
     # fUp is a set of fluents
     # cache entries will be frozen sets of fluents
@@ -527,6 +528,11 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
             else:
                 addToCachesSet(fUp, float('inf'), set(), idk)
             return hCacheLookup(fUp, idk)
+
+        elif all([not f.isGround() for f in fUp]):
+            # None of these fluents are ground; assume they can be
+            # made true by matching
+            return 0, set()
         else:
             # See if we have a special purpose way of computing a value
             # for this fluent

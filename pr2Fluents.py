@@ -286,16 +286,16 @@ class CanReachNB(Fluent):
         newPBS.updateHeld(lobj, lface, lgraspD, 'left', lgraspDelta)
         newPBS.updateHeld(robj, rface, rgraspD, 'right', rgraspDelta)
 
-        if firstCondPerm:
-            fc = cond[0]
-            assert fc.args[0].predicate == 'Pose'
-            avoidShadow = [fc.args[0].args[0]]
-        else:
-            avoidShadow = []
+        # Fix this!!!
+        # if firstCondPerm:
+        #     fc = cond[0]
+        #     assert fc.args[0].predicate == 'Pose'
+        #     avoidShadow = [fc.args[0].args[0]]
+        # else:
+        #     avoidShadow = []
 
         path, violations = canReachNB(newPBS, startConf, endConf, p,
                                       Violations(),
-                                       avoidShadow = avoidShadow,
                                        draw=False)
         debugMsg('CanReachNB',
                  ('confs', startConf, endConf),
@@ -323,7 +323,7 @@ class CanReachNB(Fluent):
     # Exactly the same as for CanReachHome
     def heuristicVal(self, bState, v, p):
         # Return cost estimate and a set of dummy operations
-        (conf, hand,
+        (startConf, conf, hand,
                lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
                robj, rface, rgraspMu, rgraspVar, rgraspDelta,
                firstCondPerm, cond) = \
@@ -906,17 +906,15 @@ def partition(fluents):
 # !!!! needs fixing
 
 def canReachNB(pbs, startConf, conf, prob, initViol,
-                 avoidShadow = [], 
-                 optimize = False, noViol = False, draw=True):
+                 optimize = False, draw=True):
     rm = pbs.getRoadMap()
     robot = pbs.getRobot()
     initConf = startConf or rm.homeConf
     # Reverse start and target
     viol, cost, pathRev = rm.confReachViol(initConf, pbs, prob,
                                            initViol,
-                                           avoidShadow=avoidShadow,
                                            startConf=conf,
-                                           optimize = optimize, noViol = noViol)
+                                           optimize = optimize)
     path = pathRev[::-1] if pathRev else pathRev
 
     if debug('checkCRH') and fbch.inHeuristic:
