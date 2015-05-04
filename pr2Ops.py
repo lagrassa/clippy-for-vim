@@ -10,7 +10,7 @@ from pr2Gen import pickGen, canReachHome, lookGen, canReachGen,canSeeGen,lookHan
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace, RelPose,\
-     findRegionParent
+     findRegionParent, CanReachNB, SameBase
 from planGlobals import debugMsg, debug, useROS
 import pr2RRT as rrt
 
@@ -627,7 +627,22 @@ def awayRegionIfNecessary((region, pose), goal, start, vals):
 def awayRegion(args, goal, start, vals):
     return [[start.pbs.awayRegions()]]
     
+################################################################
+## Special regression funs
+################################################################
 
+attenuation = 0.5
+# During regression, apply to all fluents in goal;  returns f or a new fluent.
+def moveSpecialRegress(f):
+    if f.predicate == 'B' and f.args[0].predicate == 'Pose':
+        newF = f.copy()
+        # Make this more reasonable;  ideally should depend on length of motion.
+        # Decrease required variance before move
+        newVar = tuple([v * attenuation for v in f.args[2]])
+        newF.args[2] = newVar
+        return newF
+    else:
+        return f.copy()
 
 ################################################################
 ## Cost funs
@@ -644,6 +659,13 @@ def costFun(primCost, prob):
 # Add in a real distance from cs to ce
 
 def moveCostFun(al, args, details):
+    (s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
+    result = costFun(1.0, p1 * p2 * pcr)
+    if not fbch.inHeuristic:
+        debugMsg('cost', ('move', (p1, p2, pcr), result))
+    return result
+
+def moveNBCostFun(al, args, details):
     (s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
     result = costFun(1.0, p1 * p2 * pcr)
     if not fbch.inHeuristic:
@@ -884,110 +906,6 @@ def scoreObsSoughtObj(details, obs, soughtObject, obsPoseD, oldPoseFace):
                  bestObs, bestLL > llMatchThreshold)
     return bestObs, bestLL, canonicalFace
 
-'''    
-# Maybe not used any more. Gets a single observation and tries to
-# associate it with best matching object.
-def singleObsUpdate(details, obs, soughtObject):    
-    (oType, obsFace, obsPose) = obs
-    pbs = details.pbs
-    w = pbs.beliefContext.world
-    symFacesType, symXformsType = w.getSymmetries(oType)
-    canonicalFace = symFacesType[obsFace]
-    symXForms = symXformsType[canonicalFace]
-    # Could make this more efficient by mapping to a canonical one, but
-    # seems risky
-    symPoses = [obsPose] + [obsPose.compose(xf) for xf in symXForms]
-
-    candidates = []
-
-    ff = pbs.beliefContext.world.getFaceFrames(soughtObject)[canonicalFace]
-
-    if debug('obsUpdate'):
-        ## LPK!!  Should really draw the detected object but I don't have
-        ## an immediate way to get the shape of a type.  Should fix that.
-        objShape = pbs.getObjectShapeAtOrigin(soughtObject)
-        objShape.applyLoc(obsPose.compose(ff.inverse())).draw('Belief', 'cyan')
-        raw_input('obs is cyan')
-
-    # Find the best matching pose mode.  Type must be equal, pose nearby.
-    for o in pbs.objNames:
-        # Type
-        if w.getObjType(o) != oType: continue
-
-        oldObjBel = pbs.getPlaceB(o)
-
-        # Face
-        oldPoseFace = oldObjBel.support.mode()
-        assert symFacesType[oldPoseFace] == oldPoseFace, \
-                                        'non canonical face in bel'
-        if oldPoseFace != canonicalFace: continue
-        
-        # Pose
-        # Create old distribution.
-        oldPoseMu = oldObjBel.poseD.mode()
-        oldSigma = oldObjBel.poseD.variance()
-        obsSigma = [v1 + v2 for (v1, v2) in zip(oldSigma,
-                                          details.domainProbs.obsVarTuple)]
-        obsD = MultivariateGaussianDistribution(np.mat(oldPoseMu.xyztTuple()).T,
-                                                makeDiag(obsSigma))
-        bestObs, bestLL = None, -float('inf')
-
-        if debug('obsUpdate'):
-            print 'oldPoseMu', oldPoseMu.pose()
-
-        for obsPoseCand in symPoses:
-            ll = float(obsD.logProb(np.mat(obsPoseCand.pose().xyztTuple()).T))
-            if debug('obsUpdate'):
-                print '    obsPoseCand', obsPoseCand.pose(), 'll', ll
-            if ll > bestLL:
-                if debug('obsUpdate'):
-                    print '   new best'
-                bestObs, bestLL = obsPoseCand, ll
-
-        debugMsg('obsUpdate', 'Potential match with', o, 'll', bestLL,
-                 bestObs, bestLL > llMatchThreshold)
-        if bestLL > llMatchThreshold:
-            candidates.append((bestLL, o, bestObs, oldPoseMu, oldSigma))
-
-    if len(candidates) == 0:
-        # No match for this observation
-        # !LPK: also do this if the best match isn't for the object we were
-        # looking for?
-        debugMsg('obsUpdate', 'No good match for observation')
-        # Update modeprob
-        oldP = details.poseModeProbs[soughtObject]
-        obsGivenH = details.domainProbs.obsTypeErrProb
-        obsGivenNotH = (1 - details.domainProbs.obsTypeErrProb)
-        newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
-        details.poseModeProbs[soughtObject] = newP
-    else:
-        # Find the best candidate match and do the update.
-        candidates.sort(reverse = True)
-        (_, obj, pose, oldMu, oldSigma) = candidates[0]
-
-        # Update mode prob
-        oldP = details.poseModeProbs[obj]
-        obsGivenH = (1 - details.domainProbs.obsTypeErrProb)
-        obsGivenNotH = details.domainProbs.obsTypeErrProb
-        newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
-        details.poseModeProbs[obj] = newP
-
-        # Update mean and sigma
-        ## Be sure handling angle right.
-        obsVar = details.domainProbs.obsVarTuple
-        (newMu, newSigma) = gaussObsUpdate(oldMu.pose().xyztTuple(),
-                                           pose.pose().xyztTuple(),
-                                           oldSigma, obsVar)
-        details.pbs.updateObjB(ObjPlaceB(obj, w.getFaceFrames(obj),
-                                         DeltaDist(oldPoseFace),
-                                         PoseD(util.Pose(*newMu), newSigma)))
-        if debug('obsUpdate'):
-            objShape = pbs.getObjectShapeAtOrigin(soughtObject)
-            objShape.applyLoc(util.Pose(*newMu).compose(ff.inverse())).\
-              draw('Belief', 'magenta')
-            raw_input('newMu is magenta')
-'''         
-
 # Temporary;  assumes diagonal cov; should use dist.MultivariateGaussian
 def gaussObsUpdate(oldMu, obs, oldSigma, obsVar, noZ = True):
     # All tuples
@@ -1105,6 +1023,7 @@ def genMoveProbs(args, goal, start, vals):
 # Parameter PCR is the probability that its path is not blocked.
 # Likelihood of success is p1 * p2 * pcr
 
+# Allowed to move base
 move = Operator(\
     'Move',
     ['CStart', 'CEnd', 'DEnd',
@@ -1144,8 +1063,56 @@ move = Operator(\
     cost = moveCostFun,
     f = moveBProgress,
     prim  = movePrim,
+    # Can't use conditional results here, because there are
+    # arbitrarily many instances of the Pose fluent that need a
+    # special regression condition.
+    specialRegress = moveSpecialRegress,
     argsToPrint = [0, 1],
     ignorableArgs = range(2,18))  # For abstraction
+
+# Not allowed to move base
+moveNB = Operator(\
+    'MoveNB',
+    ['CStart', 'CEnd', 'DEnd',
+     'LObj', 'LFace', 'LGraspMu', 'LGraspVar', 'LGraspDelta',
+     'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta',
+     'RealGraspVarL', 'RealGraspVarR',
+     'P1', 'P2', 'PCR'],
+    # Pre
+    {0 : {Bd([CanReachNB(['CStart', 'CEnd', 'left',
+                    'LObj', 'LFace', 'LGraspMu', 'RealGraspVarL', 'LGraspDelta',
+                    'RObj', 'RFace', 'RGraspMu', 'RealGraspVarR', 'RGraspDelta',
+                     False, []]),  True, 'PCR'], True)},
+     1 : {Conf(['CStart', 'DEnd'], True),
+          SameBase(['CStart', 'CEnd'], True),
+          Bd([Holding(['left']), 'LObj', 'P1'], True),
+          Bd([GraspFace(['LObj', 'left']), 'LFace', 'P1'], True),
+          B([Grasp(['LObj', 'left', 'LFace']),
+             'LGraspMu', 'RealGraspVarL', 'LGraspDelta', 'P1'], True),
+          Bd([Holding(['right']), 'RObj', 'P2'], True),
+          Bd([GraspFace(['RObj', 'right']), 'RFace', 'P2'], True),
+          B([Grasp(['RObj', 'right', 'RFace']),
+             'RGraspMu', 'RealGraspVarR', 'RGraspDelta', 'P2'], True)
+             }},
+    # Results:  list of pairs: (fluent set, private preconds)
+    [({Conf(['CEnd', 'DEnd'], True)}, {})],
+    functions = [\
+        Function(['CEnd'], [], genNone, 'genNone'),                 
+        Function(['PCR', 'P1', 'P2'], [], genMoveProbs,
+                 'genMoveProbs'),
+        Function(['LObj', 'LFace', 'LGraspMu', 'LGraspVar', 'LGraspDelta',
+                  'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta'],
+                 [], genGraspStuff, 'genGraspStuff'),
+        Function(['RealGraspVarL'], ['LGraspVar'], maxGraspVarFun,
+                     'realGraspVar'),
+        Function(['RealGraspVarR'], ['RGraspVar'], maxGraspVarFun,
+                     'realGraspVar')
+                 ],
+    cost = moveNBCostFun,
+    f = moveBProgress,
+    prim  = movePrim,
+    argsToPrint = [0, 1],
+    ignorableArgs = range(2,19))  # For abstraction
 
 poseAchIn = Operator(\
              'PosesAchIn', ['Obj1', 'Region',

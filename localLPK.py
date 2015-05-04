@@ -23,6 +23,7 @@ btbind
 canPickPlaceGen
 canReachGen
 canReachHome
+canReachNB (two confs, no base)
 canSeeGen
 checkCRH (compares CRH in and out of heuristic; draws good picture)
 confReachViol
@@ -63,6 +64,6 @@ visible
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'traceGen', 'traceCRH']
+           'traceGen', 'traceCRH', 'lookGen', 'regression:fail', 'appOp:number']
 
 pauseOn = debugOn

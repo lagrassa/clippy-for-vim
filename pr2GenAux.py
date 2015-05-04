@@ -7,13 +7,14 @@ import windowManager3D as wm
 import shapes
 import planGlobals as glob
 from planGlobals import debugMsg, debugDraw, debug, pause, torsoZ
-from miscUtil import argmax, isGround
+from miscUtil import argmax, isGround, isVar
 from dist import UniformDist, DDist
 from pr2Robot import CartConf, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, Memoizer
 from fbch import getMatchingFluents
 from belief import Bd, B
-from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace
+from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace, \
+     SameBase
 from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCO
 
@@ -421,6 +422,22 @@ def getGoalInConds(goalConds, X=[]):
                              Bd([In(['Obj', 'Reg']), 'Val', 'P'], True))
     return [(b['Obj'], b['Reg'], b['P']) \
             for (f, b) in fbs if isGround(b.values())]
+
+def sameBase(goalConds):
+    # Return None if there is no sameBase requirement; otherwise
+    # return base pose
+    fbs = getMatchingFluents(goalConds,
+                             SameBase(['C1', 'C2'], True))
+    result = None
+    for (f, b) in fbs:
+        (c1, c2) = (b['C1'], b['C2'])
+        if isVar(c1) and not isVar(c2):
+            assert result == None, 'More than one sameBase condition'
+            result = c2['pr2Base']
+        elif isVar(c2) and not isVar(c1):
+            assert result == None, 'More than one sameBase condition'
+            result = c1['pr2Base']
+    return result
 
 def pathShape(path, prob, pbs, name):
     assert isinstance(path, (list, tuple))

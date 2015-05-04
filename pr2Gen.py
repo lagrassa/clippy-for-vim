@@ -13,7 +13,6 @@ from pr2Robot import CartConf, gripperTip, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, \
      NextColor, supportFaceIndex, Memoizer
 import fbch
-from fbch import getMatchingFluents
 from belief import Bd
 from pr2Fluents import CanReachHome, canReachHome, inTest
 from pr2Visible import visible, lookAtConf
@@ -23,8 +22,8 @@ from shapes import Box
 Ident = util.Transform(np.eye(4))            # identity transform
 
 import pr2GenAux
-from pr2GenAux import *
 reload(pr2GenAux)
+from pr2GenAux import *
 
 #  How many candidates to generate at a time...  Larger numbers will
 #  generally lead to better solutions.
@@ -128,7 +127,11 @@ def pickGen(args, goalConds, bState, outBindings, onlyCurrent = False):
     (obj, graspFace, graspPose,
      objV, graspV, objDelta, confDelta, graspDelta, hand, prob) = args
 
-    debugMsg('pickGen', 'args', args)
+    base = sameBase(goalConds)
+    if base:
+        raw_input('Same base constraint in pickGen')
+
+    debugMsg('pickGen', 'args', args, ('base', base))
 
     world = bState.pbs.getWorld()
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
@@ -324,6 +327,10 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
 def placeGen(args, goalConds, bState, outBindings):
     (obj, hand, poses, support, objV, graspV, objDelta, graspDelta, confDelta,
      prob) = args
+
+    base = sameBase(goalConds)
+    if base:
+        raw_input('Same base constraint in placeGen')
 
     if not isinstance(poses[0], (list, tuple, frozenset)):
         poses = frozenset([poses])
@@ -824,6 +831,10 @@ maxLookDist = 1.5
 def lookGen(args, goalConds, bState, outBindings):
     (obj, pose, support, objV, objDelta, lookDelta, prob) = args
     world = bState.pbs.getWorld()
+
+    base = sameBase(goalConds)
+    if base:
+        raw_input('Same base constraint in lookGen')
 
     if pose == '*':
         # This could produce a mode of None

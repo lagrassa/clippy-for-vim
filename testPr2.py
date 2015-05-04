@@ -65,7 +65,8 @@ reload(pr2Gen)
 import pr2Ops
 reload(pr2Ops)
 from pr2Ops import move, pick, place, lookAt, poseAchCanReach, poseAchCanSee,\
-      lookAtHand, hRegrasp, poseAchCanPickPlace, graspAchCanPickPlace, poseAchIn
+      lookAtHand, hRegrasp, poseAchCanPickPlace, graspAchCanPickPlace,\
+      poseAchIn, moveNB
 
 import pr2Sim
 reload(pr2Sim)
@@ -81,24 +82,18 @@ writeSearch = True
 # Right Arm??
 ######################################################################
 
-useRight = False if useROS else True
-useHorizontal = True
-useVertical = False if useROS else True
 useCartesian = False
 useLookAtHand = False
 
 # DEBUG
-<<<<<<< HEAD
 useRight = True
 useVertical = True
+useHorizontal = True
 
-if useRight: assert not useROS
-=======
 if useROS:
     useRight = False
     useVertical = True
-    useHorizontal = False
->>>>>>> master
+    useHorizontal = True
 
 ######################################################################
 # Test Rig
@@ -632,15 +627,62 @@ tinyErrProbs = DomainProbs(\
             pickTolerance = (0.02, 0.02, 0.02, 0.02))
 
 allOperators = [move, pick, place, lookAt, poseAchCanReach,
-                poseAchCanSee, poseAchCanPickPlace, poseAchIn] #lookAtHand]
-               #graspAchCanPickPlace]
+                poseAchCanSee, poseAchCanPickPlace, poseAchIn, moveNB]
+              #lookAtHand    #graspAchCanPickPlace
+
+# Only 1 table              
+def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+          easy = False, rip = False):
+
+    glob.rebindPenalty = 700
+    glob.monotonicFirst = False
+
+    goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
+    front = util.Pose(1.1, 0.0, tZ, 0.0)
+    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+
+    region = 'table1Left'
+    goal = State([Bd([In(['objA', region]), True, goalProb], True)])
+
+    t = PlanTest('test1',  errProbs, allOperators,
+                 objects=['table1', 'objA'],
+                 fixPoses={'table1': table1Pose},
+                 movePoses={'objA': front},
+                 varDict = varDict)
+
+    skel = [[poseAchIn,
+             lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             place.applyBindings({'Hand' : 'left', 'Obj': 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
+             pick, moveNB,
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             #lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), move]]
+
+    t.run(goal,
+          hpn = hpn,
+          skeleton = skel if skeleton else None,
+          hierarchical = hierarchical,
+          regions=[region],
+          heuristic = heuristic,
+          rip = rip
+          )
+    return t
 
 # pick and place into region
 def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False, multiplier=8):
 
     glob.rebindPenalty = 700
-    glob.monotonicFirst = True
+    glob.monotonicFirst = False
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
 
@@ -665,22 +707,9 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                  varDict = varDict,
                  multiplier = multiplier)
 
-    skel = [[poseAchIn, place, move, pick, move, lookAt, move, lookAt, move]]
-
-    hSkel = [[poseAchIn,
-              lookAt.applyBindings({'Obj' : 'objA'}),
-              place.applyBindings({'Obj' : 'objA'}),
-              lookAt.applyBindings({'Obj' : 'table2'})],
-              [lookAt.applyBindings({'Obj' : 'table2'}),
-               move],
-              [move],
-              [place.applyBindings({'Obj' : 'objA'})]]
-              
-              
-    
     t.run(goal,
           hpn = hpn,
-          skeleton = hSkel if skeleton else None,
+          skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           regions=[region],
           heuristic = heuristic,
@@ -695,7 +724,6 @@ def test2(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 
     global moreGD
     moreGD = True
-
     glob.rebindPenalty = 700
     glob.monotonicFirst = True
 
@@ -907,11 +935,7 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 150
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
     glob.monotonicFirst = True
-<<<<<<< HEAD
     table2Pose = util.Pose(1.0, -1.2, 0.0, 0.0)
-=======
-    table2Pose = util.Pose(1.0, -1.20, 0.0, 0.0)
->>>>>>> master
     
     front = util.Pose(0.95, 0.0, tZ, 0.0)
     # Put this back to make the problem harder
