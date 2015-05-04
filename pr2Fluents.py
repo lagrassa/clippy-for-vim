@@ -160,10 +160,9 @@ class CanReachHome(Fluent):
             avoidShadow = [fc.args[0].args[0]]
         else:
             avoidShadow = []
+        newPBS.updateAvoidShadow(avoidShadow)
 
-        path, violations = canReachHome(newPBS, conf, p, Violations(),
-                                        avoidShadow = avoidShadow,
-                                        draw=False)
+        path, violations = canReachHome(newPBS, conf, p, Violations(), draw=False)
         debugMsg('CanReachHome',
                  ('conf', conf),
                  ('lobjGrasp', lobj, lface, lgraspD),
@@ -747,32 +746,26 @@ def partition(fluents):
 # Tests
 ###
 
-def canReachHome(pbs, conf, prob, initViol,
-                 avoidShadow = [], startConf = None,
+def canReachHome(pbs, conf, prob, initViol, startConf = None,
                  optimize = False, noViol = False, draw=True):
     rm = pbs.getRoadMap()
     robot = pbs.getRobot()
-    initConf = startConf or rm.homeConf
     # Reverse start and target
-    viol, cost, pathRev = rm.confReachViol(initConf, pbs, prob,
-                                           initViol,
-                                           avoidShadow=avoidShadow,
-                                           startConf=conf,
-                                           optimize = optimize, noViol = noViol)
-    path = pathRev[::-1] if pathRev else pathRev
-
+    viol, cost, path = rm.confReachViol(conf, pbs, prob, initViol,
+                                           startConf=startConf,
+                                           optimize = optimize)
     if debug('checkCRH') and fbch.inHeuristic:
         pbs.draw(prob, 'W')
         fbch.inHeuristic = False
         pbs.shadowWorld = None
         pbs.draw(prob, 'W', clear=False) # overlay
         conf.draw('W', 'blue')
-        initConf.draw('W', 'pink')
-        viol2, cost2, pathRev2 = rm.confReachViol(initConf, pbs, prob,
-                                                  initViol,
-                                                  avoidShadow=avoidShadow,
+        rm.homConf.draw('W', 'pink')
+        viol2, cost2, pathRev2 = rm.confReachViol(rm.homeConf, pbs, prob, initViol,
                                                   startConf=conf,
                                                   optimize = optimize)
+        if pathRev2: path2 = pathRev2[::-1]
+        else: path2 = pathRev2
         fbch.inHeuristic = True
         # Check for heuristic (viol) being worse than actual (viol2)
         if viol != viol2 and viol2 != None \
@@ -795,9 +788,7 @@ def canReachHome(pbs, conf, prob, initViol,
             pbs.draw(prob, 'W')
             print 'canReachHome failed with inHeuristic=True'
             fbch.inHeuristic = False
-            viol, cost, path = rm.confReachViol(conf, pbs, prob,
-                                                initViol,
-                                                avoidShadow=avoidShadow,
+            viol, cost, path = rm.confReachViol(conf, pbs, prob, initViol,
                                                 startConf=startConf)
             if path:
                 raw_input('Inconsistency')

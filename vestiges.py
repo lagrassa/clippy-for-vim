@@ -237,3 +237,255 @@ place = Operator(\
         prim = placePrim,
         argsToPrint = [0, 1, 3, 4, 5],
         ignorableArgs = range(1, 34))
+
+# -----------------------------------------
+
+
+    # Cached version of the call to minViolPath
+    def confReachViolOld(self, targetConf, pbs, prob, initViol=viol0,
+                         startConf = None,
+                         optimize = False, noViol = False):
+        realInitViol = initViol
+        initViol = viol0
+        initConf = startConf or self.homeConf
+        initConfNode = self.addNode(initConf)
+        attached = pbs.getShadowWorld(prob).attached
+        
+        def grasp(hand):
+            g = pbs.graspB[hand]
+            if g == None or g.obj == 'none':
+                return None
+            else:
+                return g
+        def exitWithAns(ans):
+            if not optimize:
+                if not key in self.confReachCache:
+                    self.confReachCache[key] = []
+                self.confReachCache[key].append((pbs, prob, ans))
+            if ans and ans[0] and ans[2]:
+                (viol, cost, nodePath) = ans
+                path = self.confPathFromNodePath(nodePath)
+                if debug('confReachViol') and (not fbch.inHeuristic or debug('drawInHeuristic')):
+                   drawPath(path, viol=viol, attached=attached)
+                   newViol = self.checkPath(path, pbs, prob)
+                   if newViol.weight() != viol.weight():
+                       print 'viol', viol.weight(), viol
+                       print 'newViol', newViol.weight(), newViol
+                       raw_input('checkPath failed')
+                   debugMsg('confReachViol', ('->', (viol, cost, 'path len = %d'%len(path))))
+                return (viol.update(realInitViol) if viol else viol, cost, path)
+            else:
+                if debug('confReachViol'):
+                    drawProblem(forceDraw=True)
+                    debugMsg('confReachViol', ('->', ans))
+                return (None, None, None)
+
+        def drawProblem(forceDraw=False):
+            if forceDraw or \
+                   (debug('confReachViol') and \
+                    (not fbch.inHeuristic  or debug('drawInHeuristic'))):
+                pbs.draw(prob, 'W')
+                initConf.draw('W', 'blue', attached=attached)
+                targetConf.draw('W', 'pink', attached=attached)
+                print 'startConf is blue; targetConf is pink'
+                raw_input('confReachViol')
+
+        key = (targetConf, initConf, initViol, fbch.inHeuristic)
+        # Check the endpoints
+        cv = self.confViolations(targetConf, pbs, prob)[0]
+        cv = self.confViolations(initConf, pbs, prob, initViol=cv)[0]
+        if cv is None or (noViol and cv.weight() > 0):
+            if debug('traceCRH'): print '    unreachable conf',
+            if debug('confReachViol'):
+                print 'targetConf is unreachable'
+            return exitWithAns((None, None, None, None))
+            
+        if not fbch.inHeuristic and initConf in self.approachConfs:
+            keya = (targetConf, self.approachConfs[initConf], initViol, fbch.inHeuristic)
+            if keya in self.confReachCache:
+                if debug('confReachViolCache'): print 'confReachCache approach tentative hit'
+                cacheValues = self.confReachCache[keya]
+                sortedCacheValues = sorted(cacheValues,
+                                           key=lambda v: v[-1][0].weight() if v[-1][0] else v[-1][0])
+                ans = bsEntails(pbs, prob, sortedCacheValues, loose=True)
+                if ans != None:
+                    if debug('traceCRH'): print '    approach cache hit',
+                    if debug('confReachViolCache'):
+                        debugMsg('confReachViolCache', 'confReachCache approach actual hit')
+                    (viol2, cost2, path2, nodePath2) = ans
+                    return (viol2.update(cv).update(realInitViol) if viol2 else viol2,
+                            cost2,
+                            [initConf] + path2)
+        if debug('confReachViolCache'):
+            debugMsg('confReachViolCache',
+                     ('targetConf', targetConf.conf),
+                     ('initConf', initConf),
+                     ('prob', prob),
+                     ('moveObjBs', pbs.moveObjBs),
+                     ('fixObjBs', pbs.fixObjBs),
+                     ('held', (pbs.held['left'].mode(),
+                               pbs.held['right'].mode(),
+                               grasp('left'), grasp('right'))),
+                     ('initViol', ([x.name() for x in initViol.obstacles],
+                                   [x.name() for x in initViol.shadows]) if initViol else None),
+                     ('avoidShadow', pbs.avoidShadow))
+        if optimize or noViol:
+            pass
+        elif key in self.confReachCache:
+            if debug('confReachViolCache'): print 'confReachCache tentative hit'
+            cacheValues = self.confReachCache[key]
+            sortedCacheValues = sorted(cacheValues,
+                                       key=lambda v: v[-1][0].weight() if v[-1][0] else v[-1][0])
+            ans = bsEntails(pbs, prob, sortedCacheValues)
+            if ans != None:
+                if debug('traceCRH'): print '    actual cache hit',
+                if debug('confReachViolCache'):
+                    debugMsg('confReachViolCache', 'confReachCache actual hit')
+                    print '    returning', ans
+                (viol2, cost2, path2, nodePath2) = ans
+                return (viol2.update(realInitViol) if viol2 else viol2, cost2, path2) # actual answer
+            elif not fbch.inHeuristic:
+                for cacheValue in sortedCacheValues:
+                    (bs2, p2, avoid2, ans) = cacheValue
+                    (viol2, cost2, path2, nodePath2) = ans
+                    if viol2:
+                        newViol = self.checkNodePath(nodePath2, pbs, prob)
+                        # Don't accept unless the new violations don't add to the initial viols
+                        if newViol and newViol.weight() <= cv.weight():
+                            ans = (newViol.update(realInitViol) if newViol else newViol, cost2, path2,
+                                   nodePath2)
+                            if debug('traceCRH'): print '    reusing path',
+                            if debug('confReachViolCache'):
+                                debugMsg('confReachViolCache', 'confReachCache reusing path')
+                                print '    returning', ans
+                            self.confReachCache[key].append((pbs, prob, ans))
+                            return ans[:-1]
+        else:
+            self.confReachCache[key] = []
+            if debug('confReachViolCache'): print 'confReachCache miss'
+
+        drawProblem()
+        cvi = initViol.update(cv)
+        node = self.addNode(targetConf)
+        if initConf == targetConf:
+            if debug('traceCRH'): print '    init=target',
+            return exitWithAns((cvi, 0, [targetConf], [node]))
+        if fbch.inHeuristic:
+            ans = cvi, objCollisionCost*len(cvi.obstacles)+shCollisionCost*len(cvi.shadows), \
+                  [initConf, targetConf], [initConfNode, node]
+            return exitWithAns(ans)
+        if debug('traceCRH'): print '    find path',
+        if debug('expand'):
+            pbs.draw(prob, 'W')
+        hsave = fbch.inHeuristic
+        gen = self.minViolPathGen([node], pbs, prob,
+                                  initConf, cvi,
+                                  optimize=optimize, noViol=noViol)
+        ans = gen.next()        
+        return exitWithAns(ans)
+
+    def confReachViolGen(self, targetConfs, pbs, prob, initViol=viol0,
+                         testFn = lambda x: True, goalCostFn = lambda x: 0,
+                         startConf = None, draw=False):
+        attached = pbs.getShadowWorld(prob).attached
+        initConf = startConf or self.homeConf
+        batchSize = confReachViolGenBatch
+        batch = 0
+        while True:
+            # Collect the next batach of trialConfs
+            batch += 1
+            trialConfs = []
+            count = 0
+            for c in targetConfs:       # targetConfs is a generator
+                if self.confViolations(c, pbs, prob)[0] != None:
+                    count += 1
+                    trialConfs.append(c)
+                    if initConf == c and testFn(c):
+                        ans = initViol or Violations(), 0, [initConf]
+                        yield ans
+                        return
+                if count == batchSize: break
+            if debug('confReachViolGen'):
+                print '** Examining batch', batch, 'of', count, 'confs'
+            if count == 0:              # no more confs
+                if debug('confReachViolGen'):
+                    print '** Finished the batches'
+                break
+            random.shuffle(trialConfs)
+            if debug('confReachViolGen') and not fbch.inHeuristic:
+                pbs.draw(prob, 'W')
+                initConf.draw('W', 'blue', attached=attached)
+                for trialConf in trialConfs:
+                    trialConf.draw('W', 'pink', attached=attached)
+                print 'startConf is blue; targetConfs are pink'
+                debugMsg('confReachViolGen', 'Go?')
+            
+            # keep track of the original conf for the nodes
+            nodeConf = dict([(self.addNode(tc), tc) for tc in trialConfs])
+            origConf = dict([(nc.conf, c) for (nc, c) in nodeConf.items()])
+            nodeTestFn = lambda n: testFn(nodeConf[n])
+            goalNodeCostFn = lambda n: goalCostFn(nodeConf[n])
+            gen = self.minViolPathGen(nodeConf.keys(),
+                                      pbs, prob,
+                                      initConf, initViol or Violations(),
+                                      nodeTestFn,
+                                      goalCostFn=goalNodeCostFn, draw=draw)
+            for ans in gen:
+                if ans and ans[0] and ans[2]:
+                    (viol, cost, path, _) = ans
+                    pathOrig = path[:-1] + [origConf[path[-1]]]
+                    if debug('confReachViolGen') and not fbch.inHeuristic:
+                        drawPath(pathOrig, viol=viol, attached=attached)
+                        newViol = self.checkPath(path, pbs, prob)
+                        if newViol.weight() != viol.weight():
+                            print 'viol', viol
+                            print 'newViol', newViol
+                            raw_input('checkPath failed')
+                        debugMsg('confReachViolGen', ('->', (viol, cost, 'path len = %d'%len(pathOrig))))
+                    yield (viol, cost, pathOrig)
+                else:
+                    if not fbch.inHeuristic:
+                        debugMsg('confReachViolGen', ('->', ans))
+                    break
+        ans = None, 0, []
+        debugMsg('confReachViolGen', ('->', ans))
+        yield ans
+        return
+
+
+# ===========
+
+            if initConf in self.approachConfs:
+                keya = (targetConf, self.approachConfs[initConf])
+                if keya in self.confReachCache:
+                    if debug('confReachViolCache'): print 'confReachCache approach tentative hit'
+                    cacheValues = self.confReachCache[keya]
+                    sortedCacheValues = sorted(cacheValues,
+                                               key=lambda v: v[-1][0].weight() if v[-1][0] else v[-1][0])
+                    ans = bsEntails(pbs, prob, sortedCacheValues, loose=True)
+                    if ans != None:
+                        if debug('traceCRH'): print '    approach cache hit',
+                        if debug('confReachViolCache'):
+                            debugMsg('confReachViolCache', 'confReachCache approach actual hit')
+                        (viol, cost, edgePath) = ans
+                        return (viol.update(initViol) if viol else viol,
+                                cost,
+                                [initConf] + self.confPathFromEdgePath(edgePath))
+
+                for cacheValue in sortedCacheValues:
+                    (bs, p, ans) = cacheValue
+                    (viol, cost, edgePath) = ans
+                    if viol == None: return None
+                        newViol = self.checkEdgePath(edgePath, pbs, prob)
+                        cv = self.confViolations(targetConf, pbs, prob)[0]
+                        cv = self.confViolations(initConf, pbs, prob, initViol=cv)[0]
+                        # Don't accept unless the new violations don't add to the initial viols
+                        if newViol and newViol.weight() <= cv.weight():
+                            v = newViol.update(initViol) if newViol else newViol
+                            ans = (v, cost, edgePath)
+                            if debug('traceCRH'): print '    reusing path',
+                            if debug('confReachViolCache'):
+                                debugMsg('confReachViolCache', 'confReachCache reusing path')
+                                print '    returning', ans
+                            # self.confReachCache[key].append((pbs, prob, ans))
+                            return  (v, cost, self.confPathFromEdgePath(edgePath))

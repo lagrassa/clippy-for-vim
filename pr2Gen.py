@@ -5,7 +5,8 @@ import util
 import copy
 import time
 import windowManager3D as wm
-from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ, debugOn
+import planGlobals as glob
+from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ
 from miscUtil import isVar, argmax, isGround, tuplify, roundrobin
 from dist import DeltaDist, UniformDist
 from pr2Robot import CartConf, gripperTip, gripperFaceFrame
@@ -68,6 +69,7 @@ def easyGraspGen(args, goalConds, bState, outBindings):
         return
     if obj == newBS.held[otherHand(hand)].mode():
         tracep('easyGraspGen', 'no easy grasp with this hand')
+        return
     rm = newBS.getRoadMap()
     placeB = newBS.getPlaceB(obj)
     graspB = ObjGraspB(obj, pbs.getWorld().getGraspDesc(obj), None,
@@ -224,8 +226,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, prob,
         newBS = pbs.copy()
         newBS.updateConf(conf)
         newBS.updateHeldBel(graspB, hand)
-        viol, (rv, hv) = rm.confViolations(conf, newBS, prob,
-                                           attached = newBS.getShadowWorld(prob).attached)
+        viol, (rv, hv) = rm.confViolations(conf, newBS, prob)
         if not viol:                # was valid when not holding, so...
             trace('    pickGen: Held collision')
             if debug('pickGen'):
@@ -550,6 +551,14 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, prob,
                     minCost = min(cost, minCost)
                     trialConfs.append((cost, viol, ca))
                 else:
+                    if debug('placeable'):
+                        print 'Failure of placeable'
+                        save = glob.debugOn[:]
+                        glob.debugOn.extend(['successors', 'confReachViol', 'confReachViolGen',
+                                             'minViolPath', 'canPickPlaceTest', 'addToCluster'])
+                        placeable(ca, approached[ca])
+                        glob.debugOn = save
+                        raw_input('Continue?')
                     continue
                 count += 1
                 if count == batchSize or minCost == 0: break
@@ -846,6 +855,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
+    newBS.updateAvoidShadow([obj])
     if placeB.poseD.mode() == None:
         tracep('lookGen', '    object is in the hand')
         return
@@ -872,9 +882,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     def testFn(c):
         print 'Trying base conf', c['pr2Base']
         return visible(shWorld, c, sh, obst, prob)[0]
-    for ans in rm.confReachViolGen(lookConfGen, newBS, prob,
-                                   avoidShadow=[obj],
-                                   testFn = testFn):
+    for ans in rm.confReachViolGen(lookConfGen, newBS, prob, testFn = testFn):
         viol, cost, path = ans
         trace('    lookGen(%s) viol='%obj, viol.weight() if viol else None)
         if not path:

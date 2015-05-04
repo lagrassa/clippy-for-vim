@@ -89,6 +89,9 @@ def search(initialState, goalTest, actions, successor,
                each state in the path
         """
 
+        somewhatVerbose = verbose
+        verbose = False
+
         hVals = {}
         def getH(state):
             if not state in hVals:
@@ -325,7 +328,7 @@ def searchGen(initialState, goalStates, actions, successor,
 
     if somewhatVerbose or verbose or count >= maxNodes or countExpanded >= maxExpanded:
         print "Search failed after visiting ", count, " states."
-        # raw_input('Too many nodes')
+        raw_input('Too many nodes')
 
     yield None, None
 

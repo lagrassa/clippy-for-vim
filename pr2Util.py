@@ -163,7 +163,7 @@ class Violations(Hashable):
     def desc(self):
         return (self.obstacles, self.shadows, self.penalty)
     def __repr__(self):
-        return 'Violations%s'%str(self.desc())
+        return 'Violations%s'%str(([x.name() for x in self.obstacles], [x.name() for x in self.shadows]))
     __str__ = __repr__
 
 def shadowName(obj):

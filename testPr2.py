@@ -319,7 +319,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
 
     return world
 
-def makeConf(robot,x,y,th,g=0.07, vertical=False, dx = 0, dy = 0, dz = 0.):
+def makeConf(robot,x,y,th,g=0.07, vertical=False, dx = 0, dy = 0, dz = 0.0):
     c = JointConf(pr2Init.copy(), robot)
     c = c.set('pr2Base', [x, y, th])
     c = c.set('pr2LeftGripper', [g])
@@ -329,20 +329,21 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False, dx = 0, dy = 0, dz = 0.):
     base = cart['pr2Base']
     if vertical:
         q = np.array([0.0, 0.7071067811865475, 0.0, 0.7071067811865475])
-        h = util.Transform(p=np.array([[a] for a in [ 0.4, 0.3,  0.9, 1.]]), q=q)
+        h = util.Transform(p=np.array([[a] for a in [ 0.4+dx, 0.3+dy,  1.1, 1.]]), q=q)
         cart = cart.set('pr2LeftArm', base.compose(h))
         if useRight:
-            hr = util.Transform(p=np.array([[a] for a in [ 0.4, -0.3,  0.9, 1.]]), q=q)
+            hr = util.Transform(p=np.array([[a] for a in [ 0.4+dx, -(0.3+dy),  1.1, 1.]]), q=q)
             cart = cart.set('pr2RightArm', base.compose(hr))
     else:
-        h = util.Pose(0.2+dx,0.33+dy,0.75+dz,0.)
+        h = util.Pose(0.3+dx,0.33+dy,0.9+dz,0.)
         cart = cart.set('pr2LeftArm', base.compose(h))
         if useRight:
-            hr = util.Pose(0.2+dx,-(0.33+dy),0.75+dz,0.)
+            hr = util.Pose(0.3+dx,-(0.33+dy),0.9+dz,0.)
             cart = cart.set('pr2RightArm', base.compose(hr))
     c = robot.inverseKin(cart, conf=c)
     c.conf['pr2Head'] = [0., 0.]
-    return c
+    assert all(c.values())
+    return c, cart
 
 def makeTable(dx, dy, dz, name, width = 0.1, color = 'orange'):
     legInset = 0.02
@@ -440,13 +441,15 @@ class PlanTest:
     def buildBelief(self, home=None, regions=frozenset([])):
         world = self.world
         belC = BeliefContext(world)
-        pr2Home = home or makeConf(world.robot, 0.0, 0.0, 0.0)
-        rm = RoadMap(pr2Home, world, kNearest = 10,
-                     cartesian = useCartesian,
-                     moveChains = \
-                     ['pr2Base', 'pr2LeftGripper', 'pr2LeftArm', 'pr2RightGripper', 'pr2RightArm'] if useRight \
-                     else ['pr2Base', 'pr2LeftGripper', 'pr2LeftArm'],)
-        rm.batchAddNodes(self.initConfs)
+        pr2Home = home or makeConf(world.robot, 0.0, 0.0, 0.0)[0]
+        rm = RoadMap(pr2Home, world,
+                     params={'kNearest':11,
+                             'kdLeafSize':20,
+                             'cartesian': useCartesian,
+                             'moveChains':
+                             ['pr2Base', 'pr2LeftArm', 'pr2RightArm'] if useRight \
+                             else ['pr2Base', 'pr2LeftArm']})
+        rm.batchAddClusters(self.initConfs)
         belC.roadMap = rm
         pbs = PBS(belC, conf=pr2Home, fixObjBs = self.fix.copy(), moveObjBs = self.move.copy(),
         regions = frozenset(regions), domainProbs=self.domainProbs, useRight=useRight) 
@@ -634,7 +637,7 @@ allOperators = [move, pick, place, lookAt, poseAchCanReach,
 
 # pick and place into region
 def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-          easy = False, rip = False):
+          easy = False, rip = False, multiplier=8):
 
     glob.rebindPenalty = 700
     glob.monotonicFirst = True
@@ -659,7 +662,8 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                  fixPoses={'table1': table1Pose,
                            'table2': table2Pose},
                  movePoses={'objA': front},
-                 varDict = varDict)
+                 varDict = varDict,
+                 multiplier = multiplier)
 
     skel = [[poseAchIn, place, move, pick, move, lookAt, move, lookAt, move]]
 
@@ -1218,7 +1222,7 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
                   B([Grasp(['objA', 'left', 0]),
                      (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), delta,
                      goalProb], True)])
-    homeConf = makeConf(t.world.robot, 0.0, 0.0, math.pi) if flip else None
+    homeConf = makeConf(t.world.robot, 0.0, 0.0, math.pi)[0] if flip else None
     skel = [[lookAtHand, move, pick, move, lookAt, move]]*3
     t.run(goal,
           hpn = hpn,
@@ -1241,13 +1245,13 @@ def test8(hpn = True, skeleton=False, hierarchical = False,
 
     t = PlanTest('test8', errProbs, allOperators,
                  objects=['table1', 'table3', 'objA'])
-    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)
+    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)[0]
     goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
                   Bd([GraspFace(['objA', hand]), gd, goalProb], True),
                   B([Grasp(['objA', hand, gd]),
                      (0,-0.025,0,0), (0.001, 0.001, 0.001, 0.005),
                      (0.02,)*4, goalProb], True)])
-    homeConf = makeConf(t.world.robot, 0.0, 0.0, math.pi) if flip else None
+    homeConf = makeConf(t.world.robot, 0.0, 0.0, math.pi)[0] if flip else None
     goodSkel = [[pick,
                  move,
                  place.applyBindings({'Obj' : 'objA', 'Hand' : 'left'}),
@@ -1276,8 +1280,8 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
                  # fixPoses={'table1': util.Pose(1.3, 0.0, 0.0, math.pi/2)}
                  )
 
-    #goalConf = makeConf(t.world.robot, 1.1, 1.3, 0, 0.0)
-    goalConf = makeConf(t.world.robot, 1.2, 1.4, 0, 0.0)
+    #goalConf = makeConf(t.world.robot, 1.1, 1.3, 0, 0.0)[0]
+    goalConf = makeConf(t.world.robot, 1.2, 1.4, 0, 0.0)[0]
     confDeltas = (0.05, 0.05, 0.05, 0.05)
     goal = State([Conf([goalConf, confDeltas], True)])
     t.run(goal,
@@ -1305,7 +1309,7 @@ def test10(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     targetPoseB = (1.05, -0.2, tZ, 0.0)
     targetVar = (0.01, 0.01, 0.01, 0.05) 
 
-    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)
+    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)[0]
     confDeltas = (0.05, 0.05, 0.05, 0.05)
 
     goal = State([\
@@ -1432,7 +1436,7 @@ def test12(hpn = True, skeleton = False, hierarchical = False,
     targetPoseB = (1.05, -0.2, tZ, 0.0)
     targetVar = (0.001, 0.001, 0.001, 0.005) 
 
-    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)
+    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)[0]
     confDeltas = (0.05, 0.05, 0.05, 0.05)
     hand = 'left'
     gd = 0
@@ -1576,7 +1580,7 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
 
     t = PlanTest('test15', errProbs, allOperators,
                  objects=['table1', 'objA'])
-    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)
+    goalConf = makeConf(t.world.robot, 0.5, 1.0, 0.0)[0]
     confDeltas = (0.05, 0.05, 0.05, 0.05)
     goal = State([Bd([Holding([hand]), 'objA', .6], True),
                   Bd([GraspFace(['objA', hand]), gd, .6], True),
@@ -1584,7 +1588,7 @@ def test15(hpn = True, skeleton=False, hand='left', flip = False, gd = 0,
                      (0,-0.025,0,0), (0.0001, 0.0001, 0.0001, 0.0001),
                      (0.02,)*4, 0.6], True),
                   Conf([goalConf, confDeltas], True)])
-    homeConf = makeConf(t.world.robot, 0.0, 0.0, math.pi) \
+    homeConf = makeConf(t.world.robot, 0.0, 0.0, math.pi)[0] \
                          if flip else None
     t.run(goal,
           hpn = hpn,
@@ -2214,7 +2218,7 @@ def ff(g, details):
 
 def testReact():
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
-    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0, dx=0.1, dz=0.1)
+    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0, dx=0.1, dz=0.1)[0]
     result, cnfOut = pr2GoToConf(startConf, 'move')
     result, cnfOut = pr2GoToConf(startConf, 'look')
     # Reset the internal coordinate frames
@@ -2227,6 +2231,6 @@ def gripOpen(conf, hand, width=0.08):
 
 def testOpen(hand='left'):
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
-    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0, dx=0.1, dz=0.1)
+    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0, dx=0.1, dz=0.1)[0]
     result, cnfOut = pr2GoToConf(gripOpen(startConf, hand), 'open')    
 
