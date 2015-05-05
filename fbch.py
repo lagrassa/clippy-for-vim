@@ -1603,13 +1603,13 @@ class PlanStack(Stack):
 # [(None, goal), (op_n, sg_n), ..., (op_0, planPreimage)]
 # to a plan instance
 
-def makePlanObj(regressionPlan, start):
+def makePlanObj(regressionPlanUnbound, start):
     # Result is supposed to be a list of (action, state)
-    planPreImage = regressionPlan[-1][1]
+    planPreImage = regressionPlanUnbound[-1][1]
     b = planPreImage.bindings
     grounding = getGrounding(planPreImage.fluents, start.details)
     b.update(grounding)
-    plan = applyBindings(regressionPlan, b)
+    plan = applyBindings(regressionPlanUnbound, b)
     n = len(plan)
     regressionPlan = [plan[i] for i in xrange(n) \
                       if i == n-1 or plan[i+1][0].name not in ['RebindVars', 'Rebind']]
@@ -1631,10 +1631,14 @@ def makePlanObj(regressionPlan, start):
 
         pi = preImage.fluents
         pc = operator.preconditionSet()
+        assert preImage == regressionPlan[i][1]
         success = State(pi).satisfies(State(pc), start.details)
+        assert preImage == regressionPlan[i][1]
         if not success:
             for pcf in pc:
-                print pcf, State(pi).satisfies(State([pcf]), start.details)
+                if not State(pi).satisfies(State([pcf]), start.details):
+                    print pcf
+                    assert preImage == regressionPlan[i][1]
         assert success, 'preimage does not satisfy preconds'
         debugMsg('planObj', 'plan step', i, operator,
                  subgoal.fluents)

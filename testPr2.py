@@ -631,7 +631,9 @@ allOperators = [move, pick, place, lookAt, poseAchCanReach,
               #lookAtHand    #graspAchCanPickPlace
 
 
-# Just move and look
+# Just move and look.  Can't do this because poseAchIn suggests moving
+# the object.  This was intended to be a simple test that just needs
+# to look at both objects without moving the base.
 def testN1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
@@ -670,7 +672,8 @@ def testN1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           )
     return t
 
-# Only 1 table              
+# Only 1 table.  Works in easy mode; but the observations are so good
+# that it doesn't matter which move we use.
 def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
@@ -698,13 +701,17 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
-             place.applyBindings({'Hand' : 'left', 'Obj': 'objA'}), moveNB,
-             lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
-             lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
-             pick, moveNB,
+             place.applyBindings({'Hand' : 'left', 'Obj': 'objA'}),
+             poseAchCanPickPlace, moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}),
+             move,        # 13
+             # poseAchCanReach, moveNB,
+             # lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
+             pick,
+             poseAchCanPickPlace, moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
-             #lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), move,
              lookAt.applyBindings({'Obj' : 'table1'}), move]]
 
     easySkel = [[poseAchIn,
@@ -713,9 +720,11 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                  pick, moveNB,
                  lookAt.applyBindings({'Obj' : 'objA'}), move]]
 
+    actualSkel = easySkel if easy else skel
+
     t.run(goal,
           hpn = hpn,
-          skeleton = easySkel if skeleton else None,
+          skeleton = actualSkel if skeleton else None,
           hierarchical = hierarchical,
           regions=[region],
           heuristic = heuristic,
