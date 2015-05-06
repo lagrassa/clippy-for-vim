@@ -118,17 +118,18 @@ class State:
         self.flushCache() # get rid of memorized fluent values
         hCacheReset() # flush heuristic values
 
-    def addSet(self, newFs, moreDetails = None):
+    def addSet(self, newFs, moreDetails = None, noBindings = False):
         details = self.details or moreDetails
         b = {}
         for newF in newFs:
-            newB = self.add(newF, details)
+            newB = self.add(newF, details, noBindings = noBindings)
             b.update(newB)
         return b
 
-    def add(self, newF, moreDetails = None):
+    def add(self, newF, moreDetails = None, noBindings = False):
         details = self.details or moreDetails
-        (newFluentSet,newBindings) = addFluentToSet(self.fluents, newF, details)
+        (newFluentSet,newBindings) = addFluentToSet(self.fluents, newF,
+                                                    details, noBindings)
         self.fluents = newFluentSet
         self.internalTest(details) 
         return newBindings
@@ -316,7 +317,7 @@ class State:
         return self.signature().__hash__()
 
 # Should be consistent
-def addFluentToSet(fluentSet, newF, details = None):
+def addFluentToSet(fluentSet, newF, details = None, noBindings = False):
     allB = {}
     removal = set()
     additions = set()
@@ -328,6 +329,10 @@ def addFluentToSet(fluentSet, newF, details = None):
             # Contradiction
             raw_input('adding fluent causes contradiction')
             return False
+        elif b != {} and noBindings:
+            # just add it
+            b = {}
+            pass
         elif isinstance(glb, set):
             # Just add the new guy
             pass
@@ -1014,6 +1019,7 @@ class Operator(object):
         # Add in the preconditions.  We can make new bindings between
         # new and old preconds, but not between new ones!
         bTemp = newGoal.addSet(boundPreconds, moreDetails = startState.details)
+
         bp.update(bTemp)
         newBindings.update(bp)
 
