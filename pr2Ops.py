@@ -10,7 +10,7 @@ from pr2Gen import pickGen, canReachHome, lookGen, canReachGen,canSeeGen,lookHan
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace, RelPose,\
-     findRegionParent, CanReachNB, SameBase
+     findRegionParent, CanReachNB, BaseConf
 from planGlobals import debugMsg, debug, useROS
 import pr2RRT as rrt
 
@@ -85,6 +85,34 @@ def primPath(bs, cs, ce, p):
             print i, 'path segment has', len(confs), 'confs'
             interpolated.extend(confs)
         return smoothed, interpolated
+
+def moveNBPrim(args, details):
+    vl = \
+         ['Base' 'CStart', 'CEnd', 'DEnd',
+          'LObj', 'LFace', 'LGraspMu', 'LGraspVar', 'LGraspDelta',
+          'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta',
+          'RealGraspVarL', 'RealGraspVarR',
+          'P1', 'P2', 'PCR']
+    (base, cs, ce, cd,
+     lo, lf, lgm, lgv, lgd,
+     ro, rf, rgm, rgv, rgd,
+     rgvl, rgvr,
+     p1, p2, pcr) = args
+
+    bs = details.pbs.copy()
+    # Make all the objects be fixed
+    bs.fixObjBs.update(bs.moveObjBs)
+    bs.moveObjBs = {}
+    print 'movePrim (start, end)'
+    printConf(cs); printConf(ce)
+
+    path, interpolated = primPath(bs, cs, ce, pcr)
+    if debug('prim'):
+        print '*** movePrim No base'
+        print list(enumerate(zip(vl, args)))
+        print 'path length', len(path)
+    assert path
+    return path, interpolated
 
 def movePrim(args, details):
     vl = \
@@ -337,6 +365,14 @@ def graspVarCanPickPlaceGen(args, goal, start, vals):
         return [[start.domainProbs.obsVarTuple]]
     else:
         return []
+
+# Just return the base pose
+def getBase(args, goal, start, vals):
+    (conf,) = args
+    if isVar(conf):
+        return []
+    else:
+        return [[conf['pr2Base']]]
 
 # Get all grasp-relevant information for both hands.  Used by move.
 def genGraspStuff(args, goal, start, vals):
@@ -640,6 +676,7 @@ def moveSpecialRegress(f):
         # Decrease required variance before move
         newVar = tuple([v * attenuation for v in f.args[2]])
         newF.args[2] = newVar
+        newF.update()
         return newF
     else:
         return f.copy()
@@ -666,7 +703,7 @@ def moveCostFun(al, args, details):
     return result
 
 def moveNBCostFun(al, args, details):
-    (s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
+    (b, s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
     result = costFun(1.0, p1 * p2 * pcr)
     if not fbch.inHeuristic:
         debugMsg('cost', ('move', (p1, p2, pcr), result))
@@ -737,6 +774,13 @@ def lookAtHandCostFun(al, args, details):
 
 def moveBProgress(details, args, obs=None):
     (s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
+    # Totally fake for now!  Just put the robot in the intended place
+    details.pbs.updateConf(e)
+    details.shadowWorld = None # force recompute
+    debugMsg('beliefUpdate', 'moveBel')    
+
+def moveNBBProgress(details, args, obs=None):
+    (b, s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
     # Totally fake for now!  Just put the robot in the intended place
     details.pbs.updateConf(e)
     details.shadowWorld = None # force recompute
@@ -1073,7 +1117,7 @@ move = Operator(\
 # Not allowed to move base
 moveNB = Operator(\
     'MoveNB',
-    ['CStart', 'CEnd', 'DEnd',
+    ['Base', 'CStart', 'CEnd', 'DEnd',
      'LObj', 'LFace', 'LGraspMu', 'LGraspVar', 'LGraspDelta',
      'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta',
      'RealGraspVarL', 'RealGraspVarR',
@@ -1084,7 +1128,7 @@ moveNB = Operator(\
                     'RObj', 'RFace', 'RGraspMu', 'RealGraspVarR', 'RGraspDelta',
                      False, []]),  True, 'PCR'], True)},
      1 : {Conf(['CStart', 'DEnd'], True),
-          SameBase(['CStart', 'CEnd'], True),
+          BaseConf(['Base', 'DEnd'], True),
           Bd([Holding(['left']), 'LObj', 'P1'], True),
           Bd([GraspFace(['LObj', 'left']), 'LFace', 'P1'], True),
           B([Grasp(['LObj', 'left', 'LFace']),
@@ -1097,7 +1141,8 @@ moveNB = Operator(\
     # Results:  list of pairs: (fluent set, private preconds)
     [({Conf(['CEnd', 'DEnd'], True)}, {})],
     functions = [\
-        Function(['CEnd'], [], genNone, 'genNone'),                 
+        Function(['CEnd'], [], genNone, 'genNone'),
+        Function(['Base'], ['CEnd'], getBase, 'getBase'),
         Function(['PCR', 'P1', 'P2'], [], genMoveProbs,
                  'genMoveProbs'),
         Function(['LObj', 'LFace', 'LGraspMu', 'LGraspVar', 'LGraspDelta',
@@ -1109,10 +1154,10 @@ moveNB = Operator(\
                      'realGraspVar')
                  ],
     cost = moveNBCostFun,
-    f = moveBProgress,
-    prim  = movePrim,
-    argsToPrint = [0, 1],
-    ignorableArgs = range(2,19))  # For abstraction
+    f = moveNBBProgress,
+    prim  = moveNBPrim,
+    argsToPrint = [0, 1, 2],
+    ignorableArgs = range(3,20))  # For abstraction
 
 poseAchIn = Operator(\
              'PosesAchIn', ['Obj1', 'Region',

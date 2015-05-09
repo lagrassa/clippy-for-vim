@@ -48,7 +48,7 @@ class RealWorld(WorldState):
             print 'Executed', op.name, 'got obs', obs
             debugMsg('executePrim')
             return obs
-        if op.name == 'Move':
+        if op.name == 'Move' or op.name == 'MoveNB':
             return endExec(self.executeMove(op, params))
         elif op.name == 'LookAtHand':
             return endExec(self.executeLookAtHand(op, params))

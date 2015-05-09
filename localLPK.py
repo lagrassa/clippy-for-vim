@@ -32,6 +32,8 @@ cost
 debugInHeuristic (turn on debugging inside heuristic in regression)
 drawInHeuristic
 executionFail
+extraTests (test for rendundancy and contradiction within state fluent set;
+            test that cached fluent strings are right)
 fluentCache (be sure the fluent cache is behaving)
 hAddBack   (super verbose)
 hAddBackInf
@@ -64,7 +66,8 @@ visible
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'traceGen', 'traceCRH', 'hAddBackInf']
+           'traceGen', 'traceCRH']
 
 
 pauseOn = debugOn
+

@@ -60,7 +60,7 @@ class State:
         self.fluents = set()
         for f in fluents:
             self.add(f, details)
-        self.internalTest(details) 
+        internalTest(self.fluents, details)
 
     def flushCache(self):
         self.valueCache = {}
@@ -130,33 +130,10 @@ class State:
         details = self.details or moreDetails
         (newFluentSet,newBindings) = addFluentToSet(self.fluents, newF,
                                                     details, noBindings)
+        internalTest(newFluentSet, details) 
         self.fluents = newFluentSet
-        self.internalTest(details) 
         return newBindings
         
-    # Test for redudancy and consistency
-    def internalTest(self, details):
-        if not debug('extraTests'): return True
-        for f1 in self.fluents:
-            for f2 in self.fluents:
-                if f1 == f2: continue
-                
-                glb1 = f1.glb(f2, details)[0]
-                glb2 = f2.glb(f1, details)[0]
-                assert glb1 == glb2
-                if glb1 == False:
-                    print f1, f2
-                    raise Exception, 'State internally inconsistent'
-                elif type(glb1) != set:
-                    print f1, f2
-                    print 'glb', glb1
-                    raise Exception, 'State internally redundant'
-        if debug('stateConsistency'):
-            print 'Passed test'
-            for f in self.fluents:
-                print '    ', f
-            raw_input('okay?')
-
     def internalConsistencyTest(self, details):
         for f1 in self.fluents:
             for f2 in self.fluents:
@@ -316,13 +293,41 @@ class State:
     def __hash__(self):
         return self.signature().__hash__()
 
+# Test a set of fluents for redudancy and consistency
+def internalTest(fluents, details):
+    if not debug('extraTests'): return True
+    for f1 in fluents:
+        for f2 in fluents:
+            if f1 == f2: continue
+                
+            glb1 = f1.glb(f2, details)[0]
+            glb2 = f2.glb(f1, details)[0]
+            assert glb1 == glb2
+            if glb1 == False:
+                print f1, f2
+                raise Exception, 'State internally inconsistent'
+            elif type(glb1) != set:
+                print f1, f2
+                print 'glb', glb1
+                raise Exception, 'State internally redundant'
+    if debug('stateConsistency'):
+        print 'Passed test'
+        for f in self.fluents:
+            print '    ', f
+        raw_input('okay?')
+    
+
 # Should be consistent
 def addFluentToSet(fluentSet, newF, details = None, noBindings = False):
+    if fluentSet == set():
+        return set([newF]), {}
+    
     allB = {}
     removal = set()
     additions = set()
     addNew = True
     for oldF in fluentSet:
+        #print 'oldF', oldF
         boundF = oldF.applyBindings(allB)
         glb, b = boundF.glb(newF, details)
         if glb == False:
@@ -335,21 +340,25 @@ def addFluentToSet(fluentSet, newF, details = None, noBindings = False):
             pass
         elif isinstance(glb, set):
             # Just add the new guy
+            #print 'no interesting glb'
             pass
         elif glb == oldF:
             # New guy is subsumed by oldF
+            # print 'oldF subsumes new'
             addNew = False
         else:
-            # glb is either the same as newF or is a real glb.
             # in either case, remove oldF and add the glb
-            if glb != newF:
-                additions.add(glb)
-                addNew = False
-            else:
-                addNew = True
+            # print 'adding glb to fluent set'
+            # print 'glb', glb
+            additions, addB = addFluentToSet(additions, glb,
+                                                details, noBindings)
+            allB.update(addB)
+            addNew = False
             removal.add(oldF)
         allB.update(b)
-    if addNew: additions.add(newF)
+    if addNew:
+        (additions, addB) = addFluentToSet(additions, newF, details, noBindings)
+        allB.update(addB)
     # Remove fluents that were entailed; add new ones
     fluentSet = (fluentSet - removal) | additions
     # Apply bindings
@@ -365,7 +374,6 @@ class Fluent(object):
     implicit = False
     immutable = False
     conditional = False
-    #fEntails = None # define this method for a fluent specific entailment
     fglb = None # define this method for a fluent specific glb
 
     def __init__(self, args, value = None, predicate = None):
@@ -446,12 +454,14 @@ class Fluent(object):
         return self.value
 
     def __str__(self):
-        #assert self.strStored == self.getStr()
+        if debug('extraTests'):
+            assert self.strStored == self.getStr()
         return self.strStored
 
     def getStr(self):
-        # return self.predicate + str(self.args) + ' = ' + str(self.value)
-        return self.predicate + prettyString(self.args) + \
+        # return self.predicate + prettyString(self.args) + \
+        #   ' = ' + prettyString(self.value)
+        return self.predicate + self.argString(True) +\
           ' = ' + prettyString(self.value)
 
     def argString(self, eq):
@@ -757,7 +767,8 @@ class Operator(object):
             self.abstractionLevel = level
 
     def uniqueStr(self):
-        return self.name + prettyString(self.allArgs(), eq = True)+str(self.num)
+        return self.name + str(self.num)
+        #return self.name + prettyString(self.allArgs(), eq =True)+str(self.num)
     def __str__(self):
         return self.name + prettyString(self.allArgs(), eq = True)
     __repr__ = __str__
@@ -1139,7 +1150,7 @@ class Operator(object):
 def simplifyCond(oldFs, newFs, details = None):
     result = State(list(oldFs))
     for f in newFs:
-        if not f.isGround() or f.isImplicit() or f.immutable:
+        if (not f.isGround()) or f.isImplicit() or f.immutable:
             continue
         if result.isConsistent([f], details):
             result.add(f, details)
@@ -1415,6 +1426,7 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
             elif op.prim != None:
                 # Execute
                 executePrim(op, s, env, f)
+                assert len(s.valueCache) == 0
                 
             # Decide what to do next
             # will pop levels we don't need any more, so that p is on the top
@@ -1544,12 +1556,15 @@ class PlanStack(Stack):
             print 'Next step: failed to satisfy any pre-image'
             print 'Was expecting to satisfy preimage', layer.lastStepExecuted
             glob.debugOn.append('testVerbose')
+            foundError = False
             for fl in layer.steps[layer.lastStepExecuted][1].fluents:
                 fv = s.fluentValue(fl, recompute = True)
                 if fl.value != fv:
                     print 'wanted:', fl.value, 'got:', fv
                     print '    ', fl.prettyString()
+                    foundError = True
             glob.debugOn.pop()
+            assert foundError, 'inconsistency!?'
             raw_input('execution fail')
         return None, None
         

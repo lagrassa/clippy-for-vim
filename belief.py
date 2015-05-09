@@ -215,10 +215,11 @@ class B(BFluent):
                   lookup(self.value, bindings))
 
     # Print stdev!!
-    def argString(self, eq):
+    def argString(self, eq = True):
         # Args: fluent, mean, var, delta, p
         (fluent, mean, var, delta, p) = self.args
-        stdev = tuple([np.sqrt(v) for v in var]) if not isVar(var) else var
+        stdev = tuple([np.sqrt(v) for v in var]) \
+                         if (not var == None and not isVar(var)) else var
         return '['+ fluent.prettyString(eq, includeValue = False) + ',' + \
          ', '.join([prettyString(a, eq) for a in [mean, stdev, delta, p]]) + ']'
 
@@ -453,7 +454,7 @@ def hCacheLookup(fs, k):
     else:
         return False
 
-def hCacheEntailsSet(fs, k):
+def hCacheEntailsSet(fs, k, debug = False):
     fsStripped = frozenset([removeProbs(f) for f in fs])
     if not fsStripped in hCache2:
         return False
@@ -463,6 +464,12 @@ def hCacheEntailsSet(fs, k):
         if setEntails(ff, fs) != False:
             if cost < bestCost:
                 (bestCost, bestActSet) = (cost, actSet)
+                if cost == 0 and debug:
+                     print 'hces cost 0'
+                     for thing in ff:
+                         print thing.prettyString()
+                     glob.rememberMe = ff
+                     raw_input('go?')
     if bestCost < float('inf'):
         return (bestCost, bestActSet)
     return False
@@ -512,6 +519,8 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
         if result != False:
             (c, a) = result
             if c < float('inf'):
+                if c == 0:
+                    assert start.satisfies(g)
                 addToCachesSet(fUp, c, a, idk)
                 if debug('hAddBackV'): print 'e',
             return result
@@ -525,6 +534,8 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                 dummyO = Operator('dummy'+prettyString(v), [], {}, [])
                 dummyO.instanceCost = v
                 addToCachesSet(fUp, v, set([dummyO]), idk)
+                if v == 0:
+                    assert start.satisfies(g)
             else:
                 addToCachesSet(fUp, float('inf'), set(), idk)
             return hCacheLookup(fUp, idk)
@@ -543,6 +554,8 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
             if hv != False:
                 (cost, ops) = hv
                 addToCachesSet(fUp, cost, ops, idk)
+                if cost == 0:
+                    assert start.satisfies(g)
                 if debug('hAddBackV') or True: print 'hv',
                 return cost,ops
 
@@ -617,6 +630,8 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
 
                     if store and newTotalCost < totalCost:
                         addToCachesSet(fUp, newTotalCost, newActSet, idk)
+                        if newTotalCost == 0:
+                            assert start.satisfies(g)
                         (totalCost, actSet) = (newTotalCost, newActSet)
                         if debug('hAddBackV'):
                             print '\n'+spaces+'H', prettyString(totalCost), \
@@ -642,6 +657,9 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                 debugMsg('hAddBackInfV',
                          'Warning: storing infinite value in hCache')
                 addToCachesSet(fUp, totalCost, set(), idk)
+                if totalCost == 0:
+                    assert start.satisfies(State(fUp))
+
             thing = hCacheLookup(fUp, idk)
             # If it's not in the cache, we bailed out before computing a good
             # value.  Just return inf
