@@ -24,17 +24,6 @@ class Graspable(Fluent):
         (objName,) = self.args
         return objName[0:3] == 'obj'
 
-class SameBase(Fluent):
-    predicate = 'SameBase'
-    immutable = True
-    def test(self, details):
-
-        #### !!!!! temporary
-        return True
-        
-        (c1, c2) = self.args
-        return c1['pr2Base'] == c2['pr2Base']
-
 # Assumption is that the robot is holding at most one object, but it
 # could be in either hand.
 
@@ -45,7 +34,14 @@ class In(Fluent):
         (obj, region) = self.args
         assert v == True
         return inTest(bState, obj, region, p)
-
+    
+def baseConfWithin(bc1, bc2, delta):
+    (x1, y1, t1) = bc1
+    (x2, y2, t2) = bc2
+    bp1 = util.Pose(x1, y1, 0, t1)
+    bp2 = util.Pose(x2, y2, 0, t2)
+    return bp1.near(bp2, delta[0], delta[-1])
+    
 def confWithin(c1, c2, delta):
     def withinDelta(a, b):
         if isinstance(a, list):
@@ -73,6 +69,7 @@ def confWithin(c1, c2, delta):
                 nearAngle(c1h1, c2h1, delta[-1]) and \
                 nearAngle(c1h2, c2h2, delta[-1])
 
+
 class Conf(Fluent):
     # This is will not be wrapped in a belief fluent.
     # Args: conf, delta
@@ -88,10 +85,83 @@ class Conf(Fluent):
         return {targetConf : details.pbs.conf}
 
     def fglb(self, other, details = None):
+        if other.predicate == 'BaseConf':
+            return other.fglb(self, details)
+
         if other.predicate != 'Conf':
             return {self, other}, {}
 
+        (oval, odelta) = other.args
         (sval, sdelta) = self.args
+
+        b = {}
+        if isVar(sval):
+            b[sval] = oval
+        elif isVar(oval):
+            b[oval] = sval
+
+        if isVar(sdelta):
+            b[sdelta] = odelta
+        elif isVar(odelta):
+            b[odelta] = sdelta
+
+        (bsval, boval, bsdelta, bodelta) = \
+           applyBindings((sval, oval, sdelta, odelta), b)
+
+        if isGround((bsval, boval, bsdelta, bodelta)):
+            bigDelta = tuple([od + sd for (od, sd) in zip(odelta, sdelta)])
+            smallDelta = (1e-4,)*4
+
+            # Kind of hard to average the confs.  Just be cheap for now.
+            # If intervals don't overlap, then definitely false.
+            if not confWithin(bsval, boval, bigDelta):
+                return False, {}
+
+            # One contains the other
+            if confWithin(bsval, boval, smallDelta):
+                if all([s < o  for (s, o) in zip(bsdelta,bodelta)]):
+                    return self.applyBindings(b), b
+                else:
+                    return other.applyBindings(b), b
+
+            print 'Should really compute the intersection of these intervals.'
+            print 'Too lazy.  GLB returning False.'
+            return False, {}
+        else:
+            return self.applyBindings(b), b
+
+class BaseConf(Fluent):
+    # This is will not be wrapped in a belief fluent.
+    # Args: (x, y, theta), (dd, da)
+    predicate = 'BaseConf'
+    def test(self, bState):
+        # Temporary, until we change the generators!
+        return True
+        
+        (targetConf, delta) = self.args
+        return baseConfWithin(bState.pbs.conf['pr2Base'], targetConf, delta)
+
+    def fglb(self, other, details = None):
+        (sval, sdelta) = self.args
+        if other.predicate == 'Conf':
+            (oval, odelta) = other.args
+            if isVar(oval) or isVar(odelta):
+                return {self, other}, {}
+            obase = oval['pr2Base']
+            if isVar(sval):
+                return other, {sval : obase}
+            if obase == sval:
+                return other, {}
+            else:
+                # Contradiction
+                print '!!!!!  Fix glb for BaseConf.  Broken until we fix generators'
+                return other, {}
+                #return False, {}
+
+        if other.predicate != 'BaseConf':
+            return {self, other}, {}
+
+        # Other predicate is BaseConf
         (oval, odelta) = other.args
 
         b = {}
@@ -113,22 +183,24 @@ class Conf(Fluent):
             smallDelta = (1e-4,)*4
 
             # Kind of hard to average the confs.  Just be cheap for now.
-
             # If intervals don't overlap, then definitely false.
-            if not confWithin(bsval, boval, bigDelta):
+            if not baseConfWithin(bsval, boval, bigDelta):
                 return False, {}
 
             # One contains the other
-            if confWithin(bsval, boval, smallDelta):
+            if baseConfWithin(bsval, boval, smallDelta):
                 if all([s < o  for (s, o) in zip(bsdelta,bodelta)]):
                     return self, b
                 else:
                     return other, b
 
-            print 'Should really compute the intersection of these intervals.  Too lazy.  Returning False.'
+            print 'Fix this!!  It is easy for base conf'
+            print 'Should really compute the intersection of these intervals.'
+            print 'Too lazy.  GLB returning False.'
             return False, {}
         else:
             return self, b
+        
 
 # Check reachability to "home"
 class CanReachHome(Fluent):
@@ -1081,81 +1153,3 @@ def inTest(bState, obj, regName, prob, pB=None):
     return ans
 
                 
-'''                    
-
-
-
-
-class In(Fluent):
-    predicate = 'In'
-    implicit = True
-    def bTest(self, bState, v, p):
-        (obj, region) = self.args         # Args
-        assert v == True
-        result = bool(inTest(bState, obj, region, p))
-        debugMsg('In', ('obj', obj, 'region', region), ('->', result))
-        return result
-
-# Checks visibility, but not reachability
-class CanSeeFrom(Fluent):
-    predicate = 'CanSeeFrom'
-    implicit = True
-    conditional = True
-    def bTest(self, bState, v, p):
-        assert v == True
-        # !! Check args
-        # !! sup = support face (is this a DDist or a value)?
-        (conf, objPlace, cond) = self.args   # Args
-        newBS = bState.copy()
-        newBS.updateFromAllPoses(cond)
-        debugMsg('CanSeeFrom',
-                 ('objPlace', objPlace),
-                 ('conf', conf),
-                 ('->', violations))
-        return bool(canSeeFromConf(newBS, conf, obj, sup, poseD)) # !! DEFINE
-
-
-# CanPick and CanPlace test legality, but not the motions
-# Need to be able to reach from preConf to pickConf with a single Pick
-# !! Should also test collision with permanent obstacles
-# !! graspD describes target grasp and allowed variation?? 
-class CanPick(Fluent):
-    predicate = 'CanPick'
-    immutable = True
-    def bTest(self, bState, v, p):
-        assert v == True
-        # !! Check args
-        (preConf, pickConf, hand, objGrasp, objPlace, delPose) = self.args
-        # Check that pickConf can grasp obj
-        result1 = legalGrasp(bState, pickConf, hand, objGrasp, objPlace, delPose)
-        # Check pre-image for grasping
-        result0 = inPickApproach(bState, preConf, pickConf, hand, objGrasp, objPlace) \
-          if result1 else False
-        debugMsg('CanPick',
-                 ('objGrasp', objGrasp), 
-                 ('objPlace', objPlace),
-                 ('preConf', preConf, 'pickConf', pickConf),
-                 ('hand', hand, 'delPose', delPose),
-                 ('->', result1, result0))
-        return result1 and result0
-
-class CanPlace(Fluent):
-    predicate = 'CanPlace'
-    immutable = True
-    def bTest(self, bState, v, p):
-        assert v == True
-        # !! Check args
-        (placeConf, postConf, hand, objGrasp, objPlace, delPose) = self.args
-        # Check that placeConf can grasp obj
-        result1 = legalGrasp(bState, placeConf, hand, objGrasp, objPlace, delPose)
-        result0 = inPlaceDeproach(bState, placeConf, postConf, hand, objGrasp, objPlace) \
-          if result1 else False
-        debugMsg('CanPlace',
-                 ('objGrasp', objGrasp),
-                 ('objPlace', objPlace), 
-                 ('placeConf', placeConf, 'postConf', postConf),
-                 ('hand', hand, 'delPose', delPose),
-                 ('->', result1, result0))
-        return result1 and result0
-
-'''        

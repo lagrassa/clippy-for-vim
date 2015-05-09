@@ -129,7 +129,7 @@ def pickGen(args, goalConds, bState, outBindings, onlyCurrent = False):
 
     base = sameBase(goalConds)
     if base:
-        raw_input('Same base constraint in pickGen')
+        print('Same base constraint in pickGen')
 
     debugMsg('pickGen', 'args', args, ('base', base))
 
@@ -330,7 +330,7 @@ def placeGen(args, goalConds, bState, outBindings):
 
     base = sameBase(goalConds)
     if base:
-        raw_input('Same base constraint in placeGen')
+        print('Same base constraint in placeGen')
 
     if not isinstance(poses[0], (list, tuple, frozenset)):
         poses = frozenset([poses])
@@ -834,7 +834,7 @@ def lookGen(args, goalConds, bState, outBindings):
 
     base = sameBase(goalConds)
     if base:
-        raw_input('Same base constraint in lookGen')
+        print('Same base constraint in lookGen')
 
     if pose == '*':
         # This could produce a mode of None
