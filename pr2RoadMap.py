@@ -204,7 +204,7 @@ class KDTree:
         if d <= self.entryTooClose:
             return ne
         
-    def addEntry(self, entry, merge = True):
+    def addEntry(self, entry, merge = False):
         point = entry.point
         if merge:
             ne = self.findEntry(entry)
@@ -360,7 +360,14 @@ class RoadMap:
             if targetConf in self.approachConfs:
                 ans = checkCache((self.approachConfs[targetConf], initConf), type='approach')
                 # !! This does not bother adding the final location to the path
-                return ans
+                if not ans and not fbch.inHeuristic:
+                    if debug('traceCRH'):
+                        print '    No cached value for approach'
+                if self.confViolations(targetConf, pbs, prob)[0] != None:
+                    # !! Could check that a path exists.
+                    return ans
+                else:
+                    raw_input('Collision at pick/place conf')
 
         def confAns(ans, reverse=False):
             displayAns(ans)
@@ -395,6 +402,11 @@ class RoadMap:
         cached = checkFullCache()
         if cached:
             return confAns(cached, reverse=True)
+
+        # rrtPath = rrt.planRobotPath(pbs, prob, initConf, targetConf, None, targetConf.keys())
+        # for c in rrtPath: c.draw('W', 'blue')
+        # raw_input('Go?')
+        
         targetCluster = self.addToCluster(targetNode, connect=False)
         startCluster = self.addToCluster(initNode)
         graph = combineNodeGraphs(self.clusterGraph,

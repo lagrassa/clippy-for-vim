@@ -3,7 +3,6 @@ import random
 import copy
 import time
 import planGlobals as glob
-from planGlobals import debug, debugMsg
 import util
 import windowManager3D as wm
 
@@ -13,19 +12,27 @@ import windowManager3D as wm
 #  so that we have all the key points in the trajectory if we ignore "inter" nodes.
 ############################################################
 
+# The initConf is a complete robot configuration.  The configurations kept at
+# the nodes are complete, but the sampling is done in the subspace defined by
+# the gaolConfig argument, which may be partial.
+
 # For now, use configurations until they are added to the tree as Nodes.
 
+verbose = False
+
 class RRT:
-    def __init__(self, pbs, prob, initConf, goalConf, allowedViol, moveChains):
-        if debug('rrt'): print 'Setting up RRT'
-        self.pbs = pbs
-        self.prob = prob
-        self.robot = pbs.getRobot()
-        self.moveChains = moveChains
-        self.allowedViol = allowedViol
-        self.Ta = Tree(initConf, pbs, prob, True, allowedViol, moveChains)
-        if goalConf:
-            self.Tb = Tree(goalConf, pbs, prob, False, allowedViol, moveChains)
+    def __init__(self, world, robot, initConf, goalConf):
+
+        assert None, 'Needs updating to handle attached objects'
+
+        if verbose: print 'Setting up RRT'
+        self.world = world
+        self.robot = robot
+        self.moveChains = goalConf.keys()  # the chains we want to move
+        self.Ta = Tree(initConf,
+                       world, robot, init=True, moveChains = self.moveChains)
+        self.Tb = Tree(robot.completeJointConf(goalConf, baseConf=initConf),
+                       world, robot, init=False, moveChains = self.moveChains)
 
     def randConf(self):
         return self.robot.randomConf(self.moveChains)
@@ -35,19 +42,18 @@ class RRT:
             self.Ta, self.Tb = self.Tb, self.Ta
 
     # the qx variables denote confs; the nx variable denote nodes
-    def buildBiTree(self, K=1000):
-        """Builds the RRT and returns either a pair of nodes (one in each tree)
+    def build(self, K=1000):
+        """Builds the RRT and returns either a pair of nodes (one in each tree
         with a common configuration or FAILURE."""
-        if debug('rrt'): print 'Building BiRRT'
+        if verbose: print 'Building RRT'
         q_new = self.Ta.stopNode(self.Tb.root.conf, self.Ta.root)
         if q_new == self.Tb.root.conf:
-            if debug('rrt'): print 'Found direct path'
+            print 'Found direct path'
             na_new = self.Ta.addNode(q_new, self.Ta.root)
             nb_new = self.Tb.addNode(q_new, self.Tb.root)
             return (na_new, nb_new)
         for i in range(K):
-            if debug('rrt'):
-                if i % 100 == 0: print i
+            if i % 100 == 0: print i
             q_rand = self.randConf()
             na_near = self.Ta.nearest(q_rand)
             # adjust continuous angle values
@@ -57,31 +63,11 @@ class RRT:
                 nb_near = self.Tb.nearest(na_new.conf)
                 nb_new = self.Tb.stopNode(na_new.conf, nb_near)
                 if na_new.conf == nb_new.conf:
-                    if debug('rrt'):
-                        print 'BiRRT: Goal reached in' +\
-                              ' %s iterations' %str(i)
+                    print 'RRT: Goal reached in' +\
+                          ' %s iterations' %str(i)
                     return (na_new, nb_new)
             self.swapTrees()
-        if debug('rrt'):
-            print '\nBiRRT: Goal not reached in' + ' %s iterations\n' %str(K)
-        return 'FAILURE'
-
-    # the qx variables denote confs; the nx variable denote nodes
-    def buildTree(self, goalTest, K=1000):
-        """Builds the RRT and returns either a node or FAILURE."""
-        if debug('rrt'): print 'Building RRT'
-        for i in range(K):
-            if debug('rrt'):
-                if i % 100 == 0: print i
-            q_rand = self.randConf()
-            na_near = self.Ta.nearest(q_rand)
-            # adjust continuous angle values
-            q_rand = self.robot.normConf(q_rand, na_near.conf)
-            na_new = self.Ta.stopNode(q_rand, na_near, maxSteps = 5)
-            if goalTest(na_new.conf):
-                return na_new
-        if debug('rrt'):
-            print '\nRRT: Goal not reached in' + ' %s iterations\n' %str(K)
+        print '\nRRT: Goal not reached in' + ' %s iterations\n' %str(K)
         return 'FAILURE'
 
     def safePath(self, qf, qi, display = False):
@@ -89,12 +75,41 @@ class RRT:
                              addNodes=False, display=display).conf
         if verbose:
             wm.getWindow('W').clear()
-            self.pbs.draw(self.prob, 'W')
-            qi.draw('W', 'cyan')
-            q.draw('W', 'red')
-            qf.draw('W', 'orange')
+            self.world.draw('W')
+            self.robot.placement(qi, self.world)[0].draw('W', 'cyan')
+            self.robot.placement(q, self.world)[0].draw('W', 'red')
+            self.robot.placement(qf, self.world)[0].draw('W', 'orange')
             raw_input('q==qf is %s'%str(q==qf))
         return q == qf
+
+    def smoothPath(self, path, nsteps = glob.smoothSteps):
+        n = len(path)
+        if verbose: print 'Path has %s points'%str(n), '... smoothing'
+        smoothed = list(path)
+        checked = set([])
+        count = 0
+        step = 0
+        while count < nsteps:
+            if verbose: print step, 
+            i = random.randrange(n)
+            j = random.randrange(n)
+            if j < i: i, j = j, i 
+            step += 1
+            if verbose: print i, j, len(checked)
+            if j-i < 2 or \
+                (smoothed[j], smoothed[i]) in checked:
+                count += 1
+                continue
+            else:
+                checked.add((smoothed[j], smoothed[i]))
+            if self.safePath(smoothed[j], smoothed[i]):
+                count = 0
+                smoothed[i+1:j] = []
+                n = len(smoothed)
+                if verbose: print 'Smoothed path length is', n
+            else:
+                count += 1
+        return smoothed
 
     def tracePath(self, node):
         path = [node]; cur = node
@@ -103,13 +118,8 @@ class RRT:
             path.append(cur)
         return path
 
-    def findGoalPath(self, goalTest, K=None):
-        node = self.buildTree(goalTest, K)
-        if node is 'FAILURE': return 'FAILURE'
-        return self.tracePath(node)[::-1]
-    
     def findPath(self, K=None):
-        sharedNodes = self.buildBiTree(K)
+        sharedNodes = self.build(K)
         if sharedNodes is 'FAILURE': return 'FAILURE'
         pathA = self.tracePath(sharedNodes[0])
         pathB = self.tracePath(sharedNodes[1])
@@ -119,14 +129,8 @@ class RRT:
             return pathB[::-1] + pathA
         else:
             raise Exception, "Neither path is marked init"
-
-def safeConf(conf, pbs, prob, allowedViol):
-    viol, _ = pbs.getRoadMap().confViolations(conf, pbs, prob)
-    return viol \
-           and viol.obstacles <= allowedViol.obstacles \
-           and viol.shadows <= allowedViol.shadows
-
 idnum = 0
+
 class Node:
     def __init__(self, conf, parent, tree, inter=False):
         global idnum
@@ -142,15 +146,13 @@ class Node:
         return self.id
 
 class Tree:
-    def __init__(self, conf, pbs, prob, init, allowedViol, moveChains):
+    def __init__(self, conf, world, robot, init=False, moveChains=None):
         self.root = Node(conf, None, self)
         self.nodes = [Node(conf, None, self)]
         self.size = 0
-        self.pbs = pbs
-        self.prob = prob
-        self.robot = pbs.getRobot()
+        self.world = world
+        self.robot = robot
         self.init = init
-        self.allowedViol = allowedViol
         self.moveChains = moveChains
 
     def addNode(self, conf, parent, inter=False):
@@ -164,7 +166,7 @@ class Tree:
         return util.argmax(self.nodes, lambda v: -self.robot.distConf(q, v.conf))   
     
     def stopNode(self, q_f, n_i,
-                 stepSize = glob.rrtInterpolateStepSize,
+                 stepSize = glob.rrtStep,
                  addNodes = True,
                  maxSteps = 1000,
                  display = False):
@@ -174,13 +176,13 @@ class Tree:
         while True:
             if maxSteps:
                 if step >= maxSteps:
-                    # if debug('rrt'): print 'Exceed maxSteps in rrt stopNodes'
+                    print 'Exceed maxSteps in rrt stopNodes'
                     return n_i
             step += 1
             q_new = self.robot.stepAlongLine(q_f, q_i, stepSize,
                                              forward = self.init,
                                              moveChains = self.moveChains)
-            if safeConf(q_new, self.pbs, self.prob, self.allowedViol):
+            if self.robot.safeConf(q_new, self.world):
                 # We may choose to add intermediate nodes to the tree or not.
                 if addNodes:
                     n_new = self.addNode(q_new, n_i, inter=True);
@@ -198,69 +200,38 @@ class Tree:
     def __str__(self):
         return 'TREE:['+str(len(self.size))+']'
 
-def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
-                  maxIter = None, failIter = None):
+def planRobotPath(world, robot, initConf, destConf,
+                  smooth = True, maxIter = None, failIter = None):
     startTime = time.time()
-    if allowedViol==None:
-        v1, _ = pbs.getRoadMap().confViolations(destConf, pbs, prob)
-        v2, _ = pbs.getRoadMap().confViolations(initConf, pbs, prob)
-        if v1 and v2:
-            allowedViol = v1.update(v2)
-        else:
-            return None
-    if not safeConf(initConf, pbs, prob, allowedViol):
-        if debug('rrt'):
-            print 'RRT: not safe enough at initial position... continuing'
+    if not robot.safeConf(initConf, world, showCollisions=True):
+        print 'RRT: not safe at initial position... continuing'
         return []
-    if not safeConf(destConf, pbs, prob, allowedViol):
-        if debug('rrt'):
-            print 'RRT: not safe enough at final position... continuing'
+    if not robot.safeConf(robot.completeJointConf(destConf, baseConf=initConf),
+                          world, showCollisions=True):
+        print 'RRT: not safe at final position... continuing'
         return []
+    if glob.skipRRT:
+        return [initConf,
+                robot.completeJointConf(destConf, baseConf=initConf)]
     nodes = 'FAILURE'
     failCount = -1                      # not really a failure the first time
     while nodes == 'FAILURE' and failCount < (failIter or glob.failRRTIter):
-        rrt = RRT(pbs, prob, initConf, destConf, allowedViol, moveChains)
+        rrt = RRT(world, robot, initConf, destConf)
         nodes = rrt.findPath(K = maxIter or glob.maxRRTIter)
         failCount += 1
-        if debug('rrt'):
-            if failCount > 0: print 'Failed', failCount, 'times'
+        if failCount > 0: print 'Failed', failCount, 'times'
     if failCount == (failIter or glob.failRRTIter):
         return None
     rrtTime = time.time() - startTime
-    if debug('rrt'):
-        print 'Found path in', rrtTime, 'secs'
-    return [c.conf for c in nodes]
+    print 'Found path in', rrtTime, 'secs'
+    # path = [c.conf for c in nodes if c.inter is False]
+    path = [c.conf for c in nodes]
+    if smooth:
+        return rrt.smoothPath(path)
+    else:
+        return path
 
-
-def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
-                      maxIter = None, failIter = None):
-    startTime = time.time()
-    if allowedViol==None:
-        v, _ = pbs.getRoadMap().confViolations(initConf, pbs, prob)
-        if v:
-            allowedViol = v
-        else:
-            return None
-    if not safeConf(initConf, pbs, prob, allowedViol):
-        if debug('rrt'):
-            print 'RRT: not safe enough at initial position... continuing'
-        return []
-    nodes = 'FAILURE'
-    failCount = -1                      # not really a failure the first time
-    while nodes == 'FAILURE' and failCount < (failIter or glob.failRRTIter):
-        rrt = RRT(pbs, prob, initConf, None, allowedViol, moveChains)
-        nodes = rrt.findGoalPath(goalTest, K = maxIter or glob.maxRRTIter)
-        failCount += 1
-        if debug('rrt'):
-            if failCount > 0: print 'Failed', failCount, 'times'
-    if failCount == (failIter or glob.failRRTIter):
-        return None
-    rrtTime = time.time() - startTime
-    if debug('rrt'):
-        print 'Found goal path in', rrtTime, 'secs'
-    return [c.conf for c in nodes]
-
-def interpolate(q_f, q_i, stepSize=0.25, moveChains=None):
+def interpolate(q_f, q_i, stepSize=0.5, moveChains=None):
     robot = q_f.robot
     path = [q_i]
     q = q_i

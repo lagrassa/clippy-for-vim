@@ -67,6 +67,8 @@ cdef class Transform:
         """
         Returns composition of self and trans
         """
+        if trans == None:
+            raw_input('Whoa ... null matrix')
         cdef Transform tr = Transform(np.dot(self.matrix, trans.matrix))
         return tr
 

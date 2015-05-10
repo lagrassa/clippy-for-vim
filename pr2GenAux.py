@@ -2,6 +2,7 @@ import numpy as np
 import math
 import random
 import util
+from time import sleep
 import copy
 import windowManager3D as wm
 import shapes
@@ -11,12 +12,14 @@ from miscUtil import argmax, isGround, isVar
 from dist import UniformDist, DDist
 from pr2Robot import CartConf, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, Memoizer
-from fbch import getMatchingFluents
+from fbch import getMatchingFluents, inHeuristic
 from belief import Bd, B
 from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace, \
     BaseConf
 from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCO
+from pr2Visible import visible, lookAtConf, viewCone
+from pr2RRT import planRobotGoalPath
 
 Ident = util.Transform(np.eye(4))            # identity transform
 tiny = 1.0e-6
@@ -83,20 +86,15 @@ def InPlaceDeproach(*x): return True
 # place2. move home->pre with obj at place pose
 
 def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
-    args = (preConf, pickConf, hand, objGrasp, objPlace, p, pbs)
     obj = objGrasp.obj
     if debug('canPickPlaceTest'):
         print zip(('preConf', 'pickConf', 'hand', 'objGrasp', 'objPlace', 'p', 'pbs'),
-                  args)
+                  (preConf, pickConf, hand, objGrasp, objPlace, p, pbs))
     if not legalGrasp(pbs, pickConf, hand, objGrasp, objPlace):
         if debug('canPickPlaceTest'):
             print 'Grasp is not legal'
         return None
     pbs.getRoadMap().approachConfs[pickConf] = preConf
-    # if preConf and not inPickApproach(pbs, preConf, pickConf, hand, objGrasp, objPlace):
-    #     if debug('canPickPlaceTest'):
-    #         print 'Not a proper approach')
-    #     return None
     violations = Violations()           # cumulative
     # 1.  Can move from home to pre holding nothing with object placed at pose
     if preConf:
@@ -112,6 +110,12 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
         elif debug('canPickPlaceTest'):
             for c in path: c.draw('W', attached = pbs1.getShadowWorld(p).attached)
             debugMsg('canPickPlaceTest', 'path 1')
+
+    # Check visibility at preConf
+    if not inHeuristic:
+        if not canView(pbs1, p, preConf, hand, objPlace.shadow(pbs1.getShadowWorld(p))):
+            return None
+            
     # 2 - Can move from home to pre holding the object
     pbs2 = pbs.copy().excludeObjs([obj]).updateHeldBel(objGrasp, hand)
     if debug('canPickPlaceTest'):
@@ -160,6 +164,30 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
         debugMsg('canPickPlaceTest', 'path 4')
     debugMsg('canPickPlaceTest', ('->', violations))
     return violations
+
+def canView(pbs, prob, conf, hand, shape):
+    vc = viewCone(conf, shape)
+    if vc.collides(conf.placement()):
+        if debug('canView'):
+            vc.draw('W', 'red')
+            conf.draw('W')
+            raw_input('ViewCone collision')
+        avoid = shapes.Shape([vc, shape], None)
+        path= planRobotGoalPath(pbs, prob, conf,
+                                lambda c: not avoid.collides(c.placement()), None,
+                                [pbs.getRobot().armChainNames[hand]],
+                                maxIter = 20)
+        if not path:
+            return None
+        if debug('canView'):
+            pbs.draw(prob, 'W')
+            for c in path: c.draw('W', 'blue')
+            path[-1].draw('W', 'orange')
+            vc.draw('W', 'green')
+            raw_input('Retract arm')
+        return path
+    else:
+        return [conf]
 
 ################
 ## GENERATORS
@@ -214,8 +242,8 @@ graspConfHistory = []
 graspConfGenCache = {}
 graspConfGenCacheStats = [0,0]
 
-def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, prob, nMax=None):
-    key = (pbs, placeB, graspB, conf, hand, prob, nMax)
+def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None):
+    key = (pbs, placeB, graspB, conf, hand, base, prob, nMax)
     cache = graspConfGenCache
     val = cache.get(key, None)
     graspConfGenCacheStats[0] += 1
@@ -229,7 +257,7 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, prob, nMax=None):
     for x in memo:
         yield x
 
-def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, prob, nMax=10):
+def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=10):
     if conf:
         yield conf, Violations()
         return
@@ -242,11 +270,17 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, prob, nMax=10):
         pbs.draw(prob, 'W')
     count = 0
     tried = 0
+    if base:
+        (x,y,th) = base
+        nominalBase = util.Pose(x, y, 0.0, th)
+        delta = (0.001, 0.001, 0.001, 0.003)
     # !! Sample subset??
     for basePose in robot.potentialBasePosesGen(wrist, hand):
         if nMax and count >= nMax: break
         tried += 1
-        cart = CartConf({'pr2BaseFrame': basePose.pose(),
+        basePose = basePose.pose()
+        if base and not nominalBase.withinDelta(basePose, delta): continue
+        cart = CartConf({'pr2BaseFrame': basePose,
                          'pr2Torso':[torsoZ]}, robot)
         if hand == 'left':
             cart.conf['pr2LeftArmFrame'] = wrist 
@@ -281,23 +315,29 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, prob, nMax=10):
              ('Tried', tried, 'Found', count, 'potential grasp confs'))
     return
 
-def potentialLookConfGen(rm, shape, maxDist):
+def potentialLookConfGen(rm, shape, maxDist, base):
     def testPoseInv(basePoseInv):
         relVerts = np.dot(basePoseInv.matrix, shape.vertices())
         dots = np.dot(visionPlanes, relVerts)
         return not np.any(np.any(dots < 0, axis=0))
+
     centerPoint = util.Point(np.resize(np.hstack([shape.center(), [1]]), (4,1)))
     # visionPlanes = np.array([[1.,1.,0.,0.], [-1.,1.,0.,0.]])
     visionPlanes = np.array([[1.,0.,0.,0.]])
+    if base:
+        (x,y,th) = base
+        nominalBase = util.Pose(x, y, 0.0, th)
+        delta = (0.001, 0.001, 0.001, 0.003)
     tested = set([])
     for node in rm.nodes():             # !!
-        base = tuple(node.conf['pr2Base'])
-        if base in tested:
+        nodeBase = tuple(node.conf['pr2Base'])
+        if nodeBase in tested:
             continue
         else:
-            tested.add(base)
-        x,y,th = base
+            tested.add(nodeBase)
+        x,y,th = nodeBase
         basePose = util.Pose(x,y,0,th)
+        if base and not nominalBase.withinDelta(basePose, delta): continue
         dist = centerPoint.distance(basePose.point())
         if dist > maxDist:
             continue
@@ -649,7 +689,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     def poseViolationWeight(pose):
         pB = placeB.modifyPoseD(mu=pose)
         for gB in graspGen(pbs, obj, graspB):
-            c, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, prob, nMax=1),
+            c, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, None, prob, nMax=1),
                         (None,None))
             if v:
                 if debug('potentialRegionPoseGen'):
@@ -666,6 +706,13 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     shWorld = pbs.getShadowWorld(prob)
     
     objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
+    if placeB.poseD.mode():
+        print 'potentialRegionPoseGen pose specified', placeB.poseD.mode()
+        sh = objShadow.applyLoc(placeB.objFrame())
+        if any(np.all(np.all(np.dot(rs.planes(), sh.vertices()) <= tiny, axis=1)) \
+               for rs in regShapes):
+            print 'potentialRegionPoseGen pose specified and in region', placeB.poseD.mode()
+            yield placeB.poseD.mode()
     shRotations = dict([(angle, objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
     obstCost = 10.

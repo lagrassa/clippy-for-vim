@@ -3,7 +3,7 @@ import numpy as np
 from pointClouds import Scan, updateDepthMap
 import util
 from geom import bboxCenter
-from shapes import toPrims, pointBox
+from shapes import toPrims, pointBox, BoxScale
 import transformations as transf
 from pr2Util import shadowName
 import fbch
@@ -33,6 +33,13 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True):
     if not lookConf:
         cache[key] = (False, [])
         return False, []
+
+    if debug('visible'):
+        viewCone(conf, shape).draw('W', 'red')
+        shape.draw('W', 'cyan')
+        lookConf.draw('W')
+        debugMsg('visible', 'look conf and view cone')
+
     lookCartConf = lookConf.cartConf()
     headTrans = lookCartConf['pr2Head']
     if fbch.inHeuristic:
@@ -121,4 +128,18 @@ def lookAtConf(conf, shape):
     if all(lookConf.values()):
         return lookConf
 
+def viewCone(conf, shape, offset = 0.1):
 
+    lookConf = lookAtConf(conf, shape)
+    if not lookConf:
+        return
+    lookCartConf = lookConf.cartConf()
+    headTrans = lookCartConf['pr2Head']
+    sensor = headTrans.compose(util.Transform(transf.rotation_matrix(-math.pi, (1,0,0))))
+    # Note xyPrim
+    sensorShape = shape.applyTrans(sensor.inverse())
+    ((x0,y0,z0),(x1,y1,z1)) = sensorShape.bbox()
+    # print 'sensorShape bbox\n', sensorShape.bbox()
+    dz = 0.1-z1
+    cone = BoxScale((x1-x0), (y1-y0), dz, None, 0.01,name='ViewConeFor%s'%shape.name())
+    return cone.applyTrans(util.Pose(0.,0.,-dz/2,0.)).applyTrans(sensor)
