@@ -669,12 +669,19 @@ def awayRegion(args, goal, start, vals):
 
 attenuation = 0.5
 # During regression, apply to all fluents in goal;  returns f or a new fluent.
-def moveSpecialRegress(f):
+def moveSpecialRegress(f, details):
+    odoErrPct = details.domainProbs.odoError
+    # variance should subtract odo error is defined as a percentage of
+    # the actual path distance unfortunately, we don't know that now,
+    # so we'll just fix a distance.  Let's say 1 meter.
+    moveDist = (1.0, 1.0, 0.0, np.pi)
+    totalOdoErr = [e * d for (e, d) in zip(odoErrPct, moveDist)]
+    
     if f.predicate == 'B' and f.args[0].predicate == 'Pose':
         newF = f.copy()
         # Make this more reasonable;  ideally should depend on length of motion.
         # Decrease required variance before move
-        newVar = tuple([v * attenuation for v in f.args[2]])
+        newVar = tuple([v * e for (v, e) in zip(f.args[2], totalOdoErr)])
         newF.args[2] = newVar
         newF.update()
         return newF
@@ -697,14 +704,16 @@ def costFun(primCost, prob):
 
 def moveCostFun(al, args, details):
     (s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
-    result = costFun(1.0, p1 * p2 * pcr)
+    rawCost = 1
+    result = costFun(rawCost, p1 * p2 * pcr)
     if not fbch.inHeuristic:
         debugMsg('cost', ('move', (p1, p2, pcr), result))
     return result
 
 def moveNBCostFun(al, args, details):
     (b, s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
-    result = costFun(1.0, p1 * p2 * pcr)
+    rawCost = 100  # put here to force move;  change once we get the right generators
+    result = costFun(rawCost, p1 * p2 * pcr)
     if not fbch.inHeuristic:
         debugMsg('cost', ('move', (p1, p2, pcr), result))
     return result
@@ -774,14 +783,31 @@ def lookAtHandCostFun(al, args, details):
 
 def moveBProgress(details, args, obs=None):
     (s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
-    # Totally fake for now!  Just put the robot in the intended place
+    odoErrPct = details.domainProbs.odoError
+    # Just consider the pose delta not the path cost (wrong)
+    startBase = s['pr2BasePose']
+    endBase = e['pr2BasePose']
+    delta = [abs(startBase[0] - endBase[0]),
+             abs(startBase[1] - endBase[1]), 
+             0,
+             util.angleDiff(startBase[3], endBase[3])]
+    odoErr = [d * e for (d, e) in zip(delta, odoErrPct)]
+
+    # Change robot conf
     details.pbs.updateConf(e)
+
+    # Increase variance on all objects not in the hand
+    for ob in [details.pbs.moveObjBs.items() + \
+               details.pbs.fixObjBs.items()]:
+        oldVar = ob.poseD.var
+        newVar = [a + b for (a, b) in zip(oldVar, odoErr)]
+        ob.modifyPoseD(var = newVar)
     details.shadowWorld = None # force recompute
     debugMsg('beliefUpdate', 'moveBel')    
 
 def moveNBBProgress(details, args, obs=None):
     (b, s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
-    # Totally fake for now!  Just put the robot in the intended place
+    # Just put the robot in the intended place
     details.pbs.updateConf(e)
     details.shadowWorld = None # force recompute
     debugMsg('beliefUpdate', 'moveBel')    

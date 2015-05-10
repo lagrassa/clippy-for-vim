@@ -930,7 +930,7 @@ class Operator(object):
                     break
             if not entailed:
                 if self.specialRegress:
-                    nf = self.specialRegress(gf)
+                    nf = self.specialRegress(gf, startState.details)
                 else:
                     nf = gf.copy()
                 newFluents.append(nf)
