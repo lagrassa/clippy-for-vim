@@ -671,11 +671,13 @@ attenuation = 0.5
 # During regression, apply to all fluents in goal;  returns f or a new fluent.
 def moveSpecialRegress(f, details):
     odoErrPct = details.domainProbs.odoError
-    # variance should subtract odo error is defined as a percentage of
+    # variance should subtract
+    # odo error is stdev defined as a percentage of
     # the actual path distance unfortunately, we don't know that now,
     # so we'll just fix a distance.  Let's say 1 meter.
     moveDist = (1.0, 1.0, 0.0, np.pi)
-    totalOdoErr = [e * d for (e, d) in zip(odoErrPct, moveDist)]
+    totalOdoErr = [e * e * d * d for (e, d) in zip(odoErrPct, moveDist)]
+    print 'total odo err', totalOdoErr
     
     if f.predicate == 'B' and f.args[0].predicate == 'Pose':
         newF = f.copy()
@@ -712,7 +714,7 @@ def moveCostFun(al, args, details):
 
 def moveNBCostFun(al, args, details):
     (b, s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
-    rawCost = 100  # put here to force move;  change once we get the right generators
+    rawCost = 1 
     result = costFun(rawCost, p1 * p2 * pcr)
     if not fbch.inHeuristic:
         debugMsg('cost', ('move', (p1, p2, pcr), result))
@@ -791,7 +793,7 @@ def moveBProgress(details, args, obs=None):
              abs(startBase[1] - endBase[1]), 
              0,
              util.angleDiff(startBase[3], endBase[3])]
-    odoErr = [d * e for (d, e) in zip(delta, odoErrPct)]
+    odoErr = [d * d * e * e for (d, e) in zip(delta, odoErrPct)]
 
     # Change robot conf
     details.pbs.updateConf(e)

@@ -167,6 +167,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
 
 def canView(pbs, prob, conf, hand, shape):
     vc = viewCone(conf, shape)
+    if not vc: return None
     if vc.collides(conf.placement()):
         if debug('canView'):
             vc.draw('W', 'red')
@@ -243,7 +244,7 @@ graspConfGenCache = {}
 graspConfGenCacheStats = [0,0]
 
 def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None):
-    key = (pbs, placeB, graspB, conf, hand, base, prob, nMax)
+    key = (pbs, placeB, graspB, conf, hand, tuple(base) if base else None, prob, nMax)
     cache = graspConfGenCache
     val = cache.get(key, None)
     graspConfGenCacheStats[0] += 1
@@ -279,7 +280,10 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
         if nMax and count >= nMax: break
         tried += 1
         basePose = basePose.pose()
-        if base and not nominalBase.withinDelta(basePose, delta): continue
+        if base and not nominalBase.withinDelta(basePose, delta):
+            if debug('potentialGraspConfs'):
+                print 'base error', nominalBase.diff(basePose)
+            continue
         cart = CartConf({'pr2BaseFrame': basePose,
                          'pr2Torso':[torsoZ]}, robot)
         if hand == 'left':

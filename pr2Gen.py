@@ -217,7 +217,7 @@ def pickGenTop(args, goalConds, pbs, outBindings,
             grasp = graspB.grasp.mode() if graspB else None
             pg = (placeB.support.mode(), grasp)
             w = v.weight() if v else None
-            trace('    pickGen(%s) viol='%obj, w, '(p,g)=', pg, pose)
+            trace('    pickGen(%s) viol='%obj, w, '(h,p,g)=', hand, pg, pose)
         yield x,v
 
 def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
@@ -569,7 +569,6 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                     wm.getWindow('W').clear()
                 yield ans, viol
     tracep('placeGen', 'out of values')
-    raw_input('Foo!')
 
 # Return objPose, poseFace.
 def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
@@ -804,6 +803,11 @@ def lookGen(args, goalConds, bState, outBindings):
         yield ans
 
 def lookGenTop(args, goalConds, pbs, outBindings):
+
+    def testFn(c):
+        print 'Trying base conf', c['pr2Base']
+        return visible(shWorld, c, sh, obst, prob)[0]
+
     (obj, placeB, lookDelta, base, prob) = args
     trace('lookGen(%s) h='%obj, fbch.inHeuristic)
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
@@ -814,6 +818,11 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         tracep('lookGen', '    object is in the hand')
         return
     newBS.updatePermObjPose(placeB)
+    rm = newBS.getRoadMap()
+    shWorld = newBS.getShadowWorld(prob)
+    shName = shadowName(obj)
+    sh = shWorld.objectShapes[shName]
+    obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
 
     if goalConds and getConf(goalConds, None):
         # if conf is specified, just fail
@@ -824,22 +833,24 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         tracep('lookGen', '    object is in the hand')
         return
 
-    shWorld = newBS.getShadowWorld(prob)
-    shName = shadowName(obj)
-    sh = shWorld.objectShapes[shName]
-    obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
-    rm = newBS.getRoadMap()
-    curr = newBS.conf
     if base:
-        (x,y,th) = base
-        nominalBase = util.Pose(x, y, 0.0, th)
-        delta = (0.001, 0.001, 0.001, 0.003)
-    def testFn(c):
-        print 'Trying base conf', c['pr2Base']
-        if base and not nominalBase.withinDelta(basePose, delta):
-            return False
-        return visible(shWorld, c, sh, obst, prob)[0]
+        conf = rm.homeConf.set('pr2Base', base)
+        path, viol = canReachHome(newBS, conf, prob, Violations())
+        trace('    lookGen(%s) viol='%obj, viol.weight() if viol else None)
+        if not path:
+            tracep('lookGen', 'Failed to find a path to look conf.')
+        conf = path[-1]
+        if testFn(conf):
+            lookConf = lookAtConf(conf, sh)
+            if lookConf:
+                if debug('lookGen', skip=skip):
+                    pbs.draw(prob, 'W')
+                    lookConf.draw('W', color='cyan', attached=shWorld.attached)
+                    debugMsg('lookGen', ('-> cyan', lookConf.conf))
+                yield (lookConf,), viol
+        return
 
+    curr = newBS.conf
     world = newBS.getWorld()
     if obj in world.graspDesc:
         graspVar = 4*(0.001,)
