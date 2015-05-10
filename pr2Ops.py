@@ -683,7 +683,7 @@ def moveSpecialRegress(f, details):
         newF = f.copy()
         # Make this more reasonable;  ideally should depend on length of motion.
         # Decrease required variance before move
-        newVar = tuple([v * e for (v, e) in zip(f.args[2], totalOdoErr)])
+        newVar = tuple([v + e for (v, e) in zip(f.args[2], totalOdoErr)])
         newF.args[2] = newVar
         newF.update()
         return newF
