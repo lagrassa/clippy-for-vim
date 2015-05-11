@@ -12,7 +12,8 @@ from miscUtil import argmax, isGround, isVar
 from dist import UniformDist, DDist
 from pr2Robot import CartConf, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, Memoizer
-from fbch import getMatchingFluents, inHeuristic
+import fbch
+from fbch import getMatchingFluents
 from belief import Bd, B
 from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace, \
     BaseConf
@@ -113,7 +114,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op,
             debugMsg('canPickPlaceTest', 'path 1')
 
     # Check visibility at preConf
-    if not inHeuristic:
+    if not fbch.inHeuristic:
         if not canView(pbs1, p, preConf, hand, objPlace.shadow(pbs1.getShadowWorld(p))):
             return None
             
@@ -453,16 +454,16 @@ def drawObjAndShadow(pbs, placeB, prob, win, color = None):
             
 def getGoalInConds(goalConds, X=[]):
     # returns a list of [(obj, regShape, prob)]
-    fbs = getMatchingFluents(goalConds,
-                             Bd([In(['Obj', 'Reg']), 'Val', 'P'], True))
+    fbs = fbch.getMatchingFluents(goalConds,
+                                  Bd([In(['Obj', 'Reg']), 'Val', 'P'], True))
     return [(b['Obj'], b['Reg'], b['P']) \
             for (f, b) in fbs if isGround(b.values())]
 
 def sameBase(goalConds):
     # Return None if there is no sameBase requirement; otherwise
     # return base pose
-    fbs = getMatchingFluents(goalConds,
-                             BaseConf(['B', 'D'], True))
+    fbs = fbch.getMatchingFluents(goalConds,
+                                  BaseConf(['B', 'D'], True))
     result = None
     for (f, b) in fbs:
         base = b['B']
@@ -501,7 +502,7 @@ def pathObst(cs, lgb, rgb, cd, p, pbs, name):
     return ans
 
 def getReachObsts(goalConds, pbs):
-    fbs = getMatchingFluents(goalConds,
+    fbs = fbch.getMatchingFluents(goalConds,
              Bd([CanPickPlace(['Preconf', 'Ppconf', 'Hand', 'Obj', 'Pose',
                                'Posevar', 'Posedelta', 'Poseface',
                                'Graspface', 'Graspmu', 'Graspvar', 'Graspdelta',
@@ -518,7 +519,7 @@ def getReachObsts(goalConds, pbs):
     return obstacles
 
 def getCRHObsts(goalConds, pbs):
-    fbs = getMatchingFluents(goalConds,
+    fbs = fbch.getMatchingFluents(goalConds,
                              Bd([CanReachHome(['C', 'H',
                                                'LO', 'LF', 'LGM', 'LGV', 'LGD',
                                                'RO', 'RF', 'RGM', 'RGV', 'RGD',
@@ -549,7 +550,7 @@ def getCRHObsts(goalConds, pbs):
             debugMsg('getReachObsts', ('path fail', f, b.values()))
             return None
         # Look at Poses in conditions; they are exceptions
-        pfbs = getMatchingFluents(b['Cond'],
+        pfbs = fbch.getMatchingFluents(b['Cond'],
                                   B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
         for (pf, pb) in pfbs:
             if isGround(pb.values()):

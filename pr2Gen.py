@@ -11,7 +11,7 @@ from miscUtil import isVar, argmax, isGround, tuplify, roundrobin
 from dist import DeltaDist, UniformDist
 from pr2Robot import CartConf, gripperTip, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, \
-     NextColor, supportFaceIndex, Memoizer
+     NextColor, supportFaceIndex, Memoizer, shadowWidths
 import fbch
 from belief import Bd
 from pr2Fluents import CanReachHome, canReachHome, inTest
@@ -45,6 +45,7 @@ def tracep(pause, *msg):
         debugMsg(pause)
 
 def easyGraspGen(args, goalConds, bState, outBindings):
+    assert fbch.inHeuristic
     graspVar = 4*(0.001,)
     graspDelta = 4*(0.001,)   # put back to prev value
     
@@ -246,6 +247,12 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
             if ca:
                 approached[ca] = c
                 yield ca
+
+    shw = shadowWidths(placeB.poseD.var, placeB.delta, prob)
+    if any(w > t for (w, t) in zip(shw, pbs.domainProbs.pickTolerance)):
+        print 'pickGen shadow widths', shw
+        debugMsg('pickTol', 'Shadow widths exceed tolerance in pickGen')
+        return
 
     baseCanMove = not base
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
