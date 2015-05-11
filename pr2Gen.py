@@ -862,7 +862,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
 
     curr = newBS.conf
     world = newBS.getWorld()
-    if obj in world.graspDesc:
+    if obj in world.graspDesc and not fbch.inHeuristic:
         graspVar = 4*(0.001,)
         graspDelta = 4*(0.001,)   # put back to prev value
         graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
