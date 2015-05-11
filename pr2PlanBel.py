@@ -63,7 +63,7 @@ class PBS:
         self.regions = regions
         self.pbs = self
         self.useRight = useRight
-        self.avoidShadow = []                   # shadows to avoid, in cached obstacles
+        self.avoidShadow = []  # shadows to avoid, in cached obstacles
         self.shadowProb = None
         # cache
         self.shadowWorld = None                   # cached obstacles
@@ -257,12 +257,12 @@ class PBS:
             bs.fixObjBs[obj] = objBs[obj]
         return bs
     
-    def getShadowWorld(self, prob):
+    def getShadowWorld(self, prob, baseCanMove=False): # default is as if base is specified
         if self.shadowWorld and self.shadowProb == prob:
             return self.shadowWorld
         else:
             cache = self.beliefContext.genCaches['getShadowWorld']
-            key = (self.items(), prob, tuple(self.avoidShadow))
+            key = (self.items(), prob, baseCanMove)
             if key in cache:
                 ans = cache.get(key, None)
                 if ans != None:
@@ -287,7 +287,9 @@ class PBS:
             shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
             # The irreducible shadow
             objBMinDelta = self.domainProbs.minDelta
-            objBMinVar = self.domainProbs.obsVarTuple
+            # When baseCanMove is True, use bigger variance from odoError
+            objBMinVar = tuple([np.sqrt(x) for x in self.domainProbs.odoError]) if baseCanMove \
+                         else self.domainProbs.obsVarTuple
             objBMinProb = 0.95
             if all([x <= y for (x,y) in zip(shadowWidths(objB.poseD.var, objB.delta, 0.99),
                                             shadowWidths(objBMinVar, objBMinDelta, objBMinProb))]):

@@ -301,7 +301,8 @@ class RoadMap:
             entry.draw('W', color=color)
 
     def confReachViol(self, targetConf, pbs, prob,
-                      initViol=viol0, startConf = None, optimize = False):
+                      initViol=viol0, startConf = None,
+                      optimize = False, baseCanMove=True):
 
         def displayAns(ans):
             if not debug('confReachViol'): return
@@ -363,7 +364,7 @@ class RoadMap:
                 if not ans and not fbch.inHeuristic:
                     if debug('traceCRH'):
                         print '    No cached value for approach'
-                if self.confViolations(targetConf, pbs, prob)[0] != None:
+                if self.confViolations(targetConf, pbs, prob, baseCanMove=baseCanMove)[0] != None:
                     # !! Could check that a path exists.
                     return ans
                 else:
@@ -498,7 +499,7 @@ class RoadMap:
 
     def confReachViolGen(self, targetConfs, pbs, prob, initViol=viol0,
                          testFn = lambda x: True, goalCostFn = lambda x: 0,
-                         startConf = None, draw=False):
+                         startConf = None, draw=False, baseCanMove=True):
         attached = pbs.getShadowWorld(prob).attached
         initConf = startConf or self.homeConf
         batchSize = confReachViolGenBatch
@@ -509,7 +510,7 @@ class RoadMap:
             trialConfs = []
             count = 0
             for c in targetConfs:       # targetConfs is a generator
-                if self.confViolations(c, pbs, prob)[0] != None:
+                if self.confViolations(c, pbs, prob, baseCanMove=baseCanMove)[0] != None:
                     count += 1
                     trialConfs.append(c)
                     if initConf == c and testFn(c):
@@ -812,8 +813,8 @@ class RoadMap:
     # We want edge to depend only on endpoints so we can cache the
     # interpolated confs.  The collisions depend on the robot variance
     # as well as the particular obstacles (and their varince).
-    def colliders(self, edge, pbs, prob, viol, noViol=False):
-        shWorld = pbs.getShadowWorld(prob)
+    def colliders(self, edge, pbs, prob, viol, noViol=False, baseCanMove=True):
+        shWorld = pbs.getShadowWorld(prob, baseCanMove=baseCanMove)
         attached = shWorld.attached
         coll = set([])
         empty = {}
@@ -833,34 +834,35 @@ class RoadMap:
     def checkPath(self, path, pbs, prob):
         newViol = viol0
         for conf in path:
-            newViol, _ = self.confViolations(conf, pbs, prob, initViol=newViol)
+            newViol, _ = self.confViolations(conf, pbs, prob, initViol=newViol, baseCanMove=baseCanMove)
             if newViol is None: return None
         return newViol
 
-    def checkNodePathTest(self, graph, nodePath, pbs, prob):
-        actual = self.checkPath(self.confPathFromNodePath(graph, nodePath), pbs, prob)
-        test = self.checkNodePathTest(graph, nodePath, pbs, prob)
+    def checkNodePathTest(self, graph, nodePath, pbs, prob, baseCanMove=True):
+        actual = self.checkPath(self.confPathFromNodePath(graph, nodePath), pbs, prob,
+                                baseCanMove=baseCanMove)
+        test = self.checkNodePathTest(graph, nodePath, pbs, prob, baseCanMove=baseCanMove)
         if not actual == test:
             print 'actual', actual
             print 'test', test
             raw_input('Go?')
         return actual
 
-    def checkNodePath(self, graph, nodePath, pbs, prob):
+    def checkNodePath(self, graph, nodePath, pbs, prob, baseCanMove=True):
         ecoll = set([])
         v = nodePath[0]
         for w in nodePath[1:]:
             edge = graph.edges.get((v, w), None) or \
                    graph.edges.get((w, v), None)
             assert edge
-            c = self.colliders(edge, pbs, prob, viol0)
+            c = self.colliders(edge, pbs, prob, viol0, baseCanMove=baseCanMove)
             if c is None: return None
             ecoll = ecoll.union(c)
             v = w
         if ecoll is None:
             return None
         elif ecoll:
-            shWorld = pbs.getShadowWorld(prob)
+            shWorld = pbs.getShadowWorld(prob, baseCanMove=baseCanMove)
             fixed = shWorld.fixedObjects
             obstacleSet = set([sh for sh in shWorld.getNonShadowShapes() \
                                if not sh.name() in fixed])
@@ -872,13 +874,13 @@ class RoadMap:
         else:
             return viol0
 
-    def checkEdgePath(self, edgePath, pbs, prob):
+    def checkEdgePath(self, edgePath, pbs, prob, baseCanMove=True):
         if len(edgePath) == 1:
             edge, end = edgePath[0]
-            return self.confViolations(edge.ends[end].conf, pbs, prob)
+            return self.confViolations(edge.ends[end].conf, pbs, prob, baseCanMove=baseCanMove)
         ecoll = set([])
         for edge, end in edgePath[:-1]:
-            c = self.colliders(edge, pbs, prob, viol0)
+            c = self.colliders(edge, pbs, prob, viol0, baseCanMove=baseCanMove)
             if c is None: return None
             ecoll = ecoll.union(c)
         if ecoll is None:
@@ -896,10 +898,10 @@ class RoadMap:
         else:
             return viol0
 
-    def confViolations(self, conf, pbs, prob, initViol=viol0, ignoreAttached=False):
+    def confViolations(self, conf, pbs, prob, initViol=viol0, ignoreAttached=False, baseCanMove=True):
         if initViol is None:
             return None, (None, None)
-        shWorld = pbs.getShadowWorld(prob)
+        shWorld = pbs.getShadowWorld(prob, baseCanMove)
         attached = None if ignoreAttached else shWorld.attached
         robotShape, attachedPartsDict = conf.placementAux(attached=attached)
         attachedParts = [x for x in attachedPartsDict.values() if x]
@@ -938,12 +940,12 @@ class RoadMap:
                      ('shadows:', [o.name() for o in shad]))
         return initViol.update(Violations(obst, shad)), (False, False)
 
-    def testEdge(self, edge, pbs, prob, viol=viol0, optimize=False):
+    def testEdge(self, edge, pbs, prob, viol=viol0, optimize=False, baseCanMove=True):
         shWorld = pbs.getShadowWorld(prob)
         fixed = shWorld.fixedObjects
         staticObstSet = set([sh for sh in shWorld.getObjectShapes() \
                              if sh.name() in fixed])
-        wObjs = self.colliders(edge, pbs, prob, viol, noViol=optimize)
+        wObjs = self.colliders(edge, pbs, prob, viol, noViol=optimize, baseCanMove=baseCanMove)
         if wObjs is None or not wObjs.isdisjoint(staticObstSet):
             return None
         obstacleSet = set([sh for sh in shWorld.getNonShadowShapes() \
@@ -955,11 +957,11 @@ class RoadMap:
         return viol.combine(obst, shad)        
 
     def minViolPathGen(self, graph, startNode, targetNodes, pbs, prob, initViol=viol0,
-                       optimize = False, draw=False,
+                       optimize = False, draw=False, baseCanMove=True,
                        testFn = lambda x: True, goalCostFn = lambda x: 0):
 
         def testConnection(edge, viol):
-            wObjs = self.colliders(edge, pbs, prob, viol, noViol=optimize)
+            wObjs = self.colliders(edge, pbs, prob, viol, noViol=optimize, baseCanMove=baseCanMove)
             if wObjs is None or not wObjs.isdisjoint(staticObstSet):
                 return None
             obst = wObjs.intersection(obstacleSet)
@@ -1020,10 +1022,10 @@ class RoadMap:
 
         if fbch.inHeuristic:
             # Static tests at init and target
-            cv = self.confViolations(startNode.conf, pbs, prob, initViol=initViol)[0]
+            cv = self.confViolations(startNode.conf, pbs, prob, initViol=initViol, baseCanMove=baseCanMove)[0]
             if cv == None: return
             for (c, targetNode) in targets:
-                cvt = self.confViolations(targetNode.conf, pbs, prob, initViol=cv)[0]
+                cvt = self.confViolations(targetNode.conf, pbs, prob, initViol=cv, baseCanMove=baseCanMove)[0]
                 if cvt == None or not testFn(targetNode): continue
                 edge = Edge(startNode, targetNode)
                 ans = (cvt,
@@ -1139,14 +1141,15 @@ class RoadMap:
             confPath = [nodePath[0].conf]
         return confPath
 
-    def safePath(self, qf, qi, pbs, prob):
+    def safePath(self, qf, qi, pbs, prob, baseCanMove=True):
         for conf in rrt.interpolate(qf, qi, stepSize=minStep):
-            newViol, _ = self.confViolations(conf, pbs, prob, initViol=viol0)
+            newViol, _ = self.confViolations(conf, pbs, prob, initViol=viol0, baseCanMove=baseCanMove)
             if newViol is None or newViol.weight() > 0.:
                 return False
         return True
 
-    def smoothPath(self, path, pbs, prob, verbose=False, nsteps = glob.smoothSteps):
+    def smoothPath(self, path, pbs, prob, verbose=False,
+                   nsteps = glob.smoothSteps, baseCanMove=True):
         n = len(path)
         if n < 3: return path
         if verbose: print 'Path has %s points'%str(n), '... smoothing'
@@ -1167,7 +1170,7 @@ class RoadMap:
                 continue
             else:
                 checked.add((smoothed[j], smoothed[i]))
-            if self.safePath(smoothed[j], smoothed[i], pbs, prob):
+            if self.safePath(smoothed[j], smoothed[i], pbs, prob, baseCanMove=baseCanMove):
                 count = 0
                 smoothed[i+1:j] = []
                 n = len(smoothed)

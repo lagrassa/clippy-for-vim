@@ -85,7 +85,8 @@ def InPlaceDeproach(*x): return True
 # place1. move home->place with hand empty
 # place2. move home->pre with obj at place pose
 
-def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
+def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op,
+                     baseCanMove = False):
     obj = objGrasp.obj
     if debug('canPickPlaceTest'):
         print zip(('preConf', 'pickConf', 'hand', 'objGrasp', 'objPlace', 'p', 'pbs'),
@@ -103,7 +104,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
         if debug('canPickPlaceTest'):
             pbs1.draw(p, 'W')
             debugMsg('canPickPlaceTest', 'H->App, obj=pose (condition 1)')
-        path, violations = canReachHome(pbs1, preConf, p, violations)
+        path, violations = canReachHome(pbs1, preConf, p, violations, baseCanMove=baseCanMove)
         if not path:
             debugMsg('canPickPlaceTest', 'Failed H->App, obj=pose (condition 1)')
             return None
@@ -121,14 +122,8 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
     if debug('canPickPlaceTest'):
         pbs2.draw(p, 'W'); preConf.draw('W', attached = pbs2.getShadowWorld(p).attached)
         debugMsg('canPickPlaceTest', 'H->App, obj=held (condition 2)')
-    path, violations = canReachHome(pbs2, preConf, p, violations)
+    path, violations = canReachHome(pbs2, preConf, p, violations, baseCanMove=baseCanMove)
     if not path:
-        # print 'canPickPlaceTest' + 'Failed H->App, obj=held (condition 2)'
-        # save = glob.debugOn[:]
-        # glob.debugOn.extend(['successors', 'confReachViol', 'confReachViolGen', 'minViolPath'])
-        # pbs.getRoadMap().confReachCache = {}
-        # canReachHome(pbs2, preConf, p, Violations())
-        # glob.debugOn = save
         raw_input('canPickPlaceTest' + 'Failed H->App, obj=held (condition 2)')
         return None
     elif debug('canPickPlaceTest'):
@@ -304,7 +299,8 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
             conf.conf['pr2LeftArm'] = pbs.conf['pr2LeftArm']
             conf.conf['pr2LeftGripper'] = pbs.conf['pr2LeftGripper']
         # Check for collisions
-        viol, _ = rm.confViolations(conf, pbs, prob, ignoreAttached=True) # don't include attached...
+        viol, _ = rm.confViolations(conf, pbs, prob, ignoreAttached=True,
+                                    baseCanMove=not base) # don't include attached...
         if viol and findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob):
             if debug('potentialGraspConfs'):
                 conf.draw('W','green')
@@ -319,7 +315,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
              ('Tried', tried, 'Found', count, 'potential grasp confs'))
     return
 
-def potentialLookConfGen(rm, shape, maxDist, base):
+def potentialLookConfGen(rm, shape, maxDist):
     def testPoseInv(basePoseInv):
         relVerts = np.dot(basePoseInv.matrix, shape.vertices())
         dots = np.dot(visionPlanes, relVerts)
@@ -328,10 +324,6 @@ def potentialLookConfGen(rm, shape, maxDist, base):
     centerPoint = util.Point(np.resize(np.hstack([shape.center(), [1]]), (4,1)))
     # visionPlanes = np.array([[1.,1.,0.,0.], [-1.,1.,0.,0.]])
     visionPlanes = np.array([[1.,0.,0.,0.]])
-    if base:
-        (x,y,th) = base
-        nominalBase = util.Pose(x, y, 0.0, th)
-        delta = (0.001, 0.001, 0.001, 0.003)
     tested = set([])
     for node in rm.nodes():             # !!
         nodeBase = tuple(node.conf['pr2Base'])
@@ -341,7 +333,6 @@ def potentialLookConfGen(rm, shape, maxDist, base):
             tested.add(nodeBase)
         x,y,th = nodeBase
         basePose = util.Pose(x,y,0,th)
-        if base and not nominalBase.withinDelta(basePose, delta): continue
         dist = centerPoint.distance(basePose.point())
         if dist > maxDist:
             continue
@@ -649,7 +640,7 @@ def potentialRegionPoseGenCut(pbs, obj, placeB, prob, regShapes, reachObsts, max
     return
 '''
 
-def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, reachObsts, hand,
+def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, reachObsts, hand, base,
                            maxPoses = 30):
     def interpolateVars(maxV, minV, n):
         deltaV = [(maxV[i]-minV[i])/(n-1.) for i in range(4)]
@@ -667,12 +658,12 @@ def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, reachObsts
         if debug('potentialRegionPoseGen'):
             print 'potentialRegionPoseGen var', medVar
         for pose in potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes,
-                                              reachObsts, hand, maxPoses):
+                                              reachObsts, hand, base, maxPoses):
             yield pose
             if count > maxPoses: return
             count += 1
 
-def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachObsts, hand,
+def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachObsts, hand, base,
                               maxPoses = 30):
     def genPose(rs, angle, point):
         (x,y,z,_) = point
@@ -693,7 +684,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     def poseViolationWeight(pose):
         pB = placeB.modifyPoseD(mu=pose)
         for gB in graspGen(pbs, obj, graspB):
-            c, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, None, prob, nMax=1),
+            c, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, base, prob, nMax=1),
                         (None,None))
             if v:
                 if debug('potentialRegionPoseGen'):
@@ -707,7 +698,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         pbs.draw(prob, 'W')
         for rs in regShapes: rs.draw('W', 'purple')
     ff = placeB.faceFrames[placeB.support.mode()]
-    shWorld = pbs.getShadowWorld(prob)
+    shWorld = pbs.getShadowWorld(prob, baseCanMove=not base)
     
     objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
     if placeB.poseD.mode():
@@ -853,7 +844,7 @@ def bboxGridCoords(bb, n=5, z=None, res=None):
 def inside(obj, reg):
     # all([np.all(np.dot(reg.planes(), p) <= 1.0e-6) for p in obj.vertices().T])
     verts = obj.vertices()
-    for i in range(verts.shape[1]):
+    for i in xrange(verts.shape[1]):
         # reg.containsPt() completely fails to work here.
         if not np.all(np.dot(reg.planes(), verts[:,i]) <= tiny):
             return False
