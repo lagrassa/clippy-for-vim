@@ -240,8 +240,8 @@ class State:
         # Fail if we have an inconsistency.
         # Kind of lame because:  it doesn't try to find different
         # bindings if this one is inconsistent; also because it
-        # doesn't test for inconsistency within the set of goalFluents.
-        if not self.isConsistent(goalFluents):
+        # doesn't test for inconsistency within the set of bound goalFluents.
+        if not goal.isConsistent(goalFluents):
             debugMsg('satisfies', 'found grounding but it is inconsistent')
             print 'satisfies found grounding but it is inconsistent'
             return False
