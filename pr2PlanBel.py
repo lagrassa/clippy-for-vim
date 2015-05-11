@@ -288,7 +288,7 @@ class PBS:
             # The irreducible shadow
             objBMinDelta = self.domainProbs.minDelta
             # When baseCanMove is True, use bigger variance from odoError
-            objBMinVar = tuple([np.sqrt(x) for x in self.domainProbs.odoError]) if baseCanMove \
+            objBMinVar = tuple([x**2 for x in self.domainProbs.odoError]) if baseCanMove \
                          else self.domainProbs.obsVarTuple
             objBMinProb = 0.95
             if all([x <= y for (x,y) in zip(shadowWidths(objB.poseD.var, objB.delta, 0.99),
