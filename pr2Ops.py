@@ -677,7 +677,6 @@ def moveSpecialRegress(f, details):
     # so we'll just fix a distance.  Let's say 1 meter.
     moveDist = (1.0, 1.0, 0.0, np.pi)
     totalOdoErr = [e * e * d * d for (e, d) in zip(odoErrPct, moveDist)]
-    print 'total odo err', totalOdoErr
     
     if f.predicate == 'B' and f.args[0].predicate == 'Pose':
         newF = f.copy()

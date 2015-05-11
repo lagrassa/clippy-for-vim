@@ -576,7 +576,8 @@ class PlanTest:
 
 typicalErrProbs = DomainProbs(\
             # stdev, as a percentage of the motion magnitude
-            odoError = (0.02, 0.02, 1e-11, 0.02),
+            #odoError = (0.02, 0.02, 1e-11, 0.02),
+            odoError = (0.001, 0.001, 1e-11, 0.001),   # for debugging
             # variance in observations; diagonal for now
             obsVar = (0.01**2, 0.01**2,0.01**2, 0.01**2),
             # get type of object wrong
