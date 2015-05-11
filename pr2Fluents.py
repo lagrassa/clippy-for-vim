@@ -154,9 +154,7 @@ class BaseConf(Fluent):
                 return other, {}
             else:
                 # Contradiction
-                print '!!!!!  Fix glb for BaseConf.  Broken until we fix generators'
-                return other, {}
-                #return False, {}
+                return False, {}
 
         if other.predicate != 'BaseConf':
             return {self, other}, {}

@@ -575,9 +575,9 @@ class PlanTest:
 # Turned down pickVar until we can look at hand
 
 typicalErrProbs = DomainProbs(\
-            # stdev, as a percentage of the motion magnitude
+            # stdev, constant, assuming we control it by tracking while moving
             #odoError = (0.02, 0.02, 1e-11, 0.02),
-            odoError = (0.001, 0.001, 1e-11, 0.001),   # for debugging
+            odoError = (0.01, 0.01, 1e-11, 0.01),
             # variance in observations; diagonal for now
             obsVar = (0.01**2, 0.01**2,0.01**2, 0.01**2),
             # get type of object wrong
@@ -673,13 +673,16 @@ def testN1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           )
     return t
 
-# Only 1 table.  Works in easy mode; but the observations are so good
-# that it doesn't matter which move we use.
+
+# 1 table; move 1 object
+# Assumption is that odometry error is kept in check during motions.
+# Use domainProbs.odoError as the stdev of any object.
+
 def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
-    glob.rebindPenalty = 700
-    glob.monotonicFirst = False
+    glob.rebindPenalty = 100
+    #glob.monotonicFirst = False
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
 
@@ -706,15 +709,13 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              poseAchCanPickPlace, moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}),
              move,        # 13
-             # poseAchCanReach, moveNB,
-             # lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
              pick,
              poseAchCanPickPlace, moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), move,
-             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
-             lookAt.applyBindings({'Obj' : 'table1'}), move]]
+             poseAchCanReach,
+             lookAt.applyBindings({'Obj' : 'table1'}), moveNB]]
 
     easySkel = [[poseAchIn,
                  lookAt.applyBindings({'Obj' : 'objA'}), moveNB,

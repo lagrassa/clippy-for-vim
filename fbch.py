@@ -106,7 +106,18 @@ class State:
                 total += maxCostInGroup
             else:
                 actSet = actSet.union(groupActSet)
-        return total + sum([o.instanceCost for o in actSet])
+
+        result = total + sum([o.instanceCost for o in actSet])
+        if result == 0:
+            # one more sanity check
+            if not start.satisfies(self):
+                numNonGround = len([thing for thing in self.fluents \
+                                    if not thing.isGround()])
+                # There is no other reason why this value should be 0
+                if numNonGround == 0:
+                    raw_input('Heuristic 0 but not sure why')
+                result = numNonGround * defaultFluentCost
+        return result
 
     def updateStateEstimate(self, op, obs=None):
         # Assumes that we're not progressing fluents, so just update
@@ -225,6 +236,15 @@ class State:
                 extraBindings.update(b)
                 oldGoalFluents = goalFluents
                 goalFluents = [f.applyBindings(b) for f in goalFluents]
+
+        # Fail if we have an inconsistency.
+        # Kind of lame because:  it doesn't try to find different
+        # bindings if this one is inconsistent; also because it
+        # doesn't test for inconsistency within the set of goalFluents.
+        if not self.isConsistent(goalFluents):
+            debugMsg('satisfies', 'found grounding but it is inconsistent')
+            print 'satisfies found grounding but it is inconsistent'
+            return False
                 
         failed = False
         for bf in goalFluents:
@@ -933,6 +953,11 @@ class Operator(object):
                     nf = self.specialRegress(gf, startState.details)
                 else:
                     nf = gf.copy()
+                if nf == None:
+                    if not inHeuristic or debug('debugInHeuristic'):
+                        print 'special regression fail'
+                        debugMsg('regression:fail', 'special regress failure')
+                    return []
                 newFluents.append(nf)
 
         newBoundFluents = [f.applyBindings(newBindings) for f in newFluents]

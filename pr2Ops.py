@@ -670,19 +670,21 @@ def awayRegion(args, goal, start, vals):
 attenuation = 0.5
 # During regression, apply to all fluents in goal;  returns f or a new fluent.
 def moveSpecialRegress(f, details):
-    odoErrPct = details.domainProbs.odoError
-    # variance should subtract
-    # odo error is stdev defined as a percentage of
-    # the actual path distance unfortunately, we don't know that now,
-    # so we'll just fix a distance.  Let's say 1 meter.
-    moveDist = (1.0, 1.0, 0.0, np.pi)
-    totalOdoErr = [e * e * d * d for (e, d) in zip(odoErrPct, moveDist)]
+    # Assume that odometry error is controlled during motion, so not more than 
+    # this.  It's a stdev
+    odoError = details.domainProbs.odoError
+    totalOdoErr = [e * e for e in odoError]
+
+    # This is conservative; if we really stay this well localized,
+    # then handle it differently.
     
     if f.predicate == 'B' and f.args[0].predicate == 'Pose':
         newF = f.copy()
-        # Make this more reasonable;  ideally should depend on length of motion.
-        # Decrease required variance before move
-        newVar = tuple([v + e for (v, e) in zip(f.args[2], totalOdoErr)])
+        newVar = tuple([v - e for (v, e) in zip(f.args[2], totalOdoErr)])
+        if any([v < minV \
+                for (v, minV) in zip(newVar, details.domainProbs.obsVarTuple)]):
+            # Can't achieve this 
+            return None
         newF.args[2] = newVar
         newF.update()
         return newF
@@ -784,24 +786,17 @@ def lookAtHandCostFun(al, args, details):
 
 def moveBProgress(details, args, obs=None):
     (s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
-    odoErrPct = details.domainProbs.odoError
-    # Just consider the pose delta not the path cost (wrong)
-    startBase = s['pr2BasePose']
-    endBase = e['pr2BasePose']
-    delta = [abs(startBase[0] - endBase[0]),
-             abs(startBase[1] - endBase[1]), 
-             0,
-             util.angleDiff(startBase[3], endBase[3])]
-    odoErr = [d * d * e * e for (d, e) in zip(delta, odoErrPct)]
+    # Assume we've controlled the error during motion.
+    odoError = details.domainProbs.odoError
 
     # Change robot conf
     details.pbs.updateConf(e)
 
     # Increase variance on all objects not in the hand
-    for ob in [details.pbs.moveObjBs.items() + \
-               details.pbs.fixObjBs.items()]:
+    for ob in details.pbs.moveObjBs.values() + \
+               details.pbs.fixObjBs.values():
         oldVar = ob.poseD.var
-        newVar = [a + b for (a, b) in zip(oldVar, odoErr)]
+        newVar = tuple([a + b*b for (a, b) in zip(oldVar, odoError)])
         ob.modifyPoseD(var = newVar)
     details.shadowWorld = None # force recompute
     debugMsg('beliefUpdate', 'moveBel')    

@@ -66,7 +66,8 @@ visible
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'traceGen', 'traceCRH', 'regression:fail', 'placeVar']
+           'traceGen', 'traceCRH']
+
 
 
 pauseOn = debugOn

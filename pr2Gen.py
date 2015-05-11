@@ -782,7 +782,7 @@ def lookGen(args, goalConds, bState, outBindings):
     world = bState.pbs.getWorld()
 
     base = sameBase(goalConds)
-    if base:
+    if base and debug('lookGen'):
         raw_input('Same base constraint in lookGen -- how to pick conf??')
 
     if pose == '*':
@@ -1136,6 +1136,11 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         return
     if viol.empty():
         tracep('canPickPlaceGen', 'No obstacles or shadows; returning')
+        if debug('canPickPlaceGen'):
+            glob.debugOn.append('confViol')
+            viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
+                             graspB1, placeB, prob, op=op)
+            raw_input('here is the conf viol')
         return
     
     objBMinDelta = newBS.domainProbs.minDelta
