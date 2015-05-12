@@ -715,7 +715,9 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), move,
              poseAchCanReach,
-             lookAt.applyBindings({'Obj' : 'table1'}), moveNB]]
+             # Skel should work in other order, but doesn't
+             lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB]]
 
     easySkel = [[poseAchIn,
                  lookAt.applyBindings({'Obj' : 'objA'}), moveNB,

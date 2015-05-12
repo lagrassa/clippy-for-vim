@@ -251,6 +251,9 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
     shw = shadowWidths(placeB.poseD.var, placeB.delta, prob)
     if any(w > t for (w, t) in zip(shw, pbs.domainProbs.pickTolerance)):
         print 'pickGen shadow widths', shw
+        print 'poseVar', placeB.poseD.var
+        print 'delta', placeB.delta
+        print 'prob', prob
         debugMsg('pickTol', 'Shadow widths exceed tolerance in pickGen')
         return
 

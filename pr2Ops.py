@@ -5,7 +5,8 @@ from dist import DeltaDist, varBeforeObs, DDist, probModeMoved, MixtureDist,\
 import fbch
 from fbch import Function, getMatchingFluents, Operator, simplifyCond
 from miscUtil import isVar, prettyString, makeDiag
-from pr2Util import PoseD, shadowName, ObjGraspB, ObjPlaceB, Violations
+from pr2Util import PoseD, shadowName, ObjGraspB, ObjPlaceB, Violations,\
+     shadowWidths
 from pr2Gen import pickGen, canReachHome, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen, placeInRegionGen, placeGen
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
@@ -572,18 +573,34 @@ def placeGraspVar2((totalVar, poseVar2), goal, start, vals):
     else:
         return [[graspVar]]
 
+# tol > n * sqrt(var) + d
+# tol - d > n * sqrt(var)
+# (tol - d) / n > sqrt(var)
+# ((tol - d) / n)**2 > var
+
 # For pick, pose var is desired graspVar minus fixed pickVar
-def pickPoseVar((graspVar, prob), goal, start, vals):
+def pickPoseVar((graspVar, graspDelta, prob), goal, start, vals):
     pickVar = start.domainProbs.pickVar
-    pickTolerance = start.domainProbs.pickTolerance[0]
+    pickTolerance = start.domainProbs.pickTolerance
     # What does the variance need to be so that we are within
     # pickTolerance with probability prob?
     numStdDevs =  np.sqrt(chiSqFromP(1-prob, 3))
     # nstd * std < pickTol
     # std < pickTol / nstd
-    tolerableVar = (pickTolerance / numStdDevs)**2
-    poseVar = tuple([min(gv - pv, tolerableVar) \
-                     for (gv, pv) in zip(graspVar, pickVar)])
+    tolerableVar = [((pt - gd - .001) / numStdDevs)**2 for \
+                    (pt, gd) in zip(pickTolerance, graspDelta)]
+    poseVar = tuple([min(gv - pv, tv) \
+                     for (gv, pv, tv) in zip(graspVar, pickVar, tolerableVar)])
+
+    print 'pick pose var'
+    print 'fixed pickVar', pickVar
+    print 'tolerance', pickTolerance
+    print 'num stdev', numStdDevs
+    print 'tolerable var', tolerableVar
+    print 'poseVar', poseVar
+    print 'shadow width', shadowWidths(poseVar, graspDelta, prob)
+    raw_input('okay?')
+                     
     if any([x <= 0 for x in poseVar]):
         debugMsg('pickGen', 'pick pose var negative', poseVar)
         return []
@@ -1390,13 +1407,16 @@ pick = Operator(\
             Function(['RealGraspVar'], ['GraspVar'], maxGraspVarFun,
                      'realGraspVar'),
                      
-            # GraspVar = PoseVar + PickVar
-            Function(['PoseVar'], ['RealGraspVar', 'PR3'],
-                     pickPoseVar, 'pickPoseVar'),
-            
             # Divide delta evenly
             Function(['ConfDelta', 'PoseDelta'], ['GraspDelta'],
                       halveVariance, 'halveVar'),
+
+
+            # GraspVar = PoseVar + PickVar
+            # prob was pr3, but this keeps it tighter
+            Function(['PoseVar'], ['RealGraspVar', 'GraspDelta',
+                                   probForGenerators],
+                     pickPoseVar, 'pickPoseVar'),
 
             # Values for what is in the other hand.
             # Force to be bound early to avoid side-effect trouble
