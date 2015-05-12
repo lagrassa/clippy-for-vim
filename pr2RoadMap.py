@@ -336,14 +336,14 @@ class RoadMap:
                 self.confReachCache[key].append((pbs, prob,
                                                  ans if ans else (None, None, None)))
 
-        def checkCache(key, type='full'):
+        def checkCache(key, type='full', loose=False):
             if fbch.inHeuristic or optimize: return 
             if key in self.confReachCache:
                 if debug('confReachViolCache'): print 'confReachCache tentative hit'
                 cacheValues = self.confReachCache[key]
                 sortedCacheValues = sorted(cacheValues,
                                            key=lambda v: v[-1][0].weight() if v[-1][0] else v[-1][0])
-                ans = bsEntails(pbs, prob, sortedCacheValues)
+                ans = bsEntails(pbs, prob, sortedCacheValues, loose=loose)
                 if ans != None:
                     if debug('traceCRH'): print '    actual', type, 'cache hit',
                     if debug('confReachViolCache'):
@@ -358,15 +358,19 @@ class RoadMap:
             return checkCache((targetConf, initConf))
 
         def checkApproachCache():
+            if fbch.inHeuristic: return # don't bother
             if targetConf in self.approachConfs:
-                ans = checkCache((self.approachConfs[targetConf], initConf), type='approach')
+                ans = checkCache((self.approachConfs[targetConf], initConf),
+                                 type='approach', loose=True)
                 # !! This does not bother adding the final location to the path
-                if not ans and not fbch.inHeuristic:
+                if not ans:
                     if debug('traceCRH'):
-                        print '    No cached value for approach'
-                if self.confViolations(targetConf, pbs, prob, baseCanMove=baseCanMove)[0] != None:
-                    # !! Could check that a path exists.
-                    return ans
+                        raw_input('    No cached value for approach')
+                    return None
+                cv = self.confViolations(targetConf, pbs, prob, baseCanMove=baseCanMove)[0]
+                if cv != None:
+                    (viol, cost, path) = ans
+                    return (viol.update(cv), cost, path)
                 else:
                     raw_input('Collision at pick/place conf')
 
@@ -476,9 +480,11 @@ class RoadMap:
         return cluster
 
     def batchAddClusters(self, initConfs):
+        startTime = time.time()
+        print 'Start batchAddClusters'
         clusters = []
-        for (conf, cart) in initConfs:
-            node = makeNode(conf, cart)
+        for conf in initConfs:
+            node = makeNode(conf)
             cluster = self.clustersByPoint.get(node.point, None)
             if not cluster:
                 cluster = Cluster(self, [node], self.params)
@@ -496,6 +502,7 @@ class RoadMap:
                 for n2 in cl.reps:
                     n0 = cluster.addRep(n2)
                     self.addEdge(self.clusterGraph, n0, n2)
+        print 'End batchAddClusters, time=', time.time()-startTime
 
     def confReachViolGen(self, targetConfs, pbs, prob, initViol=viol0,
                          testFn = lambda x: True, goalCostFn = lambda x: 0,
@@ -1196,6 +1203,10 @@ def bsEntails(bs1, p1, cacheValues, loose=False):
         elif not viol2:
             if bsBigger(bs1, p1, bs2, p2):
                 return ans
+        elif debug('confReachViolCache'):
+            print 'viol2', viol2
+            print 'path2', path2
+            raw_input('Huh?')
     if debug('confReachViolCache'):
         print 'bsEntails returns False'
     return None
