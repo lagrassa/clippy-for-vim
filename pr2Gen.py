@@ -882,7 +882,16 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         # collide with shadow of obj.
         for gB in graspGen(pbs, obj, graspB):
             for hand in ['left', 'right']:
-                for ans, viol in pickGenTop((obj, gB, placeB, hand, base, prob),
+
+                # LPK did this
+                tempPlaceB = copy.copy(placeB)
+                tempPlaceB.poseD = copy.copy(placeB.poseD)
+                tempPlaceB.modifyPoseD(var = pbs.domainProbs.obsVarTuple)
+                # be smarter about this?
+                tempPlaceB.delta = (.01, .01, .01, .01)
+                
+                for ans, viol in pickGenTop((obj, gB, tempPlaceB, hand, base,
+                                             prob),
                                             goalConds, pbs, outBindings, True):
                     (pB, c, ca) = ans
                     shape = pB.shadow(pbs.getShadowWorld(prob))

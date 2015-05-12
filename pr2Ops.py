@@ -592,14 +592,15 @@ def pickPoseVar((graspVar, graspDelta, prob), goal, start, vals):
     poseVar = tuple([min(gv - pv, tv) \
                      for (gv, pv, tv) in zip(graspVar, pickVar, tolerableVar)])
 
-    print 'pick pose var'
-    print 'fixed pickVar', pickVar
-    print 'tolerance', pickTolerance
-    print 'num stdev', numStdDevs
-    print 'tolerable var', tolerableVar
-    print 'poseVar', poseVar
-    print 'shadow width', shadowWidths(poseVar, graspDelta, prob)
-    raw_input('okay?')
+    if debug('pickGen'):
+        print 'pick pose var'
+        print 'fixed pickVar', pickVar
+        print 'tolerance', pickTolerance
+        print 'num stdev', numStdDevs
+        print 'tolerable var', tolerableVar
+        print 'poseVar', poseVar
+        print 'shadow width', shadowWidths(poseVar, graspDelta, prob)
+        raw_input('okay?')
                      
     if any([x <= 0 for x in poseVar]):
         debugMsg('pickGen', 'pick pose var negative', poseVar)

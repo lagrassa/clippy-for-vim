@@ -591,7 +591,10 @@ typicalErrProbs = DomainProbs(\
             # variance in grasp after placing
             placeVar = (0.01**2, 0.01**2, 1e-11, 0.02**2),
             # pickTolerance
-            pickTolerance = (0.02, 0.02, 0.02, 0.02))
+            #pickTolerance = (0.02, 0.02, 0.02, 0.02))
+            # Too big?  Needs to be big to make the planner work unless
+            # observations are a lot better
+            pickTolerance = (0.05, 0.05, 0.05, 0.1))
 
 smallErrProbs = DomainProbs(\
             # stdev, as a percentage of the motion magnitude
