@@ -1898,7 +1898,6 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
 
     resultNames = [o.name for o in result]
     if len(result) == 0:
-        print g
         debugMsg('appOp:number', ('h', inHeuristic, 'number', len(result)))
     debugMsg(tag, ('h', inHeuristic, 'number', len(result)), ('result', result))
     return result

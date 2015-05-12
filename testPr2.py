@@ -734,11 +734,11 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
             [poseAchIn,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
-             lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), move,
              place.applyBindings({'Obj': 'objA'}), move, 
-             pick, moveNB]]
-
+             pick, moveNB,
+             lookAt.applyBindings({'Obj' : 'objA'}), move]]
+             
     easySkel = [[poseAchIn,
                  lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
                  place.applyBindings({'Hand' : 'left', 'Obj': 'objA'}), move,
