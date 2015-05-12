@@ -75,6 +75,14 @@ class State:
         actSet = set()
         fluentGroups = start.details.partitionFn(self.fluents)
         for fg in fluentGroups:
+            # assume a fluent group is either ground or not.
+            # If not ground, check first to see if the whole group is
+            # satisfiable.  Would be nicer to partition according to
+            # connected components where the connections are variables
+            if any([not thing.isGround() for thing in fg]):
+                fSat = start.satisfies(State(fg))
+                if fSat: return (total, actSet)
+            
             for f in fg:
                 maxCostInGroup = 0
                 groupActSet = set()
@@ -923,10 +931,9 @@ class Operator(object):
         # Be sure the result is consistent
         if not goal.isConsistent(boundResults, startState.details):
             if not inHeuristic or debug('debugInHeuristic'):
-                debugMsg('regression:inconsistent', self,
+                debugMsg('regression:fail', self,
                          'results inconsistent with goal')
             # This is not a fatal flaw;  just a problem with these bindings
-
             return []
 
         # Some bindings that we make after this might apply to previous steps

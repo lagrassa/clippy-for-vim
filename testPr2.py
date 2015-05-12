@@ -110,12 +110,18 @@ def habbs(s, g, ops, ancestors):
     if val == 0:
         # Just in case the addBack heuristic thinks we're at 0 when
         # the goal is not yet satisfied.
-        easyVal = hEasy(s, g, ops, ancestors)
-        if easyVal != 0:
+        isSat = s.satisfies(g)
+        if not isSat: 
             print '*** habbs is 0 but goal not sat ***'
-        return easyVal
-    else:
-        return val
+
+            for thing in g.fluents:
+                if not thing.isGround() or \
+                  thing.valueInDetails(s.details) == False:
+                    print thing
+            raw_input('okay?')
+            easyVal = hEasy(s, g, ops, ancestors)
+            return easyVal
+    return val
 
 from timeout import timeout, TimeoutError
 
@@ -742,9 +748,10 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), move,
              poseAchCanReach,
-             # Skel should work in other order, but doesn't
+             # Skel should work in other order, but doesn't.  This
+             # order doesn't always work, either.
              lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
-             lookAt.applyBindings({'Obj' : 'objA'}), moveNB],
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB],   # 27 total
             [poseAchIn,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,

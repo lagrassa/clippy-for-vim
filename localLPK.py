@@ -65,7 +65,7 @@ traceGen  (compact summary of generators)
 visible
 
 '''
-debugOn = ['nonmon', 'executionFail', 'executionSurprise',
+debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
            'traceGen', 'traceCRH', 'pickTol']
 
 

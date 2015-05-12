@@ -255,11 +255,6 @@ class CanReachHome(Fluent):
         path, violations = self.getViols(bState, v, p)
 
         result = bool(path and violations.empty())
-        # if result == False:
-        #     print 'canReachHomeTest failed'
-        #     print path
-        #     print violations
-        #     raw_input('okay?')
         return result
 
     def heuristicVal(self, bState, v, p):
@@ -271,6 +266,13 @@ class CanReachHome(Fluent):
                             self.args   # Args
         
         obstCost = 10  # move pick move place
+
+        if not self.isGround():
+            # assume an obstacle, if we're asking.  May need to decrease this
+            dummyOp = Operator('RemoveObst', ['dummy'],{},[])
+            dummyOp.instanceCost = obstCost
+            return (obstCost, {dummyOp})
+        
         path, violations = self.getViols(bState.details, v, p, strict = False)
         if path == None:
             #!! should this happen?
@@ -398,8 +400,15 @@ class CanReachNB(Fluent):
                robj, rface, rgraspMu, rgraspVar, rgraspDelta,
                firstCondPerm, cond) = \
                             self.args   # Args
-        
+
         obstCost = 10  # move pick move place
+
+        if not self.isGround():
+            # assume an obstacle, if we're asking.  May need to decrease this
+            dummyOp = Operator('RemoveObst', ['dummy'],{},[])
+            dummyOp.instanceCost = obstCost
+            return (obstCost, {dummyOp})
+            
         path, violations = self.getViols(bState.details, v, p, strict = False)
         if path == None:
             #!! should this happen?
@@ -532,6 +541,13 @@ class CanPickPlace(Fluent):
     def heuristicVal(self, bState, v, p):
         # Return cost estimate and a set of dummy operations
         obstCost = 5  # move, pick, move, place, maybe a look at hand
+
+        if not self.isGround():
+            # assume an obstacle, if we're asking.  May need to decrease this
+            dummyOp = Operator('RemoveObst', ['dummy'],{},[])
+            dummyOp.instanceCost = obstCost
+            return (obstCost, {dummyOp})
+
         shadowCost = 3  # move look, if we're lucky
         path, violations = self.getViols(bState.details, v, p, strict = False)
         if path == None:
@@ -827,6 +843,13 @@ class CanSeeFrom(Fluent):
         (obj, pose, poseFace, conf, cond) = self.args
         
         obstCost = 10  # move pick move place
+
+        if not self.isGround():
+            # assume an obstacle, if we're asking.  May need to decrease this
+            dummyOp = Operator('RemoveObst', ['dummy'],{},[])
+            dummyOp.instanceCost = obstCost
+            return (obstCost, {dummyOp})
+        
         path, occluders = self.getViols(bState.details, v, p, strict = False)
         if path == None:
             #!! should this happen?
@@ -890,8 +913,8 @@ def partition(fluents):
     while len(fluents) > 0:
         f = fluents.pop()
 
-        if not f.isGround():
-            continue
+        # if not f.isGround():
+        #     continue
         
         newSet = set([f])
         if f.predicate in ('B', 'Bd'):
@@ -961,6 +984,13 @@ def partition(fluents):
                 for (ff, b) in pf:
                     newSet.add(ff)
                     fluents.remove(ff)
+        else:
+            # Not a B fluent
+            pf = getMatchingFluents(fluents, Conf([], 'C', 'D')) + \
+                 getMatchingFluents(fluents, BaseConf([], 'C', 'D'))
+            for (ff, b) in pf:
+                newSet.add(ff)
+                fluents.remove(ff)
                     
         groups.append(frozenset(newSet))
     return groups
