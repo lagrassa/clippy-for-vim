@@ -254,12 +254,49 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None
     for x in memo:
         yield x
 
+def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, baseCanMove,
+                     wrist = None):
+    robot = pbs.getRobot()
+    rm = pbs.getRoadMap()
+    if not wrist:
+        wrist = objectGraspFrame(pbs, graspB, placeB)
+    basePose = basePose.pose()
+    cart = CartConf({'pr2BaseFrame': basePose,
+                     'pr2Torso':[torsoZ]}, robot)
+    if hand == 'left':
+        cart.conf['pr2LeftArmFrame'] = wrist 
+        cart.conf['pr2LeftGripper'] = [0.08] # !! pick better value
+    else:
+        cart.conf['pr2RightArmFrame'] = wrist 
+        cart.conf['pr2RightGripper'] = [0.08]
+    # Check inverse kinematics
+    conf = robot.inverseKin(cart,
+                            complain=debug('potentialGraspConfs'))
+    if None in conf.values(): return
+    # Copy the other arm
+    if hand == 'left':
+        conf.conf['pr2RightArm'] = pbs.conf['pr2RightArm']
+        conf.conf['pr2RightGripper'] = pbs.conf['pr2RightGripper']
+    else:
+        conf.conf['pr2LeftArm'] = pbs.conf['pr2LeftArm']
+        conf.conf['pr2LeftGripper'] = pbs.conf['pr2LeftGripper']
+    # Check for collisions, don't include attached...
+    viol, _ = rm.confViolations(conf, pbs, prob, ignoreAttached=True,
+                                baseCanMove=baseCanMove) 
+    if viol:
+        ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
+        if ca:
+            if debug('potentialGraspConfs'):
+                conf.draw('W','green')
+                debugMsg('potentialGraspConfs', ('->', conf.conf))
+            return conf, ca, viol
+    else:
+        if debug('potentialGraspConfs'): conf.draw('W','red')
+
 def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=10):
     if conf:
         yield conf, Violations()
         return
-    robot = pbs.getRobot()
-    rm = pbs.getRoadMap()
     wrist = objectGraspFrame(pbs, graspB, placeB)
     if debug('potentialGraspConfs'):
         print 'potentialGraspConfGen', hand, placeB.obj, graspB.grasp
@@ -269,49 +306,16 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
     tried = 0
     if base:
         (x,y,th) = base
-        nominalBase = util.Pose(x, y, 0.0, th)
-        delta = (0.001, 0.001, 0.001, 0.003)
+        nominalBasePose = util.Pose(x, y, 0.0, th)
+    robot = pbs.getRobot()
     # !! Sample subset??
-    for basePose in robot.potentialBasePosesGen(wrist, hand):
+    for basePose in [nominalBasePose] if base else robot.potentialBasePosesGen(wrist, hand):
         if nMax and count >= nMax: break
         tried += 1
-        basePose = basePose.pose()
-        if base and not nominalBase.withinDelta(basePose, delta):
-            if debug('potentialGraspConfs'):
-                print 'base error', nominalBase.diff(basePose)
-            continue
-        cart = CartConf({'pr2BaseFrame': basePose,
-                         'pr2Torso':[torsoZ]}, robot)
-        if hand == 'left':
-            cart.conf['pr2LeftArmFrame'] = wrist 
-            cart.conf['pr2LeftGripper'] = [0.08] # !! pick better value
-        else:
-            cart.conf['pr2RightArmFrame'] = wrist 
-            cart.conf['pr2RightGripper'] = [0.08]
-        # Check inverse kinematics
-        conf = robot.inverseKin(cart,
-                                complain=debug('potentialGraspConfs'))
-        if None in conf.values(): continue
-        # Copy the other arm
-        if hand == 'left':
-            conf.conf['pr2RightArm'] = pbs.conf['pr2RightArm']
-            conf.conf['pr2RightGripper'] = pbs.conf['pr2RightGripper']
-        else:
-            conf.conf['pr2LeftArm'] = pbs.conf['pr2LeftArm']
-            conf.conf['pr2LeftGripper'] = pbs.conf['pr2LeftGripper']
-        # Check for collisions
-        viol, _ = rm.confViolations(conf, pbs, prob, ignoreAttached=True,
-                                    baseCanMove=not base) # don't include attached...
-        if viol and findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob):
-            if debug('potentialGraspConfs'):
-                conf.draw('W','green')
-                debugMsg('potentialGraspConfs', ('->', conf.conf))
+        ans = graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, not base, wrist)
+        if ans:
             count += 1
-            # Brute force debugging tool...
-            # graspConfHistory.append([conf, viol, pbs, placeB, conf, hand, prob])
-            yield conf, viol
-        else:
-            if debug('potentialGraspConfs'): conf.draw('W','red')
+            yield ans
     debugMsg('potentialGraspConfs',
              ('Tried', tried, 'Found', count, 'potential grasp confs'))
     return
@@ -685,8 +689,8 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     def poseViolationWeight(pose):
         pB = placeB.modifyPoseD(mu=pose)
         for gB in graspGen(pbs, obj, graspB):
-            c, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, base, prob, nMax=1),
-                        (None,None))
+            c, ca, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, base, prob, nMax=1),
+                            (None,None,None))
             if v:
                 if debug('potentialRegionPoseGen'):
                     c.draw('W')

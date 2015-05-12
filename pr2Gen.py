@@ -102,11 +102,9 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob):
     def graspApproachConfGen(firstConf):
         if firstConf:
             yield firstConf
-        for c, _ in graspConfGen:
-            ca = findApproachConf(newBS, obj, placeB, c, hand, prob)
-            if ca:
-                approached[ca] = c
-                yield ca
+        for c, ca, _ in graspConfGen:
+            approached[ca] = c
+            yield ca
 
     def pickable(ca, c, pB, gB):
         return canPickPlaceTest(newBS, ca, c, hand, gB, pB, prob, op='pick')
@@ -242,11 +240,12 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
     def graspApproachConfGen(firstConf):
         if firstConf:
             yield firstConf
-        for c, _ in graspConfGen:
-            ca = findApproachConf(pbs, obj, placeB, c, hand, prob)
-            if ca:
-                approached[ca] = c
-                yield ca
+        for c, ca, _ in graspConfGen:
+            approached[ca] = c
+            yield ca
+
+    def currentGraspFeasible():
+        wrist = objectGraspFrame(pbs, graspB, placeB)
 
     shw = shadowWidths(placeB.poseD.var, placeB.delta, prob)
     if any(w > t for (w, t) in zip(shw, pbs.domainProbs.pickTolerance)):
@@ -263,6 +262,14 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
     approached = {}
     rm = pbs.getRoadMap()
     if placeB.poseD.mode() != None: # otherwise go to regrasp
+        if baseCanMove:
+            # Try current conf
+            (x,y,th) = pbs.conf['pr2Base']
+            currBasePose = util.Pose(x, y, 0.0, th)
+            ans = graspConfForBase(pbs, placeB, graspB, hand, currBasePose, prob, baseCanMove)
+            if ans:
+                (c, ca, viol) = ans
+                yield (placeB, c, ca), viol        
         graspConfGen = potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob)
         firstConf = next(graspApproachConfGen(None), None)
         if (not firstConf) or (firstConf and checkInfeasible(firstConf)):
@@ -491,11 +498,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                 checkRegraspable(pB)
             graspConfGen = potentialGraspConfGen(pbs, pB, gB, conf, hand, base, prob)
             count = 0
-            for c,_ in graspConfGen:
-                ca = findApproachConf(pbs, obj, pB, c, hand, prob)
-                if not ca:
-                    debugMsg('placeGen', 'Could not find approachConf')
-                    continue
+            for c,ca,_ in graspConfGen:
                 if debug('placeGen', skip=skip):
                     c.draw('W', 'orange')
                 approached[ca] = c
@@ -870,7 +873,21 @@ def lookGenTop(args, goalConds, pbs, outBindings):
                 yield (lookConf,), viol
         return
 
+
+    # LPK did this
+    tempPlaceB = copy.copy(placeB)
+    tempPlaceB.poseD = copy.copy(placeB.poseD)
+    tempPlaceB.modifyPoseD(var = pbs.domainProbs.obsVarTuple)
+    # be smarter about this?
+    tempPlaceB.delta = (.01, .01, .01, .01)
+    shape = tempPlaceB.shadow(pbs.getShadowWorld(prob))
+
+    # Check current conf
     curr = newBS.conf
+    lookConf = lookAtConf(curr, shape)
+    if testFn(lookConf):
+        yield (lookConf,), rm.confViolations(curr, pbs, prob, baseCanMove=True)
+        
     world = newBS.getWorld()
     if obj in world.graspDesc and not fbch.inHeuristic:
         graspVar = 4*(0.001,)
@@ -882,19 +899,11 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         # collide with shadow of obj.
         for gB in graspGen(pbs, obj, graspB):
             for hand in ['left', 'right']:
-
-                # LPK did this
-                tempPlaceB = copy.copy(placeB)
-                tempPlaceB.poseD = copy.copy(placeB.poseD)
-                tempPlaceB.modifyPoseD(var = pbs.domainProbs.obsVarTuple)
-                # be smarter about this?
-                tempPlaceB.delta = (.01, .01, .01, .01)
-                
                 for ans, viol in pickGenTop((obj, gB, tempPlaceB, hand, base,
                                              prob),
-                                            goalConds, pbs, outBindings, True):
-                    (pB, c, ca) = ans
-                    shape = pB.shadow(pbs.getShadowWorld(prob))
+                                            goalConds, pbs, outBindings,
+                                            onlyCurrent=True):
+                    (pB, c, ca) = ans   # pB should be placeB
                     path = canView(pbs, prob, ca, hand, shape)
                     if not path: continue
                     lookConf = lookAtConf(path[-1], shape)
