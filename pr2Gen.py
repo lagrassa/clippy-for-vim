@@ -826,7 +826,8 @@ def lookGenTop(args, goalConds, pbs, outBindings):
 
     def testFn(c):
         print 'Trying base conf', c['pr2Base']
-        return visible(shWorld, c, sh, obst, prob)[0]
+        obst_rob = obst + [c.placement(shWorld.attached)]
+        return visible(shWorld, c, sh, obst_rob, prob)[0]
 
     (obj, placeB, lookDelta, base, prob) = args
     trace('lookGen(%s) h='%obj, fbch.inHeuristic)

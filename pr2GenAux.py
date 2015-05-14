@@ -164,7 +164,8 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op,
 def canView(pbs, prob, conf, hand, shape):
     vc = viewCone(conf, shape)
     if not vc: return None
-    if vc.collides(conf.placement()):
+    shWorld = pbs.getShadowWorld(prob)
+    if vc.collides(conf.placement(attached=shWorld.attached)):
         if debug('canView'):
             vc.draw('W', 'red')
             conf.draw('W')

@@ -805,7 +805,8 @@ class CanSeeFrom(Fluent):
         shWorld = newPBS.getShadowWorld(p)
         shName = shadowName(obj)
         sh = shWorld.objectShapes[shName]
-        obstacles = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
+        obstacles = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ] + \
+                    [conf.placement(shWorld.attached)]
         ans, _ = visible(shWorld, conf, sh, obstacles, p)
 
         return ans
@@ -830,7 +831,8 @@ class CanSeeFrom(Fluent):
         shName = shadowName(obj)
         sh = shWorld.objectShapes[shName]
         obstacles = [s for s in shWorld.getNonShadowShapes() if \
-                     s.name() != obj ]
+                     s.name() != obj ] + \
+                     [conf.placement(shWorld.attached)]
         ans, occluders = visible(shWorld, conf, sh, obstacles, p)
 
         debugMsg('CanSeeFrom',

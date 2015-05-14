@@ -423,7 +423,7 @@ class RoadMap:
         if debug('traceCRH'): print '    find path',
         # search back from target...
         ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
-                                     initViol=initViol, optimize=optimize)
+                                     initViol=initViol, optimize=optimize, baseCanMove=baseCanMove)
         ans = next(ansGen, None)
         cacheAns(ans)
         return confAns(ans, reverse=True)
@@ -550,7 +550,7 @@ class RoadMap:
             graph = combineNodeGraphs(*([self.clusterGraph, startCluster.nodeGraph] + \
                                         [cl.nodeGraph for cl in targetClusters]))
             gen = self.minViolPathGen(graph, initNode, targetNodes, pbs, prob,
-                                      initViol=initViol or Violations(),
+                                      initViol=initViol or Violations(), baseCanMove=baseCanMove,
                                       testFn=nodeTestFn, goalCostFn=goalNodeCostFn, draw=draw)
             for ans in gen:
                 if ans and ans[0] and ans[2]:

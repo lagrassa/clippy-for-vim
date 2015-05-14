@@ -8,7 +8,7 @@ from pr2Util import supportFaceIndex, DomainProbs, bigAngleWarn
 from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 import util
-from planGlobals import debugMsg, debug
+from planGlobals import debugMsg, debug, debugOn
 from pr2Robot import gripperTip, gripperFaceFrame
 from pr2Visible import visible
 from time import sleep
@@ -171,15 +171,21 @@ class RealWorld(WorldState):
             if self.world.getObjType(curObj) != objType:
                 continue
             obstacles = [s for s in self.getObjectShapes() if \
-                         s.name() != curObj ]
+                         s.name() != curObj ]  + [self.robotPlace]
+
+            deb = 'visible' in debugOn
+            if not deb: debugOn.append('visible')
             vis, _ = visible(self, self.robotConf,
                              self.objectShapes[curObj],
                              obstacles, 0.75)
+            if not deb: debugOn.remove('visible')
             if not vis:
                 print 'Object', curObj, 'is not visible'
                 continue
             else:
                 print 'Object', curObj, 'is visible'
+            raw_input('Visible')
+
             truePose = self.getObjectPose(curObj)
             # Have to get the resting face.  And add noise.
             trueFace = supportFaceIndex(self.objectShapes[curObj])

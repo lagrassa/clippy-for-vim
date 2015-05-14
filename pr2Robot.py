@@ -803,17 +803,27 @@ def headInvKin(chains, torso, targetFrame, wstate,
                  collisionAware=False, allowedViewError = 1e-5):
     headChain = chains.chainsByName['pr2Head']
     limits = headChain.limits()
+    # Displacement from movable joints to sensor
     headSensorOffsetY = reduce(np.dot, [j.trans for j in headChain.joints[2:-1]]).matrix
     headSensorOffsetZ = reduce(np.dot, [j.trans for j in headChain.joints[1:-1]]).matrix
 
     headRotationFrameZ = np.dot(torso, headChain.joints[0].trans)
-
+    # Target point relative to torso
     relFramePoint = torso.inverse().compose(targetFrame).point()
+
+    if debug('pr2Head'):
+        print 'target frame to\n', targetFrame.point().matrix
+        print 'relFramePoint\n', relFramePoint.matrix
+
     if abs(relFramePoint.matrix[0,0]) < 0.1:
         # If the frame is just the head frame, then displace it.
-        targetFrame = targetFrame.compose(util.Pose(0.,0., 0.1, 0.0))
+        targetFrame = targetFrame.compose(util.Pose(0.,0., 0.2, 0.0))
+        if debug('pr2Head'):
+            print 'displacing head frame to\n', targetFrame.point().matrix
 
     targetZ = headRotationFrameZ.inverse().applyToPoint(targetFrame.point()).matrix
+    if debug('pr2Head'):
+        print 'targetZ\n', targetZ
     angles1 = tangentSol(targetZ[0,0], targetZ[1,0], headSensorOffsetZ[0,3], headSensorOffsetZ[1,3])    
     angles1 += list(limits[0])
     
@@ -840,10 +850,13 @@ def headInvKin(chains, torso, targetFrame, wstate,
                     best = [a1, a2]
                     bestScore = score
                     bestError = sensorCoords
-    # print 'bestScore', bestScore, 'best', best, 'error\n', bestError
+
+    debugMsg('pr2Head',
+             ('bestScore', bestScore, 'best', best), bestError)
+        
     return best if bestScore <= allowedViewError else None
 
-def tangentSol(x, y, x0, y0):
+def tangentSolOld(x, y, x0, y0):
     # print 'X', (x,y), 'X0', (x0, y0)
     alpha = math.atan2(y,x)
     theta0 = math.atan2(y0,x0)
@@ -867,6 +880,54 @@ def tangentSol(x, y, x0, y0):
     # This generally returns two answers, but they may not be within limits.
     # print 'keep', keep
     return keep
+
+# x0,y0 is sensor point (rotation is at origin)
+# x,y is target point
+# The sensor is pointing along the x axis when angle is zero!
+# At desired sensor location we have a triangle (origin, sensor, target)
+# l is distance from sensor to target, found from law of cosines.
+# alpha is angle target-origin-sensor, also from law of cosines
+def tangentSol(x, y, x0, y0):
+    def quad(a,b,c):
+        disc = b*b - 4*a*c
+        if disc < 0: return []
+        discr = disc**0.5
+        return [(-b + discr)/(2*a), (-b - discr)/(2*a)]
+        
+    ph= math.atan2(y,x)
+    d = math.sqrt(x*x + y*y)
+    th0 = math.atan2(y0,x0)
+    r = math.sqrt(x0*x0 + y0*y0)
+    # c1 is cos of angle between sensor direction and line to x0,y0
+    c1 = math.cos(math.pi - th0)
+    # vals for l
+    lvals = quad(1.0, -2*r*c1, r*r-d*d)
+    # print 'lvals', lvals
+    if not lvals: return []
+    # vals for alpha
+    avals = [math.acos((l*l - r*r - d*d)/(-2*r*d)) for l in lvals]
+    # print 'avals', avals
+    # angs are candidate rotation angles
+    angs = []
+    for alpha in avals:
+        angs.extend([ph - alpha - th0, ph + alpha - th0])
+    angs = [util.fixAnglePlusMinusPi(a) for a in angs]
+    # print 'angs', angs
+    ans = []
+    for ang in angs:
+        # check each angle, (x1,y1) is sensor location
+        x1 = r*math.cos(th0 + ang)
+        y1 = r*math.sin(th0 + ang)
+        # distance sensor-target
+        l = math.sqrt((x1-x)**2 + (y1-y)**2)
+        # the sensor direction rotates by ang, check that it points at target
+        ex = abs(x - (x1 + l*math.cos(ang)))
+        ey = abs(y - (y1 + l*math.sin(ang)))
+        # print 'ang', ang, 'ex', ex, 'ey', ey
+        # keep the ones with low error
+        if ex < 0.001 and ey < 0.001:
+            ans.append(ang)
+    return ans
 
 def torsoInvKin(chains, base, target, wstate, collisionAware = False):
     # Should pick a good torso value to place the hand at target, prefering
