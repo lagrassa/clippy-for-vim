@@ -802,6 +802,7 @@ class RoadMap:
     def addEdge(self, graph, node_f, node_i):
         if node_f == node_i: return
         if graph.edges.get((node_f, node_i), None) or graph.edges.get((node_i, node_f), None): return
+        if not validEdge(node_i, node_f): return
         edge = Edge(node_f, node_i)
         if self.params['cartesian']:
             edge.nodes = self.cartLineSteps(node_f, node_i,
@@ -1306,6 +1307,18 @@ def cartChainName(chainName):
 
 def pointDist(p1, p2):
     return sum([(a-b)**2 for (a, b) in zip(p1, p2)])**0.5
+
+def validEdge(node_i, node_f):
+    (xi, yi, thi) = node_i.conf['pr2Base']
+    (xf, yf, thf) = node_f.conf['pr2Base']
+    if max(abs(xi-xf), abs(yi-yf)) < 0.1:
+        # small enough displacement
+        return True
+    if abs(util.angleDiff(math.atan2(yf-yi, xf-xi), thi)) <= 0.75*math.pi:
+        # Not strictly back, so the head can look at where it's going
+        return True
+    return False
+    
         
 def minViolPathDebug(n):
     (node, _) = n.state

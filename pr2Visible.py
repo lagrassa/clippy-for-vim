@@ -22,7 +22,7 @@ colors = ['red', 'green', 'blue', 'orange', 'cyan', 'purple']
 cache = {}
 
 # !! Cache visibility computations
-def visible(ws, conf, shape, obstacles, prob, moveHead=True):
+def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     global laserScanGlobal, laserScanSparseGlobal
     key = (ws, conf, shape, tuple(obstacles), prob, fbch.inHeuristic)
     if key in cache:
@@ -34,8 +34,10 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True):
         cache[key] = (False, [])
         return False, []
 
+    vc = viewCone(conf, shape)
+        
     if debug('visible'):
-        viewCone(conf, shape).draw('W', 'red')
+        vc.draw('W', 'red')
         shape.draw('W', 'cyan')
         lookConf.draw('W')
         debugMsg('visible', 'look conf and view cone')
@@ -70,8 +72,9 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True):
     else:
         threshold = 0.75*prob
     occluders = []
-    fix = [obj for obj in obstacles if obj.name() in ws.fixedObjects]
-    move = [obj for obj in obstacles if obj.name() not in ws.fixedObjects]
+    fixed = list(ws.fixedObjects)+fixed
+    fix = [obj for obj in obstacles if obj.name() in fixed]
+    move = [obj for obj in obstacles if obj.name() not in fixed]
     for i, objShape in enumerate(fix):
         if debug('visible'):
             print 'updating depth with', objShape.name()
@@ -110,6 +113,10 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True):
         print 'sorted occluders', occluders
         print 'total', total, 'final', final, '(', ratio, ')', 'thr', threshold, '->', ans
     cache[key] = ans
+    if debug('visible'):
+        if ans[1] and any([vc.collides(obj) for obj in obstacles]):
+            print 'visible ->', ans
+            raw_input('Visibility is compromised')
     return ans
 
 def countContacts(contacts, id):

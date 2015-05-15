@@ -185,6 +185,8 @@ def canView(pbs, prob, conf, hand, shape):
             raw_input('Retract arm')
         return path
     else:
+        if debug('canView'):
+            print 'canView - no collision'
         return [conf]
 
 ################

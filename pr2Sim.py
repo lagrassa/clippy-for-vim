@@ -146,7 +146,7 @@ class RealWorld(WorldState):
             obstacles = [s for s in self.getObjectShapes() \
                          if s.name() != targetObj ] + [self.robotPlace]
             vis, _ = visible(self, self.robotConf, shapeInHand,
-                             obstacles, 0.75, moveHead=False)
+                             obstacles, 0.75, moveHead=False, fixed=[self.robotPlace.name()])
             if not vis:
                 print 'Object', targetObj, 'is not visible'
                 return 'none'
@@ -177,7 +177,7 @@ class RealWorld(WorldState):
             if not deb: debugOn.append('visible')
             vis, _ = visible(self, self.robotConf,
                              self.objectShapes[curObj],
-                             obstacles, 0.75)
+                             obstacles, 0.75, fixed=[self.robotPlace.name()])
             if not deb: debugOn.remove('visible')
             if not vis:
                 print 'Object', curObj, 'is not visible'

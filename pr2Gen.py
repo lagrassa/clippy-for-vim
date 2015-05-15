@@ -874,14 +874,13 @@ def lookGenTop(args, goalConds, pbs, outBindings):
                 yield (lookConf,), viol
         return
 
-
     # LPK did this
     tempPlaceB = copy.copy(placeB)
     tempPlaceB.poseD = copy.copy(placeB.poseD)
     tempPlaceB.modifyPoseD(var = pbs.domainProbs.obsVarTuple)
     # be smarter about this?
     tempPlaceB.delta = (.01, .01, .01, .01)
-    shape = tempPlaceB.shadow(pbs.getShadowWorld(prob))
+    shape = tempPlaceB.shadow(newBS.getShadowWorld(prob))
 
     # Check current conf
     curr = newBS.conf
@@ -906,10 +905,14 @@ def lookGenTop(args, goalConds, pbs, outBindings):
                                             onlyCurrent=True):
                     (pB, c, ca) = ans   # pB should be placeB
                     path = canView(pbs, prob, ca, hand, shape)
-                    if not path: continue
+                    if not path:
+                        trace('    lookGen(%s) canView failed clear')
+                        continue
+                    viol = rm.confViolations(ca, pbs, prob, baseCanMove=True)
                     lookConf = lookAtConf(path[-1], shape)
                     if testFn(lookConf):
-                        yield (lookConf,), rm.confViolations(ca, pbs, prob, baseCanMove=True)
+                        trace('    lookGen(%s) canView cleared viol='%obj, viol.weight() if viol else None)
+                        yield (lookConf,), viol
     lookConfGen = potentialLookConfGen(rm, sh, maxLookDist) # look unconstrained by base
     for ans in rm.confReachViolGen(lookConfGen, newBS, prob,
                                    testFn = testFn, baseCanMove=True):
@@ -928,6 +931,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
             lookConf.draw('W', color='cyan', attached=shWorld.attached)
             debugMsg('lookGen', ('-> cyan', lookConf.conf))
         if lookConf:
+            trace('    lookGen(%s) viol='%obj, viol.weight() if viol else None)
             yield (lookConf,), viol
 
 ## lookHandGen
