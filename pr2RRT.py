@@ -120,8 +120,8 @@ class RRT:
         else:
             raise Exception, "Neither path is marked init"
 
-def safeConf(conf, pbs, prob, allowedViol, baseCanMove):
-    viol, _ = pbs.getRoadMap().confViolations(conf, pbs, prob, baseCanMove=baseCanMove)
+def safeConf(conf, pbs, prob, allowedViol):
+    viol, _ = pbs.getRoadMap().confViolations(conf, pbs, prob)
     return viol \
            and viol.obstacles <= allowedViol.obstacles \
            and viol.shadows <= allowedViol.shadows
@@ -169,7 +169,6 @@ class Tree:
                  maxSteps = 1000,
                  display = False):
         q_i = n_i.conf
-        baseCanMove = 'pr2Base' in self.moveChains
         if all([q_f[c] == q_i[c] for c in q_f.conf]): return n_i
         step = 0
         while True:
@@ -181,7 +180,7 @@ class Tree:
             q_new = self.robot.stepAlongLine(q_f, q_i, stepSize,
                                              forward = self.init,
                                              moveChains = self.moveChains)
-            if safeConf(q_new, self.pbs, self.prob, self.allowedViol, baseCanMove):
+            if safeConf(q_new, self.pbs, self.prob, self.allowedViol):
                 # We may choose to add intermediate nodes to the tree or not.
                 if addNodes:
                     n_new = self.addNode(q_new, n_i, inter=True);
@@ -202,7 +201,6 @@ class Tree:
 def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
                   maxIter = None, failIter = None):
     startTime = time.time()
-    baseCanMove = 'pr2Base' in moveChains
     if allowedViol==None:
         v1, _ = pbs.getRoadMap().confViolations(destConf, pbs, prob)
         v2, _ = pbs.getRoadMap().confViolations(initConf, pbs, prob)
@@ -210,11 +208,11 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
             allowedViol = v1.update(v2)
         else:
             return None
-    if not safeConf(initConf, pbs, prob, allowedViol, baseCanMove):
+    if not safeConf(initConf, pbs, prob, allowedViol):
         if debug('rrt'):
             print 'RRT: not safe enough at initial position... continuing'
         return []
-    if not safeConf(destConf, pbs, prob, allowedViol, baseCanMove):
+    if not safeConf(destConf, pbs, prob, allowedViol):
         if debug('rrt'):
             print 'RRT: not safe enough at final position... continuing'
         return []
@@ -236,7 +234,6 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
 
 def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
                       maxIter = None, failIter = None):
-    baseCanMove = 'pr2Base' in moveChains
     startTime = time.time()
     if allowedViol==None:
         v, _ = pbs.getRoadMap().confViolations(initConf, pbs, prob)
@@ -244,7 +241,7 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
             allowedViol = v
         else:
             return None
-    if not safeConf(initConf, pbs, prob, allowedViol, baseCanMove):
+    if not safeConf(initConf, pbs, prob, allowedViol):
         if debug('rrt'):
             print 'RRT: not safe enough at initial position... continuing'
         return []

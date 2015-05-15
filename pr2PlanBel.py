@@ -257,12 +257,12 @@ class PBS:
             bs.fixObjBs[obj] = objBs[obj]
         return bs
     
-    def getShadowWorld(self, prob, baseCanMove=False): # default is as if base is specified
+    def getShadowWorld(self, prob):
         if self.shadowWorld and self.shadowProb == prob:
             return self.shadowWorld
         else:
             cache = self.beliefContext.genCaches['getShadowWorld']
-            key = (self.items(), prob, baseCanMove)
+            key = (self.items(), prob)
             if key in cache:
                 ans = cache.get(key, None)
                 if ans != None:
@@ -287,12 +287,13 @@ class PBS:
             shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
             # The irreducible shadow
             objBMinDelta = self.domainProbs.minDelta
-            # When baseCanMove is True, use bigger variance from odoError
-            objBMinVar = tuple([x**2 for x in self.domainProbs.odoError]) if baseCanMove \
-                         else self.domainProbs.obsVarTuple
+            # When base can move, use bigger variance from odoError
+            objBMinVar = tuple([x**2 for x in self.domainProbs.odoError])
+            # objMinVar = self.domainProbs.obsVarTuple
             objBMinProb = 0.95
             if all([x <= y for (x,y) in zip(shadowWidths(objB.poseD.var, objB.delta, 0.99),
-                                            shadowWidths(objBMinVar, objBMinDelta, objBMinProb))]):
+                                            shadowWidths(objBMinVar, objBMinDelta, objBMinProb))]) \
+                   and obj in self.getWorld().graspDesc:
                 objBMin = objB
             else:
                 objBMin = objB.modifyPoseD(var=objBMinVar)

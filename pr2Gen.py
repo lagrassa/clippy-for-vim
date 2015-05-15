@@ -222,14 +222,13 @@ def pickGenTop(args, goalConds, pbs, outBindings,
 def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                goalConds, onlyCurrent = False):
     def pickable(ca, c, pB):
-        return canPickPlaceTest(pbs, ca, c, hand, graspB, pB, prob,
-                                op='pick', baseCanMove=baseCanMove)
+        return canPickPlaceTest(pbs, ca, c, hand, graspB, pB, prob, op='pick')
 
     def checkInfeasible(conf):
         newBS = pbs.copy()
         newBS.updateConf(conf)
         newBS.updateHeldBel(graspB, hand)
-        viol, (rv, hv) = rm.confViolations(conf, newBS, prob, baseCanMove=baseCanMove)
+        viol, (rv, hv) = rm.confViolations(conf, newBS, prob)
         if not viol:                # was valid when not holding, so...
             trace('    pickGen: Held collision')
             if True: #debug('pickGen'):
@@ -257,17 +256,16 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         debugMsg('pickTol', 'Shadow widths exceed tolerance in pickGen')
         return
 
-    baseCanMove = not base
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     shWorld = pbs.getShadowWorld(prob)
     approached = {}
     rm = pbs.getRoadMap()
     if placeB.poseD.mode() != None: # otherwise go to regrasp
-        if baseCanMove:
+        if not base:
             # Try current conf
             (x,y,th) = pbs.conf['pr2Base']
             currBasePose = util.Pose(x, y, 0.0, th)
-            ans = graspConfForBase(pbs, placeB, graspB, hand, currBasePose, prob, baseCanMove)
+            ans = graspConfForBase(pbs, placeB, graspB, hand, currBasePose, prob)
             if ans:
                 (c, ca, viol) = ans
                 yield (placeB, c, ca), viol        
@@ -439,8 +437,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                 regrasp=False, pbsOrig=None):
     def placeable(ca, c):
         (pB, gB) = context[ca]
-        ans = canPickPlaceTest(pbs, ca, c, hand, gB, pB, prob,
-                               op='place', baseCanMove=baseCanMove)
+        ans = canPickPlaceTest(pbs, ca, c, hand, gB, pB, prob, op='place')
         return ans
 
     def checkRegraspable(pB):
@@ -527,7 +524,6 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
             return 0
 
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
-    baseCanMove = not base
     approached = {}
     context = {}
     regraspablePB = {}
@@ -858,9 +854,8 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     if base:
         # !! Could be more creative about the conf
         conf = rm.homeConf.set('pr2Base', base)
-        path, viol = canReachHome(newBS, conf, prob, Violations(),
-                                  baseCanMove=False)
-        trace('    lookGen(%s) viol='%obj, viol.weight() if viol else None)
+        path, viol = canReachHome(newBS, conf, prob, Violations())
+        trace('    lookGen(%s) specified base viol='%obj, viol.weight() if viol else None)
         if not path:
             tracep('lookGen', 'Failed to find a path to look conf with specified base.')
             return
@@ -868,6 +863,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         if testFn(conf):
             lookConf = lookAtConf(conf, sh)
             if lookConf:
+                trace('    Found a path to look conf with specified base.')
                 if debug('lookGen', skip=skip):
                     pbs.draw(prob, 'W')
                     lookConf.draw('W', color='cyan', attached=shWorld.attached)
@@ -887,7 +883,8 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     curr = newBS.conf
     lookConf = lookAtConf(curr, shape)
     if testFn(lookConf):
-        yield (lookConf,), rm.confViolations(curr, pbs, prob, baseCanMove=True)
+        trace('    Using current conf.')
+        yield (lookConf,), rm.confViolations(curr, pbs, prob)
         
     world = newBS.getWorld()
     if obj in world.graspDesc and not fbch.inHeuristic:
@@ -909,14 +906,14 @@ def lookGenTop(args, goalConds, pbs, outBindings):
                     if not path:
                         trace('    lookGen(%s) canView failed clear')
                         continue
-                    viol = rm.confViolations(ca, pbs, prob, baseCanMove=True)
+                    viol = rm.confViolations(ca, pbs, prob)
                     lookConf = lookAtConf(path[-1], shape)
                     if testFn(lookConf):
                         trace('    lookGen(%s) canView cleared viol='%obj, viol.weight() if viol else None)
                         yield (lookConf,), viol
     lookConfGen = potentialLookConfGen(rm, sh, maxLookDist) # look unconstrained by base
     for ans in rm.confReachViolGen(lookConfGen, newBS, prob,
-                                   testFn = testFn, baseCanMove=True):
+                                   testFn = testFn):
         viol, cost, path = ans
         trace('    lookGen(%s) viol='%obj, viol.weight() if viol else None)
         if not path:
@@ -932,7 +929,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
             lookConf.draw('W', color='cyan', attached=shWorld.attached)
             debugMsg('lookGen', ('-> cyan', lookConf.conf))
         if lookConf:
-            trace('    lookGen(%s) viol='%obj, viol.weight() if viol else None)
+            trace('    lookGen(%s) general conf viol='%obj, viol.weight() if viol else None)
             yield (lookConf,), viol
 
 ## lookHandGen
@@ -993,7 +990,7 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
     lookConfGen = potentialLookHandConfGen(newBS, prob, hand)
     for ans in rm.confReachViolGen(lookConfGen, newBS, prob,
                                    startConf = newBS.conf,
-                                   testFn = testFn, baseCanMove=False):
+                                   testFn = testFn):
         viol, cost, path = ans
         trace('    lookHandGen(%s) viol='%obj, viol.weight() if viol else None)
         if not path:

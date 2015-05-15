@@ -86,8 +86,7 @@ def InPlaceDeproach(*x): return True
 # place1. move home->place with hand empty
 # place2. move home->pre with obj at place pose
 
-def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op,
-                     baseCanMove = False):
+def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
     obj = objGrasp.obj
     if debug('canPickPlaceTest'):
         print zip(('preConf', 'pickConf', 'hand', 'objGrasp', 'objPlace', 'p', 'pbs'),
@@ -105,7 +104,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op,
         if debug('canPickPlaceTest'):
             pbs1.draw(p, 'W')
             debugMsg('canPickPlaceTest', 'H->App, obj=pose (condition 1)')
-        path, violations = canReachHome(pbs1, preConf, p, violations, baseCanMove=baseCanMove)
+        path, violations = canReachHome(pbs1, preConf, p, violations)
         if not path:
             debugMsg('canPickPlaceTest', 'Failed H->App, obj=pose (condition 1)')
             return None
@@ -123,7 +122,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op,
     if debug('canPickPlaceTest'):
         pbs2.draw(p, 'W'); preConf.draw('W', attached = pbs2.getShadowWorld(p).attached)
         debugMsg('canPickPlaceTest', 'H->App, obj=held (condition 2)')
-    path, violations = canReachHome(pbs2, preConf, p, violations, baseCanMove=baseCanMove)
+    path, violations = canReachHome(pbs2, preConf, p, violations)
     if not path:
         raw_input('canPickPlaceTest' + 'Failed H->App, obj=held (condition 2)')
         return None
@@ -257,8 +256,7 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None
     for x in memo:
         yield x
 
-def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, baseCanMove,
-                     wrist = None):
+def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
     robot = pbs.getRobot()
     rm = pbs.getRoadMap()
     if not wrist:
@@ -284,8 +282,7 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, baseCanMove,
         conf.conf['pr2LeftArm'] = pbs.conf['pr2LeftArm']
         conf.conf['pr2LeftGripper'] = pbs.conf['pr2LeftGripper']
     # Check for collisions, don't include attached...
-    viol, _ = rm.confViolations(conf, pbs, prob, ignoreAttached=True,
-                                baseCanMove=baseCanMove) 
+    viol, _ = rm.confViolations(conf, pbs, prob, ignoreAttached=True) 
     if viol:
         ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
         if ca:
@@ -315,7 +312,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
     for basePose in [nominalBasePose] if base else robot.potentialBasePosesGen(wrist, hand):
         if nMax and count >= nMax: break
         tried += 1
-        ans = graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, not base, wrist)
+        ans = graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist)
         if ans:
             count += 1
             yield ans
@@ -652,6 +649,8 @@ def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, reachObsts
                            maxPoses = 30):
     def interpolateVars(maxV, minV, n):
         deltaV = [(maxV[i]-minV[i])/(n-1.) for i in range(4)]
+        if all([d < 0.001 for d in deltaV]):
+            return [maxV]
         Vs = []
         for j in range(n):
             Vs.append(tuple([maxV[i]-j*deltaV[i] for i in range(4)]))
@@ -706,7 +705,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         pbs.draw(prob, 'W')
         for rs in regShapes: rs.draw('W', 'purple')
     ff = placeB.faceFrames[placeB.support.mode()]
-    shWorld = pbs.getShadowWorld(prob, baseCanMove=not base)
+    shWorld = pbs.getShadowWorld(prob)
     
     objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
     if placeB.poseD.mode():

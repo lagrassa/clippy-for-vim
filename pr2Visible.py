@@ -114,7 +114,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         print 'total', total, 'final', final, '(', ratio, ')', 'thr', threshold, '->', ans
     cache[key] = ans
     if debug('visible'):
-        if ans[1] and any([vc.collides(obj) for obj in obstacles]):
+        if ans[1] and any([vc.collides(obj) for obj in fix]):
             print 'visible ->', ans
             raw_input('Visibility is compromised')
     return ans

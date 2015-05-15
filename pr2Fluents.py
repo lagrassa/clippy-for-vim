@@ -1031,8 +1031,7 @@ def partition(fluents):
 
 # !!!! needs fixing
 
-def canReachNB(pbs, startConf, conf, prob, initViol,
-                 optimize = False, baseCanMove=False, draw=True):
+def canReachNB(pbs, startConf, conf, prob, initViol, optimize = False, draw=True):
     rm = pbs.getRoadMap()
     robot = pbs.getRobot()
     initConf = startConf or rm.homeConf
@@ -1040,8 +1039,7 @@ def canReachNB(pbs, startConf, conf, prob, initViol,
     viol, cost, pathRev = rm.confReachViol(initConf, pbs, prob,
                                            initViol,
                                            startConf=conf,
-                                           optimize=optimize,
-                                           baseCanMove=baseCanMove)
+                                           optimize=optimize)
     path = pathRev[::-1] if pathRev else pathRev
 
     if debug('checkCRH') and fbch.inHeuristic:
@@ -1055,8 +1053,7 @@ def canReachNB(pbs, startConf, conf, prob, initViol,
                                                   initViol,
                                                   avoidShadow=avoidShadow,
                                                   startConf=conf,
-                                                  optimize = optimize,
-                                                  baseCanMove=baseCanMove)
+                                                  optimize = optimize)
         fbch.inHeuristic = True
         # Check for heuristic (viol) being worse than actual (viol2)
         if viol != viol2 and viol2 != None \
@@ -1082,8 +1079,7 @@ def canReachNB(pbs, startConf, conf, prob, initViol,
             viol, cost, path = rm.confReachViol(conf, pbs, prob,
                                                 initViol,
                                                 avoidShadow=avoidShadow,
-                                                startConf=startConf,
-                                                baseCanMove=baseCanMove)
+                                                startConf=startConf)
             if path:
                 raw_input('Inconsistency')
             else:
@@ -1105,14 +1101,13 @@ def canReachNB(pbs, startConf, conf, prob, initViol,
 # 
 def canReachHome(pbs, conf, prob, initViol,
                  avoidShadow = [], startConf = None,
-                 optimize = False, noViol = False, baseCanMove=True, draw=True):
+                 optimize = False, noViol = False, draw=True):
     rm = pbs.getRoadMap()
     robot = pbs.getRobot()
     # Reverse start and target
     viol, cost, path = rm.confReachViol(conf, pbs, prob, initViol,
                                         startConf=startConf,
-                                        optimize = optimize,
-                                        baseCanMove=baseCanMove)
+                                        optimize = optimize)
     if debug('checkCRH') and fbch.inHeuristic:
         pbs.draw(prob, 'W')
         fbch.inHeuristic = False
@@ -1122,8 +1117,7 @@ def canReachHome(pbs, conf, prob, initViol,
         rm.homConf.draw('W', 'pink')
         viol2, cost2, pathRev2 = rm.confReachViol(rm.homeConf, pbs, prob, initViol,
                                                   startConf=conf,
-                                                  optimize = optimize,
-                                                  baseCanMove=baseCanMove)
+                                                  optimize = optimize)
         if pathRev2: path2 = pathRev2[::-1]
         else: path2 = pathRev2
         fbch.inHeuristic = True
@@ -1149,7 +1143,7 @@ def canReachHome(pbs, conf, prob, initViol,
             print 'canReachHome failed with inHeuristic=True'
             fbch.inHeuristic = False
             viol, cost, path = rm.confReachViol(conf, pbs, prob, initViol,
-                                                startConf=startConf, baseCanMove=baseCanMove)
+                                                startConf=startConf)
             if path:
                 raw_input('Inconsistency')
             else:
