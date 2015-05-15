@@ -577,7 +577,7 @@ class PlanTest:
                 h = heuristic,
                 verbose = False,
                 fileTag = self.name if writeSearch else None,
-                nonMonOps = [move])
+                nonMonOps = [move, moveNB, lookAt, place])
         else:
             p = planBackward(s,
                              goal,
@@ -607,8 +607,8 @@ class PlanTest:
 
 typicalErrProbs = DomainProbs(\
             # stdev, constant, assuming we control it by tracking while moving
-            #odoError = (0.02, 0.02, 1e-11, 0.02),
-            odoError = (0.01, 0.01, 1e-11, 0.01),
+            odoError = (0.015, 0.015, 1e-11, 0.015),
+            #odoError = (0.01, 0.01, 1e-11, 0.01),
             # variance in observations; diagonal for now
             obsVar = (0.01**2, 0.01**2,0.01**2, 0.01**2),
             # get type of object wrong
@@ -716,7 +716,7 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
     glob.rebindPenalty = 100
-    glob.monotonicFirst = False #hierarchical
+    glob.monotonicFirst = True
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
 

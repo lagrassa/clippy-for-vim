@@ -861,7 +861,8 @@ class Operator(object):
 
     # Returns a list of (goal, cost) pairs
     # Operators used in hierarchical heuristic
-    def regress(self, goal, startState = None, heuristic = None):
+    def regress(self, goal, startState = None, heuristic = None,
+                operators = []):
         tag = 'regression'
 
         # Stop right away if an immutable precond is false
@@ -993,19 +994,21 @@ class Operator(object):
         newGoal = State([])
         for f in newBoundFluents:
             if f.isConditional():
-
-                #print 'adding conditions to', f.prettyString()
+                if self.name == 'LookAt' and f.predicate in ('B', 'Bd') and \
+                    f.args[0].predicate == 'CanSeeFrom' and \
+                    self.args[0] == f.args[0].args[0] and \
+                    (len(explicitResults) > 0 or len(explicitPreconds) > 0 or \
+                    len(explicitSE) > 0):
+                    print 'lookat'
+                    print 'adding conditions to', f.prettyString()
+                    print explicitResults
+                    print explicitPreconds
+                    print explicitSE
+                    raw_input('okay?')
                 # Preconds will not override results
-                #v0 = f.valueInDetails(startState.details)
                 f.addConditions(explicitResults, startState.details)
-                #v1 = f.valueInDetails(startState.details)
                 f.addConditions(explicitPreconds, startState.details)
-                #v2 = f.valueInDetails(startState.details)
                 f.addConditions(explicitSE, startState.details)
-                #v3 = f.valueInDetails(startState.details)
-                # if v0 == True and v3 == False:
-                #     print 'value in details:', v0, v1, v2, v3
-                #     raw_input('made it false!')
                 f.update()
             newGoal.add(f, startState.details)
 
@@ -1086,70 +1089,74 @@ class Operator(object):
             hh = heuristic if heuristic else \
               lambda s: s.easyH(startState, defaultFluentCost = 1.5)
             hNew = hh(newGoal)
-            hOrig = hh(goal)
-            cost = hOrig - hNew
-            if cost < 0:
-                cost = 2
-            rebindCost = hOrig + rebindCost
-            
-            '''
-            primOp = self.applyBindings(newBindings) # was self.copy()
-            primOp.abstractionLevel = primOp.concreteAbstractionLevel
-
-            primOpRegr = primOp.regress(goal, startState)
-
- 
             if hNew == float('inf'):
                 # This is hopeless.  Give up now.
                 debugMsg('infeasible', 'New goal is infeasible', newGoal)
                 cost = float('inf')
-            elif len(primOpRegr) < 2:
-                # Looks good abstractly, but can't apply concrete op
-                if not inHeuristic or debug('debugInHeuristic'):
-                    debugMsg('infeasible', 'Concrete op not applicable',
-                             goal)
-                cost = float('inf')
-            else:
-                # Do one step of primitive regression on the old
-                # state and then compute the heuristic on that.
-                # This is an estimate of how hard it is to
-                # establish all the preconds
-                # Cost to get from start to one primitive step before
-                # newGoal, plus the cost of the last step
-                (sp, cp) = primOpRegr[0]
-                primPrecondCost = hh(sp)
-                if primPrecondCost == float('inf'):
-                    debugMsg('infeasible', 'Prim preconds infeasible', sp)
-    
-                hOld = primPrecondCost + cp
-                # Difference between that cost, and the cost of
-                # the regression of the abstract action.  This is
-                # an estimate of the cost of the abstract action.
-                cost = hOld - hNew
-
+            elif debug('simpleAbstractCostEstimates'):
+                hOrig = hh(goal)
+                cost = hOrig - hNew
                 if cost < 0:
-                    cost = cp
-
-                if hOld != float('inf'):
-                    rebindCost = hOld + rebindCost
+                    cost = 2
+                rebindCost = hOrig + rebindCost
+            else:
+                # Do one step of primitive regression on the old state
+                # and then compute the heuristic on that.  This is an
+                # estimate of how hard it is to establish all the
+                # preconds Cost to get from start to one primitive
+                # step before newGoal, plus the cost of the last step
+                primOp = self.applyBindings(newBindings) # was self.copy()
+                primOp.abstractionLevel = primOp.concreteAbstractionLevel
+                primOpRegr = primOp.regress(goal, startState)
+ 
+                if len(primOpRegr) < 2:
+                    # Looks good abstractly, but can't apply concrete op
+                    # Try other ops!
+                    if not inHeuristic or debug('debugInHeuristic'):
+                        debugMsg('infeasible', 'Concrete op not applicable',
+                                 goal)
+                    cost = float('inf')
                 else:
-                    # Try a smaller penalty here to encourage rebinding
-                    rebindCost = 10
+                    (sp, cp) = primOpRegr[0]
+                    primPrecondCost = hh(sp)
+                    if primPrecondCost == float('inf'):
+                        debugMsg('infeasible', 'Prim preconds infeasible', sp)
+    
+                    hOld = primPrecondCost + cp
+                    # Difference between that cost, and the cost of
+                    # the regression of the abstract action.  This is
+                    # an estimate of the cost of the abstract action.
+                    cost = hOld - hNew
 
-                # LPK!!  This is a way to cut down on generator calls
-                # but is potentially risky.  Disabled for now.
-                # Store the bindings we
-                # made in this process!  But keep the abstract
-                # preconditions
-                if False: #not inHeuristic:
-                    psb = primOpRegr[0][0].bindings
-                    newOp = newGoal.operator.applyBindings(psb)
-                    newGoal.operator = newOp
-                
-                debugMsg('abstractCost',
-                         ('with heuristic', heuristic != None),
-                         cost)
-            '''
+                    if cost < 0:
+                        cost = cp
+
+                    if hOld != float('inf'):
+                        rebindCost = hOld + rebindCost
+                    else:
+                        # Try a smaller penalty here to encourage rebinding
+                        rebindCost = 10
+
+                # Try one more thing.  If prim op is not
+                # applicable or cost of preconds is infinite, try
+                # other ops, because in fact the last operation
+                # may need to be something else.
+                if cost == float('inf'):
+                    ops = applicableOps(goal, operators, startState,
+                                        monotonic = False)
+                    
+                    for o in ops:
+                        o.abstractionLevel = o.concreteAbstractionLevel
+                        pres = o.regress(goal, startState)
+                        for (sp, cp) in pres[:-1]:
+                            primPrecondCost = hh(sp)
+                            hOld = primPrecondCost + cp
+                            newCost = hOld - hNew
+                            if newCost < cost:
+                                print 'Found a cheaper prim', o.name
+                                cost = newCost
+                                rebindCost = hOld + rebindCost
+
         if not inHeuristic or debug('debugInHeuristic'):
             debugMsg(tag, 'Final regression result', ('Op', self),
                      ('cost', cost),
@@ -1232,14 +1239,14 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
 
 class RebindOp:
     name = 'Rebind'
-    def regress(self, goal, startState, heuristic = None):
+    def regress(self, goal, startState, heuristic = None, operators = []):
         g = goal.copy()
         op = goal.suspendedOperator
         debugMsg('rebind', 'about to try local rebinding', op, g.bindings)
             
         g.suspendedOperator = None
         g.rebind = False
-        results = op.regress(g, startState, heuristic)
+        results = op.regress(g, startState, heuristic, operators)
 
         if len(results) > 0:
             debugMsg('rebind', 'successfully rebound local vars',
@@ -1392,41 +1399,7 @@ nop = Operator('Nop', [], {1:[]}, [], [], None)
 
 # Skeleton is a list of lists of operators
 # First is used in the first planning problem, etc.
-
-# Only pop a level if we fall out of the enveope or satisfy the subgoal
-def HPNCommit(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
-        skeleton = None, nonMonOps = []):
-    f = writePreamble(hpnFileTag or fileTag)
-    ps = Stack()
-    ancestors = []
-    ps.push(Plan([(nop, State([])), (top, g)]))
-    try:
-        while not ps.isEmpty():
-            p = ps.top()
-            (op, subgoal) = p.nextStep(s)
-            if not op:
-                # Plan is not applicable in state s
-                ps.pop()
-                if ancestors: ancestors.pop()
-            else:
-                if op.isAbstract():
-                    # Plan again at a more concrete level
-                    ancestors += [op]
-                    writeSubgoalRefinement(f, p, subgoal)
-                    p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
-                                     skeleton = skeleton[subgoal.planNum]\
-                                     if skeleton else None,
-                                     nonMonOps = nonMonOps)
-                    assert p, 'Planning failed.'
-                    planObj = makePlanObj(p, s)
-                    planObj.printIt()
-                    ps.push(planObj)
-                    writeSubtasks(f, planObj, subgoal)
-                else:
-                    # Execute
-                    executePrim(op, s, env, f)
-    finally:
-        writeCoda(f)
+# NonMonOps are allowed to be treated monotonically
 
 def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
         skeleton = None, verbose = False, nonMonOps = []):
@@ -1950,7 +1923,8 @@ def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
                                                    lastOp = lastOp,
                                                    nonMonOps = nonMonOps),
                            lambda s, o: o.regress(s, startState, 
-                                                  heuristic if h else h),
+                                                  heuristic if h else h,
+                                                  ops),
                            heuristic = heuristic, 
                            visitF = visitF,
                            expandF = expandF,

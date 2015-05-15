@@ -833,8 +833,7 @@ def moveBProgress(details, args, obs=None):
     for ob in details.pbs.moveObjBs.values() + \
                details.pbs.fixObjBs.values():
         oldVar = ob.poseD.var
-        newVar = tuple([a + b*b for (a, b) in zip(oldVar, odoError)])
-        ob.modifyPoseD(var = newVar)
+        ob.poseD.var = tuple([a + b*b for (a, b) in zip(oldVar, odoError)])
     details.shadowWorld = None # force recompute
     debugMsg('beliefUpdate', 'moveBel')    
 

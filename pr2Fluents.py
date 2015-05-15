@@ -202,8 +202,10 @@ class BaseConf(Fluent):
             return False, {}
         else:
             return self, b
-        
 
+def innerPred(thing):
+    return thing.args[0].predicate if thing.predicate in ('B', 'Bd')\
+                          else thing.predicate
 # Check reachability to "home"
 class CanReachHome(Fluent):
     predicate = 'CanReachHome'
@@ -325,8 +327,11 @@ class CanReachHome(Fluent):
             (robj, rface, rgraspMu, rgraspVar, rgraspDelta, \
              lobj, lface, lgraspMu, lgraspVar, lgraspDelta)
 
+        condStr = self.args[-1] if isVar(self.args[-1]) else \
+          str([innerPred(c) for c in self.args[-1]]) 
+
         argStr = prettyString(self.args) if eq else \
-                  prettyString([conf, lobj, robj, 'Conds'], eq)
+                  prettyString([conf, lobj, robj, condStr], eq)
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
 
@@ -473,9 +478,12 @@ class CanReachNB(Fluent):
              robj, rface, rgraspMu, rgraspVar, rgraspDelta) =  \
             (robj, rface, rgraspMu, rgraspVar, rgraspDelta, \
              lobj, lface, lgraspMu, lgraspVar, lgraspDelta)
+             
+        condStr = self.args[-1] if isVar(self.args[-1]) else \
+          str([innerPred(c) for c in self.args[-1]]) 
 
         argStr = prettyString(self.args) if eq else \
-                  prettyString([startConf, endConf, lobj, robj, 'Conds'], eq)
+                  prettyString([startConf, endConf, lobj, robj, condStr], eq)
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
 
@@ -614,8 +622,11 @@ class CanPickPlace(Fluent):
           oobj, oface, ograspMu, ograspVar, ograspDelta, op, conds) = self.args
         assert obj != 'none'
 
+        condStr = self.args[-1] if isVar(self.args[-1]) else \
+          str([innerPred(c) for c in self.args[-1]]) 
+
         argStr = prettyString(self.args) if eq else \
-                  prettyString([obj, hand, pose, 'Conds'], eq)
+                  prettyString([obj, hand, pose, condStr], eq)
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
 
@@ -916,8 +927,12 @@ class CanSeeFrom(Fluent):
 
     def prettyString(self, eq = True, includeValue = True):
         (obj, pose, poseFace, conf, cond) = self.args
+
+        condStr = self.args[-1] if isVar(self.args[-1]) else \
+          str([innerPred(c) for c in self.args[-1]]) 
+
         argStr = prettyString(self.args) if eq else \
-                  prettyString([conf, obj, 'Conds'], eq)
+                  prettyString([conf, obj, condStr], eq)
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
 
