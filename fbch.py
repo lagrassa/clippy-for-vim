@@ -75,40 +75,40 @@ class State:
         actSet = set()
         fluentGroups = start.details.partitionFn(self.fluents)
         for fg in fluentGroups:
-            # assume a fluent group is either ground or not.
-            # If not ground, check first to see if the whole group is
-            # satisfiable.  Would be nicer to partition according to
-            # connected components where the connections are variables
-            if any([not thing.isGround() for thing in fg]):
-                fSat = start.satisfies(State(fg))
-                if fSat: return (total, actSet)
-            
-            for f in fg:
-                maxCostInGroup = 0
+            # If the group is not all ground, check first to see if
+            # the whole group is satisfiable.  Would be nicer to
+            # partition according to connected components where the
+            # connections are variables
+            maxCostInGroup = 0
+            if start.satisfies(State(fg)):
+                # Don't add anything to cost
+                pass
+            else:
                 groupActSet = set()
-                
-                if not f.isGround():
-                    # See if it can be satisfied
-                    fSat = start.satisfies(State([f]))
-                else:
-                    fSat = (start.fluentValue(f) == f.value)
-                
-                if not fSat:
-                    # Either False (if not defined), else a cost and a
-                    # list of actions
-                    hv = f.heuristicVal(start)
-                    if hv == False:
-                        if defaultFluentCost > maxCostInGroup:
-                            maxCostInGroup = defaultFluentCost
-                            groupActSet = set()
-                    elif hv[0] != float('inf'):
-                        totalCost = sum([a.instanceCost for a in hv[1]])
-                        if totalCost > maxCostInGroup:
-                            maxCostInGroup = totalCost
-                            groupActSet = hv[1]
+                for f in fg:
+                    if not f.isGround():
+                        # See if it can be satisfied
+                        fSat = start.satisfies(State([f]))
                     else:
-                        # We got trouble, right here in River City
-                        maxCostInGroup = float('inf')
+                        fSat = (start.fluentValue(f) == f.value)
+                
+                    if not fSat:
+                        # Either False (if not defined), else a cost and a
+                        # list of actions
+                        hv = f.heuristicVal(start.details)
+                        if hv == False:
+                            # no special heuristic value
+                            if defaultFluentCost > maxCostInGroup:
+                                maxCostInGroup = defaultFluentCost
+                                groupActSet = set()
+                        elif hv[0] != float('inf'):
+                            totalCost = sum([a.instanceCost for a in hv[1]])
+                            if totalCost > maxCostInGroup:
+                                maxCostInGroup = totalCost
+                                groupActSet = hv[1]
+                        else:
+                            # We got trouble, right here in River City
+                            maxCostInGroup = float('inf')
             # Per fluent group
             if actSet == set():
                 total += maxCostInGroup
@@ -251,7 +251,6 @@ class State:
         # doesn't test for inconsistency within the set of bound goalFluents.
         if not goal.isConsistent(goalFluents):
             debugMsg('satisfies', 'found grounding but it is inconsistent')
-            print 'satisfies found grounding but it is inconsistent'
             return False
                 
         failed = False
@@ -419,12 +418,15 @@ class Fluent(object):
         return self.implicit
     def isConditional(self):
         return self.conditional
+    def conditionOn(self, c):
+        return False
     def heuristicVal(self, details, *args):
         return False
 
     def addConditions(self, newConds, details = None):
         assert self.isConditional()
         cond = self.args[-1]
+        newRelevantConds = [c for c in newConds if self.conditionOn(c)]
         self.args[-1] = simplifyCond(cond, newConds, details)
         self.update()
 
@@ -957,7 +959,8 @@ class Operator(object):
                     break
             if not entailed:
                 if self.specialRegress:
-                    nf = self.specialRegress(gf, startState.details)
+                    nf = self.specialRegress(gf, startState.details,
+                                             self.abstractionLevel)
                 else:
                     nf = gf.copy()
                 if nf == None:
@@ -1080,31 +1083,21 @@ class Operator(object):
         else:
             # Idea is to use heuristic difference as an estimate of operator
             # cost.
-            hh = heuristic if heuristic else lambda s: s.easyH(startState)
+            hh = heuristic if heuristic else \
+              lambda s: s.easyH(startState, defaultFluentCost = 1.5)
             hNew = hh(newGoal)
+            hOrig = hh(goal)
+            cost = hOrig - hNew
+            if cost < 0:
+                cost = 2
+            rebindCost = hOrig + rebindCost
+            
+            '''
             primOp = self.applyBindings(newBindings) # was self.copy()
             primOp.abstractionLevel = primOp.concreteAbstractionLevel
 
-            numRegressSamples = 5
-            tempGoal = goal
-            for i in range(numRegressSamples):
-                primOpRegr = primOp.regress(tempGoal, startState)
-                if len(primOpRegr) == 0:
-                    print 'Prim op regr: no applicable op: failing'
-                    break
-                elif len(primOpRegr) == 1:
-                    print 'Retrying primOpRegr:  rebind op only'
-                    tempGoal = primOpRegr[0][0]
-                    continue
-                else:
-                    (sp, cp) = primOpRegr[0]
-                    primPrecondCost = hh(sp)
-                    if primPrecondCost == float('inf'):
-                        print 'Retrying primOpRegr:  preconds infeasible'
-                        tempGoal = primOpRegr[1][0]
-                    else:
-                        # good to go
-                        break
+            primOpRegr = primOp.regress(goal, startState)
+
  
             if hNew == float('inf'):
                 # This is hopeless.  Give up now.
@@ -1123,6 +1116,8 @@ class Operator(object):
                 # establish all the preconds
                 # Cost to get from start to one primitive step before
                 # newGoal, plus the cost of the last step
+                (sp, cp) = primOpRegr[0]
+                primPrecondCost = hh(sp)
                 if primPrecondCost == float('inf'):
                     debugMsg('infeasible', 'Prim preconds infeasible', sp)
     
@@ -1154,6 +1149,7 @@ class Operator(object):
                 debugMsg('abstractCost',
                          ('with heuristic', heuristic != None),
                          cost)
+            '''
         if not inHeuristic or debug('debugInHeuristic'):
             debugMsg(tag, 'Final regression result', ('Op', self),
                      ('cost', cost),
@@ -1163,6 +1159,7 @@ class Operator(object):
         rebindLater.suspendedOperator.instanceCost = rebindCost
         if cost == float('inf'):
             if not inHeuristic or debug('debugInHeuristic'):
+                print self
                 debugMsg('regression:fail', 'infinite cost')
             return [[rebindLater, rebindCost]]
         newGoal.operator.instanceCost = cost
@@ -1180,6 +1177,8 @@ class Operator(object):
         return self.name + argStr + ':'+str(self.abstractionLevel)
 
 def simplifyCond(oldFs, newFs, details = None):
+    if len(newFs) == 0:
+        return oldFs
     result = State(list(oldFs))
     for f in newFs:
         if (not f.isGround()) or f.isImplicit() or f.immutable:
@@ -2020,6 +2019,12 @@ def planBackward(startState, goal, ops, ancestors = [],
     finally:
         if f1:
             writeSearchCoda(f1, f2)
+
+### problem is this!!!  Trying to avoid worrying about details of base
+### movements in abstract planning.  Made it so that abstract move
+### doesn't have the special regression.  But, we stil have a problem
+### because to compute the operator cost we do a primitive regression
+### and that fails.
                            
 
 ############################################################################

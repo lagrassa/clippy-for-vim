@@ -101,7 +101,7 @@ if useROS:
 
 # Counts unsatisfied fluent groups
 def hEasy(s, g, ops, ancestors):
-    return g.easyH(s)
+    return g.easyH(s, defaultFluentCost = 1.5)
 
 def habbs(s, g, ops, ancestors):
     hops = ops + [hRegrasp]
@@ -113,13 +113,14 @@ def habbs(s, g, ops, ancestors):
         isSat = s.satisfies(g)
         if not isSat: 
             print '*** habbs is 0 but goal not sat ***'
-
-            for thing in g.fluents:
-                if not thing.isGround() or \
-                  thing.valueInDetails(s.details) == False:
-                    print thing
-            raw_input('okay?')
+            if debug('heuristic'):
+                for thing in g.fluents:
+                    if not thing.isGround() or \
+                      thing.valueInDetails(s.details) == False:
+                        print thing
+                raw_input('okay?')
             easyVal = hEasy(s, g, ops, ancestors)
+            print '*** returning easyVal', easyVal, '***'
             return easyVal
     return val
 
@@ -715,7 +716,7 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
     glob.rebindPenalty = 100
-    #glob.monotonicFirst = False
+    glob.monotonicFirst = False #hierarchical
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
 
@@ -727,11 +728,22 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     region = 'table1Left'
     goal = State([Bd([In(['objA', region]), True, goalProb], True)])
 
-    t = PlanTest('test1',  errProbs, allOperators,
+    t = PlanTest('test0',  errProbs, allOperators,
                  objects=['table1', 'objA'],
                  fixPoses={'table1': table1Pose},
                  movePoses={'objA': front},
                  varDict = varDict)
+
+    hskel = [[poseAchIn],
+             [poseAchIn, lookAt, lookAt, lookAt, lookAt],
+             [lookAt, moveNB],
+             [lookAt],
+             [lookAt, moveNB],
+             [lookAt],
+             [poseAchIn],
+             [poseAchIn, lookAt, place],
+             [place],
+             [place, pick]]
 
     skel = [[poseAchIn,
              lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
@@ -782,7 +794,7 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                  pick, moveNB,
                  lookAt.applyBindings({'Obj' : 'objA'}), move]]
 
-    actualSkel = easySkel if easy else skel
+    actualSkel = easySkel if easy else (hskel if hierarchical else skel)
 
     t.run(goal,
           hpn = hpn,

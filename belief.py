@@ -23,9 +23,14 @@ class BFluent(Fluent):
         return self.args[0].isImplicit()
     def isConditional(self):
         return self.args[0].isConditional()
-    def addConditions(self, newConds, details = None):
-        self.args[0].addConditions(newConds, details)
 
+    def conditionOn(self, f):
+        return f.predicate in ('B', 'Bd') and \
+          self.args[0].conditionOn(f.args[0])
+
+    def addConditions(self, newConds, details = None):
+        addConds = [c for c in newConds if self.conditionOn(c)]
+        self.args[0].addConditions(addConds, details)
 
     def getIsGround(self):
         return self.args[0].isGround() and \
@@ -128,13 +133,13 @@ class Bd(BFluent):
         else:
             return rFluent.dist(b).prob(v) >= p
 
-    def heuristicVal(self, b):
+    def heuristicVal(self, details):
         (rFluent, v, p) = self.args
-        return rFluent.heuristicVal(b, v, p)
+        return rFluent.heuristicVal(details, v, p)
 
     def beliefMode(self, details = None):
         if hasattr(rFluent, 'bTest'):
-            return rFluent.bTest(b, v, 0.5)
+            return rFluent.bTest(details, v, 0.5)
         
         # Mode of the rfluent's value distribution
         return self.args[1].dist().mode()
@@ -226,9 +231,9 @@ class B(BFluent):
     def copy(self):
         return B(customCopy(self.args), customCopy(self.value))
 
-    def heuristicVal(self, b):
+    def heuristicVal(self, details):
         (rFluent, v, var, delta, p) = self.args
-        return  rFluent.heuristicVal(b, v, var, delta, p)
+        return  rFluent.heuristicVal(details, v, var, delta, p)
 
     def test(self, b):
         (rFluent, v, var, delta, p) = self.args
@@ -545,19 +550,19 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
             # made true by matching
             return 0, set()
         else:
-            # See if we have a special purpose way of computing a value
-            # for this fluent
-            hv = False
-            for f in fUp:
-                hv =  f.heuristicVal(start)
-                if hv != False: break
-            if hv != False:
-                (cost, ops) = hv
-                addToCachesSet(fUp, cost, ops, idk)
-                if cost == 0:
-                    assert start.satisfies(g)
-                if debug('hAddBackV') or True: print 'hv',
-                return cost,ops
+            # If this group has only 1 fluent and a special way to
+            # compute the value, then use that.
+            if len(fUp) == 1:
+                f = list(fUp)[0]
+                hv =  f.heuristicVal(start.details)
+                if hv != False:
+                    # We actually do have a special value
+                    (cost, ops) = hv
+                    addToCachesSet(fUp, cost, ops, idk)
+                    # if cost == 0:
+                    #     assert start.satisfies(g)
+                    if debug('hAddBackV') or True: print 'hv',
+                    return cost,ops
 
             # Otherwise, do regression
 

@@ -37,7 +37,8 @@ probForGenerators = 0.98
 
 planVar = (0.02**2, 0.02**2, 0.01**2, 0.03**2)
 # Made smaller to avoid replanning for pick.  Maybe not right.
-planVar = (0.009**2, 0.009**2, 0.009**2, 0.009**2)
+#planVar = (0.009**2, 0.009**2, 0.009**2, 0.009**2)
+planVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2)
 planP = 0.95
 
 ######################################################################
@@ -117,12 +118,12 @@ def moveNBPrim(args, details):
 
 def movePrim(args, details):
     vl = \
-         ['CStart', 'CEnd', 'DEnd',
+         ['Base', 'CStart', 'CEnd', 'DEnd',
           'LObj', 'LFace', 'LGraspMu', 'LGraspVar', 'LGraspDelta',
           'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta',
           'RealGraspVarL', 'RealGraspVarR',
           'P1', 'P2', 'PCR']
-    (cs, ce, cd,
+    (b, cs, ce, cd,
      lo, lf, lgm, lgv, lgd,
      ro, rf, rgm, rgv, rgd,
      rgvl, rgvr,
@@ -375,6 +376,16 @@ def getBase(args, goal, start, vals):
     else:
         return [[conf['pr2Base']]]
 
+# Generate a conf with the given base.  This is a hack for now.
+def genConfForBase((base,), goal, start, vals):
+    print '@@@@@@@  Need a better generator conf given base @@@@@@@@@'
+    assert not isVar(base)
+    conf = start.pbs.conf.copy()
+    conf.set('pr2Base', base)
+    conf.set('pr2RightArm', (0.0,)*7)
+    conf.set('pr2LeftArm', (0.0,)*7)
+    return [[conf]]
+
 # Get all grasp-relevant information for both hands.  Used by move.
 def genGraspStuff(args, goal, start, vals):
     return [a + b for (a, b) in \
@@ -517,7 +528,7 @@ def realPoseVar((graspVar,), goal, start, vals):
     return [[tuple([gv+pv for (gv, pv) in zip(graspVar, placeVar)])]]
 
 def defaultPoseVar(args, goal, start, vals):
-    pv = [v*3 for v in start.domainProbs.placeVar]
+    pv = [v*4 for v in start.domainProbs.placeVar]
     pv[2] = pv[0]
     return [[tuple(pv)]]
 
@@ -687,7 +698,12 @@ def awayRegion(args, goal, start, vals):
 
 attenuation = 0.5
 # During regression, apply to all fluents in goal;  returns f or a new fluent.
-def moveSpecialRegress(f, details):
+def moveSpecialRegress(f, details, abstractionLevel):
+
+    # Only model these effects at the lower level of abstraction.
+    if abstractionLevel == 0:
+        return f
+
     # Assume that odometry error is controlled during motion, so not more than 
     # this.  It's a stdev
     odoError = details.domainProbs.odoError
@@ -701,6 +717,9 @@ def moveSpecialRegress(f, details):
         newVar = tuple([v - e for (v, e) in zip(f.args[2], totalOdoErr)])
         if any([v < minV \
                 for (v, minV) in zip(newVar, details.domainProbs.obsVarTuple)]):
+            print 'Move special regress failing; new var too small'
+            print f
+            print '    ', newVar
             # Can't achieve this 
             return None
         newF.args[2] = newVar
@@ -724,7 +743,7 @@ def costFun(primCost, prob):
 # Add in a real distance from cs to ce
 
 def moveCostFun(al, args, details):
-    (s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
+    (b, s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
     rawCost = 1
     result = costFun(rawCost, p1 * p2 * pcr)
     if not fbch.inHeuristic:
@@ -803,7 +822,7 @@ def lookAtHandCostFun(al, args, details):
 # All super-bogus until we get the real state estimator running
 
 def moveBProgress(details, args, obs=None):
-    (s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
+    (b, s, e, _, _, _, _, _, _, _, _, _, _, _, _, _, p1, p2, pcr) = args
     # Assume we've controlled the error during motion.
     odoError = details.domainProbs.odoError
 
@@ -1110,7 +1129,7 @@ def genMoveProbs(args, goal, start, vals):
 # Allowed to move base
 move = Operator(\
     'Move',
-    ['CStart', 'CEnd', 'DEnd',
+    ['Base', 'CStart', 'CEnd', 'DEnd',
      'LObj', 'LFace', 'LGraspMu', 'LGraspVar', 'LGraspDelta',
      'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta',
      'RealGraspVarL', 'RealGraspVarR',
@@ -1132,8 +1151,10 @@ move = Operator(\
              }},
     # Results:  list of pairs: (fluent set, private preconds)
     [({Conf(['CEnd', 'DEnd'], True)}, {})],
+    #({BaseConf(['Base', 'DEnd'], True)}, {})],
     functions = [\
-        Function(['CEnd'], [], genNone, 'genNone'),                 
+        #Function(['CEnd'], ['Base'], genConfForBase, 'genConfForBase'),
+        Function(['CEnd'], [], genNone, 'genNone'),
         Function(['PCR', 'P1', 'P2'], [], genMoveProbs,
                  'genMoveProbs'),
         Function(['LObj', 'LFace', 'LGraspMu', 'LGraspVar', 'LGraspDelta',
@@ -1166,8 +1187,8 @@ moveNB = Operator(\
     {0 : {Bd([CanReachNB(['CStart', 'CEnd', 'left',
                     'LObj', 'LFace', 'LGraspMu', 'RealGraspVarL', 'LGraspDelta',
                     'RObj', 'RFace', 'RGraspMu', 'RealGraspVarR', 'RGraspDelta',
-                     False, []]),  True, 'PCR'], True)},
-     1 : {Conf(['CStart', 'DEnd'], True),
+                     False, []]),  True, 'PCR'], True),
+          Conf(['CStart', 'DEnd'], True),
           BaseConf(['Base', 'DEnd'], True),
           Bd([Holding(['left']), 'LObj', 'P1'], True),
           Bd([GraspFace(['LObj', 'left']), 'LFace', 'P1'], True),
@@ -1207,9 +1228,9 @@ poseAchIn = Operator(\
             # Very prescriptive:  find objects, then nail down obj2, then
             # obj 1
             {0 : set(),
-             1 : {B([Pose(['Obj1', '*']), '*', planVar, '*', planP], True),
+             1 : {B([Pose(['Obj1', '*']), '*', 'PoseVar', '*', planP], True),
                   Bd([SupportFace(['Obj1']), '*', planP], True),
-                  B([Pose(['Obj2', '*']), '*', planVar, '*', planP], True),
+                  B([Pose(['Obj2', '*']), '*', 'PoseVar', '*', planP], True),
                   Bd([SupportFace(['Obj2']), '*', planP], True)},
              2 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
                                defaultPoseDelta, 'P2'], True),
@@ -1450,10 +1471,10 @@ lookAt = Operator(\
     # Pre
     {0: {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
          B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarBefore', 'PoseDelta',
-                 'P1'], True),
-         Bd([CanSeeFrom(['Obj', 'Pose', 'PoseFace', 'LookConf', []]),
+                 'P1'], True)},
+     1: {Bd([CanSeeFrom(['Obj', 'Pose', 'PoseFace', 'LookConf', []]),
              True, 'P2'], True)},
-     1: {Conf(['LookConf', lookConfDelta], True)}},
+     2: {Conf(['LookConf', lookConfDelta], True)}},
     # Results
     [({B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
          'PR1'],True),
@@ -1477,8 +1498,6 @@ lookAt = Operator(\
     prim = lookPrim,
     argsToPrint = [0, 1, 3],
     ignorableArgs = range(4, 11))
-
-
 
 lookAtHand = Operator(\
     'LookAtHand',

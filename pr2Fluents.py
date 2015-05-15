@@ -135,11 +135,15 @@ class BaseConf(Fluent):
     # Args: (x, y, theta), (dd, da)
     predicate = 'BaseConf'
     def test(self, bState):
-        # Temporary, until we change the generators!
-        return True
-        
         (targetConf, delta) = self.args
         return baseConfWithin(bState.pbs.conf['pr2Base'], targetConf, delta)
+
+    def heuristicVal(self, details):
+        # Assume we will need to do a look and a move
+        # Could be smarter.
+        dummyOp = Operator('LookMove', ['dummy'],{},[])
+        dummyOp.instanceCost = 3
+        return (dummyOp.instanceCost, {dummyOp})
 
     def fglb(self, other, details = None):
         (sval, sdelta) = self.args
@@ -206,6 +210,9 @@ class CanReachHome(Fluent):
     implicit = True
     conditional = True
 
+    def conditionOn(self, f):
+        return f.predicate in ('Pose', 'SupportFace')
+
     def getViols(self, bState, v, p, strict = True):
         assert v == True
         (conf, hand,
@@ -257,7 +264,7 @@ class CanReachHome(Fluent):
         result = bool(path and violations.empty())
         return result
 
-    def heuristicVal(self, bState, v, p):
+    def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
         (conf, hand,
                lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
@@ -273,7 +280,7 @@ class CanReachHome(Fluent):
             dummyOp.instanceCost = obstCost
             return (obstCost, {dummyOp})
         
-        path, violations = self.getViols(bState.details, v, p, strict = False)
+        path, violations = self.getViols(details, v, p, strict = False)
         if path == None:
             #!! should this happen?
             print '&&&&&&', self, v, p
@@ -287,15 +294,15 @@ class CanReachHome(Fluent):
         for o in obstOps: o.instanceCost = obstCost
         shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
                      for o in shadows])
-        d = bState.details.domainProbs.minDelta
-        ep = bState.details.domainProbs.obsTypeErrProb
-        vo = bState.details.domainProbs.obsVarTuple
+        d = details.domainProbs.minDelta
+        ep = details.domainProbs.obsTypeErrProb
+        vo = details.domainProbs.obsVarTuple
         # compute shadow costs individually
         shadowSum = 0
         for o in shadowOps:
             # Use variance in start state
             obj = objectName(o.args[0])
-            vb = bState.details.pbs.getPlaceB('table1').poseD.variance()
+            vb = details.pbs.getPlaceB('table1').poseD.variance()
             deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
             c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
             o.instanceCost = c
@@ -328,6 +335,9 @@ class CanReachNB(Fluent):
     predicate = 'CanReachNB'
     implicit = True
     conditional = True
+
+    def conditionOn(self, f):
+        return f.predicate in ('Pose', 'SupportFace')
 
     def getViols(self, bState, v, p, strict = True):
         assert v == True
@@ -377,23 +387,32 @@ class CanReachNB(Fluent):
         return path, violations
 
     def bTest(self, bState, v, p):
-        #### !!!!! temporary
-        path, violations = self.getViols(bState, v, p)
-        return bool(path and violations.empty())
-
         ## Real version
         (startConf, endConf) = (self.args[0], self.args[1])
 
-        if startConf['pr2Base'] != endConf['pr2Base']:
+        if isVar(endConf):
+            assert 'need to have end conf bound to test'
+        elif isVar(startConf):
+            print self
+            print 'BTest canReachNB returning True'
+            # Assume we can make it work out
+            return True
+        elif startConf['pr2Base'] != endConf['pr2Base']:
             # Bases have to be equal!
             return False
         
         path, violations = self.getViols(bState, v, p)
         return bool(path and violations.empty())
 
+    def getGrounding(self, details):
+        assert self.value == True
+        (startConf, targetConf) = (self.args[0], self.args[1])
+        assert not isGround(targetConf)
+        # Allow startConf to remain unbound
+        return {}
 
     # Exactly the same as for CanReachHome
-    def heuristicVal(self, bState, v, p):
+    def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
         (startConf, conf, hand,
                lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
@@ -402,14 +421,14 @@ class CanReachNB(Fluent):
                             self.args   # Args
 
         obstCost = 10  # move pick move place
+        unboundCost = 1  # we don't know whether this will be hard or not
 
         if not self.isGround():
-            # assume an obstacle, if we're asking.  May need to decrease this
-            dummyOp = Operator('RemoveObst', ['dummy'],{},[])
-            dummyOp.instanceCost = obstCost
+            dummyOp = Operator('UnboundStart', ['dummy'],{},[])
+            dummyOp.instanceCost = unboundCost
             return (obstCost, {dummyOp})
             
-        path, violations = self.getViols(bState.details, v, p, strict = False)
+        path, violations = self.getViols(details, v, p, strict = False)
         if path == None:
             #!! should this happen?
             print '&&&&&&', self, v, p
@@ -423,15 +442,15 @@ class CanReachNB(Fluent):
         for o in obstOps: o.instanceCost = obstCost
         shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
                      for o in shadows])
-        d = bState.details.domainProbs.minDelta
-        ep = bState.details.domainProbs.obsTypeErrProb
-        vo = bState.details.domainProbs.obsVarTuple
+        d = details.domainProbs.minDelta
+        ep = details.domainProbs.obsTypeErrProb
+        vo = details.domainProbs.obsVarTuple
         # compute shadow costs individually
         shadowSum = 0
         for o in shadowOps:
             # Use variance in start state
             obj = objectName(o.args[0])
-            vb = bState.details.pbs.getPlaceB('table1').poseD.variance()
+            vb = details.pbs.getPlaceB('table1').poseD.variance()
             deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
             c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
             o.instanceCost = c
@@ -471,6 +490,9 @@ class CanPickPlace(Fluent):
     predicate = 'CanPickPlace'
     implicit = True
     conditional = True
+
+    def conditionOn(self, f):
+        return f.predicate in ('Pose', 'SupportFace')
 
     # Add a glb method that will at least return False, {} if the two are
     # in contradiction.  How to test, exactly?
@@ -538,7 +560,7 @@ class CanPickPlace(Fluent):
         path, violations = self.getViols(bState, v, p, strict = True)
         return bool(path and violations.empty())
 
-    def heuristicVal(self, bState, v, p):
+    def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
         obstCost = 5  # move, pick, move, place, maybe a look at hand
 
@@ -549,7 +571,7 @@ class CanPickPlace(Fluent):
             return (obstCost, {dummyOp})
 
         shadowCost = 3  # move look, if we're lucky
-        path, violations = self.getViols(bState.details, v, p, strict = False)
+        path, violations = self.getViols(details, v, p, strict = False)
         if path == None:
             #!! should this happen?
             print 'hv infinite'
@@ -564,15 +586,15 @@ class CanPickPlace(Fluent):
         shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
                      for o in shadows])
 
-        d = bState.details.domainProbs.minDelta
-        ep = bState.details.domainProbs.obsTypeErrProb
-        vo = bState.details.domainProbs.obsVarTuple
+        d = details.domainProbs.minDelta
+        ep = details.domainProbs.obsTypeErrProb
+        vo = details.domainProbs.obsVarTuple
         # compute shadow costs individually
         shadowSum = 0
         for o in shadowOps:
             # Use variance in start state
             obj = objectName(o.args[0])
-            vb = bState.details.pbs.getPlaceB('table1').poseD.variance()
+            vb = details.pbs.getPlaceB('table1').poseD.variance()
             deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
             c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
             o.instanceCost = c
@@ -770,6 +792,11 @@ class CanSeeFrom(Fluent):
     predicate = 'CanSeeFrom'
     implicit = True
     conditional = True
+
+    def conditionOn(self, f):
+        return f.predicate in \
+          ('Pose', 'SupportFace', 'Holding', 'Grasp', 'GraspFace')
+
     def bTest(self, details, v, p):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
@@ -840,7 +867,7 @@ class CanSeeFrom(Fluent):
                  ('->', occluders))
         return ans, occluders
 
-    def heuristicVal(self, bState, v, p):
+    def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
         (obj, pose, poseFace, conf, cond) = self.args
         
@@ -852,7 +879,7 @@ class CanSeeFrom(Fluent):
             dummyOp.instanceCost = obstCost
             return (obstCost, {dummyOp})
         
-        path, occluders = self.getViols(bState.details, v, p, strict = False)
+        path, occluders = self.getViols(details, v, p, strict = False)
         if path == None:
             #!! should this happen?
             print '&&&&&&', self, v, p
@@ -866,15 +893,15 @@ class CanSeeFrom(Fluent):
         for o in obstOps: o.instanceCost = obstCost
         shadowOps = set([Operator('RemoveShadow', [oName],{},[]) \
                      for oName in shadows])
-        d = bState.details.domainProbs.minDelta
-        ep = bState.details.domainProbs.obsTypeErrProb
-        vo = bState.details.domainProbs.obsVarTuple
+        d = details.domainProbs.minDelta
+        ep = details.domainProbs.obsTypeErrProb
+        vo = details.domainProbs.obsVarTuple
         # compute shadow costs individually
         shadowSum = 0
         for o in shadowOps:
             # Use variance in start state
             obj = objectName(o.args[0])
-            vb = bState.details.pbs.getPlaceB('table1').poseD.variance()
+            vb = details.pbs.getPlaceB('table1').poseD.variance()
             deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
             c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
             o.instanceCost = c
@@ -905,6 +932,7 @@ class CanSeeFrom(Fluent):
 # Holding, GraspFace, Grasp (same hand)
 # CanReachHome (all separate)
 # Conf
+# BaseConf
 
 # Can make this nicer by specifying sets of predicates that have to go
 # together, somehow.
@@ -914,10 +942,6 @@ def partition(fluents):
     fluents = set(fluents)
     while len(fluents) > 0:
         f = fluents.pop()
-
-        # if not f.isGround():
-        #     continue
-        
         newSet = set([f])
         if f.predicate in ('B', 'Bd'):
             rf = f.args[0]
@@ -986,13 +1010,13 @@ def partition(fluents):
                 for (ff, b) in pf:
                     newSet.add(ff)
                     fluents.remove(ff)
-        else:
-            # Not a B fluent
-            pf = getMatchingFluents(fluents, Conf([], 'C', 'D')) + \
-                 getMatchingFluents(fluents, BaseConf([], 'C', 'D'))
-            for (ff, b) in pf:
-                newSet.add(ff)
-                fluents.remove(ff)
+        # else:
+        #     # Not a B fluent
+        #     pf = getMatchingFluents(fluents, Conf(['C', 'D'], True)) + \
+        #          getMatchingFluents(fluents, BaseConf(['C', 'D'], True))
+        #     for (ff, b) in pf:
+        #         newSet.add(ff)
+        #         fluents.remove(ff)
                     
         groups.append(frozenset(newSet))
     return groups

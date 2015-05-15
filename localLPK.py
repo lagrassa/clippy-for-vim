@@ -49,6 +49,7 @@ nextStep
 nonmon
 obsUpdate
 pickPlaceTest
+pickTol (be sure we're not giving pick too big a variance)
 placeGen
 placeInGen
 placeInRegionGen
@@ -66,7 +67,8 @@ visible
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'traceGen', 'traceCRH', 'pickTol']
+           'traceGen', 'traceCRH', 'hAddBackInf']
+        
 
 
 
