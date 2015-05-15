@@ -232,8 +232,9 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         viol, (rv, hv) = rm.confViolations(conf, newBS, prob, baseCanMove=baseCanMove)
         if not viol:                # was valid when not holding, so...
             trace('    pickGen: Held collision')
-            if debug('pickGen'):
+            if True: #debug('pickGen'):
                 newBS.draw(prob, 'W')
+                raw_input('held collision')
                 debugMsg('pickGen', 'Held collision.')
             return True            # punt.
 
