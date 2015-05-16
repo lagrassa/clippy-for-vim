@@ -147,6 +147,8 @@ def viewCone(conf, shape, offset = 0.1):
     sensorShape = shape.applyTrans(sensor.inverse())
     ((x0,y0,z0),(x1,y1,z1)) = sensorShape.bbox()
     # print 'sensorShape bbox\n', sensorShape.bbox()
-    dz = 0.1-z1
+    dz = -0.15-z1
     cone = BoxScale((x1-x0), (y1-y0), dz, None, 0.01,name='ViewConeFor%s'%shape.name())
-    return cone.applyTrans(util.Pose(0.,0.,-dz/2,0.)).applyTrans(sensor)
+    return cone.applyTrans(util.Pose(0.,0.,-(dz+0.15)/2,0.)).applyTrans(sensor)
+
+    

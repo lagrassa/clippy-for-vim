@@ -861,11 +861,11 @@ def lookGenTop(args, goalConds, pbs, outBindings):
             return
         conf = path[-1]
         if testFn(conf):
-            lookConf = lookAtConf(conf, sh)
+            lookConf = lookAtConfCanView(newBS, prob, conf, sh)
             if lookConf:
                 trace('    Found a path to look conf with specified base.')
                 if debug('lookGen', skip=skip):
-                    pbs.draw(prob, 'W')
+                    newBS.draw(prob, 'W')
                     lookConf.draw('W', color='cyan', attached=shWorld.attached)
                     debugMsg('lookGen', ('-> cyan', lookConf.conf))
                 yield (lookConf,), viol
@@ -881,10 +881,10 @@ def lookGenTop(args, goalConds, pbs, outBindings):
 
     # Check current conf
     curr = newBS.conf
-    lookConf = lookAtConf(curr, shape)
-    if testFn(lookConf):
+    lookConf = lookAtConfCanView(newBS, prob, curr, shape)
+    if lookConf and testFn(lookConf):
         trace('    Using current conf.')
-        yield (lookConf,), rm.confViolations(curr, pbs, prob)
+        yield (lookConf,), rm.confViolations(curr, newBS, prob)
         
     world = newBS.getWorld()
     if obj in world.graspDesc and not fbch.inHeuristic:
@@ -902,12 +902,11 @@ def lookGenTop(args, goalConds, pbs, outBindings):
                                             goalConds, pbs, outBindings,
                                             onlyCurrent=True):
                     (pB, c, ca) = ans   # pB should be placeB
-                    path = canView(pbs, prob, ca, hand, shape)
-                    if not path:
+                    lookConf = lookAtConfCanView(pbs, prob, ca, shape)
+                    if not lookConf:
                         trace('    lookGen(%s) canView failed clear')
                         continue
-                    viol = rm.confViolations(ca, pbs, prob)
-                    lookConf = lookAtConf(path[-1], shape)
+                    viol = rm.confViolations(lookConf, pbs, prob)[0]
                     if testFn(lookConf):
                         trace('    lookGen(%s) canView cleared viol='%obj, viol.weight() if viol else None)
                         yield (lookConf,), viol
@@ -923,14 +922,25 @@ def lookGenTop(args, goalConds, pbs, outBindings):
 
             continue
         conf = path[-1]
-        lookConf = lookAtConf(conf, sh)
-        if debug('lookGen', skip=skip):
-            pbs.draw(prob, 'W')
-            lookConf.draw('W', color='cyan', attached=shWorld.attached)
-            debugMsg('lookGen', ('-> cyan', lookConf.conf))
+        lookConf = lookAtConfCanView(newBS, prob, conf, sh)
         if lookConf:
             trace('    lookGen(%s) general conf viol='%obj, viol.weight() if viol else None)
+            if debug('lookGen', skip=skip):
+                pbs.draw(prob, 'W')
+                lookConf.draw('W', color='cyan', attached=shWorld.attached)
+                debugMsg('lookGen', ('-> cyan', lookConf.conf))
             yield (lookConf,), viol
+
+def lookAtConfCanView(pbs, prob, conf, shape, hands=['left', 'right']):
+    lookConf = lookAtConf(conf, shape)
+    if not fbch.inHeuristic:
+        for hand in hands:
+            path = canView(pbs, prob, lookConf, hand, shape)
+            if not path:
+                raw_input('lookAtConfCanView failed path')
+                return None
+            lookConf = path[-1]
+    return lookConf
 
 ## lookHandGen
 ## obj, hand, graspFace, grasp, graspVar, graspDelta and gives a conf

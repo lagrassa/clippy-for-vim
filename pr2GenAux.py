@@ -164,7 +164,8 @@ def canView(pbs, prob, conf, hand, shape):
     vc = viewCone(conf, shape)
     if not vc: return None
     shWorld = pbs.getShadowWorld(prob)
-    if vc.collides(conf.placement(attached=shWorld.attached)):
+    if objectName(shape.name()) in pbs.getWorld().graspDesc and \
+           vc.collides(conf.placement(attached=shWorld.attached)):
         if debug('canView'):
             vc.draw('W', 'red')
             conf.draw('W')
