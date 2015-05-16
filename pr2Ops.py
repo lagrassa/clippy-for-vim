@@ -52,7 +52,7 @@ tryDirectPath = False
 def primPath(bs, cs, ce, p):
     if tryDirectPath:
         path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs,
-                                   draw=False)
+                                   optimize=True, draw=False)
         if not viols or viols.weight() > 0:
             print 'viol', viols
             raw_input('Collision in direct primitive path')
