@@ -10,6 +10,7 @@ import fbch
 from fbch import Fluent, getMatchingFluents, Operator
 from belief import B, Bd
 from pr2Visible import visible
+from pr2BeliefState import lostDist
 
 tiny = 1.0e-6
 
@@ -69,6 +70,21 @@ def confWithin(c1, c2, delta):
                 nearAngle(c1h1, c2h1, delta[-1]) and \
                 nearAngle(c1h2, c2h2, delta[-1])
 
+# Do we know where the object is?
+class BLoc(Fluent):
+    predicate = 'BLoc'
+    def test(self, state):
+        (obj, var, prob) = self.args
+        return B([Pose([obj, '*']), '*', var, '*', prob], True).test(state) \
+          or B([Grasp([obj, '*', '*']), '*', var, '*', prob], True).test(state)
+
+    # glb.  Should be entailed by pose and grasp appropriately
+
+    def argString(self, eq = True):
+        (obj, var, prob) = self.args
+        stdev = tuple([np.sqrt(v) for v in var]) \
+                         if (not var == None and not isVar(var)) else var
+        return '['+obj + ', '+prettyString(stdev)+', '+prettyString(prob)+']'
 
 class Conf(Fluent):
     # This is will not be wrapped in a belief fluent.
@@ -213,7 +229,7 @@ class CanReachHome(Fluent):
     conditional = True
 
     def conditionOn(self, f):
-        return f.predicate in ('Pose', 'SupportFace')
+        return f.predicate in ('Pose', 'SupportFace') and not ('*' in f.args)
 
     def getViols(self, bState, v, p, strict = True):
         assert v == True
@@ -342,7 +358,7 @@ class CanReachNB(Fluent):
     conditional = True
 
     def conditionOn(self, f):
-        return f.predicate in ('Pose', 'SupportFace')
+        return f.predicate in ('Pose', 'SupportFace') and not ('*' in f.args)
 
     def getViols(self, bState, v, p, strict = True):
         assert v == True
@@ -500,7 +516,7 @@ class CanPickPlace(Fluent):
     conditional = True
 
     def conditionOn(self, f):
-        return f.predicate in ('Pose', 'SupportFace')
+        return f.predicate in ('Pose', 'SupportFace') and not ('*' in f.args)
 
     # Add a glb method that will at least return False, {} if the two are
     # in contradiction.  How to test, exactly?
@@ -692,6 +708,20 @@ class Grasp(Fluent):
     predicate = 'Grasp'
     def dist(self, bState):
         (obj, hand, face) = self.args
+
+        if hand == '*':
+            hl = bState.pbs.getHeld('left').mode()
+            hr = bState.pbs.getHeld('right').mode()
+            if obj == hl:
+                hand = 'left'
+            elif obj == hr:
+                hand == 'right'
+            else:
+                # We don't think it's in the hand, so dist is huge
+                return lostDist
+        if face == '*':
+            face = bState.pbs.getGraspB(obj, hand).grasp.mode()
+
         return bState.graspModeDist(obj, hand, face)
 
     def fglb(self, other, bState = None):
@@ -715,14 +745,9 @@ class Pose(Fluent):
         if face == '*':
             hl = bState.pbs.getHeld('left').mode()
             hr = bState.pbs.getHeld('right').mode()
-            if hl == obj:
-                hand = 'left'
-                graspFace = bState.pbs.getGraspB(obj, hand).grasp.mode() 
-                result = bState.graspModeDist(obj, hand, face)
-            elif hr == obj:
-                hand = 'right'
-                graspFace = bState.pbs.getGraspB(obj, hand).grasp.mode() 
-                result = bState.graspModeDist(obj, hand, face)
+            if hl == obj or hr == obj:
+                # We think it's in the hand;  so pose dist is huge
+                result = lostDist
             else:
                 face = bState.pbs.getPlaceB(obj).support.mode()
                 result = bState.poseModeDist(obj, face)
@@ -806,7 +831,8 @@ class CanSeeFrom(Fluent):
 
     def conditionOn(self, f):
         return f.predicate in \
-          ('Pose', 'SupportFace', 'Holding', 'Grasp', 'GraspFace')
+          ('Pose', 'SupportFace', 'Holding', 'Grasp', 'GraspFace') \
+          and not ('*' in f.args) 
 
     def bTest(self, details, v, p):
         assert v == True
@@ -877,6 +903,22 @@ class CanSeeFrom(Fluent):
                 ('obj', obj, pose), ('conf', conf),
                  ('->', occluders))
         return ans, occluders
+    
+    '''
+    def fglb(self, other, details = None):
+        if other.predicate != 'CanSeeFrom' or
+            self.args[:-1] != other.args[:-1]:
+            return {self, other}
+        cSelf = self.args[-1]
+        cOther = other.args[-1]
+
+        sMinusO = cSelf.setMinus(cOther)
+        oMinusS = self.setMinus(cOther)
+
+        # If the only difference is holding = none, that is entailed
+        # by a fluent with no conditions.
+    ''' 
+        
 
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
@@ -927,6 +969,11 @@ class CanSeeFrom(Fluent):
 
     def prettyString(self, eq = True, includeValue = True):
         (obj, pose, poseFace, conf, cond) = self.args
+
+        # if not isVar(cond) and len(cond) > 0:
+        #     print 'CanSeeFrom'
+        #     print self.args
+        #     raw_input('conditions okay?')
 
         condStr = self.args[-1] if isVar(self.args[-1]) else \
           str([innerPred(c) for c in self.args[-1]]) 

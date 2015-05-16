@@ -798,7 +798,9 @@ def lookGen(args, goalConds, bState, outBindings):
     if pose == '*':
         # This could produce a mode of None
         pB = bState.pbs.getPlaceB(obj, default=False)
-        assert pB, 'Trying to reduce variance on object pose but obj is in hand'
+        if pB == None:
+            print 'Trying to reduce variance on object pose but obj is in hand'
+            return
         poseD = pB.poseD if pB else PoseD(None, 4*(0.,))
     else: 
         poseD = PoseD(pose, objV)

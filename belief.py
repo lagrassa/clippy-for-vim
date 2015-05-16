@@ -26,7 +26,8 @@ class BFluent(Fluent):
 
     def conditionOn(self, f):
         return f.predicate in ('B', 'Bd') and \
-          self.args[0].conditionOn(f.args[0])
+          not ('*' in f.args) and \
+          self.args[0].conditionOn(f.args[0]) 
 
     def addConditions(self, newConds, details = None):
         addConds = [c for c in newConds if self.conditionOn(c)]
@@ -111,7 +112,8 @@ class Bd(BFluent):
         return b
 
     def applyBindings(self, bindings):
-        if self.isGround(): return self
+        if self.isGround():
+            return self.copy()
         return Bd([self.args[0].applyBindings(bindings)] + \
                   [lookup(a, bindings) for a in self.args[1:]],
                   lookup(self.value, bindings))
@@ -280,7 +282,7 @@ class B(BFluent):
         if isAnyVar(var):
             b[var] = dv.varTuple()
         if isAnyVar(delta):
-            b[delta] = [0.0]*len(dv.modeList())
+            b[delta] = [0.0]*len(dv.modeTuple())
         if isAnyVar(p):
             b[p] = .999   # bogus
         return b

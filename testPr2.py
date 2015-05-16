@@ -42,6 +42,10 @@ import pr2RoadMap
 reload(pr2RoadMap)
 from pr2RoadMap import RoadMap
 
+import pr2BeliefState
+reload(pr2BeliefState)
+from pr2BeliefState import BeliefState
+
 import pr2Fluents
 reload(pr2Fluents)
 from pr2Fluents import Conf, SupportFace, Pose, Holding, GraspFace, Grasp,\
@@ -50,10 +54,6 @@ from pr2Fluents import Conf, SupportFace, Pose, Holding, GraspFace, Grasp,\
 import pr2PlanBel
 reload(pr2PlanBel)
 from pr2PlanBel import BeliefContext, PBS
-
-import pr2BeliefState
-reload(pr2BeliefState)
-from pr2BeliefState import BeliefState
 
 import pr2Visible
 reload(pr2Visible)

@@ -11,7 +11,7 @@ from pr2Gen import pickGen, canReachHome, lookGen, canReachGen,canSeeGen,lookHan
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace, RelPose,\
-     findRegionParent, CanReachNB, BaseConf
+     findRegionParent, CanReachNB, BaseConf, BLoc
 from planGlobals import debugMsg, debug, useROS
 import pr2RRT as rrt
 
@@ -1227,10 +1227,12 @@ poseAchIn = Operator(\
             # Very prescriptive:  find objects, then nail down obj2, then
             # obj 1
             {0 : set(),
-             1 : {B([Pose(['Obj1', '*']), '*', 'PoseVar', '*', planP], True),
-                  Bd([SupportFace(['Obj1']), '*', planP], True),
-                  B([Pose(['Obj2', '*']), '*', 'PoseVar', '*', planP], True),
-                  Bd([SupportFace(['Obj2']), '*', planP], True)},
+             # 1 : {B([Pose(['Obj1', '*']), '*', 'PoseVar', '*', planP], True),
+             #      Bd([SupportFace(['Obj1']), '*', planP], True),
+             #      B([Pose(['Obj2', '*']), '*', 'PoseVar', '*', planP], True),
+             #      Bd([SupportFace(['Obj2']), '*', planP], True)},
+             1 : {BLoc(['Obj1', 'PoseVar', planP], True),
+                  BLoc(['Obj2', 'PoseVar', planP], True)},
              2 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
                                defaultPoseDelta, 'P2'], True),
                   Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)},
@@ -1288,7 +1290,8 @@ place = Operator(\
          3 : {Conf(['PreConf', 'ConfDelta'], True)}
         },
         # Results
-        [({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
+        [({BLoc(['Obj', 'PoseVar', 'PR2'], True)},{}),
+         ({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
            B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta','PR2'],
                  True)},{}),
          ({Bd([Holding(['Hand']), 'none', 'PR3'], True)}, {})],
@@ -1382,8 +1385,9 @@ pick = Operator(\
          'P1', 'P2', 'P3', 'P4', 'PR1', 'PR2', 'PR3'],
         # Pre
         {0 : {Graspable(['Obj'], True),
-              B([Pose(['Obj', '*']), '*', planVar, '*', planP], True),
-              Bd([SupportFace(['Obj']), '*', planP], True),},
+              BLoc(['Obj', planVar, planP], True)},
+              # B([Pose(['Obj', '*']), '*', planVar, '*', planP], True),
+              # Bd([SupportFace(['Obj']), '*', planP], True),},
          1 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
               B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta',
                  'P1'], True)},
@@ -1475,12 +1479,17 @@ lookAt = Operator(\
              True, 'P2'], True)},
      2: {Conf(['LookConf', lookConfDelta], True)}},
     # Results
-    [({B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
+    [({BLoc(['Obj', 'PoseVarAfter', 'PR1'], True)}, {}),
+     ({B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
          'PR1'],True),
        Bd([SupportFace(['Obj']), 'PoseFace', 'PR2'], True)}, {})
        ],
     # Functions
     functions = [\
+        # In case these aren't bound
+        Function(['PoseFace'], [['*']], assign, 'assign'),
+        Function(['Pose'], [['*']], assign, 'assign'),
+        Function(['PoseDelta'], [['*']], assign, 'assign'),
         Function(['P2'], [[canSeeProb]], assign, 'assign'),
         # Look increases probability.  
         Function(['P1'], ['PR1', 'PR2'], obsModeProb, 'obsModeProb'),

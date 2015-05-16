@@ -545,8 +545,10 @@ class Fluent(object):
     def valueInDetails(self, details):
         return self.test(details)
 
+    # Always copies.
     def applyBindings(self, bindings):
-        if self.isGround(): return self
+        if self.isGround():
+            return self.copy()
         # Have to copy to get the right subclass, methods, etc.
         newF = copy.copy(self)
         if self.isConditional():
@@ -975,7 +977,7 @@ class Operator(object):
 
         # Regress the implicit predicates by adding the bound results of this
         # operator to the conditions of those predicates.
-        # Bound preconditions, too!
+
         boundPreconds = [f.applyBindings(newBindings) \
                          for f in self.preconditionSet()]
 
@@ -991,25 +993,18 @@ class Operator(object):
         # Add conditions and make new state.  Put these fluents into
         # the new state sequentially to get rid of redundancy.  Make
         # this code nicer.
+
+        # These fluents are side-effected; but applyBindings always
+        # copies so that should be okay.
         newGoal = State([])
         for f in newBoundFluents:
             if f.isConditional():
-                if self.name == 'LookAt' and f.predicate in ('B', 'Bd') and \
-                    f.args[0].predicate == 'CanSeeFrom' and \
-                    self.args[0] == f.args[0].args[0] and \
-                    (len(explicitResults) > 0 or len(explicitPreconds) > 0 or \
-                    len(explicitSE) > 0):
-                    print 'lookat'
-                    print 'adding conditions to', f.prettyString()
-                    print explicitResults
-                    print explicitPreconds
-                    print explicitSE
-                    raw_input('okay?')
                 # Preconds will not override results
                 f.addConditions(explicitResults, startState.details)
                 f.addConditions(explicitPreconds, startState.details)
                 f.addConditions(explicitSE, startState.details)
                 f.update()
+
             newGoal.add(f, startState.details)
 
         debugMsg('regression:entails', 'Discharge entailed', ('Op', self),

@@ -6,7 +6,14 @@ from miscUtil import prettyString
 MVG = MultivariateGaussianDistribution
 
 zeroObjectVarianceArray = [[0]*4]*4
+hugeVarianceArray = [[100, 0, 0, 0],
+                     [0, 100, 0, 0],
+                     [0, 0, 100, 0],
+                     [0, 0, 0, 100]]
+
 identPoseTuple = (0.0, 0.0, 0.0, 0.0)
+
+lostDist = GMU([(MVG(identPoseTuple, hugeVarianceArray), 1.0)])
 
 # Keep all the raw representation necessary for filtering
 # After every belief update, it will have an instance variable
