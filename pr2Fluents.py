@@ -1200,6 +1200,12 @@ def canReachHome(pbs, conf, prob, initViol,
     if debug('traceCRH'):
         print '    canReachHome h=', fbch.inHeuristic, 'viol=:', viol.weight() if viol else None
     if not path:
+
+        if fbch.inHeuristic:
+            pbs.draw(prob, 'W')
+            conf.draw('W', attached=pbs.getShadowWorld(prob).attached)
+            raw_input('canReachHome failed with inHeuristic=True')
+
         if fbch.inHeuristic and debug('extraTests'):
             pbs.draw(prob, 'W')
             print 'canReachHome failed with inHeuristic=True'

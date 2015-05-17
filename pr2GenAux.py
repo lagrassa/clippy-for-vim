@@ -112,10 +112,11 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
             for c in path: c.draw('W', attached = pbs1.getShadowWorld(p).attached)
             debugMsg('canPickPlaceTest', 'path 1')
 
-    # Check visibility at preConf
+    # Check visibility at preConf (for pick)
     if not fbch.inHeuristic:
         if not canView(pbs1, p, preConf, hand, objPlace.shadow(pbs1.getShadowWorld(p))):
             return None
+    # !! For a place, should look at the table... but we dont know about the table here.
             
     # 2 - Can move from home to pre holding the object
     pbs2 = pbs.copy().excludeObjs([obj]).updateHeldBel(objGrasp, hand)
@@ -178,9 +179,10 @@ def canView(pbs, prob, conf, hand, shape):
         if not path:
             return None
         if debug('canView'):
+            attached = pbs.getShadowWorld(prob).attached
             pbs.draw(prob, 'W')
-            for c in path: c.draw('W', 'blue')
-            path[-1].draw('W', 'orange')
+            for c in path: c.draw('W', 'blue', attached=attached)
+            path[-1].draw('W', 'orange', attached=attached)
             vc.draw('W', 'green')
             raw_input('Retract arm')
         return path

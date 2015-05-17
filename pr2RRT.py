@@ -260,15 +260,19 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
         print 'Found goal path in', rrtTime, 'secs'
     return [c.conf for c in nodes]
 
-def interpolate(q_f, q_i, stepSize=0.25, moveChains=None):
+def interpolate(q_f, q_i, stepSize=0.25, moveChains=None, maxSteps=100):
     robot = q_f.robot
     path = [q_i]
     q = q_i
+    step = 0
     while q != q_f:
+        if step > maxSteps:
+            raw_input('interpolate exceeded maxSteps')
         qn = robot.stepAlongLine(q_f, q, stepSize,
                                  moveChains = moveChains or q_f.keys())
         if q == qn: break
         q = qn
         path.append(q)
+        step += 1
     path.append(q_f)
     return path

@@ -840,6 +840,9 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     newBS.updatePermObjPose(placeB)
     rm = newBS.getRoadMap()
     shWorld = newBS.getShadowWorld(prob)
+    if any(shWorld.attached.values()):
+        trace('    attached=', shWorld.attached)
+        raw_input('lookGen with attached')
     shName = shadowName(obj)
     sh = shWorld.objectShapes[shName]
     obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
