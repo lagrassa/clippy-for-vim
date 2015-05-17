@@ -1027,11 +1027,13 @@ class RoadMap:
         targets.sort()
 
         if fbch.inHeuristic:
-            # Static tests at init and target
-            cv = self.confViolations(startNode.conf, pbs, prob, initViol=initViol)[0]
+            # Static tests at init and target.  Ignore attached as a weakening.
+            cv = self.confViolations(startNode.conf, pbs, prob,
+                                     initViol=initViol, ignoreAttached=True)[0]
             if cv == None: return
             for (c, targetNode) in targets:
-                cvt = self.confViolations(targetNode.conf, pbs, prob, initViol=cv)[0]
+                cvt = self.confViolations(targetNode.conf, pbs, prob,
+                                          initViol=cv, ignoreAttached=True)[0]
                 if cvt == None or not testFn(targetNode): continue
                 edge = Edge(startNode, targetNode)
                 ans = (cvt,
