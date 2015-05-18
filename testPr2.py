@@ -738,18 +738,18 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     hskel = [[poseAchIn],
              [poseAchIn, place.applyBindings({'Obj' : 'objA'}),
               lookAt.applyBindings({'Obj' : 'table1'})], #1
-             [lookAt.applyBindings({'Obj' : 'table1'}), move], #2
-             [move], #3
+             [lookAt.applyBindings({'Obj' : 'table1'}), moveNB], #2
+             [place], #3
              [lookAt.applyBindings({'Obj' : 'objA'})], #4
-             [place], #5
-             [lookAt.applyBindings({'Obj' : 'objA'}), moveNB], #6
-             [poseAchIn], #7
-             [poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), place], #8
-             [place.applyBindings({'Obj' : 'objA'}), pick], #9
+             [lookAt.applyBindings({'Obj' : 'objA'}), moveNB], #5
+             [poseAchIn], #6
+             [poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), place], #7
+             [place.applyBindings({'Obj' : 'objA'}), pick], #8
+             [pick.applyBindings({'Obj' : 'objA'})], #9
              [pick.applyBindings({'Obj' : 'objA'})], #10
-             [pick.applyBindings({'Obj' : 'objA'})], #11
-             [pick.applyBindings({'Obj' : 'objA'}), moveNB,
-              lookAt.applyBindings({'Obj' : 'objA'}), move] #14
+             [pick.applyBindings({'Obj' : 'objA'}), move], #11
+             [moveNB, lookAt.applyBindings({'Obj' : 'objA'}), move], #12
+             [move]
             ]
 
     skel = [[poseAchIn,

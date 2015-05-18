@@ -123,7 +123,12 @@ class State:
                                     if not thing.isGround()])
                 # There is no other reason why this value should be 0
                 if numNonGround == 0:
+                    fizz = [thing for thing in self.fluents if \
+                            thing.valueInDetails(start.details) == False]
+                    print 'Fluents not true in start, but zero cost in H'
+                    for thing in fizz: print '    ', thing
                     raw_input('Heuristic 0 but not sure why')
+
                 result = numNonGround * defaultFluentCost
         return result
 
@@ -1053,10 +1058,6 @@ class Operator(object):
             #bindingsNoGood = False
         else:
             bindingsNoGood = False
-
-        if self.name == 'LookAt' and self.abstractionLevel == 0 and \
-          'Conf' in [f.predicate for f in newGoal.fluents]:
-          raw_input('LookAt should clobber conf')
 
         # Make another result, which is a place-holder for rebinding
         rebindLater = goal.copy()

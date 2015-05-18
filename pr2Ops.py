@@ -635,12 +635,17 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     cap = [max(a, b) for (a, b) in zip(maxPoseVar, vs)]
 
     vbo = varBeforeObs(lookVar, ve)
-    cappedVbo = tuple([min(a, b) for (a, b) in zip(cap, vbo)])
+    cappedVbo1 = tuple([min(a, b) for (a, b) in zip(maxPoseVar, vbo)])
+    cappedVbo2 = tuple([min(a, b) for (a, b) in zip(vs, vbo)])
 
     startLessThanMax = any([a < b for (a, b) in zip(vs, maxPoseVar)])
     startUseful = any([a > b for (a, b) in zip(vs, ve)])
 
-    result = [[cappedVbo], [vs]]
+    result = [[cappedVbo1]]
+    if cappedVbo2 != cappedVbo1:
+        result.append([cappedVbo2])
+    if vs != cappedVbo1 and vs != cappedVbo2:
+        result.append([vs])
 
     debugMsg('genLookObjPrevVariance', result)
 
@@ -1220,8 +1225,8 @@ move = Operator(\
     # arbitrarily many instances of the Pose fluent that need a
     # special regression condition.
     specialRegress = moveSpecialRegress,
-    argsToPrint = [0, 1],
-    ignorableArgs = range(2,18))  # For abstraction
+    argsToPrint = [1, 2],
+    ignorableArgs = [0] + range(3,20))  # For abstraction
 
 # Not allowed to move base
 moveNB = Operator(\
@@ -1560,7 +1565,8 @@ lookAt = Operator(\
     f = lookAtBProgress,
     prim = lookPrim,
     argsToPrint = [0, 1, 3],
-    ignorableArgs = range(1, 11))
+    ignorableArgs = [1, 2] + range(4, 11))
+    #ignorableArgs = range(1, 11))
 
 lookAtHand = Operator(\
     'LookAtHand',
