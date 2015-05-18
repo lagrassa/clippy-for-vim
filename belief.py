@@ -46,21 +46,11 @@ class BFluent(Fluent):
         return (True in av) and (False in av)
 
     def couldClobber(self, other, details = None):
-        glb, b = self.glb(other, details)
-        if glb == False or type(glb) == set:
-            # Don't match at all
+        if self.contradicts(other, details):
+            return True
+        if not other.predicate in ('B', 'Bd'):
             return False
-        if b == {}:
-            # The same
-            return False
-        if '*' in other.args or '*' in self.args:
-            ## LPK pretty bogus
-            # stars can't clobber or be clobbered
-            return False
-        if glb == self:
-            # self entails other (so can't make it false!)
-            return False
-        return True
+        return self.args[0].couldClobber(other.args[0])
 
     def argsGround(self):
         return self.args[0].isGround()

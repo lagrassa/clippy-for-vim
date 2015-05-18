@@ -26,6 +26,7 @@ canReachHome
 canReachNB (two confs, no base)
 canSeeGen
 checkCRH (compares CRH in and out of heuristic; draws good picture)
+clobber
 confReachViol
 confViolations
 cost
@@ -64,10 +65,11 @@ skeleton
 traceCRH
 traceGen  (compact summary of generators)
 visible
+visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
 debugOn = ['skeleton', 'nonmon', 'executionFail', 'executionSurprise',
-           'traceGen', 'traceCRH']
+           'traceGen', 'traceCRH']#, 'clobber', 'regression:fail', 'appOp:number']
         
 
 

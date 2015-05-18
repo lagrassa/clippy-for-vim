@@ -284,11 +284,14 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
     else:
         conf.conf['pr2LeftArm'] = pbs.conf['pr2LeftArm']
         conf.conf['pr2LeftGripper'] = pbs.conf['pr2LeftGripper']
-    # Check for collisions, don't include attached...
-    viol, _ = rm.confViolations(conf, pbs, prob, ignoreAttached=True) 
-    if viol:
-        ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
-        if ca:
+    ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
+    if ca:
+        # Check for collisions, don't include attached...
+        viol, _ = rm.confViolations(ca, pbs, prob, ignoreAttached=True)
+        if not viol: return
+        viol, _ = rm.confViolations(conf, pbs, prob, initViol=viol,
+                                    ignoreAttached=True)
+        if viol:
             if debug('potentialGraspConfs'):
                 conf.draw('W','green')
                 debugMsg('potentialGraspConfs', ('->', conf.conf))

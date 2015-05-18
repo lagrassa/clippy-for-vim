@@ -174,17 +174,17 @@ class RealWorld(WorldState):
                          s.name() != curObj ]  + [self.robotPlace]
 
             deb = 'visible' in debugOn
-            if not deb: debugOn.append('visible')
+            if (not deb) and debug('visibleEx'): debugOn.append('visible')
             vis, _ = visible(self, self.robotConf,
                              self.objectShapes[curObj],
                              obstacles, 0.75, fixed=[self.robotPlace.name()])
-            if not deb: debugOn.remove('visible')
+            if not deb and debug('visibleEx'): debugOn.remove('visible')
             if not vis:
                 print 'Object', curObj, 'is not visible'
                 continue
             else:
                 print 'Object', curObj, 'is visible'
-            raw_input('Visible')
+            #raw_input('Visible')
 
             truePose = self.getObjectPose(curObj)
             # Have to get the resting face.  And add noise.

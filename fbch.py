@@ -602,8 +602,13 @@ class Fluent(object):
             return False
 
     def couldClobber(self, other, details = None):
-        b = self.entails(other, details)
-        return b != False and b != {}
+        # contradicts or fluents match but self has var where other has value
+        if self.contradicts(other, details):
+            return True
+        if self.matches(other, noValue = True) and isVar(self.value) and \
+          not isVar(other.value):
+            return True
+        return False
 
     def contradicts(self, other, details = None):
         glb, b = self.glb(other, details)
@@ -1034,20 +1039,24 @@ class Operator(object):
             bindingsNoGood = True
         elif newGoal.couldBeClobbered(boundSE, startState.details):
             if not inHeuristic or debug('debugInHeuristic'):
-                if debug('regression:inconsistent'):
+                if debug('clobber'):
                     for f1 in boundSE:
                         for f2 in newGoal.fluents:
                             if f1.couldClobber(f2, startState.details):
                                 print '    might clobber\n', f1, '\n', f2
-                    debugMsg('regression:inconsistent', self,
+                    debugMsg('clobber', self,
                              'side effects may be inconsistent with goal',
                              ('newGoal', newGoal), ('sideEffects', boundSE))
             # Idea!  If this happens, try the operator at a more concrete level
-            #bindingsNoGood = True
-            print 'possible clobbering...ignoring for now'
-            bindingsNoGood = False
+            bindingsNoGood = True
+            #print 'possible clobbering...ignoring for now'
+            #bindingsNoGood = False
         else:
             bindingsNoGood = False
+
+        if self.name == 'LookAt' and self.abstractionLevel == 0 and \
+          'Conf' in [f.predicate for f in newGoal.fluents]:
+          raw_input('LookAt should clobber conf')
 
         # Make another result, which is a place-holder for rebinding
         rebindLater = goal.copy()
@@ -1848,7 +1857,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                            for rf in extraRfs for gf in g.fluents])
 
                 if allUseful and not dup and \
-                    (mono or not monotonic or o in nonMonOps):
+                    (mono or not monotonic or o.name in nonMonOps):
                     debugMsg('appOp:detail', 'adding binding', b, boundRFs)
                     bindingSet.append(b)
                 elif not allUseful:

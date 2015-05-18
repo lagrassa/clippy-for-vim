@@ -222,10 +222,8 @@ class JointConf:
     def __hash__(self):
         return hash(self.confItems())
     def __eq__(self, other):
-        if not (other and isinstance(other, JointConf)):
-            return False
-        else:
-            return self.conf == other.conf
+        if not hasattr(other, 'conf'): return False
+        return self.conf == other.conf
     def __neq__(self, other):
         return not self == other
 

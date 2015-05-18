@@ -34,7 +34,13 @@ class In(Fluent):
     def bTest(self, bState, v, p):
         (obj, region) = self.args
         assert v == True
-        return inTest(bState, obj, region, p)
+        lObj =  bState.pbs.getHeld('left').mode()
+        rObj =  bState.pbs.getHeld('right').mode()
+        if obj in (lObj, rObj):
+            return False
+        else: 
+            return inTest(bState, obj, region, p)
+
     
 def baseConfWithin(bc1, bc2, delta):
     (x1, y1, t1) = bc1
@@ -78,7 +84,46 @@ class BLoc(Fluent):
         return B([Pose([obj, '*']), '*', var, '*', prob], True).test(state) \
           or B([Grasp([obj, '*', '*']), '*', var, '*', prob], True).test(state)
 
-    # glb.  Should be entailed by pose and grasp appropriately
+    def fglb(self, other, details = None):
+        (so, sv, sp) = self.args
+        if other.predicate == 'BLoc':
+            (oo, ov, op) = other.args
+
+            svGeq = all([a >= b for (a, b) in zip(sv, ov)])
+            ovGeq = all([a >= b for (a, b) in zip(ov, sv)])
+            spGeq = sp >= op
+            opGeq = op >= sp
+
+            if ovGeq and spGeq and so == oo:
+                return (self, {})
+            if svGeq and opGeq and so == oo:
+                return (other, {})
+            else:
+                return ({self, other}, {})
+
+        if other.predicate == 'B' and other.args[0].predicate == 'Pose' and \
+                other.args[0].args[0] == so:
+            (of, om, ov, od, op) = other.args
+            # Pose can entail BLoc but not other way
+            svGeq = all([a >= b for (a, b) in zip(sv, ov)])
+            opGeq = op >= sp
+            if svGeq and opGeq:
+                return (other, {})
+            else:
+                return ({self, other}, {})
+
+        if other.predicate == 'B' and other.args[0].predicate == 'Grasp' and \
+                other.args[0].args[0] == so:
+            (of, om, ov, od, op) = other.args
+            # Grasp can entail BLoc but not other way
+            svGeq = all([a >= b for (a, b) in zip(sv, ov)])
+            opGeq = op >= sp
+            if svGeq and opGeq:
+                return (other, {})
+            else:
+                return ({self, other}, {})
+            
+        return ({self, other}, {})
 
     def argString(self, eq = True):
         (obj, var, prob) = self.args
@@ -99,6 +144,9 @@ class Conf(Fluent):
         (targetConf, delta) = self.args
         assert not isGround(targetConf)
         return {targetConf : details.pbs.conf}
+
+    def couldClobber(self, other, details = None):
+        return other.predicate in ('Conf', 'BaseConf')
 
     def fglb(self, other, details = None):
         if other.predicate == 'BaseConf':

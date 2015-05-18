@@ -37,8 +37,7 @@ probForGenerators = 0.98
 
 planVar = (0.02**2, 0.02**2, 0.01**2, 0.03**2)
 # Made smaller to avoid replanning for pick.  Maybe not right.
-#planVar = (0.009**2, 0.009**2, 0.009**2, 0.009**2)
-planVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2)
+#planVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2)
 planP = 0.95
 
 ######################################################################
@@ -628,18 +627,18 @@ maxPoseVar = (0.1**2, 0.1**2, 0.1**2, 0.3**2)
 def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     lookVar = start.domainProbs.obsVarTuple
     vs = tuple(start.poseModeDist(obj, face).mld().sigma.diagonal().tolist()[0])
+
+    # Don't let variance get bigger than variance in the initial state, or
+    # the cap, whichever is bigger
+    cap = [max(a, b) for (a, b) in zip(maxPoseVar, vs)]
+
     vbo = varBeforeObs(lookVar, ve)
-    cappedVbo = tuple([min(a, b) for (a, b) in zip(maxPoseVar, vbo)])
-    result = []
-    # We might be looking to increase the mode prob, so don't fail
-    # !!!
-    #if cappedVbo[0] > ve[0]:
+    cappedVbo = tuple([min(a, b) for (a, b) in zip(cap, vbo)])
+
     startLessThanMax = any([a < b for (a, b) in zip(vs, maxPoseVar)])
     startUseful = any([a > b for (a, b) in zip(vs, ve)])
-    result.append([cappedVbo])
-    if True: #startLessThanMax: # and startUseful:
-        # starting var is bigger, but not too big
-        result.append([vs])
+
+    result = [[cappedVbo], [vs]]
 
     debugMsg('genLookObjPrevVariance', result)
 
@@ -723,6 +722,20 @@ def moveSpecialRegress(f, details, abstractionLevel):
             # Can't achieve this 
             return None
         newF.args[2] = newVar
+        newF.update()
+        return newF
+
+    elif f.predicate == 'BLoc':
+        newF = f.copy()
+        newVar = tuple([v - e for (v, e) in zip(f.args[1], totalOdoErr)])
+        if any([v < minV \
+                for (v, minV) in zip(newVar, details.domainProbs.obsVarTuple)]):
+            print 'Move special regress failing; new var too small'
+            print f
+            print '    ', newVar
+            # Can't achieve this 
+            return None
+        newF.args[1] = newVar
         newF.update()
         return newF
     else:
@@ -1472,12 +1485,18 @@ lookAt = Operator(\
      'PoseVarBefore', 'PoseDelta', 'PoseVarAfter',
      'P1', 'P2', 'PR1', 'PR2'],
     # Pre
+    # {0: {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
+    #      B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarBefore', 'PoseDelta',
+    #              'P1'], True)},
+    #  1: {Bd([CanSeeFrom(['Obj', 'Pose', 'PoseFace', 'LookConf', []]),
+    #          True, 'P2'], True)},
+    #  2: {Conf(['LookConf', lookConfDelta], True)}},
     {0: {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
          B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarBefore', 'PoseDelta',
                  'P1'], True)},
      1: {Bd([CanSeeFrom(['Obj', 'Pose', 'PoseFace', 'LookConf', []]),
-             True, 'P2'], True)},
-     2: {Conf(['LookConf', lookConfDelta], True)}},
+             True, 'P2'], True),
+         Conf(['LookConf', lookConfDelta], True)}},
     # Results
     [({BLoc(['Obj', 'PoseVarAfter', 'PR1'], True)}, {}),
      ({B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
@@ -1505,7 +1524,7 @@ lookAt = Operator(\
     f = lookAtBProgress,
     prim = lookPrim,
     argsToPrint = [0, 1, 3],
-    ignorableArgs = range(4, 11))
+    ignorableArgs = range(1, 11))
 
 lookAtHand = Operator(\
     'LookAtHand',

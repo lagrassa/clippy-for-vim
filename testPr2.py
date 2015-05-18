@@ -577,7 +577,7 @@ class PlanTest:
                 h = heuristic,
                 verbose = False,
                 fileTag = self.name if writeSearch else None,
-                nonMonOps = [move, moveNB, lookAt, place])
+                nonMonOps = ['Move', 'MoveNB', 'LookAt', 'Place'])
         else:
             p = planBackward(s,
                              goal,
@@ -735,15 +735,21 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                  varDict = varDict)
 
     hskel = [[poseAchIn],
-             [poseAchIn, lookAt, lookAt, lookAt, lookAt],
-             [lookAt, moveNB],
-             [lookAt],
-             [lookAt, moveNB],
-             [lookAt],
-             [poseAchIn],
-             [poseAchIn, lookAt, place],
-             [place],
-             [place, pick]]
+             [poseAchIn, place.applyBindings({'Obj' : 'objA'}),
+              lookAt.applyBindings({'Obj' : 'table1'})], #1
+             [lookAt.applyBindings({'Obj' : 'table1'}), move], #2
+             [move], #3
+             [lookAt.applyBindings({'Obj' : 'objA'})], #4
+             [place], #5
+             [lookAt.applyBindings({'Obj' : 'objA'}), moveNB], #6
+             [poseAchIn], #7
+             [poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), place], #8
+             [place.applyBindings({'Obj' : 'objA'}), pick], #9
+             [pick.applyBindings({'Obj' : 'objA'})], #10
+             [pick.applyBindings({'Obj' : 'objA'})], #11
+             [pick.applyBindings({'Obj' : 'objA'}), moveNB,
+              lookAt.applyBindings({'Obj' : 'objA'}), move] #14
+            ]
 
     skel = [[poseAchIn,
              lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
@@ -788,12 +794,6 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              place.applyBindings({'Obj': 'objA'}), move, 
              pick, moveNB]]
              
-    easySkel = [[poseAchIn,
-                 lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
-                 place.applyBindings({'Hand' : 'left', 'Obj': 'objA'}), move,
-                 pick, moveNB,
-                 lookAt.applyBindings({'Obj' : 'objA'}), move]]
-
     actualSkel = easySkel if easy else (hskel if hierarchical else skel)
 
     t.run(goal,
