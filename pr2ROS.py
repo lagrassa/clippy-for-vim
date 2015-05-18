@@ -133,8 +133,9 @@ def gazeCoords(cnfIn):
 # The key interface spec...
 # obs = env.executePrim(op, params)
 class RobotEnv:                         # plug compatible with RealWorld (simulator)
-    def __init__(self, world, **args):
+    def __init__(self, world, bs, **args):
         self.world = world
+        self.bs = bs                    # belief state for updates in prims
 
     # dispatch on the operators...
     def executePrim(self, op, params = None):
@@ -162,6 +163,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         for (i, conf) in enumerate(path):
             debugMsg('robotEnvCareful', '    conf[%d]'%i)
             result, outConf = pr2GoToConf(conf, 'move')
+
+            # !! Do some looking and update the belief state.
+            
         return None
 
     def executeMove(self, op, params):

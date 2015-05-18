@@ -168,8 +168,8 @@ class RealWorld(WorldState):
         obs = []
         for shape in self.getObjectShapes():
             curObj = shape.name()
-            if self.world.getObjType(curObj) != objType:
-                continue
+            # if self.world.getObjType(curObj) != objType:
+            #     continue
             obstacles = [s for s in self.getObjectShapes() if \
                          s.name() != curObj ]  + [self.robotPlace]
 

@@ -505,7 +505,8 @@ class PlanTest:
         ###   Initialize the world
         if glob.useROS:
             world = self.bs.pbs.getWorld()
-            self.realWorld = RobotEnv(world)
+            # pass belief state so that we can do obs updates in prims.
+            self.realWorld = RobotEnv(world, self.bs) 
             startConf = self.bs.pbs.conf.copy()
             # Move base to [0., 0., 0.]
             startConf.set('pr2Base', 3*[0.])

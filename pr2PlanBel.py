@@ -64,11 +64,14 @@ class PBS:
         self.pbs = self
         self.useRight = useRight
         self.avoidShadow = []  # shadows to avoid, in cached obstacles
-        self.shadowProb = None
+        self.domainProbs = domainProbs
         # cache
         self.shadowWorld = None                   # cached obstacles
-        self.domainProbs = domainProbs
-        self.objNames = self.fixObjBs.keys() + self.moveObjBs.keys()
+        self.shadowProb = None
+
+    def reset(self):
+        self.shadowWorld = None
+        self.shadowProb = None
 
     def getWorld(self):
         return self.beliefContext.world
@@ -157,7 +160,7 @@ class PBS:
         self.fixObjBs = getAllPoseBels(goalConds, world.getFaceFrames,
                                        self.getPlacedObjBs())
         self.moveObjBs = {}
-        self.shadowWorld = None
+        self.reset()
         finalObjects = self.objectsInPBS()
         if debug('conservation') and initialObjects != finalObjects:
             print 'Failure of conservation'
@@ -181,7 +184,7 @@ class PBS:
         self.moveObjBs = dict([(o, p) for (o, p) \
                                in self.getPlacedObjBs().iteritems() \
                                if o not in self.fixObjBs])
-        self.shadowWorld = None
+        self.reset()
         finalObjects = self.objectsInPBS()
         if debug('conservation') and initialObjects != finalObjects:
             print 'Failure of conservation'
@@ -196,7 +199,7 @@ class PBS:
         self.held[hand] = DeltaDist(obj) # !! Is this rigt??
         self.graspB[hand] = og
         self.excludeObjs([obj])
-        self.shadowWorld = None
+        self.reset()
         return self
 
     def updateHeldBel(self, graspB, hand):
@@ -207,7 +210,7 @@ class PBS:
             self.held[hand] = DeltaDist(graspB.obj) # !! Is this rigt??
         if graspB:
             self.excludeObjs([graspB.obj])
-        self.shadowWorld = None
+        self.reset()
         return self
     
     def updateConf(self, c):
@@ -224,7 +227,7 @@ class PBS:
             if self.held[hand].mode() == objPlace.obj:
                 self.updateHeldBel(None, hand)
         self.fixObjBs[obj] = objPlace
-        self.shadowWorld = None
+        self.reset()
         return self
 
     def updateObjB(self, objPlace):
@@ -235,13 +238,13 @@ class PBS:
             self.fixObjBs[obj] = objPlace
         else:
             assert None
-        self.shadowWorld = None
+        self.reset()
 
     def excludeObjs(self, objs):
         for obj in objs:
             if obj in self.fixObjBs: del self.fixObjBs[obj]
             if obj in self.moveObjBs: del self.moveObjBs[obj]
-        self.shadowWorld = None
+        self.reset()
         return self
 
     def extendFixObjBs(self, objBs, objShapes):
@@ -283,23 +286,42 @@ class PBS:
             # object is already in world, add it to sw
             # sw.setObjectPose(obj, objPose)
             faceFrame = objB.faceFrames[objB.support.mode()]
-            # Shadow relative to Identity pose
-            shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
             # The irreducible shadow
             objBMinDelta = self.domainProbs.minDelta
             # When base can move, use bigger variance from odoError
             objBMinVar = tuple([x**2 for x in self.domainProbs.odoError])
             # objMinVar = self.domainProbs.obsVarTuple
             objBMinProb = 0.95
-            if all([x <= y for (x,y) in zip(shadowWidths(objB.poseD.var, objB.delta, 0.99),
-                                            shadowWidths(objBMinVar, objBMinDelta, objBMinProb))]) \
-                   and obj in self.getWorld().graspDesc:
+            minShWidth = shadowWidths(objBMinVar, objBMinDelta, objBMinProb)
+            if obj in self.getWorld().graspDesc and \
+                   all([x <= y or abs(x-y)<1e-4 \
+                        for (x,y) in zip(shadowWidths(objB.poseD.var, objB.delta, 0.99),
+                                         minShWidth)]):
+                # actual shadow is small, so use that (for graspable objects)
                 objBMin = objB
             else:
                 objBMin = objB.modifyPoseD(var=objBMinVar)
                 objBMin.delta = objBMinDelta
 
+            shWidth = shadowWidths(objB.poseD.var, objB.delta, prob)
+            if all([x <= y or abs(x-y)<1e-4 for (x,y) in zip(shWidth, minShWidth)]):
+                # If the "min" shadow is wider than actual shadow, make them equal
+                objB = objBMin
+                prob = objBMinProb
+
+            # Shadows relative to Identity pose
+            shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
             shadowMin = self.objShadow(obj, obj, objBMinProb, objBMin, faceFrame) # use obj name
+
+            # if obj == 'table1':
+            #     shadow.draw('W', 'gray')
+            #     shadowMin.draw('W', 'brown')
+            #     print prob, objB
+            #     print shWidth
+            #     print objBMinProb, objBMin
+            #     print minShWidth
+            #     raw_input('Go?')
+
             w.addObjectShape(shadow)
             w.addObjectShape(shadowMin)
             sw.setObjectPose(shadow.name(), objPose)
@@ -364,6 +386,11 @@ class PBS:
     # Shadow over POSE variation.  Should only do finite number of poseVar/poseDelta values.
     def objShadow(self, obj, shName, prob, poseBel, faceFrame):
         shape = self.getObjectShapeAtOrigin(obj)
+        color = shape.properties.get('color', None) or \
+                (shape.parts() and [s.properties.get('color', None) for s in shape.parts()][0]) or \
+                'gray'
+        if shName == True or 'shadow' in shName:
+            color = 'gray'
         key = (shape, shName, prob, poseBel, faceFrame)
         shadow = self.beliefContext.objectShadowCache.get(key, None)
         if shadow:
@@ -371,7 +398,7 @@ class PBS:
         # Origin * Support = Pose => Origin = Pose * Support^-1
         frame = faceFrame.inverse()     # pose is indentity
         sh = shape.applyLoc(frame)      # the shape with the specified support
-        shadow = makeShadow(sh, prob, poseBel, name=shName)
+        shadow = makeShadow(sh, prob, poseBel, name=shName, color=color)
         self.beliefContext.objectShadowCache[key] = shadow
         debugMsg('objShadow', key, ('->', shadow.bbox()))
         return shadow
@@ -428,13 +455,13 @@ def sigmaPoses(prob, poseD, poseDelta):
         poses.append(util.Pose(*offPoseTuple))
     return poses
 
-def makeShadow(shape, prob, bel, name=None):
+def makeShadow(shape, prob, bel, name=None, color='gray'):
     shParts = []
     poses = sigmaPoses(prob, bel.poseD, bel.delta)
     if debug('getShadowWorld'):
         print 'sigma poses for', shape.name()
         wm.getWindow('W').clear()
-    color = shape.properties.get('color', 'gray')
+    shColor = shape.properties.get('color', color)
 
     for part in shape.parts():
         shp = []
@@ -444,7 +471,7 @@ def makeShadow(shape, prob, bel, name=None):
                 shp[-1].draw('W', 'cyan')
         # Note xyPrim !!
         shParts.append(shapes.Shape(shp, shape.origin(),
-                                    name=part.name(), color=color).xyPrim())
+                                    name=part.name(), color=shColor).xyPrim())
         if debug('getShadowWorld'):
             shParts[-1].draw('W', 'brown')
             raw_input('Next part?')
@@ -460,7 +487,7 @@ def makeShadow(shape, prob, bel, name=None):
             raw_input('multiple part shadow, Ok?')
         return shapes.Shape(shParts, shape.origin(),
                             name=name or shape.name(),
-                            color=color)
+                            color=shColor)
 
 def LEQ(x, y):
     return all([x1 <= y1 for (x1, y1) in zip(x,y)])

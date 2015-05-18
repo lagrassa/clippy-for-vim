@@ -1301,7 +1301,7 @@ def inTest(bState, obj, regName, prob, pB=None):
     faceFrame = placeB.faceFrames[placeB.support.mode()]
 
     # !! Clean this up
-    sh = bState.pbs.objShadow(obj, True, pFits, placeB, faceFrame)
+    sh = bState.pbs.objShadow(obj, shadowName(obj), pFits, placeB, faceFrame)
     shadow = sh.applyLoc(placeB.objFrame()) # !! is this right?
     shWorld = bState.pbs.getShadowWorld(prob)
     region = shWorld.regionShapes[regName]
