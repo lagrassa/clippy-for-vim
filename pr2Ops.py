@@ -923,7 +923,7 @@ def objectObsUpdate(details, lookConf, obsList):
     # Visible objects
     objList = [s for s in obstacles \
                if visible(shWorld, lookConf, s, rem(obstacles,s)+[rob], prob,
-                          moveHead=False, fixed=fixed)]
+                          moveHead=False, fixed=fixed)[0]]
     scores = {}
     for obj in objList:
         scores[(obj, None)] = 0.

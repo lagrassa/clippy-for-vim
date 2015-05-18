@@ -10,8 +10,9 @@ MVG = MultivariateGaussianDistribution
 import util
 from planGlobals import debugMsg, debug, debugOn
 from pr2Robot import gripperTip, gripperFaceFrame
-from pr2Visible import visible
+from pr2Visible import visible, lookAtConf
 from time import sleep
+from pr2Ops import lookAtBProgress
 
 # debug tables
 import pointClouds as pc
@@ -34,11 +35,14 @@ simulateError = False
 animate = False
 animateSleep = 0.2
 
+maxOpenLoopDist = 1.0
+
 pickSuccessDist = 0.1  # pretty big for now
 class RealWorld(WorldState):
-    def __init__(self, world, probs):
+    def __init__(self, world, bs, probs):
         # probs is an instance of DomainProbs
         WorldState.__init__(self, world)
+        self.bs = bs
         self.domainProbs = probs
 
     # dispatch on the operators...
@@ -62,7 +66,7 @@ class RealWorld(WorldState):
             raise Exception, 'Unknown operator: '+str(op)
 
     # Be sure there are no collisions.  If so, stop early.
-    def executePath(self, path, interpolated=None):
+    def doPath(self, path, interpolated=None):
         def getObjShapes():
             held = self.held.values()
             return [self.objectShapes[obj] \
@@ -70,6 +74,8 @@ class RealWorld(WorldState):
         objShapes = getObjShapes()
         obs = None
         path = interpolated or path
+        distSoFar = 0
+        prevXYT = self.robotConf.conf['pr2Base']
         for (i, conf) in enumerate(path):
             # !! Add noise to conf
             self.setRobotConf(conf)
@@ -82,7 +88,7 @@ class RealWorld(WorldState):
             leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
             rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
             debugMsg('path', 
-             ('base', conf['pr2Base'], 'left', leftPos, 'right', rightPos))
+                     ('base', conf['pr2Base'], 'left', leftPos, 'right', rightPos))
             for obst in objShapes:
                 if self.robotPlace.collides(obst):
                     obs ='crash'
@@ -104,9 +110,42 @@ class RealWorld(WorldState):
                 debugMsg('path',
                     ('base', conf['pr2Base'], 'left', leftPos,'right',rightPos))
                 break
+            newXYT = self.robotConf.conf['pr2Base']
+            # Integrate the displacement
+            distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
+            # approx pi => 1 meter
+            distSoFar += 0.33*abs(util.angleDiff(prevXYT[2],newXYT[2]))
+            print 'distSoFar', distSoFar
+            # Check whether we should look
+            args = 11*[None]
+            if distSoFar >= maxOpenLoopDist:
+                obj = self.visibleObj(objShapes)
+                lookConf = lookAtConf(self.robotConf, obj)
+                obs = self.doLook(lookConf)
+                if obs == []:
+                    raw_input('No observation')
+                args[1] = lookConf
+                lookAtBProgress(self.bs, args, obs)
+                distSoFar = 0           #  reset
+            prevXYT = newXYT
+
         wm.getWindow('World').update()
-        debugMsg('executePath', 'Admire the path')
+        debugMsg('doPath', 'Admire the path')
         return obs
+
+    def visibleObj(self, objShapes):
+        def rem(l,x): return [y for y in l if y != x]
+        prob = 0.95
+        world = self.bs.pbs.getWorld()
+        shWorld = self.bs.pbs.getShadowWorld(prob)
+        rob = self.bs.pbs.getRobot().placement(self.robotConf, attached=shWorld.attached)[0]
+        fixed = [s.name() for s in objShapes] + [rob.name()]
+        immovable = [s for s in objShapes if s not in world.graspDesc]
+        movable = [s for s in objShapes if s in world.graspDesc]
+        for s in immovable + movable:
+            if visible(shWorld, self.robotConf, s, rem(objShapes,s)+[rob], prob,
+                       moveHead=True, fixed=fixed):
+                return s
 
     def executeMove(self, op, params):
         vl = \
@@ -119,7 +158,7 @@ class RealWorld(WorldState):
             debugMsg('path', 'path len = ', len(path))
             if not path:
                 raw_input('No path!!')
-            obs = self.executePath(path, interpolated)
+            obs = self.doPath(path, interpolated)
         else:
             print op
             raw_input('No path given')
@@ -158,13 +197,12 @@ class RealWorld(WorldState):
             # visible
             return 'none'
 
-    def executeLookAt(self, op, params):
-        targetObj = op.args[0]
-        lookConf = op.args[1]
+    def doLook(self, lookConf):
         self.setRobotConf(lookConf)
+
         self.robotPlace.draw('World', 'orchid')
         debugMsg('sim', 'LookAt configuration')
-        objType = self.world.getObjType(targetObj)
+        # objType = self.world.getObjType(targetObj)
         obs = []
         for shape in self.getObjectShapes():
             curObj = shape.name()
@@ -204,6 +242,14 @@ class RealWorld(WorldState):
                 obs.append((objType, trueFace, util.Pose(*obsPlace)))
         print 'Observation', obs
         return obs
+
+    def executeLookAt(self, op, params):
+        # targetObj = op.args[0]
+        lookConf = op.args[1]
+        # !! This should not move the base...
+        assert lookConf.conf['pr2Base'] == self.robotConf.conf['pr2Base']
+
+        return self.doLook(lookConf)
 
     def executePick(self, op, params):
         # Execute the pick prim, starting at c1, aiming for c2.

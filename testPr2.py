@@ -503,8 +503,8 @@ class PlanTest:
         self.buildBelief(home=home, regions = set(regions))
 
         ###   Initialize the world
+        world = self.bs.pbs.getWorld()
         if glob.useROS:
-            world = self.bs.pbs.getWorld()
             # pass belief state so that we can do obs updates in prims.
             self.realWorld = RobotEnv(world, self.bs) 
             startConf = self.bs.pbs.conf.copy()
@@ -515,7 +515,7 @@ class PlanTest:
             result, cnfOut = pr2GoToConf(cnfOut, 'reset')
             debugMsg('robotEnv', result, cnfOut)
         else:
-            self.realWorld = RealWorld(self.bs.pbs.getWorld(),
+            self.realWorld = RealWorld(world, self.bs,
                                        self.domainProbs) # simulator
             self.realWorld.setRobotConf(self.bs.pbs.conf)
             # LPK!! add collision checking
