@@ -881,7 +881,7 @@ class Operator(object):
         if any([(p.immutable and p.isGround() and\
                  not startState.fluentValue(p) == p.getValue()) \
                 for p in self.preconditionSet()]):
-                debugMsg('regression:fail', 'immutable precond is false',
+                debugMsg('regression:fail:immut', 'immutable precond is false',
                          [p for p in self.preconditionSet() if \
                           (p.immutable and p.isGround() and \
                             not startState.fluentValue(p) == p.getValue())])
@@ -978,7 +978,7 @@ class Operator(object):
                     nf = gf.copy()
                 if nf == None:
                     if not inHeuristic or debug('debugInHeuristic'):
-                        print 'special regression fail'
+                        print 'special regression fail; h =', inHeuristic
                         debugMsg('regression:fail', 'special regress failure')
                     return []
                 newFluents.append(nf)
@@ -1033,29 +1033,32 @@ class Operator(object):
         # Could fold the boundPrecond part of this in to addSet later
         if not newGoal.isConsistent(boundPreconds, startState.details):
             if not inHeuristic or debug('debugInHeuristic'):
-                if debug('regression:inconsistent'):
+                if debug('regression:fail'):
                     for f1 in boundPreconds:
                         for f2 in newGoal.fluents:
                             if f1.contradicts(f2, startState.details):
                                 print '    contradiction\n', f1, '\n', f2
-                    debugMsg('regression:inconsistent', self,
+                    debugMsg('regression:fail', self,
                              'preconds inconsistent with goal',
                              ('newGoal', newGoal), ('preconds', boundPreconds))
             bindingsNoGood = True
+            
         elif newGoal.couldBeClobbered(boundSE, startState.details):
             if not inHeuristic or debug('debugInHeuristic'):
-                if debug('clobber'):
+                if debug('regression:fail'):
                     for f1 in boundSE:
                         for f2 in newGoal.fluents:
                             if f1.couldClobber(f2, startState.details):
                                 print '    might clobber\n', f1, '\n', f2
-                    debugMsg('clobber', self,
+                    debugMsg('regression:fail', self,
                              'side effects may be inconsistent with goal',
                              ('newGoal', newGoal), ('sideEffects', boundSE))
-            # Idea!  If this happens, try the operator at a more concrete level
-            bindingsNoGood = True
-            #print 'possible clobbering...ignoring for now'
-            #bindingsNoGood = False
+
+            print 'Trying primitive op'
+            primOp = self.copy()
+            primOp.abstractionLevel = primOp.concreteAbstractionLevel
+            return primOp.regress(goal, startState)
+
         else:
             bindingsNoGood = False
 

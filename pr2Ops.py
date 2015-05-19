@@ -1226,7 +1226,9 @@ move = Operator(\
     # special regression condition.
     specialRegress = moveSpecialRegress,
     argsToPrint = [1, 2],
-    ignorableArgs = [0] + range(3,20))  # For abstraction
+    ignorableArgs = range(0,19))  # For abstraction
+    # Would like really to just pay attention to the base!!
+    #ignorableArgs = [0, 1] + range(3,20))  # For abstraction
 
 # Not allowed to move base
 moveNB = Operator(\

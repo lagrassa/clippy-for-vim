@@ -37,6 +37,7 @@ class BeliefState:
         if obj == 'none' or face == 'none':
             return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray), 1.0)])
         else:
+            if face == '*': face = None
             poseD = self.pbs.getGraspB(obj, hand, face).poseD
             return GMU([(MVG(poseD.mu.xyztTuple(), diagToSq(poseD.var)),
                         self.graspModeProb[hand])])
@@ -45,6 +46,7 @@ class BeliefState:
         if obj == 'none' or face == 'none':
             return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray), 1.0)])
         else:
+            if face == '*': face = None
             poseD = self.pbs.getPlaceB(obj, face).poseD
             return GMU([(MVG(poseD.mu.xyztTuple(), diagToSq(poseD.var)),
                          self.poseModeProbs[obj])])

@@ -739,12 +739,14 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              [poseAchIn, place.applyBindings({'Obj' : 'objA'}),
               lookAt.applyBindings({'Obj' : 'table1'})], #1
              [lookAt.applyBindings({'Obj' : 'table1'}), moveNB], #2
-             [place], #3
+             [place.applyBindings({'Obj' : 'objA'})], #3
              [lookAt.applyBindings({'Obj' : 'objA'})], #4
              [lookAt.applyBindings({'Obj' : 'objA'}), moveNB], #5
              [poseAchIn], #6
-             [poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), place], #7
-             [place.applyBindings({'Obj' : 'objA'}), pick], #8
+             [poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}),
+              place.applyBindings({'Obj' : 'objA'})], #7
+             [place.applyBindings({'Obj' : 'objA'}),
+              pick.applyBindings({'Obj' : 'objA'})], #8
              [pick.applyBindings({'Obj' : 'objA'})], #9
              [pick.applyBindings({'Obj' : 'objA'})], #10
              [pick.applyBindings({'Obj' : 'objA'}), move], #11
