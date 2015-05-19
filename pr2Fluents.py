@@ -919,7 +919,7 @@ class CanSeeFrom(Fluent):
         sh = shWorld.objectShapes[shName]
         obstacles = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ] + \
                     [conf.placement(shWorld.attached)]
-        ans, _ = visible(shWorld, conf, sh, obstacles, p)
+        ans, _ = visible(shWorld, conf, sh, obstacles, p, moveHead=False)
 
         return ans
 
@@ -945,7 +945,7 @@ class CanSeeFrom(Fluent):
         obstacles = [s for s in shWorld.getNonShadowShapes() if \
                      s.name() != obj ] + \
                      [conf.placement(shWorld.attached)]
-        ans, occluders = visible(shWorld, conf, sh, obstacles, p)
+        ans, occluders = visible(shWorld, conf, sh, obstacles, p, moveHead=False)
 
         debugMsg('CanSeeFrom',
                 ('obj', obj, pose), ('conf', conf),

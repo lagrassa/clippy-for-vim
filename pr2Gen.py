@@ -826,7 +826,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     def testFn(c):
         print 'Trying base conf', c['pr2Base']
         obst_rob = obst + [c.placement(shWorld.attached)]
-        return visible(shWorld, c, sh, obst_rob, prob)[0]
+        return visible(shWorld, c, sh, obst_rob, prob, moveHead=True)[0]
 
     (obj, placeB, lookDelta, base, prob) = args
     trace('lookGen(%s) h='%obj, fbch.inHeuristic)
@@ -978,7 +978,7 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
         if c not in placements:
             placements[c] = c.placement()
         ans = visible(shWorld, c, objInHand(c, hand),
-                       [placements[c]]+obst, prob)[0]
+                       [placements[c]]+obst, prob, moveHead=True)[0]
         return ans
 
     (obj, hand, graspB, prob) = args
@@ -1281,7 +1281,7 @@ def canSeeGenTop(args, goalConds, pbs, outBindings):
     shape = shWorld.objectShapes[placeB.obj]
     obst = [s for s in shWorld.getNonShadowShapes() \
             if s.name() != placeB.obj ]
-    p, occluders = visible(shWorld, conf, shape, obst, prob)
+    p, occluders = visible(shWorld, conf, shape, obst, prob, moveHead=True)
     occluders = [oc for oc in occluders if oc not in newBS.fixObjBs]
     if not occluders:
         tracep('canSeeGen', 'no occluders')

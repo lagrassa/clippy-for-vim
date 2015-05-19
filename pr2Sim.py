@@ -215,7 +215,8 @@ class RealWorld(WorldState):
             if (not deb) and debug('visibleEx'): debugOn.append('visible')
             vis, _ = visible(self, self.robotConf,
                              self.objectShapes[curObj],
-                             obstacles, 0.75, fixed=[self.robotPlace.name()])
+                             obstacles, 0.75, moveHead=False,
+                             fixed=[self.robotPlace.name()])
             if not deb and debug('visibleEx'): debugOn.remove('visible')
             if not vis:
                 print 'Object', curObj, 'is not visible'

@@ -172,10 +172,10 @@ def canView(pbs, prob, conf, hand, shape):
             conf.draw('W')
             raw_input('ViewCone collision')
         avoid = shapes.Shape([vc, shape], None)
-        path= planRobotGoalPath(pbs, prob, conf,
-                                lambda c: not avoid.collides(c.placement()), None,
-                                [pbs.getRobot().armChainNames[hand]],
-                                maxIter = 20)
+        path, viol = planRobotGoalPath(pbs, prob, conf,
+                                       lambda c: not avoid.collides(c.placement()), None,
+                                       [pbs.getRobot().armChainNames[hand]],
+                                       maxIter = 20)
         if not path:
             return None
         if debug('canView'):

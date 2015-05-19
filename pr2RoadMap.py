@@ -355,7 +355,7 @@ class RoadMap:
                 if debug('confReachViolCache'): print 'confReachCache miss'
 
         def checkFullCache():
-            return checkCache((targetConf, initConf))
+            return checkCache((targetConf, initConf, moveBase))
 
         def checkApproachCache():
             if fbch.inHeuristic: return # don't bother
@@ -408,10 +408,6 @@ class RoadMap:
         if cached:
             return confAns(cached, reverse=True)
 
-        # rrtPath = rrt.planRobotPath(pbs, prob, initConf, targetConf, None, targetConf.keys())
-        # for c in rrtPath: c.draw('W', 'blue')
-        # raw_input('Go?')
-        
         targetCluster = self.addToCluster(targetNode, connect=False)
         startCluster = self.addToCluster(initNode)
         graph = combineNodeGraphs(self.clusterGraph,
@@ -424,6 +420,10 @@ class RoadMap:
         ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
                                      initViol=initViol, optimize=optimize, moveBase=moveBase)
         ans = next(ansGen, None)
+        if (ans == None or ans[0] == None) and not moveBase:
+            path, viol = rrt.planRobotPathSeq(pbs, prob, initConf, targetConf, None,
+                                              maxIter=20, failIter=5)
+            return (viol, 0, path) 
         cacheAns(ans)
         return confAns(ans, reverse=True)
 
@@ -1323,7 +1323,6 @@ def validEdge(node_i, node_f):
         return True
     return False
     
-        
 def minViolPathDebug(n):
     (node, _) = n.state
     node.conf.draw('W')

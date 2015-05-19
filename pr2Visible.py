@@ -33,9 +33,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     if not lookConf:
         cache[key] = (False, [])
         return False, []
-
-    vc = viewCone(conf, shape)
-        
+    vc = viewCone(conf, shape, moveHead=moveHead)
     if debug('visible'):
         vc.draw('W', 'red')
         shape.draw('W', 'cyan')
@@ -135,9 +133,12 @@ def lookAtConf(conf, shape):
     if all(lookConf.values()):
         return lookConf
 
-def viewCone(conf, shape, offset = 0.1):
+def viewCone(conf, shape, offset = 0.1, moveHead=True):
 
-    lookConf = lookAtConf(conf, shape)
+    if moveHead:
+        lookConf = lookAtConf(conf, shape)
+    else:
+        lookConf = conf
     if not lookConf:
         return
     lookCartConf = lookConf.cartConf()
