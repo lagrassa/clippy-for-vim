@@ -814,16 +814,13 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False, multiplier=8):
 
     glob.rebindPenalty = 700
-    glob.monotonicFirst = False
+    glob.monotonicFirst = True
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
 
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
-    # varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.05**2),
-    #                            'table2': (0.03**2, 0.03**2, 1e-10, 0.05**2),
-    #                            'objA': (0.05**2, 0.05**2, 1e-10, 0.05**2)} 
     front = util.Pose(1.1, 0.0, tZ, 0.0)
     table2Pose = util.Pose(1.0, -1.00, 0.0, 0.0)
     table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)

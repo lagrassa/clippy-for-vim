@@ -776,7 +776,7 @@ class Operator(object):
         for i in range(maxRange):
             result.extend(self.sideEffects.get(i, set({})))
         # Preconditions from level i+1 to max
-        for i in range(maxRange, self.concreteAbstractionLevel + 1):
+        for i in range(self.abstractionLevel + 1, maxRange):
             result.extend(self.preconditions[i])
         return result
 
@@ -991,7 +991,8 @@ class Operator(object):
         boundPreconds = [f.applyBindings(newBindings) \
                          for f in self.preconditionSet()]
 
-        boundSE = [f.applyBindings(newBindings) for f in self.sideEffectSet()]
+        boundSE = [f.applyBindings(newBindings) \
+                   for f in self.sideEffectSet(allLevels = True)]
 
         explicitResults = [r for r in boundResults \
                            if r.isGround() and not r.isImplicit()]
@@ -1054,9 +1055,9 @@ class Operator(object):
                              'side effects may be inconsistent with goal',
                              ('newGoal', newGoal), ('sideEffects', boundSE))
 
-            print 'Trying primitive op'
+            print 'Trying less abstract version of op'
             primOp = self.copy()
-            primOp.abstractionLevel = primOp.concreteAbstractionLevel
+            primOp.abstractionLevel += 1
             return primOp.regress(goal, startState)
 
         else:

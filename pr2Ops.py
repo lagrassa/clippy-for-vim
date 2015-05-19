@@ -938,8 +938,7 @@ def objectObsUpdate(details, lookConf, obsList):
         if score > bestScore:
             bestAssignment = assignment
             bestScore = score
-    if debug('beliefUpdate'):
-        print 'bestAssignment', bestAssignment
+    debugMsg('beliefUpdate', ('bestAssignment', bestAssignment))
     for obj, obs in bestAssignment:
         if obs:
             singleTargetUpdate(details, scores[(obj, obs)], obj.name())
@@ -951,7 +950,8 @@ def allAssignments(objList, obsList, scores, assignment = []):
     for obs in obsList:
         a = (objList[0], obs)
         if a in scores:
-            assignments.extend(allAssignments(objList[1:], obsList, scores, assignment+[a]))
+            assignments.extend(allAssignments(objList[1:],
+                                              obsList, scores, assignment+[a]))
     return assignments
 
 def obsDist(details, obj):

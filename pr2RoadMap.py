@@ -1349,10 +1349,13 @@ def pickByName(ob, ls):
 
 def importViol(initViol, obst, shad):
     if initViol and initViol.weight() > 0:
-        viol = Violations([pickByName(x, obst) for x in initViol.obstacles],
-                          [pickByName(x, shad) for x in initViol.shadows])
-        if None in viol.obstacles: viol.obstacles = viol.obstacles.remove(None)
-        if None in viol.shadows: viol.shadows = viol.shadows.remove(None)
+        oarg = [pickByName(x, obst) for x in initViol.obstacles]
+        sharg =  [pickByName(x, shad) for x in initViol.shadows]
+        while None in oarg:
+            oarg.remove(None)
+        while None in sharg:
+            sharg.remove(None)
+        viol = Violations(oarg, sharg)
         return viol
     else:
         return initViol
