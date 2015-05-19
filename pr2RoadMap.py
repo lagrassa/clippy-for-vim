@@ -301,7 +301,8 @@ class RoadMap:
             entry.draw('W', color=color)
 
     def confReachViol(self, targetConf, pbs, prob,
-                      initViol=viol0, startConf = None, optimize = False):
+                      initViol=viol0, startConf = None,
+                      optimize = False, moveBase = True):
 
         def displayAns(ans):
             if not debug('confReachViol'): return
@@ -329,7 +330,7 @@ class RoadMap:
                          ('initViol', initViol),
                          ('avoidShadow', pbs.avoidShadow))
             if not (optimize or fbch.inHeuristic):
-                key = (targetConf, initConf)
+                key = (targetConf, initConf, moveBase)
                 if not key in self.confReachCache:
                     self.confReachCache[key] = []
                 self.confReachCache[key].append((pbs, prob,
@@ -341,7 +342,7 @@ class RoadMap:
                 if debug('confReachViolCache'): print 'confReachCache tentative hit'
                 cacheValues = self.confReachCache[key]
                 sortedCacheValues = sorted(cacheValues,
-                                           key=lambda v: v[-1][0].weight() if v[-1][0] else v[-1][0])
+                                           key=lambda v: v[-1][0].weight() if v[-1][0] else 1000.)
                 ans = bsEntails(pbs, prob, sortedCacheValues, loose=loose)
                 if ans != None:
                     if debug('traceCRH'): print '    actual', type, 'cache hit',
@@ -359,7 +360,7 @@ class RoadMap:
         def checkApproachCache():
             if fbch.inHeuristic: return # don't bother
             if targetConf in self.approachConfs:
-                ans = checkCache((self.approachConfs[targetConf], initConf),
+                ans = checkCache((self.approachConfs[targetConf], initConf, moveBase),
                                  type='approach', loose=True)
                 # !! This does not bother adding the final location to the path
                 if not ans:
@@ -379,7 +380,7 @@ class RoadMap:
                 (viol, cost, edgePath) = ans
                 path = self.confPathFromEdgePath(edgePath)
                 if reverse: path.reverse()
-                return (viol.update(initViol), cost, path)
+                return (viol, cost, path)
             else:
                 return (None, None, None)
 
@@ -416,13 +417,12 @@ class RoadMap:
         graph = combineNodeGraphs(self.clusterGraph,
                                   startCluster.nodeGraph,
                                   targetCluster.nodeGraph)
-
         # if not fbch.inHeuristic:
         #     print '    Graph nodes =', len(graph.incidence), 'graph edges', len(graph.edges)
         if debug('traceCRH'): print '    find path',
         # search back from target...
         ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
-                                     initViol=initViol, optimize=optimize)
+                                     initViol=initViol, optimize=optimize, moveBase=moveBase)
         ans = next(ansGen, None)
         cacheAns(ans)
         return confAns(ans, reverse=True)
@@ -944,6 +944,7 @@ class RoadMap:
             debugMsg('confViolations',
                      ('obstacles:', [o.name() for o in obst]),
                      ('shadows:', [o.name() for o in shad]))
+        initViol = importViol(initViol, obst, shad)
         return initViol.update(Violations(obst, shad)), (False, False)
 
     def testEdge(self, edge, pbs, prob, viol=viol0, optimize=False):
@@ -963,7 +964,7 @@ class RoadMap:
         return viol.combine(obst, shad)        
 
     def minViolPathGen(self, graph, startNode, targetNodes, pbs, prob, initViol=viol0,
-                       optimize = False, draw=False,
+                       optimize = False, draw=False, moveBase = True,
                        testFn = lambda x: True, goalCostFn = lambda x: 0):
 
         def testConnection(edge, viol):
@@ -982,6 +983,10 @@ class RoadMap:
                     print v
                     raw_input('No edges are incident')
             for edge in graph.incidence.get(v, []):
+                (a, b)  = edge.ends
+                if not moveBase:
+                    if a.baseConf() != b.baseConf():
+                        continue
                 nviol = testConnection(edge, viol)
                 if nviol is None:
                     if debug('successors'):
@@ -990,7 +995,6 @@ class RoadMap:
                         edge.draw('W', 'orange')
                         raw_input('Collision on edge')
                     continue
-                (a, b)  = edge.ends
                 w = a if a != v else b
                 successors.append((w, nviol))                  
 
@@ -1021,6 +1025,7 @@ class RoadMap:
                            if not sh.name() in fixed])
         shadowSet = set([sh for sh in shWorld.getShadowShapes() \
                            if not sh.name() in fixed])
+        initViol = importViol(initViol, obstacleSet, shadowSet)
         attached = shWorld.attached
         prev = set([startNode])
         targets = [(goalCostFn(tnode), tnode) for tnode in targetNodes]
@@ -1337,4 +1342,17 @@ def reachable(graph, node):
         agenda.append(other)
     return reach
 
-    
+def pickByName(ob, ls):
+    for x in ls:
+        if ob.name() == x.name():
+            return x
+
+def importViol(initViol, obst, shad):
+    if initViol and initViol.weight() > 0:
+        viol = Violations([pickByName(x, obst) for x in initViol.obstacles],
+                          [pickByName(x, shad) for x in initViol.shadows])
+        if None in viol.obstacles: viol.obstacles = viol.obstacles.remove(None)
+        if None in viol.shadows: viol.shadows = viol.shadows.remove(None)
+        return viol
+    else:
+        return initViol

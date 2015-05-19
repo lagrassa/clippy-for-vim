@@ -1149,52 +1149,12 @@ def canReachNB(pbs, startConf, conf, prob, initViol, optimize = False, draw=True
     viol, cost, pathRev = rm.confReachViol(initConf, pbs, prob,
                                            initViol,
                                            startConf=conf,
-                                           optimize=optimize)
+                                           optimize=optimize,
+                                           moveBase = False)
     path = pathRev[::-1] if pathRev else pathRev
-
-    if debug('checkCRH') and fbch.inHeuristic:
-        pbs.draw(prob, 'W')
-        fbch.inHeuristic = False
-        pbs.shadowWorld = None
-        pbs.draw(prob, 'W', clear=False) # overlay
-        conf.draw('W', 'blue')
-        initConf.draw('W', 'pink')
-        viol2, cost2, pathRev2 = rm.confReachViol(initConf, pbs, prob,
-                                                  initViol,
-                                                  avoidShadow=avoidShadow,
-                                                  startConf=conf,
-                                                  optimize = optimize)
-        fbch.inHeuristic = True
-        # Check for heuristic (viol) being worse than actual (viol2)
-        if viol != viol2 and viol2 != None \
-               and ((viol == None and viol2 != None) \
-                    or (viol.weight() > viol2.weight())):
-            print 'viol with full model', viol2
-            print 'viol with min  model', viol
-            if viol2:
-                [o.draw('W', 'red') for o in viol2.obstacles]
-                [o.draw('W', 'orange') for o in viol2.shadows]
-            if viol:
-                [o.draw('W', 'purple') for o in viol.obstacles]
-                [o.draw('W', 'pink') for o in viol.shadows]
-            raw_input('Continue?')
 
     if debug('traceCRH'):
         print '    canReachNB h=', fbch.inHeuristic, 'viol=:', viol.weight() if viol else None
-    if not path:
-        if fbch.inHeuristic and debug('extraTests'):
-            pbs.draw(prob, 'W')
-            print 'canReachHome failed with inHeuristic=True'
-            fbch.inHeuristic = False
-            viol, cost, path = rm.confReachViol(conf, pbs, prob,
-                                                initViol,
-                                                avoidShadow=avoidShadow,
-                                                startConf=startConf)
-            if path:
-                raw_input('Inconsistency')
-            else:
-                print 'Consistent result with inHeuristic=False'
-            fbch.inHeuristic = True
 
     if (not fbch.inHeuristic) or debug('drawInHeuristic'):
         if debug('canReachNB'):
