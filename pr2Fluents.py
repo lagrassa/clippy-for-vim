@@ -471,6 +471,15 @@ class CanReachNB(Fluent):
             return False
         
         path, violations = self.getViols(bState, v, p)
+
+        if not bool(path and violations.empty()):
+            startConf.draw('W', 'black')
+            endConf.draw('W', 'blue')
+            print 'Conditions'
+            for c in self.args[-1]: print '    ', c
+            print 'Violations', violations
+            raw_input('CanReachNB is false!!')
+
         return bool(path and violations.empty())
 
     def getGrounding(self, details):
@@ -1209,10 +1218,11 @@ def canReachHome(pbs, conf, prob, initViol,
         print '    canReachHome h=', fbch.inHeuristic, 'viol=:', viol.weight() if viol else None
     if not path:
 
-        if fbch.inHeuristic:
-            pbs.draw(prob, 'W')
-            conf.draw('W', attached=pbs.getShadowWorld(prob).attached)
-            raw_input('canReachHome failed with inHeuristic=True')
+        # LPK took this out;  it's not necessarily a bad thing
+        # if fbch.inHeuristic:
+        #     pbs.draw(prob, 'W')
+        #     conf.draw('W', attached=pbs.getShadowWorld(prob).attached)
+        #     raw_input('canReachHome failed with inHeuristic=True')
 
         if fbch.inHeuristic and debug('extraTests'):
             pbs.draw(prob, 'W')
