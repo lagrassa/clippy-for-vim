@@ -243,7 +243,8 @@ def searchGen(initialState, goalStates, actions, successor,
     expanded = set([])
     while (not agenda == [] and goalStates and maxNodes > count and maxExpanded > countExpanded):
         if verbose:
-            print "agenda: ", agenda
+            print "agenda: ",
+            for (h, _, n) in agenda: print '    ', h, n.state
         (hc, _, n) = heappop(agenda)
 
         if n.state in expanded:

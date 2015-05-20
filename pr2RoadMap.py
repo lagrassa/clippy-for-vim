@@ -27,11 +27,12 @@ objCollisionCost = 10.0                    # !! was 2.0
 shCollisionCost = 2.0
 
 maxSearchNodes = 5000                   # 5000
-maxExpandedNodes = 2000                  # 1500
+maxExpandedNodes = 2000                  # 2000
 searchGreedy = 0.75
 searchOpt = 0.75                        # should be 0.5 ideally, but it's slow...
 
-minStep = 0.25               # !! normally 0.25 for joint interpolation
+useVisited = True           # unjustified
+minStep = 0.25              # !! normally 0.25 for joint interpolation
 
 confReachViolGenBatch = 10
 
@@ -80,7 +81,7 @@ class Node(Hashable):
     def desc(self):
         return self.conf                # used for hashing and equality
     def __str__(self):
-        return 'Node:'+str(self.id)     # +prettyString(self.desc())
+        return 'Node:'+str(self.id)+prettyString(self.point)
     __repr__ = __str__
 
 def makeNode(conf, cart=None):
@@ -944,7 +945,6 @@ class RoadMap:
             debugMsg('confViolations',
                      ('obstacles:', [o.name() for o in obst]),
                      ('shadows:', [o.name() for o in shad]))
-        initViol = importViol(initViol, obst, shad)
         return initViol.update(Violations(obst, shad)), (False, False)
 
     def testEdge(self, edge, pbs, prob, viol=viol0, optimize=False):
@@ -984,9 +984,16 @@ class RoadMap:
                     raw_input('No edges are incident')
             for edge in graph.incidence.get(v, []):
                 (a, b)  = edge.ends
+                w = a if a != v else b
                 if not moveBase:
                     if a.baseConf() != b.baseConf():
                         continue
+
+                # !! Wholly unjustified...
+                if useVisited:
+                    if w in visited: continue
+                    else: visited.add(w)
+
                 nviol = testConnection(edge, viol)
                 if nviol is None:
                     if debug('successors'):
@@ -995,7 +1002,6 @@ class RoadMap:
                         edge.draw('W', 'orange')
                         raw_input('Collision on edge')
                     continue
-                w = a if a != v else b
                 successors.append((w, nviol))                  
 
             if draw or debug('successors'):
@@ -1011,6 +1017,7 @@ class RoadMap:
                 
             return successors
 
+        visited = set([])
         shWorld = pbs.getShadowWorld(prob)
 
         if draw or debug('successors'):
@@ -1025,7 +1032,6 @@ class RoadMap:
                            if not sh.name() in fixed])
         shadowSet = set([sh for sh in shWorld.getShadowShapes() \
                            if not sh.name() in fixed])
-        initViol = importViol(initViol, obstacleSet, shadowSet)
         attached = shWorld.attached
         prev = set([startNode])
         targets = [(goalCostFn(tnode), tnode) for tnode in targetNodes]
@@ -1049,6 +1055,11 @@ class RoadMap:
         
         if targets:                     # some targets remaining
             # Each node is (conf node, obj collisions, shadow collisions)
+            if debug('expand'):
+                wm.getWindow('W').clear()
+                pbs.draw(prob, 'W')
+                startNode.conf.draw('W','blue')
+                targets[0][1].conf.draw('W','pink')
             gen = search.searchGen((startNode, initViol),
                                    [x[1] for x in targets],
                                    successors,
@@ -1062,7 +1073,8 @@ class RoadMap:
                                    goalCostFn = goalCostFn,
                                    maxNodes = maxSearchNodes, maxExpanded = maxExpandedNodes,
                                    maxHDelta = None,
-                                   expandF = minViolPathDebug if debug('expand') else None,
+                                   expandF = minViolPathDebugExpand if debug('expand') else None,
+                                   visitF = minViolPathDebugVisit if debug('expand') else None,
                                    greedy = searchOpt if optimize else searchGreedy,
                                    printFinal = True,
                                    verbose = False)
@@ -1322,11 +1334,23 @@ def validEdge(node_i, node_f):
         # Not strictly back, so the head can look at where it's going
         return True
     return False
-    
-def minViolPathDebug(n):
+
+r = 0.02
+boxPoint = shapes.Shape([shapes.BoxAligned(np.array([(-2*r, -2*r, -r), (2*r, 2*r, r)]), None),
+                         shapes.BoxAligned(np.array([(2*r, -r, -r), (3*r, r, r)]), None)], None)
+def minViolPathDebugExpand(n):
     (node, _) = n.state
-    node.conf.draw('W')
-    raw_input('expand')
+    # node.conf.draw('W')
+    # raw_input('expand')
+    (x,y,th) = node.conf['pr2Base']
+    boxPoint.applyTrans(util.Pose(x,y,0,th)).draw('W')
+    wm.getWindow('W').update()
+
+def minViolPathDebugVisit(state, cost, heuristicCost, a, newState, newCost, hValue):
+    (node, _) = newState
+    (x,y,th) = node.conf['pr2Base']
+    boxPoint.applyTrans(util.Pose(x,y,0,th)).draw('W', 'cyan')
+    wm.getWindow('W').update()
 
 def reachable(graph, node):
     reach = set([])
@@ -1345,16 +1369,3 @@ def pickByName(ob, ls):
     for x in ls:
         if ob.name() == x.name():
             return x
-
-def importViol(initViol, obst, shad):
-    if initViol and initViol.weight() > 0:
-        oarg = [pickByName(x, obst) for x in initViol.obstacles]
-        sharg =  [pickByName(x, shad) for x in initViol.shadows]
-        while None in oarg:
-            oarg.remove(None)
-        while None in sharg:
-            sharg.remove(None)
-        viol = Violations(oarg, sharg)
-        return viol
-    else:
-        return initViol

@@ -146,8 +146,7 @@ class Violations(Hashable):
     def empty(self):
         return (not self.obstacles) and (not self.shadows)
     def combine(self, obstacles, shadows):
-        return Violations(frozenset(self.obstacles.union(obstacles)),
-                          frozenset(self.shadows.union(shadows)))
+        return self.update(Violations(obstacles, shadows))
     def update(self, viol):
         def upd(curShapes, newShapes):
             curDict = dict([(o.name(), o) for o in curShapes])
