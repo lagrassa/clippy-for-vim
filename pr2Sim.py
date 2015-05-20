@@ -120,13 +120,20 @@ class RealWorld(WorldState):
             args = 11*[None]
             if distSoFar >= maxOpenLoopDist:
                 obj = self.visibleObj(objShapes)
-                lookConf = lookAtConf(self.robotConf, obj)
-                obs = self.doLook(lookConf)
-                if obs == []:
-                    raw_input('No observation')
-                args[1] = lookConf
-                lookAtBProgress(self.bs, args, obs)
-                distSoFar = 0           #  reset
+                if obj:
+                    lookConf = lookAtConf(self.robotConf, obj)
+                    if lookConf:
+                        obs = self.doLook(lookConf)
+                        if obs:
+                            args[1] = lookConf
+                            lookAtBProgress(self.bs, args, obs)
+                            distSoFar = 0           #  reset
+                        else:
+                            raw_input('No observation')
+                    else:
+                        raw_input('No lookConf for %s'%obj.name())
+                else:
+                    raw_input('No visible object')
             prevXYT = newXYT
 
         wm.getWindow('World').update()
@@ -144,7 +151,7 @@ class RealWorld(WorldState):
         movable = [s for s in objShapes if s in world.graspDesc]
         for s in immovable + movable:
             if visible(shWorld, self.robotConf, s, rem(objShapes,s)+[rob], prob,
-                       moveHead=True, fixed=fixed):
+                       moveHead=True, fixed=fixed)[0]:
                 return s
 
     def executeMove(self, op, params):

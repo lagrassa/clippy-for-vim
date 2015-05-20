@@ -1138,6 +1138,13 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
      obj, pose, realPoseVar, poseDelta, poseFace,
      graspFace, graspMu, graspVar, graspDelta, oobj, oface, oGraspMu, oGraspVar,
      oGraspDelta, prob, cond, op) = args
+
+    goalFluent = Bd([CanPickPlace([preconf, ppconf, hand, obj, pose, realPoseVar, poseDelta, poseFace,
+                                   graspFace, graspMu, graspVar, graspDelta, oobj, oface, oGraspMu, oGraspVar,
+                                   oGraspDelta, op, cond]), True, prob], True)
+
+    goalConds = goalConds + [goalFluent]
+
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     
     def moveOut(newBS, obst, delta):
@@ -1196,9 +1203,10 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     moveDelta = objBMinDelta
 
     # Try to fix one of the violations if any...
+    goalPoseObjs = getPoseObjs(goalConds)
     if viol.obstacles:
         obsts = [o.name() for o in viol.obstacles \
-                 if o.name() not in newBS.fixObjBs]
+                 if o.name() not in newBS.fixObjBs + goalPoseObjs]
         if not obsts:
             tracep('canPickPlaceGen', 'No movable obstacles to remove')
             return       # nothing available
@@ -1206,7 +1214,12 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         for ans in moveOut(newBS, obsts[0], moveDelta):
             yield ans 
     else:
-        obst = objectName(list(viol.shadows)[0])
+        obsts = [objectName(o.name()) for o in viol.shadows \
+                 if objectName(o.name()) not in goalPoseObjs]
+        if not obsts:
+            tracep('canPickPlaceGen', 'No varinances to reduce')
+            return       # nothing available
+        obst = obsts[0]                 # pick one
         pB = newBS.getPlaceB(obst)
         # !! It could be that sensing is not good enough to reduce the
         # shadow so that we can actually reach conf.

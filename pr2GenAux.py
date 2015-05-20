@@ -569,6 +569,15 @@ def getCRHObsts(goalConds, pbs):
     debugMsg('getReachObsts', ('->', len(obsts), 'obsts'))
     return obsts
 
+def getPoseObjs(goalConds):
+    pfbs = fbch.getMatchingFluents(goalConds,
+                                   B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
+    objs = []
+    for (pf, pb) in pfbs:
+        if isGround(pb.values()):
+            objs.append(pb['Obj'])
+    return objs
+
 def bboxRandomDrawCoords(bb):
     pt = tuple([random.uniform(bb[0,i], bb[1,i]) for i in xrange(3)])
     return pt[:2]+(bb[0,2],)
@@ -718,9 +727,13 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         print 'potentialRegionPoseGen pose specified', placeB.poseD.mode()
         sh = objShadow.applyLoc(placeB.objFrame())
         if any(np.all(np.all(np.dot(rs.planes(), sh.vertices()) <= tiny, axis=1)) \
-               for rs in regShapes):
-            print 'potentialRegionPoseGen pose specified and in region', placeB.poseD.mode()
+               for rs in regShapes)  and \
+           all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
+            print 'potentialRegionPoseGen pose specified and safely in region', placeB.poseD.mode()
             yield placeB.poseD.mode()
+        else:
+            print 'potentialRegionPoseGen pose specified and not safely in region'
+
     shRotations = dict([(angle, objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
     obstCost = 10.

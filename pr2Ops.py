@@ -1013,7 +1013,7 @@ def singleTargetUpdate(details, obs, object):
                                          DeltaDist(oldPlaceB.support.mode()),
                                          PoseD(util.Pose(*newMu), newSigma)))
         if debug('obsUpdate'):
-            objShape = pbs.getObjectShapeAtOrigin(object)
+            objShape = details.pbs.getObjectShapeAtOrigin(object)
             objShape.applyLoc(util.Pose(*newMu).compose(ff.inverse())).\
               draw('Belief', 'magenta')
             raw_input('newMu is magenta')
