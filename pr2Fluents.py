@@ -592,6 +592,10 @@ class CanPickPlace(Fluent):
           graspFace, graspMu, graspVar, graspDelta,
          oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
         opType, inconds) = self.args
+
+        if details:
+            pbs = details.pbs
+            pbs.getRoadMap().approachConfs[ppConf] = preConf
     
         assert obj != 'none'
 

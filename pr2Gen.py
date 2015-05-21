@@ -1206,7 +1206,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     goalPoseObjs = getPoseObjs(goalConds)
     if viol.obstacles:
         obsts = [o.name() for o in viol.obstacles \
-                 if o.name() not in newBS.fixObjBs + goalPoseObjs]
+                 if o.name() not in newBS.fixObjBs.keys() + goalPoseObjs]
         if not obsts:
             tracep('canPickPlaceGen', 'No movable obstacles to remove')
             return       # nothing available

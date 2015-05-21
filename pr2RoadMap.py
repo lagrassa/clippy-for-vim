@@ -20,7 +20,7 @@ import fbch
 import planGlobals as glob
 from planGlobals import debugMsg, debug, debugDraw, debugOn
 from miscUtil import prettyString
-
+from heapq import heappush, heappop
 from pr2Util import Violations, NextColor, drawPath, NextColor, shadowWidths, Hashable
 
 objCollisionCost = 10.0                    # !! was 2.0
@@ -28,13 +28,15 @@ shCollisionCost = 2.0
 
 maxSearchNodes = 5000                   # 5000
 maxExpandedNodes = 2000                  # 2000
-searchGreedy = 0.75
-searchOpt = 0.75                        # should be 0.5 ideally, but it's slow...
+searchGreedy = 0.75 # greedy, trust that the heuristic is good...
+searchOpt = 0.5     # should be 0.5 ideally, but it's slow...
 
 useVisited = True           # unjustified
 minStep = 0.25              # !! normally 0.25 for joint interpolation
 
 confReachViolGenBatch = 10
+
+nodePointRotScale = 0.1
 
 nodeHash = {}
 node_idnum = 0
@@ -46,6 +48,7 @@ class Node(Hashable):
         self.cartConf = cartConf
         self.point = tuple(point or self.pointFromConf(self.conf)) # used for nearest neighbors
         self.key = False
+        self.hVal = None
     def cartConf(self):
         if not self.cartConf:
             self.cartConf = self.conf.cartConf()
@@ -62,7 +65,7 @@ class Node(Hashable):
                     point.extend(conf[chain])
         else:
             x,y,th=conf['pr2Base']
-            point = (x,y, 0.1*math.cos(th), 0.1*math.sin(th))
+            point = (x,y, nodePointRotScale*math.cos(th), nodePointRotScale*math.sin(th))
         return point
     def pointFromCart(self, cart, alpha = 0.1):
         point = []
@@ -121,7 +124,7 @@ class Cluster:
         self.id = cluster_idnum; cluster_idnum += 1
         self.baseConf = nodes[0].baseConf()
         x,y,th = self.baseConf
-        self.point = (x,y,0.1*math.cos(th), 0.1*math.sin(th)) # used for nearest neighbors
+        self.point = (x,y,nodePointRotScale*math.cos(th), nodePointRotScale*math.sin(th)) # used for nearest neighbors
         self.nodes = nodes
         self.reps = set([])             # representative nodes
         self.kdTree = KDTree(nodes, params['kdLeafSize'])
@@ -358,23 +361,6 @@ class RoadMap:
         def checkFullCache():
             return checkCache((targetConf, initConf, moveBase))
 
-        def checkApproachCache():
-            if fbch.inHeuristic: return # don't bother
-            if targetConf in self.approachConfs:
-                ans = checkCache((self.approachConfs[targetConf], initConf, moveBase),
-                                 type='approach', loose=True)
-                # !! This does not bother adding the final location to the path
-                if not ans:
-                    if debug('traceCRH'):
-                        raw_input('    No cached value for approach')
-                    return None
-                cv = self.confViolations(targetConf, pbs, prob)[0]
-                if cv != None:
-                    (viol, cost, path) = ans
-                    return (viol.update(cv), cost, path)
-                else:
-                    raw_input('Collision at pick/place conf')
-
         def confAns(ans, reverse=False):
             displayAns(ans)
             if ans and ans[0]:
@@ -397,14 +383,19 @@ class RoadMap:
 
         initConf = startConf or self.homeConf
         initNode = makeNode(initConf)
+        approach = False
+        if not fbch.inHeuristic and targetConf in self.approachConfs:
+            approach = True
+            cv = self.confViolations(targetConf, pbs, prob)[0]
+            if cv != None and initViol != None:
+                initViol = initViol.update(cv)
+                targetConf = self.approachConfs[targetConf]
+                
+                if debug('traceCRH'): print '    using approach conf'
         targetNode = makeNode(targetConf)
         attached = pbs.getShadowWorld(prob).attached
         if initViol == None:
             return confAns(None)
-        cachedApproach = checkApproachCache()
-        if cachedApproach:
-            (v,c,p) = confAns(cachedApproach, reverse=True)
-            return (v, c, p + [targetConf])
         cached = checkFullCache()
         if cached:
             return confAns(cached, reverse=True)
@@ -502,6 +493,7 @@ class RoadMap:
                 for n2 in cl.reps:
                     n0 = cluster.addRep(n2)
                     self.addEdge(self.clusterGraph, n0, n2)
+        scanH(self.clusterGraph, makeNode(self.homeConf))
         print 'End batchAddClusters, time=', time.time()-startTime
 
     def confReachViolGen(self, targetConfs, pbs, prob, initViol=viol0,
@@ -1068,7 +1060,7 @@ class RoadMap:
                                                  objCollisionCost * len(a[1].obstacles - s[1].obstacles) + \
                                                  shCollisionCost * len(a[1].shadows - s[1].shadows)),
                                    goalTest = testFn,
-                                   heuristic = lambda s,g: pointDist(s.point, g.point),
+                                   heuristic = lambda s,g: s.hVal or pointDist(s.point, g.point),
                                    goalKey = lambda x: x[0],
                                    goalCostFn = goalCostFn,
                                    maxNodes = maxSearchNodes, maxExpanded = maxExpandedNodes,
@@ -1365,7 +1357,20 @@ def reachable(graph, node):
         agenda.append(other)
     return reach
 
-def pickByName(ob, ls):
-    for x in ls:
-        if ob.name() == x.name():
-            return x
+def scanH(graph, start):
+    agenda = []
+    expanded = set([])
+    heappush(agenda, (0., start, None))
+    count = 0
+    while not agenda == []:
+        (cost, v, parent) = heappop(agenda)
+        if v in expanded: continue
+        v.hVal = cost
+        expanded.add(v)
+        count += 1
+        for edge in graph.incidence.get(v, []):
+            (a, b)  = edge.ends
+            w = a if a != v else b
+            heappush(agenda, (cost + pointDist(v.point, w.point), w, v))
+    print 'Scanned', count, 'nodes'
+    
