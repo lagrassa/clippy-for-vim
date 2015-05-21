@@ -59,6 +59,9 @@ import pr2Visible
 reload(pr2Visible)
 pr2Visible.cache = {}
 
+import pr2GenAux
+reload(pr2GenAux)
+
 import pr2Gen
 reload(pr2Gen)
 
@@ -2359,10 +2362,27 @@ def prof(test, n=50):
 # Evaluate on details and a fluent to flush the caches and evaluate
 def firstAid(details, fluent = None):
     glob.debugOn.extend(['confReachViol', 'confViolations'])
-    details.pbs.getRoadMap().confReachCache = {}
-    details.pbs.beliefContext.pathObstCache = {}
+
+    pbs = details.pbs
+    bc = pbs.beliefContext
+
+    pbs.getRoadMap().confReachCache.clear()
+    bc.pathObstCache.clear()
+    bc.objectShadowCache.clear()
+    for c in bc.genCaches.values():
+        c.clear()
+
+    pr2GenAux.graspConfGenCache.clear()
+
+    # bc.world.robot.cacheReset()
+
+    pr2Visible.cache.clear()
+
+    belief.hCacheReset()
+    
     if fluent:
         return fluent.valueInDetails(details)
+
 # Get false fluents
 def ff(g, details):
     return [thing for thing in g.fluents if thing.isGround() \

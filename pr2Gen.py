@@ -22,7 +22,6 @@ from shapes import Box
 Ident = util.Transform(np.eye(4))            # identity transform
 
 import pr2GenAux
-reload(pr2GenAux)
 from pr2GenAux import *
 
 #  How many candidates to generate at a time...  Larger numbers will

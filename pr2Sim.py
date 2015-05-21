@@ -102,7 +102,7 @@ class RealWorld(WorldState):
             if obs == 'crash':
                 # Back up to previous conf
                 c = path[i-1]
-                self.setRobotConf(conf)
+                self.setRobotConf(c)  # LPK: was conf
                 self.robotPlace.draw('World', 'orange')
                 cart = conf.cartConf()
                 leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])

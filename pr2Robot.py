@@ -453,6 +453,10 @@ class PR2:
         if debug('PR2'): print 'New PR2!'
         return
 
+    def cacheReset(self):
+        self.confCache = {}
+        self.confCacheKeys = deque([])  # in order of arrival
+
     def potentialBasePosesGen(self, wrist, hand, n=None):
         xAxisZ = wrist.matrix[2,0]
         if abs(xAxisZ) < 0.01:

@@ -1150,11 +1150,15 @@ class Operator(object):
                 # applicable or cost of preconds is infinite, try
                 # other ops, because in fact the last operation
                 # may need to be something else.
+
+                # Should try them all, but we'll stop as soon as we
+                # get one that is non-inf.  Try monotonic ones first.
                 if cost == float('inf'):
+                    opsm = applicableOps(goal, operators, startState,
+                                        monotonic = True)
                     ops = applicableOps(goal, operators, startState,
                                         monotonic = False)
-                    
-                    for o in ops:
+                    for o in list(opsm) + list(ops.difference(opsm)): 
                         o.abstractionLevel = o.concreteAbstractionLevel
                         pres = o.regress(goal, startState)
                         for (sp, cp) in pres[:-1]:
@@ -1165,6 +1169,8 @@ class Operator(object):
                                 print 'Found a cheaper prim', o.name
                                 cost = newCost
                                 rebindCost = hOld + rebindCost
+                            if cost < float('inf'): break
+                        if cost < float('inf'): break
 
         if not inHeuristic or debug('debugInHeuristic'):
             debugMsg(tag, 'Final regression result', ('Op', self),

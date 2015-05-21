@@ -20,7 +20,8 @@ from pr2Visible import visible
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
-defaultPoseDelta = (0.01, 0.01, 0.01, 0.03)
+#defaultPoseDelta = (0.01, 0.01, 0.01, 0.03)
+defaultPoseDelta = (0.02, 0.02, 0.02, 0.04)
 defaultTotalDelta = (0.05, 0.05, 0.05, 0.1)  # for place in region
 lookConfDelta = (0.01, 0.01, 0.01, 0.01)
 
@@ -917,7 +918,8 @@ def objectObsUpdate(details, lookConf, obsList):
     prob = 0.95
     world = details.pbs.getWorld()
     shWorld = details.pbs.getShadowWorld(prob)
-    rob = details.pbs.getRobot().placement(lookConf, attached=shWorld.attached)[0]
+    rob = details.pbs.getRobot().placement(lookConf,
+                                           attached=shWorld.attached)[0]
     fixed = [s.name() for s in shWorld.getNonShadowShapes()] + [rob.name()]
     obstacles = shWorld.getNonShadowShapes()
     # Visible objects
@@ -926,7 +928,7 @@ def objectObsUpdate(details, lookConf, obsList):
                           moveHead=False, fixed=fixed)[0]]
     scores = {}
     for obj in objList:
-        scores[(obj, None)] = 0.
+        scores[(obj, None)] = None
         for obs in obsList:
             (oType, obsFace, obsPose) = obs
             if world.getObjType(obj.name()) != oType: continue
@@ -939,9 +941,11 @@ def objectObsUpdate(details, lookConf, obsList):
             bestAssignment = assignment
             bestScore = score
     debugMsg('beliefUpdate', ('bestAssignment', bestAssignment))
+    atLeastOneUpdate = False
     for obj, obs in bestAssignment:
-        if obs:
-            singleTargetUpdate(details, scores[(obj, obs)], obj.name())
+        atLeastOneUpdate = True
+        singleTargetUpdate(details, scores[(obj, obs)], obj.name())
+    assert atLeastOneUpdate, 'have to do at least one update per obs'
 
 def allAssignments(objList, obsList, scores, assignment = []):
     if not objList:
@@ -984,6 +988,7 @@ def singleTargetUpdate(details, obs, object):
 
     if bestLL < llMatchThreshold:
         # Update modeprob if we don't get a good score
+        print('No match above threshold')
         debugMsg('obsUpdate', 'No match above threshold')
         oldP = details.poseModeProbs[object]
         obsGivenH = details.domainProbs.obsTypeErrProb
@@ -1283,10 +1288,6 @@ poseAchIn = Operator(\
             # Very prescriptive:  find objects, then nail down obj2, then
             # obj 1
             {0 : set(),
-             # 1 : {B([Pose(['Obj1', '*']), '*', 'PoseVar', '*', planP], True),
-             #      Bd([SupportFace(['Obj1']), '*', planP], True),
-             #      B([Pose(['Obj2', '*']), '*', 'PoseVar', '*', planP], True),
-             #      Bd([SupportFace(['Obj2']), '*', planP], True)},
              1 : {BLoc(['Obj1', 'PoseVar', planP], True),
                   BLoc(['Obj2', 'PoseVar', planP], True)},
              2 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',

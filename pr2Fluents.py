@@ -472,7 +472,7 @@ class CanReachNB(Fluent):
         
         path, violations = self.getViols(bState, v, p)
 
-        if not bool(path and violations.empty()):
+        if not bool(path and violations.empty()) and debug('canReachNB'):
             startConf.draw('W', 'black')
             endConf.draw('W', 'blue')
             print 'Conditions'
@@ -489,6 +489,19 @@ class CanReachNB(Fluent):
         # Allow startConf to remain unbound
         return {}
 
+    def fglb(self, other, details):
+        # If start and target are the same, then everybody entails us!
+        # Really should have a more general mechanism for simplifying conditions
+        (startConf, conf, hand,
+               lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
+               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
+               firstCondPerm, cond) = \
+                            self.args   # Args
+        if startConf == conf:
+            return other, {}
+        else:
+            return {self, other}, {}
+        
     # Exactly the same as for CanReachHome
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
