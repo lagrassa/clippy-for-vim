@@ -177,6 +177,7 @@ def canView(pbs, prob, conf, hand, shape):
                                        [pbs.getRobot().armChainNames[hand]],
                                        maxIter = 20)
         if not path:
+            raw_input('canView - no path')
             return None
         if debug('canView'):
             attached = pbs.getShadowWorld(prob).attached
@@ -188,7 +189,7 @@ def canView(pbs, prob, conf, hand, shape):
         return path
     else:
         if debug('canView'):
-            print 'canView - no collision'
+            print 'canView - no view cone collision'
         return [conf]
 
 ################

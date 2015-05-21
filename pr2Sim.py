@@ -32,7 +32,7 @@ crashIsError = False
 
 simulateError = False
 
-animate = False
+animate = True
 animateSleep = 0.2
 
 maxOpenLoopDist = 1.0
@@ -85,8 +85,8 @@ class RealWorld(WorldState):
             else:
                 self.robotPlace.draw('World', 'orchid')
             cart = conf.cartConf()
-            leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
-            rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
+            leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3]).tolist()[0][:-1]
+            rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3]).tolist()[0][:-1]
             debugMsg('path', 
                      ('base', conf['pr2Base'], 'left', leftPos, 'right', rightPos))
             for obst in objShapes:
@@ -119,6 +119,7 @@ class RealWorld(WorldState):
             # Check whether we should look
             args = 11*[None]
             if distSoFar >= maxOpenLoopDist:
+                distSoFar = 0           #  reset
                 obj = self.visibleObj(objShapes)
                 if obj:
                     lookConf = lookAtConf(self.robotConf, obj)
@@ -127,7 +128,6 @@ class RealWorld(WorldState):
                         if obs:
                             args[1] = lookConf
                             lookAtBProgress(self.bs, args, obs)
-                            distSoFar = 0           #  reset
                         else:
                             raw_input('No observation')
                     else:
@@ -249,6 +249,8 @@ class RealWorld(WorldState):
                 objType = self.world.getObjType(curObj)
                 obs.append((objType, trueFace, util.Pose(*obsPlace)))
         print 'Observation', obs
+        if not obs:
+            raw_input('Null observation')
         return obs
 
     def executeLookAt(self, op, params):

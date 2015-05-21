@@ -305,7 +305,7 @@ class RoadMap:
             entry.draw('W', color=color)
 
     def confReachViol(self, targetConf, pbs, prob,
-                      initViol=viol0, startConf = None,
+                      initViol=viol0, startConf = None, reversePath = False,
                       optimize = False, moveBase = True):
 
         def displayAns(ans):
@@ -408,9 +408,10 @@ class RoadMap:
         # if not fbch.inHeuristic:
         #     print '    Graph nodes =', len(graph.incidence), 'graph edges', len(graph.edges)
         if debug('traceCRH'): print '    find path',
-        # search back from target...
+        # search back from target... if we will execute in reverse, it's a double negative.
         ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
-                                     initViol=initViol, optimize=optimize, moveBase=moveBase)
+                                     initViol=initViol, optimize=optimize,
+                                     moveBase=moveBase, reverse = not reversePath)
         ans = next(ansGen, None)
         if (ans == None or ans[0] == None) and not moveBase:
             path, viol = rrt.planRobotPathSeq(pbs, prob, initConf, targetConf, None,
@@ -473,7 +474,7 @@ class RoadMap:
     def batchAddClusters(self, initConfs):
         startTime = time.time()
         print 'Start batchAddClusters'
-        clusters = []
+        clusters = [self.rootCluster]
         for conf in initConfs:
             node = makeNode(conf)
             cluster = self.clustersByPoint.get(node.point, None)
@@ -794,7 +795,6 @@ class RoadMap:
     def addEdge(self, graph, node_f, node_i):
         if node_f == node_i: return
         if graph.edges.get((node_f, node_i), None) or graph.edges.get((node_i, node_f), None): return
-        if not validEdge(node_i, node_f): return
         edge = Edge(node_f, node_i)
         if self.params['cartesian']:
             edge.nodes = self.cartLineSteps(node_f, node_i,
@@ -956,7 +956,7 @@ class RoadMap:
         return viol.combine(obst, shad)        
 
     def minViolPathGen(self, graph, startNode, targetNodes, pbs, prob, initViol=viol0,
-                       optimize = False, draw=False, moveBase = True,
+                       optimize = False, draw=False, moveBase = True, reverse = False,
                        testFn = lambda x: True, goalCostFn = lambda x: 0):
 
         def testConnection(edge, viol):
@@ -969,7 +969,7 @@ class RoadMap:
 
         def successors(s):
             (v, viol) = s
-            successors = []
+            succ = []
             if not graph.incidence.get(v, []):
                 if debug('successors'):
                     print v
@@ -977,6 +977,15 @@ class RoadMap:
             for edge in graph.incidence.get(v, []):
                 (a, b)  = edge.ends
                 w = a if a != v else b
+                # Check for valid edge
+                ve = validEdge(w, v) if reverse else validEdge(v, w)
+                # ve = True
+                if debug('successors'):
+                    if reverse:
+                        print ve, w.conf['pr2Base'], '->', v.conf['pr2Base']
+                    else:
+                        print ve, v.conf['pr2Base'], '->', w.conf['pr2Base']
+                if not ve: continue
                 if not moveBase:
                     if a.baseConf() != b.baseConf():
                         continue
@@ -994,20 +1003,20 @@ class RoadMap:
                         edge.draw('W', 'orange')
                         raw_input('Collision on edge')
                     continue
-                successors.append((w, nviol))                  
+                succ.append((w, nviol))                  
 
             if draw or debug('successors'):
                 pbs.draw(prob, 'W')
                 v.conf.draw('W', color='cyan', attached=attached)
                 color = colorGen.next()
                 print v, '->'
-                for (n, _) in successors:
+                for (n, _) in succ:
                     n.conf.draw('W', color=color, attached=attached)
                     print '    ', n
                 wm.getWindow('W').update()
                 debugMsg('successors', 'Go?')
                 
-            return successors
+            return succ
 
         visited = set([])
         shWorld = pbs.getShadowWorld(prob)
@@ -1052,6 +1061,7 @@ class RoadMap:
                 pbs.draw(prob, 'W')
                 startNode.conf.draw('W','blue')
                 targets[0][1].conf.draw('W','pink')
+            # precomputed heuristic is distance from home, so only useful in reverse
             gen = search.searchGen((startNode, initViol),
                                    [x[1] for x in targets],
                                    successors,
@@ -1060,7 +1070,7 @@ class RoadMap:
                                                  objCollisionCost * len(a[1].obstacles - s[1].obstacles) + \
                                                  shCollisionCost * len(a[1].shadows - s[1].shadows)),
                                    goalTest = testFn,
-                                   heuristic = lambda s,g: s.hVal or pointDist(s.point, g.point),
+                                   heuristic = lambda s,g: (reverse and s.hVal) or pointDist(s.point, g.point),
                                    goalKey = lambda x: x[0],
                                    goalCostFn = goalCostFn,
                                    maxNodes = maxSearchNodes, maxExpanded = maxExpandedNodes,
@@ -1317,12 +1327,15 @@ def pointDist(p1, p2):
     return sum([(a-b)**2 for (a, b) in zip(p1, p2)])**0.5
 
 def validEdge(node_i, node_f):
-    (xi, yi, thi) = node_i.conf['pr2Base']
-    (xf, yf, thf) = node_f.conf['pr2Base']
-    if max(abs(xi-xf), abs(yi-yf)) < 0.1:
+    return validEdgeTest(node_i.conf['pr2Base'], node_f.conf['pr2Base'])
+
+def validEdgeTest(xyt_i, xyt_f):
+    (xi, yi, thi) = xyt_i
+    (xf, yf, thf) = xyt_f
+    if max(abs(xi-xf), abs(yi-yf)) < 0.01:
         # small enough displacement
         return True
-    if abs(util.angleDiff(math.atan2(yf-yi, xf-xi), thi)) <= 0.75*math.pi:
+    if abs(util.angleDiff(math.atan2(yf-yi, xf-xi), thi)) <= 0.25*math.pi:
         # Not strictly back, so the head can look at where it's going
         return True
     return False
@@ -1362,15 +1375,34 @@ def scanH(graph, start):
     expanded = set([])
     heappush(agenda, (0., start, None))
     count = 0
+    links = set([])
+    verts = set([])
     while not agenda == []:
         (cost, v, parent) = heappop(agenda)
         if v in expanded: continue
         v.hVal = cost
         expanded.add(v)
         count += 1
+        if debug('scanH'):
+            (xv,yv,thv) = v.conf['pr2Base']
         for edge in graph.incidence.get(v, []):
             (a, b)  = edge.ends
             w = a if a != v else b
+            if debug('scanH'):
+                vert = tuple(w.conf['pr2Base'])
+                if w not in verts:
+                    (x,y,th) = vert
+                    boxPoint.applyTrans(util.Pose(x,y,0,th)).draw('W')
+                    verts.add(vert)
+                link = ((xv, yv), (x, y))
+                if not( x == xv and y == yv) and link not in links:
+                    r = 0.02
+                    length = ((xv - x)**2 + (yv - y)**2)**0.5
+                    ray = shapes.BoxAligned(np.array([(-r, -r, -r), (length, r, r)]), None)
+                    pose = util.Pose(xv, yv, 0.0, math.atan2(y-yv, x-xv))
+                    ray.applyTrans(pose).draw('W', color='cyan')
+                    links.add(link)
             heappush(agenda, (cost + pointDist(v.point, w.point), w, v))
+        wm.getWindow('W').update()
     print 'Scanned', count, 'nodes'
     

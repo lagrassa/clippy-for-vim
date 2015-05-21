@@ -446,8 +446,7 @@ class CanReachNB(Fluent):
         #     avoidShadow = []
 
         path, violations = canReachNB(newPBS, startConf, endConf, p,
-                                      Violations(),
-                                       draw=False)
+                                      Violations(), draw=False)
         debugMsg('CanReachNB',
                  ('confs', startConf, endConf),
                  ('lobjGrasp', lobj, lface, lgraspD),
@@ -478,7 +477,7 @@ class CanReachNB(Fluent):
             print 'Conditions'
             for c in self.args[-1]: print '    ', c
             print 'Violations', violations
-            raw_input('CanReachNB is false!!')
+            debugMsg('canReachNB', 'CanReachNB is false!!')
 
         return bool(path and violations.empty())
 
@@ -1167,14 +1166,15 @@ def partition(fluents):
 
 # !!!! needs fixing
 
-def canReachNB(pbs, startConf, conf, prob, initViol, optimize = False, draw=True):
+def canReachNB(pbs, startConf, conf, prob, initViol,
+               optimize = False, draw=True):
     rm = pbs.getRoadMap()
     robot = pbs.getRobot()
     initConf = startConf or rm.homeConf
     # Reverse start and target
-    viol, cost, pathRev = rm.confReachViol(initConf, pbs, prob,
+    viol, cost, pathRev = rm.confReachViol(conf, pbs, prob,
                                            initViol,
-                                           startConf=conf,
+                                           startConf=initConf,
                                            optimize=optimize,
                                            moveBase = False)
     path = pathRev[::-1] if pathRev else pathRev
@@ -1196,13 +1196,14 @@ def canReachNB(pbs, startConf, conf, prob, initViol, optimize = False, draw=True
 
 # 
 def canReachHome(pbs, conf, prob, initViol,
-                 avoidShadow = [], startConf = None,
-                 optimize = False, noViol = False, draw=True):
+                 avoidShadow = [], startConf = None, reversePath = False,
+                 optimize = False, draw=True):
     rm = pbs.getRoadMap()
     robot = pbs.getRobot()
     # Reverse start and target
     viol, cost, path = rm.confReachViol(conf, pbs, prob, initViol,
                                         startConf=startConf,
+                                        reversePath = reversePath,
                                         optimize = optimize)
     if debug('checkCRH') and fbch.inHeuristic:
         pbs.draw(prob, 'W')

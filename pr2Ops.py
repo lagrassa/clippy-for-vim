@@ -52,6 +52,15 @@ planP = 0.95
 
 tryDirectPath = False
 def primPath(bs, cs, ce, p):
+    def interpolate(smoothed):
+        interpolated = []
+        for i in range(1, len(smoothed)):
+            qf = smoothed[i]
+            qi = smoothed[i-1]
+            confs = rrt.interpolate(qf, qi, stepSize=0.25)
+            print i, 'path segment has', len(confs), 'confs'
+            interpolated.extend(confs)
+        return interpolated
     if tryDirectPath:
         path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs,
                                    optimize=True, draw=False)
@@ -61,17 +70,14 @@ def primPath(bs, cs, ce, p):
             # don't return, try the path via home
         else:
             smoothed = bs.getRoadMap().smoothPath(path, bs, p)
-            return smoothed
-    path1, v1 = canReachHome(bs, cs, p, Violations(), optimize=True,
-                             noViol = True, draw=False)
-    if not path1:
-        path1, v1 = canReachHome(bs, cs, p, Violations(), noViol = True,
-                                 draw=False)
-    path2, v2 = canReachHome(bs, ce, p, Violations(), optimize=True,
-                             noViol = True, draw=False)
-    if not path2:
-        path2, v2 = canReachHome(bs, ce, p, Violations(), noViol = True,
-                                 draw=False)
+            return smoothed, interpolate(smoothed)
+    # Should use optimize = True, but sometimes leads to failure - why??
+    path1, v1 = canReachHome(bs, cs, p, Violations(),
+                             draw=False, reversePath=True)
+    assert path1
+    path2, v2 = canReachHome(bs, ce, p, Violations(),
+                             draw=False)
+    assert path2
     if v1.weight() > 0 or v2.weight() > 0:
         if v1.weight() > 0: print 'start viol', v1
         if v2.weight() > 0: print 'end viol', v2
@@ -81,14 +87,7 @@ def primPath(bs, cs, ce, p):
         print 'Success'
         path = path1[::-1] + path2
         smoothed = bs.getRoadMap().smoothPath(path, bs, p)
-        interpolated = []
-        for i in range(1, len(smoothed)):
-            qf = smoothed[i]
-            qi = smoothed[i-1]
-            confs = rrt.interpolate(qf, qi, stepSize=0.25)
-            print i, 'path segment has', len(confs), 'confs'
-            interpolated.extend(confs)
-        return smoothed, interpolated
+        return smoothed, interpolate(smoothed)
 
 def moveNBPrim(args, details):
     vl = \

@@ -472,7 +472,7 @@ class PlanTest:
         belC = BeliefContext(world)
         pr2Home = home or makeConf(world.robot, 0.0, 0.0, 0.0)
         rm = RoadMap(pr2Home, world,
-                     params={'kNearest':11,
+                     params={'kNearest':17,
                              'kdLeafSize':20,
                              'cartesian': useCartesian,
                              'moveChains':
