@@ -13,7 +13,7 @@ hugeVarianceArray = [[100, 0, 0, 0],
 
 identPoseTuple = (0.0, 0.0, 0.0, 0.0)
 
-lostDist = GMU([(MVG(identPoseTuple, hugeVarianceArray), 1.0)])
+lostDist = GMU([(MVG(identPoseTuple, hugeVarianceArray), 0.99)])
 
 # Keep all the raw representation necessary for filtering
 # After every belief update, it will have an instance variable
@@ -28,14 +28,14 @@ class BeliefState:
         self.pbs = pbs
         self.domainProbs = domainProbs
         self.awayRegion = awayRegion
-        self.poseModeProbs = dict([(name , 1.0) \
+        self.poseModeProbs = dict([(name , 0.99) \
                for name in (pbs.moveObjBs.keys() + pbs.fixObjBs.keys())])
-        self.graspModeProb = {'left' : 1.0, 'right' : 1.0}
+        self.graspModeProb = {'left' : 0.99, 'right' : 0.99}
 
     # Temporary hacks to keep all the types right
     def graspModeDist(self, obj, hand, face):
         if obj == 'none' or face == 'none':
-            return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray), 1.0)])
+            return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray), 0.99)])
         else:
             if face == '*': face = None
             poseD = self.pbs.getGraspB(obj, hand, face).poseD
@@ -44,7 +44,7 @@ class BeliefState:
 
     def poseModeDist(self, obj, face):
         if obj == 'none' or face == 'none':
-            return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray), 1.0)])
+            return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray), 0.99)])
         else:
             if face == '*': face = None
             poseD = self.pbs.getPlaceB(obj, face).poseD

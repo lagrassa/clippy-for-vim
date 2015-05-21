@@ -922,10 +922,11 @@ def objectObsUpdate(details, lookConf, obsList):
                                            attached=shWorld.attached)[0]
     fixed = [s.name() for s in shWorld.getNonShadowShapes()] + [rob.name()]
     obstacles = shWorld.getNonShadowShapes()
-    # Visible objects
+    # Objects that we expect to be visible
     objList = [s for s in obstacles \
-               if visible(shWorld, lookConf, s, rem(obstacles,s)+[rob], prob,
+               if visible(shWorld, lookConf, s, rem(obstacles,s)+[rob], 0.5,
                           moveHead=False, fixed=fixed)[0]]
+    assert objList, 'Do not expect to see any objects!'
     scores = {}
     for obj in objList:
         scores[(obj, None)] = None
@@ -982,7 +983,7 @@ def scoreAssignment(obsAssignments, scores):
 
 # Gets multiple observations and tries to find the one that best
 # matches sought object
-def singleTargetUpdate(details, obs, object):
+def singleTargetUpdate(details, obs, obj):
     obsVar = details.domainProbs.obsVarTuple       
     bestObs, bestLL, bestFace = obs if obs else (None, -float('inf'), None)
 
@@ -990,35 +991,41 @@ def singleTargetUpdate(details, obs, object):
         # Update modeprob if we don't get a good score
         print('No match above threshold')
         debugMsg('obsUpdate', 'No match above threshold')
-        oldP = details.poseModeProbs[object]
+        oldP = details.poseModeProbs[obj]
         obsGivenH = details.domainProbs.obsTypeErrProb
         obsGivenNotH = (1 - details.domainProbs.obsTypeErrProb)
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
-        details.poseModeProbs[object] = newP
+        details.poseModeProbs[obj] = newP
+        print 'No match above threshold', obj, oldP, newP
+        if oldP == newP or oldP == 1.0 or newP == 1.0:
+            raw_input('okay?')
     else:
         # Update mode prob if we do get a good score
-        oldP = details.poseModeProbs[object]
+        oldP = details.poseModeProbs[obj]
         obsGivenH = (1 - details.domainProbs.obsTypeErrProb)
         obsGivenNotH = details.domainProbs.obsTypeErrProb
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
-        details.poseModeProbs[object] = newP
+        details.poseModeProbs[obj] = newP
+        print 'Obs match for', obj, oldP, newP
+        if oldP == newP or oldP == 1.0 or newP == 1.0:
+            raw_input('okay?')
 
         # Should update face!!
         
         # Update mean and sigma
         ## Be sure handling angle right.
-        oldPlaceB = details.pbs.getPlaceB(object)
+        oldPlaceB = details.pbs.getPlaceB(obj)
         (newMu, newSigma) = gaussObsUpdate(oldPlaceB.poseD.mode().pose().xyztTuple(),
                                            bestObs.pose().xyztTuple(),
                                            oldPlaceB.poseD.variance(), obsVar)
         w = details.pbs.beliefContext.world
-        ff = w.getFaceFrames(object)[bestFace]
-        details.pbs.updateObjB(ObjPlaceB(object,
-                                         w.getFaceFrames(object),
+        ff = w.getFaceFrames(obj)[bestFace]
+        details.pbs.updateObjB(ObjPlaceB(obj,
+                                         w.getFaceFrames(obj),
                                          DeltaDist(oldPlaceB.support.mode()),
                                          PoseD(util.Pose(*newMu), newSigma)))
         if debug('obsUpdate'):
-            objShape = details.pbs.getObjectShapeAtOrigin(object)
+            objShape = details.pbs.getObjectShapeAtOrigin(obj)
             objShape.applyLoc(util.Pose(*newMu).compose(ff.inverse())).\
               draw('Belief', 'magenta')
             raw_input('newMu is magenta')
@@ -1312,7 +1319,7 @@ poseAchIn = Operator(\
               # call main generator
               Function(['ObjPose1', 'PoseFace1'],
                      ['Obj1', 'Region', 'TotalVar',
-                      tuple([d*2 for d in defaultPoseDelta]),
+                      tuple([d*4 for d in defaultPoseDelta]),
                       probForGenerators],
                      placeInRegionGen, 'placeInRegionGen')],
             argsToPrint = [0, 1],

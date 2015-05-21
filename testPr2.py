@@ -2371,13 +2371,9 @@ def firstAid(details, fluent = None):
     bc.objectShadowCache.clear()
     for c in bc.genCaches.values():
         c.clear()
-
     pr2GenAux.graspConfGenCache.clear()
-
-    # bc.world.robot.cacheReset()
-
+    bc.world.robot.cacheReset()
     pr2Visible.cache.clear()
-
     belief.hCacheReset()
     
     if fluent:
