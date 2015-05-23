@@ -467,6 +467,7 @@ class CanReachNB(Fluent):
             return True
         elif startConf['pr2Base'] != endConf['pr2Base']:
             # Bases have to be equal!
+            debugMsg('canReachNB', 'Base not belong to us', startConf, endConf)
             return False
         
         path, violations = self.getViols(bState, v, p)
