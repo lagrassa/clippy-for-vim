@@ -1,17 +1,91 @@
-Traceback (most recent call last):
-  File "<stdin>", line 1, in <module>
-  File "testPr2.py", line 832, in test3
-    rip = rip
-  File "testPr2.py", line 538, in run
-    nonMonOps = [move])
-  File "fbch.py", line 1380, in HPN
-    executePrim(op, s, env, f)
-  File "fbch.py", line 1399, in executePrim
-    obs = env.executePrim(op, params)
-  File "pr2ROS.py", line 153, in executePrim
-    return endExec(self.executePlace(op, params))
-  File "pr2ROS.py", line 279, in executePlace
-    result, outConf = pr2GoToConf(approachConf, 'move')
-  File "pr2ROS.py", line 66, in pr2GoToConf
-    conf.base = map(float, cnfIn.get('pr2Base', []))
-AttributeError: 'tuple' object has no attribute 'get'
+Planning for goal 32
+     BLoc[objA, (0.020, 0.020, 0.010, 0.030), 0.950] = True
+     Bd[In[objB, table1Left], True, 0.950] = True
+     B[Pose[table1, 4],(1.307, 0.006, 0.000, 1.570), (0.020, 0.020, 0.020, 0.040), (0.020, 0.020, 0.020, 0.040), 0.975] = True
+     Bd[Holding[left], none, 0.900] = True
+     Bd[CanPickPlace [JointConf({pr2LeftGripper:[0.080], pr2RightArm:[-1.064, 0.242, -2.100, -2.114, 2.524, -1.211, -1.249], pr2Base:[0.269, 0.419, -1.571], pr2Torso:[0.300], pr2RightGripper:[0.070], pr2Head:[0.000, 0.000], pr2LeftArm:[1.897, 0.020, 1.700, -1.048, 1.523, -1.449, 2.421]}), JointConf({pr2LeftGripper:[0.080], pr2RightArm:[-1.064, 0.242, -2.100, -2.114, 2.524, -1.211, -1.249], pr2Base:[0.269, 0.419, -1.571], pr2Torso:[0.300], pr2RightGripper:[0.070], pr2Head:[0.000, 0.000], pr2LeftArm:[1.869, 0.151, 1.800, -0.966, 1.567, -1.297, 2.457]}), left, objA, (1.170, 0.419, 0.680, 0.000), (0.001, 0.001, 0.000, 0.008), (0.020, 0.020, 0.020, 0.040), 4, 2, (0.000, -0.025, 0.000, 0.000), (0.000, 0.000, 0.000, 0.008), (0.010, 0.010, 0.010, 0.020), none, 0, (0.000, 0.000, 0.000, 0.000), (0.000, 0.000, 0.000, 0.000), (0.001, 0.001, 0.001, 0.001), place, (B[Pose[objA, 4],(1.093, -0.408, 0.680, 0.004), (0.012, 0.012, 0.012, 0.025), (0.005, 0.005, 0.005, 0.010), 0.807] = True, Bd[SupportFace[objA], 4, 0.807] = True)], True, 0.900] = True
+     Bd[Holding[right], objA, 0.918] = True
+     Bd[SupportFace[table1], 4, 0.975] = True
+     Graspable[objA] = True
+     Bd[CanPickPlace [JointConf({pr2LeftGripper:[0.080], pr2RightArm:[-2.040, 0.069, -1.600, -1.048, -1.616, -1.511, -0.205], pr2Base:[1.662, -1.114, -2.352], pr2Torso:[0.300], pr2RightGripper:[0.080], pr2Head:[0.000, 0.000], pr2LeftArm:[2.026, 0.216, 1.300, -1.051, 1.894, -1.692, -2.118]}), JointConf({pr2LeftGripper:[0.080], pr2RightArm:[-2.015, 0.196, -1.700, -0.964, -1.661, -1.354, -0.243], pr2Base:[1.662, -1.114, -2.352], pr2Torso:[0.300], pr2RightGripper:[0.080], pr2Head:[0.000, 0.000], pr2LeftArm:[2.026, 0.216, 1.300, -1.051, 1.894, -1.692, -2.118]}), right, objA, (1.093, -0.408, 0.680, 0.004), (0.000, 0.000, 0.000, 0.001), (0.005, 0.005, 0.005, 0.010), 4, 2, (0.000, -0.025, 0.000, 0.000), (0.000, 0.000, 0.000, 0.000), (0.003, 0.003, 0.003, 0.005), none, 0, (0.000, 0.000, 0.000, 0.000), (0.000, 0.000, 0.000, 0.000), (0.001, 0.001, 0.001, 0.001), place, []], True, 0.900] = True
+     B[Grasp[objA, right, 2],(0.000, -0.025, 0.000, 0.000), (0.007, 0.007, 0.012, 0.015), (0.003, 0.003, 0.003, 0.005), 0.918] = True
+     Bd[GraspFace[objA, right], 2, 0.918] = True
+easyGraspGen(objA,right) h= True  
+    find path     canReachHome h= True viol=: 0.0
+    find path     canReachHome h= True viol=: 0.0
+    find path     canReachHome h= True viol=: 0.0
+    find path     canReachHome h= True viol=: 0.0
+     easyGraspGen(objA,right)= (p,g)= (4, 1) (1, (0.0, -0.02500000037252903, 0.0, 0.0), (0.001, 0.001, 0.001, 0.001), (0.001, 0.001, 0.001, 0.001))  
+Infinite cost goal set
+     B(Grasp, 0.979)
+     Bd(GraspFace, 0.979)
+     Bd(Holding, 0.979)
+pickGen(objA,right,2) b=None h= True  
+    find path     canReachHome h= True viol=: 0.0
+    find path     canReachHome h= True viol=: 0.0
+    find path     canReachHome h= True viol=: 0.0
+    find path     canReachHome h= True viol=: 0.0
+    pickGen(objA) viol= 0.0 (h,p,g)= right (4, 2) Pose[1.101, -0.396, 0.680, 0.001]  
+    find path     canReachHome h= True viol=: 0.0
+H 3.447
+H 1.953
+H 3.447
+lookGen(objA) h= False  
+Trying base conf [1.360613226890564, 1.264582633972168, -3.141592502593994]
+    Using current conf.  
+H 3.447
+    find path     canReachHome h= True viol=: 0.5
+    find path     canReachHome h= True viol=: 0.5
+    find path     canReachHome h= True viol=: 0.5
+    find path     canReachHome h= True viol=: 0.5
+hv H 4.678
+lookGen(table1) h= False  
+    attached= {'right': objA_shadow:[[0.1210015640590365, -0.027000000793486835, -0.07161173857051699], [0.28894131755408214, 0.027000001072883605, 0.07161173857051699]], 'left': None}  
+Trying base conf [1.360613226890564, 1.264582633972168, -3.141592502593994]
+    Using current conf.  
+H 6.631
+H 4.678
+H 3.447
+pickGen(objA,right,2) b=None h= False  
+    actual full cache hit     canReachHome h= False viol=: 0.0
+    actual full cache hit     canReachHome h= False viol=: 0.0
+    using approach conf
+    actual full cache hit     canReachHome h= False viol=: 0.0
+    using approach conf
+    actual full cache hit     canReachHome h= False viol=: 0.0
+    pickGen(objA) viol= 0.0 (h,p,g)= right (4, 2) Pose[1.101, -0.396, 0.680, 0.001]  
+H 3.447
+H 0
+    actual full cache hit     canReachHome h= False viol=: 0.0
+Move special regress failing; new var too small
+B[Pose[objA, 4],(1.101, -0.396, 0.680, 0.001), (0.005, 0.005, 0.012, 0.014), (0.001, 0.001, 0.001, 0.003), 0.937] = True
+     (-0.00019537968892955167, -0.00019537968892955167, 0.00015462029107044835, -1.5558605265832994e-05)
+special regression fail; h = False
+hv H 3
+Found a cheaper prim MoveNB
+H 0
+H 1.953
+H 3
+H 1.953
+lookGen(objA) h= False  
+lookGen:     Conf is specified so failing  
+lookGen(objA) h= False  
+lookGen:     Conf is specified so failing  
+Trying less abstract version of op
+lookGen(table1) h= False  
+lookGen:     Conf is specified so failing  
+lookGen(table1) h= False  
+lookGen:     Conf is specified so failing  
+Trying less abstract version of op
+lookGen(objA) h= False  
+lookGen:     Conf is specified so failing  
+lookGen(objA) h= False  
+lookGen:     Conf is specified so failing  
+11 nodes visited; 3 states expanded; solution cost: 6.4467997447
+** Start plan **
+    step 1 : Move(_, JointConf([0.301, -0.697, 1.571])):0
+        cost =  4.953
+    step 2 : Pick(objA, right, 2, (0.000, -0.025, 0.000, 0.000)):3
+        cost =  1.494
+** End plan **
+===== Total Cost = 6.447 =====
