@@ -209,7 +209,7 @@ class JointConf:
             return 'JointConf('+prettyString(self.conf, eq)+')'
     def prettyPrint(self, msg='Conf:'):
         print msg
-        for key in self.conf.keys():
+        for key in sorted(self.conf.keys()):
             print '   ', key, prettyString(self.conf[key])
     def confItems(self):
         if not self.items:

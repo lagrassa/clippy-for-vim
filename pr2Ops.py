@@ -50,7 +50,7 @@ planP = 0.95
 #
 ######################################################################
 
-tryDirectPath = False
+tryDirectPath = True
 def primPath(bs, cs, ce, p):
     def interpolate(smoothed):
         interpolated = []
@@ -63,7 +63,7 @@ def primPath(bs, cs, ce, p):
         return interpolated
     if tryDirectPath:
         path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs,
-                                   optimize=True, draw=False)
+                                   draw=False)
         if not viols or viols.weight() > 0:
             print 'viol', viols
             raw_input('Collision in direct primitive path')

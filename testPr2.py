@@ -2384,7 +2384,6 @@ def ff(g, details):
     return [thing for thing in g.fluents if thing.isGround() \
             and thing.valueInDetails(details) == False]
 
-
 def testReact():
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
     startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0, dx=0.1, dz=0.1)

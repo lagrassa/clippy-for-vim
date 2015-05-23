@@ -366,7 +366,11 @@ class RoadMap:
             if ans and ans[0]:
                 (viol, cost, edgePath) = ans
                 path = self.confPathFromEdgePath(edgePath)
-                if reverse: path.reverse()
+                if reverse:
+                    path = path[::-1]
+                if not fbch.inHeuristic and debug('showPath'):
+                    print 'confAns reverse=', reverse
+                    showPath(pbs, prob, path)
                 return (viol, cost, path)
             else:
                 return (None, None, None)
@@ -659,9 +663,10 @@ class RoadMap:
             node_f.key = True
             return [node_f]
         else:
-            nodes = [node_i]
-            nodes.extend(interp[::-1])
-            nodes.append(node_f)
+            nodes = [node_f]
+            for n in interp:
+                if not n == nodes[-1]: nodes.append(n)
+            if not node_i == nodes[-1]: nodes.append(node_i)
             node_i.key = True; node_f.key = True
             return nodes
 
@@ -1100,7 +1105,8 @@ class RoadMap:
                         node.conf.draw('W', 'blue')
                         raw_input('v=%s, cost=%f'%(viol.weight(), cost))
                 nodePath = [node for (_, (node, _)) in path]
-                yield finalViolation, costs[-1], self.edgePathFromNodePath(graph, nodePath)
+                edgePath = self.edgePathFromNodePath(graph, nodePath)
+                yield finalViolation, costs[-1], edgePath
 
     def nodePathFromEdgePath(self, edgePath):
         return [edge.ends[end] for (edge, end) in edgePath]
@@ -1120,12 +1126,16 @@ class RoadMap:
             edge = graph.edges.get((this, next), None)
             if edge:
                 nextEntry = (edge, 1)
+                assert edge.ends[0] == this
                 edgePath.append((edge, 0))
             else:
                 edge = graph.edges.get((next, this), None)
                 if edge:
                     nextEntry = (edge, 0)
+                    assert edge.ends[1] == this
                     edgePath.append((edge, 1))
+                else:
+                    assert False, 'Missing edge in path'
         edgePath.append(nextEntry)
         return edgePath
 
@@ -1137,11 +1147,11 @@ class RoadMap:
         edge1, end1 = edgePath[0]
         confPath = [edge1.ends[end1].conf]
         if len(edgePath) > 1:
-            for (edge2, end2) in edgePath:
-                nodes = edge1.nodes[1:]
+            for (edge2, end2) in edgePath[1:]:
+                nodes = edge1.nodes
                 if end1 == 1:
-                    nodes.reverse()
-                confPath.extend([n.conf for n in nodes])
+                    nodes = nodes[::-1]
+                confPath.extend([n.conf for n in nodes[1:]])
                 edge1, end1 = edge2, end2
         return confPath
 
@@ -1406,3 +1416,9 @@ def scanH(graph, start):
         wm.getWindow('W').update()
     print 'Scanned', count, 'nodes'
     
+def showPath(pbs, p, path):
+    for c in path:
+        pbs.draw(p, 'W')
+        c.draw('W')
+        raw_input('Next?')
+    raw_input('Path end')

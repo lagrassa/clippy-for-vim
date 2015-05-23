@@ -175,7 +175,7 @@ def canView(pbs, prob, conf, hand, shape):
         path, viol = planRobotGoalPath(pbs, prob, conf,
                                        lambda c: not avoid.collides(c.placement()), None,
                                        [pbs.getRobot().armChainNames[hand]],
-                                       maxIter = 20)
+                                       maxIter = 50)
         if not path:
             raw_input('canView - no path')
             return None
@@ -293,9 +293,10 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
         viol, _ = rm.confViolations(conf, pbs, prob, initViol=viol,
                                     ignoreAttached=True)
         if viol:
-            if debug('potentialGraspConfs'):
+            if debug('potentialGraspConfsWin'):
+                pbs.draw(prob, 'W')
                 conf.draw('W','green')
-                debugMsg('potentialGraspConfs', ('->', conf.conf))
+                debugMsg('potentialGraspConfsWin', ('->', conf.conf))
             return conf, ca, viol
     else:
         if debug('potentialGraspConfs'): conf.draw('W','red')
