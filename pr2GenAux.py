@@ -161,32 +161,50 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
     debugMsg('canPickPlaceTest', ('->', violations))
     return violations
 
-def canView(pbs, prob, conf, hand, shape):
+def canView(pbs, prob, conf, hand, shape, maxIter = 50):
+    def armShape(c, h):
+        parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])
+        return parts[pbs.getRobot().armChainNames[h]]
+        
     vc = viewCone(conf, shape)
     if not vc: return None
     shWorld = pbs.getShadowWorld(prob)
+    confPlace = conf.placement(attached=shWorld.attached)
+    # !! don't move arms to clear view of fixed objects
     if objectName(shape.name()) in pbs.getWorld().graspDesc and \
-           vc.collides(conf.placement(attached=shWorld.attached)):
+           vc.collides(confPlace):
         if debug('canView'):
             vc.draw('W', 'red')
             conf.draw('W')
             raw_input('ViewCone collision')
         avoid = shapes.Shape([vc, shape], None)
-        path, viol = planRobotGoalPath(pbs, prob, conf,
-                                       lambda c: not avoid.collides(c.placement()), None,
-                                       [pbs.getRobot().armChainNames[hand]],
-                                       maxIter = 50)
-        if not path:
-            raw_input('canView - no path')
-            return None
-        if debug('canView'):
-            attached = pbs.getShadowWorld(prob).attached
-            pbs.draw(prob, 'W')
-            for c in path: c.draw('W', 'blue', attached=attached)
-            path[-1].draw('W', 'orange', attached=attached)
-            vc.draw('W', 'green')
-            raw_input('Retract arm')
-        return path
+        attached = shWorld.attached
+        pathFull = []
+        for h in ['left', 'right']:     # try both hands
+            if not vc.collides(armShape(conf, h)): continue
+            print 'canView collision with', h, 'arm', conf['pr2Base']
+            path, viol = planRobotGoalPath(pbs, prob, conf,
+                                           lambda c: not avoid.collides(armShape(c,h)), None,
+                                           [pbs.getRobot().armChainNames[h]],
+                                           maxIter = maxIter)
+            if debug('canView'):
+                pbs.draw(prob, 'W')
+                if path:
+                    for c in path: c.draw('W', 'blue', attached=attached)
+                    path[-1].draw('W', 'orange', attached=attached)
+                    vc.draw('W', 'green')
+                    raw_input('canView - Retract arm')
+            if debug('canView') or debug('canViewFail'):
+                if not path:
+                    pbs.draw(prob, 'W')
+                    conf.draw('W')
+                    vc.draw('W', 'red')
+                    raw_input('canView - no path')
+            if path:
+                pathFull.extend(path)
+            else:
+                return []
+        return pathFull
     else:
         if debug('canView'):
             print 'canView - no view cone collision'

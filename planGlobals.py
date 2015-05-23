@@ -43,7 +43,7 @@ smoothSteps = 100
 torsoZ = 0.3
 skipRRT = False
 maxRRTIter = 200
-failRRTIter = 10
+failRRTIter = 20
 
 ########################################
 # Obstacle growing, should be determined by uncertainty

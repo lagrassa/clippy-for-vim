@@ -266,8 +266,8 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
         rrt = RRT(pbs, prob, initConf, None, allowedViol, moveChains)
         nodes = rrt.findGoalPath(goalTest, K = maxIter or glob.maxRRTIter)
         failCount += 1
-        if debug('rrt'):
-            if failCount > 0: print 'Failed', failCount, 'times'
+        if debug('rrt') or failCount % 10 == 0:
+            if failCount > 0: print 'RRT Failed', failCount, 'times'
     if failCount == (failIter or glob.failRRTIter):
         return [], None
     rrtTime = time.time() - startTime

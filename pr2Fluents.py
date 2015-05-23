@@ -1191,7 +1191,7 @@ def canReachNB(pbs, startConf, conf, prob, initViol,
                          attached=pbs.getShadowWorld(prob).attached)
             else:
                 print 'viol, cost, path', viol, cost, path
-        debugMsg('canReachNB', ('viol', viol))
+        if debug('canReachNB'): print 'canReachNB', ('viol', viol)
 
     return path, viol
 

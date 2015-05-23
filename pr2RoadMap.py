@@ -329,8 +329,7 @@ class RoadMap:
                          ('moveObjBs', pbs.moveObjBs),
                          ('fixObjBs', pbs.fixObjBs),
                          ('held', (pbs.held['left'].mode(),
-                                   pbs.held['right'].mode(),
-                                   grasp('left'), grasp('right'))),
+                                   pbs.held['right'].mode())),
                          ('initViol', initViol),
                          ('avoidShadow', pbs.avoidShadow))
             if not (optimize or fbch.inHeuristic):
@@ -1345,7 +1344,7 @@ def validEdgeTest(xyt_i, xyt_f):
     if max(abs(xi-xf), abs(yi-yf)) < 0.01:
         # small enough displacement
         return True
-    if abs(util.angleDiff(math.atan2(yf-yi, xf-xi), thi)) <= 0.25*math.pi:
+    if abs(util.angleDiff(math.atan2(yf-yi, xf-xi), thi)) <= 0.75*math.pi:
         # Not strictly back, so the head can look at where it's going
         return True
     return False
