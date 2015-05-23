@@ -163,22 +163,25 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
 
 def canView(pbs, prob, conf, hand, shape, maxIter = 50):
     def armShape(c, h):
-        parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])
-        return parts[pbs.getRobot().armChainNames[h]]
-        
+        parts = dict([(o.name(), o) for o in c.placement().parts()])
+        armShapes = [parts[pbs.getRobot().armChainNames[h]],
+                     parts[pbs.getRobot().gripperChainNames[h]]]
+        if attached[h]:
+            armShapes.append(parts[attached[h].name()])
+        return shapes.Shape(armShapes, None)
     vc = viewCone(conf, shape)
     if not vc: return None
     shWorld = pbs.getShadowWorld(prob)
-    confPlace = conf.placement(attached=shWorld.attached)
+    attached = shWorld.attached
+    confPlace = conf.placement(attached=attached)
     # !! don't move arms to clear view of fixed objects
     if objectName(shape.name()) in pbs.getWorld().graspDesc and \
            vc.collides(confPlace):
         if debug('canView'):
             vc.draw('W', 'red')
-            conf.draw('W')
+            conf.draw('W', attached=attached)
             raw_input('ViewCone collision')
         avoid = shapes.Shape([vc, shape], None)
-        attached = shWorld.attached
         pathFull = []
         for h in ['left', 'right']:     # try both hands
             if not vc.collides(armShape(conf, h)): continue
@@ -197,7 +200,7 @@ def canView(pbs, prob, conf, hand, shape, maxIter = 50):
             if debug('canView') or debug('canViewFail'):
                 if not path:
                     pbs.draw(prob, 'W')
-                    conf.draw('W')
+                    conf.draw('W', attached=attached)
                     vc.draw('W', 'red')
                     raw_input('canView - no path')
             if path:
