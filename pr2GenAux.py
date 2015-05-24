@@ -903,7 +903,7 @@ def inside(obj, reg):
 
 def confDelta(c1, c2):
     return max([max([abs(x-y) for (x,y) in zip(c1.conf[k], c2.conf[k])]) \
-                for k in c1])
+                for k in c1 if k in c2])
 
 def findGraspConfEntries(conf):
     return [(c, ca, pbs, prob, viol) \

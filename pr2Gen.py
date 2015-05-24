@@ -1174,6 +1174,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     newBS = newBS.updateFromGoalPoses(cond) if cond else newBS
     # Build the other hand's info into the bState
     newBS.updateHeldBel(graspB2, otherHand(hand))
+    newBS.updatePermObjPose(placeB)
 
     viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
                              graspB1, placeB, prob, op=op)
