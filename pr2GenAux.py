@@ -281,6 +281,7 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None
     for x in memo:
         yield x
 
+graspConfs = set([])
 def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
     robot = pbs.getRobot()
     rm = pbs.getRoadMap()
@@ -318,6 +319,7 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
                 pbs.draw(prob, 'W')
                 conf.draw('W','green')
                 debugMsg('potentialGraspConfsWin', ('->', conf.conf))
+            graspConfs.add((conf, ca, pbs, prob, viol))
             return conf, ca, viol
     else:
         if debug('potentialGraspConfs'): conf.draw('W','red')
@@ -898,6 +900,12 @@ def inside(obj, reg):
         if not np.all(np.dot(reg.planes(), verts[:,i]) <= tiny):
             return False
     return True
-    
-        
-    
+
+def confDelta(c1, c2):
+    return max([max([abs(x-y) for (x,y) in zip(c1.conf[k], c2.conf[k])]) \
+                for k in c1])
+
+def findGraspConfEntries(conf):
+    return [(c, ca, pbs, prob, viol) \
+            for (c, ca, pbs, prob, viol) in graspConfs \
+            if confDelta(c, conf) < 0.001 or confDelta(c1, conf) < 0.001]
