@@ -1470,7 +1470,7 @@ poseAchCanReach = Operator(\
         Function(['P1'], ['PR'], regressProb(1), 'regressProb1', True),
         # Call generator
         Function(['Occ', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta'],
-                  ['CEnd', 'PR', 'PostCond'], canReachGen, 'canReachGen'),
+                  ['CEnd', 'FCP', 'PR', 'PostCond'], canReachGen,'canReachGen'),
          # Add the appropriate condition
          Function(['PreCond'],
                   ['PostCond',
