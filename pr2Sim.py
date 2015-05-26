@@ -270,17 +270,16 @@ class RealWorld(WorldState):
         # Have to characterize the likelihood of grasping O and
         # the variance of the grasp, then draw appropriately.
         vl = \
-           ['Obj', 'Hand', 'OtherHand', 'PoseFace', 'Pose', 'PoseDelta',
-            'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta',
+           ['Obj', 'Hand', 'PoseFace', 'Pose', 'PoseDelta',
             'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-            'PreConf', 'ConfDelta', 'PickConf',
-            'P1', 'P2', 'P3', 'P4', 'PR1', 'PR2', 'PR3']
+            'PreConf', 'ConfDelta', 'PickConf', 'RealGraspVar', 'PoseVar',
+            'P1', 'PR1', 'PR2', 'PR3']
         failProb = self.domainProbs.pickFailProb
         success = DDist({True : 1 - failProb, False : failProb}).draw()
 
         # Try to execute pick
         (hand, pickConf, approachConf) = \
-                 (op.args[1], op.args[17], op.args[15])
+                 (op.args[1], op.args[11], op.args[9])
         bigAngleWarn(approachConf, pickConf)
         self.setRobotConf(pickConf)
         self.robotPlace.draw('World', 'orchid')
@@ -331,8 +330,8 @@ class RealWorld(WorldState):
             # Execute the place prim, starting at c1, aiming for c2.
             # Every kind of horrible, putting these indices here..
             hand = op.args[1]
-            placeConf = op.args[-8]
-            approachConf = op.args[-10]
+            placeConf = op.args[-6]
+            approachConf = op.args[-8]
             bigAngleWarn(approachConf, placeConf)
             self.setRobotConf(placeConf)
             self.robotPlace.draw('World', 'orchid')            

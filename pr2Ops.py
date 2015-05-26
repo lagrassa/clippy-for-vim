@@ -812,7 +812,7 @@ def pickBProgress(details, args, obs=None):
 
 def placeBProgress(details, args, obs=None):
     # Assume robot ends up at preconf, so no conf change
-    (o,h,pf,p,_,_,_,_,_,_,_,_,_,_,_,_,_,p1) = args
+    (o,h,pf,p,_,_,_,_,_,_,_,_,_,_,_,_,_,_,p1) = args
     placeVar = details.domainProbs.placeVar
     failProb = details.domainProbs.placeFailProb
     # !! This is wrong!  The coordinate frames of the variances don't match.
