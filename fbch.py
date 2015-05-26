@@ -1023,7 +1023,7 @@ class Operator(object):
             if f.isConditional():
                 # Preconds will not override results
                 f.addConditions(explicitResults, startState.details)
-                f.addConditions(explicitPreconds, startState.details)
+                #f.addConditions(explicitPreconds, startState.details)
                 f.addConditions(explicitSE, startState.details)
                 f.update()
 
