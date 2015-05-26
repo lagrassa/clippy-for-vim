@@ -21,6 +21,8 @@ drawRebindNodes = True
 'canPickPlaceTest'
 'canReachGen'
 'canReachHome'
+'canReachNB'
+'canViewFail'
 'checkCRH'
 'colliders:collision'
 'confReachViol'
@@ -59,8 +61,7 @@ drawRebindNodes = True
 'visible'
 '''
 
-debugOn = ['traceGen', 'traceCRH', 'skeleton', 'canPickPlaceGen', 'lookGen']
-#, 'canViewFail', 'canReachNB', 'canPickPlaceGen']
+debugOn = ['traceGen', 'traceCRH', 'skeleton', 'backward']
 
 if platform.system() == 'Linux':
     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:

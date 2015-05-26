@@ -68,7 +68,7 @@ reload(pr2Gen)
 import pr2Ops
 reload(pr2Ops)
 from pr2Ops import move, pick, place, lookAt, poseAchCanReach, poseAchCanSee,\
-      lookAtHand, hRegrasp, poseAchCanPickPlace, graspAchCanPickPlace,\
+      lookAtHand, hRegrasp, poseAchCanPickPlace, \
       poseAchIn, moveNB
 
 import pr2Sim

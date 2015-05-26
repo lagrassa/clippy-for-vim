@@ -262,6 +262,9 @@ class PBS:
         return bs
     
     def getShadowWorld(self, prob):
+        def shLE(w1, w2):
+            return all([w1[i] <= w2[i] for i in (0,1,3)])
+
         if self.shadowWorld and self.shadowProb == prob:
             return self.shadowWorld
         else:
@@ -295,9 +298,7 @@ class PBS:
             objBMinProb = 0.95
             minShWidth = shadowWidths(objBMinVar, objBMinDelta, objBMinProb)
             if obj in self.getWorld().graspDesc and \
-                   all([x <= y or abs(x-y)<1e-4 \
-                        for (x,y) in zip(shadowWidths(objB.poseD.var, objB.delta, 0.99),
-                                         minShWidth)]):
+               shLE(shadowWidths(objB.poseD.var, objB.delta, 0.99), minShWidth):
                 # actual shadow is small, so use that (for graspable objects)
                 objBMin = objB
             else:
@@ -305,10 +306,13 @@ class PBS:
                 objBMin.delta = objBMinDelta
 
             shWidth = shadowWidths(objB.poseD.var, objB.delta, prob)
-            if all([x <= y or abs(x-y)<1e-4 for (x,y) in zip(shWidth, minShWidth)]):
+            if shLE(shWidth, minShWidth):
                 # If the "min" shadow is wider than actual shadow, make them equal
                 objB = objBMin
                 prob = objBMinProb
+            print 'obj', obj, objB == objBMin
+            print 'shWidth', shWidth
+            print 'minShWidth', minShWidth
 
             # Shadows relative to Identity pose
             shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)

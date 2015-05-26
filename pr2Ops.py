@@ -11,7 +11,7 @@ from pr2Util import PoseD, shadowName, ObjGraspB, ObjPlaceB, Violations,\
 from pr2Gen import pickGen, canReachHome, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen, placeInRegionGen, placeGen
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
-     SupportFace, In, CanSeeFrom, Graspable, CanPickPlace, RelPose,\
+     SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
      findRegionParent, CanReachNB, BaseConf, BLoc
 from planGlobals import debugMsg, debug, useROS
 import pr2RRT as rrt
