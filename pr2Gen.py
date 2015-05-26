@@ -137,7 +137,7 @@ def pickGen(args, goalConds, bState, outBindings, onlyCurrent = False):
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), None,
                        PoseD(None,  objV), delta=objDelta)
     for ans, viol in pickGenTop((obj, graspB, placeB, hand, base, prob,),
-                                goalConds, bState.pbs, outBindings, onlyCurrent):
+                             goalConds, bState.pbs, outBindings, onlyCurrent):
         (pB, c, ca) = ans
         yield (pB.poseD.mode().xyztTuple(), pB.support.mode(), c, ca)
 

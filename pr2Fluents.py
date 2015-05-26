@@ -276,51 +276,33 @@ class CanReachHome(Fluent):
     implicit = True
     conditional = True
 
+    # Args are: conf, fcp, cond
+
+    # fcp is kind of a hack: it means that the first condiiton is
+    # a pose and the shadow of that object is irreducible.
+
     def conditionOn(self, f):
-        return f.predicate in ('Pose', 'SupportFace') and not ('*' in f.args)
+        return f.predicate in \
+                  ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
+          and not ('*' in f.args)
 
     def getViols(self, bState, v, p, strict = True):
         assert v == True
-        (conf, hand,
-               lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
-               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
-               firstCondPerm, cond) = \
-                            self.args   # Args
-        # Note that all object poses are permanent, no collisions can be ignored
+        (conf, fcp, cond) = self.args  
+
         newPBS = bState.pbs.copy()
         if strict:
             newPBS.updateFromAllPoses(cond, updateHeld=False)
         else:
             newPBS.updateFromGoalPoses(cond, updateHeld=False)
 
-        if hand == 'right':
-            # Swap arguments!
-            (lobj, lface, lgraspMu, lgraspVar, lgraspDelta, \
-             robj, rface, rgraspMu, rgraspVar, rgraspDelta) =  \
-            (robj, rface, rgraspMu, rgraspVar, rgraspDelta, \
-             lobj, lface, lgraspMu, lgraspVar, lgraspDelta)
-        
-        lgraspD = PoseD(util.Pose(*lgraspMu), lgraspVar) \
-                          if lobj != 'none' else None
-        rgraspD = PoseD(util.Pose(*rgraspMu), rgraspVar) \
-                          if robj != 'none' else None
-        
-        newPBS.updateHeld(lobj, lface, lgraspD, 'left', lgraspDelta)
-        newPBS.updateHeld(robj, rface, rgraspD, 'right', rgraspDelta)
-
-        if firstCondPerm:
-            fc = cond[0]
-            assert fc.args[0].predicate == 'Pose'
-            avoidShadow = [fc.args[0].args[0]]
-        else:
-            avoidShadow = []
+        avoidShadow = [cond[0].args[0].args[0]] if fcp else []
         newPBS.updateAvoidShadow(avoidShadow)
 
-        path, violations = canReachHome(newPBS, conf, p, Violations(), draw=False)
+        path, violations = canReachHome(newPBS, conf, p, Violations(),
+                                        draw=False)
         debugMsg('CanReachHome',
                  ('conf', conf),
-                 ('lobjGrasp', lobj, lface, lgraspD),
-                 ('robjGrasp', robj, rface, rgraspD),
                  ('->', violations))
         return path, violations
 
@@ -332,13 +314,9 @@ class CanReachHome(Fluent):
 
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
-        (conf, hand,
-               lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
-               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
-               firstCondPerm, cond) = \
-                            self.args   # Args
-        
-        obstCost = 10  # move pick move place
+        (conf, fcp, cond) = self.args
+        approxPrimCost = 2
+        obstCost = 4 * approxPrimCost  # move pick move place
 
         if not self.isGround():
             # assume an obstacle, if we're asking.  May need to decrease this
@@ -382,20 +360,12 @@ class CanReachHome(Fluent):
         return (obstCost * len(obstacles) + shadowSum, ops)
 
     def prettyString(self, eq = True, includeValue = True):
-        (conf, hand, lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
-               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
-               firstObjPerm, cond) = self.args   # Args
-        if hand == 'right':
-            (lobj, lface, lgraspMu, lgraspVar, lgraspDelta, \
-             robj, rface, rgraspMu, rgraspVar, rgraspDelta) =  \
-            (robj, rface, rgraspMu, rgraspVar, rgraspDelta, \
-             lobj, lface, lgraspMu, lgraspVar, lgraspDelta)
-
+        (conf, fcp, cond) = self.args
         condStr = self.args[-1] if isVar(self.args[-1]) else \
           str([innerPred(c) for c in self.args[-1]]) 
 
         argStr = prettyString(self.args) if eq else \
-                  prettyString([conf, lobj, robj, condStr], eq)
+                  prettyString([conf, condStr], eq)
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
 
@@ -406,57 +376,30 @@ class CanReachNB(Fluent):
     conditional = True
 
     def conditionOn(self, f):
-        return f.predicate in ('Pose', 'SupportFace') and not ('*' in f.args)
+        return f.predicate in \
+                  ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
+          and not ('*' in f.args)
 
     def getViols(self, bState, v, p, strict = True):
         assert v == True
-        (startConf, endConf, hand,
-               lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
-               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
-               firstCondPerm, cond) = self.args   # Args
+        (startConf, endConf, cond) = self.args 
 
-        # Note that all object poses are permanent, no collisions can be ignored
         newPBS = bState.pbs.copy()
         if strict:
             newPBS.updateFromAllPoses(cond, updateHeld=False)
         else:
             newPBS.updateFromGoalPoses(cond, updateHeld=False)
 
-        if hand == 'right':
-            # Swap arguments!
-            (lobj, lface, lgraspMu, lgraspVar, lgraspDelta, \
-             robj, rface, rgraspMu, rgraspVar, rgraspDelta) =  \
-            (robj, rface, rgraspMu, rgraspVar, rgraspDelta, \
-             lobj, lface, lgraspMu, lgraspVar, lgraspDelta)
-        
-        lgraspD = PoseD(util.Pose(*lgraspMu), lgraspVar) \
-                          if lobj != 'none' else None
-        rgraspD = PoseD(util.Pose(*rgraspMu), rgraspVar) \
-                          if robj != 'none' else None
-        
-        newPBS.updateHeld(lobj, lface, lgraspD, 'left', lgraspDelta)
-        newPBS.updateHeld(robj, rface, rgraspD, 'right', rgraspDelta)
-
-        # Fix this!!!
-        # if firstCondPerm:
-        #     fc = cond[0]
-        #     assert fc.args[0].predicate == 'Pose'
-        #     avoidShadow = [fc.args[0].args[0]]
-        # else:
-        #     avoidShadow = []
-
         path, violations = canReachNB(newPBS, startConf, endConf, p,
                                       Violations(), draw=False)
         debugMsg('CanReachNB',
                  ('confs', startConf, endConf),
-                 ('lobjGrasp', lobj, lface, lgraspD),
-                 ('robjGrasp', robj, rface, rgraspD),
                  ('->', violations))
         return path, violations
 
     def bTest(self, bState, v, p):
         ## Real version
-        (startConf, endConf) = (self.args[0], self.args[1])
+        (startConf, endConf, cond) = self.args
 
         if isVar(endConf):
             assert 'need to have end conf bound to test'
@@ -472,7 +415,7 @@ class CanReachNB(Fluent):
         
         path, violations = self.getViols(bState, v, p)
 
-        if not bool(path and violations.empty()) and debug('canReachNB'):
+        if violations == None and debug('canReachNB'):
             startConf.draw('W', 'black')
             endConf.draw('W', 'blue')
             print 'Conditions'
@@ -484,7 +427,7 @@ class CanReachNB(Fluent):
 
     def getGrounding(self, details):
         assert self.value == True
-        (startConf, targetConf) = (self.args[0], self.args[1])
+        (startConf, targetConf, cond) = self.args
         assert not isGround(targetConf)
         # Allow startConf to remain unbound
         return {}
@@ -492,11 +435,7 @@ class CanReachNB(Fluent):
     def fglb(self, other, details):
         # If start and target are the same, then everybody entails us!
         # Really should have a more general mechanism for simplifying conditions
-        (startConf, conf, hand,
-               lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
-               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
-               firstCondPerm, cond) = \
-                            self.args   # Args
+        (startConf, conf, cond) = self.args
         if startConf == conf:
             return other, {}
         else:
@@ -505,11 +444,7 @@ class CanReachNB(Fluent):
     # Exactly the same as for CanReachHome
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
-        (startConf, conf, hand,
-               lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
-               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
-               firstCondPerm, cond) = \
-                            self.args   # Args
+        (startConf, conf, cond) = self.args   # Args
 
         obstCost = 10  # move pick move place
         unboundCost = 1  # we don't know whether this will be hard or not
@@ -555,21 +490,12 @@ class CanReachNB(Fluent):
         return (obstCost * len(obstacles) + shadowSum, ops)
 
     def prettyString(self, eq = True, includeValue = True):
-        (startConf, endConf, hand,
-               lobj, lface, lgraspMu, lgraspVar, lgraspDelta,
-               robj, rface, rgraspMu, rgraspVar, rgraspDelta,
-               firstObjPerm, cond) = self.args   # Args
-        if hand == 'right':
-            (lobj, lface, lgraspMu, lgraspVar, lgraspDelta, \
-             robj, rface, rgraspMu, rgraspVar, rgraspDelta) =  \
-            (robj, rface, rgraspMu, rgraspVar, rgraspDelta, \
-             lobj, lface, lgraspMu, lgraspVar, lgraspDelta)
-             
+        (startConf, endConf, cond) = self.args
         condStr = self.args[-1] if isVar(self.args[-1]) else \
           str([innerPred(c) for c in self.args[-1]]) 
 
         argStr = prettyString(self.args) if eq else \
-                  prettyString([startConf, endConf, lobj, robj, condStr], eq)
+                  prettyString([startConf, endConf, condStr], eq)
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
 
@@ -586,11 +512,12 @@ class CanPickPlace(Fluent):
     conditional = True
 
     def conditionOn(self, f):
-        return f.predicate in ('Pose', 'SupportFace') and not ('*' in f.args)
+        return f.predicate in \
+                  ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
+          and not ('*' in f.args)
 
     # Add a glb method that will at least return False, {} if the two are
     # in contradiction.  How to test, exactly?
-
 
     # Override the default version of this so that the component conds
     # will be recalculated
@@ -603,8 +530,7 @@ class CanPickPlace(Fluent):
         # won't have this attribute
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
           graspFace, graspMu, graspVar, graspDelta,
-         oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-        opType, inconds) = self.args
+          opType, inconds) = self.args
 
         if details:
             pbs = details.pbs
@@ -617,28 +543,25 @@ class CanPickPlace(Fluent):
                             1.0], True)
             objInPlaceZeroVar = B([Pose([obj, poseFace]), pose, zeroVar,
                                    tinyDelta,1.0], True)
+            holdingNothing = Bd([Holding([hand]), 'none', 1.0], True)
+            objInHand = B([Grasp([obj, hand, graspFace]),
+                           graspMu, graspVar, graspDelta, 1.0], True)
+            objInHandZeroVar = B([Grasp([obj, hand, graspFace]),
+                                 graspMu, zeroVar, tinyDelta, 1.0], True)
+            
             self.conds = \
-          [# 1.  Home to approach, holding nothing, obj in place
-           # If it's a place operation, the shadow is irreducible
-              CanReachHome([preConf, hand,
-                        'none', 0, zeroPose, zeroVar, tinyDelta,
-                        oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-                        opType == 'place', [objInPlace]]),
+             [# 1.  Home to approach, holding nothing, obj in place
+              # If it's a place operation, the shadow of the object in
+              #    place is irreducible .   !!!
+              CanReachHome([preConf, opType == 'place',
+                            [objInPlace, holdingNothing]]),
               # 2.  Home to approach with object in hand
-              CanReachHome([preConf, hand, obj,
-                                graspFace, graspMu, graspVar, graspDelta,
-                                oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-                                False, []]),
+              CanReachHome([preConf, False, [objInHand]]),
               # 3.  Home to pick with hand empty, obj in place with zero var
-              CanReachHome([ppConf, hand, 
-                               'none', 0, zeroPose, zeroVar, tinyDelta,
-                                oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-                                False, [objInPlaceZeroVar]]),
-             # 4. Home to pick with the object in hand with zero var and delta
-              CanReachHome([ppConf, hand,
-                                obj, graspFace, graspMu, zeroVar, tinyDelta,
-                                oObj, oFace, oGraspMu, oGraspVar, oGraspDelta,
-                                False, []])]
+              CanReachHome([ppConf, False,
+                            [holdingNothing, objInPlaceZeroVar]]),
+              # 4. Home to pick with the object in hand with zero var and delta
+              CanReachHome([ppConf, False, [objInHandZeroVar]])]
             for c in self.conds: c.addConditions(inconds, details)
         return self.conds
 
@@ -709,7 +632,7 @@ class CanPickPlace(Fluent):
     def prettyString(self, eq = True, includeValue = True):
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
           face, graspMu, graspVar, graspDelta,
-          oobj, oface, ograspMu, ograspVar, ograspDelta, op, conds) = self.args
+          op, conds) = self.args
         assert obj != 'none'
 
         condStr = self.args[-1] if isVar(self.args[-1]) else \
@@ -844,36 +767,6 @@ class Pose(Fluent):
         else:
            return {self, other}, {}
 
-# Not currently in use       
-class RelPose(Fluent):
-    predicate = 'Pose'
-    def dist(self, bState):
-        (obj1, face1, obj2, face2) = self.args
-        d1 = bState.poseModeDist(obj1, face1)
-        p1 = bState.poseModeProbs[obj1]
-        if obj2 == 'robot':
-            r = bState.pbs.conf['basePose']
-            mu = d1.mode().compose(r.inverse())
-            return GMU([(MVG(mu.xyztTuple(), d1.variance()), p1)])
-        else:
-            d2 = bState.poseModeDist(obj2, face2)
-            p2 = bState.poseModeProbs[obj2]
-            mu = d1.mode().compose(d2.mode().inverse())
-            variance = [a+b for (a, b) in zip(d1.varianceTuple(),
-                                              d2.varianceTuple())]
-            return GMU([(MVG(mu.xyztTuple(), diagToSq(variance)),
-                            p1 * p2)])
-
-    def fglb(self, other, bState = None):
-        assert False, 'Not implemented'
-        if (other.predicate == 'Holding' and \
-            self.args[0] == other.value) or \
-           (other.predicate in ('Grasp', 'GraspFace') and \
-                 self.args[0] == other.args[0]):
-           return False, {}
-        else:
-           return {self, other}, {}
-
 class SupportFace(Fluent):
     predicate = 'SupportFace'
     def dist(self, bState):
@@ -937,16 +830,14 @@ class CanSeeFrom(Fluent):
             placeB = placeB.modifyPoseD(mu = pose)
         newPBS.updatePermObjPose(placeB)
 
-        # LPK! Force recompute
-        newPBS.shadowWorld = None
+        newPBS.reset()   # recompute shadow world
 
         shWorld = newPBS.getShadowWorld(p)
         shName = shadowName(obj)
         sh = shWorld.objectShapes[shName]
-        obstacles = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ] + \
+        obstacles = [s for s in shWorld.getNonShadowShapes() if s.name()!=obj]+\
                     [conf.placement(shWorld.attached)]
         ans, _ = visible(shWorld, conf, sh, obstacles, p, moveHead=False)
-
         return ans
 
     def getViols(self, bState, v, p, strict = True):
@@ -978,22 +869,6 @@ class CanSeeFrom(Fluent):
                  ('->', occluders))
         return ans, occluders
     
-    '''
-    def fglb(self, other, details = None):
-        if other.predicate != 'CanSeeFrom' or
-            self.args[:-1] != other.args[:-1]:
-            return {self, other}
-        cSelf = self.args[-1]
-        cOther = other.args[-1]
-
-        sMinusO = cSelf.setMinus(cOther)
-        oMinusS = self.setMinus(cOther)
-
-        # If the only difference is holding = none, that is entailed
-        # by a fluent with no conditions.
-    ''' 
-        
-
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
         (obj, pose, poseFace, conf, cond) = self.args
@@ -1057,7 +932,6 @@ class CanSeeFrom(Fluent):
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
 
-    
 
 # Given a set of fluents, partition them into groups that are achieved
 # together, for the heuristic.  Should be able to do this by automatic

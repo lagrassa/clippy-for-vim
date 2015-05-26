@@ -397,6 +397,13 @@ def addFluentToSet(fluentSet, newF, details = None, noBindings = False):
     fluentSet = set([f.applyBindings(allB) for f in fluentSet])
     return fluentSet, allB
 
+# Don't worry about entailment
+def addFluentToSetIfNew(fluentSet, newF, details = None):
+    for thing in fluentSet:
+        if thing.sameFluent(newF):
+            return fluentSet
+    return fluentSet.union(set([newF]))
+
 # Return a list of fluent, bindings pairs
 def getMatchingFluents(fluentList, pattern):
     result = [(f, pattern.matchAll(f)) for f in fluentList]
@@ -539,6 +546,10 @@ class Fluent(object):
     def matchAll(self, other, bindings = {}):
         return matchTerms(self.getValue(), other.getValue(),
                           self.matchArgs(other, bindings))
+
+    def sameFluent(self, other):
+        return self.isGround() and other.isGround() and \
+          self.matchArgs(other) != None
 
     # Predicate and arguments match
     def matchArgs(self, other, bindings = {}):
@@ -1206,7 +1217,7 @@ def simplifyCond(oldFs, newFs, details = None):
         if (not f.isGround()) or f.isImplicit() or f.immutable:
             continue
         if result.isConsistent([f], details):
-            result.add(f, details)
+            result.fluents = addFluentToSetIfNew(result.fluents, f)
     debugMsg('simplifyCond', ('oldFs', oldFs),
              ('newFs', newFs), ('result', result.fluents))
     resultList = list(result.fluents)

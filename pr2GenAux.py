@@ -541,8 +541,7 @@ def getReachObsts(goalConds, pbs):
              Bd([CanPickPlace(['Preconf', 'Ppconf', 'Hand', 'Obj', 'Pose',
                                'Posevar', 'Posedelta', 'Poseface',
                                'Graspface', 'Graspmu', 'Graspvar', 'Graspdelta',
-                               'Oobj', 'Oface', 'Ograspmu', 'Ograspvar',
-                               'Ograspdelta', 'Op', 'Inconds']),
+                                'Op', 'Inconds']),
                                 True, 'P'], True))
     obstacles = []
     for (f, b) in fbs:

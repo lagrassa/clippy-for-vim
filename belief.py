@@ -33,6 +33,10 @@ class BFluent(Fluent):
         addConds = [c for c in newConds if self.conditionOn(c)]
         self.args[0].addConditions(addConds, details)
 
+    def sameFluent(self, other):
+        return self.isGround() and other.isGround() and \
+          self.args[0].matchArgs(other.args[0]) != None
+
     def getIsGround(self):
         return self.args[0].isGround() and \
                all([not isAnyVar(a) for a in self.args[1:]]) \
@@ -664,7 +668,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
 
     totalActSet = set()
     # AND loop over fluents
-    fbch.inHeuristic = True
+    #fbch.inHeuristic = True
     for ff in partitionFn(goal.fluents):
         (ic, actSet) = aux(ff, idk, float('inf'))
         if ic == float('inf'):
