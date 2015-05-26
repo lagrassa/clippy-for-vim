@@ -799,8 +799,11 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              lookAt.applyBindings({'Obj' : 'table1'}), move,
              place.applyBindings({'Obj': 'objA'}), move, 
              pick, moveNB]]
-             
-    actualSkel = easySkel if easy else (hskel if hierarchical else skel)
+
+    if not easy:
+        actualSkel = hskel if hierarchical else skel
+    else:
+        actualSkel = None
 
     t.run(goal,
           hpn = hpn,

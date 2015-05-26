@@ -513,11 +513,10 @@ def pathShape(path, prob, pbs, name):
     attached = pbs.getShadowWorld(prob).attached
     return shapes.Shape([c.placement(attached=attached) for c in path], None, name=name)
 
-def pathObst(cs, lgb, rgb, cd, p, pbs, name):
+def pathObst(cs, cd, p, pbs, name):
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(cd) if cd else newBS
-    newBS.updateHeldBel(lgb, 'left')
-    newBS.updateHeldBel(rgb, 'right')
+    newBS = newBS.updateFromGoalPoses(cd) if cd else newBS
     key = (cs, newBS, p)
     if key in pbs.beliefContext.pathObstCache:
         return pbs.beliefContext.pathObstCache[key]
@@ -525,8 +524,6 @@ def pathObst(cs, lgb, rgb, cd, p, pbs, name):
     if debug('pathObst'):
         newBS.draw(p, 'W')
         cs.draw('W', 'red', attached=newBS.getShadowWorld(p).attached)
-        print 'lgb', lgb
-        print 'rgb', rgb
         print 'condition', cd
     if not path:
         if debug('pathObst'):
@@ -555,10 +552,7 @@ def getReachObsts(goalConds, pbs):
 
 def getCRHObsts(goalConds, pbs):
     fbs = fbch.getMatchingFluents(goalConds,
-                             Bd([CanReachHome(['C', 'H',
-                                               'LO', 'LF', 'LGM', 'LGV', 'LGD',
-                                               'RO', 'RF', 'RGM', 'RGV', 'RGD',
-                                               'LAP', 'Cond']),
+                             Bd([CanReachHome(['C', 'LAP', 'Cond']),
                                  True, 'P'], True))
     world = pbs.getWorld()
     obsts = []
@@ -568,18 +562,7 @@ def getCRHObsts(goalConds, pbs):
         if debug('getReachObsts'):
             print 'GRO', f
         ignoreObjects = set([])
-        lo = b['LO']; ro = b['RO']
-        if lo != 'none': ignoreObjects.add(lo)
-        if ro != 'none' : ignoreObjects.add(ro)
-        gB1 = ObjGraspB(lo, world.getGraspDesc(lo), b['LF'],
-                        PoseD(b['LGM'], b['LGV']), delta=b['LGD'])
-        gB2 = ObjGraspB(ro, world.getGraspDesc(ro), b['RF'],
-                        PoseD(b['RGM'], b['RGV']), delta=b['RGD'])
-        if b['H'] == 'left':
-            gBL = gB1; gBR = gB2
-        else:
-            gBL = gB2; gBR = gB1
-        obst = pathObst(b['C'], gBL, gBR, b['Cond'], b['P'], pbs, name= 'reachObst%d'%index)
+        obst = pathObst(b['C'], b['Cond'], b['P'], pbs, name= 'reachObst%d'%index)
         index += 1
         if not obst:
             debugMsg('getReachObsts', ('path fail', f, b.values()))
@@ -610,7 +593,7 @@ def getHolding(goalConds):
     held = []
     for (pf, pb) in pfbs:
         if isGround(pb.values()):
-            objs.append((pb['Hand'], pb['Obj']))
+            held.append((pb['Hand'], pb['Obj']))
     return held
 
 def bboxRandomDrawCoords(bb):

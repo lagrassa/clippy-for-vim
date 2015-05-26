@@ -431,6 +431,8 @@ class RoadMap:
             if debug('traceCRH'): print '    NB path failed... trying RRT'
             path, viol = rrt.planRobotPathSeq(pbs, prob, initConf, targetConf, None,
                                               maxIter=20, failIter=5)
+            if not viol:
+                raw_input('RRT for NB failed')
             return (viol, 0, path)
         if startConf:
             return confAns(ans, reverse=False)
