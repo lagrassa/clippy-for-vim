@@ -145,6 +145,7 @@ class PBS:
 
     def updateAvoidShadow(self, avoidShadow):
         self.avoidShadow = avoidShadow
+        return self
 
     def updateFromAllPoses(self, goalConds, updateHeld=True, updateConf=True):
         initialObjects = self.objectsInPBS()

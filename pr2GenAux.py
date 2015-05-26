@@ -16,7 +16,7 @@ import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
 from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace, \
-    BaseConf
+    BaseConf, Holding
 from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCO
 from pr2Visible import visible, lookAtConf, viewCone
