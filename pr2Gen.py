@@ -889,8 +889,6 @@ def lookGen(args, goalConds, bState, outBindings):
     world = bState.pbs.getWorld()
 
     base = sameBase(goalConds)
-    if base and debug('lookGen'):
-        raw_input('Same base constraint in lookGen -- how to pick conf??')
 
     if pose == '*':
         # This could produce a mode of None

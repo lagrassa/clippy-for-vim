@@ -112,7 +112,7 @@ class RealWorld(WorldState):
                     ('base', conf['pr2Base'], 'left', leftPos,'right',rightPos))
                 break
             newXYT = self.robotConf.conf['pr2Base']
-            if not validEdgeTest(prevXYT, newXYT):
+            if debug('backwards') and not validEdgeTest(prevXYT, newXYT):
                 print prevXYT, '->', newXYT
                 raw_input('Backwards')
             # Integrate the displacement

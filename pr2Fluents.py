@@ -1062,7 +1062,7 @@ def canReachHome(pbs, conf, prob, initViol,
     if path:
         for i, c in enumerate(path):
             if i == 0: continue
-            if not validEdgeTest(path[i-1]['pr2Base'], c['pr2Base']):
+            if debug('backwards') and not validEdgeTest(path[i-1]['pr2Base'], c['pr2Base']):
                 print path[i-1]['pr2Base'], '->', c['pr2Base']
                 raw_input('CRH - Backwards step')
 

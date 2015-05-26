@@ -59,7 +59,7 @@ drawRebindNodes = True
 'visible'
 '''
 
-debugOn = ['traceGen', 'traceCRH', 'skeleton', 'lookGen']
+debugOn = ['traceGen', 'traceCRH', 'skeleton', 'canPickPlaceGen', 'lookGen']
 #, 'canViewFail', 'canReachNB', 'canPickPlaceGen']
 
 if platform.system() == 'Linux':
