@@ -121,6 +121,28 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob):
                 yield ans
                 break
 
+# R1: Pick bindings that make pre-conditions not inconsistent with goalConds
+# R2: Pick bindings so that results do not make conditional fluents in the goalConds infeasible
+
+# Preconditions (for R1):
+
+# 1. Pose(obj) - since there is a Holding fluent in the goal (therefore
+# we pick), there cannot be a conflicting Pose fluent
+
+# 2. CanPickPlace(...) - has to be feasible given (permanent)
+# placement of objects in the goalConds, but it's ok to violate
+# shadows.
+
+# 3. Conf() - if there is Conf in goalConds, then fail.  If there's a
+# baseConf in goalConds, then we have to use that base.
+
+# 4. Holding(hand)=none - should not be a different Holding(hand)
+# value in goalConds, but there can't be.
+
+# Results (for R2):
+
+# Holding(hand)
+
 def pickGen(args, goalConds, bState, outBindings, onlyCurrent = False):
     (obj, graspFace, graspPose,
      objV, graspV, objDelta, confDelta, graspDelta, hand, prob) = args
@@ -162,10 +184,10 @@ def pickGenTop(args, goalConds, pbs, outBindings,
     if obj == 'none':                   # can't pick up 'none'
         tracep('pickGen', '    cannot pick up none')
         return
-    if goalConds and getConf(goalConds, None):
-        # if conf is specified, just fail
-        tracep('pickGen', '    conf is already specified')
-        return
+    if goalConds:
+        if  getConf(goalConds, None):
+            tracep('pickGen', '    conf is already specified')
+            return
     if obj == pbs.held[hand].mode():
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
                                                    hand)
@@ -338,6 +360,23 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         yield (pB, cf, ca), viol
     tracep('pickGen', 'out of values')
 
+# Preconditions (for R1):
+
+# 1. CanPickPlace(...) - has to be feasible given (permanent)
+# placement of objects in the goalConds, but it's ok to violate
+# shadows.
+
+# 2. Holding(hand) - should not suggest h if goalConds already has
+# Holding(h)
+
+# 3. Conf() - if there is Conf in goalConds, then fail.  If there's a
+# baseConf in goalConds, then we have to use that base.
+
+# Results (for R2):
+
+# Pose(obj)
+# Holding(hand) = none
+
 # Returns (hand, graspMu, graspFace, graspConf,  preConf)
 def placeGen(args, goalConds, bState, outBindings):
     (obj, hand, poses, support, objV, graspV, objDelta, graspDelta, confDelta,
@@ -398,10 +437,14 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
     if obj == 'none' or not placeBs:
         tracep('placeGen', '    objs is none or no placeB')
         return
-    if goalConds and getConf(goalConds, None) and not away:
-        # if conf is specified, just fail
-        tracep('placeGen', '    goal conf specified and not away')
-        return
+    if goalConds:
+        if getConf(goalConds, None) and not away:
+            tracep('placeGen', '    goal conf specified and not away')
+            return
+        for (h, o) in getHolding(goalConds):
+            if h == hand:
+                tracep('placeGen', '    this hand is already Holding')
+                return
 
     # LPK!!  Changed this to allow regrasping.  Later code will be
     # sure to generate the current grasp first.
@@ -584,6 +627,17 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                 yield ans, viol
     tracep('placeGen', 'out of values')
 
+# Preconditions (for R1):
+
+# 1. Pose(obj) - pick pose that does not conflict with what goalConds
+# say about this obj.  So, if Pose in goalConds with smaller variance
+# works, then fine, but otherwise a Pose in goalConds should cause
+# failure.
+
+# Results (for R2):
+
+# In(obj, Region)
+
 # Return objPose, poseFace.
 def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
     (obj, region, var, delta, prob) = args
@@ -636,6 +690,33 @@ def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
     # Put all variance on the object being placed
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
                        PoseD(pose, var), delta=delta)
+
+    poseBels = getGoalPoseBels(goalConds, world.getFaceFrames)
+    if obj in poseBels:
+        # Object pose is specified in goalConds
+        pB = poseBels[obj]
+        shw = shadowWidths(pB.poseD.var, pB.delta, prob)
+        shwMin = shadowWidths(graspV, graspDelta, prob)
+        if any(w > mw for (w, mw) in zip(shw, shwMin)):
+            def poseGen():
+                for x in [pB.poseD.mode()]: yield x
+            poseGenMemo = Memoizer('poseGen', poseGen())
+            # Try to place in region at this pose, with smaller shadow
+            for ans, v in placeInGenAux(pbs, poseGenMemo, goalConds, None, None,
+                                        placeB, graspB, None, base, prob):
+                if debug('traceGen'):
+                    (pB, gB, c, ca) = ans
+                    pose = pB.poseD.mode() if pB else None
+                    grasp = gB.grasp.mode() if gB else None
+                    sup = pB.support.mode() if pB else None
+                    pg = (sup, grasp)
+                    print '    placeInGen(%s,%s) h='%(obj,[x.name() \
+                                                           for x in regShapes]), \
+                          v.weight() if v else None, '(p,g)=', pg, pose
+                yield ans, v
+        else:
+            # If pose is specified and variance is small, return
+            return
 
     shWorld = bState.pbs.getShadowWorld(prob)
     regShapes = [shWorld.regionShapes[region] for region in regions]
@@ -782,6 +863,18 @@ def placeInGenAux(pbs, poseGen, goalConds, confAppr, conf, placeB, graspB,
         yield (pB, gB, cf, ca), viol
 
 maxLookDist = 1.5
+
+# Preconditions (for R1):
+
+# 1. CanSeeFrom() - make a world from the goalConds and CanSeeFrom (visible) should be true.
+
+# 2. Conf() - if there is Conf in goalConds, then fail.  If there's a
+# baseConf in goalConds, then we have to use that base.
+
+# Results (for R2):
+
+# Condition to avoid violating future canReach
+# If we're in shadow in starting state, ok.   Otherwise, don't walk into a shadow.
 
 # Returns lookConf
 # The lookDelta is a slop factor.  Ideally if the robot is within that
@@ -948,6 +1041,16 @@ def lookAtConfCanView(pbs, prob, conf, shape, hands=['left', 'right']):
 ## lookHandGen
 ## obj, hand, graspFace, grasp, graspVar, graspDelta and gives a conf
 
+# !! NEEDS UPDATING
+
+# Preconditions (for R1):
+
+# 1. CanSeeFrom() - make a world from the goalConds and CanSeeFrom
+# should be true.
+
+# 2. Conf() - if there is Conf in goalConds, then fail.  If there's a
+# baseConf in goalConds, then we have to use that base.
+
 # Returns lookConf
 def lookHandGen(args, goalConds, bState, outBindings):
     (obj, hand, graspFace, grasp, graspV, graspDelta, prob) = args
@@ -1018,7 +1121,15 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
             debugMsg('lookHandGen', ('-> cyan', lookConf.conf))
         yield (lookConf,), viol
 
-#canReachGenCache = {}
+# Preconditions (for R1):
+
+# 1. CanReach(...) - new Pose fluent should not make the canReach
+# infeasible (use fluent as taboo).
+# new Pose fluent should not already be in conditions (any Pose for this obj).
+
+# 2. Pose(obj) - new Pose has to be consistent with the goal (ok to
+# reduce variance wrt goal but not cond). if Pose(obj) in goalConds,
+# can only reduce variance.
 
 # returns
 # ['Occ', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta']
@@ -1026,6 +1137,10 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
 def canReachGen(args, goalConds, bState, outBindings):
     (conf, hand, lobj, lgf, lgmu, lgv, lgd,
      robj, rgf, rgmu, rgv, rgd, prob, cond) = args
+    # Don't make this infeasible
+    goalFluent = Bd([CanPickPlace([conf, hand, lobj, lgf, lgmu, lgv, lgd,
+                                   robj, rgf, rgmu, rgv, rgd, False, cond]), True, prob], True)
+    goalConds = goalConds + [goalFluent]
     debugMsg('canReachGen', args)
     world = bState.pbs.getWorld()
     lookVar = bState.domainProbs.obsVarTuple
@@ -1069,6 +1184,8 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
     newBS = newBS.updateFromGoalPoses(cond) if cond else newBS
+    # The shadows of Pose(obj) in the cond are also permanent
+    newBS = newBS.updateAvoidShadow(getPoseObjs(cond))
     newBS.updateHeldBel(graspB1, hand)
     newBS.updateHeldBel(graspB2, otherHand(hand))
 
@@ -1101,7 +1218,12 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
         for ans in moveOut(newBS, obsts[0], moveDelta):
             yield ans 
     else:
-        shadowName = list(viol.shadows)[0].name()
+        shadows = [o.name() for o in viol.shadows \
+                   if o.name() not in newBS.fixObjBs]
+        if not shadows:
+            debugMsg('canReachGen', 'No shadows to clear')
+            return       # nothing available
+        shadowName = shadows[0].name()
         obst = objectName(shadowName)
         placeB = newBS.getPlaceB(obst)
         # !! It could be that sensing is not good enough to reduce the
@@ -1129,6 +1251,15 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
         if obst not in newBS.fixObjBs:
             for ans in moveOut(newBS, obst, moveDelta):
                 yield ans
+
+# Preconditions (for R1):
+
+# 1. CanPickPlace(...) - new Pose fluent should not make the
+# canPickPlace infeasible.  new Pose fluent should not already be in
+# conditions.
+
+# 2. Pose(obj) - new Pose has to be consistent with the goal (ok to
+# reduce variance wrt goal but not cond)
 
 # LPK!! More efficient if we notice right away that we cannot ask to
 # change the pose of an object that is in the hand in goalConds
@@ -1172,9 +1303,10 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     newBS = bState.pbs.copy()   
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
     newBS = newBS.updateFromGoalPoses(cond) if cond else newBS
+    # The shadows of Pose(obj) in the cond are also permanent
+    newBS = newBS.updateAvoidShadow(getPoseObjs(cond))
     # Build the other hand's info into the bState
     newBS.updateHeldBel(graspB2, otherHand(hand))
-    newBS.updatePermObjPose(placeB)
 
     viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
                              graspB1, placeB, prob, op=op)
@@ -1194,7 +1326,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
                              graspB1, placeB, prob, op=op)
             raw_input('here is the conf viol')
         return
-    
+
     objBMinDelta = newBS.domainProbs.minDelta
     objBMinVar = newBS.domainProbs.obsVarTuple
     objBMinProb = 0.95
@@ -1203,10 +1335,12 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     moveDelta = objBMinDelta
 
     # Try to fix one of the violations if any...
-    goalPoseObjs = getPoseObjs(goalConds)
+    # Treat object target as permanent
+    newBS.updatePermObjPose(placeB)
+    goalPoseObjs = getPoseObjs(cond)
     if viol.obstacles:
         obsts = [o.name() for o in viol.obstacles \
-                 if o.name() not in newBS.fixObjBs.keys() + goalPoseObjs]
+                 if o.name() not in newBS.fixObjBs.keys()]
         if not obsts:
             tracep('canPickPlaceGen', 'No movable obstacles to remove')
             return       # nothing available
@@ -1214,12 +1348,13 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         for ans in moveOut(newBS, obsts[0], moveDelta):
             yield ans 
     else:
-        obsts = [objectName(o.name()) for o in viol.shadows \
-                 if objectName(o.name()) not in goalPoseObjs]
-        if not obsts:
-            tracep('canPickPlaceGen', 'No varinances to reduce')
+        shadows = [o.name() for o in viol.shadows \
+                   if o.name() not in newBS.fixObjBs]
+        if not shadows:
+            debugMsg('canReachGen', 'No shadows to clear')
             return       # nothing available
-        obst = obsts[0]                 # pick one
+        shadowName = shadows[0].name()
+        obst = objectName(shadowName)
         pB = newBS.getPlaceB(obst)
         # !! It could be that sensing is not good enough to reduce the
         # shadow so that we can actually reach conf.
@@ -1245,6 +1380,14 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
                 yield ans
         else:
             tracep('canPickPlaceGen', 'found fixed obstacle', obst)
+
+# Preconditions (for R1):
+
+# 1. CanSeeFrom(...) - new Pose fluent should not make the CanSeeFrom
+# infeasible.  new Pose fluent should not already be in conditions.
+
+# 2. Pose(obj) - new Pose has to be consistent with the goal (ok to
+# reduce variance wrt goal but not cond)
 
 # returns
 # ['Occ', 'PoseFace', 'Pose', 'PoseVar', 'PoseDelta']

@@ -412,16 +412,31 @@ class RoadMap:
         #     print '    Graph nodes =', len(graph.incidence), 'graph edges', len(graph.edges)
         if debug('traceCRH'): print '    find path',
         # search back from target... if we will execute in reverse, it's a double negative.
-        ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
-                                     initViol=initViol, optimize=optimize,
-                                     moveBase=moveBase, reverse = not reversePath)
+        if startConf:
+            # If we're moving from arbitrary startConf, don't reverse
+            # or use pre-computed heuristic to homeConf.
+            ansGen = self.minViolPathGen(graph, initNode, [targetNode], pbs, prob,
+                                         initViol=initViol, optimize=optimize,
+                                         moveBase=moveBase,
+                                         reverse = False,
+                                         useStartH = False)
+        else:
+            ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
+                                         initViol=initViol, optimize=optimize,
+                                         moveBase=moveBase,
+                                         reverse = (not reversePath),
+                                         useStartH = True)
         ans = next(ansGen, None)
         if (ans == None or ans[0] == None) and not moveBase:
+            if debug('traceCRH'): print '    NB path failed... trying RRT'
             path, viol = rrt.planRobotPathSeq(pbs, prob, initConf, targetConf, None,
                                               maxIter=20, failIter=5)
-            return (viol, 0, path) 
-        cacheAns(ans)
-        return confAns(ans, reverse=True)
+            return (viol, 0, path)
+        if startConf:
+            return confAns(ans, reverse=False)
+        else:
+            cacheAns(ans)
+            return confAns(ans, reverse=True)
 
     def addToCluster(self, node, rep=False, connect=True):
         if debug('addToCluster'): print 'Adding', node, 'to cluster'
@@ -961,7 +976,7 @@ class RoadMap:
 
     def minViolPathGen(self, graph, startNode, targetNodes, pbs, prob, initViol=viol0,
                        optimize = False, draw=False, moveBase = True, reverse = False,
-                       testFn = lambda x: True, goalCostFn = lambda x: 0):
+                       useStartH=False, testFn = lambda x: True, goalCostFn = lambda x: 0):
 
         def testConnection(edge, viol):
             wObjs = self.colliders(edge, pbs, prob, viol, noViol=optimize)
@@ -1074,7 +1089,7 @@ class RoadMap:
                                                  objCollisionCost * len(a[1].obstacles - s[1].obstacles) + \
                                                  shCollisionCost * len(a[1].shadows - s[1].shadows)),
                                    goalTest = testFn,
-                                   heuristic = lambda s,g: (reverse and s.hVal) or pointDist(s.point, g.point),
+                                   heuristic = lambda s,g: (useStartH and s.hVal) or pointDist(s.point, g.point),
                                    goalKey = lambda x: x[0],
                                    goalCostFn = goalCostFn,
                                    maxNodes = maxSearchNodes, maxExpanded = maxExpandedNodes,
@@ -1344,10 +1359,8 @@ def validEdgeTest(xyt_i, xyt_f):
     if max(abs(xi-xf), abs(yi-yf)) < 0.01:
         # small enough displacement
         return True
-    if abs(util.angleDiff(math.atan2(yf-yi, xf-xi), thi)) <= 0.75*math.pi:
-        # Not strictly back, so the head can look at where it's going
-        return True
-    return False
+    # Not strictly back, so the head can look at where it's going
+    return abs(util.angleDiff(math.atan2(yf-yi, xf-xi), thi)) <= 0.75*math.pi
 
 r = 0.02
 boxPoint = shapes.Shape([shapes.BoxAligned(np.array([(-2*r, -2*r, -r), (2*r, 2*r, r)]), None),

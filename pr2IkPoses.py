@@ -507,5 +507,18 @@ def clean(poses):
     return out
 
 def ikTrans():
-    return setupNuggets(n=1), \
-           [util.Transform(p=np.array([[a] for a in p]), q=np.array(q)) for (q,p) in uprightTrans]
+    def poseScore(pose):
+        return 3*abs(pose.theta) + abs(pose.y)
+    horizontal = setupNuggets(n=1)
+    scored = sorted([(poseScore(tr.pose()), tr) for tr in horizontal])
+    horizontal = [tr for (sc, tr) in scored]
+    print 'Horizontal=', len(horizontal)
+    wrist = util.Transform(transf.rotation_matrix(math.pi/2, (0,1,0)))
+    vertical = [util.Transform(p=np.array([[a] for a in p]), q=np.array(q)) \
+                for (q,p) in uprightTrans]
+    poses = [wrist.compose(tr).pose(fail=False) for tr in vertical]
+    poses = [p for p in poses if p]
+    scored = sorted([(poseScore(pose), tr) for pose in poses])
+    vertical = [tr for (sc, tr) in scored]
+    print 'Vertical=', len(vertical)
+    return horizontal, vertical

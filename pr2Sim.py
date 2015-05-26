@@ -13,6 +13,7 @@ from pr2Robot import gripperTip, gripperFaceFrame
 from pr2Visible import visible, lookAtConf
 from time import sleep
 from pr2Ops import lookAtBProgress
+from pr2RoadMap import validEdgeTest
 
 # debug tables
 import pointClouds as pc
@@ -111,6 +112,9 @@ class RealWorld(WorldState):
                     ('base', conf['pr2Base'], 'left', leftPos,'right',rightPos))
                 break
             newXYT = self.robotConf.conf['pr2Base']
+            if not validEdgeTest(prevXYT, newXYT):
+                print prevXYT, '->', newXYT
+                raw_input('Backwards')
             # Integrate the displacement
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
             # approx pi => 1 meter

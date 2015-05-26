@@ -11,6 +11,7 @@ from fbch import Fluent, getMatchingFluents, Operator
 from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
+from pr2RoadMap import validEdgeTest
 
 tiny = 1.0e-6
 
@@ -298,9 +299,7 @@ class CanReachHome(Fluent):
 
         avoidShadow = [cond[0].args[0].args[0]] if fcp else []
         newPBS.updateAvoidShadow(avoidShadow)
-
-        path, violations = canReachHome(newPBS, conf, p, Violations(),
-                                        draw=False)
+        path, violations = canReachHome(newPBS, conf, p, Violations())
         debugMsg('CanReachHome',
                  ('conf', conf),
                  ('->', violations))
@@ -391,7 +390,7 @@ class CanReachNB(Fluent):
             newPBS.updateFromGoalPoses(cond, updateHeld=False)
 
         path, violations = canReachNB(newPBS, startConf, endConf, p,
-                                      Violations(), draw=False)
+                                      Violations())
         debugMsg('CanReachNB',
                  ('confs', startConf, endConf),
                  ('->', violations))
@@ -1036,108 +1035,46 @@ def partition(fluents):
 ###
 
 # LPK: canReachNB which is like canReachHome, but without moving
-# the base.  args are pbs, startConf, endConf, prob, initViol, ...
-# (rest the same as canReachHome).
-
-# !!!! needs fixing
+# the base.  
 
 def canReachNB(pbs, startConf, conf, prob, initViol,
-               optimize = False, draw=True):
-    rm = pbs.getRoadMap()
-    robot = pbs.getRobot()
-    initConf = startConf or rm.homeConf
-    # Reverse start and target
-    viol, cost, pathRev = rm.confReachViol(conf, pbs, prob,
-                                           initViol,
-                                           startConf=initConf,
-                                           optimize=optimize,
-                                           moveBase = False)
-    path = pathRev[::-1] if pathRev else pathRev
+               optimize = False):
+    return canReachHome(pbs, conf, prob, initViol,
+                        startConf=startConf, moveBase=False,
+                        optimize=optimize) 
 
-    if debug('traceCRH'):
-        print '    canReachNB h=', fbch.inHeuristic, 'viol=:', viol.weight() if viol else None
-
-    if (not fbch.inHeuristic) or debug('drawInHeuristic'):
-        if debug('canReachNB'):
-            pbs.draw(prob, 'W')
-            if path:
-                drawPath(path, viol=viol,
-                         attached=pbs.getShadowWorld(prob).attached)
-            else:
-                print 'viol, cost, path', viol, cost, path
-        if debug('canReachNB'): print 'canReachNB', ('viol', viol)
-
-    return path, viol
-
-# 
 def canReachHome(pbs, conf, prob, initViol,
                  avoidShadow = [], startConf = None, reversePath = False,
-                 optimize = False, draw=True):
+                 optimize = False, moveBase = True):
     rm = pbs.getRoadMap()
     robot = pbs.getRobot()
+    tag = 'canReachHome' if moveBase else 'canReachNB'
     # Reverse start and target
     viol, cost, path = rm.confReachViol(conf, pbs, prob, initViol,
                                         startConf=startConf,
                                         reversePath = reversePath,
+                                        moveBase = moveBase,
                                         optimize = optimize)
-    if debug('checkCRH') and fbch.inHeuristic:
-        pbs.draw(prob, 'W')
-        fbch.inHeuristic = False
-        pbs.shadowWorld = None
-        pbs.draw(prob, 'W', clear=False) # overlay
-        conf.draw('W', 'blue')
-        rm.homConf.draw('W', 'pink')
-        viol2, cost2, pathRev2 = rm.confReachViol(rm.homeConf, pbs, prob, initViol,
-                                                  startConf=conf,
-                                                  optimize = optimize)
-        if pathRev2: path2 = pathRev2[::-1]
-        else: path2 = pathRev2
-        fbch.inHeuristic = True
-        # Check for heuristic (viol) being worse than actual (viol2)
-        if viol != viol2 and viol2 != None \
-               and ((viol == None and viol2 != None) \
-                    or (viol.weight() > viol2.weight())):
-            print 'viol with full model', viol2
-            print 'viol with min  model', viol
-            if viol2:
-                [o.draw('W', 'red') for o in viol2.obstacles]
-                [o.draw('W', 'orange') for o in viol2.shadows]
-            if viol:
-                [o.draw('W', 'purple') for o in viol.obstacles]
-                [o.draw('W', 'pink') for o in viol.shadows]
-            raw_input('Continue?')
 
     if debug('traceCRH'):
-        print '    canReachHome h=', fbch.inHeuristic, 'viol=:', viol.weight() if viol else None
-    if not path:
+        print '    %s h='%tag, fbch.inHeuristic, 'viol=:', viol.weight() if viol else None
 
-        # LPK took this out;  it's not necessarily a bad thing
-        # if fbch.inHeuristic:
-        #     pbs.draw(prob, 'W')
-        #     conf.draw('W', attached=pbs.getShadowWorld(prob).attached)
-        #     raw_input('canReachHome failed with inHeuristic=True')
-
-        if fbch.inHeuristic and debug('extraTests'):
-            pbs.draw(prob, 'W')
-            print 'canReachHome failed with inHeuristic=True'
-            fbch.inHeuristic = False
-            viol, cost, path = rm.confReachViol(conf, pbs, prob, initViol,
-                                                startConf=startConf)
-            if path:
-                raw_input('Inconsistency')
-            else:
-                print 'Consistent result with inHeuristic=False'
-            fbch.inHeuristic = True
+    if path:
+        for i, c in enumerate(path):
+            if i == 0: continue
+            if not validEdgeTest(path[i-1]['pr2Base'], c['pr2Base']):
+                print path[i-1]['pr2Base'], '->', c['pr2Base']
+                raw_input('CRH - Backwards step')
 
     if (not fbch.inHeuristic) or debug('drawInHeuristic'):
-        if debug('canReachHome'):
+        if (moveBase and debug('canReachHome')) or ((not moveBase) and debug('canReachNB')):
             pbs.draw(prob, 'W')
             if path:
                 drawPath(path, viol=viol,
                          attached=pbs.getShadowWorld(prob).attached)
             else:
                 print 'viol, cost, path', viol, cost, path
-        debugMsg('canReachHome', ('viol', viol))
+        debugMsg(tag, ('viol', viol))
 
     return path, viol
 

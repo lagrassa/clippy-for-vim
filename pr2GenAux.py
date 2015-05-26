@@ -319,7 +319,8 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
                 pbs.draw(prob, 'W')
                 conf.draw('W','green')
                 debugMsg('potentialGraspConfsWin', ('->', conf.conf))
-            graspConfs.add((conf, ca, pbs, prob, viol))
+            if debug('keepGraspConfs'):
+                graspConfs.add((conf, ca, pbs, prob, viol))
             return conf, ca, viol
     else:
         if debug('potentialGraspConfs'): conf.draw('W','red')
@@ -601,6 +602,16 @@ def getPoseObjs(goalConds):
         if isGround(pb.values()):
             objs.append(pb['Obj'])
     return objs
+
+# Returns (hand, obj) for Holding fluents
+def getHolding(goalConds):
+    pfbs = fbch.getMatchingFluents(goalConds,
+                                   Bd([Holding(['Hand']), 'Obj', 'P'], True))
+    held = []
+    for (pf, pb) in pfbs:
+        if isGround(pb.values()):
+            objs.append((pb['Hand'], pb['Obj']))
+    return held
 
 def bboxRandomDrawCoords(bb):
     pt = tuple([random.uniform(bb[0,i], bb[1,i]) for i in xrange(3)])

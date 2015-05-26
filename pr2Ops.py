@@ -50,7 +50,7 @@ planP = 0.95
 #
 ######################################################################
 
-tryDirectPath = False
+tryDirectPath = True
 def primPath(bs, cs, ce, p):
     def interpolate(smoothed):
         interpolated = []
@@ -62,8 +62,7 @@ def primPath(bs, cs, ce, p):
             interpolated.extend(confs)
         return interpolated
     if tryDirectPath:
-        path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs,
-                                   draw=False)
+        path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs)
         if not viols or viols.weight() > 0:
             print 'viol', viols
             raw_input('Failure in direct primitive path')
@@ -72,11 +71,9 @@ def primPath(bs, cs, ce, p):
             smoothed = bs.getRoadMap().smoothPath(path, bs, p)
             return smoothed, interpolate(smoothed)
     # Should use optimize = True, but sometimes leads to failure - why??
-    path1, v1 = canReachHome(bs, cs, p, Violations(),
-                             draw=False, reversePath=True)
+    path1, v1 = canReachHome(bs, cs, p, Violations(), reversePath=True)
     assert path1
-    path2, v2 = canReachHome(bs, ce, p, Violations(),
-                             draw=False)
+    path2, v2 = canReachHome(bs, ce, p, Violations())
     assert path2
     if v1.weight() > 0 or v2.weight() > 0:
         if v1.weight() > 0: print 'start viol', v1
