@@ -293,9 +293,9 @@ class CanReachHome(Fluent):
 
         newPBS = bState.pbs.copy()
         if strict:
-            newPBS.updateFromAllPoses(cond, updateHeld=False)
+            newPBS.updateFromAllPoses(cond)
         else:
-            newPBS.updateFromGoalPoses(cond, updateHeld=False)
+            newPBS.updateFromGoalPoses(cond)
 
         avoidShadow = [cond[0].args[0].args[0]] if fcp else []
         newPBS.updateAvoidShadow(avoidShadow)
@@ -385,9 +385,9 @@ class CanReachNB(Fluent):
 
         newPBS = bState.pbs.copy()
         if strict:
-            newPBS.updateFromAllPoses(cond, updateHeld=False)
+            newPBS.updateFromAllPoses(cond)
         else:
-            newPBS.updateFromGoalPoses(cond, updateHeld=False)
+            newPBS.updateFromGoalPoses(cond)
 
         path, violations = canReachNB(newPBS, startConf, endConf, p,
                                       Violations())
@@ -538,29 +538,35 @@ class CanPickPlace(Fluent):
         assert obj != 'none'
 
         if not hasattr(self, 'conds') or self.conds == None:
-            objInPlace = B([Pose([obj, poseFace]), pose, poseVar, poseDelta,
-                            1.0], True)
-            objInPlaceZeroVar = B([Pose([obj, poseFace]), pose, zeroVar,
-                                   tinyDelta,1.0], True)
-            holdingNothing = Bd([Holding([hand]), 'none', 1.0], True)
-            objInHand = B([Grasp([obj, hand, graspFace]),
-                           graspMu, graspVar, graspDelta, 1.0], True)
-            objInHandZeroVar = B([Grasp([obj, hand, graspFace]),
-                                 graspMu, zeroVar, tinyDelta, 1.0], True)
-            
+            objInPlace = [B([Pose([obj, poseFace]), pose, poseVar, poseDelta,
+                            1.0], True),
+                          Bd([SupportFace([obj]), poseFace, 1.0], True)]
+            objInPlaceZeroVar = [B([Pose([obj, poseFace]), pose, zeroVar,
+                                   tinyDelta,1.0], True),
+                          Bd([SupportFace([obj]), poseFace, 1.0], True)]
+            holdingNothing = [Bd([Holding([hand]), 'none', 1.0], True)]
+            objInHand = [B([Grasp([obj, hand, graspFace]),
+                           graspMu, graspVar, graspDelta, 1.0], True),
+                         Bd([GraspFace([obj, hand]), graspFace, 1.0], True),
+                         Bd([Holding([hand]), obj, 1.0], True)]               
+            objInHandZeroVar = [B([Grasp([obj, hand, graspFace]),
+                                   graspMu, zeroVar, tinyDelta, 1.0], True),
+                         Bd([GraspFace([obj, hand]), graspFace, 1.0], True),
+                         Bd([Holding([hand]), obj, 1.0], True)]
+                                   
             self.conds = \
              [# 1.  Home to approach, holding nothing, obj in place
               # If it's a place operation, the shadow of the object in
               #    place is irreducible .   !!!
               CanReachHome([preConf, opType == 'place',
-                            [objInPlace, holdingNothing]]),
+                            objInPlace + holdingNothing]),
               # 2.  Home to approach with object in hand
-              CanReachHome([preConf, False, [objInHand]]),
+              CanReachHome([preConf, False, objInHand]),
               # 3.  Home to pick with hand empty, obj in place with zero var
               CanReachHome([ppConf, False,
-                            [holdingNothing, objInPlaceZeroVar]]),
+                            holdingNothing + objInPlaceZeroVar]),
               # 4. Home to pick with the object in hand with zero var and delta
-              CanReachHome([ppConf, False, [objInHandZeroVar]])]
+              CanReachHome([ppConf, False, objInHandZeroVar])]
             for c in self.conds: c.addConditions(inconds, details)
         return self.conds
 
@@ -846,9 +852,9 @@ class CanSeeFrom(Fluent):
         # Note that all object poses are permanent, no collisions can be ignored
         newPBS = bState.pbs.copy()
         if strict:
-            newPBS.updateFromAllPoses(cond, updateHeld=False)
+            newPBS.updateFromAllPoses(cond)
         else:
-            newPBS.updateFromGoalPoses(cond, updateHeld=False)
+            newPBS.updateFromGoalPoses(cond)
 
         placeB = newPBS.getPlaceB(obj)
         if placeB.support.mode() != poseFace and poseFace != '*':

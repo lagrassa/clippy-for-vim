@@ -956,6 +956,8 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         path, viol = canReachHome(newBS, conf, prob, Violations())
         trace('    lookGen(%s) specified base viol='%obj, viol.weight() if viol else None)
         if not path:
+            if debug('lookGen'):
+                newBS.draw(prob, 'W')
             tracep('lookGen', 'Failed to find a path to look conf with specified base.')
             return
         conf = path[-1]
@@ -1351,9 +1353,12 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         debugMsg('canPickPlaceGen', ('viol2', viol2))
         if viol2:
             if debug('canPickPlaceGen', skip=skip):
-                drawObjAndShadow(newBS2, pB2, prob, 'W', color='red')
+                newBS.draw(prob, 'W')
+                drawObjAndShadow(newBS, pB, prob, 'W', color = 'cyan')
+                drawObjAndShadow(newBS2, pB2, prob, 'W', color='magenta')
                 debugMsg('canPickPlaceGen',
-                         'Trying to reduce shadow (on W in red) %s'%obst)
+                         'Trying to reduce shadow on %s'%obst + \
+                         'Origin shadow cyan, reduced magenda')
             trace('    canPickPlaceGen() shadow:', obst, pB.poseD.mode().xyztTuple())
             yield (obst, pB.poseD.mode().xyztTuple(), pB.support.mode(),
                    lookVar, lookDelta)

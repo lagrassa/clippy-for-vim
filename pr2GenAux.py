@@ -478,9 +478,10 @@ def drawPoseConf(pbs, placeB, conf, confAppr, prob, win, color = None):
     conf.draw(win, color=color)
 
 def drawObjAndShadow(pbs, placeB, prob, win, color = None):
+    # Draw the object in its native color, but use the argument for the shadow
     ws = pbs.getShadowWorld(prob)
     obj = placeB.obj
-    ws.world.getObjectShapeAtOrigin(obj).applyLoc(placeB.objFrame()).draw(win, color=color)
+    ws.world.getObjectShapeAtOrigin(obj).applyLoc(placeB.objFrame()).draw(win)
     if shadowName(obj) in ws.world.objects:
         ws.world.getObjectShapeAtOrigin(shadowName(obj)).applyLoc(placeB.objFrame()).draw(win, color=color)
 

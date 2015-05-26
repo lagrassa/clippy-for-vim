@@ -764,18 +764,17 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              lookAt.applyBindings({'Obj' : 'objA'}), move,
              place.applyBindings({'Obj': 'objA'}),
              poseAchCanPickPlace, moveNB,
-             lookAt.applyBindings({'Obj' : 'table1'}),
+             lookAt.applyBindings({'Obj' : 'table1'}), # 12
              move,        # 13
              pick,
-             poseAchCanPickPlace, poseAchCanPickPlace, moveNB,
+             poseAchCanPickPlace, poseAchCanReach, moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), move,
-             poseAchCanReach,
              # Skel should work in other order, but doesn't.  This
              # order doesn't always work, either.
              lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
-             lookAt.applyBindings({'Obj' : 'objA'}), moveNB],   # 28 total
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB],   # 27 total
             [poseAchIn,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
