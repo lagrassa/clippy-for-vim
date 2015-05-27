@@ -393,7 +393,7 @@ class PlanTest:
     def __init__(self, name, domainProbs, operators,
                  objects = ['table1','objA'], fixPoses = {},
                  movePoses = {}, held = None, grasp = None,
-                 multiplier = 8, var = 1.0e-10, varDict = None):
+                 multiplier = 8, var = 1.0e-5, varDict = None):   # var was 10e-10
         self.name = name
         self.multiplier = multiplier
         self.objects = objects          # list of objects to consider

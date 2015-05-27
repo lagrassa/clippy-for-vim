@@ -310,9 +310,10 @@ class PBS:
                 # If the "min" shadow is wider than actual shadow, make them equal
                 objB = objBMin
                 prob = objBMinProb
-            # print 'obj', obj, objB == objBMin
-            # print 'shWidth', shWidth
-            # print 'minShWidth', minShWidth
+            if debug('shadowWidths'):
+                print 'obj', obj, objB == objBMin
+                print 'shWidth', shWidth
+                print 'minShWidth', minShWidth
 
             # Shadows relative to Identity pose
             shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)

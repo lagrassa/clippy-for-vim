@@ -16,7 +16,7 @@ import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
 from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace, \
-    BaseConf, Holding
+    BaseConf, Holding, CanReachNB
 from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCO
 from pr2Visible import visible, lookAtConf, viewCone
@@ -514,14 +514,14 @@ def pathShape(path, prob, pbs, name):
     attached = pbs.getShadowWorld(prob).attached
     return shapes.Shape([c.placement(attached=attached) for c in path], None, name=name)
 
-def pathObst(cs, cd, p, pbs, name):
+def pathObst(cs, cd, p, pbs, name, start=None):
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(cd) if cd else newBS
     newBS = newBS.updateFromGoalPoses(cd) if cd else newBS
     key = (cs, newBS, p)
     if key in pbs.beliefContext.pathObstCache:
         return pbs.beliefContext.pathObstCache[key]
-    path,  viol = canReachHome(newBS, cs, p, Violations())
+    path,  viol = canReachHome(newBS, cs, p, Violations(), startConf = start)
     if debug('pathObst'):
         newBS.draw(p, 'W')
         cs.draw('W', 'red', attached=newBS.getShadowWorld(p).attached)
@@ -546,10 +546,49 @@ def getReachObsts(goalConds, pbs):
     for (f, b) in fbs:
         crhObsts = getCRHObsts([Bd([fc, True, b['P']], True) \
                                 for fc in f.args[0].getConds()], pbs)
+        raw_input('Check Obsts')
         if crhObsts == None:
             return None
         obstacles.extend(crhObsts)
+
+    # Now look for standalone CRH and CRNB
+    basicCRH = getCRHObsts(goalConds, pbs)
+    if basicCRH == None: return None
+    obstacles.extend(basicCRH)
+
+    basicCRNB = getCRNBObsts(goalConds, pbs) 
+    if basicCRNB == None: return None
+    obstacles.extend(basicCRNB)
+        
     return obstacles
+
+def getCRNBObsts(goalConds, pbs):
+    fbs = fbch.getMatchingFluents(goalConds,
+                             Bd([CanReachNB(['Start', 'End', 'Cond']),
+                                 True, 'P'], True))
+    world = pbs.getWorld()
+    obsts = []
+    index = 0
+    for (f, b) in fbs:
+        if not isGround(b.values()): continue
+        if debug('getReachObsts'):
+            print 'GRO', f
+        ignoreObjects = set([])
+        obst = pathObst(b['Start'], b['Cond'], b['P'], pbs,
+                        name= 'reachObst%d'%index, start=b['End'])
+        index += 1
+        if not obst:
+            debugMsg('getReachObsts', ('path fail', f, b.values()))
+            return None
+        # Look at Poses in conditions; they are exceptions
+        pfbs = fbch.getMatchingFluents(b['Cond'],
+                                       B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
+        for (pf, pb) in pfbs:
+            if isGround(pb.values()):
+                ignoreObjects.add(pb['Obj'])
+        obsts.append((ignoreObjects, obst))
+    debugMsg('getReachObsts', ('->', len(obsts), 'CRH NB obsts'))
+    return obsts
 
 def getCRHObsts(goalConds, pbs):
     fbs = fbch.getMatchingFluents(goalConds,
@@ -575,7 +614,7 @@ def getCRHObsts(goalConds, pbs):
             if isGround(pb.values()):
                 ignoreObjects.add(pb['Obj'])
         obsts.append((ignoreObjects, obst))
-    debugMsg('getReachObsts', ('->', len(obsts), 'obsts'))
+    debugMsg('getReachObsts', ('->', len(obsts), 'CRH obsts'))
     return obsts
 
 def getPoseObjs(goalConds):

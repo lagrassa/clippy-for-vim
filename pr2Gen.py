@@ -783,6 +783,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         tracep('placeInGen', '    quitting because no path')
         return
     if debug('placeInGen', skip=skip) or debug('reachObsts', skip=skip):
+        pbs.draw(prob, 'W')
         for _, obst in reachObsts: obst.draw('W', 'brown')
         raw_input('%d reachObsts - in brown'%len(reachObsts))
 
@@ -1262,10 +1263,11 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     (preconf, ppconf, hand, obj, pose, realPoseVar, poseDelta, poseFace,
      graspFace, graspMu, graspVar, graspDelta, prob, cond, op) = args
 
-    goalFluent = Bd([CanPickPlace([preconf, ppconf, hand, obj, pose, realPoseVar, poseDelta, poseFace,
-                                   graspFace, graspMu, graspVar, graspDelta, op, cond]), True, prob], True)
+    cppFluent = Bd([CanPickPlace([preconf, ppconf, hand, obj, pose, realPoseVar, poseDelta, poseFace,
+                                  graspFace, graspMu, graspVar, graspDelta, op, cond]), True, prob], True)
+    poseFluent = B([Pose([obj, poseFace]), pose, realPoseVar, poseDelta, prob], True)
 
-    goalConds = goalConds + [goalFluent]
+    goalConds = goalConds + [cppFluent, poseFluent]
 
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     

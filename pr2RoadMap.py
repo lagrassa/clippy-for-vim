@@ -364,6 +364,7 @@ class RoadMap:
             displayAns(ans)
             if ans and ans[0]:
                 (viol, cost, edgePath) = ans
+                viol = viol.update(initViol)
                 path = self.confPathFromEdgePath(edgePath)
                 if reverse:
                     path = path[::-1]
@@ -393,7 +394,6 @@ class RoadMap:
             if cv != None and initViol != None:
                 initViol = initViol.update(cv)
                 targetConf = self.approachConfs[targetConf]
-                
                 if debug('traceCRH'): print '    using approach conf'
         targetNode = makeNode(targetConf)
         attached = pbs.getShadowWorld(prob).attached
@@ -416,14 +416,12 @@ class RoadMap:
             # If we're moving from arbitrary startConf, don't reverse
             # or use pre-computed heuristic to homeConf.
             ansGen = self.minViolPathGen(graph, initNode, [targetNode], pbs, prob,
-                                         initViol=initViol, optimize=optimize,
-                                         moveBase=moveBase,
+                                         optimize=optimize, moveBase=moveBase,
                                          reverse = False,
                                          useStartH = False)
         else:
             ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
-                                         initViol=initViol, optimize=optimize,
-                                         moveBase=moveBase,
+                                         optimize=optimize, moveBase=moveBase,
                                          reverse = (not reversePath),
                                          useStartH = True)
         ans = next(ansGen, None)
@@ -431,8 +429,11 @@ class RoadMap:
             if debug('traceCRH'): print '    NB path failed... trying RRT'
             path, viol = rrt.planRobotPathSeq(pbs, prob, initConf, targetConf, None,
                                               maxIter=20, failIter=5)
-            if not viol:
+            if viol:
+                viol = viol.update(initViol)
+            else:
                 raw_input('RRT for NB failed')
+
             return (viol, 0, path)
         if startConf:
             return confAns(ans, reverse=False)
