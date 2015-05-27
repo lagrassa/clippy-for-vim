@@ -163,7 +163,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
 
 def canView(pbs, prob, conf, hand, shape, maxIter = 50):
     def armShape(c, h):
-        parts = dict([(o.name(), o) for o in c.placement().parts()])
+        parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])
         armShapes = [parts[pbs.getRobot().armChainNames[h]],
                      parts[pbs.getRobot().gripperChainNames[h]]]
         if attached[h]:
@@ -546,7 +546,6 @@ def getReachObsts(goalConds, pbs):
     for (f, b) in fbs:
         crhObsts = getCRHObsts([Bd([fc, True, b['P']], True) \
                                 for fc in f.args[0].getConds()], pbs)
-        raw_input('Check Obsts')
         if crhObsts == None:
             return None
         obstacles.extend(crhObsts)

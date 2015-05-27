@@ -957,9 +957,9 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         path, viol = canReachHome(newBS, conf, prob, Violations())
         trace('    lookGen(%s) specified base viol='%obj, viol.weight() if viol else None)
         if not path:
-            if debug('lookGen'):
-                newBS.draw(prob, 'W')
-            tracep('lookGen', 'Failed to find a path to look conf with specified base.')
+            newBS.draw(prob, 'W')
+            conf.draw('W', 'cyan')
+            raw_input('Failed to find a path to look conf (in cyan) with specified base.')
             return
         conf = path[-1]
         if testFn(conf):
