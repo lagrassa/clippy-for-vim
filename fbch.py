@@ -1023,7 +1023,9 @@ class Operator(object):
             if f.isConditional():
                 # Preconds will not override results
                 f.addConditions(explicitResults, startState.details)
-                #f.addConditions(explicitPreconds, startState.details)
+                if not self.prim:
+                    # Only add preconds if it's an inference step
+                    f.addConditions(explicitPreconds, startState.details)
                 f.addConditions(explicitSE, startState.details)
                 f.update()
 

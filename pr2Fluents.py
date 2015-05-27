@@ -454,7 +454,7 @@ class CanReachNB(Fluent):
             return (obstCost, {dummyOp})
             
         path, violations = self.getViols(details, v, p, strict = False)
-        if path == None:
+        if violations == None:
             #!! should this happen?
             print '&&&&&&', self, v, p
             print 'hv infinite'

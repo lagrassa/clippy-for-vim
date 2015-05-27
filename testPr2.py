@@ -767,7 +767,7 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              lookAt.applyBindings({'Obj' : 'table1'}), # 12
              move,        # 13
              pick,
-             poseAchCanPickPlace, poseAchCanReach, moveNB,
+             poseAchCanPickPlace, moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), move,

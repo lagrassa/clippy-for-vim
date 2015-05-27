@@ -25,6 +25,9 @@ defaultPoseDelta = (0.02, 0.02, 0.02, 0.04)
 defaultTotalDelta = (0.05, 0.05, 0.05, 0.1)  # for place in region
 lookConfDelta = (0.01, 0.01, 0.01, 0.01)
 
+# Assume fixed delta on confs, determined by motion controller.
+fixedConfDelta = (0.001, 0.001, 0.001, 0.002)
+
 # Fixed accuracy to use for some standard preconditions
 canPPProb = 0.9
 otherHandProb = 0.9
@@ -421,7 +424,12 @@ def isBound(args, goal, start, vals):
         return None
     else:
         return [[]]
-    
+
+# Subtract
+def subtract((a, b), goal, start, vals):
+    ans = tuple([aa - bb for (aa, bb) in zip(a, b)])
+    return [[ans]]
+        
 # Return as many values as there are args; overwrite any that are
 # variables with the minimum value
 def minP(args, goal, start, vals):
@@ -1250,9 +1258,11 @@ place = Operator(\
             
             # In case PoseDelta isn't defined
             Function(['PoseDelta'],[[defaultPoseDelta]], assign, 'assign'),
-            # Divide delta evenly
-            Function(['ConfDelta', 'GraspDelta'], ['PoseDelta'],
-                      halveVariance, 'halveVar'),
+            # Assume fixed conf delta
+            Function(['ConfDelta'], [[fixedConfDelta]], assign, 'assign'),
+
+            Function(['GraspDelta'], ['PoseDelta', 'ConfDelta'],
+                      subtract, 'subtract'),
 
             # Just in case we don't have values for the pose and poseFace;
             # We're going this to empty the hand;  so place in away region
@@ -1319,11 +1329,13 @@ pick = Operator(\
                      regressProb(1, 'pickFailProb'), 'regressProb1', True),
             Function(['RealGraspVar'], ['GraspVar'], maxGraspVarFun,
                      'realGraspVar'),
+
+            # Assume fixed conf delta
+            Function(['ConfDelta'], [[fixedConfDelta]], assign, 'assign'),
                      
             # Divide delta evenly
-            Function(['ConfDelta', 'PoseDelta'], ['GraspDelta'],
-                      halveVariance, 'halveVar'),
-
+            Function(['PoseDelta'], ['GraspDelta', 'ConfDelta'],
+                      subtract, 'subtract'),
 
             # GraspVar = PoseVar + PickVar
             # prob was pr3, but this keeps it tighter
