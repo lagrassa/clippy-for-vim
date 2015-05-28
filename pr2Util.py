@@ -161,6 +161,9 @@ class Violations(Hashable):
         return self.weight() <= other.weight()
     def desc(self):
         return (self.obstacles, self.shadows, self.penalty)
+    def names(self):
+        return (frozenset([x.name() for x in self.obstacles]),
+                frozenset([x.name() for x in self.shadows]))
     def __repr__(self):
         return 'Violations%s'%str(([x.name() for x in self.obstacles], [x.name() for x in self.shadows]))
     __str__ = __repr__

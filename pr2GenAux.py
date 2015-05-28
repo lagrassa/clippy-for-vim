@@ -125,7 +125,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
         debugMsg('canPickPlaceTest', 'H->App, obj=held (condition 2)')
     path, violations = canReachHome(pbs2, preConf, p, violations)
     if not path:
-        raw_input('canPickPlaceTest' + 'Failed H->App, obj=held (condition 2)')
+        debugMsg('canPickPlaceTest' + 'Failed H->App, obj=held (condition 2)')
         return None
     elif debug('canPickPlaceTest'):
         for c in path: c.draw('W', attached = pbs2.getShadowWorld(p).attached)
@@ -516,8 +516,7 @@ def pathShape(path, prob, pbs, name):
 
 def pathObst(cs, cd, p, pbs, name, start=None):
     newBS = pbs.copy()
-    newBS = newBS.updateFromGoalPoses(cd) if cd else newBS
-    newBS = newBS.updateFromGoalPoses(cd) if cd else newBS
+    newBS = newBS.updateFromGoalPoses(cd)
     key = (cs, newBS, p)
     if key in pbs.beliefContext.pathObstCache:
         return pbs.beliefContext.pathObstCache[key]
@@ -766,9 +765,10 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             c, ca, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, base, prob, nMax=1),
                             (None,None,None))
             if v:
-                if debug('potentialRegionPoseGen'):
-                    c.draw('W')
-                    debugMsg('potentialRegionPoseGen', 'weight=%s'%str(v.weight()))
+                if debug('potentialRegionPoseGenWeight'):
+                    pbs.draw(prob, 'W'); c.draw('W')
+                    debugMsg('potentialRegionPoseGenWeight', 'v=%s'%v,
+                             'weight=%s'%str(v.weight()), 'pose=%s'%pose)
                 return v.weight()
         return None
 
@@ -829,31 +829,38 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                 cost = 0
                 for co in coObst:
                     if np.all(np.dot(co.planes(), pt) <= tiny): cost += obstCost
-                for co in coObst:
+                for co in coShadow:
                     if np.all(np.dot(co.planes(), pt) <= tiny): cost += 0.5*obstCost
                 points.append((angle, point.tolist()))
-                hyp = (count, 1./cost if cost else 1.)
-                # if debug('potentialRegionPoseGen'):
-                #    print count, (angle, point.tolist()), hyp[1]
+
+                # Randomized
+                # hyp = (count, 1./cost if cost else 1.)
+                hyp = (cost, count)
+
                 hyps.append(hyp)
                 count += 1
     if hyps:
-        pointDist = DDist(dict(hyps))
-        pointDist.normalize()
+        # Randomized
+        # pointDist = DDist(dict(hyps))
+        # pointDist.normalize()
+        pointDist = sorted(hyps)
     else:
         debugMsg('potentialRegionPoseGen', 'No valid points in region')
         return
     count = 0
+    maxTries = min(2*maxPoses, len(pointDist))
     if False: # fbch.inHeuristic:
-        while count < maxPoses or tries > maxTries:
+        while count < maxPoses and tries < maxTries:
             tries += 1
-            index = pointDist.draw()
+            # Randomized
+            # index = pointDist.draw()
+            cost, index = pointDist[tries]
             angle, point = points[index]
             pose = genPose(rs, angle, point)
             if not pose: continue
             count += 1
             if debug('potentialRegionPoseGen'):
-                print '->', pose, 'prob=', pointDist.prob(index), 'max prob=', max(pointDist.d.values())
+                print '->', pose, 'cost=', cost
                 shRotations[angle].applyTrans(pose).draw('W', 'green')
             yield pose
     else:
@@ -861,11 +868,12 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         poseHistory = []
         historySize = 5
         tries = 0
-        maxTries = 2*maxPoses
-        while count < maxPoses or tries > maxTries:
-            tries += 1
-            index = pointDist.draw()
+        while count < maxPoses and tries < maxTries:
+            # Randomized
+            # index = pointDist.draw()
+            hcost, index = pointDist[tries]
             angle, point = points[index]
+            tries += 1
             p = genPose(rs, angle, point)
             if not p: continue
             cost = poseViolationWeight(p)
@@ -877,15 +885,17 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             elif cost > min(costHistory):
                 minIndex = costHistory.index(min(costHistory))
                 pose = poseHistory[minIndex]
+                poseCost = costHistory[minIndex]
                 if debug('potentialRegionPoseGen'): print 'pose cost', costHistory[minIndex]
                 costHistory[minIndex] = cost
                 poseHistory[minIndex] = p
             else:                           # cost <= min(costHistory)
                 pose = p
+                poseCost = cost
                 if debug('potentialRegionPoseGen'): print 'pose cost', cost
             count += 1
             if debug('potentialRegionPoseGen'):
-                print '->', pose, 'prob=', pointDist.prob(index), 'max prob=', max(pointDist.d.values())
+                print '->', pose, 'cost=', poseCost
                 shRotations[angle].applyTrans(pose).draw('W', 'green')
             yield pose
     if True: # debug('potentialRegionPoseGen'):

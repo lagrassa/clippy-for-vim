@@ -26,7 +26,7 @@ from pr2GenAux import *
 
 #  How many candidates to generate at a time...  Larger numbers will
 #  generally lead to better solutions.
-pickPlaceBatchSize = 1
+pickPlaceBatchSize = 5
 
 easyGraspGenCacheStats = [0,0]
 
@@ -58,7 +58,7 @@ def easyGraspGen(args, goalConds, bState, outBindings):
     # Set up pbs
     newBS = pbs.copy()
     # Just placements specified in goal
-    newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
+    newBS = newBS.updateFromGoalPoses(goalConds)
     shWorld = newBS.getShadowWorld(prob)
     if obj == newBS.held[hand].mode():
         gB = newBS.graspB[hand]
@@ -224,7 +224,7 @@ def pickGenTop(args, goalConds, pbs, outBindings,
     # Set up pbs
     newBS = pbs.copy()
     # Just placements specified in goal
-    newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
+    newBS = newBS.updateFromGoalPoses(goalConds)
     if debug('pickGen', skip=skip):
         newBS.draw(prob, 'W')
         debugMsg('pickGen', 'Goal conditions')
@@ -460,7 +460,7 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
     # Set up pbs
     newBS = pbs.copy()
     # Just placements specified in goal (and excluding obj)
-    newBS = newBS.updateFromGoalPoses(goalConds, updateConf=not away) if goalConds else newBS
+    newBS = newBS.updateFromGoalPoses(goalConds, updateConf=not away)
     newBS = newBS.excludeObjs([obj])
     if debug('placeGen', skip=skip):
         for gc in goalConds: print gc
@@ -530,29 +530,30 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         else:
             return 1
 
-    def placeApproachConfGen(gB):
+    def placeApproachConfGen(grasps):
         placeBsCopy = placeBs.copy()
         assert placeBsCopy.values is placeBs.values
 
         for pB in placeBsCopy:          # re-generate
-            if debug('placeGen', skip=skip):
-                print 'placeGen: considering grasps for ', pB
-                print 'placeGen: for grasp class', gB.grasp
-                print 'placeBsCopy.values', len(placeBsCopy.values)
-            if regrasp:
-                checkRegraspable(pB)
-            graspConfGen = potentialGraspConfGen(pbs, pB, gB, conf, hand, base, prob)
-            count = 0
-            for c,ca,_ in graspConfGen:
+            for (_, gB) in grasps:
                 if debug('placeGen', skip=skip):
-                    c.draw('W', 'orange')
-                approached[ca] = c
-                count += 1
-                context[ca] = (pB, gB)
-                debugMsg('placeGen', 'Yielding conf')
-                yield ca
-            if debug('placeGen', skip=skip):
-                print '    placeGen: found', count, 'confs'
+                    print 'placeGen: considering grasps for ', pB
+                    print 'placeGen: for grasp class', gB.grasp
+                    print 'placeBsCopy.values', len(placeBsCopy.values)
+                if regrasp:
+                    checkRegraspable(pB)
+                graspConfGen = potentialGraspConfGen(pbs, pB, gB, conf, hand, base, prob)
+                count = 0
+                for c,ca,_ in graspConfGen:
+                    if debug('placeGen', skip=skip):
+                        c.draw('W', 'orange')
+                    approached[ca] = c
+                    count += 1
+                    context[ca] = (pB, gB)
+                    debugMsg('placeGen', 'Yielding conf')
+                    yield ca
+                if debug('placeGen', skip=skip):
+                    print '    placeGen: found', count, 'confs'
 
     def regraspCost(ca):
         if not regrasp:
@@ -588,48 +589,44 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
     grasps = [(checkOrigGrasp(gB), gB) for gB in graspGen(pbs, obj, graspB)]
     grasps.sort()
 
-    for (orig, gB) in grasps: # for now, just grasp type...
-        if debug('placeGen', skip=skip):
-            print '    placeGen: considering', gB, 'orig', orig
-
-        targetConfs = placeApproachConfGen(gB)
-        batchSize = pickPlaceBatchSize
-        batch = 0
-        while True:
-            # Collect the next batach of trialConfs
-            batch += 1
-            trialConfs = []
-            count = 0
-            minCost = 1e6
-            for ca in targetConfs:       # targetConfs is a generator
-                viol = placeable(ca, approached[ca])
-                if viol:
-                    cost = viol.weight() + regraspCost(ca)
-                    minCost = min(cost, minCost)
-                    trialConfs.append((cost, viol, ca))
-                else:
-                    if debug('placeable'):
-                        print 'Failure of placeable'
-                        save = glob.debugOn[:]
-                        glob.debugOn.extend(['successors', 'confReachViol', 'confReachViolGen',
-                                             'minViolPath', 'canPickPlaceTest', 'addToCluster'])
-                        placeable(ca, approached[ca])
-                        glob.debugOn = save
-                        raw_input('Continue?')
-                    continue
-                count += 1
-                if count == batchSize or minCost == 0: break
-            if count == 0: break
-            trialConfs.sort()
-            for _, viol, ca in trialConfs:
-                (pB, gB) = context[ca]
-                c = approached[ca]
-                ans = (gB, pB, c, ca)
-                if debug('placeGen', skip=skip):
-                    drawPoseConf(pbs, pB, c, ca, prob, 'W', color='magenta')
-                    debugMsg('placeGen', ('->', ans), ('viol', viol))
-                    wm.getWindow('W').clear()
-                yield ans, viol
+    targetConfs = placeApproachConfGen(grasps)
+    batchSize = pickPlaceBatchSize
+    batch = 0
+    while True:
+        # Collect the next batach of trialConfs
+        batch += 1
+        trialConfs = []
+        count = 0
+        minCost = 1e6
+        for ca in targetConfs:       # targetConfs is a generator
+            viol = placeable(ca, approached[ca])
+            if viol:
+                cost = viol.weight() + regraspCost(ca)
+                minCost = min(cost, minCost)
+                trialConfs.append((cost, viol, ca))
+            else:
+                if debug('placeable'):
+                    print 'Failure of placeable'
+                    save = glob.debugOn[:]
+                    glob.debugOn.extend(['successors', 'confReachViol', 'confReachViolGen',
+                                         'minViolPath', 'canPickPlaceTest', 'addToCluster'])
+                    placeable(ca, approached[ca])
+                    glob.debugOn = save
+                    raw_input('Continue?')
+                continue
+            count += 1
+            if count == batchSize or minCost == 0: break
+        if count == 0: break
+        trialConfs.sort()
+        for _, viol, ca in trialConfs:
+            (pB, gB) = context[ca]
+            c = approached[ca]
+            ans = (gB, pB, c, ca)
+            if debug('placeGen', skip=skip):
+                drawPoseConf(pbs, pB, c, ca, prob, 'W', color='magenta')
+                debugMsg('placeGen', ('->', ans), ('viol', viol))
+                wm.getWindow('W').clear()
+            yield ans, viol
     tracep('placeGen', 'out of values')
 
 # Preconditions (for R1):
@@ -847,6 +844,9 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
             print '    placeInGen(%s,%s) h='%(obj,[x.name() \
                                                    for x in regShapes]), \
                   v.weight() if v else None, '(p,g)=', pg, pose
+        if debug('placeInGen'):
+            c.draw('W', 'green')
+            raw_input('placeInGen result')
         #val.append((ans, v))
         yield ans,v
 
@@ -928,7 +928,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     trace('lookGen(%s) h='%obj, fbch.inHeuristic)
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     newBS = pbs.copy()
-    newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
+    newBS = newBS.updateFromGoalPoses(goalConds)
     newBS.updateAvoidShadow([obj])
     if placeB.poseD.mode() == None:
         tracep('lookGen', '    object is in the hand')
@@ -1095,7 +1095,7 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
     trace('lookHandGen(%s) h='%obj, fbch.inHeuristic)
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     newBS = pbs.copy()
-    newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
+    newBS = newBS.updateFromGoalPoses(goalConds)
     newBS.updateHeldBel(graspB, hand)
     shWorld = newBS.getShadowWorld(prob)
     if fbch.inHeuristic:
@@ -1180,8 +1180,8 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
             yield (obst, pose, poseFace, domainPlaceVar, delta)
     
     newBS = pbs.copy()
-    newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
-    newBS = newBS.updateFromGoalPoses(cond) if cond else newBS
+    newBS = newBS.updateFromGoalPoses(goalConds)
+    newBS = newBS.updateFromGoalPoses(cond)
     # The shadows of Pose(obj) in the cond are also permanent
     newBS = newBS.updateAvoidShadow(getPoseObjs(cond))
 
@@ -1291,8 +1291,8 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
                        PoseD(pose, realPoseVar), delta=poseDelta)
     newBS = bState.pbs.copy()   
-    newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
-    newBS = newBS.updateFromGoalPoses(cond) if cond else newBS
+    newBS = newBS.updateFromGoalPoses(goalConds)
+    newBS = newBS.updateFromGoalPoses(cond)
     # The shadows of Pose(obj) in the cond are also permanent
     shadowsToAvoid = getPoseObjs(cond)
     newBS = newBS.updateAvoidShadow(shadowsToAvoid)
@@ -1431,8 +1431,8 @@ def canSeeGenTop(args, goalConds, pbs, outBindings):
             yield (obst, pose, poseFace, domainPlaceVar, delta)
 
     newBS = pbs.copy()
-    newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
-    newBS = newBS.updateFromGoalPoses(cond) if cond else newBS
+    newBS = newBS.updateFromGoalPoses(goalConds)
+    newBS = newBS.updateFromGoalPoses(cond)
     newBS = newBS.updatePermObjPose(placeB)
 
     shWorld = newBS.getShadowWorld(prob)

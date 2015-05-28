@@ -432,7 +432,7 @@ class RoadMap:
             if viol:
                 viol = viol.update(initViol)
             else:
-                raw_input('RRT for NB failed')
+                debugMsg('confReachViol', 'RRT for NB failed')
 
             return (viol, 0, path)
         if startConf:

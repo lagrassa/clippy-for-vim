@@ -49,6 +49,7 @@ drawRebindNodes = True
 'potentialGraspConfsWin'
 'potentialLookHandConfs'
 'potentialRegionPoseGen'
+'potentialRegionPoseGenWeight'
 'path'
 'prim'
 'regrasping'
@@ -61,7 +62,7 @@ drawRebindNodes = True
 'visible'
 '''
 
-debugOn = ['traceGen', 'traceCRH', 'skeleton', 'conservation']
+debugOn = ['traceGen', 'traceCRH', 'skeleton', 'conservation', 'shadowWidths']
 
 if platform.system() == 'Linux':
     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:

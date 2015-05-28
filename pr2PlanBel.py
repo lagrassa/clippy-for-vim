@@ -148,6 +148,7 @@ class PBS:
         return self
 
     def updateFromAllPoses(self, goalConds, updateHeld=True, updateConf=True):
+        if not goalConds: return self
         initialObjects = self.objectsInPBS()
         world = self.getWorld()
         if updateHeld:
@@ -170,6 +171,7 @@ class PBS:
         return self
     
     def updateFromGoalPoses(self, goalConds, updateHeld=True, updateConf=True):
+        if not goalConds: return self
         initialObjects = self.objectsInPBS()
         world = self.getWorld()
         if updateHeld:
@@ -285,48 +287,39 @@ class PBS:
         # Add the objects and shadows
         sw = self.shadowWorld
         for (obj, objB) in self.getPlacedObjBs().iteritems():
+            graspable = obj in self.getWorld().graspDesc
             # The pose in the world is for the origin frame.
             objPose = objB.objFrame()
             # object is already in world, add it to sw
             # sw.setObjectPose(obj, objPose)
             faceFrame = objB.faceFrames[objB.support.mode()]
             # The irreducible shadow
-            objBMinDelta = self.domainProbs.minDelta
-            # When base can move, use bigger variance from odoError
-            objBMinVar = tuple([x**2 for x in self.domainProbs.odoError])
-            # objMinVar = self.domainProbs.obsVarTuple
-            objBMinProb = 0.95
-            minShWidth = shadowWidths(objBMinVar, objBMinDelta, objBMinProb)
-            if obj in self.getWorld().graspDesc and \
-               shLE(shadowWidths(objB.poseD.var, objB.delta, 0.99), minShWidth):
-                # actual shadow is small, so use that (for graspable objects)
-                objBMin = objB
+            objBMinDelta = (0.002, 0.002, 0.0, 0.004)
+            if graspable:
+                objBMinVar = self.domainProbs.obsVarTuple
+                objBMinVar = tuple([x**2/2*x for x in objBMinVar]) # 2 looks
             else:
-                objBMin = objB.modifyPoseD(var=objBMinVar)
-                objBMin.delta = objBMinDelta
+                # For non-graspable, use bigger variance from odoError
+                objBMinVar = tuple([x**2 for x in self.domainProbs.odoError])
+            objBMinProb = 0.95
+            objBMin = objB.modifyPoseD(var=objBMinVar)
+            objBMin.delta = objBMinDelta
 
             shWidth = shadowWidths(objB.poseD.var, objB.delta, prob)
+            minShWidth = shadowWidths(objBMinVar, objBMinDelta, objBMinProb)
             if shLE(shWidth, minShWidth):
                 # If the "min" shadow is wider than actual shadow, make them equal
                 objB = objBMin
                 prob = objBMinProb
+
             if debug('shadowWidths'):
-                print 'obj', obj, objB == objBMin
+                print 'obj', obj, 'graspable', graspable, 'objB == objBMin', objB == objBMin
                 print 'shWidth', shWidth
                 print 'minShWidth', minShWidth
 
             # Shadows relative to Identity pose
             shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
             shadowMin = self.objShadow(obj, obj, objBMinProb, objBMin, faceFrame) # use obj name
-
-            # if obj == 'table1':
-            #     shadow.draw('W', 'gray')
-            #     shadowMin.draw('W', 'brown')
-            #     print prob, objB
-            #     print shWidth
-            #     print objBMinProb, objBMin
-            #     print minShWidth
-            #     raw_input('Go?')
 
             w.addObjectShape(shadow)
             w.addObjectShape(shadowMin)
