@@ -62,7 +62,7 @@ drawRebindNodes = True
 'visible'
 '''
 
-debugOn = ['traceGen', 'traceCRH', 'skeleton', 'conservation', 'shadowWidths']
+debugOn = ['traceGen', 'traceCRH', 'skeleton', 'conservation']
 
 if platform.system() == 'Linux':
     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:

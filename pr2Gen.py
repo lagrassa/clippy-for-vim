@@ -73,7 +73,6 @@ def easyGraspGen(args, goalConds, bState, outBindings):
     placeB = newBS.getPlaceB(obj)
     graspB = ObjGraspB(obj, pbs.getWorld().getGraspDesc(obj), None,
                        PoseD(None, graspVar), delta=graspDelta)
-    graspB.grasp = UniformDist(range(len(graspB.graspDesc)))
     cache = pbs.beliefContext.genCaches['easyGraspGen']
     key = (newBS, placeB, graspB, hand, prob)
     easyGraspGenCacheStats[0] += 1
@@ -242,8 +241,8 @@ def pickGenTop(args, goalConds, pbs, outBindings,
 
 def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                goalConds, onlyCurrent = False):
-    def pickable(ca, c, pB):
-        return canPickPlaceTest(pbs, ca, c, hand, graspB, pB, prob, op='pick')
+    def pickable(ca, c, pB, gB):
+        return canPickPlaceTest(pbs, ca, c, hand, gB, pB, prob, op='pick')
 
     def checkInfeasible(conf):
         newBS = pbs.copy()
@@ -305,7 +304,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                 count = 0
                 minCost = 1e6
                 for ca in targetConfs:       # targetConfs is a generator
-                    viol = pickable(ca, approached[ca], placeB)
+                    viol = pickable(ca, approached[ca], placeB, graspB)
                     if viol:
                         trialConfs.append((viol.weight(), viol, ca))
                         minCost = min(viol.weight(), minCost)
@@ -341,7 +340,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                           )
     for pl, viol in plGen:
         (pB, gB, cf, ca) = pl
-        v = pickable(ca, cf, pB)
+        v = pickable(ca, cf, pB, gB)
         if debug('pickGen'):
             pbs.draw(prob, 'W')
             ca.draw('W', attached=shWorld.attached)
@@ -453,8 +452,7 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
 
     # LPK!!  Changed this to allow regrasping.  Later code will be
     # sure to generate the current grasp first.
-    graspB.grasp = UniformDist(range(0,len(graspB.graspDesc)))
-        
+
     conf = None
     confAppr = None
     # Set up pbs
@@ -770,8 +768,6 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         tracep('placeInGen', '    conf is specified so failing')
         return
 
-    if graspB.grasp is None:
-        graspB.grasp = UniformDist(range(0,len(graspB.graspDesc)))
     conf = None
     confAppr = None
     # Obstacles for all Reachable fluents
@@ -994,7 +990,6 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         graspDelta = 4*(0.001,)   # put back to prev value
         graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
                            PoseD(None, graspVar), delta=graspDelta)
-        graspB.grasp = UniformDist(range(len(graspB.graspDesc)))
         # Use pbs to generate candidate confs, since they will need to
         # collide with shadow of obj.
         for gB in graspGen(pbs, obj, graspB):
@@ -1214,8 +1209,10 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
         for ans in moveOut(newBS, obsts[0], moveDelta):
             yield ans 
     else:
-        shadows = [o.name() for o in viol.shadows \
-                   if o.name() not in newBS.fixObjBs]
+        shWorld = newBS.getShadowWorld(prob)
+        fixed = shWorld.fixedObjects
+        shadows = [sh.name() for sh in shWorld.getShadowShapes() \
+                   if not sh.name() in fixed]
         if not shadows:
             debugMsg('canReachGen', 'No shadows to clear')
             return       # nothing available
@@ -1317,6 +1314,8 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
             raw_input('here is the conf viol')
         return
 
+    assert all([sh.name() not in shadowsToAvoid for sh in viol.shadows])
+
     objBMinDelta = newBS.domainProbs.minDelta
     objBMinVar = newBS.domainProbs.obsVarTuple
     objBMinProb = 0.95
@@ -1340,12 +1339,10 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
             debugMsg('canPickPlaceGen', 'move out -> ', ans)
             yield ans 
     else:
-        
-        # LPK: Subtract out the avoid shadows here.  Shouldn't be necessary.
-        shadows = [o.name() for o in viol.shadows \
-             if (o.name() not in newBS.fixObjBs) and
-                (objectName(o) not in shadowsToAvoid)]
-
+        shWorld = newBS.getShadowWorld(prob)
+        fixed = shWorld.fixedObjects
+        shadows = [sh.name() for sh in shWorld.getShadowShapes() \
+                   if not sh.name() in fixed]
         if not shadows:
             debugMsg('canPickPlaceGen', 'No shadows to clear')
             return       # nothing available
@@ -1362,6 +1359,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
                                  graspB, placeB, prob, op=op)
         debugMsg('canPickPlaceGen', ('viol2', viol2))
         if viol2:
+            assert all([sh.name() not in shadowsToAvoid for sh in viol2.shadows])
             if debug('canPickPlaceGen', skip=skip):
                 newBS.draw(prob, 'W')
                 drawObjAndShadow(newBS, pB, prob, 'W', color = 'cyan')

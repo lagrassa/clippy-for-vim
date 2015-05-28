@@ -70,8 +70,10 @@ class ObjGraspB(Hashable):
         self.obj = obj
         self.graspDesc = graspDesc
         # grasp is an index into the graspDesc
-        if  isinstance(grasp, dist.DDist):
+        if isinstance(grasp, dist.DDist):
             self.grasp = grasp                # this is a DDist for index
+        elif grasp == None:
+            self.grasp = dist.UniformDist(range(len(self.graspDesc)))
         else:
             self.grasp = dist.DeltaDist(grasp)
         # This is PoseD for the mode of the grasp

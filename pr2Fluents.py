@@ -568,11 +568,11 @@ class CanPickPlace(Fluent):
                    bState.pbs.copy()
         world = newBS.getWorld()
         graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
-                        PoseD(graspMu, graspVar), delta= graspDelta)
+                           PoseD(graspMu, graspVar), delta= graspDelta)
         placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
-                        PoseD(pose, poseVar), delta=poseDelta)
+                           PoseD(pose, poseVar), delta=poseDelta)
         violPPTest = canPickPlaceTest(newBS, preConf, ppConf, hand,
-                                graspB, placeB, p, op=opType)
+                                      graspB, placeB, p, op=opType)
 
         testEq = (violations == violPPTest or \
           (violations and violPPTest and \

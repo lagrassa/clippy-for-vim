@@ -51,7 +51,7 @@ class BeliefContext:
 class PBS:
     def __init__(self, beliefContext, held=None, conf=None,
                  graspB=None, fixObjBs=None, moveObjBs=None, regions=[],
-                 domainProbs=None, useRight=True):
+                 domainProbs=None, useRight=True, avoidShadow=[]):
         self.beliefContext = beliefContext
         self.conf = conf or None
         self.held = held or \
@@ -63,7 +63,7 @@ class PBS:
         self.regions = regions
         self.pbs = self
         self.useRight = useRight
-        self.avoidShadow = []  # shadows to avoid, in cached obstacles
+        self.avoidShadow = avoidShadow  # shadows to avoid
         self.domainProbs = domainProbs
         # cache
         self.shadowWorld = None                   # cached obstacles
@@ -132,7 +132,7 @@ class PBS:
     def copy(self):
         return PBS(self.beliefContext, self.held.copy(), self.conf.copy(),
                    self.graspB.copy(), self.fixObjBs.copy(), self.moveObjBs.copy(),
-                   self.regions, self.domainProbs, self.useRight)
+                   self.regions, self.domainProbs, self.useRight, self.avoidShadow)
 
     def objectsInPBS(self):
         objects = []
@@ -148,7 +148,6 @@ class PBS:
         return self
 
     def updateFromAllPoses(self, goalConds, updateHeld=True, updateConf=True):
-        if not goalConds: return self
         initialObjects = self.objectsInPBS()
         world = self.getWorld()
         if updateHeld:
@@ -171,7 +170,6 @@ class PBS:
         return self
     
     def updateFromGoalPoses(self, goalConds, updateHeld=True, updateConf=True):
-        if not goalConds: return self
         initialObjects = self.objectsInPBS()
         world = self.getWorld()
         if updateHeld:

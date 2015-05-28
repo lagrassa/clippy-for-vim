@@ -92,8 +92,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
         print zip(('preConf', 'pickConf', 'hand', 'objGrasp', 'objPlace', 'p', 'pbs'),
                   (preConf, pickConf, hand, objGrasp, objPlace, p, pbs))
     if not legalGrasp(pbs, pickConf, hand, objGrasp, objPlace):
-        if debug('canPickPlaceTest'):
-            print 'Grasp is not legal'
+        raw_input('Grasp is not legal in canPickPlaceTest')
         return None
     pbs.getRoadMap().approachConfs[pickConf] = preConf
     violations = Violations()           # cumulative
