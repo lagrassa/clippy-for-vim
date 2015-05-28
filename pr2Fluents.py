@@ -1,7 +1,7 @@
 import util
 from util import nearAngle
 import numpy as np
-from pr2Util import PoseD, defaultPoseD, NextColor, shadowName, Violations, drawPath, objectName
+from pr2Util import PoseD, defaultPoseD, NextColor, shadowName, Violations, drawPath, objectName, ObjGraspB, ObjPlaceB
 from dist import DeltaDist, probModeMoved
 from planGlobals import debugMsg, debugDraw, debug, pause
 import planGlobals as glob
@@ -12,6 +12,7 @@ from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from pr2RoadMap import validEdgeTest
+from pr2GenAux import canPickPlaceTest
 
 tiny = 1.0e-6
 
@@ -324,39 +325,7 @@ class CanReachHome(Fluent):
             return (obstCost, {dummyOp})
         
         path, violations = self.getViols(details, v, p, strict = False)
-        if path == None:
-            #!! should this happen?
-            print '&&&&&&', self, v, p
-            print 'hv infinite'
-            raw_input('go?')
-            return float('inf'), {}
-        obstacles = violations.obstacles
-        shadows = violations.shadows
-        obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
-                       for o in obstacles])
-        for o in obstOps: o.instanceCost = obstCost
-        shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
-                     for o in shadows])
-        d = details.domainProbs.minDelta
-        ep = details.domainProbs.obsTypeErrProb
-        vo = details.domainProbs.obsVarTuple
-        # compute shadow costs individually
-        shadowSum = 0
-        for o in shadowOps:
-            # Use variance in start state
-            obj = objectName(o.args[0])
-            vb = details.pbs.getPlaceB('table1').poseD.variance()
-            deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
-            c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
-            o.instanceCost = c
-            shadowSum += c
-        ops = obstOps.union(shadowOps)
-        if debug('hAddBack'):
-            print 'Heuristic val', self.predicate
-            print 'ops', ops, 'cost',\
-             prettyString(obstCost * len(obstOps) + shadowSum)
-            raw_input('foo?')
-        return (obstCost * len(obstacles) + shadowSum, ops)
+        return hCost(violations, obstCost, details)
 
     def prettyString(self, eq = True, includeValue = True):
         (conf, fcp, cond) = self.args
@@ -368,7 +337,40 @@ class CanReachHome(Fluent):
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
 
-# LPK: Better if we could share code with CanReachHome
+def hCost(violations, obstCost, details):
+    if violations == None:
+        #!! should this happen?
+        print '&&&&&&', self, v, p
+        print 'hv infinite'
+        raw_input('go?')
+        return float('inf'), {}
+    obstacles = violations.obstacles
+    shadows = violations.shadows
+    obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
+                   for o in obstacles])
+    for o in obstOps: o.instanceCost = obstCost
+    shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
+                 for o in shadows])
+    d = details.domainProbs.minDelta
+    ep = details.domainProbs.obsTypeErrProb
+    vo = details.domainProbs.obsVarTuple
+    # compute shadow costs individually
+    shadowSum = 0
+    for o in shadowOps:
+        # Use variance in start state
+        obj = objectName(o.args[0])
+        vb = details.pbs.getPlaceB('table1').poseD.variance()
+        deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
+        c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
+        o.instanceCost = c
+        shadowSum += c
+    ops = obstOps.union(shadowOps)
+    if debug('hAddBack'):
+        print 'Heuristic val', self.predicate
+        print 'ops', ops, 'cost',\
+         prettyString(obstCost * len(obstOps) + shadowSum)
+    return (obstCost * len(obstacles) + shadowSum, ops)
+
 class CanReachNB(Fluent):
     predicate = 'CanReachNB'
     implicit = True
@@ -454,39 +456,7 @@ class CanReachNB(Fluent):
             return (obstCost, {dummyOp})
             
         path, violations = self.getViols(details, v, p, strict = False)
-        if violations == None:
-            #!! should this happen?
-            print '&&&&&&', self, v, p
-            print 'hv infinite'
-            raw_input('go?')
-            return float('inf'), {}
-        obstacles = violations.obstacles
-        shadows = violations.shadows
-        obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
-                       for o in obstacles])
-        for o in obstOps: o.instanceCost = obstCost
-        shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
-                     for o in shadows])
-        d = details.domainProbs.minDelta
-        ep = details.domainProbs.obsTypeErrProb
-        vo = details.domainProbs.obsVarTuple
-        # compute shadow costs individually
-        shadowSum = 0
-        for o in shadowOps:
-            # Use variance in start state
-            obj = objectName(o.args[0])
-            vb = details.pbs.getPlaceB('table1').poseD.variance()
-            deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
-            c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
-            o.instanceCost = c
-            shadowSum += c
-        ops = obstOps.union(shadowOps)
-        if debug('hAddBack'):
-            print 'Heuristic val', self.predicate
-            print 'ops', ops, 'cost',\
-             prettyString(obstCost * len(obstOps) + shadowSum)
-            raw_input('foo?')
-        return (obstCost * len(obstacles) + shadowSum, ops)
+        return hCost(violations, obstCost, details)
 
     def prettyString(self, eq = True, includeValue = True):
         (startConf, endConf, cond) = self.args
@@ -501,6 +471,7 @@ class CanReachNB(Fluent):
 
 zeroPose = zeroVar = (0.0,)*4
 tinyDelta = (1e-8,)*4
+zeroDelta = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
 
 # Check all three reachability conditions together.  For now, try to
@@ -536,6 +507,8 @@ class CanPickPlace(Fluent):
             pbs.getRoadMap().approachConfs[ppConf] = preConf
     
         assert obj != 'none'
+
+        tinyDelta = zeroDelta
 
         if not hasattr(self, 'conds') or self.conds == None:
             objInPlace = [B([Pose([obj, poseFace]), pose, poseVar, poseDelta,
@@ -584,7 +557,57 @@ class CanPickPlace(Fluent):
 
     def bTest(self, bState, v, p):
         path, violations = self.getViols(bState, v, p, strict = True)
-        return bool(path and violations.empty())
+        success = bool(path and violations.empty())
+
+        # Test the other way to be sure we are consistent
+        (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
+          graspFace, graspMu, graspVar, graspDelta,
+          opType, inconds) = self.args
+
+        newBS = bState.pbs.copy().updateFromGoalPoses(inconds) if inconds else \
+                   bState.pbs.copy()
+        world = newBS.getWorld()
+        graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
+                        PoseD(graspMu, graspVar), delta= graspDelta)
+        placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
+                        PoseD(pose, poseVar), delta=poseDelta)
+        violPPTest = canPickPlaceTest(newBS, preConf, ppConf, hand,
+                                graspB, placeB, p, op=opType)
+
+        testEq = (violations == violPPTest or \
+          (violations and violPPTest and \
+           set([x.name() for x in violations.obstacles]) == \
+             set([x.name() for x in violPPTest.obstacles]) and \
+           set([x.name() for x in violations.shadows]) == \
+             set([x.name() for x in violPPTest.shadows])))
+
+        if not testEq:
+            print 'Drawing newBS'
+            newBS.draw(p, 'W')
+            
+            print 'Mismatch in canPickPlaceTest!!'
+            print 'From the fluent', violations
+            print 'From the test', violPPTest
+            raw_input('okay?')
+        
+        
+        # If fluent is false but would have been true without
+        # conditioning, raise a flag
+        if not success:
+            # this fluent, but with no conditions
+            sc = self.copy()
+            sc.args[-1] = tuple()
+            sc.update()
+            p2, v2 = sc.getViols(bState, v, p, strict = True)
+            if bool(p2 and v2.empty()):
+                print 'CanPickPlace fluent made false by conditions'
+                print self
+                raw_input('go?')
+            elif len(self.args[-1]) > 0:
+                print 'CanPickPlace fluent false'
+                print self
+                #raw_input('go?')
+        return success
 
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
@@ -596,43 +619,8 @@ class CanPickPlace(Fluent):
             dummyOp.instanceCost = obstCost
             return (obstCost, {dummyOp})
 
-        shadowCost = 3  # move look, if we're lucky
         path, violations = self.getViols(details, v, p, strict = False)
-        if path == None:
-            #!! should this happen?
-            print 'hv infinite'
-            print self
-            raw_input('go?')
-            return float('inf'), {}
-        obstacles = violations.obstacles
-        shadows = violations.shadows
-        obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
-                       for o in obstacles])
-        for o in obstOps: o.instanceCost = obstCost
-        shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
-                     for o in shadows])
-
-        d = details.domainProbs.minDelta
-        ep = details.domainProbs.obsTypeErrProb
-        vo = details.domainProbs.obsVarTuple
-        # compute shadow costs individually
-        shadowSum = 0
-        for o in shadowOps:
-            # Use variance in start state
-            obj = objectName(o.args[0])
-            vb = details.pbs.getPlaceB('table1').poseD.variance()
-            deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
-            c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
-            o.instanceCost = c
-            shadowSum += c
-        ops = obstOps.union(shadowOps)
-        if debug('hAddBack'):
-            print 'Heuristic val', self.predicate
-            print 'ops', ops, 'cost',\
-             prettyString(obstCost * len(obstOps) + shadowSum)
-            raw_input('foo?')
-
-        return (obstCost * len(obstacles) + shadowSum, ops)
+        return hCost(violations, obstCost, details)
 
     def prettyString(self, eq = True, includeValue = True):
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
@@ -752,16 +740,13 @@ class Pose(Fluent):
                 result = lostDist
             else:
                 face = bState.pbs.getPlaceB(obj).support.mode()
-                result = bState.poseModeDist(obj, face)
-        elif face in ('left', 'right'):
-            # Actually, the grasp dist, if the face is a hand!
-            hand = face
-            graspFace = bState.pbs.getGraspB(obj, hand).grasp.mode() 
-            result = bState.graspModeDist(obj, hand, face)
-        else:
-            # normal case
-            result = bState.poseModeDist(obj, face)            
-        return result
+
+        # elif face in ('left', 'right'):
+        #     # Actually, the grasp dist, if the face is a hand!
+        #     hand = face
+        #     graspFace = bState.pbs.getGraspB(obj, hand).grasp.mode() 
+        #     result = bState.graspModeDist(obj, hand, face)
+        return bState.poseModeDist(obj, face)            
 
     def fglb(self, other, bState = None):
         if (other.predicate == 'Holding' and \
@@ -1052,6 +1037,9 @@ def canReachNB(pbs, startConf, conf, prob, initViol,
 def canReachHome(pbs, conf, prob, initViol,
                  avoidShadow = [], startConf = None, reversePath = False,
                  optimize = False, moveBase = True):
+    ### LPK: ignores avoidShadow argument.  Also, confReachViol seems
+    ### to ignore pbs.avoidShadow
+
     rm = pbs.getRoadMap()
     robot = pbs.getRobot()
     tag = 'canReachHome' if moveBase else 'canReachNB'
@@ -1063,17 +1051,20 @@ def canReachHome(pbs, conf, prob, initViol,
                                         optimize = optimize)
 
     if debug('traceCRH'):
-        print '    %s h='%tag, fbch.inHeuristic, 'viol=:', viol.weight() if viol else None
+        print '    %s h='%tag, fbch.inHeuristic, 'viol=:', \
+                       viol.weight() if viol else None
 
     if path:
         for i, c in enumerate(path):
             if i == 0: continue
-            if debug('backwards') and not validEdgeTest(path[i-1]['pr2Base'], c['pr2Base']):
+            if debug('backwards') and \
+                       not validEdgeTest(path[i-1]['pr2Base'], c['pr2Base']):
                 print path[i-1]['pr2Base'], '->', c['pr2Base']
                 raw_input('CRH - Backwards step')
 
     if (not fbch.inHeuristic) or debug('drawInHeuristic'):
-        if (moveBase and debug('canReachHome')) or ((not moveBase) and debug('canReachNB')):
+        if (moveBase and debug('canReachHome')) or \
+                                   ((not moveBase) and debug('canReachNB')):
             pbs.draw(prob, 'W')
             if path:
                 drawPath(path, viol=viol,

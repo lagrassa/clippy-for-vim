@@ -969,6 +969,7 @@ class Operator(object):
         # Discharge conditions that are entailed by this result and
         # apply the special regression function if there is one
         newFluents = []
+        resultsFromSpecialRegression = []
         for gf in goal.fluents: 
             entailed = False
             for rf in boundResults:
@@ -983,8 +984,11 @@ class Operator(object):
                     break
             if not entailed:
                 if self.specialRegress:
+                    # It is as if gf is a result and nf is a precond
                     nf = self.specialRegress(gf, startState.details,
                                              self.abstractionLevel)
+                    if nf != gf:
+                        resultsFromSpecialRegression.append(gf)
                 else:
                     nf = gf.copy()
                 if nf == None:
@@ -999,13 +1003,17 @@ class Operator(object):
         # Regress the implicit predicates by adding the bound results of this
         # operator to the conditions of those predicates.
 
+        ### Took this out to see what effect it is having
+        resultsFromSpecialRegression = []
+
         boundPreconds = [f.applyBindings(newBindings) \
                          for f in self.preconditionSet()]
 
         boundSE = [f.applyBindings(newBindings) \
                    for f in self.sideEffectSet(allLevels = True)]
 
-        explicitResults = [r for r in boundResults \
+        explicitResults = [r for r in \
+                            boundResults + resultsFromSpecialRegression \
                            if r.isGround() and not r.isImplicit()]
         explicitSE = [r for r in boundSE \
                            if r.isGround() and not r.isImplicit()]
@@ -1430,7 +1438,7 @@ nop = Operator('Nop', [], {1:[]}, [], [], None)
 # NonMonOps are allowed to be treated monotonically
 
 def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
-        skeleton = None, verbose = False, nonMonOps = []):
+        skeleton = None, verbose = False, nonMonOps = [], maxNodes = 500):
     f = writePreamble(hpnFileTag or fileTag)
     ps = PlanStack()
     ancestors = []
@@ -1448,7 +1456,8 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
                                             if (skeleton and \
                                                 len(skeleton)>subgoal.planNum) \
                                                 else None,
-                                 nonMonOps = nonMonOps)
+                                 nonMonOps = nonMonOps,
+                                 maxNodes = maxNodes)
                 assert p, 'Planning failed.'
                 planObj = makePlanObj(p, s)
                 planObj.printIt(verbose = verbose)
@@ -1941,7 +1950,7 @@ def getGrounding(fluents, details):
 
 def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
                     lastOp, nonMonOps, heuristic, h, visitF, expandF,
-                    prevExpandF, maxCost):
+                    prevExpandF, maxCost, maxNodes = 500):
     return ucSearch.search(goal,
                            lambda subgoal: startState.satisfies(subgoal),
                            lambda g: applicableOps(g, ops,
@@ -1958,7 +1967,7 @@ def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
                            expandF = expandF,
                            prevExpandF = prevExpandF,
                            multipleSuccessors = True,
-                           maxNodes = 100000,
+                           maxNodes = maxNodes,
                            maxHDelta = maxHDelta,
                            hmax = hmax, 
                            greedy = plannerGreedy,
@@ -1967,7 +1976,7 @@ def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
 
 def planBackward(startState, goal, ops, ancestors = [],
                  h = None, fileTag = None, skeleton = None, lastOp = None,
-                 nonMonOps = []):
+                 nonMonOps = [], maxNodes = 500):
 
     skel = copy.copy(skeleton)
     goal.depth = 0
@@ -2001,7 +2010,8 @@ def planBackward(startState, goal, ops, ancestors = [],
         if glob.monotonicFirst: 
             (p, c) = planBackwardAux(goal, startState, ops, ancestors, skeleton,
                                      True, lastOp, nonMonOps, heuristic, h,
-                                     visitF, expandF, prevExpandF, maxMonoCost)
+                                     visitF, expandF, prevExpandF, maxMonoCost,
+                                     maxNodes)
             if p:
                 if f1: writeSuccess(f1, f2, p)
                 return p
@@ -2013,7 +2023,8 @@ def planBackward(startState, goal, ops, ancestors = [],
         hCacheReset() # flush heuristic values
         (p, c) = planBackwardAux(goal, startState, ops, ancestors, skeleton,
                                  False, lastOp, nonMonOps, heuristic, h,
-                                 visitF, expandF, prevExpandF, float('inf'))
+                                 visitF, expandF, prevExpandF, float('inf'),
+                                 maxNodes)
         if p and f1:
             writeSuccess(f1, f2, p)
         if p: return p

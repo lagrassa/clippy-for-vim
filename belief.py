@@ -193,8 +193,8 @@ class B(BFluent):
                val == None or var == None or delta == None or val == '*' or \
                  len(val) == len(var) == len(delta)
         # No zero deltas!
-        assert isVar(delta) or delta == None or delta == '*' or \
-                    all([float(dv) != 0.0 for dv in delta])
+        # assert isVar(delta) or delta == None or delta == '*' or \
+        #             all([float(dv) != 0.0 for dv in delta])
 
         # Make sure numeric args are floats.  Allow None.
         def g(v):

@@ -1294,10 +1294,12 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     newBS = newBS.updateFromGoalPoses(goalConds) if goalConds else newBS
     newBS = newBS.updateFromGoalPoses(cond) if cond else newBS
     # The shadows of Pose(obj) in the cond are also permanent
-    newBS = newBS.updateAvoidShadow(getPoseObjs(cond))
+    shadowsToAvoid = getPoseObjs(cond)
+    newBS = newBS.updateAvoidShadow(shadowsToAvoid)
 
     viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
                              graspB, placeB, prob, op=op)
+
     if debug('canPickPlaceGen'):
         newBS.draw(prob, 'W')
     debugMsg('canPickPlaceGen', ('viol', viol))
@@ -1325,6 +1327,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     # Try to fix one of the violations if any...
     # Treat object target as permanent
     newBS.updatePermObjPose(placeB)
+
     goalPoseObjs = getPoseObjs(cond)
     if viol.obstacles:
         obsts = [o.name() for o in viol.obstacles \
@@ -1334,12 +1337,17 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
             return       # nothing available
         # !! How carefully placed this object needs to be
         for ans in moveOut(newBS, obsts[0], moveDelta):
+            debugMsg('canPickPlaceGen', 'move out -> ', ans)
             yield ans 
     else:
+        
+        # LPK: Subtract out the avoid shadows here.  Shouldn't be necessary.
         shadows = [o.name() for o in viol.shadows \
-                   if o.name() not in newBS.fixObjBs]
+             if (o.name() not in newBS.fixObjBs) and
+                (objectName(o) not in shadowsToAvoid)]
+
         if not shadows:
-            debugMsg('canReachGen', 'No shadows to clear')
+            debugMsg('canPickPlaceGen', 'No shadows to clear')
             return       # nothing available
         shadowName = shadows[0]
         obst = objectName(shadowName)
@@ -1362,12 +1370,15 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
                          'Trying to reduce shadow on %s'%obst + \
                          'Origin shadow cyan, reduced magenda')
             trace('    canPickPlaceGen() shadow:', obst, pB.poseD.mode().xyztTuple())
-            yield (obst, pB.poseD.mode().xyztTuple(), pB.support.mode(),
+            ans = (obst, pB.poseD.mode().xyztTuple(), pB.support.mode(),
                    lookVar, lookDelta)
+            debugMsg('canPickPlaceGen', 'reduce shadow -> ', ans)
+            yield ans
         # Either reducing the shadow is not enough or we failed and
         # need to move the object (if it's movable).
         if obst not in newBS.fixObjBs:
             for ans in moveOut(newBS, obst, moveDelta):
+                debugMsg('canPickPlaceGen', 'move out -> ', ans)
                 yield ans
         else:
             tracep('canPickPlaceGen', 'found fixed obstacle', obst)

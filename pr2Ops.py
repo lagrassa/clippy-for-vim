@@ -196,15 +196,6 @@ smallDelta = (10e-4,)*4
 def oh(h):
     return 'left' if h == 'right' else 'right'
 
-def otherHand((hand,), goal, start, vals):
-    if hand == 'left':
-        return [['right']]
-    else:
-        return [['left']]
-
-def obsVar(args, goal, start, vals):
-    return [[start.domainProbs.obsVarTuple]]
-
 def getObj(args, goal, start, stuff):
     (h,) = args
     heldLeft = start.pbs.getHeld('left').mode()        
@@ -218,51 +209,6 @@ def getObj(args, goal, start, stuff):
         return []
     else:
         return [[hh]]
-
-def getObjAndHands(args, goal, start, stuff):
-    (o, h) = args
-    heldLeft = start.pbs.getHeld('left').mode()        
-    heldRight = start.pbs.getHeld('right').mode()        
-    result = []
-    if isVar(o):
-        # Obj is unspecified, h should be bound.  
-        hh = heldLeft if h == 'left' else heldRight
-        if hh == 'none':
-            # If there is nothing in the hand right now, then we
-            # should technically iterate through all possible objects.
-            # For now, fail.
-            result = []
-        else:
-            if not start.pbs.useRight:
-                if h == 'right':
-                    return []
-                else:
-                    result = [(hh, 'left', 'right')]
-            else:
-                result = [(hh, h, oh(h))]
-    else:
-        if o == 'none' and heldLeft == 'none' and heldRight == 'none':
-            return []
-        # Obj is specified
-        if not isVar(h):
-            # hand is specified
-            hands = [h]
-        elif heldLeft == o:
-            # Try left first
-            hands = ['left', 'right']
-        elif heldRight == o:
-            # Try right first
-            hands = ['right', 'left']
-        elif heldLeft == 'none':
-            # Either order okay, but prefer empty one
-            hands = ['left', 'right']
-        else:
-            hands = ['right', 'left']
-        if not start.pbs.useRight:
-            result = [(o, 'left', 'right')]
-        else:
-            result = [(o, hand, oh(hand)) for hand in hands]
-    return result
 
 # Return a tuple (obj, face, mu, var, delta).  Values taken from the start state
 def graspStuffFromStart(start, hand):
@@ -278,39 +224,6 @@ def graspStuffFromStart(start, hand):
     mu = gd.poseD.mu.xyztTuple()
     var = gd.poseD.var
     return (obj, face, mu, var, smallDelta)
-
-# Return a tuple (obj, face, mu, var, delta).  Defaults, overridden by
-# what we find in the goal
-def graspStuffFromGoal(goal, hand,
-                       defaults = ('none', 0,
-                                   (0.0, 0.0, 0.0, 0.0),
-                                   (0.0, 0.0, 0.0, 0.0),
-                                   smallDelta)):
-
-    (obj, face, mu, var, delta) = defaults
-    hb = getMatchingFluents(goal, Bd([Holding([hand]), 'Obj', 'P'], True))
-    assert len(hb) < 2
-    if len(hb) == 0:
-        return (obj, face, mu, var, delta)
-    obj = hb[0][1]['Obj']
-
-    if obj == 'none':
-        return (obj, face, mu, var, delta)
-
-    fb = getMatchingFluents(goal, Bd([GraspFace([obj, hand]),'Face', 'P'],True))
-    assert len(fb) < 2
-    if len(fb) == 0:
-        return (obj, face, mu, var, delta)
-    face = fb[0][1]['Face']
-
-    gb = getMatchingFluents(goal, B([Grasp([obj, hand, face]),
-                                     'M', 'V', 'D', 'P'], True))
-    assert len(gb) < 2
-    if len(gb) == 0:
-        return (obj, face, mu, var, delta)
-    (mu, var, delta) = (gb[0][1]['M'], gb[0][1]['V'], gb[0][1]['D'])
-
-    return (obj, face, mu, var, delta)
 
 # See if would be useful to look at obj in order to reduce its variance
 def graspVarCanPickPlaceGen(args, goal, start, vals):
@@ -328,22 +241,6 @@ def getBase(args, goal, start, vals):
     else:
         return [[conf['pr2Base']]]
 
-# Generate a conf with the given base.  This is a hack for now.
-def genConfForBase((base,), goal, start, vals):
-    print '@@@@@@@  Need a better generator conf given base @@@@@@@@@'
-    assert not isVar(base)
-    conf = start.pbs.conf.copy()
-    conf.set('pr2Base', base)
-    conf.set('pr2RightArm', (0.0,)*7)
-    conf.set('pr2LeftArm', (0.0,)*7)
-    return [[conf]]
-
-# Get all grasp-relevant information for both hands.  Used by move.
-def genGraspStuff(args, goal, start, vals):
-    return [a + b for (a, b) in \
-      zip(genGraspStuffHand(('left', 'O1'), goal, start, vals),
-          genGraspStuffHand(('right', 'O2'), goal, start, vals))]
-
 # LPK: make this more efficient by storing the inverse mapping
 def regionParent(args, goal, start, vals):
     [region] = args
@@ -360,24 +257,6 @@ def poseInStart(args, goal, start, vals):
     mu = pd.poseD.mu.xyztTuple()
     debugMsg('poseInStart', ('->', (face, mu)))
     return [(face, mu)]
-
-# Get grasp-relevant stuff for one hand.  Used by move, place, pick
-def genGraspStuffHand((hand, otherObj), goal, start, values):
-    # See if there is a pose requirement in the goal (in which case that
-    # obj can't be in the hand.
-    pb = getMatchingFluents(goal,
-                            B([Pose(['O', 'F']), 'PM', 'PV', 'PD', 'P'], True))
-    fixedObjs = [b['O'] for (f, b) in pb]
-    # If it's not required by the goal, then let it be the
-    # value in the start state
-    s1 = graspStuffFromGoal(goal, hand, graspStuffFromStart(start, hand)) 
-    # Try with empty as a default, even if it's different in start
-    s2 = graspStuffFromGoal(goal, hand)
-    ans = []
-    if s1[0] != otherObj and not s1[0] in fixedObjs: ans.append(s1)
-    if s2[0] != otherObj: ans.append(s2)
-    debugMsg('genGraspStuff', hand, ans)
-    return ans
 
 # Use this when we don't want to generate an argument (expecting to
 # get it from goal bindings.)  Guaranteed to fail if that var isn't
@@ -457,12 +336,6 @@ def regressProb(n, probName = None):
             return []
     return regressProbAux
 
-## !! LPK Gah. Awful.  Generalize.
-def halveVariance((var,), goal, start, vals):
-    return [[tuple([min(maxVarianceTuple[0], v / 2.0) for v in var])]*2]
-def thirdVariance((var,), goal, start, vals):
-    return [[tuple([min(maxVarianceTuple[0], v / 3.0) for v in var])]*3]
-
 def maxGraspVarFun((var,), goal, start, vals):
     assert not(isVar(var))
     maxGraspVar = (0.015**2, .015**2, .015**2, .03**2)
@@ -509,31 +382,6 @@ def placeGraspVar((poseVar,), goal, start, vals):
         if debug('placeVar'):
             print 'negative grasp var'
             print 'poseVar', poseVar
-            print 'placeVar', placeVar
-            print 'maxGraspVar', maxGraspVar
-            raw_input('poseVar - placeVar is negative')
-        return []
-    else:
-        return [[graspVar]]
-
-# For place, grasp var is desired poseVar minus fixed placeVar
-# Don't let it be bigger than maxGraspVar 
-def placeGraspVar2((totalVar, poseVar2), goal, start, vals):
-    maxGraspVar = (0.0004, 0.0004, 0.0004, 0.008)
-    placeVar = start.domainProbs.placeVar
-    if isVar(poseVar2):
-        # For placing in a region; could let the place pick this, but
-        # just do it for now
-        #defaultPoseVar = tuple([4*v for v in placeVar])
-        defaultPoseVar = placeVar
-        poseVar2 = defaultPoseVar
-    graspVar = tuple([min(tv - pv - pv2, m) for (tv, pv, pv2, m) \
-                      in zip(totalVar, poseVar2, placeVar, maxGraspVar)])
-    if any([x <= 0 for x in graspVar]):
-        if debug('placeVar'):
-            print 'negative grasp var'
-            print 'totalVar', totalVar
-            print 'poseVar2', poseVar2
             print 'placeVar', placeVar
             print 'maxGraspVar', maxGraspVar
             raw_input('poseVar - placeVar is negative')
@@ -643,13 +491,6 @@ def addPosePreCond((postCond, obj, poseFace, pose, poseVar, poseDelta, p),
                      True)]
     fluentList = simplifyCond(postCond, newFluents)
     return [[fluentList]]
-
-
-def awayRegionIfNecessary((region, pose), goal, start, vals):
-    if not isVar(pose) or not isVar(region):
-        return [[region]]
-    else:
-        return [[start.pbs.awayRegions()]]
 
 def awayRegion(args, goal, start, vals):
     return [[start.pbs.awayRegions()]]
@@ -1233,7 +1074,7 @@ place = Operator(\
 
             # Get object.  Only if the var is unbound.  Try first the
             # objects that are currently in the hands.
-            Function(['Obj'], ['Hand'], getObj, 'getObjAndHands'),
+            Function(['Obj'], ['Hand'], getObj, 'getObj'),
             
             # Be sure all result probs are bound.  At least one will be.
             Function(['PR1', 'PR2', 'PR3'],
@@ -1491,7 +1332,7 @@ poseAchCanReach = Operator(\
     cost = lambda al, args, details: 0.1,
     argsToPrint = [0, 4, 6],
     ignorableArgs = range(1, 11))
-    
+
 poseAchCanPickPlace = Operator(\
     'PoseAchCanPickPlace',
     ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
