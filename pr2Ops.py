@@ -374,7 +374,6 @@ def placeGraspVar((poseVar,), goal, start, vals):
         # For placing in a region; could let the place pick this, but
         # just do it for now
         defaultPoseVar = tuple([2*v for v in placeVar])
-        #defaultPoseVar = placeVar
         poseVar = defaultPoseVar
     graspVar = tuple([min(gv - pv, m) for (gv, pv, m) \
                       in zip(poseVar, placeVar, maxGraspVar)])
