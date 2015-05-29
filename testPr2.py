@@ -1039,7 +1039,7 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
 
 
     t = PlanTest('testSwap',  errProbs, allOperators,
-                 objects=['table1', 'table2', 'objA',
+                 objects=['table1', 'table2', #'objA',
                           'objB'], #,'cupboardSide1', 'cupboardSide2'],
                  movePoses={'objA': back,
                             'objB': front},
@@ -1049,37 +1049,20 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
     goal = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True),
                   Bd([In(['objA', 'table1MidFront']), True, goalProb], True)])
 
+    # B on other table
     goal1 = State([Bd([In(['objB', 'table2Top']), True, goalProb], True)])
     skel1 = [[poseAchIn, lookAt, move,
               place.applyBindings({'Hand' : 'right'}),
               move, pick, move, lookAt, move, lookAt, move]]
 
+    # A and B on other table
     goal2 = State([Bd([In(['objB', 'table2Top']), True, goalProb], True),
                    Bd([In(['objA', 'table2Top']), True, goalProb], True)])
 
+    # B in back
     goal3 = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
 
-    skel3 = [[poseAchIn,
-              lookAt.applyBindings({'Obj' : 'objB'}), move,
-              lookAt.applyBindings({'Obj' : 'objB'}), move,
-              place.applyBindings({'Hand' : 'right', 'Obj' : 'objB'}), move,
-              pick, move,
-              poseAchCanPickPlace,
-              lookAt.applyBindings({'Obj' : 'objA'}), move,
-              place.applyBindings({'Hand' : 'left', 'Obj' : 'objA'}), move,
-              pick, move,
-              lookAt.applyBindings({'Obj' : 'objA'}), move,
-              lookAt.applyBindings({'Obj' : 'objA'}), move,
-              lookAt.applyBindings({'Obj' : 'objB'}), move,
-              lookAt.applyBindings({'Obj' : 'objB'}), move,
-              lookAt.applyBindings({'Obj' : 'table1'}), move,
-              poseAchCanPickPlace,
-              lookAt.applyBindings({'Obj' : 'table1'}), move,
-              lookAt.applyBindings({'Obj' : 'table2'}), move,
-              poseAchCanPickPlace,
-              lookAt.applyBindings({'Obj' : 'table2'}), move]]
-
-    t.run(goal,
+    t.run(goal3,
           hpn = hpn,
           skeleton = skel3 if skeleton else None,
           heuristic = heuristic,

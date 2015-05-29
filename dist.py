@@ -535,6 +535,8 @@ class MultivariateGaussianDistribution:
         d = len(v)
         norm = math.sqrt((2 * math.pi)**d * linalg.det(self.sigma))
         diff = v - self.mu
+        if diff.shape == (1, 4):
+            diff = diff.T
         return exp(-0.5 * diff.T * self.sigma.I * diff) / norm
 
     def logProb(self, v):
