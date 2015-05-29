@@ -1124,6 +1124,16 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
             debugMsg('lookHandGen', ('-> cyan', lookConf.conf))
         yield (lookConf,), viol
 
+def moveOut(newBS, prob, obst, delta, goalConds):
+    if debug('traceGen') or debug('canReachGen'):
+        print '    canReachGen() obst:', obst
+    domainPlaceVar = newBS.domainProbs.obsVarTuple 
+    if not isinstance(obst, str):
+        obst = obst.name()
+    for ans in placeInGenAway((obst, delta, prob), goalConds, newBS, None):
+        (pose, poseFace) = ans
+        yield (obst, pose, poseFace, domainPlaceVar, delta)
+
 # Preconditions (for R1):
 
 # 1. CanReach(...) - new Pose fluent should not make the canReach
@@ -1142,7 +1152,9 @@ def canReachGen(args, goalConds, bState, outBindings):
     # Don't make this infeasible
     goalFluent = Bd([CanReachHome([conf, fcp, cond]), True, prob], True)
     goalConds = goalConds + [goalFluent]
+    # Debug
     debugMsg('canReachGen', args)
+
     world = bState.pbs.getWorld()
     lookVar = bState.domainProbs.obsVarTuple
     for ans in canReachGenTop((conf, cond, prob, lookVar),
@@ -1166,19 +1178,10 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
     (conf, cond, prob, lookVar) = args
     trace('canReachGen() h=', fbch.inHeuristic)
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
-    def moveOut(newBS, obst, delta):
-        if debug('traceGen') or debug('canReachGen'):
-            print '    canReachGen() obst:', obst
-        domainPlaceVar = newBS.domainProbs.obsVarTuple 
-        if not isinstance(obst, str):
-            obst = obst.name()
-        for ans in placeInGenAway((obst, delta, prob), goalConds, newBS, None):
-            (pose, poseFace) = ans
-            yield (obst, pose, poseFace, domainPlaceVar, delta)
     
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
-    newBS = newBS.updateFromGoalPoses(cond)
+    newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
 
     path, viol = canReachHome(newBS, conf, prob, Violations())
     if not viol:                  # hopeless
@@ -1206,7 +1209,7 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
             debugMsg('canReachGen', 'No movable obstacles to fix')
             return       # nothing available
         # !! How carefully placed this object needs to be
-        for ans in moveOut(newBS, obsts[0], moveDelta):
+        for ans in moveOut(newBS, prob, obsts[0], moveDelta, goalConds):
             yield ans 
     else:
         shWorld = newBS.getShadowWorld(prob)
@@ -1242,7 +1245,7 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
         # Either reducing the shadow is not enough or we failed and
         # need to move the object (if it's movable).
         if obst not in newBS.fixObjBs:
-            for ans in moveOut(newBS, obst, moveDelta):
+            for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
                 yield ans
 
 # Preconditions (for R1):
@@ -1259,28 +1262,17 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
 def canPickPlaceGen(args, goalConds, bState, outBindings):
     (preconf, ppconf, hand, obj, pose, realPoseVar, poseDelta, poseFace,
      graspFace, graspMu, graspVar, graspDelta, prob, cond, op) = args
-
+    # Don't make this infeasible
     cppFluent = Bd([CanPickPlace([preconf, ppconf, hand, obj, pose, realPoseVar, poseDelta, poseFace,
                                   graspFace, graspMu, graspVar, graspDelta, op, cond]), True, prob], True)
     poseFluent = B([Pose([obj, poseFace]), pose, realPoseVar, poseDelta, prob], True)
 
     goalConds = goalConds + [cppFluent, poseFluent]
-
+    # Debug
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
-    
-    def moveOut(newBS, obst, delta):
-        if not isinstance(obst, str):
-            obst = obst.name()
-        domainPlaceVar = bState.domainProbs.obsVarTuple 
-        for ans in placeInGenAway((obst, delta, prob), goalConds, newBS, None):
-            (pose, poseFace) = ans
-            trace('    canPickPlaceGen() obst:', obst, pose)
-            yield (obst, pose, poseFace, domainPlaceVar, delta)
-        trace('    canPickPlaceGen() obst:', obst, 'no more poses')
-
     debugMsg('canPickPlaceGen', args)
     trace('canPickPlaceGen() h=', fbch.inHeuristic)
-
+    # Set up the PBS
     world = bState.pbs.getWorld()
     lookVar = bState.domainProbs.obsVarTuple
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
@@ -1289,7 +1281,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
                        PoseD(pose, realPoseVar), delta=poseDelta)
     newBS = bState.pbs.copy()   
     newBS = newBS.updateFromGoalPoses(goalConds)
-    newBS = newBS.updateFromGoalPoses(cond)
+    newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
 
     viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
                              graspB, placeB, prob, op=op)
@@ -1332,7 +1324,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
             tracep('canPickPlaceGen', 'No movable obstacles to remove')
             return       # nothing available
         # !! How carefully placed this object needs to be
-        for ans in moveOut(newBS, obsts[0], moveDelta):
+        for ans in moveOut(newBS, prob, obsts[0], moveDelta, goalConds):
             debugMsg('canPickPlaceGen', 'move out -> ', ans)
             yield ans 
     else:
@@ -1372,7 +1364,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         # Either reducing the shadow is not enough or we failed and
         # need to move the object (if it's movable).
         if obst not in newBS.fixObjBs:
-            for ans in moveOut(newBS, obst, moveDelta):
+            for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
                 debugMsg('canPickPlaceGen', 'move out -> ', ans)
                 yield ans
         else:
@@ -1416,18 +1408,10 @@ def canSeeGenTop(args, goalConds, pbs, outBindings):
     trace('canSeeGen(%s) h='%obj, fbch.inHeuristic)
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     debugMsgSkip('canSeeGen', skip, ('args', args))
-    def moveOut(newBS, obst, delta):
-        domainPlaceVar = pbs.domainProbs.obsVarTuple 
-        if not isinstance(obst, str):
-            obst = obst.name()
-        for ans in placeInGenAway((obst, delta, prob), goalConds, newBS, None):
-            (pose, poseFace) = ans
-            trace('    canSeeGen(%s) obst='%obj, obst, pose)
-            yield (obst, pose, poseFace, domainPlaceVar, delta)
 
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
-    newBS = newBS.updateFromGoalPoses(cond)
+    newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
     newBS = newBS.updatePermObjPose(placeB)
 
     shWorld = newBS.getShadowWorld(prob)
@@ -1441,7 +1425,7 @@ def canSeeGenTop(args, goalConds, pbs, outBindings):
         return
     obst = occluders[0] # !! just pick one
     moveDelta = (0.01, 0.01, 0.01, 0.02)
-    for ans in moveOut(newBS, obst, moveDelta):
+    for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
         yield ans 
 
 ###################################

@@ -294,9 +294,9 @@ class CanReachHome(Fluent):
 
         newPBS = bState.pbs.copy()
         if strict:
-            newPBS.updateFromAllPoses(cond)
+            newPBS.updateFromAllPoses(cond, permShadows=True)
         else:
-            newPBS.updateFromGoalPoses(cond)
+            newPBS.updateFromGoalPoses(cond, permShadows=True)
 
         avoidShadow = [cond[0].args[0].args[0]] if fcp else []
         newPBS.updateAvoidShadow(avoidShadow)
@@ -387,9 +387,9 @@ class CanReachNB(Fluent):
 
         newPBS = bState.pbs.copy()
         if strict:
-            newPBS.updateFromAllPoses(cond)
+            newPBS.updateFromAllPoses(cond, permShadows=True)
         else:
-            newPBS.updateFromGoalPoses(cond)
+            newPBS.updateFromGoalPoses(cond, permShadows=True)
 
         path, violations = canReachNB(newPBS, startConf, endConf, p,
                                       Violations())
@@ -564,8 +564,7 @@ class CanPickPlace(Fluent):
           graspFace, graspMu, graspVar, graspDelta,
           opType, inconds) = self.args
 
-        newBS = bState.pbs.copy().updateFromGoalPoses(inconds) if inconds else \
-                   bState.pbs.copy()
+        newBS = bState.pbs.copy().updateFromGoalPoses(inconds, permShadows=True)
         world = newBS.getWorld()
         graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
                            PoseD(graspMu, graspVar), delta= graspDelta)
@@ -833,9 +832,9 @@ class CanSeeFrom(Fluent):
         # Note that all object poses are permanent, no collisions can be ignored
         newPBS = bState.pbs.copy()
         if strict:
-            newPBS.updateFromAllPoses(cond)
+            newPBS.updateFromAllPoses(cond, permShadows=True)
         else:
-            newPBS.updateFromGoalPoses(cond)
+            newPBS.updateFromGoalPoses(cond, permShadows=True)
 
         placeB = newPBS.getPlaceB(obj)
         if placeB.support.mode() != poseFace and poseFace != '*':

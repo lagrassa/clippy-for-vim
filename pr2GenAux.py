@@ -515,7 +515,7 @@ def pathShape(path, prob, pbs, name):
 
 def pathObst(cs, cd, p, pbs, name, start=None):
     newBS = pbs.copy()
-    newBS = newBS.updateFromGoalPoses(cd)
+    newBS = newBS.updateFromGoalPoses(cd, permShadows=True)
     key = (cs, newBS, p)
     if key in pbs.beliefContext.pathObstCache:
         return pbs.beliefContext.pathObstCache[key]

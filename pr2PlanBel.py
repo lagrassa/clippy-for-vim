@@ -150,7 +150,8 @@ class PBS:
         return self
 
     # Makes all objects permanent
-    def updateFromAllPoses(self, goalConds, updateHeld=True, updateConf=True):
+    def updateFromAllPoses(self, goalConds,
+                           updateHeld=True, updateConf=True, permShadows=False):
         initialObjects = self.objectsInPBS()
         world = self.getWorld()
         if updateHeld:
@@ -165,7 +166,8 @@ class PBS:
                                        self.getPlacedObjBs())
         self.moveObjBs = {}
         # The shadows of Pose(obj) in the cond are also permanent
-        self.updateAvoidShadow(getPoseObjs(goalConds))
+        if permShadows:
+            self.updateAvoidShadow(getPoseObjs(goalConds))
         self.reset()
         finalObjects = self.objectsInPBS()
         if debug('conservation') and initialObjects != finalObjects:
@@ -175,7 +177,8 @@ class PBS:
         return self
     
     # Makes objects mentioned in the goal permanent
-    def updateFromGoalPoses(self, goalConds, updateHeld=True, updateConf=True):
+    def updateFromGoalPoses(self, goalConds,
+                            updateHeld=True, updateConf=True, permShadows=False):
         initialObjects = self.objectsInPBS()
         world = self.getWorld()
         if updateHeld:
@@ -192,7 +195,8 @@ class PBS:
                                in self.getPlacedObjBs().iteritems() \
                                if o not in self.fixObjBs])
         # The shadows of Pose(obj) in the cond are also permanent
-        self.updateAvoidShadow(getPoseObjs(goalConds))
+        if permShadows:
+            self.updateAvoidShadow(getPoseObjs(goalConds))
         self.reset()
         finalObjects = self.objectsInPBS()
         if debug('conservation') and initialObjects != finalObjects:
