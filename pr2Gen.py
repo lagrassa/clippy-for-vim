@@ -1199,7 +1199,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     lookVar = bState.domainProbs.obsVarTuple
     for ans in canXGenTop(violFn, (cond, prob, lookVar),
                           goalConds, bState.pbs, outBindings, 'canPickPlaceGen'):
-        debugMsg('canReachGen', ('->', ans))
+        debugMsg('canPickPlacechGen', ('->', ans))
         yield ans
     debugMsg('canPickPlaceGen', 'exhausted')
 

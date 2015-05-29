@@ -1039,7 +1039,7 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
 
 
     t = PlanTest('testSwap',  errProbs, allOperators,
-                 objects=['table1', 'table2', #'objA',
+                 objects=['table1', 'table2', 'objA',
                           'objB'], #,'cupboardSide1', 'cupboardSide2'],
                  movePoses={'objA': back,
                             'objB': front},

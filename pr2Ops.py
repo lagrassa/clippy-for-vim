@@ -1033,7 +1033,7 @@ poseAchIn = Operator(\
               # call main generator
               Function(['ObjPose1', 'PoseFace1'],
                      ['Obj1', 'Region', 'TotalVar',
-                      tuple([d*4 for d in defaultPoseDelta]),
+                      tuple([d*2 for d in defaultPoseDelta]),
                       probForGenerators],
                      placeInRegionGen, 'placeInRegionGen')],
             argsToPrint = [0, 1],
