@@ -491,7 +491,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         if pB in regraspablePB:
             return regraspablePB[pB]
         other =  [next(potentialGraspConfGen(pbs, pB, gBO, conf, hand, base, prob, nMax=1),
-                       None)[0] \
+                       (None, None))[0] \
                   for gBO in gBOther]
         if any(other):
             if debug('placeGen', skip=skip):

@@ -148,7 +148,7 @@ class PBS:
         return self
 
     def addAvoidShadow(self, avoidShadow):
-        self.avoidShadow.extend(avoidShadow)
+        self.avoidShadow += avoidShadow
         return self
 
     # Makes all objects permanent
