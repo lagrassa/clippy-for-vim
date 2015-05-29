@@ -715,13 +715,10 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
             ]
 
     skel = [[poseAchIn,
-             #lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
-             lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
-             #lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), move,
-             place.applyBindings({'Obj': 'objA'}),
-             poseAchCanPickPlace, moveNB,
-             lookAt.applyBindings({'Obj' : 'table1'}), # 12
+             place.applyBindings({'Obj': 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), 
              move,        # 13
              pick,
              poseAchCanPickPlace, # sometimes need another one

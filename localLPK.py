@@ -68,8 +68,8 @@ visible
 visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
-debugOn = ['skeleton', 'nonmon', 'traceGen', 'traceCRH',
-           'canPickPlaceGen']
+debugOn = ['skeleton', 'nonmon', 'traceGen', 'traceCRH']
+
 
 
 pauseOn = debugOn
