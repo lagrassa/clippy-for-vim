@@ -1159,17 +1159,6 @@ def canReachGen(args, goalConds, bState, outBindings):
     lookVar = bState.domainProbs.obsVarTuple
     for ans in canReachGenTop((conf, cond, prob, lookVar),
                               goalConds, bState.pbs, outBindings):
-        # LPK temporary stuff to look for case of suggesting that we
-        # move the same object
-        (occ, occPose, occFace, occVar, occDelta) = ans
-        for thing in cond:
-            if thing.predicate == 'B' and thing.args[0].predicate == 'Pose' and\
-                thing.args[0].args[0] == occ and thing.args[2][0] <= occVar[0]:
-                print 'canReachGen suggesting a move of an object in cond'
-                print 'CRH ans', ans
-                print 'Suspect cond', thing
-                raw_input('okay?')
-
         debugMsg('canReachGen', ('->', ans))
         yield ans
     debugMsg('canReachGen', 'exhausted')
@@ -1178,12 +1167,15 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
     (conf, cond, prob, lookVar) = args
     trace('canReachGen() h=', fbch.inHeuristic)
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
-    
+    # Set up PBS
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
     newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
-
+    # Initial test
     path, viol = canReachHome(newBS, conf, prob, Violations())
+    if debug('canReachGen'):
+        newBS.draw(prob, 'W')
+    debugMsg('canReachGen', ('viol', viol))
     if not viol:                  # hopeless
         tracep('canReachGen', 'Impossible dream')
         return
@@ -1282,10 +1274,9 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     newBS = bState.pbs.copy()   
     newBS = newBS.updateFromGoalPoses(goalConds)
     newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
-
+    # Initial test
     viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
                              graspB, placeB, prob, op=op)
-
     if debug('canPickPlaceGen'):
         newBS.draw(prob, 'W')
     debugMsg('canPickPlaceGen', ('viol', viol))
@@ -1296,14 +1287,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         return
     if viol.empty():
         tracep('canPickPlaceGen', 'No obstacles or shadows; returning')
-        if debug('canPickPlaceGen'):
-            glob.debugOn.append('confViol')
-            viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
-                             graspB, placeB, prob, op=op)
-            raw_input('here is the conf viol')
         return
-
-    assert all([sh.name() not in shadowsToAvoid for sh in viol.shadows])
 
     objBMinDelta = newBS.domainProbs.minDelta
     objBMinVar = newBS.domainProbs.obsVarTuple
