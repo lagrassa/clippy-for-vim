@@ -474,6 +474,7 @@ class PR2:
             if ans is None:
                 print 'wrist=\n', wrist.matrix
                 raw_input('Illegal wrist trans for base pose')
+                return
             yield ground(ans)
 
     def fingerSupportFrame(self, hand, width):

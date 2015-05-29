@@ -330,6 +330,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
     if fbch.inHeuristic:
         return
     print 'Calling for regrasping... h=', fbch.inHeuristic
+    raw_input('Regrasp?')
     tracep('pickGen', 'Regrasp?')
     shWorld = pbs.getShadowWorld(prob)
     # !! Needs to look for plausible regions...

@@ -12,7 +12,7 @@ from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from pr2RoadMap import validEdgeTest
-from pr2GenAux import canPickPlaceTest
+# from pr2GenAux import canPickPlaceTest
 
 tiny = 1.0e-6
 
@@ -571,24 +571,24 @@ class CanPickPlace(Fluent):
                            PoseD(graspMu, graspVar), delta= graspDelta)
         placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
                            PoseD(pose, poseVar), delta=poseDelta)
-        violPPTest = canPickPlaceTest(newBS, preConf, ppConf, hand,
-                                      graspB, placeB, p, op=opType)
+        # violPPTest = canPickPlaceTest(newBS, preConf, ppConf, hand,
+        #                               graspB, placeB, p, op=opType)
 
-        testEq = (violations == violPPTest or \
-          (violations and violPPTest and \
-           set([x.name() for x in violations.obstacles]) == \
-             set([x.name() for x in violPPTest.obstacles]) and \
-           set([x.name() for x in violations.shadows]) == \
-             set([x.name() for x in violPPTest.shadows])))
+        # testEq = (violations == violPPTest or \
+        #   (violations and violPPTest and \
+        #    set([x.name() for x in violations.obstacles]) == \
+        #      set([x.name() for x in violPPTest.obstacles]) and \
+        #    set([x.name() for x in violations.shadows]) == \
+        #      set([x.name() for x in violPPTest.shadows])))
 
-        if not testEq:
-            print 'Drawing newBS'
-            newBS.draw(p, 'W')
+        # if not testEq:
+        #     print 'Drawing newBS'
+        #     newBS.draw(p, 'W')
             
-            print 'Mismatch in canPickPlaceTest!!'
-            print 'From the fluent', violations
-            print 'From the test', violPPTest
-            raw_input('okay?')
+        #     print 'Mismatch in canPickPlaceTest!!'
+        #     print 'From the fluent', violations
+        #     print 'From the test', violPPTest
+        #     raw_input('okay?')
         
         
         # If fluent is false but would have been true without
