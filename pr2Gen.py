@@ -491,13 +491,13 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         if pB in regraspablePB:
             return regraspablePB[pB]
         other =  [next(potentialGraspConfGen(pbs, pB, gBO, conf, hand, base, prob, nMax=1),
-                       (None,None))[0] \
+                       None)[0] \
                   for gBO in gBOther]
         if any(other):
             if debug('placeGen', skip=skip):
                 print 'Regraspable', pB.poseD.mode(), [gBO.grasp.mode() for gBO in gBOther]
-                for x in other:
-                    x.draw('W', 'green')
+                for (c, ca, v) in other:
+                    c.draw('W', 'green')
                     debugMsg('placeGen', 'other')
             regraspablePB[pB] = True
             return True
@@ -523,7 +523,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         if pbsOrig and pbsOrig.held[hand].mode() != obj and pB:
             if next(potentialGraspConfGen(pbsOrig, pB, gB, conf, hand, base,
                                           prob, nMax=1),
-                    (None,None))[0]:
+                    (None, None))[0]:
                 return 1
             else:
                 return 2
@@ -644,10 +644,6 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
 def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
     (obj, region, var, delta, prob) = args
 
-    base = sameBase(goalConds)
-    if base:
-        raw_input('Same base constraint in placeInRegionGen')
-
     if not isinstance(region, (list, tuple, frozenset)):
         regions = frozenset([region])
     elif len(region) == 0:
@@ -727,7 +723,7 @@ def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
             # If pose is specified and variance is small, return
             return
 
-    gen = placeInGenTop((obj, regShapes, graspB, placeB, base, prob),
+    gen = placeInGenTop((obj, regShapes, graspB, placeB, None, prob),
                           goalConds, bState.pbs, outBindings, away = away)
         
     for ans, viol in gen:
@@ -782,32 +778,6 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         for _, obst in reachObsts: obst.draw('W', 'brown')
         raw_input('%d reachObsts - in brown'%len(reachObsts))
 
-    # placeInGenCache = pbs.beliefContext.genCaches['placeInGen']
-    # key = (obj, tuple(regShapes), graspB, placeB, prob, regrasp, away, fbch.inHeuristic)
-    # val = placeInGenCache.get(key, None)
-    # if val != None:
-    #     ff = placeB.faceFrames[placeB.support.mode()]
-    #     objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
-    #     for ans in val:
-    #         ((pB, gB, cf, ca), viol) = ans
-    #         pose = pB.poseD.mode() if pB else None
-    #         sup = pB.support.mode() if pB else None
-    #         grasp = gB.grasp.mode() if gB else None
-    #         pg = (sup, grasp)
-    #         sh = objShadow.applyTrans(pose)
-    #         if all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
-    #             viol2 = canPickPlaceTest(pbs, ca, cf, gB, pB, prob, op='place')
-    #             print 'viol', viol
-    #             print 'viol2', viol2
-    #             if viol2 and viol2.weight() <= viol.weight():
-    #                 if debug('traceGen'):
-    #                     w = viol2.weight() if viol2 else None
-    #                     print '    reusing placeInGen',
-    #                     print '    placeInGen(%s,%s,%s) h='%(obj,[x.name() for x in regShapes],hand), \
-    #                           fbch.inHeuristic, 'v=', w, '(p,g)=', pg, pose
-    #                 yield ans[0], viol2
-    # else:
-    #     placeInGenCache[key] = val
     newBS = pbs.copy()           #  not necessary
     # Shadow (at origin) for object to be placed.
     domainPlaceVar = newBS.domainProbs.obsVarTuple 
@@ -927,7 +897,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
-    newBS.updateAvoidShadow([obj])
+    newBS.addAvoidShadow([obj])
     if placeB.poseD.mode() == None:
         tracep('lookGen', '    object is in the hand')
         return

@@ -170,6 +170,14 @@ class Violations(Hashable):
         return 'Violations%s'%str(([x.name() for x in self.obstacles], [x.name() for x in self.shadows]))
     __str__ = __repr__
 
+def combineViols(*viols):
+    v = Violations()
+    for viol in viols:
+        if viol == None:
+            return None
+        v = v.update(viol)
+    return v
+
 def shadowName(obj):
     name = obj if isinstance(obj, str) else obj.name()
     return name+'_shadow'

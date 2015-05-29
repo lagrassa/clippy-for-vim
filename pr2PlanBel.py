@@ -147,6 +147,10 @@ class PBS:
         self.avoidShadow = avoidShadow
         return self
 
+    def addAvoidShadow(self, avoidShadow):
+        self.avoidShadow.extend(avoidShadow)
+        return self
+
     # Makes all objects permanent
     def updateFromAllPoses(self, goalConds,
                            updateHeld=True, updateConf=True, permShadows=False):

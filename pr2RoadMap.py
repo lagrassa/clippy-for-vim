@@ -21,7 +21,7 @@ import planGlobals as glob
 from planGlobals import debugMsg, debug, debugDraw, debugOn
 from miscUtil import prettyString
 from heapq import heappush, heappop
-from pr2Util import Violations, NextColor, drawPath, NextColor, shadowWidths, Hashable
+from pr2Util import Violations, NextColor, drawPath, NextColor, shadowWidths, Hashable, combineViols
 
 objCollisionCost = 10.0                    # !! was 2.0
 shCollisionCost = 2.0
@@ -390,14 +390,17 @@ class RoadMap:
         approach = False
         if not fbch.inHeuristic and targetConf in self.approachConfs:
             approach = True
-            cv = self.confViolations(targetConf, pbs, prob)[0]
-            if cv != None and initViol != None:
-                initViol = initViol.update(cv)
-                targetConf = self.approachConfs[targetConf]
-                if debug('traceCRH'): print '    using approach conf'
+            targetConf = self.approachConfs[targetConf]
+            if debug('traceCRH'): print '    using approach conf'
+
+        cv1 = self.confViolations(targetConf, pbs, prob)[0]
+        cv2 = self.confViolations(initConf, pbs, prob)[0]
+        initViol = combineViols(cv1, cv2, initViol)
+
         targetNode = makeNode(targetConf)
         attached = pbs.getShadowWorld(prob).attached
         if initViol == None:
+            if debug('traceCRH'): print '    collision at end point'
             return confAns(None)
         cached = checkFullCache()
         if cached:

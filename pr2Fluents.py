@@ -299,7 +299,7 @@ class CanReachHome(Fluent):
             newPBS.updateFromGoalPoses(cond, permShadows=True)
 
         avoidShadow = [cond[0].args[0].args[0]] if fcp else []
-        newPBS.updateAvoidShadow(avoidShadow)
+        newPBS.addAvoidShadow(avoidShadow)
         path, violations = canReachHome(newPBS, conf, p, Violations())
         debugMsg('CanReachHome',
                  ('conf', conf),

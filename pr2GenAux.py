@@ -99,7 +99,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
     # 1.  Can move from home to pre holding nothing with object placed at pose
     if preConf:
         pbs1 = pbs.copy().updatePermObjPose(objPlace).updateHeldBel(None, hand)
-        if op == 'place': pbs1.updateAvoidShadow([obj])
+        if op == 'place': pbs1.addAvoidShadow([obj])
         if debug('canPickPlaceTest'):
             pbs1.draw(p, 'W')
             debugMsg('canPickPlaceTest', 'H->App, obj=pose (condition 1)')
@@ -825,7 +825,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
 
                 # Randomized
                 # hyp = (count, 1./cost if cost else 1.)
-                hyp = (cost, count)
+                hyp = (cost, rs, count)
 
                 hyps.append(hyp)
                 count += 1
@@ -833,7 +833,21 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         # Randomized
         # pointDist = DDist(dict(hyps))
         # pointDist.normalize()
-        pointDist = sorted(hyps)
+        hyps = sorted(hyps)
+        # Randomize by regions
+        levels = []
+        values = []
+        for p in hyps:
+            (c, r, i) = p
+            if not values or values[-1] != c:
+                values.append(c)
+                levels.append([p])
+            else:
+                levels[-1].append(p)
+        for l in levels:
+            random.shuffle(l)
+        pointDist = []
+        for l in levels: pointDist.extend(l)
     else:
         debugMsg('potentialRegionPoseGen', 'No valid points in region')
         return
@@ -844,7 +858,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             tries += 1
             # Randomized
             # index = pointDist.draw()
-            cost, index = pointDist[tries]
+            cost, rs, index = pointDist[tries]
             angle, point = points[index]
             pose = genPose(rs, angle, point)
             if not pose: continue
@@ -861,7 +875,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         while count < maxPoses and tries < maxTries:
             # Randomized
             # index = pointDist.draw()
-            hcost, index = pointDist[tries]
+            hcost, rs, index = pointDist[tries]
             angle, point = points[index]
             tries += 1
             p = genPose(rs, angle, point)
