@@ -41,9 +41,7 @@ movePreProb = 0.8
 probForGenerators = 0.98
 
 
-planVar = (0.02**2, 0.02**2, 0.01**2, 0.03**2)
-# Made smaller to avoid replanning for pick.  Maybe not right.
-#planVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2)
+planVar = (0.04**2, 0.04**2, 0.04**2, 0.08**2)
 planP = 0.95
 
 ######################################################################
@@ -1011,8 +1009,8 @@ poseAchIn = Operator(\
             # Very prescriptive:  find objects, then nail down obj2, then
             # obj 1
             {0 : set(),
-             1 : {BLoc(['Obj1', 'PoseVar', planP], True),
-                  BLoc(['Obj2', 'PoseVar', planP], True)},
+             1 : {BLoc(['Obj1', planVar, planP], True), # 'PoseVar'
+                  BLoc(['Obj2', planVar, planP], True)},
              2 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
                                defaultPoseDelta, 'P2'], True),
                   Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)},
@@ -1061,7 +1059,7 @@ place = Operator(\
          3 : {Conf(['PreConf', 'ConfDelta'], True)}
         },
         # Results
-        [({BLoc(['Obj', 'PoseVar', 'PR2'], True)},{}),
+        [({BLoc(['Obj', planVar, 'PR2'], True)},{}),  # 'PoseVar'
          ({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
            B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta','PR2'],
                  True)},{}),

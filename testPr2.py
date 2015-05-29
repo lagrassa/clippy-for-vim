@@ -715,27 +715,25 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
             ]
 
     skel = [[poseAchIn,
-             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), move,
              place.applyBindings({'Obj': 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), 
              move,      
-             pick,
+             pick,   #8
              poseAchCanPickPlace, 
              moveNB,
-             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,   
-             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
-             lookAt.applyBindings({'Obj' : 'table1'}), move,
+             lookAt.applyBindings({'Obj' : 'objA'}), move,
+             lookAt.applyBindings({'Obj' : 'table1'}),
+             move,
              poseAchCanReach,
-             # Skel should work in other order, but doesn't.  This
-             # order doesn't always work, either.
              lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
-             lookAt.applyBindings({'Obj' : 'objA'}), moveNB],   # 28 total
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB], # 21
             [poseAchIn,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
-             lookAt.applyBindings({'Obj' : 'table1'}), move,
+             lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
              place.applyBindings({'Obj': 'objA'}), move, 
              pick, moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), move,

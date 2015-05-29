@@ -339,10 +339,7 @@ class CanReachHome(Fluent):
 
 def hCost(violations, obstCost, details):
     if violations == None:
-        #!! should this happen?
-        print '&&&&&&', self, v, p
         print 'hv infinite'
-        raw_input('go?')
         return float('inf'), {}
     obstacles = violations.obstacles
     shadows = violations.shadows
