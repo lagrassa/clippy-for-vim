@@ -16,7 +16,8 @@ import fbch
 from belief import Bd
 from pr2Fluents import CanReachHome, canReachHome, inTest
 from pr2Visible import visible, lookAtConf
-from pr2PlanBel import getConf, getGoalPoseBels
+from pr2PlanBel import getConf, getGoalPoseBels, getPoseObjs
+
 from shapes import Box
 
 Ident = util.Transform(np.eye(4))            # identity transform

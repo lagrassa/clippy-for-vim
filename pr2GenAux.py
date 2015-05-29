@@ -614,15 +614,6 @@ def getCRHObsts(goalConds, pbs):
     debugMsg('getReachObsts', ('->', len(obsts), 'CRH obsts'))
     return obsts
 
-def getPoseObjs(goalConds):
-    pfbs = fbch.getMatchingFluents(goalConds,
-                                   B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
-    objs = []
-    for (pf, pb) in pfbs:
-        if isGround(pb.values()):
-            objs.append(pb['Obj'])
-    return objs
-
 # Returns (hand, obj) for Holding fluents
 def getHolding(goalConds):
     pfbs = fbch.getMatchingFluents(goalConds,

@@ -165,7 +165,7 @@ class PBS:
                                        self.getPlacedObjBs())
         self.moveObjBs = {}
         # The shadows of Pose(obj) in the cond are also permanent
-        newBS = newBS.updateAvoidShadow(getPoseObjs(goalConds))
+        self.updateAvoidShadow(getPoseObjs(goalConds))
         self.reset()
         finalObjects = self.objectsInPBS()
         if debug('conservation') and initialObjects != finalObjects:
@@ -192,7 +192,7 @@ class PBS:
                                in self.getPlacedObjBs().iteritems() \
                                if o not in self.fixObjBs])
         # The shadows of Pose(obj) in the cond are also permanent
-        newBS = newBS.updateAvoidShadow(getPoseObjs(goalConds))
+        self.updateAvoidShadow(getPoseObjs(goalConds))
         self.reset()
         finalObjects = self.objectsInPBS()
         if debug('conservation') and initialObjects != finalObjects:
@@ -582,3 +582,13 @@ def getHeldAndGraspBel(overrides, getGraspDesc, currHeld, currGrasp):
                                          DeltaDist(face), util.Pose(*mu), var, delta)
 
     return (held, graspB)
+
+def getPoseObjs(goalConds):
+    pfbs = fbch.getMatchingFluents(goalConds,
+                                   B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
+    objs = []
+    for (pf, pb) in pfbs:
+        if isGround(pb.values()):
+            objs.append(pb['Obj'])
+    return objs
+
