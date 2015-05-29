@@ -144,9 +144,7 @@ class PBS:
         return set(objects)
 
     def updateAvoidShadow(self, avoidShadow):
-        for sh in avoidShadow:
-            if sh not in self.avoidShadow:
-                self.avoidShadow.append(sh)
+        self.avoidShadow = avoidShadow
         return self
 
     # Makes all objects permanent
