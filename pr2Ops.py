@@ -584,7 +584,7 @@ def pickCostFun(al, args, details):
 # When we go to non-diagonal covariance, this will be fun...
 # For now, just use the first term!
 def lookAtCostFun(al, args, details):
-    (_,_,_,_,vb,d,va,pb,pPoseR,pFaceR) = args
+    (_,_,_,_,vb,d,va,p,pb,pPoseR,pFaceR) = args
     placeProb = min(pPoseR, pFaceR)
     vo = details.domainProbs.obsVarTuple
     if d == '*':
@@ -682,7 +682,7 @@ def placeBProgress(details, args, obs=None):
     
 # obs has the form (obj-type, face, relative pose)
 def lookAtBProgress(details, args, obs):
-    (_, lookConf, _, _, _, _, _, _, _, _) = args
+    (_, lookConf, _, _, _, _, _, _, _, _, _) = args
     objectObsUpdate(details, lookConf, obs)
     details.pbs.reset()
     debugMsg('beliefUpdate', 'look')
@@ -1200,7 +1200,7 @@ lookAt = Operator(\
     'LookAt',
     ['Obj', 'LookConf', 'PoseFace', 'Pose',
      'PoseVarBefore', 'PoseDelta', 'PoseVarAfter',
-     'P1', 'PR1', 'PR2'],
+     'P1', 'PR0', 'PR1', 'PR2'],
     # Pre
     {0: {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
          B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarBefore', 'PoseDelta',
@@ -1209,7 +1209,7 @@ lookAt = Operator(\
              True, canSeeProb], True),
          Conf(['LookConf', lookConfDelta], True)}},
     # Results
-    [({BLoc(['Obj', 'PoseVarAfter', 'PR1'], True)}, {}),
+    [({BLoc(['Obj', 'PoseVarAfter', 'PR0'], True)}, {}),
      ({B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
          'PR1'],True),
        Bd([SupportFace(['Obj']), 'PoseFace', 'PR2'], True)}, {})
@@ -1234,7 +1234,7 @@ lookAt = Operator(\
     f = lookAtBProgress,
     prim = lookPrim,
     argsToPrint = [0, 1, 3],
-    ignorableArgs = [1, 2] + range(4, 10))
+    ignorableArgs = [1, 2] + range(4, 11))
 
 ## Should have a CanSeeFrom precondition
 ##   All broken now!!!

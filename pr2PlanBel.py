@@ -149,6 +149,7 @@ class PBS:
                 self.avoidShadow.append(sh)
         return self
 
+    # Makes all objects permanent
     def updateFromAllPoses(self, goalConds, updateHeld=True, updateConf=True):
         initialObjects = self.objectsInPBS()
         world = self.getWorld()
@@ -173,6 +174,7 @@ class PBS:
             print '    final', sorted(list(finalObjects))
         return self
     
+    # Makes objects mentioned in the goal permanent
     def updateFromGoalPoses(self, goalConds, updateHeld=True, updateConf=True):
         initialObjects = self.objectsInPBS()
         world = self.getWorld()

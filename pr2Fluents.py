@@ -741,13 +741,6 @@ class Pose(Fluent):
             else:
                 face = bState.pbs.getPlaceB(obj).support.mode()
 
-        # elif face in ('left', 'right'):
-        #     # Actually, the grasp dist, if the face is a hand!
-        #     hand = face
-        #     graspFace = bState.pbs.getGraspB(obj, hand).grasp.mode() 
-        #     result = bState.graspModeDist(obj, hand, face)
-        return bState.poseModeDist(obj, face)            
-
     def fglb(self, other, bState = None):
         if (other.predicate == 'Holding' and \
             self.args[0] == other.value) or \
