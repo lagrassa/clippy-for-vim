@@ -585,7 +585,8 @@ def pickCostFun(al, args, details):
 # For now, just use the first term!
 def lookAtCostFun(al, args, details):
     (_,_,_,_,vb,d,va,p,pb,pPoseR,pFaceR) = args
-    placeProb = min(pPoseR, pFaceR)
+    placeProb = min(pPoseR,pFaceR) if (not isVar(pPoseR) and not isVar(pFaceR))\
+                           else p
     vo = details.domainProbs.obsVarTuple
     if d == '*':
         deltaViolProb = 0.0
@@ -1221,7 +1222,7 @@ lookAt = Operator(\
         Function(['Pose'], [['*']], assign, 'assign'),
         Function(['PoseDelta'], [['*']], assign, 'assign'),
         # Look increases probability.  
-        Function(['P1'], ['PR1', 'PR2'], obsModeProb, 'obsModeProb'),
+        Function(['P1'], ['PR0', 'PR1', 'PR2'], obsModeProb, 'obsModeProb'),
         # How confident do we need to be before the look?
         Function(['PoseVarBefore'], ['PoseVarAfter', 'Obj', 'PoseFace'],
                 genLookObjPrevVariance, 'genLookObjPrevVariance'),
