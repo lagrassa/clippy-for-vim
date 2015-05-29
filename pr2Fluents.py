@@ -312,6 +312,10 @@ class CanReachHome(Fluent):
         result = bool(path and violations.empty())
         return result
 
+    def feasible(self, bState, v, p):
+        path, violations = self.getViols(bState, v, p)
+        return violations != None
+
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
         (conf, fcp, cond) = self.args
@@ -377,6 +381,12 @@ class CanReachNB(Fluent):
         return f.predicate in \
                   ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
           and not ('*' in f.args)
+
+    def feasible(self, bState, v, p):
+        if not self.isGround():
+            return True
+        path, violations = self.getViols(bState, v, p)
+        return violations != None
 
     def getViols(self, bState, v, p, strict = True):
         assert v == True
@@ -471,7 +481,7 @@ tinyDelta = (1e-8,)*4
 zeroDelta = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
 
-# Check all three reachability conditions together.  For now, try to
+# Check all four reachability conditions together.  For now, try to
 # piggy-back on existing code.  Can probably optimize later.
 class CanPickPlace(Fluent):
     predicate = 'CanPickPlace'
@@ -482,6 +492,10 @@ class CanPickPlace(Fluent):
         return f.predicate in \
                   ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
           and not ('*' in f.args)
+
+    def feasible(self, bState, v, p):
+        path, violations = self.getViols(bState, v, p)
+        return violations != None
 
     # Add a glb method that will at least return False, {} if the two are
     # in contradiction.  How to test, exactly?
@@ -782,6 +796,10 @@ class CanSeeFrom(Fluent):
         return f.predicate in \
           ('Pose', 'SupportFace', 'Holding', 'Grasp', 'GraspFace') \
           and not ('*' in f.args) 
+
+    def feasible(self, bState, v, p):
+        path, violations = self.getViols(bState, v, p)
+        return violations != None
 
     def bTest(self, details, v, p):
         assert v == True

@@ -129,6 +129,11 @@ class Bd(BFluent):
         else:
             return rFluent.dist(b).prob(v) >= p
 
+    def feasible(self, details):
+        (rFluent, v, p) = self.args
+        return rFluent.feasible(details, v, p)
+
+
     def heuristicVal(self, details):
         (rFluent, v, p) = self.args
         return rFluent.heuristicVal(details, v, p)

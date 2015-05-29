@@ -435,6 +435,11 @@ class Fluent(object):
     def heuristicVal(self, details, *args):
         return False
 
+    # Used for conditional fluents, to see if, given a set of conditions,
+    # they are identically false
+    def feasible(self, details):
+        return True
+
     def addConditions(self, newConds, details = None):
         assert self.isConditional()
         cond = self.args[-1]
@@ -1023,7 +1028,7 @@ class Operator(object):
         # Add conditions and make new state.  Put these fluents into
         # the new state sequentially to get rid of redundancy.  Make
         # this code nicer.
-
+        bindingsNoGood = False
         # These fluents are side-effected; but applyBindings always
         # copies so that should be okay.
         newGoal = State([])
@@ -1036,7 +1041,11 @@ class Operator(object):
                     f.addConditions(explicitPreconds, startState.details)
                 f.addConditions(explicitSE, startState.details)
                 f.update()
-
+                if not f.feasible(startState.details):
+                    debugMsg('regression:fail', 'conditional fluent infeasible',
+                            f)
+                    bindingsNoGood = True
+                    break
             newGoal.add(f, startState.details)
 
         debugMsg('regression:entails', 'Discharge entailed', ('Op', self),

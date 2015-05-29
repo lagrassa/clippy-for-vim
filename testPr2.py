@@ -424,6 +424,11 @@ class PlanTest:
         print 'Using', len(self.initConfs), 'initial confs'
         var4 = (var, var, 1e-10, var)
         del0 = (0.0, 0.0, 0.0, 0.0)
+        del02 = (0.02, 0.02, 0.0, 0.04)
+        del05 = (0.05, 0.05, 0.0, 0.05)
+        # Make this bigger to keep the robot from coming right up
+        # against obstacles
+
         ff = lambda o: self.world.getFaceFrames(o) if o in objects else []
         # The poses of the supporting face frames (the placement)
         fixObjPoses = {'table1':util.Pose(1.1, 0.0, 0.0, math.pi/2),
@@ -453,7 +458,7 @@ class PlanTest:
                 print 'supportFace', name, supFace
                 oVar = varDict[name] if (varDict and name in varDict) else var4
                 self.fix[name] = ObjPlaceB(name, ff(name), DeltaDist(supFace),
-                                  fixObjPoses[name], oVar, del0)
+                                  fixObjPoses[name], oVar, del05)
         self.move = {}
         for name in moveObjPoses.keys():
             if name in self.objects:
