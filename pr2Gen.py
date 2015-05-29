@@ -1067,7 +1067,6 @@ def lookHandGen(args, goalConds, bState, outBindings):
                                     goalConds, bState.pbs, outBindings):
         yield ans
 
-
 def lookHandGenTop(args, goalConds, pbs, outBindings):
     def objInHand(conf, hand):
         if (conf, hand) not in handObj:
@@ -1154,91 +1153,16 @@ def canReachGen(args, goalConds, bState, outBindings):
     goalConds = goalConds + [goalFluent]
     # Debug
     debugMsg('canReachGen', args)
-
-    world = bState.pbs.getWorld()
+    # Call
+    def violFn(pbs):
+        path, viol = canReachHome(pbs, conf, prob, Violations())
+        return viol
     lookVar = bState.domainProbs.obsVarTuple
-    for ans in canReachGenTop((conf, cond, prob, lookVar),
-                              goalConds, bState.pbs, outBindings):
+    for ans in canXGenTop(violFn, (cond, prob, lookVar),
+                          goalConds, bState.pbs, outBindings, 'canReachGen'):
         debugMsg('canReachGen', ('->', ans))
         yield ans
     debugMsg('canReachGen', 'exhausted')
-
-def canReachGenTop(args, goalConds, pbs, outBindings):
-    (conf, cond, prob, lookVar) = args
-    trace('canReachGen() h=', fbch.inHeuristic)
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
-    # Set up PBS
-    newBS = pbs.copy()
-    newBS = newBS.updateFromGoalPoses(goalConds)
-    newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
-    # Initial test
-    path, viol = canReachHome(newBS, conf, prob, Violations())
-    if debug('canReachGen'):
-        newBS.draw(prob, 'W')
-    debugMsg('canReachGen', ('viol', viol))
-    if not viol:                  # hopeless
-        tracep('canReachGen', 'Impossible dream')
-        return
-    if viol.empty():
-        tracep('canReachGen', 'No obstacles or shadows; returning')
-        return
-    
-    # If possible, it might be better to make the deltas big; but we
-    # have to be sure to use the same delta when generating paths.
-
-    objBMinDelta = newBS.domainProbs.minDelta
-    objBMinVar = newBS.domainProbs.obsVarTuple
-    objBMinProb = 0.95
-
-    lookDelta = objBMinDelta
-    moveDelta = objBMinDelta
-
-    # Try to fix one of the violations if any...
-    if viol.obstacles:
-        obsts = [o.name() for o in viol.obstacles \
-                 if o.name() not in newBS.fixObjBs]
-        if not obsts:
-            debugMsg('canReachGen', 'No movable obstacles to fix')
-            return       # nothing available
-        # !! How carefully placed this object needs to be
-        for ans in moveOut(newBS, prob, obsts[0], moveDelta, goalConds):
-            yield ans 
-    else:
-        shWorld = newBS.getShadowWorld(prob)
-        fixed = shWorld.fixedObjects
-        shadows = [sh.name() for sh in shWorld.getShadowShapes() \
-                   if not sh.name() in fixed]
-        if not shadows:
-            debugMsg('canReachGen', 'No shadows to clear')
-            return       # nothing available
-        shadowName = shadows[0]
-        obst = objectName(shadowName)
-        placeB = newBS.getPlaceB(obst)
-        # !! It could be that sensing is not good enough to reduce the
-        # shadow so that we can actually reach conf.
-        newBS2 = newBS.copy()
-        placeB2 = placeB.modifyPoseD(var = lookVar)
-        placeB2.delta = lookDelta
-        newBS2.updatePermObjPose(placeB2)
-        path2, viol2 = canReachHome(newBS2, conf, prob, Violations())
-        if path2 and viol2:
-            if shadowName in [x.name() for x in viol2.shadows]:
-                print 'canReachGen could not reduce the shadow for', obst
-                drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
-                print 'brown is as far as it goes'
-                drawObjAndShadow(newBS2, placeB2, prob, 'W', color='brown')
-                raw_input('Go?')
-            if debug('canReachGen', skip=skip):
-                drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
-                debugMsg('canReachGen', 'Trying to reduce shadow (on W in red) %s'%obst)
-                trace('    canReachGen() shadow:', obst)
-            yield (obst, placeB.poseD.mode().xyztTuple(), placeB.support.mode(),
-                   lookVar, lookDelta)
-        # Either reducing the shadow is not enough or we failed and
-        # need to move the object (if it's movable).
-        if obst not in newBS.fixObjBs:
-            for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
-                yield ans
 
 # Preconditions (for R1):
 
@@ -1258,58 +1182,62 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     cppFluent = Bd([CanPickPlace([preconf, ppconf, hand, obj, pose, realPoseVar, poseDelta, poseFace,
                                   graspFace, graspMu, graspVar, graspDelta, op, cond]), True, prob], True)
     poseFluent = B([Pose([obj, poseFace]), pose, realPoseVar, poseDelta, prob], True)
-
     goalConds = goalConds + [cppFluent, poseFluent]
     # Debug
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     debugMsg('canPickPlaceGen', args)
-    trace('canPickPlaceGen() h=', fbch.inHeuristic)
-    # Set up the PBS
     world = bState.pbs.getWorld()
     lookVar = bState.domainProbs.obsVarTuple
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
                        PoseD(graspMu, graspVar), delta= graspDelta)
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
                        PoseD(pose, realPoseVar), delta=poseDelta)
-    newBS = bState.pbs.copy()   
+    # Initial test
+    def violFn(pbs):
+        return canPickPlaceTest(pbs, preconf, ppconf, hand,
+                                graspB, placeB, prob, op=op)
+    lookVar = bState.domainProbs.obsVarTuple
+    for ans in canXGenTop(violFn, (cond, prob, lookVar),
+                          goalConds, bState.pbs, outBindings, 'canPickPlaceGen'):
+        debugMsg('canReachGen', ('->', ans))
+        yield ans
+    debugMsg('canPickPlaceGen', 'exhausted')
+
+def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
+    (cond, prob, lookVar) = args
+    trace('%s() h='%tag, fbch.inHeuristic)
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    # Set up PBS
+    newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
     newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
     # Initial test
-    viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
-                             graspB, placeB, prob, op=op)
-    if debug('canPickPlaceGen'):
+    viol = violFn(newBS)
+    if debug(tag):
         newBS.draw(prob, 'W')
-    debugMsg('canPickPlaceGen', ('viol', viol))
+    debugMsg(tag, ('viol', viol))
     if not viol:                  # hopeless
-        tracep('canPickPlaceGen', 'Violation is permanent; returning')
-        newBS.draw(prob, 'W')
-        raw_input('Impossible CanPickPlace')
+        tracep(tag, 'Impossible dream')
         return
     if viol.empty():
-        tracep('canPickPlaceGen', 'No obstacles or shadows; returning')
+        tracep(tag, 'No obstacles or shadows; returning')
         return
-
+    # If possible, it might be better to make the deltas big; but we
+    # have to be sure to use the same delta when generating paths.
     objBMinDelta = newBS.domainProbs.minDelta
     objBMinVar = newBS.domainProbs.obsVarTuple
     objBMinProb = 0.95
-
     lookDelta = objBMinDelta
     moveDelta = objBMinDelta
-
     # Try to fix one of the violations if any...
-    # Treat object target as permanent
-    newBS.updatePermObjPose(placeB)
-
-    goalPoseObjs = getPoseObjs(cond)
     if viol.obstacles:
         obsts = [o.name() for o in viol.obstacles \
-                 if o.name() not in newBS.fixObjBs.keys()]
+                 if o.name() not in newBS.fixObjBs]
         if not obsts:
-            tracep('canPickPlaceGen', 'No movable obstacles to remove')
+            debugMsg(tag, 'No movable obstacles to fix')
             return       # nothing available
         # !! How carefully placed this object needs to be
         for ans in moveOut(newBS, prob, obsts[0], moveDelta, goalConds):
-            debugMsg('canPickPlaceGen', 'move out -> ', ans)
             yield ans 
     else:
         shWorld = newBS.getShadowWorld(prob)
@@ -1317,42 +1245,36 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
         shadows = [sh.name() for sh in shWorld.getShadowShapes() \
                    if not sh.name() in fixed]
         if not shadows:
-            debugMsg('canPickPlaceGen', 'No shadows to clear')
+            debugMsg(tag, 'No shadows to clear')
             return       # nothing available
         shadowName = shadows[0]
         obst = objectName(shadowName)
-        pB = newBS.getPlaceB(obst)
+        placeB = newBS.getPlaceB(obst)
         # !! It could be that sensing is not good enough to reduce the
-        # shadow so that we can actually reach conf.
+        # shadow so that we can actually achieve goal
         newBS2 = newBS.copy()
-        pB2 = pB.modifyPoseD(var = lookVar)
-        pB2.delta = lookDelta
-        newBS2.updatePermObjPose(pB2)
-        viol2 = canPickPlaceTest(newBS2, preconf, ppconf, hand,
-                                 graspB, placeB, prob, op=op)
-        debugMsg('canPickPlaceGen', ('viol2', viol2))
+        placeB2 = placeB.modifyPoseD(var = lookVar)
+        placeB2.delta = lookDelta
+        newBS2.updatePermObjPose(placeB2)
+        viol2 = violFn(newBS2)
         if viol2:
-            assert all([sh.name() not in shadowsToAvoid for sh in viol2.shadows])
-            if debug('canPickPlaceGen', skip=skip):
-                newBS.draw(prob, 'W')
-                drawObjAndShadow(newBS, pB, prob, 'W', color = 'cyan')
-                drawObjAndShadow(newBS2, pB2, prob, 'W', color='magenta')
-                debugMsg('canPickPlaceGen',
-                         'Trying to reduce shadow on %s'%obst + \
-                         'Origin shadow cyan, reduced magenda')
-            trace('    canPickPlaceGen() shadow:', obst, pB.poseD.mode().xyztTuple())
-            ans = (obst, pB.poseD.mode().xyztTuple(), pB.support.mode(),
+            if shadowName in [x.name() for x in viol2.shadows]:
+                print 'could not reduce the shadow for', obst
+                drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
+                print 'brown is as far as it goes'
+                drawObjAndShadow(newBS2, placeB2, prob, 'W', color='brown')
+                raw_input('Go?')
+            if debug(tag, skip=skip):
+                drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
+                debugMsg(tag, 'Trying to reduce shadow (on W in red) %s'%obst)
+                trace('    %s() shadow:'%tag, obst)
+            yield (obst, placeB.poseD.mode().xyztTuple(), placeB.support.mode(),
                    lookVar, lookDelta)
-            debugMsg('canPickPlaceGen', 'reduce shadow -> ', ans)
-            yield ans
         # Either reducing the shadow is not enough or we failed and
         # need to move the object (if it's movable).
         if obst not in newBS.fixObjBs:
             for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
-                debugMsg('canPickPlaceGen', 'move out -> ', ans)
                 yield ans
-        else:
-            tracep('canPickPlaceGen', 'found fixed obstacle', obst)
 
 # Preconditions (for R1):
 
