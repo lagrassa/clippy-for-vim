@@ -741,6 +741,9 @@ class Pose(Fluent):
             else:
                 face = bState.pbs.getPlaceB(obj).support.mode()
 
+        return bState.poseModeDist(obj, face)
+
+
     def fglb(self, other, bState = None):
         if (other.predicate == 'Holding' and \
             self.args[0] == other.value) or \
