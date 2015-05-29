@@ -1178,8 +1178,6 @@ def canReachGenTop(args, goalConds, pbs, outBindings):
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
     newBS = newBS.updateFromGoalPoses(cond)
-    # The shadows of Pose(obj) in the cond are also permanent
-    newBS = newBS.updateAvoidShadow(getPoseObjs(cond))
 
     path, viol = canReachHome(newBS, conf, prob, Violations())
     if not viol:                  # hopeless
@@ -1291,9 +1289,6 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     newBS = bState.pbs.copy()   
     newBS = newBS.updateFromGoalPoses(goalConds)
     newBS = newBS.updateFromGoalPoses(cond)
-    # The shadows of Pose(obj) in the cond are also permanent
-    shadowsToAvoid = getPoseObjs(cond)
-    newBS = newBS.updateAvoidShadow(shadowsToAvoid)
 
     viol = canPickPlaceTest(newBS, preconf, ppconf, hand,
                              graspB, placeB, prob, op=op)

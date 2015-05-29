@@ -144,7 +144,9 @@ class PBS:
         return set(objects)
 
     def updateAvoidShadow(self, avoidShadow):
-        self.avoidShadow = avoidShadow
+        for sh in avoidShadow:
+            if sh not in self.avoidShadow:
+                self.avoidShadow.append(sh)
         return self
 
     def updateFromAllPoses(self, goalConds, updateHeld=True, updateConf=True):
@@ -161,6 +163,8 @@ class PBS:
         self.fixObjBs = getAllPoseBels(goalConds, world.getFaceFrames,
                                        self.getPlacedObjBs())
         self.moveObjBs = {}
+        # The shadows of Pose(obj) in the cond are also permanent
+        newBS = newBS.updateAvoidShadow(getPoseObjs(goalConds))
         self.reset()
         finalObjects = self.objectsInPBS()
         if debug('conservation') and initialObjects != finalObjects:
@@ -185,6 +189,8 @@ class PBS:
         self.moveObjBs = dict([(o, p) for (o, p) \
                                in self.getPlacedObjBs().iteritems() \
                                if o not in self.fixObjBs])
+        # The shadows of Pose(obj) in the cond are also permanent
+        newBS = newBS.updateAvoidShadow(getPoseObjs(goalConds))
         self.reset()
         finalObjects = self.objectsInPBS()
         if debug('conservation') and initialObjects != finalObjects:
