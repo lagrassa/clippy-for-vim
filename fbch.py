@@ -892,9 +892,6 @@ class Operator(object):
     def regress(self, goal, startState = None, heuristic = None,
                 operators = []):
         tag = 'regression'
-
-        print 'Hash of pbs', hash(startState.details.pbs)        
-
         # Stop right away if an immutable precond is false
         if any([(p.immutable and p.isGround() and\
                  not startState.fluentValue(p) == p.getValue()) \
@@ -924,9 +921,6 @@ class Operator(object):
 
         # Figure out which variables, and therefore which functions, we need.
         necessaryFunctions = self.getNecessaryFunctions()
-
-        print 'Hash of pbs', hash(startState.details.pbs)        
-
         # Call backtracker to get bindings of unbound vars
         newBindings = btGetBindings(necessaryFunctions,
                                     pendingFluents, #goal.fluents,
@@ -949,9 +943,6 @@ class Operator(object):
                 debugMsg('regression:fail', 'hope that was helpful')
                 glob.debugOn = glob.debugOn[:-1]
             return []
-
-        print 'Hash of pbs', hash(startState.details.pbs)        
-
         br = set()
         # Get rid of entailments *within* the results.  Kind of ugly.
         for f in results:
@@ -1008,8 +999,6 @@ class Operator(object):
                         debugMsg('regression:fail', 'special regress failure')
                     return []
                 newFluents.append(nf)
-
-        print 'Hash of pbs', hash(startState.details.pbs)        
 
         newBoundFluents = [f.applyBindings(newBindings) for f in newFluents]
 
@@ -1210,9 +1199,6 @@ class Operator(object):
                             if cost < float('inf'): break
                         if cost < float('inf'): break
 
-        print 'Hash of pbs', hash(startState.details.pbs)
-        assert len(startState.details.pbs.avoidShadow) == 0
-
         if not inHeuristic or debug('debugInHeuristic'):
             debugMsg(tag, 'Final regression result', ('Op', self),
                      ('cost', cost),
@@ -1259,9 +1245,6 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
     avoid = set(tuplify(b) for b in avoid)
     # Helper fun to find a set of bindings that hasn't been found before
     def gnb(funs, sofar):
-        print 'Hash of pbs', hash(start.pbs)
-        raw_input('okay?')
-        
         if funs == []:
             if not tuplify(sofar) in avoid:
                 debugMsg('btbind', 'returning', sofar)

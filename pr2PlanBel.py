@@ -144,15 +144,15 @@ class PBS:
         return set(objects)
 
     def updateAvoidShadow(self, avoidShadow):
-        print 'updating avoid shadow', self.avoidShadow, 'to be', avoidShadow
-        raw_input('okay?')
+        # print 'updating avoid shadow', self.avoidShadow, 'to be', avoidShadow
         self.avoidShadow = avoidShadow
         return self
 
     def addAvoidShadow(self, avoidShadow):
-        print 'updating avoid shadow', self.avoidShadow, 'adding', avoidShadow
-        raw_input('okay?')
-        self.avoidShadow += avoidShadow
+        # print 'updating avoid shadow', self.avoidShadow, 'adding', avoidShadow
+        for s in avoidShadow:
+            if s not in avoidShadow:
+                self.avoidShadow += [s]
         return self
 
     # Makes all objects permanent
