@@ -644,6 +644,8 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
 def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
     (obj, region, var, delta, prob) = args
 
+    print 'hash of pbs', hash(bState), type(bState)
+
     if not isinstance(region, (list, tuple, frozenset)):
         regions = frozenset([region])
     elif len(region) == 0:
@@ -662,6 +664,9 @@ def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
     graspV = domainPlaceVar
     graspDelta = bState.domainProbs.pickStdev
     pose = None
+
+    print 'hash of pbs', hash(bState), type(bState)
+    
 
     if bState.pbs.getPlaceB(obj, default=False):
         # If it is currently placed, use that support
@@ -682,6 +687,9 @@ def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
     else:
         assert None, 'Cannot determine support'
 
+    print 'hash of pbs', hash(bState), type(bState)
+
+
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
                        PoseD(None, graspV), delta=graspDelta)
 
@@ -695,6 +703,9 @@ def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
         shWorld.draw('W')
         for rs in regShapes: rs.draw('W', 'purple')
         debugMsgSkip('placeInGen', skip, 'Target region in purple')
+
+    print 'hash of pbs', hash(bState), type(bState)
+
 
     poseBels = getGoalPoseBels(goalConds, world.getFaceFrames)
     if obj in poseBels:
@@ -723,11 +734,19 @@ def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
             # If pose is specified and variance is small, return
             return
 
+    print 'hash of pbs', hash(bState), type(bState)
+
+
     gen = placeInGenTop((obj, regShapes, graspB, placeB, None, prob),
                           goalConds, bState.pbs, outBindings, away = away)
         
+    print 'hash of pbs', hash(bState), type(bState)
+
+
     for ans, viol in gen:
         (pB, gB, cf, ca) = ans
+        print 'hash of pbs', hash(bState), type(bState)
+
         yield (pB.poseD.mode().xyztTuple(), pB.support.mode())
 
 def placeInGenAway(args, goalConds, pbs, outBindings):
@@ -743,6 +762,7 @@ def placeInGenAway(args, goalConds, pbs, outBindings):
                                           delta, prob),
                           # preserve goalConds to get reachObsts
                           goalConds, pbs, [], away=True):
+        print 'hash of pbs', hash(bState), type(bState)
         yield ans
 
 placeInGenMaxPoses  = 50

@@ -61,7 +61,7 @@ class PBS:
         self.fixObjBs = fixObjBs or {}            # {obj: objPlaceB}
         self.moveObjBs = moveObjBs or {}          # {obj: objPlaceB}
         self.regions = regions
-        self.pbs = self
+        #self.pbs = self
         self.useRight = useRight
         self.avoidShadow = avoidShadow  # shadows to avoid
         self.domainProbs = domainProbs
@@ -144,10 +144,14 @@ class PBS:
         return set(objects)
 
     def updateAvoidShadow(self, avoidShadow):
+        print 'updating avoid shadow', self.avoidShadow, 'to be', avoidShadow
+        raw_input('okay?')
         self.avoidShadow = avoidShadow
         return self
 
     def addAvoidShadow(self, avoidShadow):
+        print 'updating avoid shadow', self.avoidShadow, 'adding', avoidShadow
+        raw_input('okay?')
         self.avoidShadow += avoidShadow
         return self
 
