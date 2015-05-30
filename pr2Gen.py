@@ -470,6 +470,7 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
         debugMsg('placeGen', 'Goal conditions')
     gen = placeGenAux(newBS, obj, confAppr, conf, placeBs.copy(), graspB, hand, base, prob,
                       regrasp=regrasp, pbsOrig = pbs)
+
     # !! double check reachObst collision?
     for x,v in gen:
         if debug('traceGen'):
@@ -725,7 +726,6 @@ def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
 
     gen = placeInGenTop((obj, regShapes, graspB, placeB, None, prob),
                           goalConds, pbs, outBindings, away = away)
-
     for ans, viol in gen:
         (pB, gB, cf, ca) = ans
         yield (pB.poseD.mode().xyztTuple(), pB.support.mode())
