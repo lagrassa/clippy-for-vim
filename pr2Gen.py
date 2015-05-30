@@ -454,9 +454,6 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
                 tracep('placeGen', '    this hand is already Holding')
                 return
 
-    # LPK!!  Changed this to allow regrasping.  Later code will be
-    # sure to generate the current grasp first.
-
     conf = None
     confAppr = None
     # Set up pbs
@@ -468,7 +465,8 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
         for gc in goalConds: print gc
         newBS.draw(prob, 'W')
         debugMsg('placeGen', 'Goal conditions')
-    gen = placeGenAux(newBS, obj, confAppr, conf, placeBs.copy(), graspB, hand, base, prob,
+    gen = placeGenAux(newBS, obj, confAppr, conf, placeBs.copy(),
+                      graspB, hand, base, prob,
                       regrasp=regrasp, pbsOrig = pbs)
 
     # !! double check reachObst collision?
@@ -521,6 +519,8 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                       gB.poseD.mode().near(currGraspB.poseD.mode(), .01, .01)
             if match:
                 return 0
+            debugMsg('placeGen', 'current grasp not a match',
+                     ('curr', currGraspB), ('desired', gB))
 
         pB = pbsOrig.getPlaceB(obj, default=False) # check we know where obj is.
         if pbsOrig and pbsOrig.held[hand].mode() != obj and pB:

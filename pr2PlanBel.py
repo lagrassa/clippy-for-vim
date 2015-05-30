@@ -61,7 +61,7 @@ class PBS:
         self.fixObjBs = fixObjBs or {}            # {obj: objPlaceB}
         self.moveObjBs = moveObjBs or {}          # {obj: objPlaceB}
         self.regions = regions
-        #self.pbs = self
+        self.pbs = self
         self.useRight = useRight
         self.avoidShadow = avoidShadow  # shadows to avoid
         self.domainProbs = domainProbs

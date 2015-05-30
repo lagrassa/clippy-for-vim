@@ -1087,8 +1087,6 @@ class Operator(object):
             primOp.abstractionLevel += 1
             return primOp.regress(goal, startState)
 
-        else:
-            bindingsNoGood = False
 
         # Make another result, which is a place-holder for rebinding
         rebindLater = goal.copy()

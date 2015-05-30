@@ -23,10 +23,10 @@ maxVarianceTuple = (.1,)*4
 #defaultPoseDelta = (0.01, 0.01, 0.01, 0.03)
 defaultPoseDelta = (0.02, 0.02, 0.02, 0.04)
 defaultTotalDelta = (0.05, 0.05, 0.05, 0.1)  # for place in region
-lookConfDelta = (0.01, 0.01, 0.01, 0.01)
+lookConfDelta = (0.01, 0.01, 0.0, 0.01)
 
 # Assume fixed delta on confs, determined by motion controller.
-fixedConfDelta = (0.001, 0.001, 0.001, 0.002)
+fixedConfDelta = (0.001, 0.001, 0.0, 0.002)
 
 # Fixed accuracy to use for some standard preconditions
 canPPProb = 0.9
@@ -371,7 +371,7 @@ def placeGraspVar((poseVar,), goal, start, vals):
     if isVar(poseVar):
         # For placing in a region; could let the place pick this, but
         # just do it for now
-        defaultPoseVar = tuple([2*v for v in placeVar])
+        defaultPoseVar = tuple([v+0.0001 for v in placeVar])
         poseVar = defaultPoseVar
     graspVar = tuple([min(gv - pv, m) for (gv, pv, m) \
                       in zip(poseVar, placeVar, maxGraspVar)])

@@ -62,13 +62,14 @@ regression:inconsistent (maybe evidence that generator could have failed
                           earlier)
 sim
 skeleton
+testVerbose
 traceCRH
 traceGen  (compact summary of generators)
 visible
 visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
-debugOn = ['skeleton', 'nonmon', 'traceGen', 'traceCRH', 'regression:fail']
+debugOn = ['skeleton', 'nonmon', 'traceGen', 'traceCRH', 'placeGen']
 
 
 
