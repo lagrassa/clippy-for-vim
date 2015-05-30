@@ -240,12 +240,6 @@ def findApproachConf(pbs, obj, placeB, conf, hand, prob):
 # !! 2. The pose on the grasp surface (3 params) -- for now -- skip this
 # 3. The conf of the robot (and an approach conf, but we won't vary that)
 def graspGen(pbs, obj, graspB, placeB=None, conf=None, hand=None, prob=None):
-    # LPK:  maybe wrong.  If we're holding the object, suggest that grasp first
-    # if hand and  pbs.getHeld(hand).mode() == obj:
-    #     gB = pbs.getGraspB(obj, hand)
-    #     if debug('graspGen'):
-    #         print 'graspGen: generating current grasp first=', gB
-    #     yield gB  
 
     grasps = list(graspB.grasp.support())
     random.shuffle(grasps)

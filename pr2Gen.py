@@ -518,9 +518,9 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
             match = (gB.grasp.mode() == currGraspB.grasp.mode()) and \
                       gB.poseD.mode().near(currGraspB.poseD.mode(), .01, .01)
             if match:
+                debugMsg('placeGen', 'current grasp is a match',
+                          ('curr', currGraspB), ('desired', gB))
                 return 0
-            debugMsg('placeGen', 'current grasp not a match',
-                     ('curr', currGraspB), ('desired', gB))
 
         pB = pbsOrig.getPlaceB(obj, default=False) # check we know where obj is.
         if pbsOrig and pbsOrig.held[hand].mode() != obj and pB:
@@ -547,6 +547,8 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                     checkRegraspable(pB)
                 graspConfGen = potentialGraspConfGen(pbs, pB, gB, conf, hand, base, prob)
                 count = 0
+                print 'Trying grasp', gB
+                raw_input('okay?')
                 for c,ca,_ in graspConfGen:
                     if debug('placeGen', skip=skip):
                         c.draw('W', 'orange')
@@ -590,6 +592,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
              gBOther = []
 
     grasps = [(checkOrigGrasp(gB), gB) for gB in graspGen(pbs, obj, graspB)]
+
     grasps.sort()
 
     targetConfs = placeApproachConfGen(grasps)
