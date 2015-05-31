@@ -483,10 +483,10 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
 
 def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                 regrasp=False, pbsOrig=None):
-    def placeable(ca, c):
+    def placeable(ca, c, quick=False):
         (pB, gB) = context[ca]
-        ans = canPickPlaceTest(pbs, ca, c, hand, gB, pB, prob, op='place')
-        return ans
+        return canPickPlaceTest(pbs, ca, c, hand, gB, pB, prob,
+                                op='place', quick=quick)
 
     def checkRegraspable(pB):
         if pB in regraspablePB:
@@ -535,10 +535,8 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
 
     def placeApproachConfGen(grasps):
         placeBsCopy = placeBs.copy()
-        assert placeBsCopy.values is placeBs.values
-
         for pB in placeBsCopy:          # re-generate
-            for (_, gB) in grasps:
+            for gB in grasps:
                 if debug('placeGen', skip=skip):
                     print 'placeGen: considering grasps for ', pB
                     print 'placeGen: for grasp class', gB.grasp
@@ -547,8 +545,6 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                     checkRegraspable(pB)
                 graspConfGen = potentialGraspConfGen(pbs, pB, gB, conf, hand, base, prob)
                 count = 0
-                print 'Trying grasp', gB
-                raw_input('okay?')
                 for c,ca,_ in graspConfGen:
                     if debug('placeGen', skip=skip):
                         c.draw('W', 'orange')
@@ -557,8 +553,9 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                     context[ca] = (pB, gB)
                     debugMsg('placeGen', 'Yielding conf')
                     yield ca
-                if debug('placeGen', skip=skip):
-                    print '    placeGen: found', count, 'confs'
+                    if count > 2: break # !! ??
+        if debug('placeGen', skip=skip):
+            print '    placeGen: found', count, 'confs'
 
     def regraspCost(ca):
         if not regrasp:
@@ -591,48 +588,49 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
          else:
              gBOther = []
 
-    grasps = [(checkOrigGrasp(gB), gB) for gB in graspGen(pbs, obj, graspB)]
+    allGrasps = [(checkOrigGrasp(gB), gB) for gB in graspGen(pbs, obj, graspB)]
+    gClasses, gCosts = groupByCost(allGrasps)
 
-    grasps.sort()
-
-    targetConfs = placeApproachConfGen(grasps)
-    batchSize = pickPlaceBatchSize
-    batch = 0
-    while True:
-        # Collect the next batach of trialConfs
-        batch += 1
-        trialConfs = []
-        count = 0
-        minCost = 1e6
-        for ca in targetConfs:       # targetConfs is a generator
-            viol = placeable(ca, approached[ca])
-            if viol:
-                cost = viol.weight() + regraspCost(ca)
-                minCost = min(cost, minCost)
-                trialConfs.append((cost, viol, ca))
-            else:
-                if debug('placeable'):
-                    print 'Failure of placeable'
-                    save = glob.debugOn[:]
-                    glob.debugOn.extend(['successors', 'confReachViol', 'confReachViolGen',
-                                         'minViolPath', 'canPickPlaceTest', 'addToCluster'])
-                    placeable(ca, approached[ca])
-                    glob.debugOn = save
-                    raw_input('Continue?')
-                continue
-            count += 1
-            if count == batchSize or minCost == 0: break
-        if count == 0: break
-        trialConfs.sort()
-        for _, viol, ca in trialConfs:
-            (pB, gB) = context[ca]
-            c = approached[ca]
-            ans = (gB, pB, c, ca)
-            if debug('placeGen', skip=skip):
-                drawPoseConf(pbs, pB, c, ca, prob, 'W', color='magenta')
-                debugMsg('placeGen', ('->', ans), ('viol', viol))
-                wm.getWindow('W').clear()
-            yield ans, viol
+    for grasps, gCost in zip(gClasses, gCosts):
+        targetConfs = placeApproachConfGen(grasps)
+        batchSize = pickPlaceBatchSize
+        batch = 0
+        while True:
+            # Collect the next batach of trialConfs
+            batch += 1
+            trialConfs = []
+            count = 0
+            minCost = 1e6
+            for ca in targetConfs:   # targetConfs is a generator
+                viol = placeable(ca, approached[ca])
+                if viol:
+                    cost = viol.weight() + gCost + regraspCost(ca)
+                    minCost = min(cost, minCost)
+                    trialConfs.append((cost, viol, ca))
+                else:
+                    if debug('placeable'):
+                        print 'Failure of placeable'
+                        save = glob.debugOn[:]
+                        glob.debugOn.extend(['successors', 'confReachViol', 'confReachViolGen',
+                                             'minViolPath', 'canPickPlaceTest', 'addToCluster'])
+                        placeable(ca, approached[ca])
+                        glob.debugOn = save
+                        raw_input('Continue?')
+                    continue
+                count += 1
+                if count == batchSize or minCost == 0: break
+            if count == 0: break
+            trialConfs.sort()
+            for _, viol, ca in trialConfs:
+                (pB, gB) = context[ca]
+                c = approached[ca]
+                ans = (gB, pB, c, ca)
+                if debug('placeGen', skip=skip):
+                    drawPoseConf(pbs, pB, c, ca, prob, 'W', color='magenta')
+                    debugMsg('placeGen', ('->', ans), ('viol', viol))
+                    wm.getWindow('W').clear()
+                print 'Trying grasp', gB
+                yield ans, viol
     tracep('placeGen', 'out of values')
 
 # Preconditions (for R1):
@@ -1312,6 +1310,18 @@ def canSeeGenTop(args, goalConds, pbs, outBindings):
     for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
         yield ans 
 
+def groupByCost(entries):
+    classes = []
+    values = []
+    sentries = sorted(entries)
+    for (c, e) in sentries:
+        if not(values) or values[-1] != c:
+            classes.append([e])
+            values.append(c)
+        else:
+            classes[-1].append(e)
+    return classes, values
+
 ###################################
 
 # returns values for (?pose, ?poseFace, ?graspPose, ?graspFace, ?graspvar, ?conf, ?confAppr)
@@ -1383,3 +1393,4 @@ def placeInGenOld(args, goalConds, bState, outBindings,
         (pB, gB, cf, ca) = ans
         yield (pB.poseD.mode().xyztTuple(), pB.support.mode(),
                gB.poseD.mode().xyztTuple(), gB.grasp.mode(), graspV, cf, ca)
+

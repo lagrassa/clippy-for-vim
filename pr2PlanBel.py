@@ -360,7 +360,6 @@ class PBS:
                 print obj, 'origin pose\n', objB.objFrame().matrix
                 raw_input('Shadows for %s (brown in inner, gray is outer)'%obj)
         # Add robot
-        # sw.robot = PR2('MM', makePr2Chains('PR2', w.workspace, new=False))
         sw.robot = self.getRobot()
         robot = sw.robot
         robot.nominalConf = w.robot.nominalConf

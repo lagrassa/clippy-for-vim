@@ -86,7 +86,8 @@ def InPlaceDeproach(*x): return True
 # place1. move home->place with hand empty
 # place2. move home->pre with obj at place pose
 
-def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
+def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p,
+                     op='pick', quick = False):
     obj = objGrasp.obj
     if debug('canPickPlaceTest'):
         print zip(('preConf', 'pickConf', 'hand', 'objGrasp', 'objPlace', 'p', 'pbs'),
@@ -103,8 +104,12 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
         if debug('canPickPlaceTest'):
             pbs1.draw(p, 'W')
             debugMsg('canPickPlaceTest', 'H->App, obj=pose (condition 1)')
-        path, violations = canReachHome(pbs1, preConf, p, violations)
-        if not path:
+        if quick:
+            violations = confViolations(preConf, pbs1, p, violations)
+            path = [preConf]
+        else:
+            path, violations = canReachHome(pbs1, preConf, p, violations)
+        if not violations:
             debugMsg('canPickPlaceTest', 'Failed H->App, obj=pose (condition 1)')
             return None
         elif debug('canPickPlaceTest'):
@@ -112,7 +117,7 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
             debugMsg('canPickPlaceTest', 'path 1')
 
     # Check visibility at preConf (for pick)
-    if not fbch.inHeuristic:
+    if not (fbch.inHeuristic or quick):
         if not canView(pbs1, p, preConf, hand, objPlace.shadow(pbs1.getShadowWorld(p))):
             return None
     # !! For a place, should look at the table... but we dont know about the table here.
@@ -122,8 +127,12 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
     if debug('canPickPlaceTest'):
         pbs2.draw(p, 'W'); preConf.draw('W', attached = pbs2.getShadowWorld(p).attached)
         debugMsg('canPickPlaceTest', 'H->App, obj=held (condition 2)')
-    path, violations = canReachHome(pbs2, preConf, p, violations)
-    if not path:
+    if quick:
+        violations = confViolations(preConf, pbs2, p, violations)
+        path = [preConf]
+    else:
+        path, violations = canReachHome(pbs2, preConf, p, violations)
+    if not violations:
         debugMsg('canPickPlaceTest' + 'Failed H->App, obj=held (condition 2)')
         return None
     elif debug('canPickPlaceTest'):
@@ -136,8 +145,12 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
     if debug('canPickPlaceTest'):
         pbs3.draw(p, 'W')
         debugMsg('canPickPlaceTest', 'H->Target, obj placed (0 var) (condition 3)')
-    path, violations = canReachHome(pbs3, pickConf, p, violations)
-    if not path:
+    if quick:
+        violations = confViolations(pickConf, pbs3, p, violations)
+        path = [pickConf]
+    else:
+        path, violations = canReachHome(pbs3, pickConf, p, violations)
+    if not violations:
         debugMsg('canPickPlaceTest', 'Failed H->Target (condition 3)')
         return None
     elif debug('canPickPlaceTest'):
@@ -150,8 +163,12 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p, op):
     if debug('canPickPlaceTest'):
         pbs4.draw(p, 'W'); pickConf.draw('W', attached = pbs4.getShadowWorld(p).attached)
         debugMsg('canPickPlaceTest', 'H->Target, holding obj (0 var) (condition 4)')
-    path, violations = canReachHome(pbs4, pickConf, p, violations)
-    if not path:
+    if quick:
+        violations = confViolations(pickConf, pbs4, p, violations)
+        path = [pickConf]
+    else:
+        path, violations = canReachHome(pbs4, pickConf, p, violations)
+    if not violations:
         debugMsg('canPickPlaceTest', 'Failed H->Target (condition 4)')
         return None
     elif debug('canPickPlaceTest'):
