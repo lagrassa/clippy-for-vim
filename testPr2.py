@@ -894,8 +894,7 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
                  varDict = varDict)
 
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
-    targetDelta = (0.001, 0.001, 0.001, 0.005)
-
+    targetDelta = (0.01, 0.01, 0.01, 0.05)
     # Just empty the hand.  No problem.
     goal1 = State([Bd([Holding(['left']), 'none', goalProb], True)])
     # Pick obj A
@@ -947,6 +946,57 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
           # initWorld = initWorld
           )
 
+######################################################################
+#       Another test.  Picking something up from the back.
+#       shouldn't be hard.
+######################################################################
+
+def test5(hpn = True, skeleton = False, hierarchical = False,
+                heuristic = habbs, easy = False, rip = False):
+
+    # Seems to need this
+    global useRight, useVertical
+    useRight, useVertical = True, True
+
+    glob.rebindPenalty = 150
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
+    glob.monotonicFirst = True
+    
+    front = util.Pose(0.95, 0.0, tZ, 0.0)
+    back = util.Pose(1.25, 0.0, tZ, 0.0)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
+
+    t = PlanTest('testSwap',  errProbs, allOperators,
+                 objects=['table1', 'objA','objB'], 
+                 movePoses={'objA': back,
+                            'objB': front},
+                 varDict = varDict)
+
+    targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
+    targetDelta = (0.01, 0.01, 0.01, 0.05)
+
+    # Pick obj A
+    graspType = 2
+    goal2 = State([Bd([Holding(['left']), 'objA', goalProb], True),
+                  Bd([GraspFace(['objA', 'left']), graspType, goalProb], True),
+                  B([Grasp(['objA', 'left',  graspType]),
+                     (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), targetDelta,
+                     goalProb], True)])
+    # Put A somewhere.  
+    goal3 = State([Bd([SupportFace(['objA']), 4, goalProb], True),
+                  B([Pose(['objA', 4]),
+                     front.xyztTuple(), targetVar, targetDelta,
+                     goalProb], True)])
+
+    t.run(goal2,
+          hpn = hpn,
+          skeleton = skeleton1 if skeleton else None,
+          heuristic = heuristic,
+          regions = ['table1Top'])
 
 ######################################################################
 # Test Swap:
