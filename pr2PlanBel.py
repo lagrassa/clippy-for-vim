@@ -180,6 +180,7 @@ class PBS:
             print 'Failure of conservation'
             print '    initial', sorted(list(initialObjects))
             print '    final', sorted(list(finalObjects))
+            raw_input('conservation')
         return self
     
     # Makes objects mentioned in the goal permanent
@@ -209,6 +210,7 @@ class PBS:
             print 'Failure of conservation'
             print '    initial', sorted(list(initialObjects))
             print '    final', sorted(list(finalObjects))
+            raw_input('conservation')
         return self
 
     def updateHeld(self, obj, face, graspD, hand, delta = None):

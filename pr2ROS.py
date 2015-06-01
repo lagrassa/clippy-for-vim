@@ -11,8 +11,7 @@ import planGlobals as glob
 from planGlobals import debug, debugMsg
 import windowManager3D as wm
 from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn
-from miscUtil import argmax
-from pr2Visible import lookAtConf
+from pr2Visible import lookAtConf, findSupportTable
 import pr2Robot
 reload(pr2Robot)
 from pr2Robot import cartInterpolators, JointConf, CartConf
@@ -219,9 +218,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             #!! needs generalizing
             return [(self.world.getObjType(targetObj), trueFace, tablePose)]
         elif targetObj in placeBs:
-            supportTable = findSupportTable(targetObj, self.world, placeBs)
-            assert supportTable
-            placeB = placeBs[supportTable]
+            supportTableB = findSupportTable(targetObj, self.world, placeBs)
+            assert supportTableB
+            placeB = placeBs[supportTableB.obj]
             if not wellLocalized(placeB):
                 tableRobot = lookAtTable(placeB)
                 table = tableRobot.applyTrans(outConfCart['pr2Base'])
@@ -436,17 +435,6 @@ def wellLocalized(pB):
     widths = shadowWidths(pB.poseD.var, pB.delta, 0.95)
     print pB.obj, 'well localized?', widths, '<', 4*(0.03,)
     return(all(x<=y for (x,y) in zip(widths, 4*(0.03,))))
-
-def findSupportTable(targetObj, world, placeBs):
-    tableBs = [pB for pB in placeBs.values() if 'table' in pB.obj]
-    print 'tablesBs', tableBs
-    tableCenters = [pB.poseD.mode().point() for pB in tableBs]
-    targetB = placeBs[targetObj]
-    assert targetB
-    targetCenter = targetB.poseD.mode().point()
-    bestCenter = argmax(tableCenters, lambda c: -targetCenter.distance(c))
-    ind = tableCenters.index(bestCenter)
-    return tableBs[ind].obj
 
 def getSupportPose(shape, supportFace):
     pose = shape.origin().compose(shape.faceFrames()[supportFace])

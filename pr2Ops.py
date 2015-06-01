@@ -63,7 +63,8 @@ def primPath(bs, cs, ce, p):
             interpolated.extend(confs)
         return interpolated
     if tryDirectPath:
-        path, viols = canReachHome(bs, ce, p, Violations(), startConf=cs)
+        path, viols = canReachHome(bs, ce, p, Violations(),
+                                   startConf=cs, optimize=True)
         if not viols or viols.weight() > 0:
             print 'viol', viols
             raw_input('Failure in direct primitive path')

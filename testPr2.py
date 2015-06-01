@@ -842,7 +842,7 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     goal = State([Bd([In(['objA', region]), True, goalProb], True),
                   Bd([In(['objB', region]), True, goalProb], True)])
 
-    t = PlanTest('test1',  errProbs, allOperators,
+    t = PlanTest('test4',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  fixPoses={'table1': table1Pose},
                  movePoses={'objA': right, 'objB':front},
@@ -938,13 +938,13 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
         realWorld.grasp[hand] = handPose.inverse().compose(pose)
         realWorld.delObjectState(grasped)    
 
-    t.run(goal1,
+    t.run(goal2,
           hpn = hpn,
           skeleton = skeleton1 if skeleton else None,
           heuristic = heuristic,
           regions = ['table1Top'],
-          initBelief = initBel,
-          initWorld = initWorld
+          # initBelief = initBel,
+          # initWorld = initWorld
           )
 
 

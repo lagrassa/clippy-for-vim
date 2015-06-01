@@ -8,7 +8,7 @@ import windowManager3D as wm
 import shapes
 import planGlobals as glob
 from planGlobals import debugMsg, debugDraw, debug, pause, torsoZ
-from miscUtil import argmax, isGround, isVar
+from miscUtil import argmax, isGround, isVar, argmax
 from dist import UniformDist, DDist
 from pr2Robot import CartConf, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, Memoizer
@@ -19,7 +19,7 @@ from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace, \
     BaseConf, Holding, CanReachNB
 from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCO
-from pr2Visible import visible, lookAtConf, viewCone
+from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
 from pr2RRT import planRobotGoalPath
 
 Ident = util.Transform(np.eye(4))            # identity transform
@@ -86,16 +86,16 @@ def InPlaceDeproach(*x): return True
 # place1. move home->place with hand empty
 # place2. move home->pre with obj at place pose
 
-def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p,
+def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
                      op='pick', quick = False):
     obj = objGrasp.obj
     if debug('canPickPlaceTest'):
-        print zip(('preConf', 'pickConf', 'hand', 'objGrasp', 'objPlace', 'p', 'pbs'),
-                  (preConf, pickConf, hand, objGrasp, objPlace, p, pbs))
-    if not legalGrasp(pbs, pickConf, hand, objGrasp, objPlace):
+        print zip(('preConf', 'ppConf', 'hand', 'objGrasp', 'objPlace', 'p', 'pbs'),
+                  (preConf, ppConf, hand, objGrasp, objPlace, p, pbs))
+    if not legalGrasp(pbs, ppConf, hand, objGrasp, objPlace):
         raw_input('Grasp is not legal in canPickPlaceTest')
         return None
-    pbs.getRoadMap().approachConfs[pickConf] = preConf
+    pbs.getRoadMap().approachConfs[ppConf] = preConf
     violations = Violations()           # cumulative
     # 1.  Can move from home to pre holding nothing with object placed at pose
     if preConf:
@@ -116,11 +116,12 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p,
             for c in path: c.draw('W', attached = pbs1.getShadowWorld(p).attached)
             debugMsg('canPickPlaceTest', 'path 1')
 
+    preConfShape = preConf.placement(attached = pbs1.getShadowWorld(p).attached)
+    objShadow = objPlace.shadow(pbs1.getShadowWorld(p))
     # Check visibility at preConf (for pick)
-    if not (fbch.inHeuristic or quick):
-        if not canView(pbs1, p, preConf, hand, objPlace.shadow(pbs1.getShadowWorld(p))):
+    if op=='pick' and not (fbch.inHeuristic or quick):
+        if not canView(pbs1, p, preConf, hand, objShadow):
             return None
-    # !! For a place, should look at the table... but we dont know about the table here.
             
     # 2 - Can move from home to pre holding the object
     pbs2 = pbs.copy().excludeObjs([obj]).updateHeldBel(objGrasp, hand)
@@ -138,6 +139,26 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p,
     elif debug('canPickPlaceTest'):
         for c in path: c.draw('W', attached = pbs2.getShadowWorld(p).attached)
         debugMsg('canPickPlaceTest', 'path 2')
+
+    # Check visibility at preConf (for pick)
+    if op=='place' and not (fbch.inHeuristic or quick):
+        tableB = findSupportTableInPbs(pbs1, objPlace.obj) # use pbs1 so obj is there
+        assert tableB
+        print 'Looking at table', tableB
+        preConfShape = preConf.placement(attached = pbs2.getShadowWorld(p).attached)
+        ppConfShape = ppConf.placement() # no attached
+        lookDelta = pbs2.domainProbs.minDelta
+        lookVar = pbs2.domainProbs.obsVarTuple
+        tableB2 = tableB.modifyPoseD(var = lookVar)
+        tableB2.delta = lookDelta
+        prob = 0.95
+        shadow = tableB2.shadow(pbs2.updatePermObjPose(tableB2).getShadowWorld(prob))
+        if preConfShape.collides(shadow) or ppConfShape.collides(shadow) \
+               or not canView(pbs2, p, preConf, hand, shadow):
+            # pbs2.draw(p, 'W'); preConf.draw('W', 'cyan'); shadow.draw('W', 'cyan')
+            print 'Failing to view for place in canPickPlaceTest'
+            return None
+
     # 3.  Can move from home to pick while obj is placed with zero variance
     oB = objPlace.modifyPoseD(var=4*(0.0,)) # ignore uncertainty
     oB.delta = 4*(0.0,)
@@ -146,10 +167,10 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p,
         pbs3.draw(p, 'W')
         debugMsg('canPickPlaceTest', 'H->Target, obj placed (0 var) (condition 3)')
     if quick:
-        violations = confViolations(pickConf, pbs3, p, violations)
-        path = [pickConf]
+        violations = confViolations(ppConf, pbs3, p, violations)
+        path = [ppConf]
     else:
-        path, violations = canReachHome(pbs3, pickConf, p, violations)
+        path, violations = canReachHome(pbs3, ppConf, p, violations)
     if not violations:
         debugMsg('canPickPlaceTest', 'Failed H->Target (condition 3)')
         return None
@@ -161,13 +182,13 @@ def canPickPlaceTest(pbs, preConf, pickConf, hand, objGrasp, objPlace, p,
     gB.delta = 4*(0.0,)
     pbs4 = pbs.copy().excludeObjs([obj]).updateHeldBel(gB, hand)
     if debug('canPickPlaceTest'):
-        pbs4.draw(p, 'W'); pickConf.draw('W', attached = pbs4.getShadowWorld(p).attached)
+        pbs4.draw(p, 'W'); ppConf.draw('W', attached = pbs4.getShadowWorld(p).attached)
         debugMsg('canPickPlaceTest', 'H->Target, holding obj (0 var) (condition 4)')
     if quick:
-        violations = confViolations(pickConf, pbs4, p, violations)
-        path = [pickConf]
+        violations = confViolations(ppConf, pbs4, p, violations)
+        path = [ppConf]
     else:
-        path, violations = canReachHome(pbs4, pickConf, p, violations)
+        path, violations = canReachHome(pbs4, ppConf, p, violations)
     if not violations:
         debugMsg('canPickPlaceTest', 'Failed H->Target (condition 4)')
         return None
@@ -190,9 +211,12 @@ def canView(pbs, prob, conf, hand, shape, maxIter = 50):
     shWorld = pbs.getShadowWorld(prob)
     attached = shWorld.attached
     confPlace = conf.placement(attached=attached)
+    if not vc.collides(confPlace):
+        if debug('canView'):
+            print 'canView - no view cone collision'
+        return [conf]
     # !! don't move arms to clear view of fixed objects
-    if objectName(shape.name()) in pbs.getWorld().graspDesc and \
-           vc.collides(confPlace):
+    if objectName(shape.name()) in pbs.getWorld().graspDesc:
         if debug('canView'):
             vc.draw('W', 'red')
             conf.draw('W', attached=attached)
@@ -226,7 +250,7 @@ def canView(pbs, prob, conf, hand, shape, maxIter = 50):
         return pathFull
     else:
         if debug('canView'):
-            print 'canView - no view cone collision'
+            print 'canView - ignore view cone collision for perm object'
         return [conf]
 
 ################

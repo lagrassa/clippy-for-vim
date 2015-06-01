@@ -9,6 +9,7 @@ from pr2Util import shadowName
 import fbch
 from planGlobals import debugMsg, debugDraw, debug, pause
 import windowManager3D as wm
+from miscUtil import argmax
 
 Ident = util.Transform(np.eye(4))            # identity transform
 laserScanGlobal = None
@@ -152,4 +153,16 @@ def viewCone(conf, shape, offset = 0.1, moveHead=True):
     cone = BoxScale((x1-x0), (y1-y0), dz, None, 0.01,name='ViewConeFor%s'%shape.name())
     return cone.applyTrans(util.Pose(0.,0.,-(dz+0.15)/2,0.)).applyTrans(sensor)
 
-    
+def findSupportTable(targetObj, world, placeBs):
+    tableBs = [pB for pB in placeBs.values() if 'table' in pB.obj]
+    print 'tablesBs', tableBs
+    tableCenters = [pB.poseD.mode().point() for pB in tableBs]
+    targetB = placeBs[targetObj]
+    assert targetB
+    targetCenter = targetB.poseD.mode().point()
+    bestCenter = argmax(tableCenters, lambda c: -targetCenter.distance(c))
+    ind = tableCenters.index(bestCenter)
+    return tableBs[ind]
+
+def findSupportTableInPbs(pbs, targetObj):
+    return findSupportTable(targetObj, pbs.getWorld(), pbs.getPlacedObjBs())

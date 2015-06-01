@@ -368,6 +368,16 @@ class RoadMap:
                 path = self.confPathFromEdgePath(edgePath)
                 if reverse:
                     path = path[::-1]
+                if debug('backwardsDetail'):
+                    print 'reverse=', reverse
+                    for (e, dir) in edgePath:
+                        i1 = (dir+1)%2 if reverse else dir
+                        i2 = (i1+1)%2
+                        print dir, e, validEdge(e.ends[i1], e.ends[i2])
+                        print '    ', e.ends
+                        for p in e.nodes: print '      ', p.conf['pr2Base']
+                    print 'final path'
+                    for p in path: print '    ', p['pr2Base']
                 if not fbch.inHeuristic and debug('showPath'):
                     print 'confAns reverse=', reverse
                     showPath(pbs, prob, path)
@@ -514,10 +524,10 @@ class RoadMap:
                 if d == np.inf: break
                 for n1 in cluster.reps:
                     n0 = cl.addRep(n1)
-                    self.addEdge(self.clusterGraph, n0, n1)
+                    self.addEdge(self.clusterGraph, n0, n1, strict=True)
                 for n2 in cl.reps:
                     n0 = cluster.addRep(n2)
-                    self.addEdge(self.clusterGraph, n0, n2)
+                    self.addEdge(self.clusterGraph, n0, n2, strict=True)
         scanH(self.clusterGraph, makeNode(self.homeConf))
         print 'End batchAddClusters, time=', time.time()-startTime
 
@@ -817,9 +827,14 @@ class RoadMap:
             if c3 is None or (c3 and noViol): return None
             return c1.union(c2).union(c3)
 
-    def addEdge(self, graph, node_f, node_i):
+    def addEdge(self, graph, node_f, node_i, strict=False):
         if node_f == node_i: return
         if graph.edges.get((node_f, node_i), None) or graph.edges.get((node_i, node_f), None): return
+        if strict:
+            base_f = node_f.conf['pr2Base']
+            base_i = node_i.conf['pr2Base']
+            # Change position or angle, but not both.
+            if all([f != i for (f,i) in zip(base_f, base_i)]): return
         edge = Edge(node_f, node_i)
         if self.params['cartesian']:
             edge.nodes = self.cartLineSteps(node_f, node_i,

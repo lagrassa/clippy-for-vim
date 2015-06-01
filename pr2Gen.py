@@ -553,7 +553,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                     context[ca] = (pB, gB)
                     debugMsg('placeGen', 'Yielding conf')
                     yield ca
-                    if count > 2: break # !! ??
+                    # if count > 2: break # !! ??
         if debug('placeGen', skip=skip):
             print '    placeGen: found', count, 'confs'
 
@@ -1234,7 +1234,7 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
         viol2 = violFn(newBS2)
         if viol2:
             if shadowName in [x.name() for x in viol2.shadows]:
-                print 'could not reduce the shadow for', obst
+                print 'could not reduce the shadow for', obst, 'enough to avoid'
                 drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
                 print 'brown is as far as it goes'
                 drawObjAndShadow(newBS2, placeB2, prob, 'W', color='brown')
