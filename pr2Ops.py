@@ -783,8 +783,6 @@ def singleTargetUpdate(details, obs, obj):
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
         details.poseModeProbs[obj] = newP
         print 'Obs match for', obj, oldP, newP
-        if oldP == newP or oldP == 1.0 or newP == 1.0:
-            raw_input('okay?')
 
         # Should update face!!
         

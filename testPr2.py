@@ -909,6 +909,13 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
                   B([Pose(['objA', 4]),
                      front.xyztTuple(), targetVar, targetDelta,
                      goalProb], True)])
+
+    easySkel2 = [[pick, move,
+                  place, move, 
+                  poseAchCanPickPlace,
+                  lookAt, move,
+                  lookAt, move]]
+                  
                    
     grasped = 'objB'
     hand = 'left'
@@ -939,7 +946,7 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
 
     t.run(goal2,
           hpn = hpn,
-          skeleton = skeleton1 if skeleton else None,
+          skeleton = easySkel2 if skeleton else None,
           hierarchical = hierarchical,
           heuristic = heuristic,
           regions = ['table1Top'],
