@@ -940,10 +940,11 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
     t.run(goal2,
           hpn = hpn,
           skeleton = skeleton1 if skeleton else None,
+          hierarchical = hierarchical,
           heuristic = heuristic,
           regions = ['table1Top'],
-          # initBelief = initBel,
-          # initWorld = initWorld
+          initBelief = initBel,
+          initWorld = initWorld
           )
 
 ######################################################################
@@ -997,6 +998,7 @@ def test5(hpn = True, skeleton = False, hierarchical = False,
     t.run(goal2,
           hpn = hpn,
           skeleton = easySkel2 if skeleton else None,
+          hierarchical = hierarchical,
           heuristic = heuristic,
           regions = ['table1Top'])
 
