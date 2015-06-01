@@ -651,7 +651,7 @@ smallErrProbs = DomainProbs(\
             # variance in grasp after placing
             placeVar = (0.01**2, 0.01**2, 0.01**2, 0.01**2),
             # pickTolerance
-            pickTolerance = (0.02, 0.02, 0.02, 0.02))
+            pickTolerance = (0.02, 0.02, 0.02, 0.1))
 
 tinyErrProbs = DomainProbs(\
             # stdev, as a percentage of the motion magnitude
@@ -668,7 +668,7 @@ tinyErrProbs = DomainProbs(\
             # variance in grasp after placing
             placeVar = (0.0001**2, 0.0001**2, 0.0001**2, 0.0001**2),
             # pickTolerance
-            pickTolerance = (0.02, 0.02, 0.02, 0.02))
+            pickTolerance = (0.02, 0.02, 0.02, 0.1))
 
 allOperators = [move, pick, place, lookAt, poseAchCanReach,
                 poseAchCanSee, poseAchCanPickPlace, poseAchIn, moveNB]
@@ -970,7 +970,7 @@ def test5(hpn = True, skeleton = False, hierarchical = False,
                                'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
                                'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
 
-    t = PlanTest('testSwap',  errProbs, allOperators,
+    t = PlanTest('test5',  errProbs, allOperators,
                  objects=['table1', 'objA','objB'], 
                  movePoses={'objA': back,
                             'objB': front},
@@ -978,6 +978,8 @@ def test5(hpn = True, skeleton = False, hierarchical = False,
 
     targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
     targetDelta = (0.01, 0.01, 0.01, 0.05)
+
+    easySkel2 = [[pick, moveNB, poseAchCanPickPlace, lookAt, move]]
 
     # Pick obj A
     graspType = 2
@@ -994,7 +996,7 @@ def test5(hpn = True, skeleton = False, hierarchical = False,
 
     t.run(goal2,
           hpn = hpn,
-          skeleton = skeleton1 if skeleton else None,
+          skeleton = easySkel2 if skeleton else None,
           heuristic = heuristic,
           regions = ['table1Top'])
 

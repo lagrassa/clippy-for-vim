@@ -275,7 +275,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         print 'poseVar', placeB.poseD.var
         print 'delta', placeB.delta
         print 'prob', prob
-        debugMsg('pickTol', 'Shadow widths exceed tolerance in pickGen')
+        debugMsg('pickGen', 'Shadow widths exceed tolerance in pickGen')
         return
 
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
