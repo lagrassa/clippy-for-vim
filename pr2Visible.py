@@ -155,7 +155,7 @@ def viewCone(conf, shape, offset = 0.1, moveHead=True):
 
 def findSupportTable(targetObj, world, placeBs):
     tableBs = [pB for pB in placeBs.values() if 'table' in pB.obj]
-    print 'tablesBs', tableBs
+    # print 'tablesBs', tableBs
     tableCenters = [pB.poseD.mode().point() for pB in tableBs]
     targetB = placeBs[targetObj]
     assert targetB

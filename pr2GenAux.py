@@ -144,7 +144,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
     if op=='place' and not (fbch.inHeuristic or quick):
         tableB = findSupportTableInPbs(pbs1, objPlace.obj) # use pbs1 so obj is there
         assert tableB
-        print 'Looking at table', tableB
+        print 'Looking at support for', obj, '->', tableB.obj
         preConfShape = preConf.placement(attached = pbs2.getShadowWorld(p).attached)
         ppConfShape = ppConf.placement() # no attached
         lookDelta = pbs2.domainProbs.minDelta

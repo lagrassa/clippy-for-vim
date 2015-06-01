@@ -76,6 +76,7 @@ class RealWorld(WorldState):
         obs = None
         path = interpolated or path
         distSoFar = 0
+        backSteps = []
         prevXYT = self.robotConf.conf['pr2Base']
         for (i, conf) in enumerate(path):
             # !! Add noise to conf
@@ -113,8 +114,7 @@ class RealWorld(WorldState):
                 break
             newXYT = self.robotConf.conf['pr2Base']
             if debug('backwards') and not validEdgeTest(prevXYT, newXYT):
-                print prevXYT, '->', newXYT
-                raw_input('Backwards')
+                backSteps.append((prevXYT, newXYT))
             # Integrate the displacement
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
             # approx pi => 1 meter
@@ -139,6 +139,11 @@ class RealWorld(WorldState):
                 else:
                     raw_input('No visible object')
             prevXYT = newXYT
+            if debug('backwards') and backSteps:
+                print 'Backward steps:'
+                for prev, next in backSteps:
+                    print prev, '->', next
+                raw_input('Backwards')
 
         wm.getWindow('World').update()
         debugMsg('doPath', 'Admire the path')

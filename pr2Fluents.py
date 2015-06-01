@@ -1065,12 +1065,16 @@ def canReachHome(pbs, conf, prob, initViol,
                        viol.weight() if viol else None
 
     if path:
+        backSteps = []
         for i, c in enumerate(path):
             if i == 0: continue
             if debug('backwards') and \
                        not validEdgeTest(path[i-1]['pr2Base'], c['pr2Base']):
-                print path[i-1]['pr2Base'], '->', c['pr2Base']
-                raw_input('CRH - Backwards step')
+                backSteps.append((path[i-1]['pr2Base'], c['pr2Base']))
+        if backSteps:
+            for (pre, post) in backSteps:
+                print pre, '->', post
+            raw_input('CRH - Backwards steps')
 
     if (not fbch.inHeuristic) or debug('drawInHeuristic'):
         if (moveBase and debug('canReachHome')) or \
