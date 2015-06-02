@@ -69,7 +69,7 @@ import pr2Ops
 reload(pr2Ops)
 from pr2Ops import move, pick, place, lookAt, poseAchCanReach, poseAchCanSee,\
       lookAtHand, hRegrasp, poseAchCanPickPlace, \
-      poseAchIn, moveNB
+      poseAchIn, moveNB, bLoc1, bLoc2
 
 import pr2Sim
 reload(pr2Sim)
@@ -671,7 +671,8 @@ tinyErrProbs = DomainProbs(\
             pickTolerance = (0.02, 0.02, 0.02, 0.1))
 
 allOperators = [move, pick, place, lookAt, poseAchCanReach,
-                poseAchCanSee, poseAchCanPickPlace, poseAchIn, moveNB]
+                poseAchCanSee, poseAchCanPickPlace, poseAchIn, moveNB,
+                bLoc1, bLoc2]
               #lookAtHand    #graspAchCanPickPlace
 
 ######################################################################
@@ -915,6 +916,13 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
                   poseAchCanPickPlace,
                   lookAt, move,
                   lookAt, move]]
+
+    easyHSkel2 = [[pick],
+                  [pick, lookAt],
+                  [lookAt, moveNB],
+                  [pick],
+                  [pick, move, place]]
+                   #place.applyBindings({'Obj' : 'objB'})]]
                   
                    
     grasped = 'objB'
@@ -946,7 +954,7 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
 
     t.run(goal2,
           hpn = hpn,
-          skeleton = easySkel2 if skeleton else None,
+          skeleton = easyHSkel2 if skeleton else None,
           hierarchical = hierarchical,
           heuristic = heuristic,
           regions = ['table1Top'],

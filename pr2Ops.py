@@ -306,6 +306,8 @@ def isBound(args, goal, start, vals):
 # Subtract
 def subtract((a, b), goal, start, vals):
     ans = tuple([aa - bb for (aa, bb) in zip(a, b)])
+    if any([x < 0.0 for x in ans]):
+        return []
     return [[ans]]
         
 # Return as many values as there are args; overwrite any that are
@@ -1000,6 +1002,21 @@ moveNB = Operator(\
     argsToPrint = [0],
     ignorableArgs = range(4))
 
+# All this work to say you can know the location of something by knowing its
+# pose or its grasp
+bLoc1 = Operator(\
+         'BLoc', ['Obj', 'Var', 'P'],
+         {0 : {B([Pose(['Obj', '*']), '*', 'Var', '*', 'P'], True),
+               Bd([SupportFace(['Obj']), '*', 'P'], True)}},
+         [({BLoc(['Obj', 'Var', 'P'], True)}, {})])
+
+bLoc2 = Operator(\
+         'BLoc', ['Obj', 'Var', 'P'],
+         {0 : {B([Grasp(['Obj', '*', '*']), '*', 'Var', '*', 'P'], True),
+               Bd([Holding(['*']), 'Obj', 'P'], True),
+               Bd([GraspFace(['Obj', '*']), '*', 'P'], True)}},
+         [({BLoc(['Obj', 'Var', 'P'], True)}, {})])
+
 poseAchIn = Operator(\
              'PosesAchIn', ['Obj1', 'Region',
                             'ObjPose1', 'PoseFace1',
@@ -1058,7 +1075,7 @@ place = Operator(\
          3 : {Conf(['PreConf', 'ConfDelta'], True)}
         },
         # Results
-        [({BLoc(['Obj', planVar, 'PR2'], True)},{}),  # 'PoseVar'
+        [#({BLoc(['Obj', planVar, 'PR2'], True)},{}),  # 'PoseVar'
          ({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
            B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta','PR2'],
                  True)},{}),
@@ -1207,7 +1224,7 @@ lookAt = Operator(\
              True, canSeeProb], True),
          Conf(['LookConf', lookConfDelta], True)}},
     # Results
-    [({BLoc(['Obj', 'PoseVarAfter', 'PR0'], True)}, {}),
+    [#({BLoc(['Obj', 'PoseVarAfter', 'PR0'], True)}, {}),
      ({B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
          'PR1'],True),
        Bd([SupportFace(['Obj']), 'PoseFace', 'PR2'], True)}, {})
@@ -1235,7 +1252,7 @@ lookAt = Operator(\
     ignorableArgs = [1, 2] + range(4, 11))
 
 ## Should have a CanSeeFrom precondition
-##   All broken now!!!
+## Needs major update
 
 lookAtHand = Operator(\
     'LookAtHand',

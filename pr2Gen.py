@@ -431,6 +431,7 @@ def placeGenGen(args, goalConds, bState, outBindings):
 def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
     (obj, graspB, placeBs, hand, base, prob) = args
     trace('placeGen(%s,%s) h='%(obj,hand), fbch.inHeuristic)
+
     startTime = time.clock()
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
     debugMsgSkip('placeGen', skip,
