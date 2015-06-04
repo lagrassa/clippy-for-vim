@@ -139,30 +139,32 @@ class ObjPlaceB(Hashable):
 
 # represent the "removable" collisions wth obstacles and shadows.
 class Violations(Hashable):
-    def __init__(self, obstacles=frozenset([]), shadows=frozenset([]), penalty=0.0):
+    def __init__(self, obstacles=[], shadows=[],
+                 heldObstacles=[], heldShadows=[]):
         self.obstacles = frozenset(obstacles)
         self.shadows = frozenset(shadows)
+        self.heldObstacles = frozenset(heldObstacles)
+        self.heldShadows = frozenset(heldShadows)
         assert len(set([o.name() for o in self.obstacles])) == len(self.obstacles)
         assert len(set([o.name() for o in self.shadows])) == len(self.shadows)
-        self.penalty = penalty
+        assert len(set([o.name() for o in self.heldObstacles])) == len(self.heldObstacles)
+        assert len(set([o.name() for o in self.heldShadows])) == len(self.heldShadows)
     def empty(self):
-        return (not self.obstacles) and (not self.shadows)
-    def combine(self, obstacles, shadows):
-        return self.update(Violations(obstacles, shadows))
+        return (not self.obstacles) and (not self.shadows) \
+               and (not self.heldObstacles) and (not self.heldShadows)
+    def combine(self, obstacles, shadows, heldObstacles=[], heldShadows=[]):
+        return self.update(Violations(obstacles, shadows, heldObstacles, heldShadows))
     def update(self, viol):
-        def upd(curShapes, newShapes):
-            curDict = dict([(o.name(), o) for o in curShapes])
-            newDict = dict([(o.name(), o) for o in newShapes])
-            curDict.update(newDict)
-            return curDict.values()
-        return Violations(frozenset(upd(self.obstacles, viol.obstacles)),
-                          frozenset(upd(self.shadows, viol.shadows)))
+            return Violations(frozenset(upd(self.obstacles, viol.obstacles)),
+                          frozenset(upd(self.shadows, viol.shadows)),
+                          frozenset(upd(self.heldObstacles, viol.heldObstacles)),
+                          frozenset(upd(self.heldShadows, viol.heldShadows)))
     def weight(self):
-        return len(self.obstacles) + 0.5*len(self.shadows)+self.penalty
+        return len(self.obstacles) + 0.5*len(self.shadows)
     def LEQ(self, other):
         return self.weight() <= other.weight()
     def desc(self):
-        return (self.obstacles, self.shadows, self.penalty)
+        return (self.obstacles, self.shadows, self.heldObstacles, self.heldShadows)
     def names(self):
         return (frozenset([x.name() for x in self.obstacles]),
                 frozenset([x.name() for x in self.shadows]))
@@ -177,6 +179,12 @@ def combineViols(*viols):
             return None
         v = v.update(viol)
     return v
+
+def upd(curShapes, newShapes):
+    curDict = dict([(o.name(), o) for o in curShapes])
+    newDict = dict([(o.name(), o) for o in newShapes])
+    curDict.update(newDict)
+    return curDict.values()
 
 def shadowName(obj):
     name = obj if isinstance(obj, str) else obj.name()

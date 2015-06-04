@@ -51,7 +51,7 @@ planP = 0.95
 #
 ######################################################################
 
-tryDirectPath = True
+tryDirectPath = False
 def primPath(bs, cs, ce, p):
     def interpolate(smoothed):
         interpolated = []
@@ -62,16 +62,26 @@ def primPath(bs, cs, ce, p):
             print i, 'path segment has', len(confs), 'confs'
             interpolated.extend(confs)
         return interpolated
+    def verifyPaths(path, smoothed, interpolated):
+        if debug('verifyPath'):
+            rrt.verifyPath(bs, p, path, 'original')
+            rrt.verifyPath(bs, p, interpolate(path), 'original interpolated')
+            rrt.verifyPath(bs, p, smoothed, 'smoothed')
+            rrt.verifyPath(bs, p, interpolated, 'smoothed interpolated')
     if tryDirectPath:
-        path, viols = canReachHome(bs, ce, p, Violations(),
-                                   startConf=cs, optimize=True)
+        path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
+                                          maxIter=50, failIter=10)
+        # path, viols = canReachHome(bs, ce, p, Violations(),
+        #                            startConf=cs, optimize=True)
         if not viols or viols.weight() > 0:
             print 'viol', viols
             raw_input('Failure in direct primitive path')
             # don't return, try the path via home
         else:
             smoothed = bs.getRoadMap().smoothPath(path, bs, p)
-            return smoothed, interpolate(smoothed)
+            interpolated = interpolate(smoothed)
+            verifyPaths(path, smoothed, interpolated)
+            return smoothed, interpolated
     # Should use optimize = True, but sometimes leads to failure - why??
     path1, v1 = canReachHome(bs, cs, p, Violations(), reversePath=True)
     assert path1
@@ -86,7 +96,9 @@ def primPath(bs, cs, ce, p):
         print 'Success'
         path = path1[::-1] + path2
         smoothed = bs.getRoadMap().smoothPath(path, bs, p)
-        return smoothed, interpolate(smoothed)
+        interpolated = interpolate(smoothed)
+        verifyPaths(path, smoothed, interpolated)
+        return smoothed, interpolated
 
 def moveNBPrim(args, details):
     (base, cs, ce, cd) = args
@@ -1121,12 +1133,12 @@ place = Operator(\
 
             # Just in case we don't have values for the pose and poseFace;
             # We're going this to empty the hand;  so place in away region
-            Function(['AwayRegion'], [], awayRegion, 'awayRegion'),
-            Function(['Pose', 'PoseFace'],
-                     ['Obj', 'AwayRegion', 'RealPoseVar',
-                      tuple([d*2 for d in defaultPoseDelta]),
-                      probForGenerators],
-                     placeInRegionGen, 'placeInRegionGen'),
+            # Function(['AwayRegion'], [], awayRegion, 'awayRegion'),
+            # Function(['Pose', 'PoseFace'],
+            #          ['Obj', 'AwayRegion', 'RealPoseVar',
+            #           tuple([d*2 for d in defaultPoseDelta]),
+            #           probForGenerators],
+            #          placeInRegionGen, 'placeInRegionGen'),
 
             # Not modeling the fact that the object's shadow should
             # grow a bit as we move to pick it.   Build that into pickGen.

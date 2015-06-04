@@ -559,6 +559,13 @@ class CanPickPlace(Fluent):
             return v1.update(v2)
         condViols = [c.getViols(bState, v, p, strict) \
                      for c in self.getConds(bState)]
+
+        if debug('CanPickPlace'):
+            print 'canPickPlace getViols, strict=', strict
+            for (cond, (p, viol)) in zip(self.getConds(bState), condViols):
+                print '    cond', cond
+                print '    viol', viol
+
         pathNone = any([p == None for (p, v) in condViols])
         if pathNone:
             return (None, None)

@@ -923,6 +923,8 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
                   [pick],
                   [pick, move, place]]
                    #place.applyBindings({'Obj' : 'objB'})]]
+
+    easySkel = easyHSkel2 if hierarchical else easySkel2
                   
                    
     grasped = 'objB'
@@ -954,7 +956,7 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
 
     t.run(goal2,
           hpn = hpn,
-          skeleton = easyHSkel2 if skeleton else None,
+          skeleton = easySkel if skeleton else None,
           hierarchical = hierarchical,
           heuristic = heuristic,
           regions = ['table1Top'],
@@ -2215,6 +2217,15 @@ def test22(hpn = True, skeleton = False, hierarchical = False,
           initBelief = initBel,
           regions = ['table1Top']
           )
+
+def prof(test, n=50):
+    import cProfile
+    import pstats
+    cProfile.run(test, 'prof')
+    p = pstats.Stats('prof')
+    p.sort_stats('cumulative').print_stats(n)
+    # p.sort_stats('cumulative').print_callers(n)
+
 '''
 
 def prof(test, n=50):

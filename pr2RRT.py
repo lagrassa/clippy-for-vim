@@ -233,20 +233,27 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
     rrtTime = time.time() - startTime
     if debug('rrt'):
         print 'Found path in', rrtTime, 'secs'
-    return [c.conf for c in nodes], allowedViol
+    path = [c.conf for c in nodes]
+    if debug('verifyPath'):
+        verifyPath(pbs, prob, path, 'rrt:'+str(moveChains))
+        verifyPath(pbs, prob, interpolatePath(path), 'interp rrt:'+str(moveChains))
+    return path, allowedViol
 
 def planRobotPathSeq(pbs, prob, initConf, destConf, allowedViol,
                      maxIter = None, failIter = None):
-    path = []
+    path = [initConf]
     v = allowedViol
     for chain in destConf.conf:
         if initConf.conf[chain] != destConf.conf[chain]:
             if debug('rrt'): print 'RRT - planning for', chain
-            pth, v = planRobotPath(pbs, prob, initConf, destConf, v, [chain],
+            pth, v = planRobotPath(pbs, prob, path[-1], destConf, v, [chain],
                                    maxIter = maxIter, failIter = failIter, safeCheck = False)
             if pth:
                 if debug('rrt'): print 'RRT - found path for', chain
                 path.extend(pth)
+                if debug('verifyPath'):
+                    verifyPath(pbs, prob, path, 'rrt:'+chain)
+                    verifyPath(pbs, prob, interpolatePath(path), 'interp rrt:'+chain)
             else:
                 if debug('rrt'): print 'RRT - failed to find path for', chain
                 return [], None
@@ -297,3 +304,28 @@ def interpolate(q_f, q_i, stepSize=0.25, moveChains=None, maxSteps=100):
         step += 1
     path.append(q_f)
     return path
+
+def verifyPath(pbs, p, path, msg='rrt'):
+    shWorld = pbs.getShadowWorld(p)
+    obst = shWorld.getObjectShapes()
+    attached = shWorld.attached
+    for p in path:
+        robotShape = p.placement(attached=attached)
+        if any(robotShape.collides(o) for o in obst):
+            print msg, 'path',
+            colliders = [o for o in obst if robotShape.collides(o)]
+            robotShape.draw('W', 'red')
+            for o in colliders: o.draw('W', 'red')
+            print 'collision with', [o.name() for o in colliders]
+            raw_input('Ok?')
+    return True
+
+def interpolatePath(path):
+    interpolated = []
+    for i in range(1, len(path)):
+        qf = path[i]
+        qi = path[i-1]
+        confs = interpolate(qf, qi, stepSize=0.25)
+        print i, 'path segment has', len(confs), 'confs'
+        interpolated.extend(confs)
+    return interpolated

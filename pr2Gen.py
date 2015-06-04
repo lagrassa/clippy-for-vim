@@ -356,9 +356,6 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
             if debug('pickGen'):
                 print 'pickable viol=', v
                 debugMsg('pickGen', 'Regrasp is pickable')
-        # The regrasp option should never be cheaper than the non-regrasp.
-        # penalty = viol.weight()+1 if viol else 1
-        # debugMsg('pickGen', ('Adding penalty', penalty, 'to', viol.penalty, viol))
         yield (pB, cf, ca), viol
     tracep('pickGen', 'out of values')
 
@@ -392,6 +389,22 @@ def placeGenGen(args, goalConds, bState, outBindings):
     (obj, hand, poses, support, objV, graspV, objDelta, graspDelta, confDelta,
      prob) = args
 
+    pbs = bState.pbs.copy()
+    world = pbs.getWorld()
+
+    if poses == '*' or isVar(poses) or support == '*' or isVar(support):
+        newBS = pbs.copy()
+        # Just placements specified in goal (and excluding obj)
+        newBS = newBS.updateFromGoalPoses(goalConds, updateConf=False)
+        newBS = newBS.excludeObjs([obj])
+
+        raw_input('***placeGen with unspecified pose')
+
+        for ans in placeInGenAway((obj, objDelta, prob), goalConds, newBS, outBindings):
+            (pB, gB, c, ca) = ans
+            yield (gB, pB, c, ca)
+        return
+
     base = sameBase(goalConds)
     if base:
         print('Same base constraint in placeGen')
@@ -399,8 +412,6 @@ def placeGenGen(args, goalConds, bState, outBindings):
     if not isinstance(poses[0], (list, tuple, frozenset)):
         poses = frozenset([poses])
 
-    pbs = bState.pbs.copy()
-    world = pbs.getWorld()
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
                        PoseD(None, graspV), delta=graspDelta)
     def placeBGen():
@@ -425,7 +436,8 @@ def placeGenGen(args, goalConds, bState, outBindings):
     else:
         gen = roundrobin(leftGen, rightGen)
 
-    return gen
+    for ans in gen:
+        yield ans
 
 # returns values for (?graspPose, ?graspFace, ?conf, ?confAppr)
 def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False):
@@ -647,6 +659,12 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
 
 # Return objPose, poseFace.
 def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
+    gen = placeInRegionGenGen(args, goalConds, bState, outBindings, away = False)
+    for ans, viol in gen:
+        (pB, gB, cf, ca) = ans
+        yield (pB.poseD.mode().xyztTuple(), pB.support.mode())
+
+def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False):
     (obj, region, var, delta, prob) = args
     if not isinstance(region, (list, tuple, frozenset)):
         regions = frozenset([region])
@@ -728,9 +746,8 @@ def placeInRegionGen(args, goalConds, bState, outBindings, away = False):
 
     gen = placeInGenTop((obj, regShapes, graspB, placeB, None, prob),
                           goalConds, pbs, outBindings, away = away)
-    for ans, viol in gen:
-        (pB, gB, cf, ca) = ans
-        yield (pB.poseD.mode().xyztTuple(), pB.support.mode())
+    for ans in gen:
+        yield ans
 
 def placeInGenAway(args, goalConds, pbs, outBindings):
     # !! Should search over regions and hands
@@ -740,11 +757,10 @@ def placeInGenAway(args, goalConds, pbs, outBindings):
         raw_input('Need some awayRegions')
         return
     domainPlaceVar = pbs.domainProbs.obsVarTuple     
-    for ans in placeInRegionGen((obj, pbs.awayRegions(),
-                                          domainPlaceVar,
-                                          delta, prob),
-                          # preserve goalConds to get reachObsts
-                          goalConds, pbs, [], away=True):
+    for ans in placeInRegionGenGen((obj, pbs.awayRegions(),
+                                    domainPlaceVar, delta, prob),
+                                   # preserve goalConds to get reachObsts
+                                   goalConds, pbs, [], away=True):
         yield ans
 
 placeInGenMaxPoses  = 50
@@ -1104,8 +1120,8 @@ def moveOut(newBS, prob, obst, delta, goalConds):
     if not isinstance(obst, str):
         obst = obst.name()
     for ans in placeInGenAway((obst, delta, prob), goalConds, newBS, None):
-        (pose, poseFace) = ans
-        yield (obst, pose, poseFace, domainPlaceVar, delta)
+        (pB, gB, cf, ca) = ans
+        yield (obst, pB.poseD.mode().xyztTuple(), pB.support.mode(), domainPlaceVar, delta)
 
 # Preconditions (for R1):
 

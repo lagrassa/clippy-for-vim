@@ -410,7 +410,8 @@ class RoadMap:
         targetNode = makeNode(targetConf)
         attached = pbs.getShadowWorld(prob).attached
         if initViol == None:
-            if debug('traceCRH'): print '    collision at end point'
+            if debug('traceCRH'):
+                print '    collision at end point'
             return confAns(None)
         cached = checkFullCache()
         if cached:
@@ -1217,7 +1218,10 @@ class RoadMap:
         for conf in rrt.interpolate(qf, qi, stepSize=minStep):
             newViol, _ = self.confViolations(conf, pbs, prob, initViol=viol0)
             if newViol is None or newViol.weight() > 0.:
+                if debug('smooth'): conf.draw('W', 'red')
                 return False
+            else:
+                if debug('smooth'): conf.draw('W', 'green')
         return True
 
     def smoothPath(self, path, pbs, prob, verbose=False, nsteps = glob.smoothSteps):
@@ -1241,8 +1245,19 @@ class RoadMap:
                 continue
             else:
                 checked.add((smoothed[j], smoothed[i]))
+            if debug('smooth'):
+                pbs.draw(prob, 'W')
+                for k in range(i, j+1):
+                    smoothed[k].draw('W', 'blue')
+                raw_input('Testing')
             if self.safePath(smoothed[j], smoothed[i], pbs, prob):
                 count = 0
+                if debug('smooth'):
+                    raw_input('Safe')
+                    pbs.draw(prob, 'W')
+                    for k in range(i+1)+range(j,len(smoothed)):
+                        smoothed[k].draw('W', 'blue')
+                    raw_input('remaining')
                 smoothed[i+1:j] = []
                 n = len(smoothed)
                 if verbose: print 'Smoothed path length is', n
