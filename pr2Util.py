@@ -138,27 +138,42 @@ class ObjPlaceB(Hashable):
             return ws.objectShapes[shadowName(self.obj)].applyLoc(self.objFrame())
 
 # represent the "removable" collisions wth obstacles and shadows.
+# This has to be hashable so use tuples and frozensets
 class Violations(Hashable):
     def __init__(self, obstacles=[], shadows=[],
-                 heldObstacles=[], heldShadows=[]):
-        self.obstacles = frozenset(obstacles)
-        self.shadows = frozenset(shadows)
-        self.heldObstacles = frozenset(heldObstacles)
-        self.heldShadows = frozenset(heldShadows)
-        assert len(set([o.name() for o in self.obstacles])) == len(self.obstacles)
-        assert len(set([o.name() for o in self.shadows])) == len(self.shadows)
-        assert len(set([o.name() for o in self.heldObstacles])) == len(self.heldObstacles)
-        assert len(set([o.name() for o in self.heldShadows])) == len(self.heldShadows)
+                 heldObstacles=None, heldShadows=None):
+        obst = obstacles[:]
+        sh = shadows[:]
+        if not heldObstacles: heldObstacles = ([], [])
+        if not heldShadows: heldShadows = ([], [])
+        # Make sure that all collisions are represented in obstacles and shaodws
+        for hand in (0,1):              # left=0, right=1
+            for o in heldObstacles[hand] + heldShadows[hand]:
+                if 'shadow' in o.name():
+                    sh.append(o)
+                else:
+                    obst.append(o)
+        self.obstacles = frozenset(obst)
+        # Collisions with only shadows, remove collisions with objects as well
+        self.shadows = frozenset([o for o in sh if not o in self.obstacles])
+        self.heldObstacles = tuple([frozenset(heldObstacles[hand]) for hand in (0,1)])
+        # Collisions only with heldShadow, remove collisions with heldObject as well
+        self.heldShadows = tuple([frozenset([o for o in heldShadows[hand] \
+                                             if not o in self.heldObstacles[hand]]) \
+                                  for hand in (0,1)])
     def empty(self):
         return (not self.obstacles) and (not self.shadows) \
-               and (not self.heldObstacles) and (not self.heldShadows)
-    def combine(self, obstacles, shadows, heldObstacles=[], heldShadows=[]):
+               and (not any(x for x in self.heldObstacles)) \
+               and (not any(x for x in self.heldShadows))
+    def combine(self, obstacles, shadows, heldObstacles=None, heldShadows=None):
         return self.update(Violations(obstacles, shadows, heldObstacles, heldShadows))
     def update(self, viol):
-            return Violations(frozenset(upd(self.obstacles, viol.obstacles)),
-                          frozenset(upd(self.shadows, viol.shadows)),
-                          frozenset(upd(self.heldObstacles, viol.heldObstacles)),
-                          frozenset(upd(self.heldShadows, viol.heldShadows)))
+            return Violations(upd(self.obstacles, viol.obstacles),
+                              upd(self.shadows, viol.shadows),
+                              (upd(self.heldObstacles[0], viol.heldObstacles[0]),
+                               upd(self.heldObstacles[1], viol.heldObstacles[1])),
+                              (upd(self.heldShadows[0], viol.heldShadows[0]),
+                               upd(self.heldShadows[1], viol.heldShadows[1])))
     def weight(self):
         return len(self.obstacles) + 0.5*len(self.shadows)
     def LEQ(self, other):
@@ -167,9 +182,14 @@ class Violations(Hashable):
         return (self.obstacles, self.shadows, self.heldObstacles, self.heldShadows)
     def names(self):
         return (frozenset([x.name() for x in self.obstacles]),
-                frozenset([x.name() for x in self.shadows]))
+                frozenset([x.name() for x in self.shadows]),
+                tuple([frozenset([x.name() for x in ho]) for ho in self.heldObstacles]),
+                tuple([frozenset([x.name() for x in hs]) for hs in self.heldShadows]))
     def __repr__(self):
-        return 'Violations%s'%str(([x.name() for x in self.obstacles], [x.name() for x in self.shadows]))
+        return 'Violations%s'%str(([x.name() for x in self.obstacles],
+                                   [x.name() for x in self.shadows],
+                                   [[x.name() for x in ho] for ho in self.heldObstacles],
+                                   [[x.name() for x in hs] for hs in self.heldShadows]))
     __str__ = __repr__
 
 def combineViols(*viols):
@@ -185,6 +205,12 @@ def upd(curShapes, newShapes):
     newDict = dict([(o.name(), o) for o in newShapes])
     curDict.update(newDict)
     return curDict.values()
+
+def shadowp(obj):
+    if isinstance(obj, str):
+        return obj[-7:] == '_shadow'
+    else:
+        return obj.name()[-7:] == '_shadow'
 
 def shadowName(obj):
     name = obj if isinstance(obj, str) else obj.name()

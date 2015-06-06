@@ -60,6 +60,8 @@ class PBS:
         self.graspB = graspB or {'left':None, 'right':None}
         self.fixObjBs = fixObjBs or {}            # {obj: objPlaceB}
         self.moveObjBs = moveObjBs or {}          # {obj: objPlaceB}
+        self.fixGrasp = {'left':False, 'right':False} # the graspB can be changed
+        self.fixHeld = {'left':False, 'right':False} # whether the held can be changed
         self.regions = regions
         self.pbs = self
         self.useRight = useRight
@@ -280,11 +282,56 @@ class PBS:
             bs.excludeObjs([obj])
             bs.fixObjBs[obj] = objBs[obj]
         return bs
-    
-    def getShadowWorld(self, prob):
+
+    # arg can also be a graspB since they share relevant methods
+    def shadowPair(self, objB, faceFrame, prob):
         def shLE(w1, w2):
             return all([w1[i] <= w2[i] for i in (0,1,3)])
+        obj = objB.obj
+        graspable = obj in self.getWorld().graspDesc
+        objBMinDelta = (0.002, 0.002, 0.0, 0.004)
+         # 2 looks
+        objBMinVarGrasp = tuple([x**2/2*x for x in self.domainProbs.obsVarTuple])
+        objBMinVarStatic = tuple([x**2 for x in self.domainProbs.odoError])
+        objBMinProb = 0.95
+        # The irreducible shadow
+        objBMinVar = objBMinVarGrasp if graspable else objBMinVarStatic
+        objBMin = objB.modifyPoseD(var=objBMinVar)
+        objBMin.delta = objBMinDelta
 
+        shWidth = shadowWidths(objB.poseD.var, objB.delta, prob)
+        minShWidth = shadowWidths(objBMinVar, objBMinDelta, objBMinProb)
+        if shLE(shWidth, minShWidth):
+            # If the "min" shadow is wider than actual shadow, make them equal
+            objB = objBMin
+            prob = objBMinProb
+
+        if debug('shadowWidths'):
+            print 'obj', obj, 'graspable', graspable, 'objB == objBMin', objB == objBMin
+            print 'shWidth', shWidth
+            print 'minShWidth', minShWidth
+
+        # Shadows relative to Identity pose
+        shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
+        shadowMin = self.objShadow(obj, obj, objBMinProb, objBMin, faceFrame) # use obj name
+
+        if debug('getShadowWorld'):
+            print 'objB', objB
+            shadow.draw('W', 'gray')
+            print 'objBMin', objBMin
+            shadowMin.draw('W', 'brown')
+            print 'max shadow widths', shWidth
+            print 'min shadow widths', minShWidth
+            print obj, 'origin\n', sw.objectShapes[obj].origin()
+            print obj, 'shadow\n', shadow.bbox()
+            print obj, 'shadow origin\n', shadow.origin().matrix
+            print obj, 'support pose\n', objB.poseD.mode().matrix
+            print obj, 'origin pose\n', objB.objFrame().matrix
+            raw_input('Shadows for %s (brown in inner, gray is outer)'%obj)
+
+        return shadowMin, shadow
+    
+    def getShadowWorld(self, prob):
         if self.shadowWorld and self.shadowProb == prob:
             return self.shadowWorld
         else:
@@ -305,39 +352,10 @@ class PBS:
         # Add the objects and shadows
         sw = self.shadowWorld
         for (obj, objB) in self.getPlacedObjBs().iteritems():
-            graspable = obj in self.getWorld().graspDesc
             # The pose in the world is for the origin frame.
             objPose = objB.objFrame()
-            # object is already in world, add it to sw
-            # sw.setObjectPose(obj, objPose)
             faceFrame = objB.faceFrames[objB.support.mode()]
-            # The irreducible shadow
-            objBMinDelta = (0.002, 0.002, 0.0, 0.004)
-            if graspable:
-                objBMinVar = self.domainProbs.obsVarTuple
-                objBMinVar = tuple([x**2/2*x for x in objBMinVar]) # 2 looks
-            else:
-                # For non-graspable, use bigger variance from odoError
-                objBMinVar = tuple([x**2 for x in self.domainProbs.odoError])
-            objBMinProb = 0.95
-            objBMin = objB.modifyPoseD(var=objBMinVar)
-            objBMin.delta = objBMinDelta
-
-            shWidth = shadowWidths(objB.poseD.var, objB.delta, prob)
-            minShWidth = shadowWidths(objBMinVar, objBMinDelta, objBMinProb)
-            if shLE(shWidth, minShWidth):
-                # If the "min" shadow is wider than actual shadow, make them equal
-                objB = objBMin
-                prob = objBMinProb
-
-            if debug('shadowWidths'):
-                print 'obj', obj, 'graspable', graspable, 'objB == objBMin', objB == objBMin
-                print 'shWidth', shWidth
-                print 'minShWidth', minShWidth
-
-            # Shadows relative to Identity pose
-            shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
-            shadowMin = self.objShadow(obj, obj, objBMinProb, objBMin, faceFrame) # use obj name
+            shadowMin, shadow = self.shadowPair(objB, faceFrame, prob)
 
             w.addObjectShape(shadow)
             w.addObjectShape(shadowMin)
@@ -348,19 +366,6 @@ class PBS:
                 sw.fixedObjects.add(shadow.name())
             if  obj in self.fixObjBs:   # can't collide with these objects
                 sw.fixedObjects.add(shadowMin.name())
-            if debug('getShadowWorld'):
-                print 'objB', objB
-                shadow.draw('W', 'gray')
-                print 'objBMin', objBMin
-                shadowMin.draw('W', 'brown')
-                print 'max shadow widths', shadowWidths(objB.poseD.var, objB.delta, prob)
-                print 'min shadow widths', shadowWidths(objBMinVar, objBMinDelta, objBMinProb)
-                print obj, 'origin\n', sw.objectShapes[obj].origin()
-                print obj, 'shadow\n', shadow.bbox()
-                print obj, 'shadow origin\n', shadow.origin().matrix
-                print obj, 'support pose\n', objB.poseD.mode().matrix
-                print obj, 'origin pose\n', objB.objFrame().matrix
-                raw_input('Shadows for %s (brown in inner, gray is outer)'%obj)
         # Add robot
         sw.robot = self.getRobot()
         robot = sw.robot
@@ -377,13 +382,19 @@ class PBS:
                 # The graspDesc frame is relative to object origin
                 # The graspB pose encodes finger tip relative to graspDesc frame
                 faceFrame = graspDesc.frame.compose(self.graspB[hand].poseD.mode())
-                shadow = self.objShadow(heldObj, shadowName(heldObj), prob,
-                                        self.graspB[hand], faceFrame)
+                # Create shadow pair and attach both to robot
+                shadowMin, shadow = self.shadowPair(self.graspB[hand], faceFrame, prob)     
                 # graspShadow is expressed relative to wrist and attached to arm
                 # fingerFrame should map shodow (supported at graspDesc) into wrist frame
                 fingerFrame = robot.fingerSupportFrame(hand, graspDesc.dz*2)
                 graspShadow = shadow.applyTrans(fingerFrame)
-                robot.attachRel(graspShadow, sw, hand)
+                graspShadowMin = shadowMin.applyTrans(fingerFrame)
+                # shadowMin will stand in for object
+                heldShape = shapes.Shape([graspShadowMin, graspShadow],
+                                         graspShadowMin.origin(),
+                                         name = heldObj,
+                                         color = graspShadowMin.properties.get('color', 'black'))
+                robot.attachRel(heldShape, sw, hand)
                 sw.held[hand] = heldObj
                 if debug('getShadowWorldGrasp') and not fbch.inHeuristic:
                     print 'faceFrame\n', faceFrame.matrix

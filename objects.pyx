@@ -117,6 +117,8 @@ class WorldState:
         self.regionShapes = {}
         self.robotPlace = None
         self.fixedObjects = set([])           # immovable object names
+        self.fixedHeld = {'left':False, 'right':False}  # is held obj fixed?
+        self.fixedGrasp = {'left':False, 'right':False}  # is grasp fixed?
         self.held = {'left':None, 'right':None}   # object names
         self.grasp = {'left':None, 'right':None}  # transforms
         self.attached = {'left':None, 'right':None} # object shapes

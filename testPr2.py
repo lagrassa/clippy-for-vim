@@ -2224,7 +2224,7 @@ def prof(test, n=50):
     cProfile.run(test, 'prof')
     p = pstats.Stats('prof')
     p.sort_stats('cumulative').print_stats(n)
-    # p.sort_stats('cumulative').print_callers(n)
+    p.sort_stats('cumulative').print_callers(n)
 
 '''
 
