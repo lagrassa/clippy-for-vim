@@ -397,11 +397,12 @@ def placeGenGen(args, goalConds, bState, outBindings):
         newBS = newBS.updateFromGoalPoses(goalConds, updateConf=False)
         newBS = newBS.excludeObjs([obj])
 
-        raw_input('***placeGen with unspecified pose')
+        print 'placeGen with unspecified pose'
 
-        for ans in placeInGenAway((obj, objDelta, prob), goalConds, newBS, outBindings):
+        for ans,v in placeInGenAway((obj, objDelta, prob),
+                                    goalConds, newBS, outBindings, 'left'):
             (pB, gB, c, ca) = ans
-            yield (gB, pB, c, ca)
+            yield (gB, pB, c, ca), v, 'left'
         return
 
     base = sameBase(goalConds)
@@ -737,7 +738,7 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False):
                     print '    placeInGen(%s,%s) h='%(obj,[x.name() \
                                                            for x in regShapes]), \
                           v.weight() if v else None, '(p,g)=', pg, pose
-                yield  (pB.poseD.mode().xyztTuple(), pB.support.mode())
+                yield (pB, gB, c, ca)
             return
         else:
             # If pose is specified and variance is small, return
@@ -748,19 +749,18 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False):
     for ans in gen:
         yield ans
 
-def placeInGenAway(args, goalConds, pbs, outBindings):
+def placeInGenAway(args, goalConds, pbs, outBindings, hand='left'):
     # !! Should search over regions and hands
     (obj, delta, prob) = args
-    hand = 'left'
     if not pbs.awayRegions():
         raw_input('Need some awayRegions')
         return
     domainPlaceVar = pbs.domainProbs.obsVarTuple     
-    for ans in placeInRegionGenGen((obj, pbs.awayRegions(),
-                                    domainPlaceVar, delta, prob),
-                                   # preserve goalConds to get reachObsts
-                                   goalConds, pbs, [], away=True):
-        yield ans
+    for ans,v in placeInRegionGenGen((obj, pbs.awayRegions(),
+                                      domainPlaceVar, delta, prob),
+                                     # preserve goalConds to get reachObsts
+                                     goalConds, pbs, [], away=True):
+        yield ans,v
 
 placeInGenMaxPoses  = 50
 placeInGenMaxPosesH = 10
@@ -1118,7 +1118,7 @@ def moveOut(newBS, prob, obst, delta, goalConds):
     domainPlaceVar = newBS.domainProbs.obsVarTuple 
     if not isinstance(obst, str):
         obst = obst.name()
-    for ans in placeInGenAway((obst, delta, prob), goalConds, newBS, None):
+    for ans, v in placeInGenAway((obst, delta, prob), goalConds, newBS, None):
         (pB, gB, cf, ca) = ans
         yield (obst, pB.poseD.mode().xyztTuple(), pB.support.mode(), domainPlaceVar, delta)
 

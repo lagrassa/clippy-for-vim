@@ -958,7 +958,8 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
         pose = shape.origin()
         realWorld.held[hand] = grasped
         realWorld.grasp[hand] = handPose.inverse().compose(pose)
-        realWorld.delObjectState(grasped)    
+        realWorld.delObjectState(grasped)
+        realWorld.setRobotConf(realWorld.robotConf) # to compute a new robotPlace
 
     t.run(goal2,
           hpn = hpn,
