@@ -1029,6 +1029,7 @@ class Operator(object):
         # These fluents are side-effected; but applyBindings always
         # copies so that should be okay.
         newGoal = State([])
+
         for f in newBoundFluents:
             if f.isConditional():
                 # Preconds will not override results
@@ -1095,13 +1096,19 @@ class Operator(object):
         rebindLater.rebind = True
         rebindCost = glob.rebindPenalty
 
+        # Add in the preconditions.  We can make new bindings between
+        # new and old preconds, but not between new ones!
+        bTemp = newGoal.addSet(boundPreconds, moreDetails = startState.details)
+
+        for f in newGoal.fluents:
+            if f.isConditional(): 
+                if not f.feasible(startState.details):
+                    bindingsNoBood = True
+
         if bindingsNoGood:
             rebindLater.suspendedOperator.instanceCost = rebindCost
             return [[rebindLater, rebindCost]]
 
-        # Add in the preconditions.  We can make new bindings between
-        # new and old preconds, but not between new ones!
-        bTemp = newGoal.addSet(boundPreconds, moreDetails = startState.details)
 
         bp.update(bTemp)
         newBindings.update(bp)
@@ -1111,7 +1118,6 @@ class Operator(object):
 
         newGoal.bindings = copy.copy(goal.bindings)
         newGoal.bindings.update(newBindings)
-
 
         if self.abstractionLevel == self.concreteAbstractionLevel:
             cost = self.cost(self.abstractionLevel,

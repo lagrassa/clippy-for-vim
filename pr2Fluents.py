@@ -384,8 +384,12 @@ class CanReachNB(Fluent):
 
     def feasible(self, bState, v, p):
         if not self.isGround():
-            return True
-        path, violations = self.getViols(bState, v, p)
+            (startConf, endConf, cond) = self.args
+            assert isGround(endConf) and isGround(cond)
+            path, violations = CanReachNB([endConf, endConf, cond], True).\
+                                    getViols(bState, v, p)
+        else:
+            path, violations = self.getViols(bState, v, p)
         return violations != None
 
     def getViols(self, bState, v, p, strict = True):

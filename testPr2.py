@@ -69,7 +69,7 @@ import pr2Ops
 reload(pr2Ops)
 from pr2Ops import move, pick, place, lookAt, poseAchCanReach, poseAchCanSee,\
       lookAtHand, hRegrasp, poseAchCanPickPlace, \
-      poseAchIn, moveNB, bLoc1, bLoc2
+      poseAchIn, moveNB, bLoc1, bLoc2, dropAchCanReach, dropAchCanPickPlace
 
 import pr2Sim
 reload(pr2Sim)
@@ -672,8 +672,8 @@ tinyErrProbs = DomainProbs(\
 
 allOperators = [move, pick, place, lookAt, poseAchCanReach,
                 poseAchCanSee, poseAchCanPickPlace, poseAchIn, moveNB,
-                bLoc1, bLoc2]
-              #lookAtHand    #graspAchCanPickPlace
+                bLoc1, bLoc2, dropAchCanReach, dropAchCanPickPlace]
+              #lookAtHand    #graspAchCanPickPlace #dropAchCanPickPlace
 
 ######################################################################
 # Test 0: 1 table move 1 object
@@ -901,8 +901,8 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
     # Pick obj A
     graspType = 2
     goal2 = State([Bd([Holding(['left']), 'objA', goalProb], True),
-                  Bd([GraspFace(['objA', 'left']), graspType, goalProb], True),
-                  B([Grasp(['objA', 'left',  graspType]),
+                   Bd([GraspFace(['objA', 'left']), graspType, goalProb], True),
+                   B([Grasp(['objA', 'left',  graspType]),
                      (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), targetDelta,
                      goalProb], True)])
     # Put A somewhere.  Ideally use right hand!
@@ -913,7 +913,6 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
 
     easySkel2 = [[pick, move,
                   place, move, 
-                  poseAchCanPickPlace,
                   lookAt, move,
                   lookAt, move]]
 
@@ -922,10 +921,17 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
                   [lookAt, moveNB],
                   [pick],
                   [pick, move, place]]
-                   #place.applyBindings({'Obj' : 'objB'})]]
+
+    hardSkel2 = [[pick, moveNB,
+                  poseAchCanPickPlace,
+                  lookAt, moveNB,
+                  lookAt, move,
+                  place, moveNB,
+                  lookAt, move]]
 
     easySkel = easyHSkel2 if hierarchical else easySkel2
-                  
+
+    skel = easySkel if easy else hardSkel2
                    
     grasped = 'objB'
     hand = 'left'

@@ -70,8 +70,7 @@ visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
 debugOn = ['skeleton', 'nonmon', 'traceGen', 'traceCRH',
-           'executionFail', 'executionSurprise', 'placeGen']
-
+           'executionFail', 'executionSurprise']
 
 
 pauseOn = debugOn

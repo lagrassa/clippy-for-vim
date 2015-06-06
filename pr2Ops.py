@@ -44,6 +44,10 @@ probForGenerators = 0.98
 planVar = (0.04**2, 0.04**2, 0.04**2, 0.08**2)
 planP = 0.95
 
+hands = (0, 1)
+handName = ('left', 'right')
+handI = {'left' : 0, 'right' : 1}
+
 ######################################################################
 #
 # Prim functions map an operator's arguments to some parameters that
@@ -504,9 +508,54 @@ def addPosePreCond((postCond, obj, poseFace, pose, poseVar, poseDelta, p),
     fluentList = simplifyCond(postCond, newFluents)
     return [[fluentList]]
 
+# Add a condition on the pose and face of an object
+def addGraspPreCond((postCond, hand, obj, graspFace, grasp,
+                     graspVar, graspDelta, p),
+                   goal, start, vals):
+    newFluents = [Bd([Holding[hand], obj, p], True),
+                  Bd([GraspFace([obj, hand]), graspFace, p], True),
+                  B([Grasp([obj, hand, graspFace]), grasp, graspVar,
+                     graspDelta, p], True)]
+    fluentList = simplifyCond(postCond, newFluents)
+    return [[fluentList]]
+
 def awayRegion(args, goal, start, vals):
     return [[start.pbs.awayRegions()]]
-    
+
+# Really just return true if reducing variance on the object in the
+# hand will reduce the violations.
+def canReachHandGen(args, goal, start, vals):
+    (conf, fcp, p, cond, hand) = args
+    f = CanReachHome([conf, fcp, cond], True)
+    path, viol = f.getViols(start, True, p)
+    if viol and viol.heldShadows[handI[hand]] != []:
+        return [[True]]
+    else:
+        return []
+
+# Really just return true if putting down the object in the
+# hand will reduce the violations.
+def canReachDropGen(args, goal, start, vals):
+    (conf, fcp, p, cond, hand) = args
+    f = CanReachHome([conf, fcp, cond], True)
+    path, viol = f.getViols(start, True, p)
+    if viol and viol.heldObjects[handI[hand]] != []:
+        return [[True]]
+    else:
+        return []
+        
+# Really just return true if putting down the object in the
+# hand will reduce the violations.
+def canPickPlaceDropGen(args, goal, start, vals):
+    (preConf, placeConf, hand, obj, pose, poseVar, poseDelta, poseFace,
+     graspFace, graspMu, graspVar, graspDelta, op, cond, p) = args
+    f = CanPickPlace(args[:-1], True)
+    path, viol = f.getViols(start, True, p)
+    if viol and viol.heldObjects[handI[hand]] != []:
+        return [[True]]
+    else:
+        return []
+
 ################################################################
 ## Special regression funs
 ################################################################
@@ -1403,44 +1452,118 @@ poseAchCanPickPlace = Operator(\
     argsToPrint = [3, 4, 14, 15],
     ignorableArgs = range(0, 2) + range(5, 22))
 
-# Need also graspAchCanReachHome
+# Only useful if we can look at hand. 
+graspAchCanReach = Operator(\
+    'GraspAchCanReach',
+    ['CEnd', 'FCP', 'PreCond', 'PostCond',
+     'Obj', 'Hand', 'GraspFace', 'GraspMu', 'PreGraspVar', 'GraspDelta',
+      'P1', 'PR'],
+    {0: {},
+     1: {Bd([CanReachHome(['CEnd', 'FCP', 'PreCond']),  True, 'PR'], True),
+         Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'P1'], True),
+         Bd([Holding(['Hand']), 'Obj', 'P1'], True),
+         B([Grasp(['Obj', 'Hand', 'GraspFace']),
+             'GraspMu', 'PreGraspVar', 'GraspDelta', 'P1'], True)}},
+    # Result
+    [({Bd([CanReachHome(['CEnd', 'FCP','PostCond']),  True, 'PR'], True)}, {})],
 
-# Only useful if we can look at hand.  Not updated
-'''
-graspAchCanPickPlace = Operator(\
-    'GraspAchCanPickPlace',
+    # Functions
+    functions = [\
+        # Compute precond probs
+        Function(['P1'], ['PR'], regressProb(1), 'regressProb1', True),
+        # Call generator
+        Function([], ['CEnd', 'FCP', 'PR', 'PostCond', 'Hand'],
+                 canReachHandGen,'canReachHandGen', True),
+         # Add the appropriate condition
+         Function(['PreCond'],
+                  ['PostCond', 'Hand',
+                   'Obj', 'GraspFace', 'GraspMu', 'PreGraspVar',
+                   'GraspDelta', 'PR'],
+                  addGraspPreCond, 'addGraspPreCond')],
+    cost = lambda al, args, details: 0.1,
+    argsToPrint = [0, 4],
+    ignorableArgs = range(1, 12))
+
+dropAchCanReach = Operator(\
+    'DropAchCanReach',
+    ['CEnd', 'FCP', 'PreCond', 'PostCond', 'Hand', 'P1', 'PR'],
+    {0: {},
+     1: {Bd([CanReachHome(['CEnd', 'FCP', 'PreCond']),  True, 'PR'], True),
+         Bd([Holding(['Hand']), 'none', 'P1'], True)}},
+    # Result
+    [({Bd([CanReachHome(['CEnd', 'FCP','PostCond']),  True, 'PR'], True)}, {})],
+
+    # Functions
+    functions = [\
+        # Compute precond probs
+        Function(['P1'], ['PR'], regressProb(1), 'regressProb1', True),
+        # Call generator
+        Function([], ['CEnd', 'FCP', 'PR', 'PostCond', 'Hand'],
+                 canReachDropGen,'canReachHandGen', True),
+         # Add the appropriate condition
+         Function(['PreCond'],
+                  ['PostCond', 'Hand', 'PR'],
+                  addGraspPreCond, 'addDropPreCond')],
+    cost = lambda al, args, details: 0.1,
+    argsToPrint = [0, 4],
+    ignorableArgs = range(1, 7))
+
+dropAchCanPickPlace = Operator(\
+    'dropAchCanPickPlace',
     ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                          'OGraspDelta', 'Cond',
-                          'PreGraspVar', 'Op', 'P1', 'P2', 'PR'],
+                          'Op', 'PreCond', 'PostCond', 'P1', 'PR'],
     {0: {},
      1: {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
-                          'GraspFace', 'GraspMu', 'PreGraspVar', 'GraspDelta',
-                          'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                          'OGraspDelta', 'Op', 'Cond']), True, 'PR'],True),
-         Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'PR'], True),
-         Bd([Holding(['Hand']), 'Obj', 'P2'], True),
-         B([Grasp(['Obj', 'Hand', 'GraspFace']),
-             'GraspMu', 'PreGraspVar', 'GraspDelta', 'PR'], True)}},
+                          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
+                          'Op', 'PreCond']), True, 'PR'],True),
+         Bd([Holding(['Hand']), 'none', 'P1'], True)}},
     # Result
     [({Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'OObj', 'OFace', 'OGraspMu', 'OGraspVar', 
-                          'OGraspDelta', 'Op', 'Cond']), True,'PR'],True)},{})],
+                          'Op', 'PostCond']), True, 'PR'],True)}, {})],
     # Functions
     functions = [\
         # Compute precond probs
-        Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2', True),
-        # Call generator, just to see if reducing graspvar would be useful
-        Function(['PreGraspVar'],['Obj', 'GraspVar'],
-                   graspVarCanPickPlaceGen, 'graspVarCanPickPlaceGen')],
+        Function(['P1'], ['PR'], regressProb(1), 'regressProb1', True),
+        # Call generator
+        Function([],
+                 ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
+                          'RealPoseVar', 'PoseDelta', 'PoseFace',
+                          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
+                          'Op', 'PreCond', 'PostCond', 'PR'],
+                 canPickPlaceDropGen,'canReachHandGen', True),
+         # Add the appropriate condition
+         Function(['PreCond'],
+                  ['PostCond', 'Hand', 'PR'],
+                  addGraspPreCond, 'addDropPreCond')],
     cost = lambda al, args, details: 0.1,
-    argsToPrint = [3, 2, 4, 18],
-    ignorableArgs = range(0, 2) + range(5, 22))
+    argsToPrint = [0, 4],
+    ignorableArgs = range(1, 7))
+
+
+'''
+More generally:  have the generators return the relevant conditions.
+So, one generator per conditional fluent.
+
+We would need to add some mechanism to the rule definition so we can
+programatically compute some extra preconditions.  That's a bit of 
+
+
+                           
+Additional connective operators:
+dropAchCanPickPlace
+graspAchCanPickPlace
+graspAchCanReachNB
+dropAchCanReachNB
+poseAchCanReachNB
+graspAchCanSee
+dropAchCanSee
+                            
+
 '''    
 
 # Never been tested
