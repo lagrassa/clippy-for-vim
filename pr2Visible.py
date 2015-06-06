@@ -21,15 +21,15 @@ minVisiblePoints = 5
 colors = ['red', 'green', 'blue', 'orange', 'cyan', 'purple']
 
 cache = {}
-cacheStats = [0., 0.]                   # tries, hit
+cacheStats = [0, 0, 0, 0]                   # h tries, h hits, real tries, real hits
 
 # !! cache visibility computations
 def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     global laserScanGlobal, laserScanSparseGlobal
     key = (ws, conf, shape, tuple(obstacles), prob, moveHead, tuple(fixed), fbch.inHeuristic)
-    cacheStats[0] += 1
+    cacheStats[0 if fbch.inHeuristic else 2] += 1
     if key in cache:
-        cacheStats[1] += 1
+        cacheStats[1 if fbch.inHeuristic else 3] += 1
         return cache[key]
     if debug(visible):
         print 'visible from base=', conf['pr2Base'], 'head=', conf['pr2Head']
