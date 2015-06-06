@@ -1013,6 +1013,9 @@ class RoadMap:
                                      initViol=initViol, ignoreAttached=True)
             if cv == None: return
             for (c, targetNode) in targets:
+                if not moveBase:
+                    if startNode.baseConf() != targetNode.baseConf():
+                        return
                 cvt = self.confViolations(targetNode.conf, pbs, prob,
                                           initViol=cv, ignoreAttached=True)
                 if cvt == None or not testFn(targetNode): continue

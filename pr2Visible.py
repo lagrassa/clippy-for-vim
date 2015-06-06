@@ -21,15 +21,15 @@ minVisiblePoints = 5
 colors = ['red', 'green', 'blue', 'orange', 'cyan', 'purple']
 
 cache = {}
-cacheStats = [0, 0, 0, 0]                   # h tries, h hits, real tries, real hits
+cacheStats = [0, 0, 0, 0, 0, 0]                   # h tries, h hits, h easy, real tries, real hits, easy
 
 # !! cache visibility computations
 def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     global laserScanGlobal, laserScanSparseGlobal
     key = (ws, conf, shape, tuple(obstacles), prob, moveHead, tuple(fixed), fbch.inHeuristic)
-    cacheStats[0 if fbch.inHeuristic else 2] += 1
+    cacheStats[0 if fbch.inHeuristic else 3] += 1
     if key in cache:
-        cacheStats[1 if fbch.inHeuristic else 3] += 1
+        cacheStats[1 if fbch.inHeuristic else 4] += 1
         return cache[key]
     if debug(visible):
         print 'visible from base=', conf['pr2Base'], 'head=', conf['pr2Head']
@@ -43,6 +43,18 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         shape.draw('W', 'cyan')
         lookConf.draw('W')
         debugMsg('visible', 'look conf and view cone')
+
+    potentialOccluders = []
+    fixed = list(ws.fixedObjects)+fixed
+    fix = [obj for obj in obstacles if obj.name() in fixed]
+    move = [obj for obj in obstacles if obj.name() not in fixed]
+    for objShape in fix+move:
+        if objShape.collides(vc):
+            potentialOccluders.append(objShape)
+    if not potentialOccluders:
+        cacheStats[2 if fbch.inHeuristic else 5]
+        return True, []
+    occluders = []
 
     lookCartConf = lookConf.cartConf()
     headTrans = lookCartConf['pr2Head']
@@ -73,11 +85,9 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         threshold = 0.5*prob            # generous
     else:
         threshold = 0.75*prob
-    occluders = []
-    fixed = list(ws.fixedObjects)+fixed
-    fix = [obj for obj in obstacles if obj.name() in fixed]
-    move = [obj for obj in obstacles if obj.name() not in fixed]
+
     for i, objShape in enumerate(fix):
+        if objShape not in potentialOccluders: continue
         if debug('visible'):
             print 'updating depth with', objShape.name()
         for objPrim in toPrims(objShape):
@@ -91,6 +101,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     final = countContacts(contacts, 0)
     ratio = float(final)/float(total)
     for j, objShape in enumerate(move):
+        if objShape not in potentialOccluders: continue
         i = len(fix) + j
         if debug('visible'):
             print 'updating depth with', objShape.name()

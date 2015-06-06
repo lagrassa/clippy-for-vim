@@ -379,8 +379,9 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
 
 def placeGen(args, goalConds, bState, outBindings):
     gen = placeGenGen(args, goalConds, bState, outBindings)
-    print 'goalConds in placeGen'
-    for x in goalConds: print x
+    if debug('placeGen'):
+        print 'goalConds in placeGen'
+        for x in goalConds: print x
     for ans, viol, hand in gen:
         print 'placeGen ->', hand
         (gB, pB, c, ca) = ans
@@ -405,17 +406,20 @@ def placeGenGen(args, goalConds, bState, outBindings):
         print '    placeGen with unspecified pose'
         hand = 'left'
         if goalConds:
+            if base:
+                tracep('placeGen', '    same base constraint, failing')
+                return
             if getConf(goalConds, None):
                 tracep('placeGen', '    goal conf specified, failing')
                 return
-            # holding = dict(getHolding(goalConds))
-            # if 'left' in holding and 'right' in holding:
-            #     tracep('placeGen', '    both hands are already Holding')
-            #     return
-            # elif 'left' in holding:
-            #     hand = 'right'
-            # else:
-            #     hand = 'left'
+            holding = dict(getHolding(goalConds))
+            if 'left' in holding and 'right' in holding:
+                tracep('placeGen', '    both hands are already Holding')
+                return
+            elif 'left' in holding:
+                hand = 'right'
+            else:
+                hand = 'left'
         newBS = pbs.copy()
         # Just placements specified in goal (and excluding obj)
         newBS = newBS.updateFromGoalPoses(goalConds, updateConf=False)
