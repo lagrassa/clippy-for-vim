@@ -390,6 +390,14 @@ def placeGenGen(args, goalConds, bState, outBindings):
     (obj, hand, poses, support, objV, graspV, objDelta, graspDelta, confDelta,
      prob) = args
 
+    base = sameBase(goalConds)
+    if base:
+        print('Same base constraint in placeGen')
+    if goalConds:
+        if  getConf(goalConds, None):
+            tracep('placeGen', '    conf is already specified')
+            return
+
     pbs = bState.pbs.copy()
     world = pbs.getWorld()
 
@@ -418,9 +426,6 @@ def placeGenGen(args, goalConds, bState, outBindings):
             yield (gB, pB, c, ca), v, hand
         return
 
-    base = sameBase(goalConds)
-    if base:
-        print('Same base constraint in placeGen')
 
     if not isinstance(poses[0], (list, tuple, frozenset)):
         poses = frozenset([poses])
