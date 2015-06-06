@@ -344,10 +344,10 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
     ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
     if ca:
         # Check for collisions, don't include attached...
-        viol, _ = rm.confViolations(ca, pbs, prob, ignoreAttached=True)
+        viol = rm.confViolations(ca, pbs, prob, ignoreAttached=True)
         if not viol: return
-        viol, _ = rm.confViolations(conf, pbs, prob, initViol=viol,
-                                    ignoreAttached=True)
+        viol = rm.confViolations(conf, pbs, prob, initViol=viol,
+                                 ignoreAttached=True)
         if viol:
             if debug('potentialGraspConfsWin'):
                 pbs.draw(prob, 'W')

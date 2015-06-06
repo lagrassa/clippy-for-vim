@@ -250,12 +250,11 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         newBS = pbs.copy()
         newBS.updateConf(conf)
         newBS.updateHeldBel(graspB, hand)
-        viol, (rv, hv) = rm.confViolations(conf, newBS, prob)
+        viol = rm.confViolations(conf, newBS, prob)
         if not viol:                # was valid when not holding, so...
             trace('    pickGen: Held collision')
-            if True: #debug('pickGen'):
+            if debug('pickGen'):
                 newBS.draw(prob, 'W')
-                raw_input('held collision')
                 debugMsg('pickGen', 'Held collision.')
             return True            # punt.
 
@@ -994,7 +993,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
                     if not lookConf:
                         trace('    lookGen(%s) canView failed clear')
                         continue
-                    viol = rm.confViolations(lookConf, pbs, prob)[0]
+                    viol = rm.confViolations(lookConf, pbs, prob)
                     if testFn(lookConf):
                         trace('    lookGen(%s) canView cleared viol='%obj, viol.weight() if viol else None)
                         yield (lookConf,), viol

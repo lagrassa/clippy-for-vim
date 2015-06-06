@@ -121,7 +121,7 @@ class RRT:
             raise Exception, "Neither path is marked init"
 
 def safeConf(conf, pbs, prob, allowedViol):
-    viol, _ = pbs.getRoadMap().confViolations(conf, pbs, prob)
+    viol = pbs.getRoadMap().confViolations(conf, pbs, prob)
     return viol \
            and viol.obstacles <= allowedViol.obstacles \
            and viol.shadows <= allowedViol.shadows
@@ -205,8 +205,8 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
                   maxIter = None, failIter = None, safeCheck = True):
     startTime = time.time()
     if allowedViol==None:
-        v1, _ = pbs.getRoadMap().confViolations(destConf, pbs, prob)
-        v2, _ = pbs.getRoadMap().confViolations(initConf, pbs, prob)
+        v1 = pbs.getRoadMap().confViolations(destConf, pbs, prob)
+        v2 = pbs.getRoadMap().confViolations(initConf, pbs, prob)
         if v1 and v2:
             allowedViol = v1.update(v2)
         else:
@@ -263,7 +263,7 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
                       maxIter = None, failIter = None):
     startTime = time.time()
     if allowedViol==None:
-        v, _ = pbs.getRoadMap().confViolations(initConf, pbs, prob)
+        v = pbs.getRoadMap().confViolations(initConf, pbs, prob)
         if v:
             allowedViol = v
         else:
