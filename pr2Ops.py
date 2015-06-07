@@ -512,10 +512,17 @@ def addPosePreCond((postCond, obj, poseFace, pose, poseVar, poseDelta, p),
 def addGraspPreCond((postCond, hand, obj, graspFace, grasp,
                      graspVar, graspDelta, p),
                    goal, start, vals):
-    newFluents = [Bd([Holding[hand], obj, p], True),
+    newFluents = [Bd([Holding([hand]), obj, p], True),
                   Bd([GraspFace([obj, hand]), graspFace, p], True),
                   B([Grasp([obj, hand, graspFace]), grasp, graspVar,
                      graspDelta, p], True)]
+    fluentList = simplifyCond(postCond, newFluents)
+    return [[fluentList]]
+
+# Add a condition on the pose and face of an object
+def addDropPreCond((postCond, hand, p),
+                   goal, start, vals):
+    newFluents = [Bd([Holding([hand]), 'none', p], True)]
     fluentList = simplifyCond(postCond, newFluents)
     return [[fluentList]]
 
@@ -529,7 +536,7 @@ def canReachHandGen(args, goal, start, vals):
     f = CanReachHome([conf, fcp, cond], True)
     path, viol = f.getViols(start, True, p)
     if viol and viol.heldShadows[handI[hand]] != []:
-        return [[True]]
+        return [[]]
     else:
         return []
 
@@ -540,7 +547,7 @@ def canReachDropGen(args, goal, start, vals):
     f = CanReachHome([conf, fcp, cond], True)
     path, viol = f.getViols(start, True, p)
     if viol and viol.heldObjects[handI[hand]] != []:
-        return [[True]]
+        return [[]]
     else:
         return []
         
@@ -551,8 +558,8 @@ def canPickPlaceDropGen(args, goal, start, vals):
      graspFace, graspMu, graspVar, graspDelta, op, cond, p) = args
     f = CanPickPlace(args[:-1], True)
     path, viol = f.getViols(start, True, p)
-    if viol and viol.heldObjects[handI[hand]] != []:
-        return [[True]]
+    if viol and viol.heldObstacles[handI[hand]] != []:
+        return [[]]
     else:
         return []
 
@@ -1504,7 +1511,7 @@ dropAchCanReach = Operator(\
          # Add the appropriate condition
          Function(['PreCond'],
                   ['PostCond', 'Hand', 'PR'],
-                  addGraspPreCond, 'addDropPreCond')],
+                  addDropPreCond, 'addDropPreCond')],
     cost = lambda al, args, details: 0.1,
     argsToPrint = [0, 4],
     ignorableArgs = range(1, 7))
@@ -1540,7 +1547,7 @@ dropAchCanPickPlace = Operator(\
          # Add the appropriate condition
          Function(['PreCond'],
                   ['PostCond', 'Hand', 'PR'],
-                  addGraspPreCond, 'addDropPreCond')],
+                  addDropPreCond, 'addDropPreCond')],
     cost = lambda al, args, details: 0.1,
     argsToPrint = [0, 4],
     ignorableArgs = range(1, 7))

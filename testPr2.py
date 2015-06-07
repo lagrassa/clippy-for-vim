@@ -961,7 +961,7 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
         realWorld.delObjectState(grasped)
         realWorld.setRobotConf(realWorld.robotConf) # to compute a new robotPlace
 
-    t.run(goal2,
+    t.run(goal3,
           hpn = hpn,
           skeleton = easySkel if skeleton else None,
           hierarchical = hierarchical,
