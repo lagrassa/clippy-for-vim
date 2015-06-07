@@ -385,7 +385,10 @@ def placeGen(args, goalConds, bState, outBindings):
     for ans, viol, hand in gen:
         print 'placeGen ->', hand
         (gB, pB, c, ca) = ans
-        yield (hand, gB.poseD.mode().xyztTuple(), gB.grasp.mode(), c, ca)
+         # LPK: added return of pose mode and face, in the case they
+         # weren't boudn coming in.
+        yield (hand, gB.poseD.mode().xyztTuple(), gB.grasp.mode(), c, ca,
+               pB.poseD.mode().xyztTuple(), pB.support.mode())
 
 def placeGenGen(args, goalConds, bState, outBindings):
     (obj, hand, poses, support, objV, graspV, objDelta, graspDelta, confDelta,

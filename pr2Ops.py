@@ -1192,7 +1192,8 @@ place = Operator(\
             # Not modeling the fact that the object's shadow should
             # grow a bit as we move to pick it.   Build that into pickGen.
             Function(['Hand', 
-                      'GraspMu', 'GraspFace', 'PlaceConf', 'PreConf'],
+                      'GraspMu', 'GraspFace', 'PlaceConf', 'PreConf',
+                      'Pose', 'PoseFace'],
                      ['Obj', 'Hand', 'Pose', 'PoseFace', 'RealPoseVar',
                       'GraspVar',
                       'PoseDelta', 'GraspDelta', 'ConfDelta',probForGenerators],
@@ -1534,7 +1535,7 @@ dropAchCanPickPlace = Operator(\
                  ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'Op', 'PreCond', 'PostCond', 'PR'],
+                          'Op', 'PostCond', 'PR'],
                  canPickPlaceDropGen,'canReachHandGen', True),
          # Add the appropriate condition
          Function(['PreCond'],
