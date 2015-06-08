@@ -1088,9 +1088,19 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
     # B in back
     goal3 = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
 
+    skel3h = [[poseAchIn],
+              [poseAchIn, bLoc1.applyBindings({'Obj' : 'table1'}),
+               lookAt, bLoc1.applyBindings({'Obj' : 'objB'}),
+               lookAt],
+             [lookAt.applyBindings({'Obj' : 'objB'}), moveNB],
+             [poseAchIn],
+             [poseAchIn, lookAt.applyBindings({'Obj' : 'objB'}), place],
+             [place, move, pick]]
+              
+
     t.run(goal3,
           hpn = hpn,
-          skeleton = skel3 if skeleton else None,
+          skeleton = skel3h if skeleton else None,
           heuristic = heuristic,
           hierarchical = hierarchical,
           rip = rip,

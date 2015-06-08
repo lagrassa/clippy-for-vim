@@ -889,6 +889,20 @@ class Operator(object):
 
     # Returns a list of (goal, cost) pairs
     # Operators used in hierarchical heuristic
+    # Should refactor!  Here's an outline
+    # - stop if immutable precond is false
+    # - discharge entailed conditions
+    # - get new bindings
+    # - get rid of entailments within the results
+    # - check that the results are consistent with the goal
+    # - discharge entailed conditions (again!) and do special regression
+    # - add conditions to conditional fluents
+    # - check to see that the new goal is consistent with preconds
+    # - check to see that the new goal is consistent with side effects;
+    #    if not, do a more primitive version
+    # - add in the preconditions
+    # - compute the cost
+    
     def regress(self, goal, startState = None, heuristic = None,
                 operators = []):
         tag = 'regression'
@@ -1046,18 +1060,13 @@ class Operator(object):
                     break
             newGoal.add(f, startState.details)
 
-        debugMsg('regression:entails', 'Discharge entailed', ('Op', self),
-                 ('goal', goal.fluents),
-                 ('newBindings', newBindings),
-                 ('newGoal', newGoal.fluents))
-
-        # Stop right away if an immutable precond is false
-        if any([(p.immutable and p.isGround() and \
-                 not startState.fluentValue(p) == p.getValue()) \
-                for p in boundPreconds]):
-            if not inHeuristic or debug('debugInHeuristic'):
-                debugMsg('regression:fail', 'immutable precond is false')
-            return []
+        # # Stop right away if an immutable precond is false
+        # if any([(p.immutable and p.isGround() and \
+        #          not startState.fluentValue(p) == p.getValue()) \
+        #         for p in boundPreconds]):
+        #     if not inHeuristic or debug('debugInHeuristic'):
+        #         debugMsg('regression:fail', 'immutable precond is false')
+        #     return []
 
         # Could fold the boundPrecond part of this in to addSet later
         if not newGoal.isConsistent(boundPreconds, startState.details):
@@ -1088,7 +1097,6 @@ class Operator(object):
             primOp.abstractionLevel += 1
             return primOp.regress(goal, startState)
 
-
         # Make another result, which is a place-holder for rebinding
         rebindLater = goal.copy()
         rebindLater.suspendedOperator = self.copy()
@@ -1096,14 +1104,20 @@ class Operator(object):
         rebindLater.rebind = True
         rebindCost = glob.rebindPenalty
 
-        # Add in the preconditions.  We can make new bindings between
-        # new and old preconds, but not between new ones!
-        bTemp = newGoal.addSet(boundPreconds, moreDetails = startState.details)
+        if not bindingsNoGood:
 
-        for f in newGoal.fluents:
-            if f.isConditional(): 
-                if not f.feasible(startState.details):
-                    bindingsNoBood = True
+            # Add in the preconditions.  We can make new bindings between
+            # new and old preconds, but not between new ones!
+            bTemp = newGoal.addSet(boundPreconds,
+                                   moreDetails = startState.details)
+
+            for f in newGoal.fluents:
+                if f.isConditional(): 
+                    if not f.feasible(startState.details):
+                        debugMsg('regression:fail',
+                                 'conditional fluent is infeasible',
+                                 f)
+                        bindingsNoGood = True
 
         if bindingsNoGood:
             rebindLater.suspendedOperator.instanceCost = rebindCost
@@ -1131,7 +1145,7 @@ class Operator(object):
             hNew = hh(newGoal)
             if hNew == float('inf'):
                 # This is hopeless.  Give up now.
-                debugMsg('infeasible', 'New goal is infeasible', newGoal)
+                debugMsg('regression:fail', 'New goal is infeasible', newGoal)
                 cost = float('inf')
             elif debug('simpleAbstractCostEstimates'):
                 hOrig = hh(goal)
