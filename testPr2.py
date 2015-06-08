@@ -2225,7 +2225,7 @@ def test22(hpn = True, skeleton = False, hierarchical = False,
           regions = ['table1Top']
           )
 
-def prof(test, n=50):
+def prof(test, n=100):
     import cProfile
     import pstats
     cProfile.run(test, 'prof')
