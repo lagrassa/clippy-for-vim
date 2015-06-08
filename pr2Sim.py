@@ -53,8 +53,10 @@ class RealWorld(WorldState):
             print 'Executed', op.name, 'got obs', obs
             debugMsg('executePrim')
             return obs
-        if op.name == 'Move' or op.name == 'MoveNB':
+        if op.name == 'Move':
             return endExec(self.executeMove(op, params))
+        if op.name == 'MoveNB':
+            return endExec(self.executeMove(op, params, noBase = True))
         elif op.name == 'LookAtHand':
             return endExec(self.executeLookAtHand(op, params))
         elif op.name == 'LookAt':
@@ -163,12 +165,18 @@ class RealWorld(WorldState):
                        moveHead=True, fixed=fixed)[0]:
                 return s
 
-    def executeMove(self, op, params):
+    def executeMove(self, op, params, noBase = False):
         vl = \
            ['CStart', 'CEnd', 'DEnd',
             'LObj', 'LFace', 'LGraspMu', 'LGraspVar', 'LGraspDelta',
             'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta',
             'P1', 'P2', 'PCR']
+        if noBase:
+        # !! This should not move the base...use a better test  LPK
+            startConf = op.args[0]
+            targetConf = op.args[1]
+            assert targetConf.conf['pr2Base'] == self.robotConf.conf['pr2Base']
+
         if params:
             path, interpolated  = params
             debugMsg('path', 'path len = ', len(path))
@@ -265,8 +273,6 @@ class RealWorld(WorldState):
     def executeLookAt(self, op, params):
         # targetObj = op.args[0]
         lookConf = op.args[1]
-        # !! This should not move the base...
-        assert lookConf.conf['pr2Base'] == self.robotConf.conf['pr2Base']
 
         return self.doLook(lookConf)
 
