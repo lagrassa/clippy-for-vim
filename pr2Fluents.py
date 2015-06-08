@@ -313,7 +313,7 @@ class CanReachHome(Fluent):
         return result
 
     def feasible(self, bState, v, p):
-        path, violations = self.getViols(bState, v, p)
+        path, violations = self.getViols(bState, v, p, strict = False)
         return violations != None
 
     def heuristicVal(self, details, v, p):
@@ -387,9 +387,9 @@ class CanReachNB(Fluent):
             (startConf, endConf, cond) = self.args
             assert isGround(endConf) and isGround(cond)
             path, violations = CanReachNB([endConf, endConf, cond], True).\
-                                    getViols(bState, v, p)
+                                    getViols(bState, v, p, strict = False)
         else:
-            path, violations = self.getViols(bState, v, p)
+            path, violations = self.getViols(bState, v, p, strict = False)
         return violations != None
 
     def getViols(self, bState, v, p, strict = True):
@@ -498,7 +498,7 @@ class CanPickPlace(Fluent):
           and not ('*' in f.args)
 
     def feasible(self, bState, v, p):
-        path, violations = self.getViols(bState, v, p)
+        path, violations = self.getViols(bState, v, p, strict = False)
         return violations != None
 
     # Add a glb method that will at least return False, {} if the two are

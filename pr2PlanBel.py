@@ -153,7 +153,7 @@ class PBS:
     def addAvoidShadow(self, avoidShadow):
         # print 'updating avoid shadow', self.avoidShadow, 'adding', avoidShadow
         for s in avoidShadow:
-            if s not in avoidShadow:
+            if s not in self.avoidShadow:
                 self.avoidShadow += [s]
         return self
 
