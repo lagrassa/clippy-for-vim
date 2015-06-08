@@ -120,7 +120,19 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
     objShadow = objPlace.shadow(pbs1.getShadowWorld(p))
     # Check visibility at preConf (for pick)
     if op=='pick' and not (fbch.inHeuristic or quick):
-        if not canView(pbs1, p, preConf, hand, objShadow):
+        path = canView(pbs1, p, preConf, hand, objShadow)
+        if path:
+            debugMsg('canPickPlaceTest', 'Succeeded visibility test for pick')
+            preConfView = path[-1]
+            if preConfView != preConf:
+                path, violations = canReachHome(pbs1, preConfView, p, violations)
+                if not violations:
+                    debugMsg('canPickPlaceTest', 'Cannot reachHome with retracted arm')
+                    pbs1.draw(p, 'W'); preConfView.draw('W', 'red')
+                    raw_input('canPickPlaceTest - Cannot reachHome with retracted arm')
+                    return None
+        else:
+            debugMsg('canPickPlaceTest', 'Failed visibility test for pick')
             return None
             
     # 2 - Can move from home to pre holding the object
@@ -140,8 +152,8 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         for c in path: c.draw('W', attached = pbs2.getShadowWorld(p).attached)
         debugMsg('canPickPlaceTest', 'path 2')
 
-    # Check visibility at preConf (for pick)
-    if op=='place' and not (fbch.inHeuristic or quick):
+    # Check visibility of support table at preConf (for pick AND place)
+    if op in ('pick', 'place') and not (fbch.inHeuristic or quick):
         tableB = findSupportTableInPbs(pbs1, objPlace.obj) # use pbs1 so obj is there
         assert tableB
         print 'Looking at support for', obj, '->', tableB.obj
@@ -226,10 +238,10 @@ def canView(pbs, prob, conf, hand, shape, maxIter = 50):
         for h in ['left', 'right']:     # try both hands
             if not vc.collides(armShape(conf, h)): continue
             print 'canView collision with', h, 'arm', conf['pr2Base']
+            chainName = pbs.getRobot().armChainNames[h]
             path, viol = planRobotGoalPath(pbs, prob, conf,
                                            lambda c: not avoid.collides(armShape(c,h)), None,
-                                           [pbs.getRobot().armChainNames[h]],
-                                           maxIter = maxIter)
+                                           [chainName], maxIter = maxIter)
             if debug('canView'):
                 pbs.draw(prob, 'W')
                 if path:

@@ -134,7 +134,7 @@ class PBS:
     def copy(self):
         return PBS(self.beliefContext, self.held.copy(), self.conf.copy(),
                    self.graspB.copy(), self.fixObjBs.copy(), self.moveObjBs.copy(),
-                   self.regions, self.domainProbs, self.useRight, self.avoidShadow)
+                   self.regions, self.domainProbs, self.useRight, self.avoidShadow[:])
 
     def objectsInPBS(self):
         objects = []
@@ -146,15 +146,13 @@ class PBS:
         return set(objects)
 
     def updateAvoidShadow(self, avoidShadow):
-        # print 'updating avoid shadow', self.avoidShadow, 'to be', avoidShadow
         self.avoidShadow = avoidShadow
         return self
 
     def addAvoidShadow(self, avoidShadow):
-        # print 'updating avoid shadow', self.avoidShadow, 'adding', avoidShadow
         for s in avoidShadow:
-            if s not in avoidShadow:
-                self.avoidShadow += [s]
+            if s not in self.avoidShadow:
+                self.avoidShadow = self.avoidShadow + [s]
         return self
 
     # Makes all objects permanent

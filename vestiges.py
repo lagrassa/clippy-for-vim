@@ -698,3 +698,76 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     #                 yield ans[0], viol2
     # else:
     #     placeInGenCache[key] = val
+
+###################################
+
+# returns values for (?pose, ?poseFace, ?graspPose, ?graspFace, ?graspvar, ?conf, ?confAppr)
+def placeInGenOld(args, goalConds, bState, outBindings,
+               considerOtherIns = False, regrasp = False, away=False):
+    (obj, region, pose, support, objV, graspV, objDelta,
+     graspDelta, confDelta, hand, prob) = args
+    if not isinstance(region, (list, tuple, frozenset)):
+        regions = frozenset([region])
+    else:
+        regions = frozenset(region)
+
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    pbs = bState.pbs.copy()
+    world = pbs.getWorld()
+
+    # !! Should derive this from the clearance in the region
+    domainPlaceVar = bState.domainProbs.obsVarTuple 
+
+    if isVar(graspV):
+        graspV = domainPlaceVar
+    if isVar(objV):
+        objV = graspV
+    if isVar(support):
+        if pbs.getPlaceB(obj, default=False):
+            support = pbs.getPlaceB(obj).support # !! Don't change support
+        elif obj == pbs.held[hand].mode():
+            attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob), hand)
+            shape = pbs.getWorld().getObjectShapeAtOrigin(obj).applyLoc(attachedShape.origin())
+            support = supportFaceIndex(shape)
+        else:
+            assert None, 'Cannot determine support'
+
+    graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
+                       PoseD(None, graspV), delta=graspDelta)
+    placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
+                       PoseD(None, objV), delta=objDelta)
+
+
+    # If pose is specified, just call placeGen
+    if pose and not isVar(pose):
+        if debug('placeInGen'):
+            pbs.draw(prob, 'W')
+            debugMsgSkip('placeInGen', skip, ('Pose specified', pose))
+        oplaceB = placeB.modifyPoseD(mu=util.Pose(*pose))
+        def placeBGen():
+            yield oplaceB
+        placeBs = Memoizer('placeBGen', placeBGen())
+        for ans, viol in placeGenTop((obj, graspB, placeBs, hand, prob),
+                                     goalConds, pbs, [], away=away):
+            (gB, pB, cf, ca) = ans
+            yield (pose, oplaceB.support.mode(),
+                   gB.poseD.mode().xyztTuple(), gB.grasp.mode(), graspV, cf, ca)
+        return
+
+    # !! Needs to consider uncertainty in region -- but how?
+
+    shWorld = pbs.getShadowWorld(prob)
+    regShapes = [shWorld.regionShapes[region] for region in regions]
+    if debug('placeInGen'):
+        if len(regShapes) == 0:
+            debugMsg('placeInGen', 'no region specified')
+        shWorld.draw('W')
+        for rs in regShapes: rs.draw('W', 'purple')
+        debugMsgSkip('placeInGen', skip, 'Target region in purple')
+    for ans, viol in placeInGenTop((obj, regShapes, graspB, placeB, hand, prob),
+                                   goalConds, pbs, outBindings, considerOtherIns,
+                                   regrasp=regrasp, away=away):
+        (pB, gB, cf, ca) = ans
+        yield (pB.poseD.mode().xyztTuple(), pB.support.mode(),
+               gB.poseD.mode().xyztTuple(), gB.grasp.mode(), graspV, cf, ca)
+

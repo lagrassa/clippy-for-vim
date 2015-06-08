@@ -13,9 +13,11 @@ from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
      findRegionParent, CanReachNB, BaseConf, BLoc
+import planGlobals as glob
 from planGlobals import debugMsg, debug, useROS
 import pr2RRT as rrt
 from pr2Visible import visible
+import windowManager3D as wm
 
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
@@ -91,6 +93,21 @@ def primPath(bs, cs, ce, p):
     assert path1
     path2, v2 = canReachHome(bs, ce, p, Violations())
     assert path2
+
+    # !! Debugging hack
+    rw = glob.realWorld
+    held = rw.held.values()
+    objShapes = [rw.objectShapes[obj] \
+                 for obj in rw.objectShapes if not obj in held]
+    attached = bs.getShadowWorld(p).attached
+    for path in (path1, path2):
+        for conf in path:
+            for obst in objShapes:
+                if conf.placement(attached=attached).collides(obst):
+                    wm.getWindow('W').clear(); rw.draw('W');
+                    conf.draw('W', 'magenta'); obst.draw('W', 'magenta')
+                    raw_input('RealWorld crash! with '+obst.name())
+    
     if v1.weight() > 0 or v2.weight() > 0:
         if v1.weight() > 0: print 'start viol', v1
         if v2.weight() > 0: print 'end viol', v2
@@ -546,7 +563,7 @@ def canReachDropGen(args, goal, start, vals):
     (conf, fcp, p, cond, hand) = args
     f = CanReachHome([conf, fcp, cond], True)
     path, viol = f.getViols(start, True, p)
-    if viol and viol.heldObjects[handI[hand]] != []:
+    if viol and viol.heldObstacles[handI[hand]] != []:
         return [[]]
     else:
         return []
@@ -755,6 +772,7 @@ def lookAtBProgress(details, args, obs):
     (_, lookConf, _, _, _, _, _, _, _, _, _) = args
     objectObsUpdate(details, lookConf, obs)
     details.pbs.reset()
+    details.pbs.getRoadMap().confReachCache = {} # Clear motion planning cache
     debugMsg('beliefUpdate', 'look')
 
 llMatchThreshold = 0  

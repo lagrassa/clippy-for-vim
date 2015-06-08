@@ -525,6 +525,10 @@ class PlanTest:
         else:
             self.realWorld = RealWorld(world, self.bs,
                                        self.domainProbs) # simulator
+
+            # !! Gross hack for debugging
+            glob.realWorld = self.realWorld
+
             self.realWorld.setRobotConf(self.bs.pbs.conf)
             # LPK!! add collision checking
             heldLeft = self.bs.pbs.held['left'].mode()

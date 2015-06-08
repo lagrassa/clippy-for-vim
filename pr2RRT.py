@@ -237,6 +237,10 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
     if debug('verifyPath'):
         verifyPath(pbs, prob, path, 'rrt:'+str(moveChains))
         verifyPath(pbs, prob, interpolatePath(path), 'interp rrt:'+str(moveChains))
+    # Verify that only the moving chain is moved.
+    for chain in initConf.conf:
+        if chain not in moveChains:
+            assert all(initConf[chain] == c[chain] for c in path)
     return path, allowedViol
 
 def planRobotPathSeq(pbs, prob, initConf, destConf, allowedViol,
@@ -285,7 +289,15 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
     rrtTime = time.time() - startTime
     if debug('rrt'):
         print 'Found goal path in', rrtTime, 'secs'
-    return [c.conf for c in nodes], allowedViol
+    path = [c.conf for c in nodes]
+    # Verify that only the moving chain is moved.
+    for chain in initConf.conf:
+        if chain not in moveChains:
+            assert all(initConf[chain] == c[chain] for c in path)
+    if debug('verifyPath'):
+        verifyPath(pbs, prob, path, 'rrt:'+chain)
+        verifyPath(pbs, prob, interpolatePath(path), 'interp rrt:'+chain)
+    return path, allowedViol
 
 def interpolate(q_f, q_i, stepSize=0.25, moveChains=None, maxSteps=100):
     robot = q_f.robot
@@ -309,9 +321,13 @@ def verifyPath(pbs, p, path, msg='rrt'):
     shWorld = pbs.getShadowWorld(p)
     obst = shWorld.getObjectShapes()
     attached = shWorld.attached
-    for p in path:
-        robotShape = p.placement(attached=attached)
+    pbsDrawn = False
+    for conf in path:
+        robotShape = conf.placement(attached=attached)
         if any(robotShape.collides(o) for o in obst):
+            if not pbsDrawn:
+                pbs.draw(p, 'W')
+                pbsDrawn = True
             print msg, 'path',
             colliders = [o for o in obst if robotShape.collides(o)]
             robotShape.draw('W', 'red')

@@ -399,6 +399,8 @@ class RoadMap:
                 if not fbch.inHeuristic and debug('showPath'):
                     print 'confAns reverse=', reverse
                     showPath(pbs, prob, path)
+                if debug('verifyPath'):
+                    assert self.checkPath(path, pbs, prob)
                 return (viol, cost, path)
             else:
                 return (None, None, None)
@@ -668,7 +670,7 @@ class RoadMap:
             # Switch to joint interpolation if cartesian interpolation fails!!
             final = []
             for c in rrt.interpolate(n_i.conf, n_f.conf,
-                                     stepSize=0.5 if fbch.inHeuristic else 0.25,
+                                     stepSize=2*minStep if fbch.inHeuristic else minStep,
                                      moveChains=self.moveChains):
                 for chain in self.robot.chainNames: #  fill in
                     if not chain in c.conf:
