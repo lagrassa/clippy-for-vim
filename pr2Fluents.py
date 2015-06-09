@@ -355,8 +355,7 @@ def hCost(violations, obstCost, details):
     d = details.domainProbs.minDelta
     ep = details.domainProbs.obsTypeErrProb
     vo = details.domainProbs.obsVarTuple
-    # compute shadow costs individually
-    shadowSum = 0
+
     for o in shadowOps:
         # Use variance in start state
         obj = objectName(o.args[0])
@@ -364,13 +363,37 @@ def hCost(violations, obstCost, details):
         deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
         c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
         o.instanceCost = c
-        shadowSum += c
     ops = obstOps.union(shadowOps)
+
+    # look at hand or drop an object
+    (heldObstL, heldObstR) = violations.heldObstacles # left set, right set
+    (heldShadL, heldShadR) = violations.heldShadows # left set, right set
+
+    leftDrop = len(heldObstL) > 0
+    rightDrop = len(heldObstR) > 0
+    leftLook = len(heldShadL) > 0
+    rightLook = len(heldLookR) > 0
+
+    if leftDrop:
+        op = Operator('DropLeft', [], {}, [])
+        o.instanceCost = obstCost / 2.0
+        ops.append(op)
+    if rightDrop:
+        op = Operator('DropRight', [], {}, [])
+        o.instanceCost = obstCost / 2.0
+        ops.append(op)
+    if leftLook:
+        op = Operator('LookRight', [], {}, [])
+        # Should calculate grasp variance and delta, etc.  Skipping for now
+        o.instanceCost = 1.0
+        ops.append(op)
+
+    totalCost = sum([o.instanceCost for o in ops])
+
     if debug('hAddBack'):
         print 'Heuristic val', self.predicate
-        print 'ops', ops, 'cost',\
-         prettyString(obstCost * len(obstOps) + shadowSum)
-    return (obstCost * len(obstacles) + shadowSum, ops)
+        print 'ops', ops, 'cost', totalCost
+    return (totalCost, ops)
 
 class CanReachNB(Fluent):
     predicate = 'CanReachNB'
@@ -595,6 +618,8 @@ class CanPickPlace(Fluent):
         # violPPTest = canPickPlaceTest(newBS, preConf, ppConf, hand,
         #                               graspB, placeB, p, op=opType)
 
+
+        # LPK!!! Fix the following if we put it back in
         # testEq = (violations == violPPTest or \
         #   (violations and violPPTest and \
         #    set([x.name() for x in violations.obstacles]) == \

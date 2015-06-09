@@ -1083,7 +1083,7 @@ class Operator(object):
             
         elif newGoal.couldBeClobbered(boundSE, startState.details):
             if not inHeuristic or debug('debugInHeuristic'):
-                if debug('regression:fail'):
+                if True: #debug('regression:fail'):
                     for f1 in boundSE:
                         for f2 in newGoal.fluents:
                             if f1.couldClobber(f2, startState.details):
@@ -1092,7 +1092,8 @@ class Operator(object):
                              'side effects may be inconsistent with goal',
                              ('newGoal', newGoal), ('sideEffects', boundSE))
 
-            print 'Trying less abstract version of op'
+            print 'Trying less abstract version of op', self
+            raw_input('okay?')
             primOp = self.copy()
             # LPK: This is maybe nicer, but too expensive
             # primOp.abstractionLevel += 1

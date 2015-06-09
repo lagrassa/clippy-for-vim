@@ -563,6 +563,7 @@ def awayRegion(args, goal, start, vals):
 
 # Really just return true if reducing variance on the object in the
 # hand will reduce the violations.
+#####    Fix this!!!
 def canReachHandGen(args, goal, start, vals):
     (conf, fcp, p, cond, hand) = args
     f = CanReachHome([conf, fcp, cond], True)
@@ -1281,10 +1282,10 @@ pick = Operator(\
         # Pre
         {0 : {Graspable(['Obj'], True),
               BLoc(['Obj', planVar, planP], True)},
-         1 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
+         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
               B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta',
                  'P1'], True)},
-         2 : {Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
+         1 : {Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
                                'PoseVar', 'PoseDelta', 'PoseFace',
                                'GraspFace', 'GraspMu', 'RealGraspVar',
                                'GraspDelta', 'pick', []]), True, canPPProb],
