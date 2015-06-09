@@ -125,7 +125,9 @@ def safeConf(conf, pbs, prob, allowedViol):
     viol = pbs.getRoadMap().confViolations(conf, pbs, prob)
     return viol \
            and viol.obstacles <= allowedViol.obstacles \
-           and viol.shadows <= allowedViol.shadows
+           and viol.shadows <= allowedViol.shadows \
+           and viol.heldObstacles <= allowedViol.heldObstacles \
+           and viol.heldShadows <= allowedViol.shadows
 
 def eqChains(conf1, conf2, moveChains):
     return all([conf1.conf[c]==conf2.conf[c] for c in moveChains])

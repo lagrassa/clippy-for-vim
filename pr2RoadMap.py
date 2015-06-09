@@ -23,8 +23,7 @@ from miscUtil import prettyString
 from heapq import heappush, heappop
 from pr2Util import Violations, NextColor, drawPath, shadowWidths, Hashable, combineViols, shadowp
 
-objCollisionCost = 10.0                    # !! was 2.0
-shCollisionCost = 2.0
+violationCosts = (10.0, 2.0, 10.0, 5.0)
 
 maxSearchNodes = 5000                   # 5000
 maxExpandedNodes = 2000                  # 2000
@@ -285,18 +284,19 @@ def makeViolations(shWorld, coll):
        or any((hColl[h] and shWorld.fixedHeld[handName[h]]) for h in hands) \
        or any((hsColl[h] and shWorld.fixedGrasp[handName[h]]) for h in hands):
         return None
-    allColl = aColl + hColl[0] + hColl[1] + hsColl[0] + hsColl[1]
-    shad = [o for o in allColl if shadowp(o)]
-    obst = [o for o in allColl if not o in shad]
+    shad = [o for o in aColl if shadowp(o)]
+    obst = [o for o in aColl if not o in shad]
     return Violations(obst, shad, hColl, hsColl)
 
 def violToColl(viol):
     aColl = (list(viol.obstacles)+list(viol.shadows))[:]
     for h in hands:
         for o in viol.heldObstacles[h]:
-            if o in aColl: aColl.remove(o)
+            if o in aColl:
+                raw_input('Inconsistent viol')
         for o in viol.heldShadows[h]:
-            if o in aColl: aColl.remove(o)
+            if o in aColl:
+                raw_input('Inconsistent viol')
     hColl = tuple([list(viol.heldObstacles[h])[:] for h in hands])
     hsColl = tuple([list(viol.heldShadows[h])[:] for h in hands])
     return (aColl, hColl, hsColl)
@@ -1056,7 +1056,7 @@ class RoadMap:
                                           initViol=cv, ignoreAttached=True)
                 if cvt == None or not testFn(targetNode): continue
                 edge = Edge(startNode, targetNode)
-                ans = (cvt, cvt.weight(objCollisionCost,shCollisionCost),
+                ans = (cvt, cvt.weight(violationCosts),
                        [(edge, 0), (edge, 1)])
                 yield ans
             return
@@ -1074,8 +1074,8 @@ class RoadMap:
                                    successors,
                                    # compute incremental cost...
                                    lambda s, a: (a, pointDist(s[0].point, a[0].point) + \
-                                                 a[1].weight(objCollisionCost, shCollisionCost) - \
-                                                 s[1].weight(objCollisionCost, shCollisionCost)),
+                                                 a[1].weight(violationCosts) - \
+                                                 s[1].weight(violationCosts)),
                                    goalTest = testFn,
                                    heuristic = lambda s,g: (useStartH and s.hVal) or pointDist(s.point, g.point),
                                    goalKey = lambda x: x[0],

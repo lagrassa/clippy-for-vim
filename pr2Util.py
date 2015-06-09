@@ -146,13 +146,6 @@ class Violations(Hashable):
         sh = shadows[:]
         if not heldObstacles: heldObstacles = ([], [])
         if not heldShadows: heldShadows = ([], [])
-        # Make sure that all collisions are represented in obstacles and shaodws
-        for hand in (0,1):              # left=0, right=1
-            for o in heldObstacles[hand] + heldShadows[hand]:
-                if 'shadow' in o.name():
-                    sh.append(o)
-                else:
-                    obst.append(o)
         self.obstacles = frozenset(obst)
         # Collisions with only shadows, remove collisions with objects as well
         self.shadows = frozenset([o for o in sh if not o in self.obstacles])
@@ -161,6 +154,16 @@ class Violations(Hashable):
         self.heldShadows = tuple([frozenset([o for o in heldShadows[hand] \
                                              if not o in self.heldObstacles[hand]]) \
                                   for hand in (0,1)])
+    def allObstacles(self):
+        obst = self.obstacles[:]
+        for o in self.heldObstacles + self.heldShadows:
+            if not shadowp(o): obst.append(o)
+        return obst
+    def allShadows(self):
+        shad = self.shadows[:]
+        for o in self.heldObstacles + self.heldShadows:
+            if shadowp(o): shad.append(o)
+        return shad
     def empty(self):
         return (not self.obstacles) and (not self.shadows) \
                and (not any(x for x in self.heldObstacles)) \
@@ -174,9 +177,11 @@ class Violations(Hashable):
                                upd(self.heldObstacles[1], viol.heldObstacles[1])),
                               (upd(self.heldShadows[0], viol.heldShadows[0]),
                                upd(self.heldShadows[1], viol.heldShadows[1])))
-    def weight(self, obj=1.0, shd=0.5):
-        return obj*(len(self.obstacles)) + \
-               shd*(len(self.shadows))
+    def weight(self, weights=(1.0, 0.5, 1.0, 0.5)):
+        return weights[0]*len(self.obstacles) + \
+               weights[1]*len(self.shadows) + \
+               weights[2]*sum([1 if ho else 0 for ho in self.heldObstacles]) +\
+               weights[3]*sum([1 if hs else 0 for hs in self.heldShadows])
     def LEQ(self, other):
         return self.weight() <= other.weight()
     def desc(self):

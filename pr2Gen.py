@@ -1249,24 +1249,22 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
     objBMinProb = 0.95
     lookDelta = objBMinDelta
     moveDelta = objBMinDelta
+    shWorld = newBS.getShadowWorld(prob)
+    fixed = shWorld.fixedObjects
     # Try to fix one of the violations if any...
-    if viol.obstacles:
-        obsts = [o.name() for o in viol.obstacles \
-                 if o.name() not in newBS.fixObjBs]
-        if not obsts:
-            debugMsg(tag, 'No movable obstacles to fix')
-            return       # nothing available
-        # !! How carefully placed this object needs to be
-        for ans in moveOut(newBS, prob, obsts[0], moveDelta, goalConds):
-            yield ans 
-    else:
-        shWorld = newBS.getShadowWorld(prob)
-        fixed = shWorld.fixedObjects
-        shadows = [sh.name() for sh in shWorld.getShadowShapes() \
-                   if not sh.name() in fixed]
-        if not shadows:
-            debugMsg(tag, 'No shadows to clear')
-            return       # nothing available
+    obstacles = [o.name() for o in viol.allObstacles() \
+                 if o.name() not in fixed]
+    shadows = [sh.name() for sh in viol.allShadows() \
+               if not sh.name() in fixed]
+    if not (obstacles or shadows):
+        debugMsg(tag, 'No movable obstacles or shadows to fix')
+        return       # nothing available
+    if obstacles:
+        obstacleName = obstacles[0]
+        for ans in moveOut(newBS, prob, obstacleName, moveDelta, goalConds):
+            yield ans
+        return
+    if shadows:
         shadowName = shadows[0]
         obst = objectName(shadowName)
         placeB = newBS.getPlaceB(obst)
@@ -1278,7 +1276,7 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
         newBS2.updatePermObjPose(placeB2)
         viol2 = violFn(newBS2)
         if viol2:
-            if shadowName in [x.name() for x in viol2.shadows]:
+            if shadowName in [x.name() for x in viol2.allShadows()]:
                 print 'could not reduce the shadow for', obst, 'enough to avoid'
                 drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
                 print 'brown is as far as it goes'
