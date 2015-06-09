@@ -287,6 +287,17 @@ def makeViolations(shWorld, coll):
     obst = [o for o in allColl if not o in shad]
     return Violations(obst, shad, hColl, hsColl)
 
+def violToColl(viol):
+    aColl = list(viol.obstacles)+list(viol.shadows)
+    for h in hands:
+        for o in viol.heldObstacles[h]:
+            if o in aColl: aColl.remove(o)
+        for o in viol.heldShadows[h]:
+            if o in aColl: aColl.remove(o)
+    hColl = tuple([list(viol.heldObstacles[h]) for h in hands])
+    hsColl = tuple([list(viol.heldShadows[h]) for h in hands])
+    return (aColl, hColl, hsColl)
+
 viol0 = Violations()
 stats = {'newRob':0, 'newHeld':0, 'oldRob':0, 'oldHeld':0,
          'newTest':0, 'oldTest':0}
@@ -806,23 +817,31 @@ class RoadMap:
         permanent = shWorld.fixedObjects # set of names
         permanentObst = [o for o in shWorld.getObjectShapes() if o.name() in permanent]
         for obst in shWorld.getObjectShapes():
-            if obst in aColl: continue
+            # If already know of a collision along the edge, then skip
+            if obst in aColl:
+                aColl.append(obst)
+                continue
             coll = edge.aColl.get(obst, None) if edge else None
             if coll is None:
                 coll = robShape.collides(obst)
-                if edge: edge.aColl[obst] = bool(coll)
             if coll:
                 if obst in permanentObst:
                     if draw:
                         obst.draw('W', 'magenta')
                         raw_input('Collision with permanent = %s'%obst.name())
+                    if edge:
+                        edge.aColl[obst] = True
                     return None # irremediable
                 aColl.append(obst)
                 continue            # it collides with arm, nothing else matters
-            if not attached: continue
+            if not attached or not any(attached.values()): continue
             for h in hands:
                 hand = handName[h]
                 if not attached[hand] or obst in hColl[h] or obst in hsColl[h]:
+                    continue
+                # check hColl
+                if obst in hColl[h]:
+                    hColl[h].append(obst)
                     continue
                 held, heldSh = heldParts(attachedPartsDict[hand])
                 if edge:
@@ -833,18 +852,24 @@ class RoadMap:
                         return None
                     coll = gcoll.get(obst, None)
                 else:
-                    coll is None
+                    coll = None
                 if coll is None:
                     coll = held.collides(obst)
-                    if edge: edge.hColl[obst] = bool(coll)
                 if coll:
                     hColl[h].append(obst)
                     if shWorld.fixedHeld[hand]:
                         if draw:
                             obst.draw('W', 'magenta')
                             raw_input('Collision with perm held = %s'%obst.name())
+                        if edge:
+                            hc = edge.hColl[hand].setdefault(pbs.graspB[hand], {})
+                            hc[obst] = True
                         return None # irremediable
                     continue        # if collides with held, the shadow doesn't matter
+                # Check hsColl
+                if obst in hsColl[h]:
+                    hsColl[h].append(obst)
+                    continue
                 if edge:
                     gcoll = edge.hsColl[hand].setdefault(pbs.graspB[hand], {})
                     if gcoll.get('heldSelfCollision', False):
@@ -856,12 +881,13 @@ class RoadMap:
                     coll = None
                 if coll is None:
                     coll = heldSh.collides(obst)
-                    if edge: edge.hsColl[obst] = bool(coll)
                 if coll:
                     if shWorld.fixedGrasp[hand]:
                         if draw:
                             obst.draw('W', 'magenta')
                             raw_input('Collision with perm held shadow = %s'%obst.name())
+                        hs = edge.hsColl[hand].setdefault(pbs.graspB[hand], {})
+                        hs[obst] = True
                         return None # irremediable
                     hsColl[h].append(obst)
         return True
@@ -872,14 +898,23 @@ class RoadMap:
     def colliders(self, edge, pbs, prob, viol):
         if edge.aColl.get('robotSelfCollision', False): return None
         shWorld = pbs.getShadowWorld(prob)
-        aColl = list(viol.obstacles)+list(viol.shadows) 
-        hColl = {h: list(viol.heldObstacles[h]) for h in hands}
-        hsColl = {h: list(viol.heldShadows[h]) for h in hands}
+        (aColl, hColl, hsColl) = violToColl(viol)
         for node in edge.nodes:
             # updates aColl, hColl, hsColl by side-effect
             if self.confColliders(pbs, prob, node.conf, aColl, hColl, hsColl,
                                   edge=edge) is None:
                 return None
+        # Cache in the edge
+        attached = shWorld.attached
+        for obst in shWorld.getObjectShapes():
+            edge.aColl[obst] = obst in aColl
+            for h in hands:
+                hand = handName[h]
+                if attached[hand]:
+                    hc = edge.hColl[hand].setdefault(pbs.graspB[hand], {})
+                    hc[obst] = obst in hColl[h]
+                    hs = edge.hsColl[hand].setdefault(pbs.graspB[hand], {})
+                    hs[obst] = obst in hsColl[h]
         return makeViolations(shWorld, (aColl, hColl, hsColl))
 
     def checkPath(self, path, pbs, prob):
@@ -926,9 +961,7 @@ class RoadMap:
         if initViol is None:
             return None, (None, None)
         shWorld = pbs.getShadowWorld(prob)
-        aColl = list(initViol.obstacles)+list(initViol.shadows) 
-        hColl = {h: list(initViol.heldObstacles[h]) for h in hands}
-        hsColl = {h: list(initViol.heldShadows[h]) for h in hands}
+        (aColl, hColl, hsColl) = violToColl(initViol)
         if self.confColliders(pbs, prob, conf, aColl, hColl, hsColl,
                               ignoreAttached=ignoreAttached,
                               draw=debug('confViolations')) is None:
@@ -1022,8 +1055,7 @@ class RoadMap:
                                           initViol=cv, ignoreAttached=True)
                 if cvt == None or not testFn(targetNode): continue
                 edge = Edge(startNode, targetNode)
-                ans = (cvt,
-                       objCollisionCost*len(cvt.obstacles)+shCollisionCost*len(cvt.shadows),
+                ans = (cvt, cvt.weight(objCollisionCost,shCollisionCost),
                        [(edge, 0), (edge, 1)])
                 yield ans
             return
@@ -1041,8 +1073,8 @@ class RoadMap:
                                    successors,
                                    # compute incremental cost...
                                    lambda s, a: (a, pointDist(s[0].point, a[0].point) + \
-                                                 objCollisionCost * len(a[1].obstacles - s[1].obstacles) + \
-                                                 shCollisionCost * len(a[1].shadows - s[1].shadows)),
+                                                 a[1].weight(objCollisionCost, shCollisionCost) - \
+                                                 s[1].weight(objCollisionCost, shCollisionCost)),
                                    goalTest = testFn,
                                    heuristic = lambda s,g: (useStartH and s.hVal) or pointDist(s.point, g.point),
                                    goalKey = lambda x: x[0],
@@ -1403,3 +1435,4 @@ def showPath(pbs, p, path):
         c.draw('W')
         raw_input('Next?')
     raw_input('Path end')
+

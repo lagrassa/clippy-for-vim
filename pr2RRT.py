@@ -235,7 +235,7 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
     if debug('rrt'):
         print 'Found path in', rrtTime, 'secs'
     path = [c.conf for c in nodes]
-    if debug('verifyPath'):
+    if debug('verifyRRTPath'):
         verifyPath(pbs, prob, path, 'rrt:'+str(moveChains))
         verifyPath(pbs, prob, interpolatePath(path), 'interp rrt:'+str(moveChains))
 
@@ -262,7 +262,7 @@ def planRobotPathSeq(pbs, prob, initConf, destConf, allowedViol,
             if pth:
                 if debug('rrt'): print 'RRT - found path for', chain
                 path.extend(pth)
-                if debug('verifyPath'):
+                if debug('verifyRRTPath'):
                     verifyPath(pbs, prob, path, 'rrt:'+chain)
                     verifyPath(pbs, prob, interpolatePath(path), 'interp rrt:'+chain)
             else:
@@ -301,7 +301,7 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
     for chain in initConf.conf:
         if chain not in moveChains:
             assert all(initConf[chain] == c[chain] for c in path)
-    if debug('verifyPath'):
+    if debug('verifyRRTPath'):
         verifyPath(pbs, prob, path, 'rrt:'+chain)
         verifyPath(pbs, prob, interpolatePath(path), 'interp rrt:'+chain)
     return path, allowedViol

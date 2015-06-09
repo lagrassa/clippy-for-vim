@@ -68,12 +68,25 @@ def primPath(bs, cs, ce, p):
             print i, 'path segment has', len(confs), 'confs'
             interpolated.extend(confs)
         return interpolated
+    def verifyPath(pbs, prob, path, msg):
+        shWorld = pbs.getShadowWorld(prob)
+        attached = shWorld.attached
+        pbsDrawn = False
+        for conf in path:
+            viol = pbs.getRoadMap().confViolations(conf, pbs, prob)
+            if not viol or viol.weight() > 0:
+                if not pbsDrawn:
+                    pbs.draw(p, 'W')
+                    pbsDrawn = True
+                print msg, 'path', viol
+                conf.draw('W', 'red', attached=attached)
+                raw_input('Ok?')
     def verifyPaths(path, smoothed, interpolated):
         if debug('verifyPath'):
-            rrt.verifyPath(bs, p, path, 'original')
-            rrt.verifyPath(bs, p, interpolate(path), 'original interpolated')
-            rrt.verifyPath(bs, p, smoothed, 'smoothed')
-            rrt.verifyPath(bs, p, interpolated, 'smoothed interpolated')
+            verifyPath(bs, p, path, 'original')
+            verifyPath(bs, p, interpolate(path), 'original interpolated')
+            verifyPath(bs, p, smoothed, 'smoothed')
+            verifyPath(bs, p, interpolated, 'smoothed interpolated')
     if tryDirectPath:
         path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
                                           maxIter=50, failIter=10)
@@ -89,7 +102,9 @@ def primPath(bs, cs, ce, p):
             verifyPaths(path, smoothed, interpolated)
             return smoothed, interpolated
     # Should use optimize = True, but sometimes leads to failure - why??
-    path1, v1 = canReachHome(bs, cs, p, Violations(), reversePath=True)
+
+    #!! Used to have: reversePath=True, why?
+    path1, v1 = canReachHome(bs, cs, p, Violations())
     assert path1
     path2, v2 = canReachHome(bs, ce, p, Violations())
     assert path2

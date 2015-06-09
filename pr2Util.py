@@ -174,8 +174,9 @@ class Violations(Hashable):
                                upd(self.heldObstacles[1], viol.heldObstacles[1])),
                               (upd(self.heldShadows[0], viol.heldShadows[0]),
                                upd(self.heldShadows[1], viol.heldShadows[1])))
-    def weight(self):
-        return len(self.obstacles) + 0.5*len(self.shadows)
+    def weight(self, obj=1.0, shd=0.5):
+        return obj*(len(self.obstacles)) + \
+               shd*(len(self.shadows))
     def LEQ(self, other):
         return self.weight() <= other.weight()
     def desc(self):
