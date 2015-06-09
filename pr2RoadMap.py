@@ -103,9 +103,12 @@ class Edge(Hashable):
         self.ends = (n1, n2)
         self.nodes = []              # intermediate nodes
         # Cache for collisions on this edge.
-        self.hColl = {'left':{}, 'right':{}} # {(obj,g): {object : {True, False}}}
-        self.hsColl = {'left':{}, 'right':{}} # {graspB: {object : {True, False}}}
-        self.aColl = {}                 # {object : {True, False}}
+        # aColl: {object : {True, False}}
+        # hColl {graspB: {object : {True, False}}}
+        # hsColl {graspB: {object : {True, False}}}
+        self.aColl = {}
+        self.hColl = {'left':{}, 'right':{}}
+        self.hsColl = {'left':{}, 'right':{}}
         self.bbox = None
         # print 'Creating', self
     def draw(self, window, color = 'cyan'):
@@ -288,14 +291,14 @@ def makeViolations(shWorld, coll):
     return Violations(obst, shad, hColl, hsColl)
 
 def violToColl(viol):
-    aColl = list(viol.obstacles)+list(viol.shadows)
+    aColl = (list(viol.obstacles)+list(viol.shadows))[:]
     for h in hands:
         for o in viol.heldObstacles[h]:
             if o in aColl: aColl.remove(o)
         for o in viol.heldShadows[h]:
             if o in aColl: aColl.remove(o)
-    hColl = tuple([list(viol.heldObstacles[h]) for h in hands])
-    hsColl = tuple([list(viol.heldShadows[h]) for h in hands])
+    hColl = tuple([list(viol.heldObstacles[h])[:] for h in hands])
+    hsColl = tuple([list(viol.heldShadows[h])[:] for h in hands])
     return (aColl, hColl, hsColl)
 
 viol0 = Violations()
@@ -411,7 +414,8 @@ class RoadMap:
                     print 'confAns reverse=', reverse
                     showPath(pbs, prob, path)
                 if debug('verifyPath'):
-                    assert self.checkPath(path, pbs, prob)
+                    if not self.checkPath(path, pbs, prob):
+                        raw_input('Failed checkPath')
                 return (viol, cost, path)
             else:
                 return (None, None, None)
@@ -791,6 +795,30 @@ class RoadMap:
                 graph.incidence[node] = set([edge])
         return edge
 
+    def confCollidersAux(self, rob, obst, sumColl, edgeColl, perm, draw):
+        if obst in sumColl: return True # known collision
+        if edgeColl:
+            if edgeColl.get('heldSelfCollision', False):
+                if draw: raw_input('selfCollision')
+                return None
+            coll = edgeColl.get(obst, None) # check outcome in cache
+        else:
+            coll = None                 # not known
+        if coll is None:
+            coll = rob.collides(obst)   # outcome
+        if coll:                        # collision
+            sumColl.append(obst)        # record in summary
+            if edgeColl:
+                edgeColl[obst] = True   # store in cache
+            if perm:                    # permanent
+                if draw:
+                    obst.draw('W', 'magenta')
+                    raw_input('Collision with perm held = %s'%obst.name())
+                return None # irremediable
+            return True                 # collision
+        else:
+            return False                # no collision
+
     def confColliders(self, pbs, prob, conf, aColl, hColl, hsColl, 
                       edge=None, ignoreAttached=False, draw=False):
         def heldParts(obj):
@@ -805,6 +833,8 @@ class RoadMap:
         attached = None if ignoreAttached else shWorld.attached
         robShape, attachedPartsDict = conf.placementAux(attached=attached)
         attachedParts = [x for x in attachedPartsDict.values() if x]
+        permanent = shWorld.fixedObjects # set of names
+        permanentObst = [o for o in shWorld.getObjectShapes() if o.name() in permanent]
         if draw:
             robShape.draw('W', 'purple')
             for part in attachedParts: part.draw('W', 'purple')
@@ -813,92 +843,45 @@ class RoadMap:
             if draw:
                 raw_input('selfCollision')
             return None
-
-        permanent = shWorld.fixedObjects # set of names
-        permanentObst = [o for o in shWorld.getObjectShapes() if o.name() in permanent]
         for obst in shWorld.getObjectShapes():
-            # If already know of a collision along the edge, then skip
-            if obst in aColl:
-                aColl.append(obst)
-                continue
-            coll = edge.aColl.get(obst, None) if edge else None
-            if coll is None:
-                coll = robShape.collides(obst)
-            if coll:
-                if obst in permanentObst:
-                    if draw:
-                        obst.draw('W', 'magenta')
-                        raw_input('Collision with permanent = %s'%obst.name())
-                    if edge:
-                        edge.aColl[obst] = True
-                    return None # irremediable
-                aColl.append(obst)
-                continue            # it collides with arm, nothing else matters
+            eColl = edge.aColl if edge else None
+            res = self.confCollidersAux(robShape, obst, aColl, eColl,
+                                        obst in permanentObst, draw)
+            if res is None: return None
+            elif res: continue          # collision
             if not attached or not any(attached.values()): continue
             for h in hands:
                 hand = handName[h]
                 if not attached[hand] or obst in hColl[h] or obst in hsColl[h]:
                     continue
-                # check hColl
-                if obst in hColl[h]:
-                    hColl[h].append(obst)
-                    continue
                 held, heldSh = heldParts(attachedPartsDict[hand])
+                # check hColl
                 if edge:
-                    gcoll = edge.hColl[hand].setdefault(pbs.graspB[hand], {})
-                    if gcoll.get('heldSelfCollision', False):
-                        if draw:
-                            raw_input('selfCollision')
-                        return None
-                    coll = gcoll.get(obst, None)
-                else:
-                    coll = None
-                if coll is None:
-                    coll = held.collides(obst)
-                if coll:
-                    hColl[h].append(obst)
-                    if shWorld.fixedHeld[hand]:
-                        if draw:
-                            obst.draw('W', 'magenta')
-                            raw_input('Collision with perm held = %s'%obst.name())
-                        if edge:
-                            hc = edge.hColl[hand].setdefault(pbs.graspB[hand], {})
-                            hc[obst] = True
-                        return None # irremediable
-                    continue        # if collides with held, the shadow doesn't matter
+                    hc = edge.hColl[hand].get(pbs.graspB[hand], None)
+                    if hc is None:
+                        edge.hColl[hand][pbs.graspB[hand]] = {}
+                eColl = edge.hColl[hand][pbs.graspB[hand]] if edge else None
+                res = self.confCollidersAux(held, obst, hColl[h], eColl,
+                                            shWorld.fixedHeld[hand], draw)
+                if res is None: return None
+                elif res: continue          # collision
                 # Check hsColl
-                if obst in hsColl[h]:
-                    hsColl[h].append(obst)
-                    continue
                 if edge:
-                    gcoll = edge.hsColl[hand].setdefault(pbs.graspB[hand], {})
-                    if gcoll.get('heldSelfCollision', False):
-                        if draw:
-                            raw_input('selfCollision')
-                        return None
-                    coll = gcoll.get(obst, None)
-                else:
-                    coll = None
-                if coll is None:
-                    coll = heldSh.collides(obst)
-                if coll:
-                    if shWorld.fixedGrasp[hand]:
-                        if draw:
-                            obst.draw('W', 'magenta')
-                            raw_input('Collision with perm held shadow = %s'%obst.name())
-                        hs = edge.hsColl[hand].setdefault(pbs.graspB[hand], {})
-                        hs[obst] = True
-                        return None # irremediable
-                    hsColl[h].append(obst)
+                    hs = edge.hsColl[hand].get(pbs.graspB[hand], None)
+                    if hs is None:
+                        edge.hsColl[hand][pbs.graspB[hand]] = {}
+                eColl = edge.hsColl[hand][pbs.graspB[hand]] if edge else None
+                res = self.confCollidersAux(heldSh, obst, hsColl[h], eColl,
+                                            shWorld.fixedGrasp[hand], draw)
         return True
 
     # We want edge to depend only on endpoints so we can cache the
     # interpolated confs.  The collisions depend on the robot variance
     # as well as the particular obstacles (and their varince).
-    def colliders(self, edge, pbs, prob, viol):
+    def colliders(self, edge, pbs, prob, initViol):
         if edge.aColl.get('robotSelfCollision', False): return None
         shWorld = pbs.getShadowWorld(prob)
-        (aColl, hColl, hsColl) = violToColl(viol)
+        (aColl, hColl, hsColl) = violToColl(initViol)
         for node in edge.nodes:
             # updates aColl, hColl, hsColl by side-effect
             if self.confColliders(pbs, prob, node.conf, aColl, hColl, hsColl,
@@ -911,17 +894,35 @@ class RoadMap:
             for h in hands:
                 hand = handName[h]
                 if attached[hand]:
-                    hc = edge.hColl[hand].setdefault(pbs.graspB[hand], {})
-                    hc[obst] = obst in hColl[h]
-                    hs = edge.hsColl[hand].setdefault(pbs.graspB[hand], {})
-                    hs[obst] = obst in hsColl[h]
-        return makeViolations(shWorld, (aColl, hColl, hsColl))
+                    hc = edge.hColl[hand].get(pbs.graspB[hand], None)
+                    if hc is None:
+                        edge.hColl[hand][pbs.graspB[hand]] = {}
+                    edge.hColl[hand][pbs.graspB[hand]][obst] = obst in hColl[h]
+                    hs = edge.hsColl[hand].get(pbs.graspB[hand], None)
+                    if hs is None:
+                        edge.hsColl[hand][pbs.graspB[hand]] = {}
+                    edge.hsColl[hand][pbs.graspB[hand]][obst] = obst in hsColl[h]
+        viol = makeViolations(shWorld, (aColl, hColl, hsColl))
+
+        if debug('verifyPath'):
+            testViol = self.checkPath([n.conf for n in edge.nodes],
+                                      pbs, prob)
+            testViol = testViol.update(initViol)
+            if testViol.names() != viol.names():
+                print 'colliders', viol
+                print 'check    ', testViol
+                raw_input('Inconsistent viols')
+
+        return viol
 
     def checkPath(self, path, pbs, prob):
         newViol = viol0
         for conf in path:
             newViol = self.confViolations(conf, pbs, prob, initViol=newViol)
-            if newViol is None: return None
+            if newViol is None:
+                print 'viol', newViol
+                pbs.draw(prob, 'W'); conf.draw('W', 'magenta')
+                return None
         return newViol
 
     def checkNodePathTest(self, graph, nodePath, pbs, prob):
