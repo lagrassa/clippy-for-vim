@@ -372,7 +372,7 @@ def hCost(violations, obstCost, details):
     leftDrop = len(heldObstL) > 0
     rightDrop = len(heldObstR) > 0
     leftLook = len(heldShadL) > 0
-    rightLook = len(heldLookR) > 0
+    rightLook = len(heldShadR) > 0
 
     if leftDrop:
         op = Operator('DropLeft', [], {}, [])
