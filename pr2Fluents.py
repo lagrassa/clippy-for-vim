@@ -377,16 +377,21 @@ def hCost(violations, obstCost, details):
     if leftDrop:
         op = Operator('DropLeft', [], {}, [])
         o.instanceCost = obstCost / 2.0
-        ops.append(op)
+        ops.add(op)
     if rightDrop:
         op = Operator('DropRight', [], {}, [])
         o.instanceCost = obstCost / 2.0
-        ops.append(op)
+        ops.add(op)
     if leftLook:
+        op = Operator('Lookleft', [], {}, [])
+        # Should calculate grasp variance and delta, etc.  Skipping for now
+        o.instanceCost = 1.0
+        ops.add(op)
+    if rightLook:
         op = Operator('LookRight', [], {}, [])
         # Should calculate grasp variance and delta, etc.  Skipping for now
         o.instanceCost = 1.0
-        ops.append(op)
+        ops.add(op)
 
     totalCost = sum([o.instanceCost for o in ops])
 
