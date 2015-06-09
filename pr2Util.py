@@ -155,12 +155,12 @@ class Violations(Hashable):
                                              if not o in self.heldObstacles[hand]]) \
                                   for hand in (0,1)])
     def allObstacles(self):
-        obst = self.obstacles[:]
+        obst = list(self.obstacles)
         for o in self.heldObstacles + self.heldShadows:
             if not shadowp(o): obst.append(o)
         return obst
     def allShadows(self):
-        shad = self.shadows[:]
+        shad = list(self.shadows)
         for o in self.heldObstacles + self.heldShadows:
             if shadowp(o): shad.append(o)
         return shad
