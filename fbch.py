@@ -1093,7 +1093,7 @@ class Operator(object):
                              ('newGoal', newGoal), ('sideEffects', boundSE))
 
             print 'Trying less abstract version of op', self
-            raw_input('okay?')
+            #raw_input('okay?')
             primOp = self.copy()
             # LPK: This is maybe nicer, but too expensive
             # primOp.abstractionLevel += 1
