@@ -6,6 +6,7 @@ import planGlobals as glob
 from planGlobals import debug, debugMsg
 import util
 import windowManager3D as wm
+from miscUtil import within
 
 ############################################################
 #  TO DO:
@@ -237,10 +238,16 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
     if debug('verifyPath'):
         verifyPath(pbs, prob, path, 'rrt:'+str(moveChains))
         verifyPath(pbs, prob, interpolatePath(path), 'interp rrt:'+str(moveChains))
+
     # Verify that only the moving chain is moved.
     for chain in initConf.conf:
         if chain not in moveChains:
-            assert all(initConf[chain] == c[chain] for c in path)
+            ## !! LPK needs to be approximately equal
+            eps = 1e-6
+            assert all([all([within(x, y, eps) \
+                        for (x, y) in zip(initConf[chain], c[chain])]) for \
+                          c in path])
+            #assert all(initConf[chain] == c[chain] for c in path)
     return path, allowedViol
 
 def planRobotPathSeq(pbs, prob, initConf, destConf, allowedViol,

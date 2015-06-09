@@ -563,10 +563,18 @@ def canReachDropGen(args, goal, start, vals):
     (conf, fcp, p, cond, hand) = args
     f = CanReachHome([conf, fcp, cond], True)
     path, viol = f.getViols(start, True, p)
-    if viol and viol.heldObstacles[handI[hand]] != []:
-        return [[]]
-    else:
-        return []
+    if viol:
+        heldOs = viol.heldObstacles[handI[hand]]
+        if len(heldOs) > 0:
+            heldO = heldOs[0]
+            fbs = fbch.getMatchingFluents(goal.fluents,
+                           Bd([Holding([hand]), 'Obj', 'P'], True))
+            # should be 0 or 1 object names
+            matches = [b['Obj'] for (f, b) in fbs if isGround(b.values)]
+            if not heldO in matches:
+                # We're not supposed to be holding this in the goal
+                return [[]]
+    return []
         
 # Really just return true if putting down the object in the
 # hand will reduce the violations.
@@ -575,10 +583,18 @@ def canPickPlaceDropGen(args, goal, start, vals):
      graspFace, graspMu, graspVar, graspDelta, op, cond, p) = args
     f = CanPickPlace(args[:-1], True)
     path, viol = f.getViols(start, True, p)
-    if viol and viol.heldObstacles[handI[hand]] != []:
-        return [[]]
-    else:
-        return []
+    if viol:
+        heldOs = viol.heldObstacles[handI[hand]]
+        if len(heldOs) > 0:
+            heldO = heldOs[0]
+            fbs = fbch.getMatchingFluents(goal.fluents,
+                           Bd([Holding([hand]), 'Obj', 'P'], True))
+            # should be 0 or 1 object names
+            matches = [b['Obj'] for (f, b) in fbs if isGround(b.values)]
+            if heldO != obj and not heldO in matches:
+                print 'canPickPlaceDropGen dropping', heldO
+                return [[]]
+    return []
 
 ################################################################
 ## Special regression funs
@@ -1568,7 +1584,7 @@ dropAchCanPickPlace = Operator(\
                   addDropPreCond, 'addDropPreCond')],
     cost = lambda al, args, details: 0.1,
     argsToPrint = [0, 4],
-    ignorableArgs = range(1, 7))
+    ignorableArgs = [0, 1, 2] + range(4, 7))
 
 
 '''
