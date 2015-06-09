@@ -168,13 +168,13 @@ class Violations(Hashable):
     def allObstacles(self):
         obst = list(self.obstacles)
         for h in (0,1):
-            for o in self.heldObstacles[h] + self.heldShadows[h]:
+            for o in self.heldObstacles[h].union(self.heldShadows[h]):
                 if not shadowp(o): obst.append(o)
         return obst
     def allShadows(self):
         shad = list(self.shadows)
         for h in (0,1):
-            for o in self.heldObstacles[h] + self.heldShadows[h]:
+            for o in self.heldObstacles[h].union(self.heldShadows[h]):
                 if shadowp(o): shad.append(o)
         return shad
     def empty(self):

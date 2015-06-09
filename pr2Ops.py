@@ -586,7 +586,7 @@ def canReachDropGen(args, goal, start, vals):
             if len(collidesWithHeld) > 0:
                 heldO = start.pbs.held[hand].mode()
                 assert heldO != 'none'
-                fbs = fbch.getMatchingFluents(goal.fluents,
+                fbs = fbch.getMatchingFluents(goal,
                                Bd([Holding([hand]), 'Obj', 'P'], True))
                 # should be 0 or 1 object names
                 matches = [b['Obj'] for (f, b) in fbs if isGround(b.values)]
