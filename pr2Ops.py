@@ -5,7 +5,7 @@ from dist import DeltaDist, varBeforeObs, DDist, probModeMoved, MixtureDist,\
      UniformDist, chiSqFromP, MultivariateGaussianDistribution
 import fbch
 from fbch import Function, getMatchingFluents, Operator, simplifyCond
-from miscUtil import isVar, prettyString, makeDiag
+from miscUtil import isVar, prettyString, makeDiag, isGround
 from pr2Util import PoseD, shadowName, ObjGraspB, ObjPlaceB, Violations,\
      shadowWidths
 from pr2Gen import pickGen, canReachHome, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen, placeInRegionGen, placeGen
@@ -575,21 +575,24 @@ def canReachHandGen(args, goal, start, vals):
 # Really just return true if putting down the object in the
 # hand will reduce the violations.
 def canReachDropGen(args, goal, start, vals):
-    (conf, fcp, p, cond, hand) = args
+    (conf, fcp, p, cond) = args
     f = CanReachHome([conf, fcp, cond], True)
+    result = []
     path, viol = f.getViols(start, True, p)
-    if viol:
-        heldOs = viol.heldObstacles[handI[hand]]
-        if len(heldOs) > 0:
-            heldO = heldOs[0]
-            fbs = fbch.getMatchingFluents(goal.fluents,
-                           Bd([Holding([hand]), 'Obj', 'P'], True))
-            # should be 0 or 1 object names
-            matches = [b['Obj'] for (f, b) in fbs if isGround(b.values)]
-            if not heldO in matches:
-                # We're not supposed to be holding this in the goal
-                return [[]]
-    return []
+    for hand in ('left', 'right'):
+        if viol:
+            collidesWithHeld = viol.heldObstacles[handI[hand]]
+            if len(collidesWithHeld) > 0:
+                heldO = start.pbs.held[hand].mode()
+                assert heldO != 'none'
+                fbs = fbch.getMatchingFluents(goal.fluents,
+                               Bd([Holding([hand]), 'Obj', 'P'], True))
+                # should be 0 or 1 object names
+                matches = [b['Obj'] for (f, b) in fbs if isGround(b.values)]
+                if heldO != 'none' and len(matches) == 0 or matches == ['none']:
+                    # Holding none is consistent with the goal
+                    result.append([hand])
+    return result
         
 # Really just return true if putting down the object in the
 # hand will reduce the violations.
@@ -597,19 +600,26 @@ def canPickPlaceDropGen(args, goal, start, vals):
     (preConf, placeConf, hand, obj, pose, poseVar, poseDelta, poseFace,
      graspFace, graspMu, graspVar, graspDelta, op, cond, p) = args
     f = CanPickPlace(args[:-1], True)
+    result = []
     path, viol = f.getViols(start, True, p)
-    if viol:
-        heldOs = viol.heldObstacles[handI[hand]]
-        if len(heldOs) > 0:
-            heldO = heldOs[0]
-            fbs = fbch.getMatchingFluents(goal.fluents,
-                           Bd([Holding([hand]), 'Obj', 'P'], True))
-            # should be 0 or 1 object names
-            matches = [b['Obj'] for (f, b) in fbs if isGround(b.values)]
-            if heldO != obj and not heldO in matches:
-                print 'canPickPlaceDropGen dropping', heldO
-                return [[]]
-    return []
+    for dropHand in ('left', 'right'):
+        if viol:
+            # objects that collide with the object in the hand
+            collidesWithHeld = viol.heldObstacles[handI[dropHand]]
+            if len(collidesWithHeld) > 0:  # maybe make sure not shadow
+                heldO = start.pbs.held[dropHand].mode()
+                fbs = fbch.getMatchingFluents(goal,
+                               Bd([Holding([dropHand]), 'Obj', 'P'], True))
+                # should be 0 or 1 object names
+                matches = [b['Obj'] for (f, b) in fbs if isGround(b.values())]
+                if heldO != obj and heldO != 'none' and \
+                   (len(matches) == 0 or matches == ['none']):
+                    print 'canPickPlaceDropGen dropping', heldO, dropHand
+                    print 'held obstacles', collidesWithHeld
+                    print 'goal held', matches
+                    raw_iput('okay?')
+                    result.append([dropHand])
+    return result
 
 ################################################################
 ## Special regression funs
@@ -1544,9 +1554,8 @@ graspAchCanReach = Operator(\
 dropAchCanReach = Operator(\
     'DropAchCanReach',
     ['CEnd', 'FCP', 'PreCond', 'PostCond', 'Hand', 'P1', 'PR'],
-    {0: {},
-     1: {Bd([CanReachHome(['CEnd', 'FCP', 'PreCond']),  True, 'PR'], True),
-         Bd([Holding(['Hand']), 'none', 'P1'], True)}},
+    {0: {Bd([CanReachHome(['CEnd', 'FCP', 'PreCond']),  True, 'PR'], True)},
+     1: {Bd([Holding(['Hand']), 'none', 'P1'], True)}},
     # Result
     [({Bd([CanReachHome(['CEnd', 'FCP','PostCond']),  True, 'PR'], True)}, {})],
 
@@ -1555,7 +1564,7 @@ dropAchCanReach = Operator(\
         # Compute precond probs
         Function(['P1'], ['PR'], regressProb(1), 'regressProb1', True),
         # Call generator
-        Function([], ['CEnd', 'FCP', 'PR', 'PostCond', 'Hand'],
+        Function(['Hand'], ['CEnd', 'FCP', 'PR', 'PostCond'],
                  canReachDropGen,'canReachHandGen', True),
          # Add the appropriate condition
          Function(['PreCond'],
@@ -1570,13 +1579,12 @@ dropAchCanPickPlace = Operator(\
     ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'Op', 'PreCond', 'PostCond', 'P1', 'PR'],
-    {0: {},
-     1: {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
+                          'Op', 'DropHand', 'PreCond', 'PostCond', 'P1', 'PR'],
+    {0: {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'Op', 'PreCond']), True, 'PR'],True),
-         Bd([Holding(['Hand']), 'none', 'P1'], True)}},
+                          'Op', 'PreCond']), True, 'PR'],True)},
+     1: {Bd([Holding(['DropHand']), 'none', 'P1'], True)}},
     # Result
     [({Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
@@ -1587,15 +1595,15 @@ dropAchCanPickPlace = Operator(\
         # Compute precond probs
         Function(['P1'], ['PR'], regressProb(1), 'regressProb1', True),
         # Call generator
-        Function([],
+        Function(['DropHand'],
                  ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
                           'Op', 'PostCond', 'PR'],
-                 canPickPlaceDropGen,'canReachHandGen', True),
+                 canPickPlaceDropGen,'canPickPlaceDropGen', True),
          # Add the appropriate condition
          Function(['PreCond'],
-                  ['PostCond', 'Hand', 'PR'],
+                  ['PostCond', 'DropHand', 'PR'],
                   addDropPreCond, 'addDropPreCond')],
     cost = lambda al, args, details: 0.1,
     argsToPrint = [0, 4],

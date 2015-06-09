@@ -1094,7 +1094,9 @@ class Operator(object):
 
             print 'Trying less abstract version of op'
             primOp = self.copy()
-            primOp.abstractionLevel += 1
+            # LPK: This is maybe nicer, but too expensive
+            # primOp.abstractionLevel += 1
+            primOp.abstractionLevel = primOp.concreteAbstractionLevel
             return primOp.regress(goal, startState)
 
         # Make another result, which is a place-holder for rebinding

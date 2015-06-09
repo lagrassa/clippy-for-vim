@@ -240,14 +240,14 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
         verifyPath(pbs, prob, interpolatePath(path), 'interp rrt:'+str(moveChains))
 
     # Verify that only the moving chain is moved.
-    for chain in initConf.conf:
-        if chain not in moveChains:
+    #for chain in initConf.conf:
+    #    if chain not in moveChains:
             # ## !! LPK needs to be approximately equal
             # eps = 1e-6
             # assert all([all([within(x, y, eps) \
             #             for (x, y) in zip(initConf.conf[chain], c.conf[chain])]) for \
             #               c in path])
-            assert all(initConf.conf[chain] == c.conf[chain] for c in path)
+            #assert all(initConf.conf[chain] == c.conf[chain] for c in path)
     return path, allowedViol
 
 def planRobotPathSeq(pbs, prob, initConf, destConf, allowedViol,
