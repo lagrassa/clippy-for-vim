@@ -126,8 +126,8 @@ def safeConf(conf, pbs, prob, allowedViol):
     return viol \
            and viol.obstacles <= allowedViol.obstacles \
            and viol.shadows <= allowedViol.shadows \
-           and viol.heldObstacles <= allowedViol.heldObstacles \
-           and viol.heldShadows <= allowedViol.shadows
+           and all(viol.heldObstacles[h] <= allowedViol.heldObstacles[h] for h in (0,1)) \
+           and all(viol.heldShadows[h] <= allowedViol.heldShadows[h] for h in (0,1))
 
 def eqChains(conf1, conf2, moveChains):
     return all([conf1.conf[c]==conf2.conf[c] for c in moveChains])

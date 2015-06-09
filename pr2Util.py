@@ -149,20 +149,33 @@ class Violations(Hashable):
         self.obstacles = frozenset(obst)
         # Collisions with only shadows, remove collisions with objects as well
         self.shadows = frozenset([o for o in sh if not o in self.obstacles])
-        self.heldObstacles = tuple([frozenset(heldObstacles[hand]) for hand in (0,1)])
+        ao = self.obstacles.union(self.shadows)
+        ho = ([],[])
+        if heldObstacles:
+            for h in (0,1):
+                for o in heldObstacles[h]:
+                    if o not in ao: ho[h].append(o)
+        hs = ([],[])
+        if heldShadows:
+            for h in (0,1):
+                for o in heldShadows[h]:
+                    if o not in ao: hs[h].append(o)
+        self.heldObstacles = tuple([frozenset(ho[h]) for h in (0,1)])
         # Collisions only with heldShadow, remove collisions with heldObject as well
-        self.heldShadows = tuple([frozenset([o for o in heldShadows[hand] \
-                                             if not o in self.heldObstacles[hand]]) \
-                                  for hand in (0,1)])
+        self.heldShadows = tuple([frozenset([o for o in hs[h] \
+                                             if not o in self.heldObstacles[h]]) \
+                                  for h in (0,1)])
     def allObstacles(self):
         obst = list(self.obstacles)
-        for o in self.heldObstacles + self.heldShadows:
-            if not shadowp(o): obst.append(o)
+        for h in (0,1):
+            for o in self.heldObstacles[h] + self.heldShadows[h]:
+                if not shadowp(o): obst.append(o)
         return obst
     def allShadows(self):
         shad = list(self.shadows)
-        for o in self.heldObstacles + self.heldShadows:
-            if shadowp(o): shad.append(o)
+        for h in (0,1):
+            for o in self.heldObstacles[h] + self.heldShadows[h]:
+                if shadowp(o): shad.append(o)
         return shad
     def empty(self):
         return (not self.obstacles) and (not self.shadows) \

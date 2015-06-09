@@ -893,23 +893,24 @@ class RoadMap:
         for node in edge.nodes:
             # updates aColl, hColl, hsColl by side-effect
             if self.confColliders(pbs, prob, node.conf, aColl, hColl, hsColl,
-                                  edge=edge) is None:
+                                  # !! edge
+                                  edge=None) is None:
                 return None
         # Cache in the edge
-        attached = shWorld.attached
-        for obst in shWorld.getObjectShapes():
-            edge.aColl[obst] = (obst in aColl)
-            for h in hands:
-                hand = handName[h]
-                if attached[hand]:
-                    hc = edge.hColl[hand].get(pbs.graspB[hand], None)
-                    if hc is None:
-                        edge.hColl[hand][pbs.graspB[hand]] = {}
-                    edge.hColl[hand][pbs.graspB[hand]][obst] = (obst in hColl[h])
-                    hs = edge.hsColl[hand].get(pbs.graspB[hand], None)
-                    if hs is None:
-                        edge.hsColl[hand][pbs.graspB[hand]] = {}
-                    edge.hsColl[hand][pbs.graspB[hand]][obst] = (obst in hsColl[h])
+        # attached = shWorld.attached
+        # for obst in shWorld.getObjectShapes():
+        #     edge.aColl[obst] = (obst in aColl)
+        #     for h in hands:
+        #         hand = handName[h]
+        #         if attached[hand]:
+        #             hc = edge.hColl[hand].get(pbs.graspB[hand], None)
+        #             if hc is None:
+        #                 edge.hColl[hand][pbs.graspB[hand]] = {}
+        #             edge.hColl[hand][pbs.graspB[hand]][obst] = (obst in hColl[h])
+        #             hs = edge.hsColl[hand].get(pbs.graspB[hand], None)
+        #             if hs is None:
+        #                 edge.hsColl[hand][pbs.graspB[hand]] = {}
+        #             edge.hsColl[hand][pbs.graspB[hand]][obst] = (obst in hsColl[h])
         viol = makeViolations(shWorld, (aColl, hColl, hsColl))
 
         if debug('verifyPath'):
