@@ -278,6 +278,13 @@ def combineNodeGraphs(*graphs):
 def makeViolations(shWorld, coll):
     if coll is None: return None
     (aColl, hColl, hsColl) = coll
+    for h in hands:
+        for o in hColl[h]:
+            if o in aColl:
+                raw_input('Inconsistent viol')
+        for o in hsColl[h]:
+            if o in aColl:
+                raw_input('Inconsistent viol')
     fixedNames = set(shWorld.fixedObjects)
     aCollNames = set([o.name() for o in aColl])
     if fixedNames.intersection(aCollNames) \
@@ -289,7 +296,7 @@ def makeViolations(shWorld, coll):
     return Violations(obst, shad, hColl, hsColl)
 
 def violToColl(viol):
-    aColl = (list(viol.obstacles)+list(viol.shadows))[:]
+    aColl = (list(viol.obstacles)+list(viol.shadows))
     for h in hands:
         for o in viol.heldObstacles[h]:
             if o in aColl:
@@ -297,8 +304,8 @@ def violToColl(viol):
         for o in viol.heldShadows[h]:
             if o in aColl:
                 raw_input('Inconsistent viol')
-    hColl = tuple([list(viol.heldObstacles[h])[:] for h in hands])
-    hsColl = tuple([list(viol.heldShadows[h])[:] for h in hands])
+    hColl = tuple([list(viol.heldObstacles[h]) for h in hands])
+    hsColl = tuple([list(viol.heldShadows[h]) for h in hands])
     return (aColl, hColl, hsColl)
 
 viol0 = Violations()
@@ -873,6 +880,7 @@ class RoadMap:
                 eColl = edge.hsColl[hand][pbs.graspB[hand]] if edge else None
                 res = self.confCollidersAux(heldSh, obst, hsColl[h], eColl,
                                             shWorld.fixedGrasp[hand], draw)
+                if res is None: return None
         return True
 
     # We want edge to depend only on endpoints so we can cache the
@@ -890,18 +898,18 @@ class RoadMap:
         # Cache in the edge
         attached = shWorld.attached
         for obst in shWorld.getObjectShapes():
-            edge.aColl[obst] = obst in aColl
+            edge.aColl[obst] = (obst in aColl)
             for h in hands:
                 hand = handName[h]
                 if attached[hand]:
                     hc = edge.hColl[hand].get(pbs.graspB[hand], None)
                     if hc is None:
                         edge.hColl[hand][pbs.graspB[hand]] = {}
-                    edge.hColl[hand][pbs.graspB[hand]][obst] = obst in hColl[h]
+                    edge.hColl[hand][pbs.graspB[hand]][obst] = (obst in hColl[h])
                     hs = edge.hsColl[hand].get(pbs.graspB[hand], None)
                     if hs is None:
                         edge.hsColl[hand][pbs.graspB[hand]] = {}
-                    edge.hsColl[hand][pbs.graspB[hand]][obst] = obst in hsColl[h]
+                    edge.hsColl[hand][pbs.graspB[hand]][obst] = (obst in hsColl[h])
         viol = makeViolations(shWorld, (aColl, hColl, hsColl))
 
         if debug('verifyPath'):
@@ -911,7 +919,7 @@ class RoadMap:
             if testViol.names() != viol.names():
                 print 'colliders', viol
                 print 'check    ', testViol
-                raw_input('Inconsistent viols')
+                raw_input('verifyPath: Inconsistent viols')
 
         return viol
 
