@@ -52,7 +52,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         if objShape.name() == 'PR2': continue # already handled
         if objShape.collides(vc):
             potentialOccluders.append(objShape)
-    if True: # debug('visible'):
+    if debug('visible'):
         print 'potentialOccluders', potentialOccluders
     if not potentialOccluders:
         cacheStats[2 if fbch.inHeuristic else 5] += 1
