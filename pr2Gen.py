@@ -524,10 +524,10 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False, up
             w = v.weight() if v else None
             trace('    placeGen(%s,%s) viol='%(obj,hand), w, '(p,g)=', pg,
                   pose, '(t=', time.clock()-startTime, ')')
-            if not fbch.inHeuristic:
-                print '    placeGen(%s,%s) viol='%(obj,hand), w, '(p,g)=', pg,\
-                  pose, '(t=', time.clock()-startTime, ')'
-                raw_input('okay?')
+            # if not fbch.inHeuristic:
+            #     print '    placeGen(%s,%s) viol='%(obj,hand), w, '(p,g)=', pg,\
+            #       pose, '(t=', time.clock()-startTime, ')'
+            #     raw_input('okay?')
         yield x,v, hand
 
 def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
