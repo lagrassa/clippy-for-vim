@@ -15,6 +15,8 @@ from pr2RoadMap import validEdgeTest
 # from pr2GenAux import canPickPlaceTest
 
 tiny = 1.0e-6
+obstCost = 10  # Heuristic cost of moving an object
+
 
 ################################################################
 ## Fluent definitions
@@ -319,8 +321,6 @@ class CanReachHome(Fluent):
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
         (conf, fcp, cond) = self.args
-        approxPrimCost = 2
-        obstCost = 4 * approxPrimCost  # move pick move place
 
         if not self.isGround():
             # assume an obstacle, if we're asking.  May need to decrease this
@@ -486,7 +486,6 @@ class CanReachNB(Fluent):
         # Return cost estimate and a set of dummy operations
         (startConf, conf, cond) = self.args   # Args
 
-        obstCost = 10  # move pick move place
         unboundCost = 1  # we don't know whether this will be hard or not
 
         if not self.isGround():
@@ -662,8 +661,6 @@ class CanPickPlace(Fluent):
 
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
-        obstCost = 5  # move, pick, move, place, maybe a look at hand
-
         if not self.isGround():
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
@@ -914,8 +911,6 @@ class CanSeeFrom(Fluent):
         # Return cost estimate and a set of dummy operations
         (obj, pose, poseFace, conf, cond) = self.args
         
-        obstCost = 10  # move pick move place
-
         if not self.isGround():
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
@@ -923,47 +918,10 @@ class CanSeeFrom(Fluent):
             return (obstCost, {dummyOp})
         
         path, occluders = self.getViols(details, v, p, strict = False)
-        if path == None:
-            #!! should this happen?
-            print '&&&&&&', self, v, p
-            print 'hv infinite'
-            raw_input('go?')
-            return float('inf'), {}
-        obstacles = occluders
-        shadows = [] # I think these are never shadows?
-        obstOps = set([Operator('RemoveObst', [oName],{},[]) \
-                       for oName in obstacles])
-        for o in obstOps: o.instanceCost = obstCost
-        shadowOps = set([Operator('RemoveShadow', [oName],{},[]) \
-                     for oName in shadows])
-        d = details.domainProbs.minDelta
-        ep = details.domainProbs.obsTypeErrProb
-        vo = details.domainProbs.obsVarTuple
-        # compute shadow costs individually
-        shadowSum = 0
-        for o in shadowOps:
-            # Use variance in start state
-            obj = objectName(o.args[0])
-            vb = details.pbs.getPlaceB('table1').poseD.variance()
-            deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
-            c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
-            o.instanceCost = c
-            shadowSum += c
-        ops = obstOps.union(shadowOps)
-        if debug('hAddBack'):
-            print 'Heuristic val', self.predicate
-            print 'ops', ops, 'cost',\
-             prettyString(obstCost * len(obstOps) + shadowSum)
-            raw_input('foo?')
-        return (obstCost * len(obstacles) + shadowSum, ops)
+        return hCost(violations, obstCost, details)
 
     def prettyString(self, eq = True, includeValue = True):
         (obj, pose, poseFace, conf, cond) = self.args
-
-        # if not isVar(cond) and len(cond) > 0:
-        #     print 'CanSeeFrom'
-        #     print self.args
-        #     raw_input('conditions okay?')
 
         condStr = self.args[-1] if isVar(self.args[-1]) else \
           str([innerPred(c) for c in self.args[-1]]) 

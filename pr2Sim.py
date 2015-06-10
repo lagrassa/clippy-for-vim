@@ -257,7 +257,7 @@ class RealWorld(WorldState):
             obsMissProb = self.domainProbs.obsTypeErrProb
             miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
             if miss:
-                raw_input('Missed observation')
+                print 'Missed observation'
                 continue
             else:
                 obsVar = self.domainProbs.obsVar

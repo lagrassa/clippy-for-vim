@@ -131,6 +131,7 @@ class Stack:
         return len(self.__storage) == 0
 
     def push(self,p):
+        p.level = len(self.__storage)
         self.__storage.append(p)
 
     def pop(self):

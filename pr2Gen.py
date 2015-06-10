@@ -51,6 +51,9 @@ def easyGraspGen(args, goalConds, bState, outBindings):
     
     pbs = bState.pbs.copy()
     (obj, hand) = args
+
+    assert obj != None and obj != 'none'
+
     trace('easyGraspGen(%s,%s) h='%(obj,hand), fbch.inHeuristic)
     if obj == 'none' or (goalConds and getConf(goalConds, None)):
         trace('easyGraspGen', 'obj is none or conf in goal conds')
@@ -590,10 +593,10 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                 for c,ca,_ in graspConfGen:
                     if debug('placeGen', skip=skip):
                         c.draw('W', 'orange')
+                        debugMsg('placeGen', 'Yielding conf')
                     approached[ca] = c
                     count += 1
                     context[ca] = (pB, gB)
-                    debugMsg('placeGen', 'Yielding conf')
                     yield ca
                     # if count > 2: break # !! ??
         if debug('placeGen', skip=skip):

@@ -316,6 +316,7 @@ def assign(args, goal, start, vals):
 
 # Be sure the argument is not 'none'
 def notNone(args, goal, start, vals):
+    assert args[0] != None
     if args[0] == 'none':
         return None
     else:
@@ -1164,8 +1165,7 @@ poseAchIn = Operator(\
             # Results
             [({Bd([In(['Obj1', 'Region']), True, 'PR'], True)},{})],
             functions = [\
-              Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2',
-                       True),
+              Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2'),
               # Object region is defined wrto
               Function(['Obj2'], ['Region'], regionParent, 'regionParent'),
               # Assume it doesn't move

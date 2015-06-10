@@ -452,6 +452,7 @@ class RoadMap:
         if initViol == None:
             if debug('traceCRH'):
                 print '    collision at end point'
+                raw_input('okay?')
             return confAns(None)
         cached = checkFullCache()
         if cached:

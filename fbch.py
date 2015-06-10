@@ -1093,7 +1093,6 @@ class Operator(object):
                              ('newGoal', newGoal), ('sideEffects', boundSE))
 
             print 'Trying less abstract version of op', self
-            #raw_input('okay?')
             primOp = self.copy()
             # LPK: This is maybe nicer, but too expensive
             # primOp.abstractionLevel += 1
@@ -1618,6 +1617,8 @@ class PlanStack(Stack):
             fv = s.fluentValue(fl, recompute = True)
             if fl.value != fv:
                 fooFluents.append(fl)
+        print 'Failure: expected to satisfy subgoal', layer.lastStepExecuted, \
+          'at layer', layer.level
         writeFailure(f, layer, fooFluents)
         
         if debug('executionFail') and not quiet:
