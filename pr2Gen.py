@@ -524,6 +524,10 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False, up
             w = v.weight() if v else None
             trace('    placeGen(%s,%s) viol='%(obj,hand), w, '(p,g)=', pg,
                   pose, '(t=', time.clock()-startTime, ')')
+            if not fbch.inHeuristic:
+                print '    placeGen(%s,%s) viol='%(obj,hand), w, '(p,g)=', pg,\
+                  pose, '(t=', time.clock()-startTime, ')'
+                raw_input('okay?')
         yield x,v, hand
 
 def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
@@ -593,7 +597,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                 for c,ca,_ in graspConfGen:
                     if debug('placeGen', skip=skip):
                         c.draw('W', 'orange')
-                        debugMsg('placeGen', 'Yielding conf')
+                        debugMsg('placeGenVerbose', 'Yielding conf')
                     approached[ca] = c
                     count += 1
                     context[ca] = (pB, gB)

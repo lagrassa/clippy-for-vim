@@ -256,6 +256,12 @@ class State:
         # doesn't test for inconsistency within the set of bound goalFluents.
         if not goal.isConsistent(goalFluents):
             debugMsg('satisfies', 'found grounding but it is inconsistent')
+            ubf = [thing for thing in goalFluents if not thing.isGround()]
+            ff = [thing for thing in goalFluents if thing.isGround() and \
+                  self.fluentValue(bf) != bf.getValue()]
+            if len(ff) == 0:
+                for thing in ubf: print thing
+                raw_input('can ground, but inconsistent')
             return False
                 
         failed = False
@@ -1152,7 +1158,7 @@ class Operator(object):
             elif debug('simpleAbstractCostEstimates'):
                 hOrig = hh(goal)
                 cost = hOrig - hNew
-                if cost < 0:
+                if cost <= 0:
                     cost = 2
                 rebindCost = hOrig + rebindCost
             else:
@@ -1854,7 +1860,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
             return []
     elif lastOp and g.depth == 0 and lastOp != top:
         # At least ensure we try these bindings
-        ops = [lastOp] + operators
+        ops = [lastOp] + [o for o in operators if o.name != lastOp.name]
     else:
         ops = operators
 
