@@ -140,6 +140,7 @@ class Conf(Fluent):
     # Args: conf, delta
     predicate = 'Conf'
     def test(self, bState):
+        assert self.isGround()
         (targetConf, delta) = self.args
         return confWithin(bState.pbs.conf, targetConf, delta)
 

@@ -891,7 +891,7 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
                                'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
                                'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
 
-    t = PlanTest('testSwap',  errProbs, allOperators,
+    t = PlanTest('testPutDown',  errProbs, allOperators,
                  objects=['table1', 'objA','objB'], 
                  movePoses={'objA': back,
                             'objB': front},

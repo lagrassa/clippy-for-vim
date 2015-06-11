@@ -258,7 +258,7 @@ class State:
             debugMsg('satisfies', 'found grounding but it is inconsistent')
             ubf = [thing for thing in goalFluents if not thing.isGround()]
             ff = [thing for thing in goalFluents if thing.isGround() and \
-                  self.fluentValue(bf) != bf.getValue()]
+                  self.fluentValue(thing) != thing.getValue()]
             if len(ff) == 0:
                 for thing in ubf: print thing
                 raw_input('can ground, but inconsistent')
@@ -1165,7 +1165,7 @@ class Operator(object):
                 # Do one step of primitive regression on the old state
                 # and then compute the heuristic on that.  This is an
                 # estimate of how hard it is to establish all the
-                # preconds Cost to get from start to one primitive
+                # preconds. Cost to get from start to one primitive
                 # step before newGoal, plus the cost of the last step
                 primOp = self.applyBindings(newBindings) # was self.copy()
                 primOp.abstractionLevel = primOp.concreteAbstractionLevel
