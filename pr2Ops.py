@@ -1273,6 +1273,10 @@ place = Operator(\
         argsToPrint = range(4),
         ignorableArgs = range(1, 19))
 
+
+# Put the condition to know the pose precisely down at the bottom to
+# try to decrease replanning.
+
 pick = Operator(\
         'Pick',
         ['Obj', 'Hand', 'PoseFace', 'Pose', 'PoseDelta',
@@ -1283,15 +1287,17 @@ pick = Operator(\
         {0 : {Graspable(['Obj'], True),
               BLoc(['Obj', planVar, planP], True)},
          2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
-              B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta',
+              B([Pose(['Obj', 'PoseFace']), 'Pose', planVar, 'PoseDelta',
                  'P1'], True)},
          1 : {Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
                                'PoseVar', 'PoseDelta', 'PoseFace',
                                'GraspFace', 'GraspMu', 'RealGraspVar',
                                'GraspDelta', 'pick', []]), True, canPPProb],
-                               True)},
+                               True),
+              Bd([Holding(['Hand']), 'none', canPPProb], True)},
          3 : {Conf(['PreConf', 'ConfDelta'], True),
-             Bd([Holding(['Hand']), 'none', canPPProb], True)
+              B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta',
+                 'P1'], True)              
              }},
 
         # Results

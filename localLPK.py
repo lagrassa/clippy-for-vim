@@ -70,7 +70,7 @@ visible
 visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
-debugOn = ['skeleton', 'nonmon', 'traceGen',
+debugOn = ['skeleton', 'nonmon', 'traceGen', 'executionFail',
           'simpleAbstractCostEstimates']
 
 

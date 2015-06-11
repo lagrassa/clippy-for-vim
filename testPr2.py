@@ -623,7 +623,7 @@ typicalErrProbs = DomainProbs(\
             odoError = (0.015, 0.015, 1e-11, 0.015),
             #odoError = (0.01, 0.01, 1e-11, 0.01),
             # variance in observations; diagonal for now
-            obsVar = (0.01**2, 0.01**2,0.01**2, 0.01**2),
+            obsVar = (0.005**2, 0.005**2,0.005**2, 0.01**2),
             # get type of object wrong
             obsTypeErrProb = 0.05,
             # fail to pick or place in the way characterized by the Gaussian
@@ -1039,7 +1039,8 @@ def test5(hpn = True, skeleton = False, hierarchical = False,
 
 #  Swap!
 def testSwap(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = False, rip = False):
+           heuristic = habbs, easy = False, rip = False,
+           hardSwap = False):
 
 
     # Seems to need this
@@ -1088,6 +1089,8 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
     # B in back
     goal3 = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
 
+    actualGoal = goal if hardSwap else goal3
+
     skel3h = [[poseAchIn],
               [poseAchIn, bLoc1.applyBindings({'Obj' : 'table1'}),
                lookAt, bLoc1.applyBindings({'Obj' : 'objB'}),
@@ -1098,7 +1101,7 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
              [place, move, pick]]
               
 
-    t.run(goal3,
+    t.run(actualGoal,
           hpn = hpn,
           skeleton = skel3h if skeleton else None,
           heuristic = heuristic,

@@ -1474,6 +1474,7 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
     f = writePreamble(hpnFileTag or fileTag)
     ps = PlanStack()
     ancestors = []
+    lastOp = None
     ps.push(Plan([(nop, State([])), (top, g)]))
     try:
         (op, subgoal) = (top, g)
@@ -1481,9 +1482,10 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
             if op.isAbstract():
                 # Plan again at a more concrete level
                 parent = ps.guts()[-1]
+                lastOp = op
                 writeSubgoalRefinement(f, parent, subgoal)
                 p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
-                                 lastOp = op,
+                                 lastOp = lastOp,
                                  skeleton = skeleton[subgoal.planNum]\
                                             if (skeleton and \
                                                 len(skeleton)>subgoal.planNum) \
@@ -1499,7 +1501,7 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
             elif op.prim != None:
                 # Execute
                 executePrim(op, s, env, f)
-                assert len(s.valueCache) == 0
+                lastOp = None
                 
             # Decide what to do next
             # will pop levels we don't need any more, so that p is on the top
@@ -1624,7 +1626,9 @@ class PlanStack(Stack):
             if fl.value != fv:
                 fooFluents.append(fl)
         print 'Failure: expected to satisfy subgoal', layer.lastStepExecuted, \
-          'at layer', layer.level
+          'at layer', layer.level, '; Unsatisfied fluents:'
+        for thing in fooFluents:
+            print '    ', thing
         writeFailure(f, layer, fooFluents)
         
         if debug('executionFail') and not quiet:
@@ -1858,7 +1862,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
             debugMsg('skeleton', 'Skeleton exhausted', g.depth)
             glob.debugOn = glob.debugOn[:-1]
             return []
-    elif lastOp and g.depth == 0 and lastOp != top:
+    elif lastOp and g.depth == 0:
         # At least ensure we try these bindings
         ops = [lastOp] + [o for o in operators if o.name != lastOp.name]
     else:
