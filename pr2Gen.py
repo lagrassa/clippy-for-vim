@@ -964,9 +964,10 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     sh = shWorld.objectShapes[shName]
     obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
 
-    if goalConds and getConf(goalConds, None):
+    goalConf = getConf(goalConds, None)
+    if goalConds and goalConf:
         # if conf is specified, just fail
-        tracep('lookGen', '    Conf is specified so failing')
+        tracep('lookGen', '    Conf is specified so failing: ' + str(goalConf))
         return
 
     if obj in [newBS.held[hand].mode() for hand in ['left', 'right']]:
