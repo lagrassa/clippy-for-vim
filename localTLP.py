@@ -55,6 +55,7 @@ drawRebindNodes = True
 'regrasping'
 'regression:fail'
 'regression:inconsistent'
+'simpleAbstractCostEstimates'
 'skeleton'
 'successors'
 'traceCRH'
@@ -62,7 +63,8 @@ drawRebindNodes = True
 'visible'
 '''
 
-debugOn = ['traceGen', 'traceCRH', 'skeleton', 'verifyPath']
+debugOn = ['traceGen', 'traceCRH', 'skeleton', 'simpleAbstractCostEstimates',
+           'pickGen', 'inHeuristic']
 
 if platform.system() == 'Linux':
     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:

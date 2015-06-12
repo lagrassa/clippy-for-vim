@@ -86,6 +86,8 @@ def InPlaceDeproach(*x): return True
 # place1. move home->place with hand empty
 # place2. move home->pre with obj at place pose
 
+ppConfs = {}
+
 def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
                      op='pick', quick = False):
     obj = objGrasp.obj
@@ -208,6 +210,15 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         for c in path: c.draw('W', attached = pbs4.getShadowWorld(p).attached)
         debugMsg('canPickPlaceTest', 'path 4')
     debugMsg('canPickPlaceTest', ('->', violations))
+
+    if debug('lookBug'):
+        base = tuple(preConf['pr2Base'])
+        entry = (preConf, tuple([x.getShadowWorld(p) for x in (pbs1, pbs2, pbs3, pbs4)]))
+        if base in ppConfs:
+            ppConfs[base] = ppConfs[base].union(frozenset([entry]))
+        else:
+            ppConfs[base] = frozenset([entry])
+
     return violations
 
 def canView(pbs, prob, conf, hand, shape, maxIter = 50):

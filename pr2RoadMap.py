@@ -450,7 +450,10 @@ class RoadMap:
         targetNode = makeNode(targetConf)
         attached = pbs.getShadowWorld(prob).attached
         if initViol == None:
-            if debug('traceCRH'):
+            if debug('endPoint:collision'):
+                pbs.draw(prob, 'W')
+                initConf.draw('W', 'blue')
+                targetConf.draw('W', 'pink')
                 print '    collision at end point'
                 raw_input('okay?')
             return confAns(None)
@@ -864,8 +867,6 @@ class RoadMap:
                 if edge and pbs.graspB[hand] not in edge.hColl[hand]:
                     edge.hColl[hand][pbs.graspB[hand]] = {}
                 eColl = edge.hColl[hand][pbs.graspB[hand]] if edge else None
-                # !! Debugging
-                eColl = None
                 res = self.confCollidersAux(held, obst, hColl[h], eColl,
                                             (perm and shWorld.fixedHeld[hand]), draw)
                 if res is None: return None
@@ -874,8 +875,6 @@ class RoadMap:
                 if edge and pbs.graspB[hand] not in edge.hsColl[hand]:
                     edge.hsColl[hand][pbs.graspB[hand]] = {}
                 eColl = edge.hsColl[hand][pbs.graspB[hand]] if edge else None
-                # !! Debugging
-                eColl = None
                 res = self.confCollidersAux(heldSh, obst, hsColl[h], eColl,
                                             (perm and shWorld.fixedGrasp[hand]), draw)
                 if res is None: return None

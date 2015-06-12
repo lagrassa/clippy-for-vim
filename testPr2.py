@@ -872,6 +872,21 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 #       Start with something in the hand
 ######################################################################
 
+def makeAttachedWorldFromPBS(pbs, realWorld, grasped, hand):
+    attachedShape = pbs.getRobot().\
+                    attachedObj(pbs.getShadowWorld(0.9), hand)
+    shape = pbs.getWorld().\
+            getObjectShapeAtOrigin(grasped).applyLoc(attachedShape.origin())
+    realWorld.robot.attach(shape, realWorld, hand)
+    robot = pbs.getRobot()
+    cart = realWorld.robotConf.cartConf()
+    handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
+    pose = shape.origin()
+    realWorld.held[hand] = grasped
+    realWorld.grasp[hand] = handPose.inverse().compose(pose)
+    realWorld.delObjectState(grasped)
+    realWorld.setRobotConf(realWorld.robotConf) # to compute a new robotPlace
+
 def testPutDown(hpn = True, skeleton = False, hierarchical = False,
                 heuristic = habbs, easy = False, rip = False):
 
@@ -948,22 +963,10 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
         gf = 0
         bs.pbs.updateHeld(grasped, gf, PoseD(gm, gv), hand, gd)
         bs.pbs.excludeObjs([grasped])
-        bs.pbs.shadowWorld = None # force recompute
+        bs.pbs.reset()
 
     def initWorld(bs, realWorld):
-        attachedShape = bs.pbs.getRobot().\
-                                attachedObj(bs.pbs.getShadowWorld(0.9), hand)
-        shape = bs.pbs.getWorld().\
-              getObjectShapeAtOrigin(grasped).applyLoc(attachedShape.origin())
-        realWorld.robot.attach(shape, realWorld, hand)
-        robot = bs.pbs.getRobot()
-        cart = realWorld.robotConf.cartConf()
-        handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
-        pose = shape.origin()
-        realWorld.held[hand] = grasped
-        realWorld.grasp[hand] = handPose.inverse().compose(pose)
-        realWorld.delObjectState(grasped)
-        realWorld.setRobotConf(realWorld.robotConf) # to compute a new robotPlace
+        makeAttachedWorldFromPBS(bs.pbs, realWorld, grasped, hand)
 
     t.run(goal3,
           hpn = hpn,
@@ -974,6 +977,67 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
           initBelief = initBel,
           initWorld = initWorld
           )
+
+def testChangeGrasp(hpn = True, skeleton = False, hierarchical = False,
+                heuristic = habbs, easy = False, rip = False):
+
+    # Seems to need this
+    global useRight, useVertical
+    useRight, useVertical = True, True
+
+    glob.rebindPenalty = 150
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
+    glob.monotonicFirst = True
+    
+    front = util.Pose(0.95, 0.0, tZ, 0.0)
+    back = util.Pose(1.25, 0.0, tZ, 0.0)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
+
+    t = PlanTest('testChangeGrasp',  errProbs, allOperators,
+                 objects=['table1', 'objA','objB'], 
+                 varDict = varDict)
+
+    targetDelta = (0.01, 0.01, 0.01, 0.05)
+
+    # Pick obj B
+    graspType = 0
+    goalProb = 0.7
+    goal = State([Bd([Holding(['left']), 'objB', goalProb], True),
+                  Bd([GraspFace(['objB', 'left']), graspType, goalProb], True),
+                  B([Grasp(['objB', 'left',  graspType]),
+                     (0,-0.025,0,0), (0.01**2, 0.01**2, 0.01**2, 0.02**2), targetDelta,
+                     goalProb], True)])
+
+    grasped = 'objB'
+    hand = 'left'
+    initGraspVar = (1e-6,)*4    # very small
+    def initBel(bs):
+        # Change pbs so obj B is in the left hand
+        gm = (0, -0.025, 0, 0)
+        gv = (0.011**2, 0.011**2, 0.011**2, 0.021**2)  # initGraspVar
+        gd = (1e-4,)*4
+        gf = 0
+        bs.pbs.updateHeld(grasped, gf, PoseD(gm, gv), hand, gd)
+        bs.pbs.excludeObjs([grasped])
+        bs.pbs.reset()
+
+    def initWorld(bs, realWorld):
+        makeAttachedWorldFromPBS(bs.pbs, realWorld, grasped, hand)
+
+    t.run(goal,
+          hpn = hpn,
+          skeleton = easySkel if skeleton else None,
+          hierarchical = hierarchical,
+          heuristic = heuristic,
+          regions = ['table1Top'],
+          initBelief = initBel,
+          initWorld = initWorld
+          )
+
 
 ######################################################################
 #       Another test.  Picking something up from the back.

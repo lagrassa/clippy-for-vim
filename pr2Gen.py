@@ -303,7 +303,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
             batchSize = pickPlaceBatchSize
             batch = 0
             while True:
-                # Collect the next batach of trialConfs
+                # Collect the next batch of trialConfs
                 batch += 1
                 trialConfs = []
                 count = 0
@@ -982,6 +982,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         if not path:
             newBS.draw(prob, 'W')
             conf.draw('W', 'cyan')
+            envs = ppConfs.get(tuple(conf['pr2Base']), None)
             raw_input('Failed to find a path to look conf (in cyan) with specified base.')
             return
         conf = path[-1]
