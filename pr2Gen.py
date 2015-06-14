@@ -722,13 +722,10 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
     pbs = bState.pbs.copy()
     world = pbs.getWorld()
 
-    # !! Should derive this from the clearance in the region
-    domainPlaceVar = bState.domainProbs.obsVarTuple 
-
-    # Reasonable?
-    # LPK: changed to use the place var for the grasp var
-    graspV = var #domainPlaceVar
-    graspDelta = bState.domainProbs.pickStdev
+    # Should be min(poseVar - domainProb.placeVar, maxGraspVar)
+    graspV = bState.domainProbs.maxGraspVar
+    # Should be delta - confDelta;  conservatively, let it be delta
+    graspDelta = delta
     pose = None
     if pbs.getPlaceB(obj, default=False):
         # If it is currently placed, use that support

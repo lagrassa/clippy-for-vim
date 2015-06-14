@@ -397,7 +397,7 @@ def regressProb(n, probName = None):
 
 def maxGraspVarFun((var,), goal, start, vals):
     assert not(isVar(var))
-    maxGraspVar = (0.015**2, .015**2, .015**2, .03**2)
+    maxGraspVar = start.domainProbs.maxGraspVar
 
     # A conservative value to start with, but then try whatever the
     # variance is in the current grasp
@@ -512,6 +512,12 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     debugMsg('genLookObjPrevVariance', result)
 
     return result
+
+def realPoseVarAfterObs((varAfter,), goal, start, vals):
+    # This should be taken out of domainProbs, but not sure how
+    obsVar = start.domainProbs.obsVarTuple
+    thing = tuple([min(x, y) for (x, y) in zip(varAfter, obsVar)])
+    return [[thing]]
 
 # starting var if it's legal, plus regression of the result var
 def genLookObjHandPrevVariance((ve, hand, obj, face), goal, start, vals):
@@ -722,7 +728,7 @@ def pickCostFun(al, args, details):
 # When we go to non-diagonal covariance, this will be fun...
 # For now, just use the first term!
 def lookAtCostFun(al, args, details):
-    (_,_,_,_,vb,d,va,p,pb,pPoseR,pFaceR) = args
+    (_,_,_,_,vb,d,va,rva,p,pb,pPoseR,pFaceR) = args
     placeProb = min(pPoseR,pFaceR) if (not isVar(pPoseR) and not isVar(pFaceR))\
                            else p
     vo = details.domainProbs.obsVarTuple
@@ -731,7 +737,7 @@ def lookAtCostFun(al, args, details):
     else:
         # Switched to using var *after* look because if look reliability
         # is very high then var before is huge and so is the cost.
-        deltaViolProb = probModeMoved(d[0], vb[0], vo[0])
+        deltaViolProb = probModeMoved(d[0], rva[0], vo[0])
     result = costFun(1.0, canSeeProb*placeProb*(1-deltaViolProb)*\
                      (1 - details.domainProbs.obsTypeErrProb))
     return result
@@ -821,7 +827,7 @@ def placeBProgress(details, args, obs=None):
     
 # obs has the form (obj-type, face, relative pose)
 def lookAtBProgress(details, args, obs):
-    (_, lookConf, _, _, _, _, _, _, _, _, _) = args
+    (_, lookConf, _, _, _, _, _, _, _, _, _, _) = args
     objectObsUpdate(details, lookConf, obs)
     details.pbs.reset()
     details.pbs.getRoadMap().confReachCache = {} # Clear motion planning cache
@@ -1355,10 +1361,19 @@ pick = Operator(\
         argsToPrint = [0, 1, 3, 9],
         ignorableArgs = range(1, 18))
 
+# We know that the resulting variance will always be less than obsVar.
+# Would like the result to be the min of PoseVarAfter (which is in the
+# goal) and obsVar.  Trying to make two different
+# results...unfortunate increase in branching factor unless
+# applicableOps handles them well.
+
+# This is is gross
+obsVar = (0.005**2, 0.005**2,0.005**2, 0.01**2)
+
 lookAt = Operator(\
     'LookAt',
     ['Obj', 'LookConf', 'PoseFace', 'Pose',
-     'PoseVarBefore', 'PoseDelta', 'PoseVarAfter',
+     'PoseVarBefore', 'PoseDelta', 'PoseVarAfter', 'RealPoseVarAfter',
      'P1', 'PR0', 'PR1', 'PR2'],
     # Pre
     {0: {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
@@ -1367,10 +1382,10 @@ lookAt = Operator(\
      1: {Bd([CanSeeFrom(['Obj', 'Pose', 'PoseFace', 'LookConf', []]),
              True, canSeeProb], True),
          Conf(['LookConf', lookConfDelta], True)}},
-    # Results
-    [#({BLoc(['Obj', 'PoseVarAfter', 'PR0'], True)}, {}),
-     ({B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
+    [({B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
          'PR1'],True),
+       B([Pose(['Obj', 'PoseFace']), 'Pose', obsVar, 'PoseDelta',
+         'PR1'],True),         
        Bd([SupportFace(['Obj']), 'PoseFace', 'PR2'], True)}, {})
        ],
     # Functions
@@ -1379,10 +1394,12 @@ lookAt = Operator(\
         Function(['PoseFace'], [['*']], assign, 'assign'),
         Function(['Pose'], [['*']], assign, 'assign'),
         Function(['PoseDelta'], [['*']], assign, 'assign'),
+        Function(['RealPoseVarAfter'], ['PoseVarAfter'],
+                 realPoseVarAfterObs, 'realPoseVarAfterObs'),
         # Look increases probability.  
         Function(['P1'], ['PR0', 'PR1', 'PR2'], obsModeProb, 'obsModeProb'),
         # How confident do we need to be before the look?
-        Function(['PoseVarBefore'], ['PoseVarAfter', 'Obj', 'PoseFace'],
+        Function(['PoseVarBefore'], ['RealPoseVarAfter', 'Obj', 'PoseFace'],
                 genLookObjPrevVariance, 'genLookObjPrevVariance'),
         Function(['LookConf'],
                  ['Obj', 'Pose', 'PoseFace', 'PoseVarBefore', 'PoseDelta',

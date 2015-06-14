@@ -279,7 +279,8 @@ class DomainProbs:
     # pickTolerance is a distance error in x, y, z, theta
     def __init__(self, odoError, obsVar, obsTypeErrProb,
                  pickFailProb, placeFailProb,
-                 pickVar, placeVar, pickTolerance):
+                 pickVar, placeVar, pickTolerance,
+                 maxGraspVar = (0.015**2, .015**2, .015**2, .03**2)):
         self.odoError = odoError # std dev per meter / radian in base motion
         self.obsVar = np.diag(obsVar) # error in observations
         self.obsVarTuple = obsVar     # error in observations
@@ -290,7 +291,9 @@ class DomainProbs:
         self.placeVar = placeVar
         self.placeStdev = tuple([np.sqrt(x) for x in placeVar])
         # size of basin of attraction of pick operator
-        self.pickTolerance = pickTolerance 
+        self.pickTolerance = pickTolerance
+        # Don't allow a bigger grasp variance than this
+        self.maxGraspVar = maxGraspVar
         # Bad failures, like dropping
         self.pickFailProb = pickFailProb
         self.placeFailProb = placeFailProb

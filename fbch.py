@@ -968,10 +968,10 @@ class Operator(object):
         for f in results:
             bf = f.applyBindings(newBindings)
             addF = True
-            for f2 in br:
-                if f2.entails(bf, startState):
+            for f2 in br.copy():
+                if f2.entails(bf, startState) != False:
                     addF = False; break
-                if bf.entails(f2, startState):
+                if bf.entails(f2, startState) != False:
                     br.remove(f2)
             if addF: br.add(bf)
         boundResults = list(br)
@@ -1062,6 +1062,8 @@ class Operator(object):
                 if not f.feasible(startState.details):
                     debugMsg('regression:fail', 'conditional fluent infeasible',
                             f)
+                    print f
+                    raw_input('conditional fluent infeasible')
                     bindingsNoGood = True
                     break
             newGoal.add(f, startState.details)
@@ -1472,19 +1474,37 @@ nop = Operator('Nop', [], {1:[]}, [], [], None)
 def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
         skeleton = None, verbose = False, nonMonOps = [], maxNodes = 500):
     f = writePreamble(hpnFileTag or fileTag)
+    try:
+        successful = False
+        while not successful:
+            try:
+                HPNAux(s, g, ops, env, h, f, fileTag, skeleton, verbose,
+                       nonMonOps, maxNodes)
+                successful = True
+            except PlanningFailed:
+                print 'Planning failed.  Trying HPN from the top.'
+                raw_input('go?')
+    finally:
+        writeCoda(f)
+
+class PlanningFailed(Exception):
+    def __str__(self):
+        return 'Exception: Planning Failed'
+
+def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
+        skeleton = None, verbose = False, nonMonOps = [], maxNodes = 500):
     ps = PlanStack()
     ancestors = []
     lastOp = None
     ps.push(Plan([(nop, State([])), (top, g)]))
-    try:
-        (op, subgoal) = (top, g)
-        while not ps.isEmpty() and op != None:
-            if op.isAbstract():
-                # Plan again at a more concrete level
-                parent = ps.guts()[-1]
-                lastOp = op
-                writeSubgoalRefinement(f, parent, subgoal)
-                p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
+    (op, subgoal) = (top, g)
+    while not ps.isEmpty() and op != None:
+        if op.isAbstract():
+            # Plan again at a more concrete level
+            parent = ps.guts()[-1]
+            lastOp = op
+            writeSubgoalRefinement(f, parent, subgoal)
+            p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
                                  lastOp = lastOp,
                                  skeleton = skeleton[subgoal.planNum]\
                                             if (skeleton and \
@@ -1492,25 +1512,24 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
                                                 else None,
                                  nonMonOps = nonMonOps,
                                  maxNodes = maxNodes)
-                assert p, 'Planning failed.'
-                planObj = makePlanObj(p, s)
-                planObj.printIt(verbose = verbose)
-                ps.push(planObj)
-                ancestors.append(planObj.getOps())
-                writeSubtasks(f, planObj, subgoal)
-            elif op.prim != None:
-                # Execute
-                executePrim(op, s, env, f)
-                lastOp = None
+            if not p: raise PlanningFailed
+            planObj = makePlanObj(p, s)
+            planObj.printIt(verbose = verbose)
+            ps.push(planObj)
+            ancestors.append(planObj.getOps())
+            writeSubtasks(f, planObj, subgoal)
+        elif op.prim != None:
+            # Execute
+            executePrim(op, s, env, f)
+            lastOp = None
                 
-            # Decide what to do next
-            # will pop levels we don't need any more, so that p is on the top
-            # op will be None if we are done
-            (op, subgoal) = ps.nextStep(s, f)
-            # Possibly pop ancestors
-            ancestors = ancestors[0:ps.size()]
-    finally:
-        writeCoda(f)
+        # Decide what to do next
+        # will pop levels we don't need any more, so that p is on the top
+        # op will be None if we are done
+        (op, subgoal) = ps.nextStep(s, f)
+        # Possibly pop ancestors
+        ancestors = ancestors[0:ps.size()]
+    # If we return, we have succeeded!
         
 def executePrim(op, s, env, f = None):
     # The refinement procedure should extract whatever information is
@@ -2101,6 +2120,10 @@ def getBindingsBetween(resultFs, goalFs, startState):
             matched = False
             for gf in goalFs:
                 rfb = rf.applyBindings(b)
+                # !!!!   This is working but may seem wrong !!!!
+                # Hinges on interpretation of bindings
+                # This view of entailment treats variables as existential
+                # So constant entails var
                 newB = gf.entails(rfb, startState.details)
                 if newB != False:
                     matched = True
