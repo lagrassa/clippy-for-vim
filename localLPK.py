@@ -15,6 +15,7 @@ drawRebindNodes = True
 
 '''
 abstractCost
+animate
 applicableOps
 appOp:detail
 appOp:number
@@ -70,9 +71,10 @@ visible
 visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
-debugOn = ['skeleton', 'nonmon', 'traceGen', 'executionFail',
+debugOn = ['nonmon', 'traceGen', 'executionFail',
           'simpleAbstractCostEstimates']
-
+          # 'regression:fail',
+          # 'appOp:number']
 
 pauseOn = debugOn
 

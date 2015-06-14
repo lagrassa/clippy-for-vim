@@ -1163,11 +1163,53 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
              [poseAchIn],
              [poseAchIn, lookAt.applyBindings({'Obj' : 'objB'}), place],
              [place, move, pick]]
-              
+
+    hardSkel = [[poseAchIn.applyBindings({'Obj' : 'objB'}), poseAchIn],
+                [poseAchIn.applyBindings({'Obj' : 'objA'}),
+                 bLoc1.applyBindings({'Obj' : 'table1'}),
+                 lookAt.applyBindings({'Obj' : 'table1'}),
+                 bLoc1.applyBindings({'Obj' : 'objA'}),
+                 lookAt.applyBindings({'Obj' : 'objA'})],
+                [lookAt.applyBindings({'Obj' : 'objA'}), #2
+                 moveNB],
+                [poseAchIn.applyBindings({'Obj' : 'objA'})], #3
+                [poseAchIn.applyBindings({'Obj' : 'objA'}),  #4
+                 lookAt.applyBindings({'Obj' : 'objA'}),
+                 place.applyBindings({'Obj' : 'objA'})],
+                [place.applyBindings({'Obj' : 'objA'}),   #5
+                 poseAchCanPickPlace,
+                 lookAt.applyBindings({'Obj' : 'objB'}),
+                 place.applyBindings({'Obj' : 'objB'})],
+                [place.applyBindings({'Obj' : 'objB'}),    #6
+                 poseAchCanPickPlace,
+                 lookAt.applyBindings({'Obj' : 'objA'}),
+                 place.applyBindings({'Obj' : 'objA'}),
+                 pick.applyBindings({'Obj' : 'objA'})],
+                [pick.applyBindings({'Obj' : 'objA'})], #7
+                [pick.applyBindings({'Obj' : 'objA'})], #8
+                [pick.applyBindings({'Obj' : 'objA'}),  #9
+                 move],
+                [moveNB,
+                 lookAt.applyBindings({'Obj' : 'objA'}),
+                 move],
+                [place.applyBindings({'Obj' : 'objB'}), #11
+                 pick.applyBindings({'Obj' : 'objB'})],
+                [pick.applyBindings({'Obj' : 'objB'}),
+                 place.applyBindings({'Obj' : 'objA'}),
+                 move],
+                [move],
+                [pick.applyBindings({'Obj' : 'objB'})],
+                [pick.applyBindings({'Obj' : 'objB'}),
+                 moveNB,
+                 lookAt.applyBindings({'Obj' : 'objB'}),
+                 move,
+                 lookAt.applyBindings({'Obj' : 'table1'}),
+                 moveNB]]
+                 
 
     t.run(actualGoal,
           hpn = hpn,
-          skeleton = skel3h if skeleton else None,
+          skeleton = hardSkel if skeleton else None,
           heuristic = heuristic,
           hierarchical = hierarchical,
           rip = rip,

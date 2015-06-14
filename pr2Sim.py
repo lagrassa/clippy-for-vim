@@ -34,6 +34,7 @@ crashIsError = False
 simulateError = False
 
 animate = False
+
 animateSleep = 0.2
 
 maxOpenLoopDist = 2.0
@@ -83,7 +84,7 @@ class RealWorld(WorldState):
         for (i, conf) in enumerate(path):
             # !! Add noise to conf
             self.setRobotConf(conf)
-            if animate:
+            if debug('animate'):
                 self.draw('World')
                 sleep(animateSleep)
             else:
@@ -135,11 +136,11 @@ class RealWorld(WorldState):
                             args[1] = lookConf
                             lookAtBProgress(self.bs, args, obs)
                         else:
-                            raw_input('No observation')
+                            debugMsg('sim', 'No observation')
                     else:
-                        raw_input('No lookConf for %s'%obj.name())
+                        debugMsg('sim', 'No lookConf for %s'%obj.name())
                 else:
-                    raw_input('No visible object')
+                    debugMsg('sim', 'No visible object')
             prevXYT = newXYT
         if debug('backwards') and backSteps:
             print 'Backward steps:'
@@ -247,7 +248,6 @@ class RealWorld(WorldState):
                 continue
             else:
                 print 'Object', curObj, 'is visible'
-            #raw_input('Visible')
 
             truePose = self.getObjectPose(curObj)
             # Have to get the resting face.  And add noise.
@@ -267,7 +267,7 @@ class RealWorld(WorldState):
                 obs.append((objType, trueFace, util.Pose(*obsPlace)))
         print 'Observation', obs
         if not obs:
-            raw_input('Null observation')
+            debugMsg('sim', 'Null observation')
         return obs
 
     def executeLookAt(self, op, params):

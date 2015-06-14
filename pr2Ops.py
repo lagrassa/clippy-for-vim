@@ -344,6 +344,15 @@ def notEqual2(args, goal, start, vals):
     else:
         result = [[]]
     return result
+
+# It pains me that this has to exist; but the args needs to be a list
+# not a structure of variables.
+def notEqual3(args, goal, start, vals):
+    if (args[0], args[1], args[2]) == (args[3], args[4], args[5]):
+        result = None
+    else:
+        result = [[]]
+    return result
     
 # Isbound
 def isBound(args, goal, start, vals):
@@ -423,7 +432,7 @@ def placeGraspVar((poseVar,), goal, start, vals):
     if isVar(poseVar):
         # For placing in a region; could let the place pick this, but
         # just do it for now
-        defaultPoseVar = tuple([v+0.0001 for v in placeVar])
+        defaultPoseVar = tuple([v * 4 for v in placeVar])
         poseVar = defaultPoseVar
     graspVar = tuple([min(gv - pv, m) for (gv, pv, m) \
                       in zip(poseVar, placeVar, maxGraspVar)])
@@ -1700,7 +1709,8 @@ hRegrasp = Operator(\
         {0 : {Bd([Holding(['Hand']), 'Obj', 'P1'], True),
               Bd([GraspFace(['Obj', 'Hand']), 'PrevGraspFace', 'P2'], True),
               B([Grasp(['Obj', 'Hand', 'PrevGraspFace']),
-                  'PrevGraspMu', 'GraspVar', 'GraspDelta', 'P3'], True)}},
+                  'PrevGraspMu', 'PrevGraspVar', 'PrevGraspDelta', 'P3'],
+                  True)}},
 
         # Results
         [({Bd([Holding(['Hand']), 'Obj', 'PR1'], True), 
@@ -1712,16 +1722,20 @@ hRegrasp = Operator(\
         functions = [\
             # Be sure obj is not none
             Function([], ['Obj'], notNone, 'notNone', True),
-            Function(['P1', 'P2', 'P3'], ['PR1', 'PR2', 'PR3'], 
-                     regressProb(3, 'pickFailProb'), 'regressProb3', True),
+            Function(['P1'], ['PR1'], 
+                     regressProb(1, 'pickFailProb'), 'regressProb1', True),
+            Function(['P2'], ['PR2'], 
+                     regressProb(1, 'pickFailProb'), 'regressProb1', True),
+            Function(['P3'], ['PR3'], 
+                     regressProb(1, 'pickFailProb'), 'regressProb1', True),
 
             Function(['PrevGraspFace', 'PrevGraspMu', 'PrevGraspVar',
                       'PrevGraspDelta'],
                       ['Obj', 'Hand'], easyGraspGen, 'easyGraspGen'),
             # Only use to change grasp.
-            Function([], ['GraspMu', 'GraspFace',
-                          'PrevGraspMu', 'PrevGraspFace'],
-                     notEqual2, 'notEqual2', True),
+            Function([], ['GraspMu', 'GraspFace', 'GraspVar',
+                          'PrevGraspMu', 'PrevGraspFace', 'PrevGraspVar'],
+                     notEqual3, 'notEqual3', True),
             ],
         cost = lambda al, args, details: magicRegraspCost,
         argsToPrint = [0, 1])

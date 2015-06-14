@@ -46,7 +46,7 @@ def tracep(pause, *msg):
 
 def easyGraspGen(args, goalConds, bState, outBindings):
     assert fbch.inHeuristic
-    graspVar = 4*(0.001,)
+    graspVar = 4*(0.1,) # make precondition even weaker
     graspDelta = 4*(0.001,)   # put back to prev value
     
     pbs = bState.pbs.copy()
@@ -67,6 +67,12 @@ def easyGraspGen(args, goalConds, bState, outBindings):
     if obj == newBS.held[hand].mode():
         gB = newBS.graspB[hand]
         trace('    easyGraspGen(%s,%s)='%(obj, hand), '(p,g)=', (None, gB.grasp.mode()))
+
+        debugMsg('easyGraspGen', 'obj in hand')
+        debugMsg('easyGraspGen', ('->', (gB.grasp.mode(),
+                                         gB.poseD.mode().xyztTuple(),
+                graspVar, graspDelta)))
+
         yield (gB.grasp.mode(), gB.poseD.mode().xyztTuple(),
                graspVar, graspDelta)
         return
@@ -91,7 +97,9 @@ def easyGraspGen(args, goalConds, bState, outBindings):
         cache[key] = memo
         cached = ''
     for ans in memo:
-        trace('    %s easyGraspGen(%s,%s)='%(cached, obj, hand), '(p,g)=', (placeB.support.mode(), ans[0]), ans)
+        trace('    %s easyGraspGen(%s,%s)='%(cached, obj, hand),
+              '(p,g)=', (placeB.support.mode(), ans[0]), ans)
+        debugMsg('easyGraspGen', ('->', ans))
         yield ans
     trace('    easyGraspGen(%s,%s)='%(obj, hand), None)
     debugMsg('easyGraspGen', 'out of values')
@@ -433,6 +441,7 @@ def placeGenGen(args, goalConds, bState, outBindings):
         newBS = pbs.copy()
         newBS = newBS.updateFromGoalPoses(goalConds, updateConf=False)
         newBS = newBS.excludeObjs([obj])
+        # v is viol
         for ans,v in placeInGenAway((obj, objDelta, prob),
                                     goalConds, newBS, outBindings, hand):
             (pB, gB, c, ca) = ans
@@ -717,7 +726,8 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
     domainPlaceVar = bState.domainProbs.obsVarTuple 
 
     # Reasonable?
-    graspV = domainPlaceVar
+    # LPK: changed to use the place var for the grasp var
+    graspV = var #domainPlaceVar
     graspDelta = bState.domainProbs.pickStdev
     pose = None
     if pbs.getPlaceB(obj, default=False):
@@ -774,7 +784,7 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
                     print '    placeInGen(%s,%s) h='%(obj,[x.name() \
                                                            for x in regShapes]), \
                           v.weight() if v else None, '(p,g)=', pg, pose
-                yield (pB, gB, c, ca)
+                yield (pB, gB, c, ca), v
             return
         else:
             # If pose is specified and variance is small, return
@@ -791,9 +801,9 @@ def placeInGenAway(args, goalConds, pbs, outBindings, hand='left'):
     if not pbs.awayRegions():
         raw_input('Need some awayRegions')
         return
-    domainPlaceVar = pbs.domainProbs.obsVarTuple     
+    targetPlaceVar = tuple([2 * x for x in pbs.domainProbs.obsVarTuple])
     for ans,v in placeInRegionGenGen((obj, pbs.awayRegions(),
-                                      domainPlaceVar, delta, prob),
+                                      targetPlaceVar, delta, prob),
                                      # preserve goalConds to get reachObsts
                                      goalConds, pbs, [], away=True, update=False):
         yield ans,v
@@ -980,10 +990,12 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         path, viol = canReachHome(newBS, conf, prob, Violations(), moveBase=False)
         trace('    lookGen(%s) specified base viol='%obj, viol.weight() if viol else None)
         if not path:
-            newBS.draw(prob, 'W')
-            conf.draw('W', 'cyan')
-            envs = ppConfs.get(tuple(conf['pr2Base']), None)
-            raw_input('Failed to find a path to look conf (in cyan) with specified base.')
+            print 'Failed to find a path to look conf (cyan) with specified base.'
+            if debug('lookGen'):
+                newBS.draw(prob, 'W')
+                conf.draw('W', 'cyan')
+                envs = ppConfs.get(tuple(conf['pr2Base']), None)
+                raw_input('okay?')
             return
         conf = path[-1]
         if testFn(conf):
@@ -1060,6 +1072,9 @@ def lookAtConfCanView(pbs, prob, conf, shape, hands=['left', 'right']):
     lookConf = lookAtConf(conf, shape)
     if not fbch.inHeuristic:
         for hand in hands:
+            if not lookConf:
+                raw_input('lookAtConfCanView failed conf')
+                return None
             path = canView(pbs, prob, lookConf, hand, shape)
             if not path:
                 raw_input('lookAtConfCanView failed path')

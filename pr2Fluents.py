@@ -330,7 +330,13 @@ class CanReachHome(Fluent):
             return (obstCost, {dummyOp})
         
         path, violations = self.getViols(details, v, p, strict = False)
-        return hCost(violations, obstCost, details)
+
+        (ops, totalCost) = hCost(violations, obstCost, details)
+        if debug('hAddBack'):
+            print 'Heuristic val', self.predicate
+            print 'ops', ops, 'cost', totalCost
+
+        return (ops, totalCost)
 
     def prettyString(self, eq = True, includeValue = True):
         (conf, fcp, cond) = self.args
@@ -396,10 +402,9 @@ def hCost(violations, obstCost, details):
 
     totalCost = sum([o.instanceCost for o in ops])
 
-    if debug('hAddBack'):
-        print 'Heuristic val', self.predicate
-        print 'ops', ops, 'cost', totalCost
     return (totalCost, ops)
+
+
 
 class CanReachNB(Fluent):
     predicate = 'CanReachNB'
@@ -495,7 +500,13 @@ class CanReachNB(Fluent):
             return (obstCost, {dummyOp})
             
         path, violations = self.getViols(details, v, p, strict = False)
-        return hCost(violations, obstCost, details)
+
+        (ops, totalCost) = hCost(violations, obstCost, details)
+        if debug('hAddBack'):
+            print 'Heuristic val', self.predicate
+            print 'ops', ops, 'cost', totalCost
+
+        return (ops, totalCost)
 
     def prettyString(self, eq = True, includeValue = True):
         (startConf, endConf, cond) = self.args
@@ -669,7 +680,13 @@ class CanPickPlace(Fluent):
             return (obstCost, {dummyOp})
 
         path, violations = self.getViols(details, v, p, strict = False)
-        return hCost(violations, obstCost, details)
+        (ops, totalCost) = hCost(violations, obstCost, details)
+        if debug('hAddBack'):
+            print 'Heuristic val', self.predicate
+            print 'ops', ops, 'cost', totalCost
+
+        return (ops, totalCost)
+
 
     def prettyString(self, eq = True, includeValue = True):
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
@@ -919,7 +936,12 @@ class CanSeeFrom(Fluent):
             return (obstCost, {dummyOp})
         
         path, occluders = self.getViols(details, v, p, strict = False)
-        return hCost(violations, obstCost, details)
+        (ops, totalCost) = hCost(violations, obstCost, details)
+        if debug('hAddBack'):
+            print 'Heuristic val', self.predicate
+            print 'ops', ops, 'cost', totalCost
+
+        return (ops, totalCost)
 
     def prettyString(self, eq = True, includeValue = True):
         (obj, pose, poseFace, conf, cond) = self.args
