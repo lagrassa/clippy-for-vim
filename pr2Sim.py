@@ -124,7 +124,7 @@ class RealWorld(WorldState):
             distSoFar += 0.33*abs(util.angleDiff(prevXYT[2],newXYT[2]))
             print 'distSoFar', distSoFar
             # Check whether we should look
-            args = 11*[None]
+            args = 12*[None]
             if distSoFar >= maxOpenLoopDist:
                 distSoFar = 0           #  reset
                 obj = self.visibleObj(objShapes)
