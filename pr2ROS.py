@@ -11,7 +11,7 @@ import planGlobals as glob
 from planGlobals import debug, debugMsg
 import windowManager3D as wm
 from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn
-from pr2Visible import lookAtConf, findSupportTable
+from pr2Visible import lookAtConf, findSupportTable, visible
 import pr2Robot
 reload(pr2Robot)
 from pr2Robot import cartInterpolators, JointConf, CartConf
@@ -129,6 +129,8 @@ def gazeCoords(cnfIn):
         print confHead
     return confHead
 
+maxOpenLoopDist = 2.0                   # How far to move between looks
+
 # The key interface spec...
 # obs = env.executePrim(op, params)
 class RobotEnv:                         # plug compatible with RealWorld (simulator)
@@ -154,17 +156,53 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         else:
             raise Exception, 'Unknown operator: '+str(op)
 
+    def getObjShapes(self):
+        shWorld = self.bs.pbs.getShadowWorld(0.95)
+        held = shWorld.held.values()
+        return [shWorld.objectShapes[obj] \
+                for obj in shWorld.objectShapes if not obj in held]
+
     def executePath(self, path):
+        shWorld = self.bs.pbs.getShadowWorld(0.95)
+        objShapes = shWorld.getObjShapes()
+
         if debug('robotEnv'):
             for conf in path:
                 conf.draw('W', 'blue')
         debugMsg('robotEnv', 'executePath')
+
+        distSoFar = 0
+        prevXYT = path[0]['pr2Base']
         for (i, conf) in enumerate(path):
             debugMsg('robotEnvCareful', '    conf[%d]'%i)
+            newXYT = conf['pr2Base']
             result, outConf = pr2GoToConf(conf, 'move')
 
             # !! Do some looking and update the belief state.
-            
+            distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
+            # approx pi => 1 meter
+            distSoFar += 0.33*abs(util.angleDiff(prevXYT[2],newXYT[2]))
+            print 'distSoFar', distSoFar
+            # Check whether we should look
+            args = 11*[None]
+            if distSoFar >= maxOpenLoopDist:
+                distSoFar = 0           #  reset
+                obj = next(self.visibleShapes(objShapes), None)
+                if obj:
+                    lookConf = lookAtConf(conf, obj)
+                    if lookConf:
+                        obs = self.doLook(lookConf)
+                        if obs:
+                            args[1] = lookConf
+                            lookAtBProgress(self.bs, args, obs)
+                        else:
+                            raw_input('No observation')
+                    else:
+                        raw_input('No lookConf for %s'%obj.name())
+                else:
+                    raw_input('No visible object')
+            prevXYT = newXYT
+
         return None
 
     def executeMove(self, op, params):
@@ -178,10 +216,28 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             obs = None
         return obs
 
+    def visibleShapes(self, objShapes):
+        def rem(l,x): return [y for y in l if y != x]
+        prob = 0.95
+        world = self.bs.pbs.getWorld()
+        shWorld = self.bs.pbs.getShadowWorld(prob)
+        rob = self.bs.pbs.getRobot().placement(self.robotConf, attached=shWorld.attached)[0]
+        fixed = [s.name() for s in objShapes] + [rob.name()]
+        immovable = [s for s in objShapes if s not in world.graspDesc]
+        movable = [s for s in objShapes if s in world.graspDesc]
+        for s in immovable + movable:
+            if visible(shWorld, self.robotConf, s, rem(objShapes,s)+[rob], prob,
+                       moveHead=True, fixed=fixed)[0]:
+                yield s
+
     def executeLookAtHand(self, op, params):
         pass
     
     def executeLookAt(self, op, params):
+        lookConf = op.args[1]
+        return self.doLook(lookConf)
+
+    def doLook(self, lookConf):
         def lookAtTable(placeB):
             debugMsg('robotEnv', 'Get cloud?')
             scan = getPointCloud()
@@ -197,8 +253,12 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                 print 'No table found'
                 return None
 
-        (targetObj, lookConf) = \
-                    (op.args[0], op.args[1])
+        shWorld = self.bs.pbs.getShadowWorld(0.95)
+        objShapes = shWorld.getObjShapes()
+        visShapes = list(self.visibleShapes(objShapes))
+        visTables = [shape.name() for shape in visShapes if 'table' in shape.name())
+        obs = []
+
         if params:
             placeBs = params
         else:
@@ -209,49 +269,54 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         debugMsg('robotEnv', 'executeLookAt', targetObj, lookConf.conf)
         result, outConf = pr2GoToConf(lookConf, 'look')
         outConfCart = lookConf.robot.forwardKin(outConf)
-        if 'table' in targetObj:
-            table = lookAtTable(placeBs[targetObj])
-            if not table: return []
-            trueFace = supportFaceIndex(table)
+        if visTables:
+            assert len(visTables) == 1
+            tableName = visTables[0]
+            print 'Looking at table', tableName
+            tableRobot = lookAtTable(placeBs[tableName])
+            if not tableRobot: return []
+            trueFace = supportFaceIndex(tableRobot)
             tablePoseRobot = getSupportPose(table, trueFace)
-            tablePose = outConfCart['pr2Base'].compose(tablePoseRobot)
+            table = tableRobot.applyTrans(outConfCart['pr2Base'])
             #!! needs generalizing
-            return [(self.world.getObjType(targetObj), trueFace, tablePose)]
-        elif targetObj in placeBs:
+            tablePose = outConfCart['pr2Base'].compose(tablePoseRobot)
+            obs.append((self.world.getObjType(targetObj), trueFace, tablePose))
+        else:
+            print 'No tables visible... returning null obs'
+            return []
+        targets = []
+        for shape in visShapes:
+            if 'table' in shape.name(): continue
+            targetObj = shape.name()
             supportTableB = findSupportTable(targetObj, self.world, placeBs)
             assert supportTableB
+            if not supportTableB.obj == tableName:
+                prin 'Skipping obj', targetObj, 'not supported by', tableName
+                continue
             placeB = placeBs[supportTableB.obj]
-            if not wellLocalized(placeB):
-                tableRobot = lookAtTable(placeB)
-                table = tableRobot.applyTrans(outConfCart['pr2Base'])
-                if not table: return []
-            else:
-                table = self.world.getObjectShapeAtOrigin(supportTable).applyLoc(placeB.objFrame())
-            surfacePoly = makeROSPolygon(table)
-            ans = getObjDetections(self.world,
-                                   {targetObj: placeBs[targetObj]},
-                                   outConf, # the lookConf actually achieved
-                                   [surfacePoly])
-            obs = []
-            for (score, objPlaceRobot) in ans:
-                if not objPlaceRobot:
-                    continue
-                trueFace = supportFaceIndex(objPlaceRobot)
-                objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
-                pose = getSupportPose(objPlace, trueFace)
-                obs.append((self.world.getObjType(objPlace.name()),
-                            trueFace, pose))
-                if debug('robotEnv'):
-                    print 'Obs', objPlace.name(), 'score=', score,
-                    print 'face=', trueFace, 'pose=', pose
-                    objPlace.draw('W', 'cyan')
-                    raw_input(objPlace.name())
-            if debug('robotEnv') and not obs:
-                raw_input('Got no observations for %s'%targetObj)
-            return obs
-        else:
-            raw_input('Unknown object: %s'%targetObj)
-            return []
+            targets.append((targetObj, placeBs[targetObj]))
+            
+        surfacePoly = makeROSPolygon(table) # from perceived table
+        ans = getObjDetections(self.world,
+                               dict(targets),
+                               outConf, # the lookConf actually achieved
+                               [surfacePoly])
+        for (score, objType, objPlaceRobot) in ans:
+            if not objPlaceRobot:
+                continue
+            trueFace = supportFaceIndex(objPlaceRobot)
+            objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
+            pose = getSupportPose(objPlace, trueFace)
+            obs.append((self.world.getObjType(objPlace.name()),
+                        trueFace, pose))
+            if debug('robotEnv'):
+                print 'Obs', objType, objPlace.name(), 'score=', score,
+                print 'face=', trueFace, 'pose=', pose
+                objPlace.draw('W', 'cyan')
+                raw_input(objType)
+        if debug('robotEnv') and not obs:
+            raw_input('Got no observations for %s'%([shape.name() for shape in visShapes])
+        return obs
 
     def lookObjShape(self, placeB):
         shape = self.world.getObjectShapeAtOrigin(placeB.obj)
@@ -331,8 +396,10 @@ def getObjDetections(world, obsTargets, robotConf, surfacePolys, maxFitness = 3)
 
     rospy.wait_for_service('detect_models')
     detect = rospy.ServiceProxy('detect_models', DetectModels)
-    # targetModels = [o.typeName for o in targetPoses if o.typeName]
-    targetModels = ['soda']
+    targetModels = [world.getObjType(o) for o in targetPoses]
+    targetObjForType = {}
+    for o in targetPoses:               # reverse index
+        targetObjForType[world.getObjType(o)] = o
     if debug('robotEnv'):
         print 'calling perception with', targetModels
     reqD = DetectModelsRequest(timeout = rospy.Duration(15),
@@ -354,11 +421,13 @@ def getObjDetections(world, obsTargets, robotConf, surfacePolys, maxFitness = 3)
     detections = []
     for obj in state.scene.objects:
         if obj.fitness_score < maxFitness: # fitness is in std dev, so high is bad
-            #!! HACK
-            name = obsTargets.keys()[0]
             trans = TransformFromROSMsg(obj.pose.position, obj.pose.orientation)
-            objShape = world.getObjectShapeAtOrigin(name).applyLoc(trans)
-            detections.append((obj.fitness_score, objShape))
+
+            # Pick a representative object of the type and use its shape ??
+            objType = obj.name
+            objShape = world.getObjectShapeAtOrigin(targetObjForType[name]).applyLoc(trans)
+
+            detections.append((obj.fitness_score, objType, objShape))
     detections.sort()                   # lower is better
     return detections
 

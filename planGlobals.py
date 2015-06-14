@@ -37,6 +37,8 @@ speedFactor = 0.5
 ########################################
 
 realWorld = None
+horizontal = None
+vertical = None
 
 ########################################
 # Robot Parameters

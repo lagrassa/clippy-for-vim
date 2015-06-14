@@ -467,8 +467,7 @@ class PR2:
             print 'wrist=\n', wrist.matrix
             raw_input('Illegal wrist trans for base pose')
             return
-        # random.shuffle(trs)             # !!
-        for i, tr in enumerate(trs):
+        for i, tr in enumerate(trs[:50]): # max of 50...
             if n and i > n: return
             ans = wrist.compose(tr).pose(fail=False)
             if ans is None:

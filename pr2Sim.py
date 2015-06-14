@@ -33,10 +33,10 @@ crashIsError = False
 
 simulateError = False
 
-animate = True
+animate = False
 animateSleep = 0.2
 
-maxOpenLoopDist = 1.0
+maxOpenLoopDist = 2.0
 
 pickSuccessDist = 0.1  # pretty big for now
 class RealWorld(WorldState):
@@ -141,11 +141,11 @@ class RealWorld(WorldState):
                 else:
                     raw_input('No visible object')
             prevXYT = newXYT
-            if debug('backwards') and backSteps:
-                print 'Backward steps:'
-                for prev, next in backSteps:
-                    print prev, '->', next
-                raw_input('Backwards')
+        if debug('backwards') and backSteps:
+            print 'Backward steps:'
+            for prev, next in backSteps:
+                print prev, '->', next
+            raw_input('Backwards')
 
         wm.getWindow('World').update()
         debugMsg('doPath', 'Admire the path')

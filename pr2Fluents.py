@@ -1074,7 +1074,7 @@ def canReachHome(pbs, conf, prob, initViol,
         if backSteps:
             for (pre, post) in backSteps:
                 print pre, '->', post
-            raw_input('CRH - Backwards steps')
+            # raw_input('CRH - Backwards steps')
 
     if (not fbch.inHeuristic) or debug('drawInHeuristic'):
         if (moveBase and debug('canReachHome')) or \

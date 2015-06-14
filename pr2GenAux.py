@@ -397,12 +397,44 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
         pbs.draw(prob, 'W')
     count = 0
     tried = 0
+    robot = pbs.getRobot()
     if base:
         (x,y,th) = base
         nominalBasePose = util.Pose(x, y, 0.0, th)
-    robot = pbs.getRobot()
+    else:
+        (x,y,th) = pbs.getShadowWorld(prob).robotConf['pr2Base']
+        curBasePose = nominalBasePose = util.Pose(x, y, 0.0, th)
+
+    if debug('collectGraspConfs'):
+        xAxisZ = wrist.matrix[2,0]
+        if abs(xAxisZ) < 0.01:
+            if not glob.horizontal:
+                bases = list(robot.potentialBasePosesGen(wrist, hand))
+                glob.horizontal = [(b,
+                                    CartConf({'pr2BaseFrame': b,
+                                              robot.armChainNames[hand]+'Frame' : wrist,
+                                              'pr2Torso':[glob.torsoZ]}, robot)) \
+                                   for b in bases]
+        elif abs(xAxisZ + 1.0) < 0.01:
+            if not glob.vertical:
+                bases = list(robot.potentialBasePosesGen(wrist, hand))
+                glob.vertical = [(b,
+                                  CartConf({'pr2BaseFrame': b,
+                                            robot.armChainNames[hand]+'Frame' : wrist,
+                                            'pr2Torso':[glob.torsoZ]}, robot)) \
+                                 for b in bases]
+        else:
+            assert None
+
+    if base:
+        for ans in [graspConfForBase(pbs, placeB, graspB, hand, nominalBasePose, prob, wrist)]:
+            yield ans
+    # Try current pose first
+    ans = graspConfForBase(pbs, placeB, graspB, hand, curBasePose, prob, wrist)
+    if ans: yield ans
+    # Try the rest
     # !! Sample subset??
-    for basePose in [nominalBasePose] if base else robot.potentialBasePosesGen(wrist, hand):
+    for basePose in robot.potentialBasePosesGen(wrist, hand):
         if nMax and count >= nMax: break
         tried += 1
         ans = graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist)
