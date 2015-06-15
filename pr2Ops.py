@@ -912,7 +912,8 @@ def singleTargetUpdate(details, obs, obj):
 
     if bestLL < llMatchThreshold:
         # Update modeprob if we don't get a good score
-        print('No match above threshold')
+        print 'No match above threshold for obj', obj
+        print 'BestLL', bestLL, 'Threshold', llMatchThreshold
         debugMsg('obsUpdate', 'No match above threshold')
         oldP = details.poseModeProbs[obj]
         obsGivenH = details.domainProbs.obsTypeErrProb
