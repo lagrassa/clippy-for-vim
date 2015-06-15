@@ -306,6 +306,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         firstConf = next(graspApproachConfGen(None), None)
         if (not firstConf) or (firstConf and checkInfeasible(firstConf)):
             debugMsg('pickGen', 'No potential grasp confs, will need to regrasp')
+            raw_input('need to regrasp')
         else:
             targetConfs = graspApproachConfGen(firstConf)
             batchSize = pickPlaceBatchSize
