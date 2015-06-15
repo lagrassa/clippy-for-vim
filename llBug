@@ -1,0 +1,188 @@
+calling perception with ['soda']
+perception state scene: 
+  header: 
+    seq: 0
+    stamp: 
+      secs: 1434374372
+      nsecs: 64752401
+    frame_id: /base_footprint
+  objects: 
+    - 
+      name: soda
+      pose: 
+        position: 
+          x: 0.622729659081
+          y: 0.492940723896
+          z: 0.748393476009
+        orientation: 
+          x: 0.0
+          y: 0.0
+          z: 0.949336707592
+          w: -0.314260691404
+      fitness_score: 0.398108243942
+      cluster_id: 0
+origin frame
+[[-0.93652395  0.35060374  0.          1.3329563 ]
+ [-0.35060374 -0.93652395  0.          0.04257509]
+ [ 0.          0.          1.          0.74839348]
+ [ 0.          0.          0.          1.        ]]
+supportPose
+[[-0.93652404  0.35060377  0.          1.3329563 ]
+ [-0.35060377 -0.93652404  0.          0.04257509]
+ [ 0.          0.          1.          0.6896435 ]
+ [ 0.          0.          0.          1.        ]]
+Obs soda objA score= 0.398108243942 face= 4 pose= [[-0.93652404  0.35060377  0.          1.3329563 ]
+ [-0.35060377 -0.93652404  0.          0.04257509]
+ [ 0.          0.          1.          0.6896435 ]
+ [ 0.          0.          0.          1.        ]]
+soda
+Executed LookAt got obs [('table', 4, util.Transform(p=[[ 1.41135801  0.04951516  0.          1.        ]], q=[ 0.          0.          0.74314489  0.6691306 ])), ('soda', 4, util.Transform(p=[[ 1.3329563   0.04257509  0.6896435   1.        ]], q=[ 0.          0.          0.98400306 -0.17815177]))]
+obs is cyan
+    obsPoseCand Pose[1.333, 0.043, 0.690, -2.783] ll -8302.89551346
+   new best
+    obsPoseCand Pose[1.333, 0.043, 0.690, -2.783] ll -8302.89551346
+    obsPoseCand Pose[1.333, 0.043, 0.690, 0.358] ll -5.71257918501
+   new best
+obsUpdate :
+     Potential match with
+     objA
+     ll
+     -5.71257918501
+     [[ 0.93652401 -0.35060385  0.          1.3329563 ]
+ [ 0.35060385  0.93652401  0.          0.04257509]
+ [ 0.          0.          1.          0.6896435 ]
+ [ 0.          0.          0.          1.        ]]
+     False
+obsUpdate-Go?
+obs is cyan
+    obsPoseCand Pose[1.411, 0.050, 0.000, 1.676] ll 13.7194480269
+   new best
+    obsPoseCand Pose[1.411, 0.050, 0.000, 1.676] ll 13.7194480269
+    obsPoseCand Pose[1.411, 0.050, 0.000, -1.466] ll -12276.4780916
+obsUpdate :
+     Potential match with
+     table1
+     ll
+     13.7194480269
+     [[-0.10452851 -0.99452197  0.          1.41135801]
+ [ 0.99452197 -0.10452851  0.          0.04951516]
+ [ 0.          0.          1.          0.        ]
+ [ 0.          0.          0.          1.        ]]
+     True
+obsUpdate-Go?
+No match above threshold
+obsUpdate :
+     No match above threshold
+obsUpdate-Go?
+No match above threshold objA 0.99 0.838983050847
+Obs match for table1 0.999972020145 0.999998527337
+Angle obs update
+  oldTh 1.67525541782 obsTh 1.67551612854 newTh 1.67545118737
+okay?
+newMu is magenta
+------------  Belief -------------
+Conf:
+    pr2LeftGripper [0.070]
+    pr2RightArm [-2.092, 1.157, -3.200, -0.150, -3.100, -0.266, 0.025]
+    pr2Base [0.603, -0.257, -0.282]
+    pr2Torso [0.300]
+    pr2RightGripper [0.020]
+    pr2Head [0.629, 1.070]
+    pr2LeftArm [1.586, 0.312, 2.594, -1.946, -1.061, -0.802, 2.884]
+Held Left: DDist('none': 1.000) mode prob 0.990
+    Grasp type: None
+    Grasp mean: None
+    Grasp stdev: None
+Held Right: DDist('none': 1.000) mode prob 0.990
+    Grasp type: None
+    Grasp mean: None
+    Grasp stdev: None
+Objects:
+objA
+   prob: 0.838983050847
+   face: DDist(4: 1.000)
+   pose: (1.319, 0.058, 0.680, 0.504)
+ stdev : [0.022, 0.022, 0.000, 0.023]
+table1
+   prob: 0.999998527337
+   face: DDist(4: 1.000)
+   pose: (1.411, 0.050, 0.000, 1.675)
+ stdev : [0.005, 0.005, 0.000, 0.009]
+------------  Belief -------------
+
+=============================
+
+calling perception with ['soda']
+perception state scene: 
+  header: 
+    seq: 0
+    stamp: 
+      secs: 1434375003
+      nsecs: 918069928
+    frame_id: /base_footprint
+  objects: 
+    - 
+      name: soda
+      pose: 
+        position: 
+          x: -0.131317988038
+          y: 0.91083407402
+          z: 0.74625223875
+        orientation: 
+          x: 0.0
+          y: 0.0
+          z: 0.904690265656
+          w: 0.426069885492
+      fitness_score: 0.185891285539
+      cluster_id: 0
+origin frame
+[[ 0.89870153 -0.43856087  0.          1.34954338]
+ [ 0.43856087  0.89870153  0.          0.05704909]
+ [ 0.          0.          1.          0.74625224]
+ [ 0.          0.          0.          1.        ]]
+supportPose
+[[ 0.8987016  -0.4385609   0.          1.34954338]
+ [ 0.4385609   0.8987016   0.          0.05704909]
+ [ 0.          0.          1.          0.68750226]
+ [ 0.          0.          0.          1.        ]]
+Obs soda objA score= 0.185891285539 face= 4 pose= [[ 0.8987016  -0.4385609   0.          1.34954338]
+ [ 0.4385609   0.8987016   0.          0.05704909]
+ [ 0.          0.          1.          0.68750226]
+ [ 0.          0.          0.          1.        ]]
+soda
+Executed LookAt got obs [('table', 4, util.Transform(p=[[ 1.43198317  0.09260984  0.          1.        ]], q=[ 0.          0.          0.74305757  0.66922746])), ('soda', 4, util.Transform(p=[[ 1.34954338  0.05704909  0.68750226  1.        ]], q=[ 0.          0.          0.22505391  0.97434633]))]
+obs is cyan
+    obsPoseCand Pose[1.350, 0.057, 0.688, 0.454] ll -6.17633242874
+   new best
+    obsPoseCand Pose[1.350, 0.057, 0.688, 0.454] ll -6.17633242874
+    obsPoseCand Pose[1.350, 0.057, 0.688, -2.688] ll -12532.2798856
+obsUpdate :
+     Potential match with
+     objA
+     ll
+     -6.17633242874
+     [[ 0.8987016  -0.4385609   0.          1.34954338]
+ [ 0.4385609   0.8987016   0.          0.05704909]
+ [ 0.          0.          1.          0.68750226]
+ [ 0.          0.          0.          1.        ]]
+     True
+obsUpdate-Go?
+obs is cyan
+    obsPoseCand Pose[1.432, 0.093, 0.000, 1.675] ll 11.5749631856
+   new best
+    obsPoseCand Pose[1.432, 0.093, 0.000, 1.675] ll 11.5749631856
+    obsPoseCand Pose[1.432, 0.093, 0.000, -1.466] ll -11606.5412404
+obsUpdate :
+     Potential match with
+     table1
+     ll
+     11.5749631856
+     [[-0.10426922 -0.99454907  0.          1.43198317]
+ [ 0.99454907 -0.10426922  0.          0.09260984]
+ [ 0.          0.          1.          0.        ]
+ [ 0.          0.          0.          1.        ]]
+     True
+obsUpdate-Go?
+No match above threshold
+obsUpdate :
+     No match above threshold
