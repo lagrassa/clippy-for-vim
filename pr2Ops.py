@@ -153,7 +153,7 @@ def moveNBPrim(args, details):
         print list(enumerate(zip(vl, args)))
         print 'path length', len(path)
     assert path
-    return path, interpolated
+    return path, interpolated, details.pbs.getPlacedObjBs()
 
 def movePrim(args, details):
     (cs, ce, cd) = args
@@ -171,7 +171,8 @@ def movePrim(args, details):
         print list(enumerate(zip(vl, args)))
         print 'path length', len(path)
     assert path
-    return path, interpolated
+    # path(s) and the distributions for the placed objects, to guide looking
+    return path, interpolated, details.pbs.getPlacedObjBs()
 
 def printConf(conf):
     cart = conf.cartConf()
@@ -834,7 +835,7 @@ def lookAtBProgress(details, args, obs):
     details.pbs.getRoadMap().confReachCache = {} # Clear motion planning cache
     debugMsg('beliefUpdate', 'look')
 
-llMatchThreshold = -10.0
+llMatchThreshold = -100.0
 
 def objectObsUpdate(details, lookConf, obsList):
     def rem(l,x): return [y for y in l if y != x]
@@ -864,7 +865,7 @@ def objectObsUpdate(details, lookConf, obsList):
         if score > bestScore:
             bestAssignment = assignment
             bestScore = score
-    debugMsg('beliefUpdate', ('bestAssignment', bestAssignment))
+    debugMsg('obsUpdate', ('bestAssignment', bestAssignment))
     atLeastOneUpdate = False
     for obj, obs in bestAssignment:
         atLeastOneUpdate = True
@@ -896,9 +897,13 @@ def obsDist(details, obj):
 def scoreAssignment(obsAssignments, scores):
     LL = 0
     for obj, obs in obsAssignments:
-        if not obs: continue
+        if not obs:
+            LL += llMatchThreshold      # !! ??
+            continue
         score = scores.get((obj, obs), None)
-        if not score: continue
+        if not score:
+            LL += llMatchThreshold      # !! ??
+            continue
         (obsPose, ll, face) = score
         if ll >= llMatchThreshold:
             LL += ll

@@ -15,6 +15,7 @@ from pr2Visible import lookAtConf, findSupportTable, visible
 import pr2Robot
 reload(pr2Robot)
 from pr2Robot import cartInterpolators, JointConf, CartConf
+from pr2Ops import lookAtBProgress
 
 import util
 import tables
@@ -65,9 +66,15 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         conf.torso = map(float, cnfIn.get('pr2Torso', [])) 
         conf.left_joints = map(float, cnfIn.get('pr2LeftArm', []))
         conf.right_joints = map(float, cnfIn.get('pr2RightArm', []))
+
+        if operation == 'grab':
+            assert arm != 'both'
+
         if operation == 'open':
             conf.left_grip = map(float, cnfIn.get('pr2LeftGripper', []))
+            conf.left_grip[0] = max(0., min(0.8, conf.left_grip[0]))
             conf.right_grip = map(float, cnfIn.get('pr2RightGripper', []))
+            conf.right_grip[0] = max(0., min(0.8, conf.right_grip[0]))
             operation = 'move'
         else:
             conf.left_grip = []
@@ -92,11 +99,11 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         cnfOut['pr2Base'] = c.base
         cnfOut['pr2Torso']  = c.torso
         cnfOut['pr2LeftArm'] = c.left_joints
-        cnfOut['pr2LeftGripper'] = c.left_grip
+        cnfOut['pr2LeftGripper'] = max(0., min(0.8, c.left_grip))
         cnfOut['pr2RightArm'] = c.right_joints
-        cnfOut['pr2RightGripper'] = c.right_grip
-        # cnfOut['pr2Head'] = cnfIn.get('pr2Head', [0.,0.])
-        cnfOut['pr2Head'] = [0., 0.]
+        cnfOut['pr2RightGripper'] = max(0., min(0.8, c.right_grip))
+        cnfOut['pr2Head'] = cnfIn.get('pr2Head', [0.,0.])
+        # cnfOut['pr2Head'] = [0., 0.]
 
         print 'cnfOut[ pr2Head]=', cnfOut['pr2Head']
 
@@ -164,7 +171,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         return [shWorld.objectShapes[obj] \
                 for obj in shWorld.objectShapes if not obj in held]
 
-    def executePath(self, path):
+    def executePath(self, path, placeBs):
         shWorld = self.bs.pbs.getShadowWorld(0.95)
         objShapes = shWorld.getObjectShapes()
 
@@ -186,14 +193,14 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             distSoFar += 0.33*abs(util.angleDiff(prevXYT[2],newXYT[2]))
             print 'distSoFar', distSoFar
             # Check whether we should look
-            args = 11*[None]
+            args = 12*[None]
             if distSoFar >= maxOpenLoopDist:
                 distSoFar = 0           #  reset
                 obj = next(self.visibleShapes(conf, objShapes), None)
                 if obj:
                     lookConf = lookAtConf(conf, obj)
                     if lookConf:
-                        obs = self.doLook(lookConf)
+                        obs = self.doLook(lookConf, placeBs)
                         if obs:
                             args[1] = lookConf
                             lookAtBProgress(self.bs, args, obs)
@@ -217,9 +224,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             raw_input('Should check noBase against actual robot conf')
 
         if params:
-            path, interpolated = params
+            path, interpolated, placeBs = params
             debugMsg('robotEnv', 'executeMove: path len = ', len(path))
-            obs = self.executePath(path)
+            obs = self.executePath(path, placeBs)
         else:
             print op
             raw_input('No path given')
@@ -306,25 +313,26 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                 continue
             placeB = placeBs[supportTableB.obj]
             targets.append((targetObj, placeBs[targetObj]))
-            
-        surfacePoly = makeROSPolygon(tableRob) # from perceived table
-        ans = getObjDetections(self.world,
-                               dict(targets),
-                               outConf, # the lookConf actually achieved
-                               [surfacePoly])
-        for (score, objType, objPlaceRobot) in ans:
-            if not objPlaceRobot:
-                continue
-            trueFace = supportFaceIndex(objPlaceRobot)
-            objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
-            pose = getSupportPose(objPlace, trueFace)
-            obs.append((self.world.getObjType(objPlace.name()),
-                        trueFace, pose))
-            if debug('robotEnv'):
-                print 'Obs', objType, objPlace.name(), 'score=', score,
-                print 'face=', trueFace, 'pose=', pose
-                objPlace.draw('W', 'cyan')
-                raw_input(objType)
+
+        if targets:
+            surfacePoly = makeROSPolygon(tableRob) # from perceived table
+            ans = getObjDetections(self.world,
+                                   dict(targets),
+                                   outConf, # the lookConf actually achieved
+                                   [surfacePoly])
+            for (score, objType, objPlaceRobot) in ans:
+                if not objPlaceRobot:
+                    continue
+                trueFace = supportFaceIndex(objPlaceRobot)
+                objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
+                pose = getSupportPose(objPlace, trueFace)
+                obs.append((self.world.getObjType(objPlace.name()),
+                            trueFace, pose))
+                if debug('robotEnv'):
+                    print 'Obs', objType, objPlace.name(), 'score=', score,
+                    print 'face=', trueFace, 'pose=', pose
+                    objPlace.draw('W', 'cyan')
+                    raw_input(objType)
         if debug('robotEnv') and not obs:
             raw_input('Got no observations for %s'%([shape.name() for shape in visShapes]))
         return obs
@@ -335,7 +343,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 
     def executePick(self, op, params):
         (obj, hand, pickConf, approachConf) = \
-               (op.args[0], op.args[1], op.args[17], op.args[15])
+                 (op.args[0], op.args[1], op.args[11], op.args[9])
 
         if params:
             placeBs = params
@@ -357,8 +365,10 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         debugMsg('robotEnv', 'executePick - close')
         result, outConf = pr2GoToConf(pickConf, 'close', arm=hand[0]) # 'l' or 'r'
         g = confGrip(outConf, hand)
-        gripConf = gripOpen(outConf, hand, g-0.01)
+        gripConf = gripOpen(outConf, hand, g-0.025)
+        # close then grab
         result, outConf = pr2GoToConf(gripConf, 'open')
+        result, outConf = pr2GoToConf(gripConf, 'grab', arm=hand[0])
         if debug('robotEnv'):
             raw_input('Closed?')
 
@@ -369,7 +379,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 
     def executePlace(self, op, params):
         (hand, placeConf, approachConf) = \
-               (op.args[1], op.args[19], op.args[17])
+               (op.args[1], op.args[-6], op.args[-8])
 
         debugMsg('robotEnv', 'executePlace - move to approachConf')
         result, outConf = pr2GoToConf(approachConf, 'move')

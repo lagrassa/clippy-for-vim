@@ -1,3 +1,9 @@
+    obsPoseCand Pose[1.179, 0.007, 0.686, -0.046] ll 6.31409655668
+    obsPoseCand Pose[1.189, 0.008, 0.690, 0.246] ll -88.2695989875
+    obsPoseCand Pose[1.189, 0.008, 0.690, 0.303] ll -131.073605578
+    obsPoseCand Pose[1.186, 0.009, 0.690, 0.236] ll -81.8432675969
+
+
 tlp@marius:~/ros$ cd redux
 tlp@marius:~/ros/redux$ python
 Python 2.7.3 (default, Dec 18 2014, 19:10:20) 

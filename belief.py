@@ -175,6 +175,7 @@ class Bd(BFluent):
             newP = sp
 
         if needNewFluent:
+            assert fglb.predicate != 'Pose'   # LPK chasing stupid bug
             return Bd([fglb, fglb.value, newP], True), b
         else:
             # This is pure entailment
