@@ -834,7 +834,7 @@ def lookAtBProgress(details, args, obs):
     details.pbs.getRoadMap().confReachCache = {} # Clear motion planning cache
     debugMsg('beliefUpdate', 'look')
 
-llMatchThreshold = 0  
+llMatchThreshold = -10.0
 
 def objectObsUpdate(details, lookConf, obsList):
     def rem(l,x): return [y for y in l if y != x]

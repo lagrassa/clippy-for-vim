@@ -119,12 +119,12 @@ def gazeCoords(cnfIn):
     gaze = headTrans.applyToPoint(util.Point(np.array([0.,0.,1.,1.]).reshape(4,1)))
     confHead = gaze.matrix.reshape(4).tolist()[:3]
     confHead[2] = confHead[2] - 0.2     # brute force correction
-    if confHead[0] < 0:
-        if debug('pr2GoToConf'):  print 'Dont look back!'
-        confHead[0] = -conf.head[0]
-    if confHead[2] > 1.5:
-        if debug('pr2GoToConf'): print 'Dont look up!'
-        confHead[2] = 1.0
+    # if confHead[0] < 0:
+    #     if debug('pr2GoToConf'):  print 'Dont look back!'
+    #     confHead[0] = -conf.head[0]
+    # if confHead[2] > 1.5:
+    #     if debug('pr2GoToConf'): print 'Dont look up!'
+    #     confHead[2] = 1.0
     if debug('pr2GoToConf'):
         print confHead
     return confHead
@@ -284,13 +284,13 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             assert len(visTables) == 1
             tableName = visTables[0]
             print 'Looking at table', tableName
-            tableRobot = lookAtTable(outConfCart['pr2Base'], placeBs[tableName])
-            if not tableRobot: return []
-            trueFace = supportFaceIndex(tableRobot)
-            tablePoseRobot = getSupportPose(tableRobot, trueFace)
-            table = tableRobot.applyTrans(outConfCart['pr2Base'])
-            #!! needs generalizing
-            tablePose = outConfCart['pr2Base'].compose(tablePoseRobot)
+            # Table is in world coordinates
+            table = lookAtTable(outConfCart['pr2Base'], placeBs[tableName])
+            if not table: return []
+            basePose = outConfCart['pr2Base']
+            tableRob = table.applyTrans(basePose.inverse())
+            trueFace = supportFaceIndex(table)
+            tablePose = getSupportPose(table, trueFace)
             obs.append((self.world.getObjType(tableName), trueFace, tablePose))
         else:
             raw_input('No tables visible... returning null obs')
@@ -307,7 +307,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             placeB = placeBs[supportTableB.obj]
             targets.append((targetObj, placeBs[targetObj]))
             
-        surfacePoly = makeROSPolygon(table) # from perceived table
+        surfacePoly = makeROSPolygon(tableRob) # from perceived table
         ans = getObjDetections(self.world,
                                dict(targets),
                                outConf, # the lookConf actually achieved
@@ -457,6 +457,7 @@ def getPointCloud(basePose, resolution = glob.cloudPointsResolution):
         trans = response.cloud.eye.transform
         headTrans = TransformFromROSMsg(trans.translation, trans.rotation)
         eye = headTrans.point()
+        print 'headTrans\n', headTrans.matrix
         print 'eye', eye
         points = np.zeros((4, len(response.cloud.points)+1), dtype=np.float64)
         points[:,0] = eye.matrix[:,0]
@@ -466,6 +467,7 @@ def getPointCloud(basePose, resolution = glob.cloudPointsResolution):
                        verts=points, name='ROS')
         scan = scan.applyTrans(basePose)
         scan.draw('W', 'red')
+        raw_input('Scan')
         return scan
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
