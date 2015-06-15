@@ -403,7 +403,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
         nominalBasePose = util.Pose(x, y, 0.0, th)
     else:
         (x,y,th) = pbs.getShadowWorld(prob).robotConf['pr2Base']
-        curBasePose = nominalBasePose = util.Pose(x, y, 0.0, th)
+        curBasePose = util.Pose(x, y, 0.0, th)
 
     if debug('collectGraspConfs'):
         xAxisZ = wrist.matrix[2,0]
@@ -429,6 +429,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
     if base:
         for ans in [graspConfForBase(pbs, placeB, graspB, hand, nominalBasePose, prob, wrist)]:
             yield ans
+        return
     # Try current pose first
     ans = graspConfForBase(pbs, placeB, graspB, hand, curBasePose, prob, wrist)
     if ans: yield ans

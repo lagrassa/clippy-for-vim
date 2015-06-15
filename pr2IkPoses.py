@@ -506,7 +506,7 @@ def clean(poses):
             out.append(pose)
     return out
 
-def ikTrans():
+def ikTransNew():
     def poseScore(pose):
         return 3*abs(pose.theta) + abs(pose.y)
     horizontal = setupNuggets(n=1)
@@ -526,7 +526,7 @@ def ikTrans():
     print 'Vertical=', len(vertical)
     return horizontal, vertical
 
-def ikTransOld():
+def ikTrans():
     def poseScore(pose):
         return 3*abs(pose.theta) + abs(pose.y)
     horizontal = setupNuggets(n=1)
