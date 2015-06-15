@@ -179,7 +179,7 @@ class RealWorld(WorldState):
             assert targetConf.conf['pr2Base'] == self.robotConf.conf['pr2Base']
 
         if params:
-            path, interpolated  = params
+            path, interpolated, _  = params
             debugMsg('path', 'path len = ', len(path))
             if not path:
                 raw_input('No path!!')

@@ -2107,14 +2107,20 @@ def planBackward(startState, goal, ops, ancestors = [],
 # Returns a list of possible bindings (maybe empty)
 
 def getBindingsBetween(resultFs, goalFs, startState):
+    bs, matched = getBindingsBetweenAux(resultFs, goalFs, startState)
+    return bs if matched else []
+
+# Returns bindings
+def getBindingsBetweenAux(resultFs, goalFs, startState):
     if len(resultFs) == 0:
         debugMsg('gbb:detail', resultFs, [{}])
-        return [{}]
+        return [{}], False
     else:
         result = []
         rf = resultFs[0]
         debugMsg('gbb:detail', 'working on', rf)
-        restAnswer = getBindingsBetween(resultFs[1:], goalFs, startState)
+        restAnswer, restMatched = \
+                        getBindingsBetweenAux(resultFs[1:], goalFs, startState)
         debugMsg('gbb:detail', 'rest of answer', restAnswer)
         for b in restAnswer:
             matched = False
@@ -2135,7 +2141,7 @@ def getBindingsBetween(resultFs, goalFs, startState):
             if not matched:
                 result.append(b)
         debugMsg('gbb', 'handled', rf, result)
-        return result
+        return result, restMatched or matched
     
 ############################################################################
 #

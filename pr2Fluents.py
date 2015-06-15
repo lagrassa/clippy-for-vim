@@ -478,14 +478,14 @@ class CanReachNB(Fluent):
         # Allow startConf to remain unbound
         return {}
 
-    def fglb(self, other, details):
-        # If start and target are the same, then everybody entails us!
-        # Really should have a more general mechanism for simplifying conditions
-        (startConf, conf, cond) = self.args
-        if startConf == conf:
-            return other, {}
-        else:
-            return {self, other}, {}
+    # def fglb(self, other, details):
+    #     # If start and target are the same, then everybody entails us!
+    #     # Really should have a more general mechanism for simplifying conditions
+    #     (startConf, conf, cond) = self.args
+    #     if startConf == conf:
+    #         return other, {}
+    #     else:
+    #         return {self, other}, {}
         
     # Exactly the same as for CanReachHome
     def heuristicVal(self, details, v, p):
