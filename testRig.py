@@ -625,7 +625,7 @@ typicalErrProbs = DomainProbs(\
             # variance in observations; diagonal for now
             #obsVar = (0.005**2, 0.005**2,0.005**2, 0.01**2),
             # big angle var from robot experience
-            obsVar = (0.005**2, 0.005**2,0.005**2, 0.15**2),
+            obsVar = (0.005**2, 0.005**2,0.005**2, 0.03**2),
             # get type of object wrong
             obsTypeErrProb = 0.05,
             # fail to pick or place in the way characterized by the Gaussian

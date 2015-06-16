@@ -914,6 +914,8 @@ def scoreAssignment(obsAssignments, scores):
 def singleTargetUpdate(details, obs, obj):
     obsVar = details.domainProbs.obsVarTuple       
     bestObs, bestLL, bestFace = obs if obs else (None, -float('inf'), None)
+    oldPlaceB = details.pbs.getPlaceB(obj)
+    w = details.pbs.beliefContext.world
 
     if bestLL < llMatchThreshold:
         # Update modeprob if we don't get a good score
@@ -926,6 +928,10 @@ def singleTargetUpdate(details, obs, obj):
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
         details.poseModeProbs[obj] = newP
         print 'No match above threshold', obj, oldP, newP
+
+        newMu = oldPlaceB.poseD.mode().pose().xyztTuple()
+        newSigma = tuple([v + .001 for v in oldPlaceB.poseD.varTuple()])
+
         if oldP == newP or oldP == 1.0 or newP == 1.0:
             raw_input('okay?')
     else:
@@ -938,24 +944,22 @@ def singleTargetUpdate(details, obs, obj):
         print 'Obs match for', obj, oldP, newP
 
         # Should update face!!
-        
         # Update mean and sigma
         ## Be sure handling angle right.
-        oldPlaceB = details.pbs.getPlaceB(obj)
-        (newMu, newSigma) = gaussObsUpdate(oldPlaceB.poseD.mode().pose().xyztTuple(),
+        (newMu, newSigma) = \
+                    gaussObsUpdate(oldPlaceB.poseD.mode().pose().xyztTuple(),
                                            bestObs.pose().xyztTuple(),
                                            oldPlaceB.poseD.variance(), obsVar)
-        w = details.pbs.beliefContext.world
         ff = w.getFaceFrames(obj)[bestFace]
-        details.pbs.updateObjB(ObjPlaceB(obj,
-                                         w.getFaceFrames(obj),
-                                         DeltaDist(oldPlaceB.support.mode()),
-                                         PoseD(util.Pose(*newMu), newSigma)))
         if debug('obsUpdate'):
             objShape = details.pbs.getObjectShapeAtOrigin(obj)
             objShape.applyLoc(util.Pose(*newMu).compose(ff.inverse())).\
               draw('Belief', 'magenta')
             raw_input('newMu is magenta')
+
+    details.pbs.updateObjB(ObjPlaceB(obj, w.getFaceFrames(obj),
+                                     DeltaDist(oldPlaceB.support.mode()),
+                                     PoseD(util.Pose(*newMu), newSigma)))
     
 def scoreObsObj(details, obs, object):
     (oType, obsFace, obsPose) = obs

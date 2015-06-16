@@ -584,9 +584,11 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
 
         pB = pbsOrig.getPlaceB(obj, default=False) # check we know where obj is.
         if pbsOrig and pbsOrig.held[hand].mode() != obj and pB:
-            if next(potentialGraspConfGen(pbsOrig, pB, gB, conf, hand, base,
+            nextGr = next(potentialGraspConfGen(pbsOrig, pB, gB, conf, hand, base,
                                           prob, nMax=1),
-                    (None, None))[0]:
+                              (None, None))
+            # !!! LPK changed this because next was returning None
+            if nextGr and nextGr[0]:
                 return 1
             else:
                 return 2
