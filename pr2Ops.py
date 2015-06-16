@@ -25,10 +25,10 @@ maxVarianceTuple = (.1,)*4
 #defaultPoseDelta = (0.01, 0.01, 0.01, 0.03)
 defaultPoseDelta = (0.02, 0.02, 0.02, 0.04)
 defaultTotalDelta = (0.05, 0.05, 0.05, 0.1)  # for place in region
-lookConfDelta = (0.01, 0.01, 0.0, 0.01)
+lookConfDelta = (0.01, 0.01, 0.0001, 0.01)
 
 # Assume fixed delta on confs, determined by motion controller.
-fixedConfDelta = (0.001, 0.001, 0.0, 0.002)
+fixedConfDelta = (0.001, 0.001, 0.0001, 0.002)
 
 # Fixed accuracy to use for some standard preconditions
 canPPProb = 0.9
@@ -1272,15 +1272,6 @@ place = Operator(\
 
             Function(['GraspDelta'], ['PoseDelta', 'ConfDelta'],
                       subtract, 'subtract'),
-
-            # Just in case we don't have values for the pose and poseFace;
-            # We're going this to empty the hand;  so place in away region
-            # Function(['AwayRegion'], [], awayRegion, 'awayRegion'),
-            # Function(['Pose', 'PoseFace'],
-            #          ['Obj', 'AwayRegion', 'RealPoseVar',
-            #           tuple([d*2 for d in defaultPoseDelta]),
-            #           probForGenerators],
-            #          placeInRegionGen, 'placeInRegionGen'),
 
             # Not modeling the fact that the object's shadow should
             # grow a bit as we move to pick it.   Build that into pickGen.

@@ -201,7 +201,11 @@ class State:
     def fluentValue(self, fluent, recompute = False):
         cache = None if recompute else \
                  (self.relaxedValueCache if inHeuristic else self.valueCache)
-        return self.fluentValueWithCache(fluent, cache)
+        cachedVal = self.fluentValueWithCache(fluent, cache)
+        if debug('fluentCache'):
+            fval = fluent.valueInDetails(self.details)
+            assert fval == cachedVal, 'fluent cache inconsistent'
+        return cachedVal
 
     # Terribly terribly inefficient.
     def fluentValueWithCache(self, fluent, cache):
@@ -214,15 +218,20 @@ class State:
             # See if it matches a fluent in the state
             if fluent.predicate == f.predicate and \
                          fluent.args == f.args:
-
-                if self.details != None and debug('fluentCache'):
-                    fval = fluent.valueInDetails(self.details)
-                    assert fval == f.getValue(), 'fluent cache inconsistent'
                 return f.getValue()
 
         # Now, look in the details
         if self.details != None:
             fval = fluent.valueInDetails(self.details)
+
+            if debug('fluentCache'):
+                if fluent in self.relaxedValueCache:
+                  assert self.relaxedValueCache[fluent] == fval, \
+                    'Fluent value mismatch'
+                if fluent in self.valueCache:
+                  assert self.valueCache[fluent] == fval, \
+                    'Fluent value mismatch'
+            
             if cache != None: cache[fluent] = fval
             return fval
 

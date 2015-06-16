@@ -75,6 +75,8 @@ def confWithin(c1, c2, delta):
     (c1h1, c1h2) = c1['pr2Head']
     (c2h1, c2h2) = c2['pr2Head']
 
+    # Also look at gripper
+
     return all([withinDelta(c1CartConf[x],c2CartConf[x]) \
                 for x in robot.moveChainNames]) and \
                 nearAngle(c1h1, c2h1, delta[-1]) and \
@@ -404,7 +406,16 @@ def hCost(violations, obstCost, details):
 
     return (totalCost, ops)
 
+def hCostSee(vis, occluders, obstCost, details):
+    # vis is whether enough is visible;   we're 0 cost if that's true
+    if vis:
+        return (0, set())
 
+    obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
+                   for o in ocluders])
+    for o in obstOps: o.instanceCost = obstCost
+    totalCost = sum([o.instanceCost for o in ops])
+    return (totalCost, ops)
 
 class CanReachNB(Fluent):
     predicate = 'CanReachNB'
@@ -935,8 +946,8 @@ class CanSeeFrom(Fluent):
             dummyOp.instanceCost = obstCost
             return (obstCost, {dummyOp})
         
-        path, occluders = self.getViols(details, v, p, strict = False)
-        (ops, totalCost) = hCost(violations, obstCost, details)
+        vis, occluders = self.getViols(details, v, p, strict = False)
+        (ops, totalCost) = hCostSee(vis, occluders, obstCost, details)
         if debug('hAddBack'):
             print 'Heuristic val', self.predicate
             print 'ops', ops, 'cost', totalCost
