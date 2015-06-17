@@ -437,7 +437,8 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
 
     if base:
         for ans in [graspConfForBase(pbs, placeB, graspB, hand, nominalBasePose, prob, wrist)]:
-            yield ans
+            if ans:
+                yield ans
         return
     # Try current pose first
     ans = graspConfForBase(pbs, placeB, graspB, hand, curBasePose, prob, wrist)
