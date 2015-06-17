@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 
 from util cimport Ident, Transform, angleDiff, fixAnglePlusMinusPi
 from shapes cimport Shape
-from planGlobals import debug, debugMsg
+from planGlobals import debug, debugMsg, mergeShadows
 from geom import bboxUnion
 
 PI2 = 2*math.pi
@@ -88,9 +88,11 @@ class World:
         conf = dict([[objName, [Ident]]] +\
                     [[chain.name, []] for chain in chains[1:]])
         shape = obj.placement(Ident, conf)[0]
-        return next((part for part in shape.parts() if part.name() == objName), None)
-        # To make sure that we remove unnesessary nestings
-        # return simplify(shape)
+        if mergeShadows:
+            return next((part for part in shape.parts() if part.name() == objName), None)
+        else:
+            # Make sure that we remove unnesessary nestings
+            return simplify(shape)
 
     def getGraspDesc(self, obj):
         if obj == 'none':

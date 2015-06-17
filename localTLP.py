@@ -63,7 +63,9 @@ drawRebindNodes = True
 'visible'
 '''
 
-debugOn = ['traceGen', 'traceCRH', 'skeleton', 'simpleAbstractCostEstimates']
+debugOn = ['traceGen', 'traceCRH', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon'
+           # 'placeInRegionGen', 'placeInGen', 'potentialRegionPoseGen', 'potentialRegionPoseGenWeight'
+           ]
 
 if platform.system() == 'Linux':
     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:

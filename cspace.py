@@ -17,6 +17,13 @@ def CO(A, B, signs=(-1,1)):
     for v in verts: v[3,:]=1.0
     return geom.convexHullPrim(np.hstack(verts), B.origin())
 
+def COParts(A, B, signs=(-1,1)):
+    co = []
+    for a in A.parts():
+        for b in B.parts():
+           co.append(CO(a,b,signs))
+    return co
+
 def xyCO(A, B, signs=(-1,1)):
     Averts = A.vertices()
     Bverts = B.vertices()
@@ -30,6 +37,13 @@ def xyCO(A, B, signs=(-1,1)):
 
     return shapes.Polygon(geom.convexHullVertsXY(np.hstack(verts)),
                           zr, B.origin())
+
+def xyCOParts(A, B, signs=(-1,1)):
+    co = []
+    for a in A.parts():
+        for b in B.parts():
+           co.append(xyCO(a,b,signs))
+    return co
 
 def xyCI(A, B):                         # Only for convex B
     Az = A.zRange()

@@ -40,6 +40,8 @@ realWorld = None
 horizontal = None
 vertical = None
 
+mergeShadows = False
+
 ########################################
 # Robot Parameters
 ########################################

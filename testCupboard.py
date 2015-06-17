@@ -25,7 +25,7 @@ def makeCup(name, color, dims = cupDims):
     return Sh([Ba(cDims, color = color, name=name)  for cDims in dims],
               name = name, color=color)
 
-tableDZ = 0.67
+tableDX, tableDY, tableDZ = 0.3, 0.605, 0.67 # z of table is 0.65 but PR2 thinks not
 
 cupADelta = -0.2
 cupPose1 = util.Pose(cupADelta, 0, tableDZ+0.01, math.pi)

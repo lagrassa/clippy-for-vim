@@ -1120,6 +1120,10 @@ def canReachHome(pbs, conf, prob, initViol,
                 print 'viol, cost, path', viol, cost, path
         debugMsg(tag, ('viol', viol))
 
+    if not viol:
+        pbs.draw(prob, 'W'); conf.draw('W', 'blue')
+        raw_input('CRH Failed')
+
     return path, viol
 
 def findRegionParent(bState, region):

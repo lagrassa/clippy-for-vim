@@ -1521,7 +1521,7 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
                                                 else None,
                                  nonMonOps = nonMonOps,
                                  maxNodes = maxNodes)
-            if not p: raise PlanningFailed
+            if not p: raw_input('planning failed'); raise PlanningFailed
             planObj = makePlanObj(p, s)
             planObj.printIt(verbose = verbose)
             ps.push(planObj)

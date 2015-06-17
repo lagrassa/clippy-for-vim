@@ -2,6 +2,7 @@ import pdb
 import math
 import numpy as np
 import time
+import string
 
 import util
 import windowManager3D as wm
@@ -90,7 +91,7 @@ useLookAtHand = False
 
 # DEBUG
 useRight = True
-useVertical = True
+useVertical = False                     # DEBUG
 useHorizontal = True
 
 if useROS:
@@ -165,6 +166,7 @@ workspace = ((-1.0, -2.5, 0.0), (3.0, 2.5, 2.0))
 viewPort = [x0, x1, y0, y1, 0, dz]
 
 tZ = 0.68
+coolerZ = 0.19
 
 def testWorld(include = ['objA', 'objB', 'objC'],
               draw = True):
@@ -246,11 +248,15 @@ def testWorld(include = ['objA', 'objB', 'objC'],
                      name = 'cupboardSide1', color='brown')
     cupboard2 = Sh([place((-0.25, 0.25), (-0.05, 0.06), (0.0, 0.4))],
                      name = 'cupboardSide2', color='brown')
-    if 'cupboardSide1' in include:
-        world.addObjectShape(cupboard1)
-    if 'cupboardSide2' in include:
-        world.addObjectShape(cupboard2)
-    
+    if 'cupboardSide1' in include: world.addObjectShape(cupboard1)
+    if 'cupboardSide2' in include: world.addObjectShape(cupboard2)
+    cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)])],
+                name='cooler')
+    if 'cooler' in include: world.addObjectShape(cooler)
+    (shelves, aboveShelves) = makeShelves(name='shelves')
+    if 'shelves' in include: world.addObjectShape(shelves)
+    for (reg, pose) in aboveShelves:
+        world.addObjectRegion('shelves', reg.name(), reg, pose)
     # Some objects to grasp
     manipulanda = [oname for oname in include if oname[0:3] == 'obj']
 
@@ -387,6 +393,43 @@ def makeTable(dx, dy, dz, name, width = 0.1, color = 'orange'):
            name=name+' leg 2', color=color)
         ], name = name, color=color)
 
+eps = 0.01
+epsz = 0.02
+shelfDepth = 0.3
+shelfWidth = 0.02
+# makeShelves(shelfDepth/2.0, 0.305, 0.45, width=0.02, nshelf=2)
+
+def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
+                width = shelfWidth, nshelf = 2,
+                name='shelves', color='brown'):
+    sidePrims = [\
+        Ba([(-dx, -dy-width, 0), (dx, -dy, dz)],
+           name=name+'_side_A', color=color),
+        Ba([(-dx, dy, 0), (dx, dy+width, dz)],
+           name=name+'_side_B', color=color),
+        Ba([(dx, -dy, 0), (dx+width, dy, dz)],
+           name=name+'_backside', color=color),
+        ]
+    shelfSpaces = []
+    shelfRungs = []
+    for i in xrange(nshelf+1):
+        frac = i/float(nshelf)
+        bot = dz*frac
+        top = dz*frac+width
+        shelf = Ba([(-dx, -dy-width, bot),
+                    (dx, dy+width, bot+width)],
+                   color=color,
+                   name=name+'_shelf_'+string.ascii_uppercase[i])
+        shelfRungs.append(shelf)
+        spaceName = name+'_space_'+str(i+1)
+        space = Ba([(-dx+eps, -dy-width+eps, eps),
+                    (dx-eps, dy+width-eps, (dz/nshelf) - width - eps)],
+                   color='green', name=spaceName)
+        space = Sh([space], name=spaceName, color='green')
+        shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2),0)))
+    obj = Sh( sidePrims + shelfRungs, name=name, color=color)
+    return (obj, shelfSpaces)
+
 initConfs = []
 
 class PlanTest:
@@ -435,7 +478,9 @@ class PlanTest:
                        'table2': util.Pose(1.0, -0.75, 0.0, 0.0),
                        'table3': util.Pose(1.6,0.0,0.0,math.pi/2),
                        'cupboardSide1': util.Pose(1.1, -0.2, 0.6, 0.0),
-                       'cupboardSide2': util.Pose(1.1, 0.2, 0.6, 0.0)}
+                       'cupboardSide2': util.Pose(1.1, 0.2, 0.6, 0.0),
+                       'cooler': util.Pose(1.1, 0.0, tZ, 0.),
+                       'shelves': util.Pose(1.1, 0.0, tZ+coolerZ, 0.)}
         moveObjPoses = {'objA': util.Pose(1.1, 0.0, tZ, 0.0),
                         'objB': util.Pose(0.95, -0.4, tZ, 0.0),
                         'objC': util.Pose(-0.25, -1.2, tZ, 0.0),
@@ -623,9 +668,9 @@ typicalErrProbs = DomainProbs(\
             odoError = (0.015, 0.015, 1e-11, 0.015),
             #odoError = (0.01, 0.01, 1e-11, 0.01),
             # variance in observations; diagonal for now
-            #obsVar = (0.005**2, 0.005**2,0.005**2, 0.01**2),
+            obsVar = (0.005**2, 0.005**2,0.005**2, 0.01**2),
             # big angle var from robot experience
-            obsVar = (0.005**2, 0.005**2,0.005**2, 0.03**2),
+            # obsVar = (0.005**2, 0.005**2,0.005**2, 0.15**2),
             # get type of object wrong
             obsTypeErrProb = 0.05,
             # fail to pick or place in the way characterized by the Gaussian

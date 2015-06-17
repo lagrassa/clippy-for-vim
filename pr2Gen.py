@@ -715,21 +715,25 @@ def placeInRegionGen(args, goalConds, bState, outBindings, away = False, update=
 
 def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, update=True):
     (obj, region, var, delta, prob) = args
+    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    pbs = bState.pbs.copy()
+    world = pbs.getWorld()
+
+    # Get the regions
     if not isinstance(region, (list, tuple, frozenset)):
         regions = frozenset([region])
     elif len(region) == 0:
         raise Exception, 'need a region to place into'
     else:
         regions = frozenset(region)
+    shWorld = pbs.getShadowWorld(prob)
+    regShapes = [shWorld.regionShapes[region] for region in regions]
+    if debug('placeInGen'):
+        shWorld.draw('W')
+        for rs in regShapes: rs.draw('W', 'purple')
+        debugMsgSkip('placeInGen', skip, 'Target region in purple')
 
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
-    pbs = bState.pbs.copy()
-    world = pbs.getWorld()
-
-    # Should be min(poseVar - domainProb.placeVar, maxGraspVar)
-    graspV = bState.domainProbs.maxGraspVar
-    # Should be delta - confDelta;  conservatively, let it be delta
-    graspDelta = delta
+    # Set pose and support from current state
     pose = None
     if pbs.getPlaceB(obj, default=False):
         # If it is currently placed, use that support
@@ -750,29 +754,15 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
     else:
         assert None, 'Cannot determine support'
 
-    graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
-                       PoseD(None, graspV), delta=graspDelta)
-
-    # Put all variance on the object being placed
-    placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
-                       PoseD(pose, var), delta=delta)
-
-    shWorld = pbs.getShadowWorld(prob)
-    regShapes = [shWorld.regionShapes[region] for region in regions]
-    if debug('placeInGen'):
-        shWorld.draw('W')
-        for rs in regShapes: rs.draw('W', 'purple')
-        debugMsgSkip('placeInGen', skip, 'Target region in purple')
-
+    # Check if object pose is specified in goalConds
     poseBels = getGoalPoseBels(goalConds, world.getFaceFrames)
     if obj in poseBels:
-        # Object pose is specified in goalConds
         pB = poseBels[obj]
         shw = shadowWidths(pB.poseD.var, pB.delta, prob)
         shwMin = shadowWidths(graspV, graspDelta, prob)
         if any(w > mw for (w, mw) in zip(shw, shwMin)):
             args = (obj, None, pB.poseD.mode().xyztTuple(),
-                    support, placeB.poseD.var, graspV,
+                    support, var, graspV,
                     delta, graspDelta, None, prob)
             gen = placeGenGen(args, goalConds, bState, outBindings)
             for ans, v, hand in gen:
@@ -790,6 +780,19 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
         else:
             # If pose is specified and variance is small, return
             return
+
+    # The normal case
+    # graspV = bState.domainProbs.maxGraspVar
+    graspV = (0.01**2, 0.01**2, 0.01**2, .03**2)
+    graspDelta = (0.001, 0.001, 1.0e-6, 0.002) # !!
+    graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
+                       PoseD(None, graspV), delta=graspDelta)
+
+    # Use the input var and delta to select candidate poses in the
+    # region.  We will use smaller values (in general) for actually
+    # placing.
+    placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
+                       PoseD(pose, var), delta=delta)
 
     gen = placeInGenTop((obj, regShapes, graspB, placeB, None, prob),
                           goalConds, pbs, outBindings, away = away, update=update)
@@ -843,9 +846,12 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
         raw_input('%d reachObsts - in brown'%len(reachObsts))
 
     newBS = pbs.copy()           #  not necessary
+
     # Shadow (at origin) for object to be placed.
     domainPlaceVar = newBS.domainProbs.obsVarTuple 
     pB = placeB.modifyPoseD(var=domainPlaceVar)
+    pB.delta = (0.01, 0.01, 1.0e-6, 0.02)
+
     nPoses = placeInGenMaxPosesH if fbch.inHeuristic else placeInGenMaxPoses
     poseGenLeft = Memoizer('regionPosesLeft',
                            potentialRegionPoseGen(newBS, obj, pB, graspB, prob, regShapes,
@@ -856,11 +862,12 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
                                                    reachObsts, 'right', base,
                                                    maxPoses=nPoses))
 
+    # note the use of PB...
     mainLeftGen = placeInGenAux(newBS, poseGenLeft, goalConds, confAppr,
-                                conf, placeB, graspB, 'left', base, prob,
+                                conf, pB, graspB, 'left', base, prob,
                                 regrasp=regrasp, away=away, update=update)
     mainRightGen = placeInGenAux(newBS, poseGenRight, goalConds, confAppr,
-                                 conf, placeB, graspB, 'right', base, prob,
+                                 conf, pB, graspB, 'right', base, prob,
                                  regrasp=regrasp, away=away, update=update)
     mainGen = roundrobin(mainLeftGen, mainRightGen) \
                if pbs.useRight else mainLeftGen

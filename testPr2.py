@@ -190,6 +190,44 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           )
     return t
 
+def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+                easy = False, rip = False):
+
+    glob.rebindPenalty = 700
+    glob.monotonicFirst = True
+
+    goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'cooler': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'shelves': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
+    front = util.Pose(1.1, 0.0, tZ, 0.0)
+    right = util.Pose(1.1, -0.5, tZ, 0.0)
+    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+    coolerPose = util.Pose(1.3, 0.0, tZ, 0.)
+    shelvesPose = util.Pose(1.3, 0.0, tZ+coolerZ, 0.)
+
+    region = 'shelves_space_1'
+    goal = State([Bd([In(['objA', region]), True, goalProb], True)])
+
+    t = PlanTest('test4',  errProbs, allOperators,
+                 objects=['table1', 'cooler', 'shelves', 'objA'],
+                 fixPoses={'table1': table1Pose, 'cooler': coolerPose, 'shelves': shelvesPose},
+                 movePoses={'objA': right},
+                 varDict = varDict)
+
+    t.run(goal,
+          hpn = hpn,
+          skeleton = None,
+          hierarchical = hierarchical,
+          regions=[region],
+          heuristic = heuristic,
+          rip = rip
+          )
+    return t
+
+
 ######################################################################
 # Test Put Down
 #       Start with something in the hand

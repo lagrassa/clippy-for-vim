@@ -104,9 +104,18 @@ def primPath(bs, cs, ce, p):
     # Should use optimize = True, but sometimes leads to failure - why??
 
     #!! Used to have: reversePath=True, why?
+    home = bs.getRoadMap().homeConf
     path1, v1 = canReachHome(bs, cs, p, Violations())
+    if not path1:
+        print 'Path1 failed, trying RRT'
+        path1, v1 = rrt.planRobotPathSeq(bs, p, home, cs, None,
+                                         maxIter=50, failIter=10)
     assert path1
     path2, v2 = canReachHome(bs, ce, p, Violations())
+    if not path2:
+        print 'Path2 failed, trying RRT'
+        path2, v2 = rrt.planRobotPathSeq(bs, p, home, ce, None,
+                                         maxIter=50, failIter=10)
     assert path2
 
     # !! Debugging hack
