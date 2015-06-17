@@ -680,7 +680,7 @@ typicalErrProbs = DomainProbs(\
             # pickVar = (0.01**2, 0.01**2, 1e-11, 0.02**2),
             pickVar = (0.005**2, 0.005**2, 1e-11, 0.005**2),
             # variance in grasp after placing
-            placeVar = (0.01**2, 0.01**2, 1e-11, 0.02**2),
+            placeVar = (0.005**2, 0.005**2, 1e-11, 0.01**2),
             # pickTolerance
             # Too big?  Needs to be big to make the planner work unless
             # observations are a lot better

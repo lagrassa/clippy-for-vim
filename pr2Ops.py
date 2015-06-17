@@ -24,8 +24,7 @@ awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
 placePoseDelta = (0.01, 0.01, 0.01, 0.03)
 # Restore this!!
-defaultPoseDelta = (0.02, 0.02, 0.02, 0.04)
-
+#defaultPoseDelta = (0.02, 0.02, 0.02, 0.04)
 defaultPoseDelta = placePoseDelta
 defaultTotalDelta = (0.05, 0.05, 0.05, 0.1)  # for place in region
 lookConfDelta = (0.01, 0.01, 0.0001, 0.01)
@@ -431,7 +430,8 @@ def realPoseVar((graspVar,), goal, start, vals):
     return [[tuple([gv+pv for (gv, pv) in zip(graspVar, placeVar)])]]
 
 def defaultPoseVar(args, goal, start, vals):
-    pv = [v*4 for v in start.domainProbs.placeVar]
+    #pv = [v*4 for v in start.domainProbs.placeVar]
+    pv = list(start.domainProbs.placeVar)
     pv[2] = pv[0]
     return [[tuple(pv)]]
 
