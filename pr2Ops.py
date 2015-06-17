@@ -22,8 +22,11 @@ import windowManager3D as wm
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
-#defaultPoseDelta = (0.01, 0.01, 0.01, 0.03)
+placePoseDelta = (0.01, 0.01, 0.01, 0.03)
+# Restore this!!
 defaultPoseDelta = (0.02, 0.02, 0.02, 0.04)
+
+defaultPoseDelta = placePoseDelta
 defaultTotalDelta = (0.05, 0.05, 0.05, 0.1)  # for place in region
 lookConfDelta = (0.01, 0.01, 0.0001, 0.01)
 
@@ -438,7 +441,7 @@ def times2((thing,), goal, start, vals):
 # For place, grasp var is desired poseVar minus fixed placeVar
 # Don't let it be bigger than maxGraspVar 
 def placeGraspVar((poseVar,), goal, start, vals):
-    maxGraspVar = (0.0004, 0.0004, 0.0004, 0.008)
+    maxGraspVar = start.domainProbs.maxGraspVar
     placeVar = start.domainProbs.placeVar
     if isVar(poseVar):
         # For placing in a region; could let the place pick this, but
@@ -1275,7 +1278,7 @@ place = Operator(\
                      ['GraspVar'], realPoseVar, 'realPoseVar'),
             
             # In case PoseDelta isn't defined
-            Function(['PoseDelta'],[[defaultPoseDelta]], assign, 'assign'),
+            Function(['PoseDelta'],[[placePoseDelta]], assign, 'assign'),
             # Assume fixed conf delta
             Function(['ConfDelta'], [[fixedConfDelta]], assign, 'assign'),
 

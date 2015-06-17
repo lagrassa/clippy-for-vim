@@ -167,9 +167,16 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         tableB2.delta = lookDelta
         prob = 0.95
         shadow = tableB2.shadow(pbs2.updatePermObjPose(tableB2).getShadowWorld(prob))
-        if preConfShape.collides(shadow) or ppConfShape.collides(shadow) \
-               or not canView(pbs2, p, preConf, hand, shadow):
+        if preConfShape.collides(shadow):
             pbs2.draw(p, 'W'); preConfShape.draw('W', 'cyan'); shadow.draw('W', 'cyan')
+            raw_input('Preconf collides for place in canPickPlaceTest')
+            return None
+        if ppConfShape.collides(shadow):
+            pbs2.draw(p, 'W'); ppConfShape.draw('W', 'magenta'); shadow.draw('W', 'magenta')
+            raw_input('PPconf collides for place in canPickPlaceTest')
+            return None
+        if not canView(pbs2, p, preConf, hand, shadow):
+            pbs2.draw(p, 'W'); preConfShape.draw('W', 'orange'); shadow.draw('W', 'orange')
             raw_input('Failing to view for place in canPickPlaceTest')
             return None
 
@@ -281,11 +288,13 @@ def canView(pbs, prob, conf, hand, shape, maxIter = 50):
 ################
 
 # This needs generalization
-approachBackoff = 0.10
-zBackoff = approachBackoff/2
+# approachBackoff = 0.10   # 
+# 
+approachBackoff = 0.5
+zBackoff = 0.01
 def findApproachConf(pbs, obj, placeB, conf, hand, prob):
-    cached = pbs.getRoadMap().approachConfs.get(conf, False)
-    if cached is not False: return cached
+    # cached = pbs.getRoadMap().approachConfs.get(conf, False)
+    # if cached is not False: return cached
     robot = pbs.getRobot()
     cart = conf.cartConf()
     wristFrame = cart[robot.armChainNames[hand]]
