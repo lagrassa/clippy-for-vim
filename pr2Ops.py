@@ -23,8 +23,6 @@ zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
 placePoseDelta = (0.01, 0.01, 0.01, 0.03)
-# Restore this!!
-#defaultPoseDelta = (0.02, 0.02, 0.02, 0.04)
 defaultPoseDelta = placePoseDelta
 defaultTotalDelta = (0.05, 0.05, 0.05, 0.1)  # for place in region
 lookConfDelta = (0.01, 0.01, 0.0001, 0.01)
@@ -429,9 +427,8 @@ def realPoseVar((graspVar,), goal, start, vals):
     placeVar = start.domainProbs.placeVar
     return [[tuple([gv+pv for (gv, pv) in zip(graspVar, placeVar)])]]
 
-def defaultPoseVar(args, goal, start, vals):
-    #pv = [v*4 for v in start.domainProbs.placeVar]
-    pv = list(start.domainProbs.placeVar)
+def placeInPoseVar(args, goal, start, vals):
+    pv = [v * 3 for v in start.domainProbs.obsVarTuple]
     pv[2] = pv[0]
     return [[tuple(pv)]]
 
@@ -528,7 +525,6 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     return result
 
 def realPoseVarAfterObs((varAfter,), goal, start, vals):
-    # This should be taken out of domainProbs, but not sure how
     obsVar = start.domainProbs.obsVarTuple
     thing = tuple([min(x, y) for (x, y) in zip(varAfter, obsVar)])
     return [[thing]]
@@ -1210,7 +1206,7 @@ poseAchIn = Operator(\
               Function(['PoseFace2', 'ObjPose2'], ['Obj2'],
                        poseInStart, 'poseInStart'),
               # totalVar = 2 * poseVar; totalDelta = 2 * poseDelta
-              Function(['PoseVar'], [], defaultPoseVar, 'defaultPoseVar'),
+              Function(['PoseVar'], [], placeInPoseVar, 'placeInPoseVar'),
               Function(['TotalVar'], ['PoseVar'], times2, 'times2'),
               # call main generator
               Function(['ObjPose1', 'PoseFace1'],

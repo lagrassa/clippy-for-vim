@@ -290,8 +290,9 @@ def canView(pbs, prob, conf, hand, shape, maxIter = 50):
 # This needs generalization
 # approachBackoff = 0.10   # 
 # 
-approachBackoff = 0.5
-zBackoff = 0.01
+approachBackoff = 0.1
+zBackoff = 0.025
+
 def findApproachConf(pbs, obj, placeB, conf, hand, prob):
     # cached = pbs.getRoadMap().approachConfs.get(conf, False)
     # if cached is not False: return cached

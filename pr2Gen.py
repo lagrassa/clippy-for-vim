@@ -782,9 +782,8 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
             return
 
     # The normal case
-    # graspV = bState.domainProbs.maxGraspVar
-    graspV = (0.01**2, 0.01**2, 0.01**2, .03**2)
-    graspDelta = (0.001, 0.001, 1.0e-6, 0.002) # !!
+    graspV = bState.domainProbs.maxGraspVar
+    graspDelta = bState.domainProbs.graspDelta
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
                        PoseD(None, graspV), delta=graspDelta)
 
