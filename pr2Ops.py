@@ -1314,7 +1314,7 @@ pick = Operator(\
          'P1', 'PR1', 'PR2', 'PR3'],
         # Pre
         {0 : {Graspable(['Obj'], True),
-              BLoc(['Obj', planVar, planP], True)},
+              BLoc(['Obj', planVar, 'P1'], True)},    # was planP
          2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
               B([Pose(['Obj', 'PoseFace']), 'Pose', planVar, 'PoseDelta',
                  'P1'], True)},

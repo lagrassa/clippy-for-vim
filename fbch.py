@@ -1927,7 +1927,14 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                                                startState)
             bindingSet = []
             for b in bigBindingSet:
-                boundRFs = [f.applyBindings(b) for f in results]
+                rawBoundRFs = set([f.applyBindings(b) for f in results])
+
+                # Ugly attempt to remove internal entailments
+                boundRFs = set()
+                for thing in rawBoundRFs:
+                    boundRFs = addFluentToSet(boundRFs, thing,
+                                              startState.details)[0]
+
                 # All results should be bound
                 allBound = all([f.isGround() for f in boundRFs])
                 # All results should be useful
@@ -1944,11 +1951,12 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                 # it off the list because it doesn't have all the
                 # necessary preconditions, and some other version
                 # does.
-                allBoundRfs = [f.applyBindings(b) for f in o.allResultFluents()]
+                allBoundRfs = set([f.applyBindings(b) \
+                                   for f in o.allResultFluents()])
             
                 # Require these to be ground?  Or, definitely, not all
                 # variables
-                extraRfs = set(allBoundRfs).difference(set(boundRFs))
+                extraRfs = allBoundRfs.difference(boundRFs)
                 # Asking this question backward.  We want to know whether there
                 # are bindings that would make rf entail gf.
                 dup = any([(rf.isPartiallyBound() and \
