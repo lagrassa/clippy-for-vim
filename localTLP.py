@@ -64,7 +64,7 @@ drawRebindNodes = True
 '''
 
 debugOn = ['traceGen', 'traceCRH', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon'
-           # 'placeInRegionGen', 'placeInGen', 'potentialRegionPoseGen', 'potentialRegionPoseGenWeight'
+           'placeInRegionGen', 'placeInGen', 'potentialRegionPoseGen', 'potentialRegionPoseGenWeight'
            ]
 
 if platform.system() == 'Linux':

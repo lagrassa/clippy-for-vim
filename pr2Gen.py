@@ -848,9 +848,10 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     newBS = pbs.copy()           #  not necessary
 
     # Shadow (at origin) for object to be placed.
-    domainPlaceVar = newBS.domainProbs.obsVarTuple 
-    pB = placeB.modifyPoseD(var=domainPlaceVar)
-    pB.delta = (0.01, 0.01, 1.0e-6, 0.02)
+    # domainPlaceVar = newBS.domainProbs.obsVarTuple 
+    # pB = placeB.modifyPoseD(var=domainPlaceVar)
+    # pB.delta = (0.01, 0.01, 1.0e-6, 0.02)
+    pB = placeB
 
     nPoses = placeInGenMaxPosesH if fbch.inHeuristic else placeInGenMaxPoses
     poseGenLeft = Memoizer('regionPosesLeft',
