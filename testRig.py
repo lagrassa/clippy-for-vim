@@ -310,7 +310,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     def t(o):
         if o[0:3] == 'obj': return 'soda'
         if o[0:5] == 'table': return 'table'
-        if o[0:5] == 'shelves': return 'table'
+        if o[0:7] == 'shelves': return 'table'
         return 'unknown'
 
     world.objectTypes = dict([(o, t(o)) for o in include])
@@ -415,6 +415,9 @@ def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
         Ba([(dx, -dy, 0), (dx+width, dy, dz)],
            name=name+'_backside', color=color),
         ]
+    coolerPose = util.Pose(0.0, 0.0, tZ, -math.pi/2)
+    shelvesPose = util.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
+    tH = 0.67                           # table height
     shelfSpaces = []
     shelfRungs = []
     for i in xrange(nshelf+1):
@@ -430,15 +433,13 @@ def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
         space = Ba([(-dx+eps, -dy-width+eps, eps),
                     (dx-eps, dy+width-eps, (dz/nshelf) - width - eps)],
                    color='green', name=spaceName)
-        space = Sh([space], name=spaceName, color='green')
-        shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2),0)))
+        space = Sh([space], name=spaceName, color='green').applyTrans(shelvesPose)
+        shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2)-(tH/2),0)))
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
                     name='cooler', color=color)],
                 name='cooler', color=color)
-    table = makeTable(0.603, 0.298, 0.67, name = 'table1', color=color)
+    table = makeTable(0.603, 0.298, tH, name = 'table1', color=color)
     shelves = Sh(sidePrims + shelfRungs, name = name+'Body', color=color)
-    coolerPose = util.Pose(0.0, 0.0, tZ, -math.pi/2)
-    shelvesPose = util.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
     obj = Sh( shelves.applyTrans(shelvesPose).parts() \
               + cooler.applyTrans(coolerPose).parts() \
               + table.parts(),

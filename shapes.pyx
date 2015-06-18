@@ -59,6 +59,8 @@ cdef class Thing:
 
     cpdef list faceFrames(self):
         # Use faceFrames for bounding box -- FOR NOW
+        cdef:
+            np.ndarray[np.float64_t, ndim=2] bb
         if self.thingFaceFrames is None:
             bb = self.bbox()
             bbPlanes = np.array([[-1.,0.,0., bb[0,0]], [1.,0.,0., -bb[1,0]],
