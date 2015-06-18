@@ -16,7 +16,7 @@ import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
 from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace, \
-    BaseConf, Holding, CanReachNB
+    BaseConf, Holding, CanReachNB, Conf
 from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCOParts
 from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
@@ -619,6 +619,22 @@ def sameBase(goalConds):
             assert result == None, 'More than one Base fluent'
             result = base
     return result
+
+def targetConf(goalConds):
+    fbs_conf = [(f, b) for (f, b) \
+                in getMatchingFluents(goalConds,
+                                      Conf(['Mu', 'Delta'], True))]
+    fbs_crnb = fbch.getMatchingFluents(goalConds,
+                                       Bd([CanReachNB(['Start', 'End', 'Cond']),
+                                           True, 'P'], True))
+    if not (fbs_conf and fbs_crnb): return None
+    conf = None
+    for (fconf, bconf) in fbs_conf:
+        for (fcrnb, bcrnb) in fbs_crnb:
+            confVar = fconf.args[0]
+            if isVar(confVar) and fconf.args[0] == fcrnb.args[0].args[0]:
+                conf = fcrnb.args[0].args[1]
+    return conf
 
 def pathShape(path, prob, pbs, name):
     assert isinstance(path, (list, tuple))

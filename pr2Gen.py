@@ -1001,8 +1001,8 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         return
 
     if base:
-        # !! Could be more creative about the conf
-        conf = rm.homeConf.set('pr2Base', base)
+        conf = targetConf(goalConds)
+        assert conf, 'No conf found for lookConf with specified base'
         path, viol = canReachHome(newBS, conf, prob, Violations(), moveBase=False)
         trace('    lookGen(%s) specified base viol='%obj, viol.weight() if viol else None)
         if not path:
@@ -1282,6 +1282,7 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
     debugMsg(tag, ('viol', viol))
     if not viol:                  # hopeless
         tracep(tag, 'Impossible dream')
+        raw_input('Impossible dream')
         return
     if viol.empty():
         tracep(tag, 'No obstacles or shadows; returning')

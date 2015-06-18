@@ -368,7 +368,7 @@ def hCost(violations, obstCost, details):
     for o in shadowOps:
         # Use variance in start state
         obj = objectName(o.args[0])
-        vb = details.pbs.getPlaceB('table1').poseD.variance()
+        vb = details.pbs.getPlaceB(obj).poseD.variance()
         deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
         c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
         o.instanceCost = c

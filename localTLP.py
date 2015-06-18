@@ -63,9 +63,10 @@ drawRebindNodes = True
 'visible'
 '''
 
-debugOn = ['traceGen', 'traceCRH', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon'
-           'placeInRegionGen', 'placeInGen', 'potentialRegionPoseGen', 'potentialRegionPoseGenWeight',
-           'placeGen', 'pickGen'
+debugOn = ['traceGen', 'traceCRH', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon',
+           # 'placeInRegionGen', 'placeInGen', 'potentialRegionPoseGen', 'potentialRegionPoseGenWeight',
+           # 'placeGen', 'pickGen', 'lookGen'
+           # 'verifyPath'
            ]
 
 if platform.system() == 'Linux':

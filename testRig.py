@@ -254,10 +254,10 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)])],
                 name='cooler')
     if 'cooler' in include: world.addObjectShape(cooler)
-    (shelves, aboveShelves) = makeShelves(name='shelves')
-    if 'shelves' in include: world.addObjectShape(shelves)
-    for (reg, pose) in aboveShelves:
-        world.addObjectRegion('shelves', reg.name(), reg, pose)
+    (tableShelves, aboveTableShelves) = makeTableShelves(name='tableShelves')
+    if 'tableShelves' in include: world.addObjectShape(tableShelves)
+    for (reg, pose) in aboveTableShelves:
+        world.addObjectRegion('tableShelves', reg.name(), reg, pose)
     # Some objects to grasp
     manipulanda = [oname for oname in include if oname[0:3] == 'obj']
 
@@ -310,16 +310,13 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     def t(o):
         if o[0:3] == 'obj': return 'soda'
         if o[0:5] == 'table': return 'table'
-        if o[0:7] == 'shelves': return 'table'
         return 'unknown'
 
     world.objectTypes = dict([(o, t(o)) for o in include])
     world.symmetries = {'soda' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.),
                                                  util.Pose(0.,0.,0.,math.pi)]}),
                         'table' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.),
-                                                 util.Pose(0.,0.,0.,math.pi)]}),
-                        'shelves' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.),
-                                                    util.Pose(0.,0.,0.,math.pi)]})}
+                                                 util.Pose(0.,0.,0.,math.pi)]})}
 
     robot = PR2('MM', makePr2Chains('PR2', world.workspace))
     # This affects randomConf and stepAlongLine, unless overriden
@@ -404,9 +401,9 @@ shelfDepth = 0.3
 shelfWidth = 0.02
 # makeShelves(shelfDepth/2.0, 0.305, 0.45, width=0.02, nshelf=2)
 
-def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
+def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                 width = shelfWidth, nshelf = 2,
-                name='shelves', color='brown'):
+                name='tableShelves', color='brown'):
     sidePrims = [\
         Ba([(-dx, -dy-width, 0), (dx, -dy, dz)],
            name=name+'_side_A', color=color),
@@ -434,7 +431,7 @@ def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                     (dx-eps, dy+width-eps, (dz/nshelf) - width - eps)],
                    color='green', name=spaceName)
         space = Sh([space], name=spaceName, color='green').applyTrans(shelvesPose)
-        shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2)-(tH/2),0)))
+        shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2)-(tH/2)-(coolerZ/2),0)))
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
                     name='cooler', color=color)],
                 name='cooler', color=color)
@@ -491,12 +488,12 @@ class PlanTest:
         ff = lambda o: self.world.getFaceFrames(o) if o in objects else []
         # The poses of the supporting face frames (the placement)
         fixObjPoses = {'table1':util.Pose(1.1, 0.0, 0.0, math.pi/2),
+                       'tableShelves':util.Pose(1.1, 0.0, 0.0, math.pi/2),
                        'table2': util.Pose(1.0, -0.75, 0.0, 0.0),
                        'table3': util.Pose(1.6,0.0,0.0,math.pi/2),
                        'cupboardSide1': util.Pose(1.1, -0.2, 0.6, 0.0),
                        'cupboardSide2': util.Pose(1.1, 0.2, 0.6, 0.0),
-                       'cooler': util.Pose(1.1, 0.0, tZ, 0.),
-                       'shelves': util.Pose(1.1, 0.0, tZ+coolerZ, 0.)}
+                       'cooler': util.Pose(1.1, 0.0, tZ, 0.)}
         moveObjPoses = {'objA': util.Pose(1.1, 0.0, tZ, 0.0),
                         'objB': util.Pose(0.95, -0.4, tZ, 0.0),
                         'objC': util.Pose(-0.25, -1.2, tZ, 0.0),
