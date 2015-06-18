@@ -486,7 +486,8 @@ class RoadMap:
         if (ans == None or ans[0] == None):
             if debug('traceCRH'): print '    path failed... trying RRT'
             path, viol = rrt.planRobotPath(pbs, prob, initConf, targetConf, None,
-                                           targetConf.conf.keys())
+                                           targetConf.conf.keys(),
+                                           maxIter=50, failIter=10)
             if viol:
                 viol = viol.update(initViol)
             else:

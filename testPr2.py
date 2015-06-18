@@ -191,7 +191,8 @@ def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=ha
     tableShelvesPose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     region = 'tableShelves_space_2'
-    goal = State([Bd([In(['objB', region]), True, goalProb], True),
+    goal1 = State([Bd([In(['objA', region]), True, goalProb], True)])
+    goal2 = State([Bd([In(['objB', region]), True, goalProb], True),
                   Bd([In(['objA', region]), True, goalProb], True)])
 
     t = PlanTest('testShelves',  errProbs, allOperators,
@@ -201,7 +202,7 @@ def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=ha
                             'objB': left1},
                  varDict = varDict)
 
-    t.run(goal,
+    t.run(goal1,
           hpn = hpn,
           skeleton = None,
           hierarchical = hierarchical,
