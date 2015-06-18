@@ -53,14 +53,15 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 
     skel = [[poseAchIn,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), move,
              place.applyBindings({'Obj': 'objA'}),
              poseAchCanPickPlace,
              moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), 
              move,      
-             pick,   #9
-             poseAchCanPickPlace, 
+             pick,   
+             poseAchCanPickPlace,  # 13
              moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,

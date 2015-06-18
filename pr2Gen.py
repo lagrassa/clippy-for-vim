@@ -946,11 +946,17 @@ def lookGen(args, goalConds, bState, outBindings):
         objDelta = lookDelta
         
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support, poseD,
-                       # Pretend that the object has bigger delta
-                       delta=tuple([o+l for (o,l) in zip(objDelta, lookDelta)]))
+                       delta = objDelta)
+    # Pretend that the object has bigger delta
+    # delta=tuple([o+l for (o,l) in zip(objDelta, lookDelta)]))
+
+    # Be careful here!  There is a shadow for the purposes of looking
+    # and a shadow for the purposes of moving, and I guess they might
+    # be different.
 
     # Don't try to look at the whole shadow
-    placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
+    # We'll do this later.
+    # placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
 
 
     for ans, viol in lookGenTop((obj, placeB, lookDelta, base, prob),
@@ -979,6 +985,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     if any(shWorld.attached.values()):
         trace('    attached=', shWorld.attached)
     shName = shadowName(obj)
+    # Uses original placeB
     sh = shWorld.objectShapes[shName]
     obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
 
@@ -1017,13 +1024,13 @@ def lookGenTop(args, goalConds, pbs, outBindings):
                 yield (lookConf,), viol
         return
 
-    # LPK did this
-    tempPlaceB = copy.copy(placeB)
-    tempPlaceB.poseD = copy.copy(placeB.poseD)
-    tempPlaceB.modifyPoseD(var = pbs.domainProbs.obsVarTuple)
-    # be smarter about this?
-    tempPlaceB.delta = (.01, .01, .01, .01)
-    shape = tempPlaceB.shadow(newBS.getShadowWorld(prob))
+    # A shape for the purposes of viewing.  Make the shadow very small
+    smallPlaceB = copy.copy(placeB)
+    smallPlaceB.poseD = copy.copy(placeB.poseD)
+    placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
+    # be smarter about this?  LPK took this out
+    # tempPlaceB.delta = (.01, .01, .01, .01)
+    shape = smallPlaceB.shadow(newBS.getShadowWorld(prob))
 
     # Check current conf
     curr = newBS.conf
@@ -1042,7 +1049,8 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         # collide with shadow of obj.
         for gB in graspGen(pbs, obj, graspB):
             for hand in ['left', 'right']:
-                for ans, viol in pickGenTop((obj, gB, tempPlaceB, hand, base,
+                # Changed smallPlaceB to placeB
+                for ans, viol in pickGenTop((obj, gB, placeB, hand, base,
                                              prob),
                                             goalConds, pbs, outBindings,
                                             onlyCurrent=True):

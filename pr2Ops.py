@@ -27,6 +27,10 @@ defaultPoseDelta = placePoseDelta
 defaultTotalDelta = (0.05, 0.05, 0.05, 0.1)  # for place in region
 lookConfDelta = (0.01, 0.01, 0.0001, 0.01)
 
+# If it's bigger than this, we can't just plan to look and see it
+# Should be more subtle than this...
+maxPoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
+
 # Assume fixed delta on confs, determined by motion controller.
 fixedConfDelta = (0.001, 0.001, 0.0001, 0.002)
 
@@ -494,11 +498,9 @@ def pickPoseVar((graspVar, graspDelta, prob), goal, start, vals):
         debugMsg('pickGenVar', 'pick pose var', poseVar)
         return [[poseVar]]
 
-# If it's bigger than this, we can't just plan to look and see it
-# Should be more subtle than this...
-maxPoseVar = (0.1**2, 0.1**2, 0.1**2, 0.3**2)
 
-# starting var if it's legal, plus regression of the result var
+# starting var if it's legal, plus regression of the result var.
+# Need to try several, so that looking doesn't put the robot into the shadow!
 def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     lookVar = start.domainProbs.obsVarTuple
     vs = tuple(start.poseModeDist(obj, face).mld().sigma.diagonal().tolist()[0])
@@ -508,17 +510,17 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     cap = [max(a, b) for (a, b) in zip(maxPoseVar, vs)]
 
     vbo = varBeforeObs(lookVar, ve)
-    cappedVbo1 = tuple([min(a, b) for (a, b) in zip(maxPoseVar, vbo)])
+    cappedVbo1 = tuple([min(a, b) for (a, b) in zip(cap, vbo)])
     cappedVbo2 = tuple([min(a, b) for (a, b) in zip(vs, vbo)])
-
-    startLessThanMax = any([a < b for (a, b) in zip(vs, maxPoseVar)])
-    startUseful = any([a > b for (a, b) in zip(vs, ve)])
 
     result = [[cappedVbo1]]
     if cappedVbo2 != cappedVbo1:
         result.append([cappedVbo2])
     if vs != cappedVbo1 and vs != cappedVbo2:
         result.append([vs])
+    result.append([tuple([v / 4.0 for v in cappedVbo1])])
+    result.append([tuple([v / 9.0 for v in cappedVbo1])])
+    result.append([tuple([v / 25.0 for v in cappedVbo1])])
 
     debugMsg('genLookObjPrevVariance', result)
 

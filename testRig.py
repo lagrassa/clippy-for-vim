@@ -663,10 +663,11 @@ class PlanTest:
 # No Z error in observations for now!  Address this eventually.
 # Turned down pickVar until we can look at hand
 
+# Made odo error smaller...
+
 typicalErrProbs = DomainProbs(\
             # stdev, constant, assuming we control it by tracking while moving
-            odoError = (0.015, 0.015, 1e-11, 0.015),
-            #odoError = (0.01, 0.01, 1e-11, 0.01),
+            odoError = (0.008, 0.008, 1e-11, 0.015),
             # variance in observations; diagonal for now
             obsVar = (0.005**2, 0.005**2,0.005**2, 0.01**2),
             # big angle var from robot experience
