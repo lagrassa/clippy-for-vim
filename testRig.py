@@ -310,13 +310,16 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     def t(o):
         if o[0:3] == 'obj': return 'soda'
         if o[0:5] == 'table': return 'table'
+        if o[0:5] == 'shelves': return 'table'
         return 'unknown'
 
     world.objectTypes = dict([(o, t(o)) for o in include])
     world.symmetries = {'soda' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.),
                                                  util.Pose(0.,0.,0.,math.pi)]}),
                         'table' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.),
-                                                 util.Pose(0.,0.,0.,math.pi)]})}
+                                                 util.Pose(0.,0.,0.,math.pi)]}),
+                        'shelves' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.),
+                                                    util.Pose(0.,0.,0.,math.pi)]})}
 
     robot = PR2('MM', makePr2Chains('PR2', world.workspace))
     # This affects randomConf and stepAlongLine, unless overriden

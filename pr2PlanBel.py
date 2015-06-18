@@ -161,9 +161,15 @@ class PBS:
         initialObjects = self.objectsInPBS()
         world = self.getWorld()
         if updateHeld:
-            (self.held, self.graspB) = \
-                        getHeldAndGraspBel(goalConds, world.getGraspDesc,
-                                           self.held, self.graspB)
+            (held, graspB) = \
+                   getHeldAndGraspBel(goalConds, world.getGraspDesc)
+            for h in ('left', 'right'):
+                if held[h]:
+                    self.fixHeld[h] = True
+                    self.held[h] = held[h]
+                if graspB[h]:
+                    self.fixGrasp[h] = True
+                    self.graspB[h] = graspB[h]
             for gB in self.graspB.values():
                 if gB: self.excludeObjs([gB.obj])
         if updateConf:
@@ -189,9 +195,15 @@ class PBS:
         initialObjects = self.objectsInPBS()
         world = self.getWorld()
         if updateHeld:
-            (self.held, self.graspB) = \
-                        getHeldAndGraspBel(goalConds, world.getGraspDesc,
-                                           self.held, self.graspB)
+            (held, graspB) = \
+                   getHeldAndGraspBel(goalConds, world.getGraspDesc)
+            for h in ('left', 'right'):
+                if held[h]:
+                    self.fixHeld[h] = True
+                    self.held[h] = held[h]
+                if graspB[h]:
+                    self.fixGrasp[h] = True
+                    self.graspB[h] = graspB[h]
             for gB in self.graspB.values():
                 if gB: self.excludeObjs([gB.obj])
         if updateConf:
@@ -402,6 +414,8 @@ class PBS:
                     graspShadow.draw('W', 'red')
                     print 'attached origin\n', sw.attached[hand].origin().matrix
                     raw_input('Attach?')
+        sw.fixedHeld = self.fixHeld
+        sw.fixedGrasp = self.fixGrasp
         sw.setRobotConf(self.conf)
         if debug('getShadowWorldGrasp') and not fbch.inHeuristic:
             sw.draw('W')
@@ -558,12 +572,13 @@ def getConf(overrides, curr):
             conf = b['Mu']
     return conf
 
-def getHeldAndGraspBel(overrides, getGraspDesc, currHeld, currGrasp):
-    if not overrides: return (currHeld, currGrasp)
+def getHeldAndGraspBel(overrides, getGraspDesc):
+    held = {'left':None, 'right':None}
+    graspB = {'left':None, 'right':None}
+    if not overrides: return (held, graspB)
 
     # Figure out what we're holding
     hbs = getMatchingFluents(overrides, Bd([Holding(['H']), 'Obj', 'P'], True))
-    held = currHeld.copy()
     objects = {}
     for (f, b) in hbs:
         if isGround(b.values()):  
@@ -588,7 +603,6 @@ def getHeldAndGraspBel(overrides, getGraspDesc, currHeld, currGrasp):
     gbs = getMatchingFluents(overrides,
             B([Grasp(['Obj', 'H', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
     grasps = {}
-    graspB = currGrasp.copy()
     for (f, b) in gbs:
         if  isGround(b.values()):
             (hand, obj, face, mu, var, delta) = \

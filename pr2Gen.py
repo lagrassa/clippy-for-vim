@@ -754,6 +754,11 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
     else:
         assert None, 'Cannot determine support'
 
+    graspV = bState.domainProbs.maxGraspVar
+    graspDelta = bState.domainProbs.graspDelta
+    graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
+                       PoseD(None, graspV), delta=graspDelta)
+
     # Check if object pose is specified in goalConds
     poseBels = getGoalPoseBels(goalConds, world.getFaceFrames)
     if obj in poseBels:
@@ -782,10 +787,6 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
             return
 
     # The normal case
-    graspV = bState.domainProbs.maxGraspVar
-    graspDelta = bState.domainProbs.graspDelta
-    graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
-                       PoseD(None, graspV), delta=graspDelta)
 
     # Use the input var and delta to select candidate poses in the
     # region.  We will use smaller values (in general) for actually
