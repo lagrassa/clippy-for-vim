@@ -1120,7 +1120,7 @@ def canReachHome(pbs, conf, prob, initViol,
                 print 'viol, cost, path', viol, cost, path
         debugMsg(tag, ('viol', viol))
 
-    if not viol:
+    if not viol and debug('canReachHome'):
         pbs.draw(prob, 'W'); conf.draw('W', 'blue')
         raw_input('CRH Failed')
 

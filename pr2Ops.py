@@ -785,17 +785,22 @@ def lookAtHandCostFun(al, args, details):
 
 def moveBProgress(details, args, obs=None):
     (s, e, _) = args
-    # Assume we've controlled the error during motion.
+    # Assume we've controlled the error during motion.  This is a stdev
     odoError = details.domainProbs.odoError
+    odoVar = [x**2 for x in odoError]
 
     # Change robot conf
     details.pbs.updateConf(e)
 
-    # Increase variance on all objects not in the hand
+    # Make variance of all objects not in the hand equal to the max of
+    # the previous variance and odoError
+
     for ob in details.pbs.moveObjBs.values() + \
                details.pbs.fixObjBs.values():
         oldVar = ob.poseD.var
-        ob.poseD.var = tuple([a + b*b for (a, b) in zip(oldVar, odoError)])
+        # this is the additive version
+        # ob.poseD.var = tuple([a + b*b for (a, b) in zip(oldVar, odoError)])
+        ob.poseD.var = tuple([max(a, b) for (a, b) in zip(oldVar, odoVar)])
     details.pbs.reset()
     debugMsg('beliefUpdate', 'moveBel')    
 
