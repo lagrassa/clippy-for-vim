@@ -55,7 +55,7 @@ pickTol (be sure we're not giving pick too big a variance)
 placeGen
 placeInGen
 placeInRegionGen
-potentialLookConfs'
+potentialLookConfs
 prim
 regression
 regression:fail

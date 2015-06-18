@@ -32,7 +32,7 @@ lookConfDelta = (0.01, 0.01, 0.0001, 0.01)
 maxPoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
 
 # Assume fixed delta on confs, determined by motion controller.
-fixedConfDelta = (0.001, 0.001, 0.0001, 0.002)
+fixedConfDelta = (0.001, 0.001, 0.0000001, 0.002)
 
 # Fixed accuracy to use for some standard preconditions
 canPPProb = 0.9

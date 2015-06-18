@@ -91,7 +91,7 @@ useLookAtHand = False
 
 # DEBUG
 useRight = False                        # DEBUG
-useVertical = False                     # DEBUG
+useVertical = True                     # DEBUG
 useHorizontal = True
 
 if useROS:
@@ -702,7 +702,9 @@ typicalErrProbs = DomainProbs(\
             # pickTolerance
             pickTolerance = (0.025, 0.025, 0.025, 0.05),
             maxGraspVar = (0.005**2, .005**2, .005**2, .015**2),
-            graspDelta = (0.001, 0.001, 1.0e-6, 0.002))
+            # Use this for placing objects
+            placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
+            graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
 
 smallErrProbs = DomainProbs(\
             # stdev, as a percentage of the motion magnitude

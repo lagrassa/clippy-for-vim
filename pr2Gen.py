@@ -1240,9 +1240,12 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
      graspFace, graspMu, graspVar, graspDelta, prob, cond, op) = args
     pbs = bState.pbs.copy()
     # Don't make this infeasible
-    cppFluent = Bd([CanPickPlace([preconf, ppconf, hand, obj, pose, realPoseVar, poseDelta, poseFace,
-                                  graspFace, graspMu, graspVar, graspDelta, op, cond]), True, prob], True)
-    poseFluent = B([Pose([obj, poseFace]), pose, realPoseVar, poseDelta, prob], True)
+    cppFluent = Bd([CanPickPlace([preconf, ppconf, hand, obj, pose,
+                                  realPoseVar, poseDelta, poseFace,
+                                  graspFace, graspMu, graspVar, graspDelta,
+                                  op, cond]), True, prob], True)
+    poseFluent = B([Pose([obj, poseFace]), pose, realPoseVar, poseDelta, prob],
+                    True)
     goalConds = goalConds + [cppFluent, poseFluent]
     # Debug
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
@@ -1285,7 +1288,7 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
         return
     # If possible, it might be better to make the deltas big; but we
     # have to be sure to use the same delta when generating paths.
-    objBMinDelta = newBS.domainProbs.minDelta
+    objBMinDelta = newBS.domainProbs.placeDelta
     objBMinVar = newBS.domainProbs.obsVarTuple
     objBMinProb = 0.95
     lookDelta = objBMinDelta
