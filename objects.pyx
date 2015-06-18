@@ -74,11 +74,14 @@ class World:
         self.robot = robot
 
     def getObjectShapeAtOrigin(self, objName):
-        def simplify(shape):
+        def simplify(shape, depth=0):
+            if depth >= 10:
+                print 'Simplify loop:', objName, shape, shape.parts()
+                return shape
             if shape.name() == objName and \
                len(shape.parts()) == 1 and  \
                shape.parts()[0].name() == objName:
-                return simplify(shape.parts()[0])
+                return simplify(shape.parts()[0], depth=depth+1)
             else:
                 return shape
         obj = self.objects[objName]

@@ -90,7 +90,7 @@ useCartesian = False
 useLookAtHand = False
 
 # DEBUG
-useRight = True
+useRight = False                        # DEBUG
 useVertical = False                     # DEBUG
 useHorizontal = True
 
@@ -228,21 +228,22 @@ def testWorld(include = ['objA', 'objB', 'objC'],
                                   util.Pose(0,0,2*bbox[1,2],0))
 
     # Some handy regions on table 1
-    bbox = world.getObjectShapeAtOrigin('table1').bbox()
-    mfbbox = np.empty_like(bbox); mfbbox[:] = bbox
-    mfbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
-    mfbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
-    mfbbox[1][1] = 0.5*(bbox[0][1] + bbox[1][1])
-    world.addObjectRegion('table1', 'table1MidRear', 
-                           Sh([Ba(mfbbox)], name='table1MidRear'),
-                                  util.Pose(0,0,2*bbox[1,2],0))
-    mrbbox = np.empty_like(bbox); mrbbox[:] = bbox
-    mrbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
-    mrbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
-    mrbbox[0][1] = 0.5*(bbox[0][1] + bbox[1][1])
-    world.addObjectRegion('table1', 'table1MidFront', 
-                           Sh([Ba(mrbbox)], name='table1MidFront'),
-                                  util.Pose(0,0,2*bbox[1,2],0))
+    if 'table1' in include:
+        bbox = world.getObjectShapeAtOrigin('table1').bbox()
+        mfbbox = np.empty_like(bbox); mfbbox[:] = bbox
+        mfbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
+        mfbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
+        mfbbox[1][1] = 0.5*(bbox[0][1] + bbox[1][1])
+        world.addObjectRegion('table1', 'table1MidRear', 
+                               Sh([Ba(mfbbox)], name='table1MidRear'),
+                                      util.Pose(0,0,2*bbox[1,2],0))
+        mrbbox = np.empty_like(bbox); mrbbox[:] = bbox
+        mrbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
+        mrbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
+        mrbbox[0][1] = 0.5*(bbox[0][1] + bbox[1][1])
+        world.addObjectRegion('table1', 'table1MidFront', 
+                               Sh([Ba(mrbbox)], name='table1MidFront'),
+                                      util.Pose(0,0,2*bbox[1,2],0))
     # Other permanent objects
     cupboard1 = Sh([place((-0.25, 0.25), (-0.05, 0.05), (0.0, 0.4))],
                      name = 'cupboardSide1', color='brown')
@@ -335,6 +336,7 @@ standardHorizontalConf = None
 def makeConf(robot,x,y,th,g=0.07, vertical=False):
     global standardVerticalConf, standardHorizontalConf
     dx = dy = dz = 0
+    dt = glob.torsoZ - 0.3
     if vertical and standardVerticalConf:
         c = standardVerticalConf.copy()
         c.conf['pr2Base'] = [x, y, th]            
@@ -359,16 +361,16 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False):
         base = cart['pr2Base']
         if vertical:
             q = np.array([0.0, 0.7071067811865475, 0.0, 0.7071067811865475])
-            h = util.Transform(p=np.array([[a] for a in [ 0.4+dx, 0.3+dy,  1.1, 1.]]), q=q)
+            h = util.Transform(p=np.array([[a] for a in [ 0.4+dx, 0.3+dy,  1.1+dt, 1.]]), q=q)
             cart = cart.set('pr2LeftArm', base.compose(h))
             if useRight:
-                hr = util.Transform(p=np.array([[a] for a in [ 0.4+dx, -(0.3+dy),  1.1, 1.]]), q=q)
+                hr = util.Transform(p=np.array([[a] for a in [ 0.4+dx, -(0.3+dy),  1.1+dt, 1.]]), q=q)
                 cart = cart.set('pr2RightArm', base.compose(hr))
         else:
-            h = util.Pose(0.3+dx,0.33+dy,0.9+dz,0.)
+            h = util.Pose(0.3+dx,0.33+dy,0.9+dz+dt,0.)
             cart = cart.set('pr2LeftArm', base.compose(h))
             if useRight:
-                hr = util.Pose(0.3+dx,-(0.33+dy),0.9+dz,0.)
+                hr = util.Pose(0.3+dx,-(0.33+dy),0.9+dz+dt,0.)
                 cart = cart.set('pr2RightArm', base.compose(hr))
         c = robot.inverseKin(cart, conf=c)
         c.conf['pr2Head'] = [0., 0.]
@@ -427,7 +429,17 @@ def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                    color='green', name=spaceName)
         space = Sh([space], name=spaceName, color='green')
         shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2),0)))
-    obj = Sh( sidePrims + shelfRungs, name=name, color=color)
+    cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
+                    name='cooler', color=color)],
+                name='cooler', color=color)
+    table = makeTable(0.603, 0.298, 0.67, name = 'table1', color=color)
+    shelves = Sh(sidePrims + shelfRungs, name = name+'Body', color=color)
+    coolerPose = util.Pose(0.0, 0.0, tZ, -math.pi/2)
+    shelvesPose = util.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
+    obj = Sh( shelves.applyTrans(shelvesPose).parts() \
+              + cooler.applyTrans(coolerPose).parts() \
+              + table.parts(),
+              name=name, color=color)
     return (obj, shelfSpaces)
 
 initConfs = []
@@ -620,6 +632,8 @@ class PlanTest:
             for regName in self.bs.pbs.regions:
                 self.realWorld.regionShapes[regName].draw('World', 'purple')
             #if self.bs.pbs.regions: raw_input('Regions')
+
+        if not goal: return
 
         s = State([], details = self.bs)
 

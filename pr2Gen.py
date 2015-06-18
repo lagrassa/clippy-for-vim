@@ -1056,7 +1056,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
                     if testFn(lookConf):
                         trace('    lookGen(%s) canView cleared viol='%obj, viol.weight() if viol else None)
                         yield (lookConf,), viol
-    lookConfGen = potentialLookConfGen(rm, sh, maxLookDist) # look unconstrained by base
+    lookConfGen = potentialLookConfGen(newBS, prob, sh, maxLookDist) # look unconstrained by base
     for ans in rm.confReachViolGen(lookConfGen, newBS, prob,
                                    testFn = testFn):
         viol, cost, path = ans

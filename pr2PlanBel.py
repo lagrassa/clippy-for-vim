@@ -320,7 +320,7 @@ class PBS:
             shadowMin.draw('W', 'brown')
             print 'max shadow widths', shWidth
             print 'min shadow widths', minShWidth
-            print obj, 'origin\n', sw.objectShapes[obj].origin()
+            # print obj, 'origin\n', sw.objectShapes[obj].origin()
             print obj, 'shadow\n', shadow.bbox()
             print obj, 'shadow origin\n', shadow.origin().matrix
             print obj, 'support pose\n', objB.poseD.mode().matrix
@@ -485,10 +485,10 @@ def makeShadow(shape, prob, bel, name=None, color='gray'):
     poses = sigmaPoses(prob, bel.poseD, bel.delta)
     if debug('getShadowWorld'):
         print 'sigma poses for', shape.name()
-        wm.getWindow('W').clear()
     shColor = shape.properties.get('color', color)
 
     for part in shape.parts():
+        wm.getWindow('W').clear()
         shp = []
         for pose in poses:
             shp.append(part.applyTrans(pose))
