@@ -513,14 +513,22 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     cappedVbo1 = tuple([min(a, b) for (a, b) in zip(cap, vbo)])
     cappedVbo2 = tuple([min(a, b) for (a, b) in zip(vs, vbo)])
 
+    def useful(vv):
+        return any([a > b for (a, b) in zip(vv, ve)])
+
     result = [[cappedVbo1]]
     if cappedVbo2 != cappedVbo1:
         result.append([cappedVbo2])
     if vs != cappedVbo1 and vs != cappedVbo2:
         result.append([vs])
-    result.append([tuple([v / 4.0 for v in cappedVbo1])])
-    result.append([tuple([v / 9.0 for v in cappedVbo1])])
-    result.append([tuple([v / 25.0 for v in cappedVbo1])])
+
+    v4 = tuple([v / 4.0 for v in cappedVbo1])
+    v9 = tuple([v / 9.0 for v in cappedVbo1])
+    v25 = tuple([v / 25.0 for v in cappedVbo1])
+        
+    if useful(v4): result.append([v4])
+    if useful(v9): result.append([v9])
+    if useful(v25): result.append([v25])
 
     debugMsg('genLookObjPrevVariance', result)
 
@@ -660,43 +668,41 @@ def moveSpecialRegress(f, details, abstractionLevel):
 
     # Only model these effects at the lower level of abstraction.
     if abstractionLevel == 0:
-        return f
+        return f.copy()
 
     # Assume that odometry error is controlled during motion, so not more than 
     # this.  It's a stdev
     odoError = details.domainProbs.odoError
-    totalOdoErr = [e * e for e in odoError]
+    odoVar = [e * e for e in odoError]    # Variance due to odometry after move
 
-    # This is conservative; if we really stay this well localized,
-    # then handle it differently.
-    
     if f.predicate == 'B' and f.args[0].predicate == 'Pose':
-        newF = f.copy()
-        newVar = tuple([v - e for (v, e) in zip(f.args[2], totalOdoErr)])
-        if any([v < minV \
-                for (v, minV) in zip(newVar, details.domainProbs.obsVarTuple)]):
-            print 'Move special regress failing; new var too small'
+        # Do something like this if odo error compounds
+        # newVar = tuple([v - e for (v, e) in zip(f.args[2], totalOdoErr)])
+        targetVar = f.args[2]
+        if any([tv < ov for (tv, ov) in zip(targetVar, odoVar)]):
+            print 'Move special regress failing; target var less than odo'
             print f
-            print '    ', newVar
             # Can't achieve this 
             return None
-        newF.args[2] = newVar
-        newF.update()
-        return newF
+        return f.copy()
+        # Regress to odoVar: assumption will be that we can maintain
+        # this variance if it's already this small
+        # newF = f.copy()
+        # newF.args[2] = odoVar
+        # newF.update()
+        # return newF
 
     elif f.predicate == 'BLoc':
-        newF = f.copy()
-        newVar = tuple([v - e for (v, e) in zip(f.args[1], totalOdoErr)])
-        if any([v < minV \
-                for (v, minV) in zip(newVar, details.domainProbs.obsVarTuple)]):
-            print 'Move special regress failing; new var too small'
-            print f
-            print '    ', newVar
+        targetVar = f.args[1]
+        if any([tv < ov for (tv, ov) in zip(targetVar, odoVar)]):
+            print 'Move special regress failing; target var less than odo'
+            print f.copy()
             # Can't achieve this 
             return None
-        newF.args[1] = newVar
-        newF.update()
-        return newF
+        # newF = f.copy()
+        # newF.args[1] = odoVar
+        # newF.update()
+        # return newF
     else:
         return f.copy()
 
