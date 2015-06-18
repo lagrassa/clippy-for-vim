@@ -293,6 +293,9 @@ def canView(pbs, prob, conf, hand, shape, maxIter = 50):
 approachBackoff = 0.1
 zBackoff = 0.025
 
+#approachBackoff = 0.25
+#zBackoff = 0.06
+
 def findApproachConf(pbs, obj, placeB, conf, hand, prob):
     # cached = pbs.getRoadMap().approachConfs.get(conf, False)
     # if cached is not False: return cached
@@ -457,7 +460,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
              ('Tried', tried, 'Found', count, 'potential grasp confs'))
     return
 
-def potentialLookConfGen(rm, shape, maxDist):
+def potentialLookConfGen(pbs, prob, shape, maxDist):
     def testPoseInv(basePoseInv):
         relVerts = np.dot(basePoseInv.matrix, shape.vertices())
         dots = np.dot(visionPlanes, relVerts)
@@ -467,6 +470,7 @@ def potentialLookConfGen(rm, shape, maxDist):
     # visionPlanes = np.array([[1.,1.,0.,0.], [-1.,1.,0.,0.]])
     visionPlanes = np.array([[1.,0.,0.,0.]])
     tested = set([])
+    rm = pbs.getRoadMap()
     for node in rm.nodes():             # !!
         nodeBase = tuple(node.conf['pr2Base'])
         if nodeBase in tested:
@@ -491,13 +495,15 @@ def potentialLookConfGen(rm, shape, maxDist):
                 print 'center', center
                 print 'rotBasePose', rotConf['pr2Base']
             if testPoseInv(rotBasePose.inverse()):
-                yield rotConf
+                if rm.confViolations(rotConf, pbs, prob):
+                    yield rotConf
         else:
             if debug('potentialLookConfs'):
                 node.conf.draw('W')
                 print 'node.conf', node.conf['pr2Base']
                 raw_input('potential look conf')
-            yield node.conf
+            if rm.confViolations(node.conf, pbs, prob):
+                yield node.conf
     return
 
 def otherHand(hand):

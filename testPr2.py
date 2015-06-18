@@ -203,22 +203,18 @@ def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=ha
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
 
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'cooler': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'shelves': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+    varDict = {} if easy else {'shelves': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
     front = util.Pose(1.1, 0.0, tZ, 0.0)
     right = util.Pose(1.1, -0.5, tZ, 0.0)
-    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
-    coolerPose = util.Pose(1.3, 0.0, tZ, 0.)
-    shelvesPose = util.Pose(1.3, 0.0, tZ+coolerZ, 0.)
+    shelvesPose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     region = 'shelves_space_1'
     goal = State([Bd([In(['objA', region]), True, goalProb], True)])
 
     t = PlanTest('test4',  errProbs, allOperators,
-                 objects=['table1', 'cooler', 'shelves', 'objA'],
-                 fixPoses={'table1': table1Pose, 'cooler': coolerPose, 'shelves': shelvesPose},
+                 objects=['shelves', 'objA'],
+                 fixPoses={'shelves': shelvesPose},
                  movePoses={'objA': right},
                  varDict = varDict)
 
@@ -1714,6 +1710,28 @@ def test22(hpn = True, skeleton = False, hierarchical = False,
           regions = ['table1Top']
           )
 
+
+'''
+
+def testSim():
+    varDict =  {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2),
+                'objB': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
+    front = util.Pose(1.1, 0.0, tZ, 0.0)
+    right = util.Pose(1.1, -0.4, tZ, 0.0)
+    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+
+    t = PlanTest('testSim', typicalErrProbs, allOperators,
+                 objects=['table1', 'objA', 'objB'],
+                 fixPoses={'table1': table1Pose},
+                 movePoses={'objA': right, 'objB':front},
+                 varDict = varDict,
+                 multiplier=1)
+
+    t.run(None)
+
+    return t
+
 def prof(test, n=100):
     import cProfile
     import pstats
@@ -1721,16 +1739,6 @@ def prof(test, n=100):
     p = pstats.Stats('prof')
     p.sort_stats('cumulative').print_stats(n)
     p.sort_stats('cumulative').print_callers(n)
-
-'''
-
-def prof(test, n=50):
-    import cProfile
-    import pstats
-    cProfile.run(test, 'prof')
-    p = pstats.Stats('prof')
-    p.sort_stats('cumulative').print_stats(n)
-    # p.sort_stats('cumulative').print_callers(n)
 
 
 # Evaluate on details and a fluent to flush the caches and evaluate
