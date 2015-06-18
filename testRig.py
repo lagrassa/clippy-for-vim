@@ -706,39 +706,31 @@ typicalErrProbs = DomainProbs(\
             placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
 
-smallErrProbs = DomainProbs(\
-            # stdev, as a percentage of the motion magnitude
-            odoError = (0.01, 0.01, 0.01, 0.01),
-            # variance in observations; diagonal for now
-            obsVar = (0.001**2, 0.001**2, 1e-6, 0.002**2),
-            # get type of object wrong
-            obsTypeErrProb = 0.02,
-            # fail to pick or place in the way characterized by the Gaussian
-            pickFailProb = 0.0,
-            placeFailProb = 0.0,
-            # variance in grasp after picking
-            pickVar = (0.01**2, 0.01**2, 0.01**2, 0.01**2),
-            # variance in grasp after placing
-            placeVar = (0.01**2, 0.01**2, 0.01**2, 0.01**2),
-            # pickTolerance
-            pickTolerance = (0.02, 0.02, 0.02, 0.1))
 
 tinyErrProbs = DomainProbs(\
-            # stdev, as a percentage of the motion magnitude
-            odoError = (0.0001, 0.0001, 0.0001, 0.0001),
+            # stdev, constant, assuming we control it by tracking while moving
+            odoError = (0.0001, 0.0001, 1e-11, 0.0001),
             # variance in observations; diagonal for now
-            obsVar = (0.00001**2, 0.00001**2, 1e-6, 0.00002**2),
+            obsVar = (0.0001**2, 0.0001**2,0.0001**2, 0.0001**2),
             # get type of object wrong
-            obsTypeErrProb = 0.0000001,
+            obsTypeErrProb = 0.0,
             # fail to pick or place in the way characterized by the Gaussian
             pickFailProb = 0.0,
             placeFailProb = 0.0,
             # variance in grasp after picking
-            pickVar = (0.0001**2, 0.0001**2, 0.0001**2, 0.0001**2),
-            # variance in grasp after placing
-            placeVar = (0.0001**2, 0.0001**2, 0.0001**2, 0.0001**2),
+            pickVar = (0.0001**2, 0.0001**2, 1e-11, 0.0001**2),
+            # variance in pose after placing
+            placeVar = (0.0001**2, 0.0001**2, 1e-11, 0.0001**2),
             # pickTolerance
-            pickTolerance = (0.02, 0.02, 0.02, 0.1))
+            pickTolerance = (0.025, 0.025, 0.025, 0.05),
+            maxGraspVar = (0.005**2, .005**2, .005**2, .015**2),
+            # Use this for placing objects
+            placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
+            graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
+
+
+
+
 
 allOperators = [move, pick, place, lookAt, poseAchCanReach,
                 poseAchCanSee, poseAchCanPickPlace, poseAchIn, moveNB,

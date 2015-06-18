@@ -480,11 +480,11 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
     goal = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True),
                   Bd([In(['objA', 'table1MidFront']), True, goalProb], True)])
 
-    # B on other table
-    goal1 = State([Bd([In(['objB', 'table2Top']), True, goalProb], True)])
-    skel1 = [[poseAchIn, lookAt, move,
-              place.applyBindings({'Hand' : 'right'}),
-              move, pick, move, lookAt, move, lookAt, move]]
+    # A on other table
+    goal1 = State([Bd([In(['objA', 'table2Top']), True, goalProb], True)])
+    skel1 = [[poseAchIn, 
+              place, moveNB, lookAt, move,
+              pick, moveNB, lookAt, moveNB, lookAt, move, lookAt, moveNB]]
 
     # A and B on other table
     goal2 = State([Bd([In(['objB', 'table2Top']), True, goalProb], True),
@@ -547,9 +547,9 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
                  moveNB]]
                  
 
-    t.run(actualGoal,
+    t.run(goal1,     #actualGoal,
           hpn = hpn,
-          skeleton = hardSkel if skeleton else None,
+          skeleton = skel1,    #hardSkel if skeleton else None,
           heuristic = heuristic,
           hierarchical = hierarchical,
           rip = rip,
@@ -559,9 +559,6 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
 
 def testHold(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = False, rip = False):
-    # Seems to need this
-    global useRight, useVertical
-    useRight, useVertical = True, True
 
     glob.rebindPenalty = 150
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
@@ -579,17 +576,22 @@ def testHold(hpn = True, skeleton = False, hierarchical = False,
                                'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
 
     t = PlanTest('testHold',  errProbs, allOperators,
-                 objects=['table1', 'table2', 'objA', 'objB',
-                          'cupboardSide1', 'cupboardSide2'],
+                 objects=['table1', 'table2', 'objA', 'objB'],
+#                          'cupboardSide1', 'cupboardSide2'],
                  movePoses={'objA': back,
                             'objB': front},
                  fixPoses={'table2': table2Pose},
                  varDict = varDict)
 
-    obj = 'objB'
-    hand = 'right'
-    grasp = 0
+    obj = 'objA'
+    hand = 'left'
+    grasp = 3
     delta = (0.01,)*4
+
+
+    skel3 = [[pick, moveNB, poseAchCanPickPlace,
+              lookAt, moveNB, lookAt,
+              move, lookAt, moveNB, lookAt, moveNB]]
 
     goal = State([Bd([Holding([hand]), obj, goalProb], True),
                   Bd([GraspFace([obj, hand]), grasp, goalProb], True),
