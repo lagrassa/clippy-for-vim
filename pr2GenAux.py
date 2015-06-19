@@ -462,13 +462,10 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
 
 def potentialLookConfGen(pbs, prob, shape, maxDist):
     def testPoseInv(basePoseInv):
-        relVerts = np.dot(basePoseInv.matrix, shape.vertices())
-        dots = np.dot(visionPlanes, relVerts)
-        return not np.any(np.any(dots < 0, axis=0))
+        bb = shape.applyTransform(basePoseInv).bbox()
+        return bb[0][0] > 0 and bb[1][0] > 0
 
     centerPoint = util.Point(np.resize(np.hstack([shape.center(), [1]]), (4,1)))
-    # visionPlanes = np.array([[1.,1.,0.,0.], [-1.,1.,0.,0.]])
-    visionPlanes = np.array([[1.,0.,0.,0.]])
     tested = set([])
     rm = pbs.getRoadMap()
     for node in rm.nodes():             # !!
@@ -900,7 +897,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
     if placeB.poseD.mode():
         print 'potentialRegionPoseGen pose specified', placeB.poseD.mode()
-        sh = objShadow.applyLoc(placeB.objFrame())
+        sh = objShadow.applyLoc(placeB.objFrame()).prim()
         if any(np.all(np.all(np.dot(rs.planes(), sh.vertices()) <= tiny, axis=1)) \
                for rs in regShapes)  and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
