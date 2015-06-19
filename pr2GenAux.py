@@ -8,7 +8,7 @@ import windowManager3D as wm
 import shapes
 import planGlobals as glob
 from planGlobals import debugMsg, debugDraw, debug, pause, torsoZ
-from miscUtil import argmax, isGround, isVar, argmax
+from miscUtil import argmax, isGround, isVar, argmax, squashOne
 from dist import UniformDist, DDist
 from pr2Robot import CartConf, gripperFaceFrame
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, Memoizer
@@ -16,9 +16,9 @@ import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
 from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace, \
-    BaseConf, Holding, CanReachNB
+    BaseConf, Holding, CanReachNB, Conf
 from transformations import rotation_matrix
-from cspace import xyCI, CI, xyCO
+from cspace import xyCI, CI, xyCOParts
 from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
 from pr2RRT import planRobotGoalPath
 
@@ -167,10 +167,17 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         tableB2.delta = lookDelta
         prob = 0.95
         shadow = tableB2.shadow(pbs2.updatePermObjPose(tableB2).getShadowWorld(prob))
-        if preConfShape.collides(shadow) or ppConfShape.collides(shadow) \
-               or not canView(pbs2, p, preConf, hand, shadow):
-            # pbs2.draw(p, 'W'); preConf.draw('W', 'cyan'); shadow.draw('W', 'cyan')
-            print 'Failing to view for place in canPickPlaceTest'
+        if preConfShape.collides(shadow):
+            pbs2.draw(p, 'W'); preConfShape.draw('W', 'cyan'); shadow.draw('W', 'cyan')
+            raw_input('Preconf collides for place in canPickPlaceTest')
+            return None
+        if ppConfShape.collides(shadow):
+            pbs2.draw(p, 'W'); ppConfShape.draw('W', 'magenta'); shadow.draw('W', 'magenta')
+            raw_input('PPconf collides for place in canPickPlaceTest')
+            return None
+        if not canView(pbs2, p, preConf, hand, shadow):
+            pbs2.draw(p, 'W'); preConfShape.draw('W', 'orange'); shadow.draw('W', 'orange')
+            raw_input('Failing to view for place in canPickPlaceTest')
             return None
 
     # 3.  Can move from home to pick while obj is placed with zero variance
@@ -281,11 +288,17 @@ def canView(pbs, prob, conf, hand, shape, maxIter = 50):
 ################
 
 # This needs generalization
-approachBackoff = 0.10
-zBackoff = approachBackoff
+# approachBackoff = 0.10   # 
+# 
+approachBackoff = 0.1
+zBackoff = 0.025
+
+#approachBackoff = 0.25
+#zBackoff = 0.06
+
 def findApproachConf(pbs, obj, placeB, conf, hand, prob):
-    cached = pbs.getRoadMap().approachConfs.get(conf, False)
-    if cached is not False: return cached
+    # cached = pbs.getRoadMap().approachConfs.get(conf, False)
+    # if cached is not False: return cached
     robot = pbs.getRobot()
     cart = conf.cartConf()
     wristFrame = cart[robot.armChainNames[hand]]
@@ -428,7 +441,8 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
 
     if base:
         for ans in [graspConfForBase(pbs, placeB, graspB, hand, nominalBasePose, prob, wrist)]:
-            yield ans
+            if ans:
+                yield ans
         return
     # Try current pose first
     ans = graspConfForBase(pbs, placeB, graspB, hand, curBasePose, prob, wrist)
@@ -446,16 +460,14 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
              ('Tried', tried, 'Found', count, 'potential grasp confs'))
     return
 
-def potentialLookConfGen(rm, shape, maxDist):
+def potentialLookConfGen(pbs, prob, shape, maxDist):
     def testPoseInv(basePoseInv):
-        relVerts = np.dot(basePoseInv.matrix, shape.vertices())
-        dots = np.dot(visionPlanes, relVerts)
-        return not np.any(np.any(dots < 0, axis=0))
+        bb = shape.applyTrans(basePoseInv).bbox()
+        return bb[0][0] > 0 and bb[1][0] > 0
 
     centerPoint = util.Point(np.resize(np.hstack([shape.center(), [1]]), (4,1)))
-    # visionPlanes = np.array([[1.,1.,0.,0.], [-1.,1.,0.,0.]])
-    visionPlanes = np.array([[1.,0.,0.,0.]])
     tested = set([])
+    rm = pbs.getRoadMap()
     for node in rm.nodes():             # !!
         nodeBase = tuple(node.conf['pr2Base'])
         if nodeBase in tested:
@@ -480,13 +492,15 @@ def potentialLookConfGen(rm, shape, maxDist):
                 print 'center', center
                 print 'rotBasePose', rotConf['pr2Base']
             if testPoseInv(rotBasePose.inverse()):
-                yield rotConf
+                if rm.confViolations(rotConf, pbs, prob):
+                    yield rotConf
         else:
             if debug('potentialLookConfs'):
                 node.conf.draw('W')
                 print 'node.conf', node.conf['pr2Base']
                 raw_input('potential look conf')
-            yield node.conf
+            if rm.confViolations(node.conf, pbs, prob):
+                yield node.conf
     return
 
 def otherHand(hand):
@@ -602,6 +616,22 @@ def sameBase(goalConds):
             assert result == None, 'More than one Base fluent'
             result = base
     return result
+
+def targetConf(goalConds):
+    fbs_conf = [(f, b) for (f, b) \
+                in getMatchingFluents(goalConds,
+                                      Conf(['Mu', 'Delta'], True))]
+    fbs_crnb = fbch.getMatchingFluents(goalConds,
+                                       Bd([CanReachNB(['Start', 'End', 'Cond']),
+                                           True, 'P'], True))
+    if not (fbs_conf and fbs_crnb): return None
+    conf = None
+    for (fconf, bconf) in fbs_conf:
+        for (fcrnb, bcrnb) in fbs_crnb:
+            confVar = fconf.args[0]
+            if isVar(confVar) and fconf.args[0] == fcrnb.args[0].args[0]:
+                conf = fcrnb.args[0].args[1]
+    return conf
 
 def pathShape(path, prob, pbs, name):
     assert isinstance(path, (list, tuple))
@@ -867,7 +897,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
     if placeB.poseD.mode():
         print 'potentialRegionPoseGen pose specified', placeB.poseD.mode()
-        sh = objShadow.applyLoc(placeB.objFrame())
+        sh = objShadow.applyLoc(placeB.objFrame()).prim()
         if any(np.all(np.all(np.dot(rs.planes(), sh.vertices()) <= tiny, axis=1)) \
                for rs in regShapes)  and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
@@ -897,12 +927,12 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             elif debug('potentialRegionPoseGen'):
                 bI.draw('W', 'cyan')
                 debugMsg('potentialRegionPoseGen', 'Region interior in cyan for angle', angle)
-            coFixed = [xyCO(shRot, o) for o in shWorld.getObjectShapes() \
-                       if o.name() in shWorld.fixedObjects]
-            coObst = [xyCO(shRot, o) for o in shWorld.getNonShadowShapes() \
-                      if o.name() not in shWorld.fixedObjects]
-            coShadow = [xyCO(shRot, o) for o in shWorld.getShadowShapes() \
-                        if o.name() not in shWorld.fixedObjects]
+            coFixed = squashOne([xyCOParts(shRot, o) for o in shWorld.getObjectShapes() \
+                                 if o.name() in shWorld.fixedObjects])
+            coObst = squashOne([xyCOParts(shRot, o) for o in shWorld.getNonShadowShapes() \
+                                if o.name() not in shWorld.fixedObjects])
+            coShadow = squashOne([xyCOParts(shRot, o) for o in shWorld.getShadowShapes() \
+                                  if o.name() not in shWorld.fixedObjects])
             if debug('potentialRegionPoseGen'):
                 for co in coFixed: co.draw('W', 'red')
                 for co in coObst: co.draw('W', 'brown')
@@ -910,7 +940,10 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             z0 = bI.bbox()[0,2] + clearance
             for point in bboxGridCoords(bI.bbox(), res = 0.02, z=z0):
                 pt = point.reshape(4,1)
-                if any(np.all(np.dot(co.planes(), pt) <= tiny) for co in coFixed): continue
+                if any(np.all(np.dot(co.planes(), pt) <= tiny) for co in coFixed):
+                    if debug('potentialRegionPoseGen'):
+                        shapes.pointBox(pt.T[0]).draw('W', 'blue')
+                    continue
                 cost = 0
                 for co in coObst:
                     if np.all(np.dot(co.planes(), pt) <= tiny): cost += obstCost
@@ -943,8 +976,9 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             random.shuffle(l)
         pointDist = []
         for l in levels: pointDist.extend(l)
+        debugMsg('potentialRegionPoseGen', 'Invalid points in blue, len(valid)=%d'%len(pointDist))
     else:
-        debugMsg('potentialRegionPoseGen', 'No valid points in region')
+        debugMsg('potentialRegionPoseGen', 'Invalid points in blue, no valid points in region')
         return
     count = 0
     maxTries = min(2*maxPoses, len(pointDist))
@@ -960,7 +994,9 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             count += 1
             if debug('potentialRegionPoseGen'):
                 print '->', pose, 'cost=', cost
-                shRotations[angle].applyTrans(pose).draw('W', 'green')
+                # shRotations is already rotated
+                (x,y,z,_) = pose.xyztTuple()
+                shRotations[angle].applyTrans(util.Pose(x,y,z, 0.)).draw('W', 'green')
             yield pose
     else:
         costHistory = []
@@ -995,7 +1031,9 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             count += 1
             if debug('potentialRegionPoseGen'):
                 print '->', pose, 'cost=', poseCost
-                shRotations[angle].applyTrans(pose).draw('W', 'green')
+                # shRotations is already rotated
+                (x,y,z,_) = pose.xyztTuple()
+                shRotations[angle].applyTrans(util.Pose(x,y,z, 0.)).draw('W', 'green')
             yield pose
     if True: # debug('potentialRegionPoseGen'):
         print 'Tried', tries, 'returned', count, 'for regions', [r.name() for r in regShapes]

@@ -201,7 +201,11 @@ class State:
     def fluentValue(self, fluent, recompute = False):
         cache = None if recompute else \
                  (self.relaxedValueCache if inHeuristic else self.valueCache)
-        return self.fluentValueWithCache(fluent, cache)
+        cachedVal = self.fluentValueWithCache(fluent, cache)
+        if debug('fluentCache'):
+            fval = fluent.valueInDetails(self.details)
+            assert fval == cachedVal, 'fluent cache inconsistent'
+        return cachedVal
 
     # Terribly terribly inefficient.
     def fluentValueWithCache(self, fluent, cache):
@@ -214,15 +218,20 @@ class State:
             # See if it matches a fluent in the state
             if fluent.predicate == f.predicate and \
                          fluent.args == f.args:
-
-                if self.details != None and debug('fluentCache'):
-                    fval = fluent.valueInDetails(self.details)
-                    assert fval == f.getValue(), 'fluent cache inconsistent'
                 return f.getValue()
 
         # Now, look in the details
         if self.details != None:
             fval = fluent.valueInDetails(self.details)
+
+            if debug('fluentCache'):
+                if fluent in self.relaxedValueCache:
+                  assert self.relaxedValueCache[fluent] == fval, \
+                    'Fluent value mismatch'
+                if fluent in self.valueCache:
+                  assert self.valueCache[fluent] == fval, \
+                    'Fluent value mismatch'
+            
             if cache != None: cache[fluent] = fval
             return fval
 
@@ -1512,7 +1521,7 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
                                                 else None,
                                  nonMonOps = nonMonOps,
                                  maxNodes = maxNodes)
-            if not p: raise PlanningFailed
+            if not p: raw_input('planning failed'); raise PlanningFailed
             planObj = makePlanObj(p, s)
             planObj.printIt(verbose = verbose)
             ps.push(planObj)
@@ -1918,7 +1927,14 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                                                startState)
             bindingSet = []
             for b in bigBindingSet:
-                boundRFs = [f.applyBindings(b) for f in results]
+                rawBoundRFs = set([f.applyBindings(b) for f in results])
+
+                # Ugly attempt to remove internal entailments
+                boundRFs = set()
+                for thing in rawBoundRFs:
+                    boundRFs = addFluentToSet(boundRFs, thing,
+                                              startState.details)[0]
+
                 # All results should be bound
                 allBound = all([f.isGround() for f in boundRFs])
                 # All results should be useful
@@ -1935,11 +1951,12 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                 # it off the list because it doesn't have all the
                 # necessary preconditions, and some other version
                 # does.
-                allBoundRfs = [f.applyBindings(b) for f in o.allResultFluents()]
+                allBoundRfs = set([f.applyBindings(b) \
+                                   for f in o.allResultFluents()])
             
                 # Require these to be ground?  Or, definitely, not all
                 # variables
-                extraRfs = set(allBoundRfs).difference(set(boundRFs))
+                extraRfs = allBoundRfs.difference(boundRFs)
                 # Asking this question backward.  We want to know whether there
                 # are bindings that would make rf entail gf.
                 dup = any([(rf.isPartiallyBound() and \

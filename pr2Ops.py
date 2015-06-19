@@ -22,13 +22,17 @@ import windowManager3D as wm
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
-#defaultPoseDelta = (0.01, 0.01, 0.01, 0.03)
-defaultPoseDelta = (0.02, 0.02, 0.02, 0.04)
+placePoseDelta = (0.01, 0.01, 0.01, 0.03)
+defaultPoseDelta = placePoseDelta
 defaultTotalDelta = (0.05, 0.05, 0.05, 0.1)  # for place in region
-lookConfDelta = (0.01, 0.01, 0.0, 0.01)
+lookConfDelta = (0.01, 0.01, 0.0001, 0.01)
+
+# If it's bigger than this, we can't just plan to look and see it
+# Should be more subtle than this...
+maxPoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
 
 # Assume fixed delta on confs, determined by motion controller.
-fixedConfDelta = (0.001, 0.001, 0.0, 0.002)
+fixedConfDelta = (0.001, 0.001, 0.0000001, 0.002)
 
 # Fixed accuracy to use for some standard preconditions
 canPPProb = 0.9
@@ -104,9 +108,18 @@ def primPath(bs, cs, ce, p):
     # Should use optimize = True, but sometimes leads to failure - why??
 
     #!! Used to have: reversePath=True, why?
+    home = bs.getRoadMap().homeConf
     path1, v1 = canReachHome(bs, cs, p, Violations())
+    if not path1:
+        print 'Path1 failed, trying RRT'
+        path1, v1 = rrt.planRobotPathSeq(bs, p, home, cs, None,
+                                         maxIter=50, failIter=10)
     assert path1
     path2, v2 = canReachHome(bs, ce, p, Violations())
+    if not path2:
+        print 'Path2 failed, trying RRT'
+        path2, v2 = rrt.planRobotPathSeq(bs, p, home, ce, None,
+                                         maxIter=50, failIter=10)
     assert path2
 
     # !! Debugging hack
@@ -418,8 +431,8 @@ def realPoseVar((graspVar,), goal, start, vals):
     placeVar = start.domainProbs.placeVar
     return [[tuple([gv+pv for (gv, pv) in zip(graspVar, placeVar)])]]
 
-def defaultPoseVar(args, goal, start, vals):
-    pv = [v*4 for v in start.domainProbs.placeVar]
+def placeInPoseVar(args, goal, start, vals):
+    pv = [v * 3 for v in start.domainProbs.obsVarTuple]
     pv[2] = pv[0]
     return [[tuple(pv)]]
 
@@ -429,7 +442,7 @@ def times2((thing,), goal, start, vals):
 # For place, grasp var is desired poseVar minus fixed placeVar
 # Don't let it be bigger than maxGraspVar 
 def placeGraspVar((poseVar,), goal, start, vals):
-    maxGraspVar = (0.0004, 0.0004, 0.0004, 0.008)
+    maxGraspVar = start.domainProbs.maxGraspVar
     placeVar = start.domainProbs.placeVar
     if isVar(poseVar):
         # For placing in a region; could let the place pick this, but
@@ -485,38 +498,59 @@ def pickPoseVar((graspVar, graspDelta, prob), goal, start, vals):
         debugMsg('pickGenVar', 'pick pose var', poseVar)
         return [[poseVar]]
 
-# If it's bigger than this, we can't just plan to look and see it
-# Should be more subtle than this...
-maxPoseVar = (0.1**2, 0.1**2, 0.1**2, 0.3**2)
 
-# starting var if it's legal, plus regression of the result var
+# starting var if it's legal, plus regression of the result var.
+# Need to try several, so that looking doesn't put the robot into the shadow!
 def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     lookVar = start.domainProbs.obsVarTuple
-    vs = tuple(start.poseModeDist(obj, face).mld().sigma.diagonal().tolist()[0])
+    vs = list(start.poseModeDist(obj, face).mld().sigma.diagonal().tolist()[0])
+    vs[2] = .0001**2
+    vs = tuple(vs)
 
     # Don't let variance get bigger than variance in the initial state, or
     # the cap, whichever is bigger
     cap = [max(a, b) for (a, b) in zip(maxPoseVar, vs)]
 
     vbo = varBeforeObs(lookVar, ve)
-    cappedVbo1 = tuple([min(a, b) for (a, b) in zip(maxPoseVar, vbo)])
+    cappedVbo1 = tuple([min(a, b) for (a, b) in zip(cap, vbo)])
     cappedVbo2 = tuple([min(a, b) for (a, b) in zip(vs, vbo)])
 
-    startLessThanMax = any([a < b for (a, b) in zip(vs, maxPoseVar)])
-    startUseful = any([a > b for (a, b) in zip(vs, ve)])
+    # vbo > ve
+    # This is useful if it's between:  vbo > vv > ve
+    def useful(vv):
+        return any([a > b for (a, b) in zip(vv, ve)]) and \
+               any([a > b for (a, b) in zip(cappedVbo1, vv)])
+
+    def sqrts(vv):
+        return [np.sqrt(xx) for xx in vv]
 
     result = [[cappedVbo1]]
+
+    v4 = tuple([v / 4.0 for v in cappedVbo1])
+    v9 = tuple([v / 9.0 for v in cappedVbo1])
+    v25 = tuple([v / 25.0 for v in cappedVbo1])
+        
+    if useful(v4): result.append([v4])
+    if useful(v9): result.append([v9])
+    if useful(v25): result.append([v25])
+
     if cappedVbo2 != cappedVbo1:
         result.append([cappedVbo2])
     if vs != cappedVbo1 and vs != cappedVbo2:
         result.append([vs])
+
+    print '@@@@@@@@@@@@@ Prev var'
+    print 'Target', prettyString(sqrts(ve))
+    print 'Capped before', prettyString(sqrts(cappedVbo1))
+    print 'Other suggestions'
+    for xx in result: print '   ', prettyString(sqrts(xx)[0])
+    print '@@@@@@@@@@@@@ Prev var'
 
     debugMsg('genLookObjPrevVariance', result)
 
     return result
 
 def realPoseVarAfterObs((varAfter,), goal, start, vals):
-    # This should be taken out of domainProbs, but not sure how
     obsVar = start.domainProbs.obsVarTuple
     thing = tuple([min(x, y) for (x, y) in zip(varAfter, obsVar)])
     return [[thing]]
@@ -650,43 +684,41 @@ def moveSpecialRegress(f, details, abstractionLevel):
 
     # Only model these effects at the lower level of abstraction.
     if abstractionLevel == 0:
-        return f
+        return f.copy()
 
     # Assume that odometry error is controlled during motion, so not more than 
     # this.  It's a stdev
     odoError = details.domainProbs.odoError
-    totalOdoErr = [e * e for e in odoError]
+    odoVar = [e * e for e in odoError]    # Variance due to odometry after move
 
-    # This is conservative; if we really stay this well localized,
-    # then handle it differently.
-    
     if f.predicate == 'B' and f.args[0].predicate == 'Pose':
-        newF = f.copy()
-        newVar = tuple([v - e for (v, e) in zip(f.args[2], totalOdoErr)])
-        if any([v < minV \
-                for (v, minV) in zip(newVar, details.domainProbs.obsVarTuple)]):
-            print 'Move special regress failing; new var too small'
+        # Do something like this if odo error compounds
+        # newVar = tuple([v - e for (v, e) in zip(f.args[2], totalOdoErr)])
+        targetVar = f.args[2]
+        if any([tv < ov for (tv, ov) in zip(targetVar, odoVar)]):
+            print 'Move special regress failing; target var less than odo'
             print f
-            print '    ', newVar
             # Can't achieve this 
             return None
-        newF.args[2] = newVar
-        newF.update()
-        return newF
+        return f.copy()
+        # Regress to odoVar: assumption will be that we can maintain
+        # this variance if it's already this small
+        # newF = f.copy()
+        # newF.args[2] = odoVar
+        # newF.update()
+        # return newF
 
     elif f.predicate == 'BLoc':
-        newF = f.copy()
-        newVar = tuple([v - e for (v, e) in zip(f.args[1], totalOdoErr)])
-        if any([v < minV \
-                for (v, minV) in zip(newVar, details.domainProbs.obsVarTuple)]):
-            print 'Move special regress failing; new var too small'
-            print f
-            print '    ', newVar
+        targetVar = f.args[1]
+        if any([tv < ov for (tv, ov) in zip(targetVar, odoVar)]):
+            print 'Move special regress failing; target var less than odo'
+            print f.copy()
             # Can't achieve this 
             return None
-        newF.args[1] = newVar
-        newF.update()
-        return newF
+        # newF = f.copy()
+        # newF.args[1] = odoVar
+        # newF.update()
+        # return newF
     else:
         return f.copy()
 
@@ -769,17 +801,22 @@ def lookAtHandCostFun(al, args, details):
 
 def moveBProgress(details, args, obs=None):
     (s, e, _) = args
-    # Assume we've controlled the error during motion.
+    # Assume we've controlled the error during motion.  This is a stdev
     odoError = details.domainProbs.odoError
+    odoVar = [x**2 for x in odoError]
 
     # Change robot conf
     details.pbs.updateConf(e)
 
-    # Increase variance on all objects not in the hand
+    # Make variance of all objects not in the hand equal to the max of
+    # the previous variance and odoError
+
     for ob in details.pbs.moveObjBs.values() + \
                details.pbs.fixObjBs.values():
         oldVar = ob.poseD.var
-        ob.poseD.var = tuple([a + b*b for (a, b) in zip(oldVar, odoError)])
+        # this is the additive version
+        # ob.poseD.var = tuple([a + b*b for (a, b) in zip(oldVar, odoError)])
+        ob.poseD.var = tuple([max(a, b) for (a, b) in zip(oldVar, odoVar)])
     details.pbs.reset()
     debugMsg('beliefUpdate', 'moveBel')    
 
@@ -914,6 +951,8 @@ def scoreAssignment(obsAssignments, scores):
 def singleTargetUpdate(details, obs, obj):
     obsVar = details.domainProbs.obsVarTuple       
     bestObs, bestLL, bestFace = obs if obs else (None, -float('inf'), None)
+    oldPlaceB = details.pbs.getPlaceB(obj)
+    w = details.pbs.beliefContext.world
 
     if bestLL < llMatchThreshold:
         # Update modeprob if we don't get a good score
@@ -926,6 +965,10 @@ def singleTargetUpdate(details, obs, obj):
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
         details.poseModeProbs[obj] = newP
         print 'No match above threshold', obj, oldP, newP
+
+        newMu = oldPlaceB.poseD.mode().pose().xyztTuple()
+        newSigma = tuple([v + .001 for v in oldPlaceB.poseD.varTuple()])
+
         if oldP == newP or oldP == 1.0 or newP == 1.0:
             raw_input('okay?')
     else:
@@ -938,24 +981,22 @@ def singleTargetUpdate(details, obs, obj):
         print 'Obs match for', obj, oldP, newP
 
         # Should update face!!
-        
         # Update mean and sigma
         ## Be sure handling angle right.
-        oldPlaceB = details.pbs.getPlaceB(obj)
-        (newMu, newSigma) = gaussObsUpdate(oldPlaceB.poseD.mode().pose().xyztTuple(),
+        (newMu, newSigma) = \
+                    gaussObsUpdate(oldPlaceB.poseD.mode().pose().xyztTuple(),
                                            bestObs.pose().xyztTuple(),
                                            oldPlaceB.poseD.variance(), obsVar)
-        w = details.pbs.beliefContext.world
         ff = w.getFaceFrames(obj)[bestFace]
-        details.pbs.updateObjB(ObjPlaceB(obj,
-                                         w.getFaceFrames(obj),
-                                         DeltaDist(oldPlaceB.support.mode()),
-                                         PoseD(util.Pose(*newMu), newSigma)))
         if debug('obsUpdate'):
             objShape = details.pbs.getObjectShapeAtOrigin(obj)
             objShape.applyLoc(util.Pose(*newMu).compose(ff.inverse())).\
               draw('Belief', 'magenta')
             raw_input('newMu is magenta')
+
+    details.pbs.updateObjB(ObjPlaceB(obj, w.getFaceFrames(obj),
+                                     DeltaDist(oldPlaceB.support.mode()),
+                                     PoseD(util.Pose(*newMu), newSigma)))
     
 def scoreObsObj(details, obs, object):
     (oType, obsFace, obsPose) = obs
@@ -1194,7 +1235,7 @@ poseAchIn = Operator(\
               Function(['PoseFace2', 'ObjPose2'], ['Obj2'],
                        poseInStart, 'poseInStart'),
               # totalVar = 2 * poseVar; totalDelta = 2 * poseDelta
-              Function(['PoseVar'], [], defaultPoseVar, 'defaultPoseVar'),
+              Function(['PoseVar'], [], placeInPoseVar, 'placeInPoseVar'),
               Function(['TotalVar'], ['PoseVar'], times2, 'times2'),
               # call main generator
               Function(['ObjPose1', 'PoseFace1'],
@@ -1262,21 +1303,12 @@ place = Operator(\
                      ['GraspVar'], realPoseVar, 'realPoseVar'),
             
             # In case PoseDelta isn't defined
-            Function(['PoseDelta'],[[defaultPoseDelta]], assign, 'assign'),
+            Function(['PoseDelta'],[[placePoseDelta]], assign, 'assign'),
             # Assume fixed conf delta
             Function(['ConfDelta'], [[fixedConfDelta]], assign, 'assign'),
 
             Function(['GraspDelta'], ['PoseDelta', 'ConfDelta'],
                       subtract, 'subtract'),
-
-            # Just in case we don't have values for the pose and poseFace;
-            # We're going this to empty the hand;  so place in away region
-            # Function(['AwayRegion'], [], awayRegion, 'awayRegion'),
-            # Function(['Pose', 'PoseFace'],
-            #          ['Obj', 'AwayRegion', 'RealPoseVar',
-            #           tuple([d*2 for d in defaultPoseDelta]),
-            #           probForGenerators],
-            #          placeInRegionGen, 'placeInRegionGen'),
 
             # Not modeling the fact that the object's shadow should
             # grow a bit as we move to pick it.   Build that into pickGen.
@@ -1307,7 +1339,7 @@ pick = Operator(\
          'P1', 'PR1', 'PR2', 'PR3'],
         # Pre
         {0 : {Graspable(['Obj'], True),
-              BLoc(['Obj', planVar, planP], True)},
+              BLoc(['Obj', planVar, 'P1'], True)},    # was planP
          2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
               B([Pose(['Obj', 'PoseFace']), 'Pose', planVar, 'PoseDelta',
                  'P1'], True)},

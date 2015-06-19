@@ -280,7 +280,9 @@ class DomainProbs:
     def __init__(self, odoError, obsVar, obsTypeErrProb,
                  pickFailProb, placeFailProb,
                  pickVar, placeVar, pickTolerance,
-                 maxGraspVar = (0.015**2, .015**2, .015**2, .03**2)):
+                 maxGraspVar = (0.015**2, .015**2, .015**2, .03**2),
+                 placeDelta = (0.005, 0.005, 1.0e-6, 0.005),
+                 graspDelta = (0.005, 0.005, 1.0e-6, 0.005)):
         self.odoError = odoError # std dev per meter / radian in base motion
         self.obsVar = np.diag(obsVar) # error in observations
         self.obsVarTuple = obsVar     # error in observations
@@ -297,7 +299,11 @@ class DomainProbs:
         # Bad failures, like dropping
         self.pickFailProb = pickFailProb
         self.placeFailProb = placeFailProb
-        self.minDelta = tuple([2*x for x in self.placeStdev])
+        self.placeDelta = placeDelta
+        self.graspDelta = graspDelta
+        minDelta = [2*x for x in self.placeStdev]
+        minDelta[2] = 1e-3
+        self.minDelta = tuple(minDelta)
         
 def shadowWidths(variance, delta, probability):
     numStdDevs =  math.sqrt(chiSqFromP(1-probability, 3))

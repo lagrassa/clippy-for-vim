@@ -2,6 +2,7 @@ import pdb
 import math
 import numpy as np
 import time
+import string
 
 import util
 import windowManager3D as wm
@@ -89,8 +90,8 @@ useCartesian = False
 useLookAtHand = False
 
 # DEBUG
-useRight = True
-useVertical = True
+useRight = True                        # DEBUG
+useVertical = False                     # DEBUG
 useHorizontal = True
 
 if useROS:
@@ -165,6 +166,7 @@ workspace = ((-1.0, -2.5, 0.0), (3.0, 2.5, 2.0))
 viewPort = [x0, x1, y0, y1, 0, dz]
 
 tZ = 0.68
+coolerZ = 0.19
 
 def testWorld(include = ['objA', 'objB', 'objC'],
               draw = True):
@@ -226,31 +228,36 @@ def testWorld(include = ['objA', 'objB', 'objC'],
                                   util.Pose(0,0,2*bbox[1,2],0))
 
     # Some handy regions on table 1
-    bbox = world.getObjectShapeAtOrigin('table1').bbox()
-    mfbbox = np.empty_like(bbox); mfbbox[:] = bbox
-    mfbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
-    mfbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
-    mfbbox[1][1] = 0.5*(bbox[0][1] + bbox[1][1])
-    world.addObjectRegion('table1', 'table1MidRear', 
-                           Sh([Ba(mfbbox)], name='table1MidRear'),
-                                  util.Pose(0,0,2*bbox[1,2],0))
-    mrbbox = np.empty_like(bbox); mrbbox[:] = bbox
-    mrbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
-    mrbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
-    mrbbox[0][1] = 0.5*(bbox[0][1] + bbox[1][1])
-    world.addObjectRegion('table1', 'table1MidFront', 
-                           Sh([Ba(mrbbox)], name='table1MidFront'),
-                                  util.Pose(0,0,2*bbox[1,2],0))
+    if 'table1' in include:
+        bbox = world.getObjectShapeAtOrigin('table1').bbox()
+        mfbbox = np.empty_like(bbox); mfbbox[:] = bbox
+        mfbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
+        mfbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
+        mfbbox[1][1] = 0.5*(bbox[0][1] + bbox[1][1])
+        world.addObjectRegion('table1', 'table1MidRear', 
+                               Sh([Ba(mfbbox)], name='table1MidRear'),
+                                      util.Pose(0,0,2*bbox[1,2],0))
+        mrbbox = np.empty_like(bbox); mrbbox[:] = bbox
+        mrbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
+        mrbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
+        mrbbox[0][1] = 0.5*(bbox[0][1] + bbox[1][1])
+        world.addObjectRegion('table1', 'table1MidFront', 
+                               Sh([Ba(mrbbox)], name='table1MidFront'),
+                                      util.Pose(0,0,2*bbox[1,2],0))
     # Other permanent objects
     cupboard1 = Sh([place((-0.25, 0.25), (-0.05, 0.05), (0.0, 0.4))],
                      name = 'cupboardSide1', color='brown')
     cupboard2 = Sh([place((-0.25, 0.25), (-0.05, 0.06), (0.0, 0.4))],
                      name = 'cupboardSide2', color='brown')
-    if 'cupboardSide1' in include:
-        world.addObjectShape(cupboard1)
-    if 'cupboardSide2' in include:
-        world.addObjectShape(cupboard2)
-    
+    if 'cupboardSide1' in include: world.addObjectShape(cupboard1)
+    if 'cupboardSide2' in include: world.addObjectShape(cupboard2)
+    cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)])],
+                name='cooler')
+    if 'cooler' in include: world.addObjectShape(cooler)
+    (tableShelves, aboveTableShelves) = makeTableShelves(name='tableShelves')
+    if 'tableShelves' in include: world.addObjectShape(tableShelves)
+    for (reg, pose) in aboveTableShelves:
+        world.addObjectRegion('tableShelves', reg.name(), reg, pose)
     # Some objects to grasp
     manipulanda = [oname for oname in include if oname[0:3] == 'obj']
 
@@ -329,6 +336,7 @@ standardHorizontalConf = None
 def makeConf(robot,x,y,th,g=0.07, vertical=False):
     global standardVerticalConf, standardHorizontalConf
     dx = dy = dz = 0
+    dt = glob.torsoZ - 0.3
     if vertical and standardVerticalConf:
         c = standardVerticalConf.copy()
         c.conf['pr2Base'] = [x, y, th]            
@@ -353,16 +361,16 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False):
         base = cart['pr2Base']
         if vertical:
             q = np.array([0.0, 0.7071067811865475, 0.0, 0.7071067811865475])
-            h = util.Transform(p=np.array([[a] for a in [ 0.4+dx, 0.3+dy,  1.1, 1.]]), q=q)
+            h = util.Transform(p=np.array([[a] for a in [ 0.4+dx, 0.3+dy,  1.1+dt, 1.]]), q=q)
             cart = cart.set('pr2LeftArm', base.compose(h))
             if useRight:
-                hr = util.Transform(p=np.array([[a] for a in [ 0.4+dx, -(0.3+dy),  1.1, 1.]]), q=q)
+                hr = util.Transform(p=np.array([[a] for a in [ 0.4+dx, -(0.3+dy),  1.1+dt, 1.]]), q=q)
                 cart = cart.set('pr2RightArm', base.compose(hr))
         else:
-            h = util.Pose(0.3+dx,0.33+dy,0.9+dz,0.)
+            h = util.Pose(0.3+dx,0.33+dy,0.9+dz+dt,0.)
             cart = cart.set('pr2LeftArm', base.compose(h))
             if useRight:
-                hr = util.Pose(0.3+dx,-(0.33+dy),0.9+dz,0.)
+                hr = util.Pose(0.3+dx,-(0.33+dy),0.9+dz+dt,0.)
                 cart = cart.set('pr2RightArm', base.compose(hr))
         c = robot.inverseKin(cart, conf=c)
         c.conf['pr2Head'] = [0., 0.]
@@ -386,6 +394,54 @@ def makeTable(dx, dy, dz, name, width = 0.1, color = 'orange'):
             (dx,       dy, dz-width)],
            name=name+' leg 2', color=color)
         ], name = name, color=color)
+
+eps = 0.01
+epsz = 0.02
+shelfDepth = 0.3
+shelfWidth = 0.02
+# makeShelves(shelfDepth/2.0, 0.305, 0.45, width=0.02, nshelf=2)
+
+def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
+                width = shelfWidth, nshelf = 2,
+                name='tableShelves', color='brown'):
+    sidePrims = [\
+        Ba([(-dx, -dy-width, 0), (dx, -dy, dz)],
+           name=name+'_side_A', color=color),
+        Ba([(-dx, dy, 0), (dx, dy+width, dz)],
+           name=name+'_side_B', color=color),
+        Ba([(dx, -dy, 0), (dx+width, dy, dz)],
+           name=name+'_backside', color=color),
+        ]
+    coolerPose = util.Pose(0.0, 0.0, tZ, -math.pi/2)
+    shelvesPose = util.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
+    tH = 0.67                           # table height
+    shelfSpaces = []
+    shelfRungs = []
+    for i in xrange(nshelf+1):
+        frac = i/float(nshelf)
+        bot = dz*frac
+        top = dz*frac+width
+        shelf = Ba([(-dx, -dy-width, bot),
+                    (dx, dy+width, bot+width)],
+                   color=color,
+                   name=name+'_shelf_'+string.ascii_uppercase[i])
+        shelfRungs.append(shelf)
+        spaceName = name+'_space_'+str(i+1)
+        space = Ba([(-dx+eps, -dy-width+eps, eps),
+                    (dx-eps, dy+width-eps, (dz/nshelf) - width - eps)],
+                   color='green', name=spaceName)
+        space = Sh([space], name=spaceName, color='green').applyTrans(shelvesPose)
+        shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2)-(tH/2)-(coolerZ/2),0)))
+    cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
+                    name='cooler', color=color)],
+                name='cooler', color=color)
+    table = makeTable(0.603, 0.298, tH, name = 'table1', color=color)
+    shelves = Sh(sidePrims + shelfRungs, name = name+'Body', color=color)
+    obj = Sh( shelves.applyTrans(shelvesPose).parts() \
+              + cooler.applyTrans(coolerPose).parts() \
+              + table.parts(),
+              name=name, color=color)
+    return (obj, shelfSpaces)
 
 initConfs = []
 
@@ -432,10 +488,12 @@ class PlanTest:
         ff = lambda o: self.world.getFaceFrames(o) if o in objects else []
         # The poses of the supporting face frames (the placement)
         fixObjPoses = {'table1':util.Pose(1.1, 0.0, 0.0, math.pi/2),
+                       'tableShelves':util.Pose(1.1, 0.0, 0.0, math.pi/2),
                        'table2': util.Pose(1.0, -0.75, 0.0, 0.0),
                        'table3': util.Pose(1.6,0.0,0.0,math.pi/2),
                        'cupboardSide1': util.Pose(1.1, -0.2, 0.6, 0.0),
-                       'cupboardSide2': util.Pose(1.1, 0.2, 0.6, 0.0)}
+                       'cupboardSide2': util.Pose(1.1, 0.2, 0.6, 0.0),
+                       'cooler': util.Pose(1.1, 0.0, tZ, 0.)}
         moveObjPoses = {'objA': util.Pose(1.1, 0.0, tZ, 0.0),
                         'objB': util.Pose(0.95, -0.4, tZ, 0.0),
                         'objC': util.Pose(-0.25, -1.2, tZ, 0.0),
@@ -576,6 +634,8 @@ class PlanTest:
                 self.realWorld.regionShapes[regName].draw('World', 'purple')
             #if self.bs.pbs.regions: raw_input('Regions')
 
+        if not goal: return
+
         s = State([], details = self.bs)
 
         print '**************', self.name,\
@@ -618,10 +678,11 @@ class PlanTest:
 # No Z error in observations for now!  Address this eventually.
 # Turned down pickVar until we can look at hand
 
+# Made odo error smaller...
+
 typicalErrProbs = DomainProbs(\
             # stdev, constant, assuming we control it by tracking while moving
-            odoError = (0.015, 0.015, 1e-11, 0.015),
-            #odoError = (0.01, 0.01, 1e-11, 0.01),
+            odoError = (0.008, 0.008, 1e-11, 0.015),
             # variance in observations; diagonal for now
             obsVar = (0.005**2, 0.005**2,0.005**2, 0.01**2),
             # big angle var from robot experience
@@ -632,50 +693,41 @@ typicalErrProbs = DomainProbs(\
             pickFailProb = 0.02,
             placeFailProb = 0.02,
             # variance in grasp after picking
-            # pickVar = (0.01**2, 0.01**2, 1e-11, 0.02**2),
-            pickVar = (0.005**2, 0.005**2, 1e-11, 0.005**2),
-            # variance in grasp after placing
-            placeVar = (0.01**2, 0.01**2, 1e-11, 0.02**2),
+            pickVar = (0.001**2, 0.001**2, 1e-11, 0.002**2),
+            # variance in pose after placing
+            placeVar = (0.001**2, 0.001**2, 1e-11, 0.002**2),
             # pickTolerance
-            #pickTolerance = (0.02, 0.02, 0.02, 0.02))
-            # Too big?  Needs to be big to make the planner work unless
-            # observations are a lot better
-            pickTolerance = (0.05, 0.05, 0.05, 0.1),
-            maxGraspVar = (0.015**2, .015**2, .015**2, .03**2))
+            pickTolerance = (0.025, 0.025, 0.025, 0.1),
+            maxGraspVar = (0.005**2, .005**2, .005**2, .015**2),
+            # Use this for placing objects
+            placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
+            graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
 
-smallErrProbs = DomainProbs(\
-            # stdev, as a percentage of the motion magnitude
-            odoError = (0.01, 0.01, 0.01, 0.01),
-            # variance in observations; diagonal for now
-            obsVar = (0.001**2, 0.001**2, 1e-6, 0.002**2),
-            # get type of object wrong
-            obsTypeErrProb = 0.02,
-            # fail to pick or place in the way characterized by the Gaussian
-            pickFailProb = 0.0,
-            placeFailProb = 0.0,
-            # variance in grasp after picking
-            pickVar = (0.01**2, 0.01**2, 0.01**2, 0.01**2),
-            # variance in grasp after placing
-            placeVar = (0.01**2, 0.01**2, 0.01**2, 0.01**2),
-            # pickTolerance
-            pickTolerance = (0.02, 0.02, 0.02, 0.1))
 
 tinyErrProbs = DomainProbs(\
-            # stdev, as a percentage of the motion magnitude
-            odoError = (0.0001, 0.0001, 0.0001, 0.0001),
+            # stdev, constant, assuming we control it by tracking while moving
+            odoError = (0.0001, 0.0001, 1e-11, 0.0001),
             # variance in observations; diagonal for now
-            obsVar = (0.00001**2, 0.00001**2, 1e-6, 0.00002**2),
+            obsVar = (0.0001**2, 0.0001**2,0.0001**2, 0.0001**2),
             # get type of object wrong
-            obsTypeErrProb = 0.0000001,
+            obsTypeErrProb = 0.0,
             # fail to pick or place in the way characterized by the Gaussian
             pickFailProb = 0.0,
             placeFailProb = 0.0,
             # variance in grasp after picking
-            pickVar = (0.0001**2, 0.0001**2, 0.0001**2, 0.0001**2),
-            # variance in grasp after placing
-            placeVar = (0.0001**2, 0.0001**2, 0.0001**2, 0.0001**2),
+            pickVar = (0.0001**2, 0.0001**2, 1e-11, 0.0001**2),
+            # variance in pose after placing
+            placeVar = (0.0001**2, 0.0001**2, 1e-11, 0.0001**2),
             # pickTolerance
-            pickTolerance = (0.02, 0.02, 0.02, 0.1))
+            pickTolerance = (0.025, 0.025, 0.025, 0.05),
+            maxGraspVar = (0.005**2, .005**2, .005**2, .015**2),
+            # Use this for placing objects
+            placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
+            graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
+
+
+
+
 
 allOperators = [move, pick, place, lookAt, poseAchCanReach,
                 poseAchCanSee, poseAchCanPickPlace, poseAchIn, moveNB,

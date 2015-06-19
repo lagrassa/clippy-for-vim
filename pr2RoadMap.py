@@ -483,10 +483,11 @@ class RoadMap:
                                          reverse = (not reversePath),
                                          useStartH = True)
         ans = next(ansGen, None)
-        if (ans == None or ans[0] == None) and not moveBase:
-            if debug('traceCRH'): print '    NB path failed... trying RRT'
+        if (ans == None or ans[0] == None):
+            if debug('traceCRH'): print '    path failed... trying RRT'
             path, viol = rrt.planRobotPathSeq(pbs, prob, initConf, targetConf, None,
-                                              maxIter=20, failIter=5)
+                                              # targetConf.conf.keys(),
+                                              maxIter=50, failIter=10)
             if viol:
                 viol = viol.update(initViol)
             else:
@@ -822,7 +823,7 @@ class RoadMap:
             if perm:                    # permanent
                 if draw:
                     obst.draw('W', 'magenta')
-                    raw_input('Collision with perm held = %s'%obst.name())
+                    raw_input('Collision with perm = %s'%obst.name())
                 return None # irremediable
             return True                 # collision
         else:

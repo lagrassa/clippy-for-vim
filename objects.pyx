@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 
 from util cimport Ident, Transform, angleDiff, fixAnglePlusMinusPi
 from shapes cimport Shape
-from planGlobals import debug, debugMsg
+from planGlobals import debug, debugMsg, mergeShadows
 from geom import bboxUnion
 
 PI2 = 2*math.pi
@@ -74,11 +74,14 @@ class World:
         self.robot = robot
 
     def getObjectShapeAtOrigin(self, objName):
-        def simplify(shape):
+        def simplify(shape, depth=0):
+            if depth >= 10:
+                print 'Simplify loop:', objName, shape, shape.parts()
+                return shape
             if shape.name() == objName and \
                len(shape.parts()) == 1 and  \
                shape.parts()[0].name() == objName:
-                return simplify(shape.parts()[0])
+                return simplify(shape.parts()[0], depth=depth+1)
             else:
                 return shape
         obj = self.objects[objName]
@@ -88,9 +91,11 @@ class World:
         conf = dict([[objName, [Ident]]] +\
                     [[chain.name, []] for chain in chains[1:]])
         shape = obj.placement(Ident, conf)[0]
-        return next((part for part in shape.parts() if part.name() == objName), None)
-        # To make sure that we remove unnesessary nestings
-        # return simplify(shape)
+        if mergeShadows:
+            return next((part for part in shape.parts() if part.name() == objName), None)
+        else:
+            # Make sure that we remove unnesessary nestings
+            return simplify(shape)
 
     def getGraspDesc(self, obj):
         if obj == 'none':

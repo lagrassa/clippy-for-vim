@@ -981,3 +981,8 @@ def cartInterpolatorsAux(c_f, c_i, conf_i, minLength, depth=0):
                 final.append(conf)
                 final.extend(init)
     return final
+
+# Force sensor offsets:
+# <origin rpy="0 -1.5707963267948966 0" xyz="0.0356 0 0"/>
+# <origin rpy="0 0 1.0477302122478542" xyz="0 0 0"/>
+# <origin rpy="0 1.5707963267948966 -1.2217304763960306" xyz="0 0 0"/>

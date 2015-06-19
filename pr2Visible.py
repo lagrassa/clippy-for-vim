@@ -143,7 +143,8 @@ def countContacts(contacts, id):
     return final
 
 def lookAtConf(conf, shape):
-    center = bboxCenter(shape.bbox(), base=True)
+    center = bboxCenter(shape.bbox())   # base=True?
+    center[2] = shape.bbox()[1,2]       # at the top
     cartConf = conf.cartConf()
     assert cartConf['pr2Head']
     lookCartConf = cartConf.set('pr2Head', util.Pose(*center.tolist()+[0.,]))
@@ -152,7 +153,6 @@ def lookAtConf(conf, shape):
         return lookConf
 
 def viewCone(conf, shape, offset = 0.1, moveHead=True):
-
     if moveHead:
         lookConf = lookAtConf(conf, shape)
     else:

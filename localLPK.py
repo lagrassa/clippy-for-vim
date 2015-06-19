@@ -55,7 +55,7 @@ pickTol (be sure we're not giving pick too big a variance)
 placeGen
 placeInGen
 placeInRegionGen
-potentialLookConfs'
+potentialLookConfs
 prim
 regression
 regression:fail
@@ -71,9 +71,9 @@ visible
 visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
-debugOn = ['nonmon', 'traceGen', 'executionFail',
-          'simpleAbstractCostEstimates']
-         # 'skeleton', 'regression:fail',  'appOp:number']
+debugOn = ['nonmon', 'traceGen', 'executionFail', 'skeleton',
+          'simpleAbstractCostEstimates'] #,
+    #'regression:fail', 'appOp:number', 'lookGen']
 
 pauseOn = debugOn
 
