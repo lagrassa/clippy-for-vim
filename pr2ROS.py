@@ -99,9 +99,9 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         cnfOut['pr2Base'] = c.base
         cnfOut['pr2Torso']  = c.torso
         cnfOut['pr2LeftArm'] = c.left_joints
-        cnfOut['pr2LeftGripper'] = max(0., min(0.8, c.left_grip))
+        cnfOut['pr2LeftGripper'] = [max(0., min(0.8, c.left_grip[0]))]
         cnfOut['pr2RightArm'] = c.right_joints
-        cnfOut['pr2RightGripper'] = max(0., min(0.8, c.right_grip))
+        cnfOut['pr2RightGripper'] = [max(0., min(0.8, c.right_grip[0]))]
         cnfOut['pr2Head'] = cnfIn.get('pr2Head', [0.,0.])
         # cnfOut['pr2Head'] = [0., 0.]
 
