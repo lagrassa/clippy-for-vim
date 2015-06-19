@@ -462,7 +462,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
 
 def potentialLookConfGen(pbs, prob, shape, maxDist):
     def testPoseInv(basePoseInv):
-        bb = shape.applyTransform(basePoseInv).bbox()
+        bb = shape.applyTrans(basePoseInv).bbox()
         return bb[0][0] > 0 and bb[1][0] > 0
 
     centerPoint = util.Point(np.resize(np.hstack([shape.center(), [1]]), (4,1)))
