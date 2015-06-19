@@ -470,11 +470,29 @@ def placeGenGen(args, goalConds, bState, outBindings):
                                  goalConds, pbs, outBindings)
     rightGen = placeGenTop((obj, graspB, placeBs, 'right', base, prob),
                                  goalConds, pbs, outBindings)
+    holding = dict(getHolding(goalConds))
+    leftHeldInGoal = 'left' in holding
+    rightHeldInGoal = 'right' in holding
+    leftHeldNow = pbs.held['left'].mode() != 'none'
+    rightHeldNow = pbs.held['right'].mode() != 'none'
+    leftHeldTargetObjNow = pbs.held['left'].mode() == obj
+    rightHeldTargetObjNow = pbs.held['right'].mode() == obj
 
-    if mustUseLeft:
-        gen = leftGen
-    elif mustUseRight:
-        gen = rightGen
+    if mustUseLeft or rightHeldInGoal:
+        if leftHeldInGoal:
+            debugMsgSkip('placeGen', skip, 'Left held already in goal')
+            return
+        else:
+            gen = leftGen
+    elif mustUseRight or leftHeldInGoal:
+        if rightHeldInGoal:
+            debugMsgSkip('placeGen', skip, 'Right held already in goal')
+            return
+        else:
+            gen = rightGen
+    elif rightHeldTargetObjNow or (leftHeldNow and not leftHeldTargetObjNow):
+        # Try right hand first if we're holding something in the left
+        gen = roundrobin(rightGen, leftGen)
     else:
         gen = roundrobin(leftGen, rightGen)
 

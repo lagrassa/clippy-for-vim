@@ -576,7 +576,13 @@ def testHold(hpn = True, skeleton = False, hierarchical = False,
     #back = util.Pose(1.1, 0.0, tZ, 0.0)
     back = util.Pose(1.25, 0.0, tZ, 0.0)
 
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+    easyVarDict = {'table1': (0.001**2, 0.001**2, 1e-10, 0.001**2),
+                               'table2': (0.001**2, 0.001**2, 1e-10, 0.001**2),
+                               'objA': (0.0001**2,0.0001**2, 1e-10,0.001**2),
+                               'objB': (0.0001**2,0.0001**2, 1e-10,0.001**2)}
+
+    varDict = easyVarDict if easy else \
+                            {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
                                'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
@@ -595,10 +601,14 @@ def testHold(hpn = True, skeleton = False, hierarchical = False,
     delta = (0.01,)*4
 
 
-    skel3 = [[pick, moveNB, poseAchCanPickPlace,
+    skel2 = [[pick, moveNB, poseAchCanPickPlace,
               lookAt, moveNB, lookAt,
               move, lookAt, moveNB, lookAt, moveNB]]
 
+    skel3 = [[pick, moveNB, poseAchCanPickPlace,
+              lookAt.applyBindings({'Obj' : 'table1'}),
+              move, lookAt, moveNB, lookAt, moveNB]]
+        
     goal = State([Bd([Holding([hand]), obj, goalProb], True),
                   Bd([GraspFace([obj, hand]), grasp, goalProb], True),
                   B([Grasp([obj, hand,  grasp]),

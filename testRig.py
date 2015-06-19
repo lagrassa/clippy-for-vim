@@ -90,8 +90,8 @@ useCartesian = False
 useLookAtHand = False
 
 # DEBUG
-useRight = False                        # DEBUG
-useVertical = True                     # DEBUG
+useRight = True                        # DEBUG
+useVertical = False                     # DEBUG
 useHorizontal = True
 
 if useROS:
@@ -697,7 +697,7 @@ typicalErrProbs = DomainProbs(\
             # variance in pose after placing
             placeVar = (0.001**2, 0.001**2, 1e-11, 0.002**2),
             # pickTolerance
-            pickTolerance = (0.025, 0.025, 0.025, 0.05),
+            pickTolerance = (0.025, 0.025, 0.025, 0.1),
             maxGraspVar = (0.005**2, .005**2, .005**2, .015**2),
             # Use this for placing objects
             placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
