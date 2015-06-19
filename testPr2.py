@@ -199,16 +199,16 @@ def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=ha
                  objects=['tableShelves', 'objA', 'objB'],
                  fixPoses={'tableShelves': tableShelvesPose},
                  movePoses={'objA': right1,
-                            'objB': left1},
+                            'objB': left1
+                            },
                  varDict = varDict)
 
     t.run(goal1,
           hpn = hpn,
-          skeleton = None,
           hierarchical = hierarchical,
           regions=[region],
           heuristic = heuristic,
-          rip = rip
+          rip = rip,
           )
     return t
 
