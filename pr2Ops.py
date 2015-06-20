@@ -444,11 +444,6 @@ def times2((thing,), goal, start, vals):
 def placeGraspVar((poseVar,), goal, start, vals):
     maxGraspVar = start.domainProbs.maxGraspVar
     placeVar = start.domainProbs.placeVar
-    if isVar(poseVar):
-        # For placing in a region; could let the place pick this, but
-        # just do it for now
-        defaultPoseVar = tuple([v * 4 for v in placeVar])
-        poseVar = defaultPoseVar
     graspVar = tuple([min(gv - pv, m) for (gv, pv, m) \
                       in zip(poseVar, placeVar, maxGraspVar)])
     if any([x <= 0 for x in graspVar]):
@@ -539,12 +534,12 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     if vs != cappedVbo1 and vs != cappedVbo2:
         result.append([vs])
 
-    print '@@@@@@@@@@@@@ Prev var'
-    print 'Target', prettyString(sqrts(ve))
-    print 'Capped before', prettyString(sqrts(cappedVbo1))
-    print 'Other suggestions'
-    for xx in result: print '   ', prettyString(sqrts(xx)[0])
-    print '@@@@@@@@@@@@@ Prev var'
+    # print '@@@@@@@@@@@@@ Prev var'
+    # print 'Target', prettyString(sqrts(ve))
+    # print 'Capped before', prettyString(sqrts(cappedVbo1))
+    # print 'Other suggestions'
+    # for xx in result: print '   ', prettyString(sqrts(xx)[0])
+    # print '@@@@@@@@@@@@@ Prev var'
 
     debugMsg('genLookObjPrevVariance', result)
 
@@ -700,7 +695,6 @@ def moveSpecialRegress(f, details, abstractionLevel):
             print f
             # Can't achieve this 
             return None
-        return f.copy()
         # Regress to odoVar: assumption will be that we can maintain
         # this variance if it's already this small
         # newF = f.copy()
@@ -719,8 +713,8 @@ def moveSpecialRegress(f, details, abstractionLevel):
         # newF.args[1] = odoVar
         # newF.update()
         # return newF
-    else:
-        return f.copy()
+
+    return f.copy()
 
 ################################################################
 ## Cost funs
@@ -818,6 +812,8 @@ def moveBProgress(details, args, obs=None):
         # ob.poseD.var = tuple([a + b*b for (a, b) in zip(oldVar, odoError)])
         ob.poseD.var = tuple([max(a, b) for (a, b) in zip(oldVar, odoVar)])
     details.pbs.reset()
+    details.pbs.getShadowWorld(0)
+    details.pbs.internalCollisionCheck()
     debugMsg('beliefUpdate', 'moveBel')    
 
 def moveNBBProgress(details, args, obs=None):
@@ -825,6 +821,8 @@ def moveNBBProgress(details, args, obs=None):
     # Just put the robot in the intended place
     details.pbs.updateConf(e)
     details.pbs.reset()
+    details.pbs.getShadowWorld(0)
+    details.pbs.internalCollisionCheck()
     debugMsg('beliefUpdate', 'moveBel')    
 
 def pickBProgress(details, args, obs=None):
@@ -840,6 +838,8 @@ def pickBProgress(details, args, obs=None):
     details.pbs.updateHeld(o, gf, PoseD(gm, gv), h, gd)
     details.pbs.excludeObjs([o])
     details.pbs.reset()
+    details.pbs.getShadowWorld(0)
+    details.pbs.internalCollisionCheck()
     debugMsg('beliefUpdate', 'pickBel')
 
 def placeBProgress(details, args, obs=None):
@@ -862,6 +862,8 @@ def placeBProgress(details, args, obs=None):
         pf = pf.mode()
     details.pbs.moveObjBs[o] = ObjPlaceB(o, ff, pf, PoseD(p, gv))
     details.pbs.reset()
+    details.pbs.getShadowWorld(0)
+    details.pbs.internalCollisionCheck()
     debugMsg('beliefUpdate', 'placeBel')
     
 # obs has the form (obj-type, face, relative pose)
@@ -870,6 +872,8 @@ def lookAtBProgress(details, args, obs):
     objectObsUpdate(details, lookConf, obs)
     details.pbs.reset()
     details.pbs.getRoadMap().confReachCache = {} # Clear motion planning cache
+    details.pbs.getShadowWorld(0)
+    details.pbs.internalCollisionCheck()
     debugMsg('beliefUpdate', 'look')
 
 llMatchThreshold = -100.0
@@ -1142,6 +1146,9 @@ def lookAtHandBProgress(details, args, obs):
             newOGB = ObjGraspB(mlo, gd, faceDist, newPoseDist)
         details.pbs.updateHeldBel(newOGB, h)
     details.pbs.reset()
+    details.pbs.getShadowWorld(0)
+    details.pbs.internalCollisionCheck()
+
     debugMsg('beliefUpdate', 'look')
 
 ################################################################
@@ -1290,6 +1297,9 @@ place = Operator(\
             # the result.  
             Function(['P1'], ['PR1', 'PR2', 'PR3'], 
                      regressProb(1, 'placeFailProb'), 'regressProb1', True),
+            
+            # In case not specified
+            Function(['PoseVar'], [], placeInPoseVar, 'placeInPoseVar'),
 
             # PoseVar = GraspVar + PlaceVar,
             # GraspVar = min(maxGraspVar, PoseVar - PlaceVar)

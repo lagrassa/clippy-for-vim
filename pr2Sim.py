@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import objects
+import random
 from objects import WorldState
 import windowManager3D as wm
 import pr2Util
@@ -38,6 +39,8 @@ animate = False
 animateSleep = 0.2
 
 maxOpenLoopDist = 2.0
+
+simOdoErrorRate = 0.02
 
 pickSuccessDist = 0.1  # pretty big for now
 class RealWorld(WorldState):
@@ -141,7 +144,10 @@ class RealWorld(WorldState):
                         debugMsg('sim', 'No lookConf for %s'%obj.name())
                 else:
                     debugMsg('sim', 'No visible object')
-            prevXYT = newXYT
+            noisyXYT = [c + 2 * (random.random() - 0.5) * c * simOdoErrorRate \
+                                 for c in newXYT]
+            #prevXYT = newXYT
+            prevXYT = noisyXYT
         if debug('backwards') and backSteps:
             print 'Backward steps:'
             for prev, next in backSteps:

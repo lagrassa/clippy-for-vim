@@ -75,6 +75,22 @@ class PBS:
         self.shadowWorld = None
         self.shadowProb = None
 
+    def internalCollisionCheck(self):
+        ws = self.shadowWorld
+        # First check the robot
+        confViols = self.beliefContext.roadMap.confViolations(self.conf, self,0)
+        if confViols == None or confViols.obstacles or \
+          confViols.heldObstacles[0] or confViols.heldObstacles[1]:
+            raise Exception, 'Collision with robot: '+name
+        allObjs = self.fixObjBs.items() + self.moveObjBs.items()
+        for (name, pB) in allObjs:
+            pB.shape(ws).draw('W', 'black')
+            for (name2, pB2) in allObjs:
+                assert name == name2 or \
+                          not pB.shape(ws).collides(pB2.shape(ws)), \
+                          'Object-Object collision: '+name+' - '+name2
+        raw_input('collision check')
+
     def getWorld(self):
         return self.beliefContext.world
     def getRobot(self):

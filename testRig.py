@@ -91,7 +91,7 @@ useLookAtHand = False
 
 # DEBUG
 useRight = True                        # DEBUG
-useVertical = False                     # DEBUG
+useVertical = True                     # DEBUG
 useHorizontal = True
 
 if useROS:

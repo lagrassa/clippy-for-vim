@@ -556,9 +556,9 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
                  moveNB]]
                  
 
-    t.run(goal1,     #actualGoal,
+    t.run(actualGoal,
           hpn = hpn,
-          skeleton = skel1,    #hardSkel if skeleton else None,
+          skeleton = hardSkel if skeleton else None,
           heuristic = heuristic,
           hierarchical = hierarchical,
           rip = rip,
