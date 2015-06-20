@@ -33,7 +33,7 @@ class Simple_Controller():
     def __init__(self, verbose = False):
         self.verbose = verbose
         self.grabbing = False
-        self.pressureThreshold = 100
+        self.pressureThreshold = 1000 # 250
         self.max_gripper_effort = 50.0  # 50=gentle, -1=max_effort
         rospy.init_node('my_controller_server')
 
@@ -187,6 +187,8 @@ class Simple_Controller():
             source, result = self.moveGripperToContact(arm, 'both')
         elif op == 'grab':
             source, result = self.start_gripper_grab(arm)
+	elif op == 'getConf':
+	     source, result = 'getConf', 'getConf'
         else:
             raise Exception, 'Unknown op=%s'%str(op)
 
@@ -569,10 +571,10 @@ class Simple_Controller():
     def start_gripper_event_detector(self, arm):
         goal = PR2GripperEventDetectorGoal()
         # use either acceleration or tip touch as a contact condition
-        # goal.command.trigger_conditions = goal.command.FINGER_SIDE_IMPACT_OR_ACC
+        goal.command.trigger_conditions = goal.command.FINGER_SIDE_IMPACT_OR_ACC
         # use only acceleration
-        goal.command.trigger_conditions = goal.command.ACC
-        goal.command.acceleration_trigger_magnitude = 4  #3.25 contact acceleration used to trigger 
+        # goal.command.trigger_conditions = goal.command.ACC
+        goal.command.acceleration_trigger_magnitude = 6  #3.25 contact acceleration used to trigger 
         rospy.loginfo("Starting gripper event detector")
         self.gripper_event_detector_action_client[arm].send_goal(goal)
 

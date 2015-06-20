@@ -183,7 +183,8 @@ def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=ha
 
     varDict = {} if easy else {'tableShelves': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2),
-                               'objB': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
+                               'objB': (0.1**2, 0.1**2, 1e-10, 0.3**2)
+                               } 
     right1 = util.Pose(1.1, -0.5, tZ, 0.0)
     right2 = util.Pose(1.5, -0.5, tZ, 0.0)
     left1 = util.Pose(1.1, 0.5, tZ, 0.0)
@@ -196,10 +197,12 @@ def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=ha
                   Bd([In(['objA', region]), True, goalProb], True)])
 
     t = PlanTest('testShelves',  errProbs, allOperators,
-                 objects=['tableShelves', 'objA', 'objB'],
+                 objects=['tableShelves', 'objA',
+                          # 'objB'
+                          ],
                  fixPoses={'tableShelves': tableShelvesPose},
                  movePoses={'objA': right1,
-                            'objB': left1
+                            # 'objB': left1
                             },
                  varDict = varDict)
 
@@ -1764,7 +1767,7 @@ def ff(g, details):
 
 def testReact():
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
-    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0, dx=0.1, dz=0.1)
+    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)
     result, cnfOut = pr2GoToConf(startConf, 'move')
     result, cnfOut = pr2GoToConf(startConf, 'look')
     # Reset the internal coordinate frames
@@ -1777,6 +1780,6 @@ def gripOpen(conf, hand, width=0.08):
 
 def testOpen(hand='left'):
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
-    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0, dx=0.1, dz=0.1)[0]
+    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)[0]
     result, cnfOut = pr2GoToConf(gripOpen(startConf, hand), 'open')    
 

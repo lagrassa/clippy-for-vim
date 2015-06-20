@@ -33,7 +33,9 @@ def bestTable(zone, table, pointCloud, exclude,
     cdef util.Transform pose, bestPose
     
     minTablePoints = int(glob.minTableDim / glob.cloudPointsResolution)
-    height = table.zRange()[1] - table.zRange()[0]
+    # height = table.zRange()[1] - table.zRange()[0]
+    height = 0.67
+    print 'Fix table height determination'
     bb = table.bbox()
     if debug('tables'): print 'table bbox=\n', bb
     radius = 0.75*math.sqrt((bb[1,0] - bb[0,0])**2 + (bb[1,1] - bb[0,1])**2)

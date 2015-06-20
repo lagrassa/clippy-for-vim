@@ -166,7 +166,7 @@ workspace = ((-1.0, -2.5, 0.0), (3.0, 2.5, 2.0))
 viewPort = [x0, x1, y0, y1, 0, dz]
 
 tZ = 0.68
-coolerZ = 0.19
+coolerZ = 0.225
 
 def testWorld(include = ['objA', 'objB', 'objC'],
               draw = True):

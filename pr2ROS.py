@@ -21,6 +21,8 @@ import util
 import tables
 reload(tables)
 
+twoPi = 2.0*math.pi
+
 if glob.useROS:
     import rospy
     import roslib
@@ -108,7 +110,9 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         print 'cnfOut[ pr2Head]=', cnfOut['pr2Head']
 
         if cnfIn:
-            return resp.result, JointConf(cnfOut, cnfIn.robot)
+            cnfOut = cnfIn.robot.normConf(JointConf(cnfOut, cnfIn.robot), cnfIn)
+            cnfOut = enforceLimits(cnfOut)
+            return resp.result, cnfOut
         else:
             return resp.result, cnfOut  # !!
 
@@ -135,6 +139,17 @@ def gazeCoords(cnfIn):
     if debug('pr2GoToConf'):
         print confHead
     return confHead
+
+def enforceLimits(conf):
+    outConfDict = {}
+    for chain in conf.conf.keys():
+        if not chain in ('pr2LeftArm', 'pr2LeftGripper', 'pr2RightArm', 'pr2RightGripper'):
+            outConfDict[chain] = conf.conf[chain]
+        else:
+            limits = conf.robot.chains.chainsByName[chain].limits()
+            outConfDict[chain] = [max(lo+0.001, min(hi-0.001, v)) \
+                                  for (v, (lo, hi)) in zip(conf.conf[chain], limits)]
+    return JointConf(outConfDict, conf.robot)
 
 maxOpenLoopDist = 2.0                   # How far to move between looks
 
@@ -315,7 +330,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             targets.append((targetObj, placeBs[targetObj]))
 
         if targets:
-            surfacePoly = makeROSPolygon(tableRob) # from perceived table
+            print 'Fix height of table'
+            surfacePoly = makeROSPolygon(tableRob, zPlane=0.67) # from perceived table
             ans = getObjDetections(self.world,
                                    dict(targets),
                                    outConf, # the lookConf actually achieved
@@ -365,7 +381,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         debugMsg('robotEnv', 'executePick - close')
         result, outConf = pr2GoToConf(pickConf, 'close', arm=hand[0]) # 'l' or 'r'
         g = confGrip(outConf, hand)
-        gripConf = gripOpen(outConf, hand, g-0.025)
+        gripConf = gripOpen(outConf, hand, g-0.03)
         # close then grab
         result, outConf = pr2GoToConf(gripConf, 'open')
         result, outConf = pr2GoToConf(gripConf, 'grab', arm=hand[0])
@@ -484,14 +500,14 @@ def getPointCloud(basePose, resolution = glob.cloudPointsResolution):
         raw_input('Continue?')
         return []
 
-def makeROSPolygon(obj, dz=0):
+def makeROSPolygon(obj, zPlane=None):
     points = []
     verts = obj.xyPrim().vertices()
     zhi = obj.zRange()[1]
     for p in range(verts.shape[1]):
         (x, y, z) = verts[0:3,p]
         if abs(z - zhi) < 0.001:
-            points.append(gm.Point(x, y, z))
+            points.append(gm.Point(x, y, zPlane or z))
     return gm.Polygon(points)
 
 def makeROSPose2D(pose):
@@ -547,24 +563,29 @@ obsConf, obsGrip, obsTrigger, obsContacts = range(4)
 xoffset = 0.05
 yoffset = 0.01
 
+def pr2GoToConfNB(conf, op, arm='both', speedFactor=glob.speedFactor):
+    c = conf.conf.copy()
+    if 'pr2Base' in c: del c['pr2Base']
+    return pr2GoToConf(conf, op, arm=arm, speedFactor=speedFactor)
+
 def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
     print '***closing'
     startConfClose = gripOpen(startConf, hand, 0.01)
-    pr2GoToConf(startConfClose, 'move')
-    pr2GoToConf(startConfClose, 'open')
+    pr2GoToConfNB(startConfClose, 'move')
+    pr2GoToConfNB(startConfClose, 'open')
     targetConfClose = gripOpen(targetConf, hand, 0.01)
     (obs, traj) = tryGrasp(startConfClose, targetConfClose, hand)
     print 'obs after tryGrasp', obs
     curConf = obs[obsConf]
     print '***Contact'
     backConf = displaceHand(curConf, hand, dx=-xoffset, dz=0.01, nearTo=startConf)
-    result, nConf = pr2GoToConf(backConf, 'move')
+    result, nConf = pr2GoToConfNB(backConf, 'move')
     backConf = displaceHand(backConf, hand, zFrom=targetConf, nearTo=startConf)
-    result, nConf = pr2GoToConf(backConf, 'move')
+    result, nConf = pr2GoToConfNB(backConf, 'move')
     backConf = gripOpen(backConf, hand)
-    result, nConf = pr2GoToConf(backConf, 'open')
+    result, nConf = pr2GoToConfNB(backConf, 'open')
     print 'backConf', handTrans(nConf, hand).point(), result
-    target = displaceHand(curConf, hand, dx=2*xoffset, zFrom=targetConf, nearTo=startConf)
+    target = displaceHand(curConf, hand, dx=1.1*xoffset, zFrom=targetConf, nearTo=startConf)
     return reactiveApproachLoop(backConf, target, gripDes, hand,
                                 maxTarget=target)
 
@@ -586,26 +607,26 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, maxTarget,
         else:
             print spaces+'***opening', obs[obsGrip], 'did not match', gripDes
             closeConf = gripOpen(curConf, hand)
-            pr2GoToConf(closeConf, 'open')
+            pr2GoToConfNB(closeConf, 'open')
     if reactLeft(obs):
         print spaces+'***reactLeft'
         backConf = displaceHand(curConf, hand, dx=-xoffset, nearTo=startConf)
-        result, nConf = pr2GoToConf(backConf, 'move')
+        result, nConf = pr2GoToConfNB(backConf, 'move')
         print spaces+'backConf', handTrans(nConf, hand).point(), result
         return reactiveApproachLoop(backConf, 
                                     displaceHand(curConf, hand,
-                                                 dx=2*xoffset, dy=ystep,
+                                                 dx=1.1*xoffset, dy=ystep,
                                                  maxTarget=maxTarget, nearTo=startConf),
                                     gripDes, hand, maxTarget,
                                     ystep = max(0.01, ystep/2), tries=tries-1)
     else:                           # default, just to do something...
         print spaces+'***reactRight'
         backConf = displaceHand(curConf, hand, dx=-xoffset, nearTo=startConf)
-        result, nConf = pr2GoToConf(backConf, 'move')
+        result, nConf = pr2GoToConfNB(backConf, 'move')
         print spaces+'backConf', handTrans(nConf, hand).point(), result
         return reactiveApproachLoop(backConf, 
                                     displaceHand(curConf, hand,
-                                                 dx=2*xoffset, dy=-ystep,
+                                                 dx=1.1*xoffset, dy=-ystep,
                                                  maxTarget=maxTarget, nearTo=startConf),
                                     gripDes, hand, maxTarget,
                                     ystep = max(0.01, ystep/2), tries=tries-1)
@@ -688,8 +709,8 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
     print 'tryGrasp'
     print '    from', handTrans(approachConf, hand).point()
     print '      to', handTrans(graspConf, hand).point()
-    result, curConf = pr2GoToConf(approachConf, 'move')
-    resuly, curConf = pr2GoToConf(approachConf, 'resetForce', arm=hand[0])
+    result, curConf = pr2GoToConfNB(approachConf, 'move')
+    resuly, curConf = pr2GoToConfNB(approachConf, 'resetForce', arm=hand[0])
     moveChains = [approachConf.robot.armChainNames[hand]+'Frame']
     path = cartInterpolators(graspConf, approachConf, stepSize)[::-1]
     # path = [approachConf, graspConf]
@@ -715,7 +736,7 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
         if prevConf:
             bigAngleWarn(prevConf, conf)
         prevConf = conf
-        result, curConf = pr2GoToConf(conf, 'moveGuarded', speedFactor=0.1)
+        result, curConf = pr2GoToConfNB(conf, 'moveGuarded', speedFactor=0.1)
         print 'tryGrasp result', result, handTrans(curConf, hand).point()
         if result in ('LR_tip', 'L_tip', 'R_tip',
                       'LR_pad', 'L_pad', 'R_pad'):
@@ -739,20 +760,20 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
 
 def compliantClose(conf, hand, step = 0.01, n = 1):
     if n > 5:
-        (result, cnfOut) = pr2GoToConf(conf, 'close', arm=hand[0])
+        (result, cnfOut) = pr2GoToConfNB(conf, 'close', arm=hand[0])
         return result
     print 'compliantClose step=', step
-    result, curConf = pr2GoToConf(conf, 'closeGuarded', arm=hand[0])
+    result, curConf = pr2GoToConfNB(conf, 'closeGuarded', arm=hand[0])
     print 'compliantClose result', result, handTrans(curConf, hand).point()
     # could displace to find contact with the other finger
     # instead of repeatedly closing.
     if result == 'LR_pad':
-        (result, cnfOut) = pr2GoToConf(conf, 'close', arm=hand[0], speedFactor=0.1)
+        (result, cnfOut) = pr2GoToConfNB(conf, 'close', arm=hand[0], speedFactor=0.1)
         return result
     elif result in ('L_pad', 'R_pad'):
         off = step if result == 'L_pad' else -step
         nConf = displaceHand(curConf, hand, dy=off, nearTo=conf)
-        pr2GoToConf(nConf, 'move', speedFactor=0.1)      # should this be guarded?
+        pr2GoToConfNB(nConf, 'move', speedFactor=0.1)      # should this be guarded?
         return compliantClose(nConf, hand, step=0.9*step, n = n+1)
     elif result == 'none':
         return result
@@ -760,7 +781,9 @@ def compliantClose(conf, hand, step = 0.01, n = 1):
         raw_input('Bad result in compliantClose: %s'%str(result))
         return result
 
-def testReactive(startConf, offset = (0.1, 0.0, -0.1), grip=0.06):
+def testReactive(startConf,
+                 offset = (glob.approachBackoff, 0.0, -glob.approachPerpBackoff),
+                 grip=0.06):
     hand = 'left'
     (dx,dy,dz) = offset
     targetConf = displaceHand(startConf, hand, dx=dx, dy=dy, dz=dz, nearTo=startConf)
@@ -769,7 +792,7 @@ def testReactive(startConf, offset = (0.1, 0.0, -0.1), grip=0.06):
     g = confGrip(curConf, hand)
     print 'grip after reactive', g
     gripConf = gripOpen(curConf, hand, 0.04)
-    result, outConf = pr2GoToConf(gripConf, 'open')
+    result, outConf = pr2GoToConfNB(gripConf, 'open')
     g = confGrip(outConf, hand)
     print 'grip after tightening', g
     raw_input('Done?')

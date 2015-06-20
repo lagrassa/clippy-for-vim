@@ -709,7 +709,7 @@ cdef class Revolute(Joint):
             # vw = fixAnglePlusMinusPi(val)
             # if abs(vw1 - vw) > 0.0001:
             #    print val, 'vw1', vw1, 'vw', vw
-            if (lo-0.0001 <= vw <= hi+0.0001):
+            if (lo-0.001 <= vw <= hi+0.001):
                 return True
         return False
     cpdef diff(self, a, b):

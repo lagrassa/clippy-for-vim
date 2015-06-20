@@ -288,13 +288,6 @@ def canView(pbs, prob, conf, hand, shape, maxIter = 50):
 ################
 
 # This needs generalization
-# approachBackoff = 0.10   # 
-# 
-approachBackoff = 0.1
-zBackoff = 0.025
-
-#approachBackoff = 0.25
-#zBackoff = 0.06
 
 def findApproachConf(pbs, obj, placeB, conf, hand, prob):
     # cached = pbs.getRoadMap().approachConfs.get(conf, False)
@@ -303,9 +296,9 @@ def findApproachConf(pbs, obj, placeB, conf, hand, prob):
     cart = conf.cartConf()
     wristFrame = cart[robot.armChainNames[hand]]
     if abs(wristFrame.matrix[2,0]) < 0.1: # horizontal
-        offset = util.Pose(-approachBackoff,0.,zBackoff,0.)
+        offset = util.Pose(-glob.approachBackoff,0.,glob.approachPerpBackoff,0.)
     else:                               # vertical
-        offset = util.Pose(-approachBackoff,0.,0.,0.)
+        offset = util.Pose(-glob.approachBackoff,0.,0.,0.)
     wristFrameBack = wristFrame.compose(offset)
     cartBack = cart.set(robot.armChainNames[hand], wristFrameBack)
     confBack = robot.inverseKin(cartBack, conf = conf)
