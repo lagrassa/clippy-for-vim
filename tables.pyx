@@ -226,6 +226,8 @@ def getTableDetections(world, obsPlaceBs, pointCloud):
             angles = [angle for angle in allAngles if \
                       abs(util.angleDiff(angle, pose.theta)) <= 4*std] + [pose.theta]
             angles.sort()
+            if len(angles) < 5:
+                angles = [pose.theta+d for d in (-4*std, -2*std, std, 0., 2*std, 4*std)]
             if debug('tables'):
                 print 'Candidate table angles:', angles
             score, detection = \

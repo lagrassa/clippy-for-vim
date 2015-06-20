@@ -32,12 +32,12 @@ tiny = 1.0e-6
 def legalGrasp(pbs, conf, hand, objGrasp, objPlace):
     deltaThreshold = (0.01, 0.01, 0.01, 0.02)
     # !! This should check for kinematic feasibility over a range of poses.
-    of = objectGraspFrame(pbs, objGrasp, objPlace)
+    of = objectGraspFrame(pbs, objGrasp, objPlace, hand)
     rf = robotGraspFrame(pbs, conf, hand)
     result = of.withinDelta(rf, deltaThreshold)
     return result
 
-def objectGraspFrame(pbs, objGrasp, objPlace):
+def objectGraspFrame(pbs, objGrasp, objPlace, hand):
     # Find the robot wrist frame corresponding to the grasp at the placement
     objFrame = objPlace.objFrame()
     graspDesc = objGrasp.graspDesc[objGrasp.grasp.mode()]
@@ -45,7 +45,7 @@ def objectGraspFrame(pbs, objGrasp, objPlace):
     centerFrame = faceFrame.compose(util.Pose(0,0,graspDesc.dz,0))
     graspFrame = objFrame.compose(centerFrame)
     # !! Rotates wrist frame to grasp face frame - defined in pr2Robot
-    gT = gripperFaceFrame
+    gT = gripperFaceFrame[hand]
     wristFrame = graspFrame.compose(gT.inverse())
     # assert wristFrame.pose()
 
@@ -353,7 +353,7 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
     robot = pbs.getRobot()
     rm = pbs.getRoadMap()
     if not wrist:
-        wrist = objectGraspFrame(pbs, graspB, placeB)
+        wrist = objectGraspFrame(pbs, graspB, placeB, hand)
     basePose = basePose.pose()
     cart = CartConf({'pr2BaseFrame': basePose,
                      'pr2Torso':[torsoZ]}, robot)
@@ -396,7 +396,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
     if conf:
         yield conf, Violations()
         return
-    wrist = objectGraspFrame(pbs, graspB, placeB)
+    wrist = objectGraspFrame(pbs, graspB, placeB, hand)
     if debug('potentialGraspConfs'):
         print 'potentialGraspConfGen', hand, placeB.obj, graspB.grasp
         print wrist

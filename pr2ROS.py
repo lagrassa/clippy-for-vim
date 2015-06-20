@@ -114,12 +114,16 @@ def pr2GoToConf(cnfIn,                  # could be partial...
             cnfOut = enforceLimits(cnfOut)
             return resp.result, cnfOut
         else:
-            return resp.result, cnfOut  # !!
+            return resp.result, JointConf(cnfOut, None)  # !!
 
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
         raw_input('Continue?')
         return None, None               # should we pretend it worked?
+
+def pr2GetConf():
+    result, conf = pr2GoToConf(JointConf({}, None), 'getConf')
+    return conf
 
 def gazeCoords(cnfIn):
     cnfInCart = cnfIn.cartConf()
@@ -562,6 +566,7 @@ obsConf, obsGrip, obsTrigger, obsContacts = range(4)
 # x direction is approach direction.
 xoffset = 0.05
 yoffset = 0.01
+fingerLength = 0.06
 
 def pr2GoToConfNB(conf, op, arm='both', speedFactor=glob.speedFactor):
     c = conf.conf.copy()
@@ -569,6 +574,7 @@ def pr2GoToConfNB(conf, op, arm='both', speedFactor=glob.speedFactor):
     return pr2GoToConf(conf, op, arm=arm, speedFactor=speedFactor)
 
 def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
+    result, curConf = pr2GoToConfNB(startConf, 'resetForce', arm=hand[0])
     print '***closing'
     startConfClose = gripOpen(startConf, hand, 0.01)
     pr2GoToConfNB(startConfClose, 'move')
@@ -578,6 +584,7 @@ def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
     print 'obs after tryGrasp', obs
     curConf = obs[obsConf]
     print '***Contact'
+    # Back off
     backConf = displaceHand(curConf, hand, dx=-xoffset, dz=0.01, nearTo=startConf)
     result, nConf = pr2GoToConfNB(backConf, 'move')
     backConf = displaceHand(backConf, hand, zFrom=targetConf, nearTo=startConf)
@@ -585,7 +592,8 @@ def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
     backConf = gripOpen(backConf, hand)
     result, nConf = pr2GoToConfNB(backConf, 'open')
     print 'backConf', handTrans(nConf, hand).point(), result
-    target = displaceHand(curConf, hand, dx=1.1*xoffset, zFrom=targetConf, nearTo=startConf)
+    # Try to grab
+    target = displaceHand(curConf, hand, dx=xoffset+fingerLength, zFrom=targetConf, nearTo=startConf)
     return reactiveApproachLoop(backConf, target, gripDes, hand,
                                 maxTarget=target)
 
@@ -615,7 +623,7 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, maxTarget,
         print spaces+'backConf', handTrans(nConf, hand).point(), result
         return reactiveApproachLoop(backConf, 
                                     displaceHand(curConf, hand,
-                                                 dx=1.1*xoffset, dy=ystep,
+                                                 dx=fingerLength, dy=ystep,
                                                  maxTarget=maxTarget, nearTo=startConf),
                                     gripDes, hand, maxTarget,
                                     ystep = max(0.01, ystep/2), tries=tries-1)
@@ -626,16 +634,14 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, maxTarget,
         print spaces+'backConf', handTrans(nConf, hand).point(), result
         return reactiveApproachLoop(backConf, 
                                     displaceHand(curConf, hand,
-                                                 dx=1.1*xoffset, dy=-ystep,
+                                                 dx=fingerLength, dy=-ystep,
                                                  maxTarget=maxTarget, nearTo=startConf),
                                     gripDes, hand, maxTarget,
                                     ystep = max(0.01, ystep/2), tries=tries-1)
 
 def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0,
                  zFrom=None, maxTarget=None, nearTo=None):
-
-    print 'displaceHand pr2Head', conf['pr2Head']
-
+    print 'displaceHand'
     cart = conf.cartConf()
     handFrameName = conf.robot.armChainNames[hand]
     trans = cart[handFrameName]
@@ -710,7 +716,6 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
     print '    from', handTrans(approachConf, hand).point()
     print '      to', handTrans(graspConf, hand).point()
     result, curConf = pr2GoToConfNB(approachConf, 'move')
-    resuly, curConf = pr2GoToConfNB(approachConf, 'resetForce', arm=hand[0])
     moveChains = [approachConf.robot.armChainNames[hand]+'Frame']
     path = cartInterpolators(graspConf, approachConf, stepSize)[::-1]
     # path = [approachConf, graspConf]

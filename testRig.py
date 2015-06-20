@@ -36,8 +36,7 @@ MVG = MultivariateGaussianDistribution
 
 import pr2Robot
 reload(pr2Robot)
-from pr2Robot import makePr2Chains, PR2, JointConf, CartConf, pr2Init, \
-     gripperTip
+from pr2Robot import makePr2Chains, PR2, JointConf, CartConf, pr2Init
 
 import pr2RoadMap
 reload(pr2RoadMap)
@@ -172,7 +171,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
               draw = True):
     ((x0, y0, _), (x1, y1, dz)) = workspace
     w = 0.1
-    wm.makeWindow('W', viewPort, 600)   # was 800
+    wm.makeWindow('W', viewPort, 800)   # was 800
     if useROS: wm.makeWindow('MAP', viewPort)
     def hor((x0, x1), y, w):
         return Ba([(x0, y-w/2, 0), (x1, y+w/2.0, dz)])

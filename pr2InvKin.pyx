@@ -5,6 +5,7 @@ cimport numpy as np
 import planGlobals as glob
 from planGlobals import debug, debugMsg
 from miscUtil import prettyString
+from transformations import rotation_matrix
 
 # We need this for inverse kinematics
 from ctypes import *
@@ -15,7 +16,12 @@ else:
 ik.fkLeft.restype = None
 ik.fkRight.restype = None
 
-def armInvKin(chains, arm, torso, target, tool, conf, robot,
+# The nominal tool offset in ikFast
+gripperTip = util.Pose(0.18,0.0,0.0,0.0)
+gripperToolOffset = np.dot(gripperTip.matrix,
+                           rotation_matrix(math.pi/2,(0,1,0)))
+
+def armInvKin(chains, arm, torso, target, conf, robot,
               collisionAware = False, returnAll = False):
     name = 'ArmInvKin'
     armName = 'pr2LeftArm' if arm=='l' else 'pr2RightArm'
@@ -29,7 +35,7 @@ def armInvKin(chains, arm, torso, target, tool, conf, robot,
     # The tool pose relative to the torso frame 
     newHandPoseRel = reduce(np.dot, [torso.inverse().matrix,
                                      target.matrix,
-                                     tool.matrix])
+                                     gripperToolOffset])
     newArmAngles = pr2KinIKfast(arm, newHandPoseRel, conf[armName],
                                 chain=chains.chainsByName[armName],
                                 safeTest=safeTest, returnAll=returnAll)

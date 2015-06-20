@@ -76,19 +76,21 @@ class PBS:
         self.shadowProb = None
 
     def internalCollisionCheck(self):
-        ws = self.shadowWorld
+        ws = self.getShadowWorld(0.0)   # minimal shadow
         # First check the robot
-        confViols = self.beliefContext.roadMap.confViolations(self.conf, self,0)
+        confViols = self.beliefContext.roadMap.confViolations(self.conf, self, 0.)
         if confViols == None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]:
             raise Exception, 'Collision with robot: '+name
-        allObjs = self.fixObjBs.items() + self.moveObjBs.items()
-        for (name, pB) in allObjs:
-            pB.shape(ws).draw('W', 'black')
-            for (name2, pB2) in allObjs:
-                assert name == name2 or \
-                          not pB.shape(ws).collides(pB2.shape(ws)), \
-                          'Object-Object collision: '+name+' - '+name2
+        objShapes = [o for o in ws.getObjectShapes() if 'shadow' not in o.name()]
+        n = len(objShapes)
+        for index in range(n):
+            shape = objShapes[index]
+            shape.draw('W', 'black')
+            for index2 in range(index+1, n):
+                shape2 = objShapes[index2]
+                assert not shape.collides(shape2), \
+                          'Object-Object collision: '+ shape.name()+' - '+shape2.name()
         raw_input('collision check')
 
     def getWorld(self):

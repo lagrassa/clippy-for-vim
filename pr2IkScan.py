@@ -11,7 +11,7 @@ from objects import WorldState, World
 import pr2Robot
 reload(pr2Robot)
 from pr2Robot import makePr2Chains, PR2, JointConf, CartConf, pr2Init, \
-     gripperTip, gripperToolOffset
+     gripperToolOffset
 import planGlobals as glob
 
 

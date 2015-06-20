@@ -215,6 +215,44 @@ def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=ha
           )
     return t
 
+def testPick(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+          easy = False, rip = False, multiplier=8):
+
+    glob.rebindPenalty = 700
+    glob.monotonicFirst = True
+
+    goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
+    front = util.Pose(1.1, 0.0, tZ, 0.0)
+    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+
+    hand = 'right'
+    graspType = 0
+    targetDelta = (0.01, 0.01, 0.01, 0.05)
+    goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
+                   Bd([GraspFace(['objA', hand]), graspType, goalProb], True),
+                   B([Grasp(['objA', hand,  graspType]),
+                     (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), targetDelta,
+                     goalProb], True)])
+
+    t = PlanTest('test1',  errProbs, allOperators,
+                 objects=['table1', 'objA'],
+                 fixPoses={'table1': table1Pose},
+                 movePoses={'objA': front},
+                 varDict = varDict,
+                 multiplier = multiplier)
+
+    t.run(goal,
+          hpn = hpn,
+          skeleton = skel if skeleton else None,
+          hierarchical = hierarchical,
+          heuristic = heuristic,
+          rip = rip
+          )
+    return t
+
 
 ######################################################################
 # Test Put Down
@@ -229,7 +267,7 @@ def makeAttachedWorldFromPBS(pbs, realWorld, grasped, hand):
     realWorld.robot.attach(shape, realWorld, hand)
     robot = pbs.getRobot()
     cart = realWorld.robotConf.cartConf()
-    handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
+    handPose = cart[robot.armChainNames[hand]].compose(robot.toolOffsetX[hand])
     pose = shape.origin()
     realWorld.held[hand] = grasped
     realWorld.grasp[hand] = handPose.inverse().compose(pose)
@@ -1515,7 +1553,7 @@ def test20a(hpn = True, skeleton = False, hierarchical = False,
         realWorld.robot.attach(shape, realWorld, hand)
         robot = bs.pbs.getRobot()
         cart = realWorld.robotConf.cartConf()
-        handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
+        handPose = cart[robot.armChainNames[hand]].compose(robot.toolOffsetX[hand])
         pose = shape.origin()
         realWorld.held[hand] = grasped
         realWorld.grasp[hand] = handPose.inverse().compose(pose)
@@ -1635,7 +1673,7 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
         realWorld.robot.attach(shape, realWorld, hand)
         robot = bs.pbs.getRobot()
         cart = realWorld.robotConf.cartConf
-        handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
+        handPose = cart[robot.armChainNames[hand]].compose(robot.toolOffsetX[hand])
         pose = shape.origin()
         realWorld.held[hand] = grasped
         realWorld.grasp[hand] = handPose.inverse().compose(pose)

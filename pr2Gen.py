@@ -9,7 +9,7 @@ import planGlobals as glob
 from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ
 from miscUtil import isVar, argmax, isGround, tuplify, roundrobin
 from dist import DeltaDist, UniformDist
-from pr2Robot import CartConf, gripperTip, gripperFaceFrame
+from pr2Robot import CartConf
 from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, \
      NextColor, supportFaceIndex, Memoizer, shadowWidths
 import fbch
@@ -278,7 +278,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
             yield ca
 
     def currentGraspFeasible():
-        wrist = objectGraspFrame(pbs, graspB, placeB)
+        wrist = objectGraspFrame(pbs, graspB, placeB, hand)
 
     shw = shadowWidths(placeB.poseD.var, placeB.delta, prob)
     if any(w > t for (w, t) in zip(shw, pbs.domainProbs.pickTolerance)):
@@ -1150,7 +1150,8 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
             attached = shWorld.attached
             if not attached[hand]:
                 attached = attached.copy()
-                attached[hand] = Box(0.1,0.05,0.1, None, name='virtualObject').applyLoc(gripperTip)
+                tool = conf.robot.toolOffsetX[hand]
+                attached[hand] = Box(0.1,0.05,0.1, None, name='virtualObject').applyLoc(tool)
             _, attachedParts = conf.placementAux(attached, getShapes=[])
             handObj[(conf, hand)] = attachedParts[hand]
         return handObj[(conf, hand)]

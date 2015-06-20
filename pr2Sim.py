@@ -10,7 +10,7 @@ from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 import util
 from planGlobals import debugMsg, debug, debugOn
-from pr2Robot import gripperTip, gripperFaceFrame
+from pr2Robot import gripperFaceFrame
 from pr2Visible import visible, lookAtConf
 from time import sleep
 from pr2Ops import lookAtBProgress
@@ -304,7 +304,8 @@ class RealWorld(WorldState):
         o = None
         robot = self.robot
         cart = self.robotConf.cartConf()
-        handPose = cart[robot.armChainNames[hand]].compose(gripperTip)
+        tool = robot.toolOffsetX[hand]
+        handPose = cart[robot.armChainNames[hand]].compose(robot.toolOffsetX[hand])
         # Find closest object
         for oname in self.objectConfs:
             pose = self.getObjectPose(oname)
@@ -365,7 +366,7 @@ class RealWorld(WorldState):
             if detached:
                 cart = self.robotConf.cartConf()
                 handPose = cart[robot.armChainNames[hand]].\
-                  compose(gripperTip)
+                  compose(robot.toolOffsetX[hand])
                 objPose = handPose.compose(self.grasp[hand]).pose()
                 if simulateError:
                     actualObjPose = objPose.corruptGauss(0.0,
@@ -393,11 +394,10 @@ class RealWorld(WorldState):
         WorldState.draw(self, win)
         wm.getWindow(win).update()
 
-
 def graspFaceIndexAndPose(conf, hand, shape, graspDescs):
     robot = conf.robot
     wristFrame = conf.cartConf()[robot.armChainNames[hand]]
-    fingerFrame = wristFrame.compose(gripperFaceFrame)
+    fingerFrame = wristFrame.compose(gripperFaceFrame[hand])
     objFrame = shape.origin()
     for g in range(len(graspDescs)):
         graspDesc = graspDescs[g]

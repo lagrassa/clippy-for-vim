@@ -36,6 +36,24 @@ from pr2InvKin import armInvKin
 
 Ident = util.Transform(np.eye(4))            # identity transform
 
+def vec(str):
+    return [float(x) for x in str.split()]
+
+def transProd(lt):
+    return util.Transform(reduce(np.dot, lt))
+
+# Force sensor offsets from Gustavo's URDF
+
+# <origin rpy="0 -1.5707963267948966 0" xyz="0.0356 0 0"/>
+# <origin rpy="0 0 1.0477302122478542" xyz="0 0 0"/>
+# <origin rpy="0 1.5707963267948966 -1.2217304763960306" xyz="0 0 0"/>
+
+r_forceSensorOffset = transProd([transf.translation_matrix(vec("0.0356 0 0")),
+                                 transf.euler_matrix(*vec("0 -1.5707963267948966 0"), axes='sxyz'),
+                                 transf.euler_matrix(*vec("0 0 1.0477302122478542"), axes='sxyz'),
+                                 transf.euler_matrix(*vec("0 1.5707963267948966 -1.2217304763960306"), axes='sxyz')])
+l_forceSensorOffset = Ident
+
 # 'beige' for movies, but that doesn't show up against white background of 2D
 # Python simulator.
 pr2Color = 'gold'
@@ -143,6 +161,7 @@ def pr2GripperJoints(arm):
     fing_dy = params['fingerWidth']
     fing_dz = params['fingerThick']
     return [Rigid(arm+'_palm',
+                  (r_forceSensorOffset if arm == 'r' else l_forceSensorOffset) * \
                   util.Transform(transf.translation_matrix([o + palm_dx/2.,0.0,0.0])),
                   None, None),
             Prismatic(arm+'_finger1',
@@ -152,14 +171,23 @@ def pr2GripperJoints(arm):
                       util.Transform(transf.translation_matrix([0.0,-fing_dy,0.0])),
                       (0.0, 0.08), (0.,-1.,0))]
 
-gripperTip = util.Pose(0.18,0.0,0.0,0.0)
-gripperToolOffset = util.Transform(np.dot(gripperTip.matrix,
-                                          transf.rotation_matrix(math.pi/2,(0,1,0))))
+# Transforms from wrist frame to hand frame
+# This leaves X axis unchanged
+left_gripperToolOffsetX = util.Pose(0.18,0.0,0.0,0.0)
+right_gripperToolOffsetX = util.Transform(np.dot(r_forceSensorOffset.matrix,
+                                                 left_gripperToolOffsetX.matrix))                          
+# This rotates around the Y axis... so Z' points along X an X' points along -Z
+left_gripperToolOffsetZ = util.Transform(np.dot(left_gripperToolOffsetX.matrix,
+                                               transf.rotation_matrix(math.pi/2,(0,1,0))))
+right_gripperToolOffsetZ = util.Transform(np.dot(right_gripperToolOffsetX.matrix,
+                                                 transf.rotation_matrix(math.pi/2,(0,1,0))))
+
 # Rotates wrist to grasp face frame
-gripperFaceFrame = util.Transform(np.array([(0.,1.,0.,0.18),
-                                            (0.,0.,1.,0.0),
-                                            (1.,0.,0.,0.),
-                                            (0.,0.,0.,1.)]))
+gFaceFrame = util.Transform(np.array([(0.,1.,0.,0.18),
+                                      (0.,0.,1.,0.),
+                                      (1.,0.,0.,0.),
+                                      (0.,0.,0.,1.)]))
+gripperFaceFrame = {'left': gFaceFrame, 'right': r_forceSensorOffset*gFaceFrame}
 
 # This behaves like a dictionary, except that it doesn't support side effects.
 class JointConf:
@@ -441,7 +469,10 @@ class PR2:
         self.gripperChainNames = {'left':'pr2LeftGripper', 'right':'pr2RightGripper'}
         self.wristFrameNames = {'left':'l_wrist_roll_joint', 'right':'r_wrist_roll_joint'}
         self.baseChainName = 'pr2Base'
-        self.gripperTip = gripperTip
+        # This has the X axis pointing along fingers
+        self.toolOffsetX = {'left': left_gripperToolOffsetX, 'right': right_gripperToolOffsetX}
+        # This has the Z axis pointing along fingers (more traditional, as in ikFast)
+        self.toolOffsetZ = {'left': left_gripperToolOffsetZ, 'right': right_gripperToolOffsetZ}
         self.nominalConf = None
         horizontalTrans, verticalTrans = ikTrans()
         self.horizontalTrans = {'left': [p.inverse() for p in horizontalTrans],
@@ -457,22 +488,25 @@ class PR2:
         self.confCache = {}
         self.confCacheKeys = deque([])  # in order of arrival
 
+    # The base transforms take into account any twist in the tool offset
     def potentialBasePosesGen(self, wrist, hand, n=None):
-        xAxisZ = wrist.matrix[2,0]
+        gripper = wrist*(left_gripperToolOffsetX if hand=='left' else right_gripperToolOffsetX)
+        xAxisZ = gripper.matrix[2,0]
         if abs(xAxisZ) < 0.01:
             trs = self.horizontalTrans[hand]
         elif abs(xAxisZ + 1.0) < 0.01:
             trs = self.verticalTrans[hand]
         else:
-            print 'wrist=\n', wrist.matrix
-            raw_input('Illegal wrist trans for base pose')
+            print 'gripper=\n', gripper.matrix
+            raw_input('Illegal gripper trans for base pose')
             return
         for i, tr in enumerate(trs):
             if n and i > n: return
-            ans = wrist.compose(tr).pose(fail=False)
+            # use largish zthr to compensate for twist in force sensor
+            ans = wrist.compose(tr).pose(zthr = 0.1, fail=False) 
             if ans is None:
-                print 'wrist=\n', wrist.matrix
-                raw_input('Illegal wrist trans for base pose')
+                print 'gripper=\n', gripper.matrix
+                raw_input('Illegal gripper trans for base pose')
                 return
             yield ground(ans)
 
@@ -490,6 +524,8 @@ class PR2:
                                                        (0.,0.,1.,-width/2),
                                                        (1.,0.,0.,0.),
                                                        (0.,0.,0.,1.)]))
+        if hand == 'right':
+            gripperFaceFrame_dy = r_forceSensorOffset * gripperFaceFrame_dy
         return gripperFaceFrame_dy
 
     def limits(self, chainNames = None):
@@ -749,8 +785,6 @@ class PR2:
             leftArmAngles = armInvKin(self.chains,
                                       'l', torsoTrans,
                                       cart['pr2LeftArm'],
-                                      # The kinematics has a tool offset built in
-                                      gripperToolOffset,
                                       # if a nominal conf is available use as reference
                                       conf or self.nominalConf,
                                       wstate, returnAll = returnAll,
@@ -766,8 +800,6 @@ class PR2:
             rightArmAngles = armInvKin(self.chains,
                                        'r', torsoTrans,
                                        cart['pr2RightArm'],
-                                       # The kinematics has a tool offset built in
-                                       gripperToolOffset,
                                        # if a nominal conf is available use as reference
                                        conf or self.nominalConf,
                                        wstate, returnAll = returnAll,
@@ -981,8 +1013,3 @@ def cartInterpolatorsAux(c_f, c_i, conf_i, minLength, depth=0):
                 final.append(conf)
                 final.extend(init)
     return final
-
-# Force sensor offsets:
-# <origin rpy="0 -1.5707963267948966 0" xyz="0.0356 0 0"/>
-# <origin rpy="0 0 1.0477302122478542" xyz="0 0 0"/>
-# <origin rpy="0 1.5707963267948966 -1.2217304763960306" xyz="0 0 0"/>
