@@ -86,12 +86,19 @@ class PBS:
         n = len(objShapes)
         for index in range(n):
             shape = objShapes[index]
-            shape.draw('W', 'black')
+            if debugMsg('collisionCheck'):
+                shape.draw('W', 'black')
             for index2 in range(index+1, n):
                 shape2 = objShapes[index2]
-                assert not shape.collides(shape2), \
-                          'Object-Object collision: '+ shape.name()+' - '+shape2.name()
-        raw_input('collision check')
+                # Ignore collisions between fixed objects
+                if shape.collides(shape2) and \
+                  not (shape.name() in self.fixObjBs and \
+                       shape2.name() in self.fixObjBs):
+                    for shape in objShapes: shape.draw('W', 'black')
+                    shape2.draw('W', 'magenta')
+                    raise Exception, 'Object-Object collision: '+ \
+                                     shape.name()+' - '+shape2.name()
+        debugMsg('collisionCheck')
 
     def getWorld(self):
         return self.beliefContext.world

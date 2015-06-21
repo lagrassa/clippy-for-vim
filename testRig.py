@@ -495,7 +495,7 @@ class PlanTest:
                        'cooler': util.Pose(1.1, 0.0, tZ, 0.)}
         moveObjPoses = {'objA': util.Pose(1.1, 0.0, tZ, 0.0),
                         'objB': util.Pose(0.95, -0.4, tZ, 0.0),
-                        'objC': util.Pose(-0.25, -1.2, tZ, 0.0),
+                        'objC': util.Pose(0.45, -1.2, tZ, 0.0),
                         'objD': util.Pose(0.95, -0.2, tZ, 0.0),
                         'objE': util.Pose(0.95, 0.0, tZ, 0.0),
                         'objF': util.Pose(0.95, 0.2, tZ, 0.0),

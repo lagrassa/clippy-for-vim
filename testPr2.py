@@ -1,3 +1,4 @@
+from itertools import *
 import testRig
 reload(testRig)
 from testRig import *
@@ -1821,3 +1822,62 @@ def testOpen(hand='left'):
     startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)[0]
     result, cnfOut = pr2GoToConf(gripOpen(startConf, hand), 'open')    
 
+def testBusy(hpn = True, skeleton = False, hierarchical = False,
+           heuristic = habbs, easy = False, rip = False,
+           hardSwap = False):
+
+
+    # Seems to need this
+    global useRight, useVertical
+    useRight, useVertical = True, True
+
+    glob.rebindPenalty = 150
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
+    glob.monotonicFirst = True
+    table2Pose = util.Pose(1.0, -1.2, 0.0, 0.0)
+    
+    front = util.Pose(0.95, 0.0, tZ, 0.0)
+    back = util.Pose(1.25, 0.0, tZ, 0.0)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objC': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objD': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objE': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objF': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objG': (0.05**2,0.05**2, 1e-10,0.2**2)}
+
+
+    t = PlanTest('testSwap',  errProbs, allOperators,
+                 objects=['table1', 'table2', 'objA',
+                          'objB', 'objC', 'objD', 'objE', 'objF', 'objG'], 
+                 movePoses={'objA': back},
+                 fixPoses={'table2': table2Pose},
+                 varDict = varDict)
+
+    goal = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True),
+                  Bd([In(['objA', 'table1MidFront']), True, goalProb], True)])
+
+    # A on other table
+    goal1 = State([Bd([In(['objA', 'table2Top']), True, goalProb], True)])
+
+    # A and B on other table
+    goal2 = State([Bd([In(['objB', 'table2Top']), True, goalProb], True),
+                   Bd([In(['objA', 'table2Top']), True, goalProb], True)])
+
+    # B in back
+    goal3 = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
+
+    actualGoal = goal if hardSwap else goal3
+
+    t.run(actualGoal,
+          hpn = hpn,
+          skeleton = hardSkel if skeleton else None,
+          heuristic = heuristic,
+          hierarchical = hierarchical,
+          rip = rip,
+          regions=['table1Top', 'table2Top', 'table1MidFront',
+                   'table1MidRear']
+          )

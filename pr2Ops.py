@@ -1,11 +1,11 @@
 import numpy as np
 import util
-from itertools import product
+from itertools import product, permutations, chain, imap
 from dist import DeltaDist, varBeforeObs, DDist, probModeMoved, MixtureDist,\
      UniformDist, chiSqFromP, MultivariateGaussianDistribution
 import fbch
 from fbch import Function, getMatchingFluents, Operator, simplifyCond
-from miscUtil import isVar, prettyString, makeDiag, isGround
+from miscUtil import isVar, prettyString, makeDiag, isGround, argmax
 from pr2Util import PoseD, shadowName, ObjGraspB, ObjPlaceB, Violations,\
      shadowWidths
 from pr2Gen import pickGen, canReachHome, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen, placeInRegionGen, placeGen
@@ -899,30 +899,52 @@ def objectObsUpdate(details, lookConf, obsList):
             (oType, obsFace, obsPose) = obs
             if world.getObjType(obj.name()) != oType: continue
             scores[(obj, obs)] = scoreObsObj(details, obs, obj.name())
-    bestAssignment = None
-    bestScore = -float('inf')
-    for assignment in allAssignments(objList, obsList+[None], scores):
-        score = scoreAssignment(assignment, scores)
-        if score > bestScore:
-            bestAssignment = assignment
-            bestScore = score
+    # bestAssignment = argmax(allAssignments(objList, obsList),
+    #                          lambda a: scoreAssignment(a, scores))
+    bestAssignment = greedyBestAssignment(objList, obsList, scores)
     debugMsg('obsUpdate', ('bestAssignment', bestAssignment))
-    atLeastOneUpdate = False
+    assert len(obsList) == 0 or any([y for (x, y) in bestAssignment]), \
+       'Best assignment maps all objects to no observation'
     for obj, obs in bestAssignment:
-        atLeastOneUpdate = True
         singleTargetUpdate(details, scores[(obj, obs)], obj.name())
-    assert atLeastOneUpdate, 'have to do at least one update per obs'
 
-def allAssignments(objList, obsList, scores, assignment = []):
-    if not objList:
-        return [assignment]
-    assignments = []
-    for obs in obsList:
-        a = (objList[0], obs)
-        if a in scores:
-            assignments.extend(allAssignments(objList[1:],
-                                              obsList, scores, assignment+[a]))
-    return assignments
+# Each object is assigned an observation or None
+# These are objects that we expected to be able to see.
+# Doesn't initialize new objects
+
+def allAssignments(aList, bList):
+    m = len(aList)
+    n = len(bList)
+    if m > n:
+        bList = bList + [None]*(m - n)
+    
+    def ablate(elts, pat):
+        return map(lambda e, p: e if p else None, elts, pat)
+    
+    return set(imap(lambda bs: tuple(zip(aList, bs)), 
+                 chain(*[chain([ablate(bPerm, pat) for pat in \
+                          product((True, False), repeat = n)])\
+                     for bPerm in permutations(bList)])))
+
+def greedyBestAssignment(aList, bList, scores):
+    result = []
+    scoresLeft = scores.items()
+    while scoresLeft:
+        ((obj, obs), val) = argmax(scoresLeft, lambda ((oj, os), v): v)
+        if val < llMatchThreshold:
+            print 'Best remaining assignment', val, obj, obs
+            print 'Returning'
+            print result
+            raw_input('greedy best assignment')
+            return result
+        print 'Making assignment', val, obj, obs
+        result.append((obj, obs))
+        # Better not to copy so much
+        scoresLeft = [((oj, os), v) for ((oj, os), v) in scoresLeft \
+                      if oj != obj and (os != obs or obs == None)]
+    print result
+    raw_input('greedy best assignment')
+    return result
 
 def obsDist(details, obj):
     obsVar = details.domainProbs.obsVarTuple
@@ -949,6 +971,7 @@ def scoreAssignment(obsAssignments, scores):
         if ll >= llMatchThreshold:
             LL += ll
     return LL
+
 
 # Gets multiple observations and tries to find the one that best
 # matches sought object
@@ -1002,7 +1025,12 @@ def singleTargetUpdate(details, obs, obj):
                                      DeltaDist(oldPlaceB.support.mode()),
                                      PoseD(util.Pose(*newMu), newSigma)))
     
+missedObsLikelihoodPenalty = llMatchThreshold
+
 def scoreObsObj(details, obs, object):
+    if obs == None:
+        return missedObsLikelihoodPenalty
+    
     (oType, obsFace, obsPose) = obs
     (obsPoseD, poseFace) = obsDist(details, object)
     pbs = details.pbs
