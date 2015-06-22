@@ -56,7 +56,8 @@ headTurn = util.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0)))
 def pr2GoToConf(cnfIn,                  # could be partial...
                 operation,              # a string
                 arm = 'both',
-                speedFactor = glob.speedFactor):
+                speedFactor = glob.speedFactor,
+                args = []):
     if not glob.useROS: return None, None
     rospy.wait_for_service('pr2_goto_configuration')
     try:
@@ -92,7 +93,7 @@ def pr2GoToConf(cnfIn,                  # could be partial...
 
         if debug('pr2GoToConf'): print operation, conf
         
-        resp = gotoConf(operation, conf, speedFactor)
+        resp = gotoConf(operation, args, conf, speedFactor)
 
         if debug('pr2GoToConf'): print 'response', resp
         c = resp.resultConf
