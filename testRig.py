@@ -94,7 +94,7 @@ useVertical = True                     # DEBUG
 useHorizontal = True
 
 if useROS:
-    useRight = False
+    useRight = True
     useVertical = True
     useHorizontal = True
 

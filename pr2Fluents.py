@@ -782,7 +782,7 @@ class Grasp(Fluent):
             if obj == hl:
                 hand = 'left'
             elif obj == hr:
-                hand == 'right'
+                hand = 'right'
             else:
                 # We don't think it's in the hand, so dist is huge
                 return lostDist

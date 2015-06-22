@@ -97,6 +97,8 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         if debug('pr2GoToConf'): print 'response', resp
         c = resp.resultConf
 
+        print c
+
         cnfOut = {}
         cnfOut['pr2Base'] = c.base
         cnfOut['pr2Torso']  = c.torso
@@ -105,9 +107,8 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         cnfOut['pr2RightArm'] = c.right_joints
         cnfOut['pr2RightGripper'] = [max(0., min(0.8, c.right_grip[0]))]
         cnfOut['pr2Head'] = cnfIn.get('pr2Head', [0.,0.])
-        # cnfOut['pr2Head'] = [0., 0.]
 
-        print 'cnfOut[ pr2Head]=', cnfOut['pr2Head']
+        print cnfOut
 
         if cnfIn:
             cnfOut = cnfIn.robot.normConf(JointConf(cnfOut, cnfIn.robot), cnfIn)
