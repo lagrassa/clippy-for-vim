@@ -1890,9 +1890,9 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
             debugMsg('skeleton', 'Skeleton exhausted', g.depth)
             glob.debugOn = glob.debugOn[:-1]
             return []
-    elif lastOp and g.depth == 0:
-        # At least ensure we try these bindings
-        ops = [lastOp] + [o for o in operators if o.name != lastOp.name]
+    # elif lastOp and g.depth == 0:
+    #     # At least ensure we try these bindings
+    #     ops = [lastOp] + [o for o in operators if o.name != lastOp.name]
     else:
         ops = operators
 
