@@ -1,0 +1,36 @@
+digraph G {
+    ordering=out;
+    node [fontname=HelveticaBold];
+    "89" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=0 h=1.500\n* B[Grasp[objA, right, 0],(0.000, -0.025, 0.000, 0.000), (0.100, 0.100, 0.100, 0.100), (0.010, 0.010, 0.010, 0.050), 0.950] = True\n* Bd[GraspFace[objA, right], 0, 0.950] = True\n* Bd[Holding[right], objA, 0.950] = True\n"];
+    "89" [shape=box, label="cost=0 h=1.500\n* B[Grasp[objA, right, 0],(0.000, -0.025, 0.000, 0.000), (0.100, 0.100, 0.100, 0.100), (0.010, 0.010, 0.010, 0.050), 0.950] = True\n* Bd[GraspFace[objA, right], 0, 0.950] = True\n* Bd[Holding[right], objA, 0.950] = True\n"];
+    "260" [shape=box, label="cost=2 h=3.500\n* B[Pose[objA, 4],(1.158, 0.300, 0.680, 0.066), (0.040, 0.040, 0.040, 0.080), (0.009, 0.009, 0.010, 0.048), 0.969] = True\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), []], True, 0.900] = True\nBd[Holding[right], none, 0.900] = True\nBd[SupportFace[objA], 4, 0.969] = True\nGraspable[objA] = True\n"];
+    "89" -> "260"[label="Pick(objA, right, (1.158, 0.300, 0.680, 0.066), JointConf([0.527, 0.129, 0.066])):2"];
+    "89" [shape=box, label="cost=0 h=1.500\n* B[Grasp[objA, right, 0],(0.000, -0.025, 0.000, 0.000), (0.100, 0.100, 0.100, 0.100), (0.010, 0.010, 0.010, 0.050), 0.950] = True\n* Bd[GraspFace[objA, right], 0, 0.950] = True\n* Bd[Holding[right], objA, 0.950] = True\n"];
+    "261" [shape=box, style=filled, colorscheme=pastel16, color=4, label="cost=701.500 h=1.500\nPick\n ** try local rebinding"];
+    "89" -> "261"[label="Pick(objA, right, (1.158, 0.300, 0.680, 0.066), JointConf([0.527, 0.129, 0.066])):2"];
+    "260" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=2 h=3.500\n* B[Pose[objA, 4],(1.158, 0.300, 0.680, 0.066), (0.040, 0.040, 0.040, 0.080), (0.009, 0.009, 0.010, 0.048), 0.969] = True\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), []], True, 0.900] = True\nBd[Holding[right], none, 0.900] = True\nBd[SupportFace[objA], 4, 0.969] = True\nGraspable[objA] = True\n"];
+    "260" [shape=box, label="cost=2 h=3.500\n* B[Pose[objA, 4],(1.158, 0.300, 0.680, 0.066), (0.040, 0.040, 0.040, 0.080), (0.009, 0.009, 0.010, 0.048), 0.969] = True\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), []], True, 0.900] = True\nBd[Holding[right], none, 0.900] = True\nBd[SupportFace[objA], 4, 0.969] = True\nGraspable[objA] = True\n"];
+    "286" [shape=box, label="cost=4.000 h=1.500\n* B[Pose[objA, 4],(1.158, 0.300, 0.680, 0.066), (0.050, 0.050, 0.050, 0.100), (0.009, 0.009, 0.010, 0.048), 0.769] = True\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), ['Pose', 'SupportFace']], True, 0.900] = True\nBd[Holding[right], none, 0.900] = True\nBd[SupportFace[objA], 4, 0.769] = True\nGraspable[objA] = True\n"];
+    "260" -> "286"[label="LookAt(objA, _, (1.158, 0.300, 0.680, 0.066)):0"];
+    "260" [shape=box, label="cost=2 h=3.500\n* B[Pose[objA, 4],(1.158, 0.300, 0.680, 0.066), (0.040, 0.040, 0.040, 0.080), (0.009, 0.009, 0.010, 0.048), 0.969] = True\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), []], True, 0.900] = True\nBd[Holding[right], none, 0.900] = True\nBd[SupportFace[objA], 4, 0.969] = True\nGraspable[objA] = True\n"];
+    "292" [shape=box, style=filled, colorscheme=pastel16, color=4, label="cost=705.500 h=3.500\nLookAt\n ** try local rebinding"];
+    "260" -> "292"[label="LookAt(objA, _, (1.158, 0.300, 0.680, 0.066)):0"];
+    "286" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=4.000 h=1.500\n* B[Pose[objA, 4],(1.158, 0.300, 0.680, 0.066), (0.050, 0.050, 0.050, 0.100), (0.009, 0.009, 0.010, 0.048), 0.769] = True\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), ['Pose', 'SupportFace']], True, 0.900] = True\nBd[Holding[right], none, 0.900] = True\nBd[SupportFace[objA], 4, 0.769] = True\nGraspable[objA] = True\n"];
+    "286" [shape=box, label="cost=4.000 h=1.500\n* B[Pose[objA, 4],(1.158, 0.300, 0.680, 0.066), (0.050, 0.050, 0.050, 0.100), (0.009, 0.009, 0.010, 0.048), 0.769] = True\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), ['Pose', 'SupportFace']], True, 0.900] = True\nBd[Holding[right], none, 0.900] = True\nBd[SupportFace[objA], 4, 0.769] = True\nGraspable[objA] = True\n"];
+    "294" [shape=box, label="cost=5.500 h=0\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), ['Pose', 'Holding', 'SupportFace']], True, 0.900] = True\nGraspable[objA] = True\n"];
+    "286" -> "294"[label="Place(objA, right, 4, (1.158, 0.300, 0.680, 0.066)):0"];
+    "286" [shape=box, label="cost=4.000 h=1.500\n* B[Pose[objA, 4],(1.158, 0.300, 0.680, 0.066), (0.050, 0.050, 0.050, 0.100), (0.009, 0.009, 0.010, 0.048), 0.769] = True\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), ['Pose', 'SupportFace']], True, 0.900] = True\nBd[Holding[right], none, 0.900] = True\nBd[SupportFace[objA], 4, 0.769] = True\nGraspable[objA] = True\n"];
+    "301" [shape=box, style=filled, colorscheme=pastel16, color=4, label="cost=705.500 h=1.500\nPlace\n ** try local rebinding"];
+    "286" -> "301"[label="Place(objA, right, 4, (1.158, 0.300, 0.680, 0.066)):0"];
+    "286" [shape=box, label="cost=4.000 h=1.500\n* B[Pose[objA, 4],(1.158, 0.300, 0.680, 0.066), (0.050, 0.050, 0.050, 0.100), (0.009, 0.009, 0.010, 0.048), 0.769] = True\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), ['Pose', 'SupportFace']], True, 0.900] = True\nBd[Holding[right], none, 0.900] = True\nBd[SupportFace[objA], 4, 0.769] = True\nGraspable[objA] = True\n"];
+    "303" [shape=box, label="cost=6.000 h=1.500\n* B[Pose[objA, 4],(1.158, 0.300, 0.680, 0.066), (0.050, 0.050, 0.050, 0.100), (0.009, 0.009, 0.010, 0.048), 0.569] = True\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), ['Pose', 'SupportFace']], True, 0.900] = True\nBd[Holding[right], none, 0.900] = True\nBd[SupportFace[objA], 4, 0.569] = True\nGraspable[objA] = True\n"];
+    "286" -> "303"[label="LookAt(objA, _, (1.158, 0.300, 0.680, 0.066)):0"];
+    "286" [shape=box, label="cost=4.000 h=1.500\n* B[Pose[objA, 4],(1.158, 0.300, 0.680, 0.066), (0.050, 0.050, 0.050, 0.100), (0.009, 0.009, 0.010, 0.048), 0.769] = True\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), ['Pose', 'SupportFace']], True, 0.900] = True\nBd[Holding[right], none, 0.900] = True\nBd[SupportFace[objA], 4, 0.769] = True\nGraspable[objA] = True\n"];
+    "309" [shape=box, style=filled, colorscheme=pastel16, color=4, label="cost=705.500 h=1.500\nLookAt\n ** try local rebinding"];
+    "286" -> "309"[label="LookAt(objA, _, (1.158, 0.300, 0.680, 0.066)):0"];
+    "294" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=5.500 h=0\nBd[CanPickPlace [objA, right, (1.158, 0.300, 0.680, 0.066), ['Pose', 'Holding', 'SupportFace']], True, 0.900] = True\nGraspable[objA] = True\n"];
+    "89" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "260" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "286" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "294" [shape=box, style=filled, colorscheme=pastel16,color=3];
+}
