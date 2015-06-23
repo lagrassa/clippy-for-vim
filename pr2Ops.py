@@ -141,14 +141,14 @@ def primPath(bs, cs, ce, p):
         if v1.weight() > 0: print 'start viol', v1
         if v2.weight() > 0: print 'end viol', v2
         raw_input('Potential collision in primitive path')
-        return path1[::-1] + path2
+        path = path1[::-1] + path2
     else:
         print 'Success'
         path = path1[::-1] + path2
-        smoothed = bs.getRoadMap().smoothPath(path, bs, p)
-        interpolated = interpolate(smoothed)
-        verifyPaths(path, smoothed, interpolated)
-        return smoothed, interpolated
+    smoothed = bs.getRoadMap().smoothPath(path, bs, p)
+    interpolated = interpolate(smoothed)
+    verifyPaths(path, smoothed, interpolated)
+    return smoothed, interpolated
 
 def moveNBPrim(args, details):
     (base, cs, ce, cd) = args
@@ -894,7 +894,7 @@ def objectObsUpdate(details, lookConf, obsList):
     assert objList, 'Do not expect to see any objects!'
     scores = {}
     for obj in objList:
-        scores[(obj, None)] = None
+        scores[(obj, None)] = (llMatchThreshold, None, None)
         for obs in obsList:
             (oType, obsFace, obsPose) = obs
             if world.getObjType(obj.name()) != oType: continue
@@ -902,11 +902,11 @@ def objectObsUpdate(details, lookConf, obsList):
     # bestAssignment = argmax(allAssignments(objList, obsList),
     #                          lambda a: scoreAssignment(a, scores))
     bestAssignment = greedyBestAssignment(objList, obsList, scores)
-    debugMsg('obsUpdate', ('bestAssignment', bestAssignment))
-    assert len(obsList) == 0 or any([y for (x, y) in bestAssignment]), \
-       'Best assignment maps all objects to no observation'
-    for obj, obs in bestAssignment:
-        singleTargetUpdate(details, scores[(obj, obs)], obj.name())
+    assert len(obsList)==0 or \
+         any([xpose for (xobj, xpose, xf) in bestAssignment]), \
+         'Best assignment maps all objects to no observation'
+    for obj, obsPose, obsFace in bestAssignment:
+        singleTargetUpdate(details, obj.name(), obsPose, obsFace)
 
 # Each object is assigned an observation or None
 # These are objects that we expected to be able to see.
@@ -930,20 +930,17 @@ def greedyBestAssignment(aList, bList, scores):
     result = []
     scoresLeft = scores.items()
     while scoresLeft:
-        ((obj, obs), val) = argmax(scoresLeft, lambda ((oj, os), v): v)
+        ((obj, obs), (val, tobs, face)) = argmax(scoresLeft,
+                                              lambda ((oj, os), (v, o, f)): v)
         if val < llMatchThreshold:
-            print 'Best remaining assignment', val, obj, obs
-            print 'Returning'
-            print result
-            raw_input('greedy best assignment')
+            result.append((obj, None, None))
             return result
-        print 'Making assignment', val, obj, obs
-        result.append((obj, obs))
+        print 'A', prettyString(val), obj.name(), tobs
+        result.append((obj, tobs, face))
         # Better not to copy so much
-        scoresLeft = [((oj, os), v) for ((oj, os), v) in scoresLeft \
+        scoresLeft = [((oj, os), stuff) for ((oj, os), stuff) in scoresLeft \
                       if oj != obj and (os != obs or obs == None)]
-    print result
-    raw_input('greedy best assignment')
+    debugMsg('obsUpdate', 'greedy best assignment')
     return result
 
 def obsDist(details, obj):
@@ -975,61 +972,63 @@ def scoreAssignment(obsAssignments, scores):
 
 # Gets multiple observations and tries to find the one that best
 # matches sought object
-def singleTargetUpdate(details, obs, obj):
+def singleTargetUpdate(details, objName, obsPose, obsFace):
     obsVar = details.domainProbs.obsVarTuple       
-    bestObs, bestLL, bestFace = obs if obs else (None, -float('inf'), None)
-    oldPlaceB = details.pbs.getPlaceB(obj)
+    oldPlaceB = details.pbs.getPlaceB(objName)
     w = details.pbs.beliefContext.world
 
-    if bestLL < llMatchThreshold:
+    if obsPose == None:
         # Update modeprob if we don't get a good score
-        print 'No match above threshold for obj', obj
-        print 'BestLL', bestLL, 'Threshold', llMatchThreshold
-        debugMsg('obsUpdate', 'No match above threshold')
-        oldP = details.poseModeProbs[obj]
+        oldP = details.poseModeProbs[objName]
         obsGivenH = details.domainProbs.obsTypeErrProb
         obsGivenNotH = (1 - details.domainProbs.obsTypeErrProb)
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
-        details.poseModeProbs[obj] = newP
-        print 'No match above threshold', obj, oldP, newP
+        details.poseModeProbs[objName] = newP
+        print 'No match above threshold', objName, oldP, newP
 
         newMu = oldPlaceB.poseD.mode().pose().xyztTuple()
         newSigma = tuple([v + .001 for v in oldPlaceB.poseD.varTuple()])
-
-        if oldP == newP or oldP == 1.0 or newP == 1.0:
-            raw_input('okay?')
     else:
         # Update mode prob if we do get a good score
-        oldP = details.poseModeProbs[obj]
+        oldP = details.poseModeProbs[objName]
         obsGivenH = (1 - details.domainProbs.obsTypeErrProb)
         obsGivenNotH = details.domainProbs.obsTypeErrProb
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
-        details.poseModeProbs[obj] = newP
-        print 'Obs match for', obj, oldP, newP
+        details.poseModeProbs[objName] = newP
+        print 'Obs match for', objName, oldP, newP
 
         # Should update face!!
         # Update mean and sigma
         ## Be sure handling angle right.
         (newMu, newSigma) = \
                     gaussObsUpdate(oldPlaceB.poseD.mode().pose().xyztTuple(),
-                                           bestObs.pose().xyztTuple(),
-                                           oldPlaceB.poseD.variance(), obsVar)
-        ff = w.getFaceFrames(obj)[bestFace]
+                                   obsPose.pose().xyztTuple(),
+                                   oldPlaceB.poseD.variance(), obsVar)
+        ff = w.getFaceFrames(objName)[obsFace]
         if debug('obsUpdate'):
-            objShape = details.pbs.getObjectShapeAtOrigin(obj)
+            ## LPK!!  Should really draw the detected object but I don't have
+            ## an immediate way to get the shape of a type.  Should fix that.
+            objShape = details.pbs.getObjectShapeAtOrigin(objName)
+            objShape.applyLoc(obsPose.pose().compose(ff.inverse())).\
+                            draw('Belief', 'cyan')
+            objShape = details.pbs.getObjectShapeAtOrigin(objName)
             objShape.applyLoc(util.Pose(*newMu).compose(ff.inverse())).\
               draw('Belief', 'magenta')
-            raw_input('newMu is magenta')
+            raw_input('obs is Cyan; newMu is magenta')
 
-    details.pbs.updateObjB(ObjPlaceB(obj, w.getFaceFrames(obj),
+    details.pbs.updateObjB(ObjPlaceB(objName, w.getFaceFrames(objName),
                                      DeltaDist(oldPlaceB.support.mode()),
                                      PoseD(util.Pose(*newMu), newSigma)))
     
 missedObsLikelihoodPenalty = llMatchThreshold
 
+# Return a triple:  (score, transObs, face)
+# transObs might be a transformed version of obs (picking the best member
+# of the class of symmetries for this object)
+# face is a canonical face
 def scoreObsObj(details, obs, object):
     if obs == None:
-        return missedObsLikelihoodPenalty
+        return (missedObsLikelihoodPenalty, None, None)
     
     (oType, obsFace, obsPose) = obs
     (obsPoseD, poseFace) = obsDist(details, object)
@@ -1038,16 +1037,9 @@ def scoreObsObj(details, obs, object):
     symFacesType, symXformsType = w.getSymmetries(oType)
     canonicalFace = symFacesType[obsFace]
     symXForms = symXformsType[canonicalFace]
-    # Could make this more efficient by mapping to a canonical one, but
-    # seems risky
+    # Consider all object poses consistent with this observation
     symPoses = [obsPose] + [obsPose.compose(xf) for xf in symXForms]
     ff = pbs.getWorld().getFaceFrames(object)[canonicalFace]
-    if debug('obsUpdate'):
-        ## LPK!!  Should really draw the detected object but I don't have
-        ## an immediate way to get the shape of a type.  Should fix that.
-        objShape = pbs.getObjectShapeAtOrigin(object)
-        objShape.applyLoc(obsPose.compose(ff.inverse())).draw('Belief', 'cyan')
-        raw_input('obs is cyan')
 
     # Find the best matching pose mode.  Type and face must be equal,
     # pose nearby.
@@ -1055,24 +1047,18 @@ def scoreObsObj(details, obs, object):
 
     # Type
     if w.getObjType(object) != oType:
-        return -float(inf)
+        return (-float(inf), None, None)
     # Face
     assert symFacesType[poseFace] == poseFace, 'non canonical face in bel'
     if poseFace != canonicalFace:
-        return -float(inf)
+        return (-float(inf), None, None)
     # Iterate over symmetries for this object
     bestObs, bestLL = None, -float('inf')
     for obsPoseCand in symPoses:
         ll = float(obsPoseD.logProb(np.mat(obsPoseCand.pose().xyztTuple()).T))
-        if debug('obsUpdate'):
-            print '    obsPoseCand', obsPoseCand.pose(), 'll', ll
         if ll > bestLL:
-            if debug('obsUpdate'):
-                print '   new best'
             bestObs, bestLL = obsPoseCand, ll
-    debugMsg('obsUpdate', 'Potential match with', object, 'll', bestLL,
-                 bestObs, bestLL > llMatchThreshold)
-    return bestObs, bestLL, canonicalFace
+    return bestLL, bestObs, canonicalFace
 
 # Temporary;  assumes diagonal cov; should use dist.MultivariateGaussian
 def gaussObsUpdate(oldMu, obs, oldSigma, obsVar, noZ = True):
