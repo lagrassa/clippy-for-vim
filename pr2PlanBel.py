@@ -11,7 +11,7 @@ from objects import World, WorldState
 from pr2Robot import PR2, pr2Init, makePr2Chains
 from planGlobals import debugMsg, debugDraw, debug, pause
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
-from pr2Util import ObjGraspB, ObjPlaceB, shadowName, shadowWidths
+from pr2Util import ObjGraspB, ObjPlaceB, shadowName, shadowWidths, objectName
 import fbch
 from fbch import getMatchingFluents
 from belief import B, Bd
@@ -77,12 +77,34 @@ class PBS:
 
     def internalCollisionCheck(self):
         ws = self.getShadowWorld(0.0)   # minimal shadow
-        # First check the robot
-        confViols = self.beliefContext.roadMap.confViolations(self.conf, self, 0.)
+        # First check the robot for hard collisions
+        confViols = self.beliefContext.roadMap.confViolations(self.conf,
+                                                              self, 0.)
         if confViols == None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]:
             raise Exception, 'Collision with robot: '+name
-        objShapes = [o for o in ws.getObjectShapes() if 'shadow' not in o.name()]
+        # Now for shadow collisions;  reduce the shadow if necessary
+        confViols = self.beliefContext.roadMap.confViolations(self.conf,
+                                                          self, .98)
+        shadows = confViols.allShadows()
+        while shadows:
+            if shadows:
+                print 'Robot collides with shadows', shadows
+                self.draw(0.98, 'W')
+                raw_input('Try to fix?')
+                # Divide variance in half.  Very crude.  Should find the
+                # max variance that does not result in a shadow colliion.
+                for sh in shadows:
+                    obj = objectName(sh)
+                    pB = self.getPlaceB(obj)
+                    var = pB.poseD.variance()
+                    pB.modifyPoseD(var = tuple(v/2.0 for v in var))
+                self.shadowWorld = None
+            shadows = confViols.allShadows()
+
+        # Finally, look for object-object collisions
+        objShapes = [o for o in ws.getObjectShapes() \
+                     if 'shadow' not in o.name()]
         n = len(objShapes)
         for index in range(n):
             shape = objShapes[index]

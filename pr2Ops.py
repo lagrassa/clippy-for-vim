@@ -665,7 +665,7 @@ def canPickPlaceDropGen(args, goal, start, vals):
                     print 'canPickPlaceDropGen dropping', heldO, dropHand
                     print 'held obstacles', collidesWithHeld
                     print 'goal held', matches
-                    raw_iput('okay?')
+                    raw_input('okay?')
                     result.append([dropHand])
     return result
 
