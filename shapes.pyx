@@ -680,24 +680,41 @@ cpdef list thingFaceFrames(np.ndarray[np.float64_t, ndim=2] planes,
 # Writing OFF files for a union of convex prims
 def writeOff(obj, filename, scale = 1):
     prims = toPrims(obj)
-    nv = sum([len(o.vertices()) for o in prims])
+    nv = sum([o.vertices().shape[1] for o in prims])
     nf = sum([len(o.faces()) for o in prims])
-    ne = nv + nf - 2                    # Euler's formula...
-    f = open(filename, 'w')
-    f.write('OFF\n')
-    f.write('%d %d %d\n'%(nv, nf, ne))
+    ne = 0       # nv + nf - 2                    # Euler's formula...
+    fl = open(filename, 'w')
+    fl.write('OFF\n')
+    fl.write('%d %d %d\n'%(nv, nf, ne))
     for o in prims:
         verts = o.vertices()
-        for p in verts.shape[1]:
-            f.write('  %6.3f %6.3f %6.3f\n'%tuple([x*scale for x in verts[0:3,p]]))
+        for p in range(verts.shape[1]):
+            fl.write('  %6.3f %6.3f %6.3f\n'%tuple([x*scale for x in verts[0:3,p]]))
     v = 0
     for o in prims:
+        verts = o.vertices()
         faces = o.faces()
         for f in range(len(faces)):
             face = faces[f]
-            f.write('  %d'%face.shape[0])
-            for k in face.shape[0]:
-                f.write(' %d'%(v+face[k]))
-            f.write('\n')
-        v += len(o.faces())
-    f.close()
+            fl.write('  %d'%face.shape[0])
+            for k in range(face.shape[0]):
+                fl.write(' %d'%(v+face[k]))
+            fl.write('\n')
+        v += verts.shape[1]
+    fl.close()
+
+# Reading OFF files
+def readOff(filename, name='offObj', scale=1.0):
+    fl = open(filename)
+    assert fl.readline().split()[0] == 'OFF'
+    (nv, nf, ne) = [int(x) for x in fl.readline().split()]
+    vl = []
+    for v in range(nv):
+        vl.append(np.array([scale*float(x) for x in fl.readline().split()]+[1.0]))
+    verts = np.vstack(vl).T
+    if nf == 0:
+        return verts
+    faces = []
+    for f in range(nf):
+        faces.append(np.array([int(x) for x in fl.readline().split()][1:]))
+    return shapes.Prim(verts, faces, util.Pose(0,0,0,0), name=name)

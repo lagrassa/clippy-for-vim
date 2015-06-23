@@ -15,6 +15,9 @@ from pr2Visible import visible, lookAtConf
 from time import sleep
 from pr2Ops import lookAtBProgress
 from pr2RoadMap import validEdgeTest
+import icp
+reload(icp)
+from icp import icpLocate
 
 # debug tables
 import pointClouds as pc
@@ -43,6 +46,9 @@ maxOpenLoopDist = 2.0
 simOdoErrorRate = 0.02
 
 pickSuccessDist = 0.1  # pretty big for now
+
+laserScanParams = (0.3, 0.2, 0.1, 3., 20) # narrow
+
 class RealWorld(WorldState):
     def __init__(self, world, bs, probs):
         # probs is an instance of DomainProbs
@@ -230,11 +236,18 @@ class RealWorld(WorldState):
 
     def doLook(self, lookConf):
         self.setRobotConf(lookConf)
-
         self.robotPlace.draw('World', 'orchid')
         debugMsg('sim', 'LookAt configuration')
         # objType = self.world.getObjType(targetObj)
         obs = []
+
+        if debug('icp'):
+            scan = pc.simulatedScan(lookConf, laserScanParams,
+                                    self.getNonShadowShapes()+ [self.robotPlace])
+            scan.draw('W', color='red')
+            shape = icpLocate('meshes/shelves_points.off', scan,
+                              np.array([[1.0, -0.60, 0.85], [1.6, 0.60, 1.375]]))
+        
         for shape in self.getObjectShapes():
             curObj = shape.name()
             # if self.world.getObjType(curObj) != objType:

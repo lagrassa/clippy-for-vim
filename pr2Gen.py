@@ -747,7 +747,7 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
     shWorld = pbs.getShadowWorld(prob)
     regShapes = [shWorld.regionShapes[region] for region in regions]
     if debug('placeInGen'):
-        shWorld.draw('W')
+        pbs.draw(prob, 'W')
         for rs in regShapes: rs.draw('W', 'purple')
         debugMsgSkip('placeInGen', skip, 'Target region in purple')
 

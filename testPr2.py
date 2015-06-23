@@ -182,7 +182,8 @@ def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=ha
 
     goalProb, errProbs = (0.5,smallErrProbs) if easy else (0.95,typicalErrProbs)
 
-    varDict = {} if easy else {'tableShelves': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+    varDict = {} if easy else {'coolShelves': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2),
                                'objB': (0.1**2, 0.1**2, 1e-10, 0.3**2)
                                } 
@@ -190,18 +191,19 @@ def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=ha
     right2 = util.Pose(1.5, -0.5, tZ, 0.0)
     left1 = util.Pose(1.1, 0.5, tZ, 0.0)
     left2 = util.Pose(1.5, 0.5, tZ, 0.0)
-    tableShelvesPose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
-
-    region = 'tableShelves_space_2'
+    coolShelvesPose = util.Pose(1.3, 0.0, tZ, math.pi/2)
+    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+    
+    region = 'coolShelves_space_2'
     goal1 = State([Bd([In(['objA', region]), True, goalProb], True)])
     goal2 = State([Bd([In(['objB', region]), True, goalProb], True),
                   Bd([In(['objA', region]), True, goalProb], True)])
 
     t = PlanTest('testShelves',  errProbs, allOperators,
-                 objects=['tableShelves', 'objA',
+                 objects=['table1', 'coolShelves', 'objA',
                           # 'objB'
                           ],
-                 fixPoses={'tableShelves': tableShelvesPose},
+                 fixPoses={'table1' : table1Pose, 'coolShelves': coolShelvesPose},
                  movePoses={'objA': right1,
                             # 'objB': left1
                             },

@@ -771,3 +771,45 @@ def placeInGenOld(args, goalConds, bState, outBindings,
         yield (pB.poseD.mode().xyztTuple(), pB.support.mode(),
                gB.poseD.mode().xyztTuple(), gB.grasp.mode(), graspV, cf, ca)
 
+
+def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
+                width = shelfWidth, nshelf = 2,
+                name='tableShelves', color='brown'):
+    sidePrims = [\
+        Ba([(-dx, -dy-width, 0), (dx, -dy, dz)],
+           name=name+'_side_A', color=color),
+        Ba([(-dx, dy, 0), (dx, dy+width, dz)],
+           name=name+'_side_B', color=color),
+        Ba([(dx, -dy, 0), (dx+width, dy, dz)],
+           name=name+'_backside', color=color),
+        ]
+    coolerPose = util.Pose(0.0, 0.0, tZ, -math.pi/2)
+    shelvesPose = util.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
+    tH = 0.67                           # table height
+    shelfSpaces = []
+    shelfRungs = []
+    for i in xrange(nshelf+1):
+        frac = i/float(nshelf)
+        bot = dz*frac
+        top = dz*frac+width
+        shelf = Ba([(-dx, -dy-width, bot),
+                    (dx, dy+width, bot+width)],
+                   color=color,
+                   name=name+'_shelf_'+string.ascii_uppercase[i])
+        shelfRungs.append(shelf)
+        spaceName = name+'_space_'+str(i+1)
+        space = Ba([(-dx+eps, -dy-width+eps, eps),
+                    (dx-eps, dy+width-eps, (dz/nshelf) - width - eps)],
+                   color='green', name=spaceName)
+        space = Sh([space], name=spaceName, color='green').applyTrans(shelvesPose)
+        shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2)-(tH/2)-(coolerZ/2),0)))
+    cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
+                    name='cooler', color=color)],
+                name='cooler', color=color)
+    table = makeTable(0.603, 0.298, tH, name = 'table1', color=color)
+    shelves = Sh(sidePrims + shelfRungs, name = name+'Body', color=color)
+    obj = Sh( shelves.applyTrans(shelvesPose).parts() \
+              + cooler.applyTrans(coolerPose).parts() \
+              + table.parts(),
+              name=name, color=color)
+    return (obj, shelfSpaces)

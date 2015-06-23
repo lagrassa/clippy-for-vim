@@ -33,6 +33,8 @@ class World:
         # parts: a mapping from faces to a canonical face; mapping
         # from canonical faces to a set of 4D transforms
         self.symmetries = {}
+        # pointClouds (4xn numpy arrays) for each type.
+        self.typePointClouds = {}
 
     def getObjType(self, obj):
         return self.objectTypes[obj]

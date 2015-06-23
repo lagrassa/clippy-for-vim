@@ -252,11 +252,13 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     if 'cupboardSide2' in include: world.addObjectShape(cupboard2)
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)])],
                 name='cooler')
-    if 'cooler' in include: world.addObjectShape(cooler)
-    (tableShelves, aboveTableShelves) = makeTableShelves(name='tableShelves')
-    if 'tableShelves' in include: world.addObjectShape(tableShelves)
-    for (reg, pose) in aboveTableShelves:
-        world.addObjectRegion('tableShelves', reg.name(), reg, pose)
+
+    # if 'cooler' in include: world.addObjectShape(cooler)
+    (coolShelves, aboveCoolShelves) = makeCoolShelves(name='coolShelves')
+    if 'coolShelves' in include: world.addObjectShape(coolShelves)
+    for (reg, pose) in aboveCoolShelves:
+        world.addObjectRegion('coolShelves', reg.name(), reg, pose)
+
     # Some objects to grasp
     manipulanda = [oname for oname in include if oname[0:3] == 'obj']
 
@@ -309,13 +311,20 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     def t(o):
         if o[0:3] == 'obj': return 'soda'
         if o[0:5] == 'table': return 'table'
+        if o[0:7] == 'shelves': return 'shelves'
+        if o[0:4] == 'cool': return 'coolShelves'
         return 'unknown'
 
     world.objectTypes = dict([(o, t(o)) for o in include])
     world.symmetries = {'soda' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.),
                                                  util.Pose(0.,0.,0.,math.pi)]}),
                         'table' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.),
-                                                 util.Pose(0.,0.,0.,math.pi)]})}
+                                                 util.Pose(0.,0.,0.,math.pi)]}),
+                        'shelves' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.)]}),
+                        'coolShelves' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.)]})}
+
+    world.typePointClouds = {t:shapes.readOff('meshes/%s_points.off'%t, name=t) \
+                             for t in set(world.objectTypes.values())}
 
     robot = PR2('MM', makePr2Chains('PR2', world.workspace))
     # This affects randomConf and stepAlongLine, unless overriden
@@ -400,9 +409,9 @@ shelfDepth = 0.3
 shelfWidth = 0.02
 # makeShelves(shelfDepth/2.0, 0.305, 0.45, width=0.02, nshelf=2)
 
-def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
+def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                 width = shelfWidth, nshelf = 2,
-                name='tableShelves', color='brown'):
+                name='shelves', color='brown'):
     sidePrims = [\
         Ba([(-dx, -dy-width, 0), (dx, -dy, dz)],
            name=name+'_side_A', color=color),
@@ -411,9 +420,6 @@ def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
         Ba([(dx, -dy, 0), (dx+width, dy, dz)],
            name=name+'_backside', color=color),
         ]
-    coolerPose = util.Pose(0.0, 0.0, tZ, -math.pi/2)
-    shelvesPose = util.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
-    tH = 0.67                           # table height
     shelfSpaces = []
     shelfRungs = []
     for i in xrange(nshelf+1):
@@ -429,16 +435,43 @@ def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
         space = Ba([(-dx+eps, -dy-width+eps, eps),
                     (dx-eps, dy+width-eps, (dz/nshelf) - width - eps)],
                    color='green', name=spaceName)
-        space = Sh([space], name=spaceName, color='green').applyTrans(shelvesPose)
-        shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2)-(tH/2)-(coolerZ/2),0)))
+        space = Sh([space], name=spaceName, color='green')
+        shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2),0)))
+    shelves = Sh(sidePrims + shelfRungs, name = name+'Body', color=color)
+    return (shelves, shelfSpaces)
+
+def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
+                width = shelfWidth, nshelf = 2,
+                name='tableShelves', color='brown'):
+    coolerPose = util.Pose(0.0, 0.0, tZ, -math.pi/2)
+    shelvesPose = util.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
+    tH = 0.67                           # table height
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
                     name='cooler', color=color)],
                 name='cooler', color=color)
     table = makeTable(0.603, 0.298, tH, name = 'table1', color=color)
-    shelves = Sh(sidePrims + shelfRungs, name = name+'Body', color=color)
+    shelves, shelfSpaces = makeShelves(dx, dy, dz, width, nshelf, name='tableShelves', color=color)
+    offset = shelvesPose.compose(util.Pose(0.,0.,-(tH/2+coolerZ/2),0.))
+    shelfSpaces = [(s,pose.compose(offset)) for (s, pose) in shelfSpaces]
     obj = Sh( shelves.applyTrans(shelvesPose).parts() \
               + cooler.applyTrans(coolerPose).parts() \
               + table.parts(),
+              name=name, color=color)
+    return (obj, shelfSpaces)
+
+def makeCoolShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
+                      width = shelfWidth, nshelf = 2,
+                      name='coolShelves', color='brown'):
+    coolerPose = util.Pose(0.0, 0.0, 0.0, -math.pi/2)
+    shelvesPose = util.Pose(0.0, 0.0, coolerZ, -math.pi/2)
+    cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
+                    name='cooler', color=color)],
+                name='cooler', color=color)
+    shelves, shelfSpaces = makeShelves(dx, dy, dz, width, nshelf, name='coolShelves', color=color)
+    offset = shelvesPose.compose(util.Pose(0.,0.,-(coolerZ/2),0.))
+    shelfSpaces = [(s,pose.compose(offset)) for (s, pose) in shelfSpaces]
+    obj = Sh( shelves.applyTrans(shelvesPose).parts() \
+              + cooler.applyTrans(coolerPose).parts(),
               name=name, color=color)
     return (obj, shelfSpaces)
 
@@ -488,6 +521,7 @@ class PlanTest:
         # The poses of the supporting face frames (the placement)
         fixObjPoses = {'table1':util.Pose(1.1, 0.0, 0.0, math.pi/2),
                        'tableShelves':util.Pose(1.1, 0.0, 0.0, math.pi/2),
+                       'coolShelves':util.Pose(1.1, 0.0, tZ, math.pi/2),
                        'table2': util.Pose(1.0, -0.75, 0.0, 0.0),
                        'table3': util.Pose(1.6,0.0,0.0,math.pi/2),
                        'cupboardSide1': util.Pose(1.1, -0.2, 0.6, 0.0),
@@ -631,7 +665,7 @@ class PlanTest:
             self.realWorld.draw('World')
             for regName in self.bs.pbs.regions:
                 self.realWorld.regionShapes[regName].draw('World', 'purple')
-            #if self.bs.pbs.regions: raw_input('Regions')
+            if self.bs.pbs.regions: raw_input('Regions')
 
         if not goal: return
 
@@ -732,3 +766,4 @@ allOperators = [move, pick, place, lookAt, poseAchCanReach,
                 poseAchCanSee, poseAchCanPickPlace, poseAchIn, moveNB,
                 bLoc1, bLoc2, dropAchCanReach, dropAchCanPickPlace]
               #lookAtHand    #graspAchCanPickPlace #dropAchCanPickPlace
+

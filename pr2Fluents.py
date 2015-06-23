@@ -1153,10 +1153,11 @@ def inTest(bState, obj, regName, prob, pB=None):
     shadow = sh.applyLoc(placeB.objFrame()) # !! is this right?
     shWorld = bState.pbs.getShadowWorld(prob)
     region = shWorld.regionShapes[regName]
-    
+
     ans = np.all(np.all(np.dot(region.planes(), shadow.prim().vertices()) <= tiny, axis=1))
 
     if debug('testVerbose') or debug('inTest'):
+        bState.pbs.draw(prob, 'W')
         shadow.draw('W', 'brown')
         region.draw('W', 'purple')
 

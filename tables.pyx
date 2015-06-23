@@ -222,17 +222,21 @@ def getTableDetections(world, obsPlaceBs, pointCloud):
             # Use the mode and variance to limit angles to consider.
             pose = placeB.poseD.mode().pose()
             var = placeB.poseD.variance()
+            std = max(var[:3])**0.5     # std for displacement
+            zone = shapes.BoxAligned(bboxGrow(tableShape.bbox(),
+                                              np.array([3*std, 3*std, 0.01])), None)
             std = var[-1]**0.5          # std for angles
+            res = 0.01 if std < 0.05 else 0.02
             angles = [angle for angle in allAngles if \
-                      abs(util.angleDiff(angle, pose.theta)) <= 4*std] + [pose.theta]
+                      abs(util.angleDiff(angle, pose.theta)) <= 3*std] + [pose.theta]
             angles.sort()
-            if len(angles) < 5:
-                angles = [pose.theta+d for d in (-4*std, -2*std, std, 0., 2*std, 4*std)]
+            if len(angles) < 7:
+                angles = [pose.theta+d for d in (-3*std, -2*std, std, 0., std, 2*std, 3*std)]
             if debug('tables'):
                 print 'Candidate table angles:', angles
             score, detection = \
                    bestTable(zone, tableShape, pointCloud, exclude,
-                             angles = angles, zthr = 0.05)
+                             res = res, angles = angles, zthr = 0.05)
             print 'Table detection', detection, 'with score', score
             print 'Running time for table detections =',  time.time() - startTime
             if detection:

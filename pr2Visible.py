@@ -59,18 +59,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         return True, []
     occluders = []
 
-    lookCartConf = lookConf.cartConf()
-    headTrans = lookCartConf['pr2Head']
-    if fbch.inHeuristic:
-        if not laserScanSparseGlobal:
-            laserScanSparseGlobal = Scan(Ident, laserScanParamsSparse)
-        laserScan = laserScanSparseGlobal
-    else:
-        if not laserScanGlobal:
-            laserScanGlobal = Scan(Ident, laserScanParams)
-        laserScan = laserScanGlobal
-    scanTrans = headTrans.compose(util.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0))))
-    scan = laserScan.applyTrans(scanTrans)
+    scan = lookScan(lookConf)
     n = scan.edges.shape[0]
     dm = np.zeros(n); dm.fill(10.0)
     contacts = n*[None]
@@ -162,16 +151,24 @@ def viewCone(conf, shape, offset = 0.1, moveHead=True):
     lookCartConf = lookConf.cartConf()
     headTrans = lookCartConf['pr2Head']
     sensor = headTrans.compose(util.Transform(transf.rotation_matrix(-math.pi, (1,0,0))))
-    # Note xyPrim
     sensorShape = shape.applyTrans(sensor.inverse())
     ((x0,y0,z0),(x1,y1,z1)) = sensorShape.bbox()
-    # print 'sensorShape bbox\n', sensorShape.bbox()
     dz = -0.15-z1
     cone = BoxScale((x1-x0), (y1-y0), dz, None, 0.01,name='ViewConeFor%s'%shape.name())
-    return cone.applyTrans(util.Pose(0.,0.,-(dz+0.15)/2,0.)).applyTrans(sensor)
+    final = cone.applyTrans(util.Pose(0.,0.,-(dz+0.15)/2,0.)).applyTrans(sensor)
+
+    if debug('viewCone'):
+        wm.getWindow('W').clear()
+        shape.draw('W', 'cyan')
+        final.draw('W', 'red')
+        print shape.name(), 'sensor bbox\n', sensorShape.bbox(), 'moveHead=', moveHead
+        raw_input('viewCone')
+
+    return final
 
 def findSupportTable(targetObj, world, placeBs):
-    tableBs = [pB for pB in placeBs.values() if 'table' in pB.obj]
+    tableBs = [pB for pB in placeBs.values() \
+               if ('table' in pB.obj or 'shelves' in pB.obj)]
     # print 'tablesBs', tableBs
     tableCenters = [pB.poseD.mode().point() for pB in tableBs]
     targetB = placeBs[targetObj]
@@ -183,3 +180,19 @@ def findSupportTable(targetObj, world, placeBs):
 
 def findSupportTableInPbs(pbs, targetObj):
     return findSupportTable(targetObj, pbs.getWorld(), pbs.getPlacedObjBs())
+
+def lookScan(lookConf):
+    global laserScanSparseGlobal, laserScanGlobal
+    lookCartConf = lookConf.cartConf()
+    headTrans = lookCartConf['pr2Head']
+    if fbch.inHeuristic:
+        if not laserScanSparseGlobal:
+            laserScanSparseGlobal = Scan(Ident, laserScanParamsSparse)
+        laserScan = laserScanSparseGlobal
+    else:
+        if not laserScanGlobal:
+            laserScanGlobal = Scan(Ident, laserScanParams)
+        laserScan = laserScanGlobal
+    scanTrans = headTrans.compose(util.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0))))
+    scan = laserScan.applyTrans(scanTrans)
+    return scan
