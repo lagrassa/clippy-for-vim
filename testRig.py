@@ -344,7 +344,7 @@ standardHorizontalConf = None
 def makeConf(robot,x,y,th,g=0.07, vertical=False):
     global standardVerticalConf, standardHorizontalConf
     dx = dy = dz = 0
-    dt = glob.torsoZ - 0.3
+    dt = 0.0 if vertical else glob.torsoZ - 0.3
     if vertical and standardVerticalConf:
         c = standardVerticalConf.copy()
         c.conf['pr2Base'] = [x, y, th]            
@@ -352,7 +352,7 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False):
         if useRight:
             c.conf['pr2RightGripper'] = [g]
         return c
-    elif standardHorizontalConf:
+    elif (not vertical) and standardHorizontalConf:
         c = standardHorizontalConf.copy()
         c.conf['pr2Base'] = [x, y, th]            
         c.conf['pr2LeftGripper'] = [g]
@@ -481,7 +481,7 @@ class PlanTest:
     def __init__(self, name, domainProbs, operators,
                  objects = ['table1','objA'], fixPoses = {},
                  movePoses = {}, held = None, grasp = None,
-                 multiplier = 8, var = 1.0e-5, varDict = None):   # var was 10e-10
+                 multiplier = 6, var = 1.0e-5, varDict = None):   # var was 10e-10
         self.name = name
         self.multiplier = multiplier
         self.objects = objects          # list of objects to consider

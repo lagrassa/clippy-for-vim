@@ -14,6 +14,7 @@ cdef class Scan:
         np.ndarray vertices, edges, bbox
         tuple scanParams
     cpdef Scan applyTrans(self, util.Transform trans)
+    cpdef np.ndarray depthMap(self)
     cpdef bool visible(self, util.Point pt)
     cpdef draw(self, window, str color = *)
 

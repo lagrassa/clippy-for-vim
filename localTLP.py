@@ -64,7 +64,7 @@ drawRebindNodes = True
 '''
 
 debugOn = ['traceGen', 'traceCRH', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon',
-           ]
+           'icp']
 
 if platform.system() == 'Linux':
     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:

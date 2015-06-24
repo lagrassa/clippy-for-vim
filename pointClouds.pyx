@@ -43,6 +43,14 @@ cdef class Scan:
         return 'Scan:'+str(self.name)+'_'+str(self.eye)
     __repr__ = __str__
 
+    cpdef np.ndarray depthMap(self):
+        n = self.edges.shape[0]
+        v = self.vertices.T
+        dm = (v[self.edges[:,1]] - v[0])**2
+        dm = np.sum(dm, axis=1)
+        dm = np.sqrt(dm)
+        return dm
+
     cpdef Scan applyTrans(self, util.Transform trans):
         return Scan(trans.compose(self.headTrans), self.scanParams,
                     np.dot(trans.matrix, self.vertices), self.name, self.color)
@@ -140,6 +148,15 @@ def simulatedScan(conf, scanParams, objects, name='scan', color=None):
         else:
             verts[:, i] = scan.vertices[:, i]
     return Scan(headTrans, scanParams, verts=verts, name=name, color=color)
+
+def simulatedDepthMap(scan, objects):
+    n = scan.edges.shape[0]
+    dm = np.zeros(n); dm.fill(10.0)
+    contacts = n*[None]
+    for i, shape in enumerate(objects):
+        for objPrim in shapes.toPrims(shape):
+            updateDepthMap(scan, objPrim, dm, contacts, i)
+    return dm, contacts
 
 ######################################
 # Below is based on collision.pyx

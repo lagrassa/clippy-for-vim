@@ -1,8 +1,12 @@
-from numpy import *
+import numpy as np
 from math import sqrt
 from scipy.spatial import cKDTree
 from transformations import euler_matrix
 from shapes import toPrims, pointBox, readOff
+import pointClouds as pc
+import time
+from planGlobals import debug, debugMsg
+import util
 
 # Input: expects Nx3 matrix of points
 # Returns R,t
@@ -15,26 +19,26 @@ def rigid_transform_3D(A, B, trans_only=False):
 
     N = A.shape[0]; # total points
 
-    centroid_A = mean(A, axis=0)
-    centroid_B = mean(B, axis=0)
+    centroid_A = np.mean(A, axis=0)
+    centroid_B = np.mean(B, axis=0)
     
     if trans_only:
         t = -centroid_A.T + centroid_B.T
-        return mat(identity(t.shape[0])), t
+        return np.mat(np.identity(t.shape[0])), t
 
     # centre the points
-    AA = A - tile(centroid_A, (N, 1))
-    BB = B - tile(centroid_B, (N, 1))
+    AA = A - np.tile(centroid_A, (N, 1))
+    BB = B - np.tile(centroid_B, (N, 1))
 
     # dot is matrix multiplication for array
-    H = transpose(AA) * BB
+    H = np.transpose(AA) * BB
 
-    U, S, Vt = linalg.svd(H)
+    U, S, Vt = np.linalg.svd(H)
 
     R = Vt.T * U.T
 
     # special reflection case
-    if linalg.det(R) < 0:
+    if np.linalg.det(R) < 0:
        print "Reflection detected"
        Vt[2,:] *= -1
        R = Vt.T * U.T
@@ -46,38 +50,38 @@ def rigid_transform_3D(A, B, trans_only=False):
 # Test with random data
 def test_transform():
     # Random rotation and translation
-    R = mat(random.rand(3,3))
-    t = mat(random.rand(3,1))
+    R = np.mat(np.random.rand(3,3))
+    t = np.mat(np.random.rand(3,1))
 
     # make R a proper rotation matrix, force orthonormal
-    U, S, Vt = linalg.svd(R)
+    U, S, Vt = np.linalg.svd(R)
     R = U*Vt
 
     # remove reflection
-    if linalg.det(R) < 0:
+    if np.linalg.det(R) < 0:
        Vt[2,:] *= -1
        R = U*Vt
 
-    R = mat(euler_matrix(*((random.rand(3)).tolist()), axes='sxyz'))[:3,:3]
-    t = 0.1*mat(random.rand(3,1))
+    R = np.mat(euler_matrix(*((random.rand(3)).tolist()), axes='sxyz'))[:3,:3]
+    t = 0.1*np.mat(np.random.rand(3,1))
 
     # number of points
     n = 10
 
-    A = mat(random.rand(n,3));
-    B = R*A.T + tile(t, (1, n))
+    A = np.mat(np.random.rand(n,3));
+    B = R*A.T + np.tile(t, (1, n))
     B = B.T;
 
     # recover the transformation
     ret_R, ret_t = rigid_transform_3D(A, B)
 
-    A2 = (ret_R*A.T) + tile(ret_t, (1, n))
+    A2 = (ret_R*A.T) + np.tile(ret_t, (1, n))
     A2 = A2.T
 
     # Find the error
     err = A2 - B
 
-    err = multiply(err, err)
+    err = np.multiply(err, err)
     err = sum(err)
     rmse = sqrt(err/n);
 
@@ -113,14 +117,14 @@ def icp(model, data, dmax, niter=10, trans_only=False):
     print R
     print t
     for iter in range(niter):
-        trans_model = (R*model.T + tile(t, (1, n))).T
+        trans_model = (R*model.T + np.tile(t, (1, n))).T
         dists, nbrs = kdTree.query(trans_model, distance_upper_bound=dmax)
         print 'Iter', iter
-        print 'dists', dists
-        print 'nbrs', nbrs
+        # print 'dists', dists
+        # print 'nbrs', nbrs
         valid = nbrs < data.shape[0]
         print 'aligning', dists[valid].shape[0], 'points'
-        err = sum(multiply(dists[valid], dists[valid]))
+        err = sum(np.multiply(dists[valid], dists[valid]))
         rmse = sqrt(err/n);
         print 'rmse', rmse
         if rmse < 0.001: break
@@ -145,23 +149,82 @@ def drawVerts(verts, color='blue'):
 
 def drawMat(mat, color='blue'):
     for v in xrange(mat.shape[0]):
-        pointBox(array(mat[v])[0],r=0.01).draw('W', color)
+        pointBox(np.array(mat[v])[0],r=0.01).draw('W', color)
 
-def icpLocate(file, scan, bbox):
-    model = readOff(file, name='shelves')
-    model_mat = matrix(model.T[:,:3])
-    scan_mat = matrix(scan.vertices.T[1:,:3])
-    inside = [greater_equal(scan_mat[i], bbox[0]).all() and less_equal(scan_mat[i],bbox[1]).all() \
-              for i in xrange(scan_mat.shape[0])]
-    data_mat = scan_mat[array(inside)]
+# model and scan are vertex arrays
+def icpLocate(model, data):
+    model_mat = np.matrix(model.T[:,:3])
+    data_mat = np.matrix(data.T[:,:3])
     drawMat(data_mat, 'orange')
     R, t, validModel = icp(model_mat, data_mat, 0.05)
     drawMat(validModel, 'green')
     raw_input('Matched model points')
-    trans = matrix(eye(4))
+    trans = np.matrix(np.eye(4))
     trans[:3,:3] = R
     trans[:3, 3] = t
-    r_model = dot(array(trans), model)
+    r_model = np.dot(np.array(trans), model)
     drawVerts(r_model)
     raw_input('icp')
     return trans
+
+def getObjectDetections(placeB, pbs, pointCloud):
+    startTime = time.time()
+    objName = placeB.obj
+    pose = placeB.poseD.mode().pose()
+    shWorld = pbs.getShadowWorld(0.95)
+    world = pbs.getWorld()
+    objShape = placeB.shape(shWorld)
+    objShadow = placeB.shadow(shWorld)
+    objCloud = world.typePointClouds[world.objectTypes[objName]]
+
+    # Rotate the objCloud to the poseD.mode()
+    
+    var = placeB.poseD.variance()
+    std = var[-1]**0.5          # std for angles
+    angles = [pose.theta+d for d in (-3*std, -2*std, std, 0., std, 2*std, 3*std)]    
+    if debug('objDetections'):
+        print 'Candidate obj angles:', angles
+    score, detection = \
+           bestObjDetection(objShape, objShadow, objCloud, pointCloud, angles = angles, thr = 0.05)
+    print 'Obj detection', detection, 'with score', score
+    print 'Running time for obj detections =',  time.time() - startTime
+    if detection:
+        detection.draw('MAP', 'blue')
+        debugMsg('objDetections', 'Detection for obj=%s'%objName)
+        return (score, detection)
+
+def bestObjDetection(objShape, objShadow, objCloud, pointCloud, angles = [0.], thr = 0.02):
+    good = []
+    points = pointCloud.vertices
+    headTrans = pointCloud.headTrans
+    for p in range(1, points.shape[1]):   # index 0 is eye
+        pt = points[:,p]
+        for sh in objShadow.parts():
+            if np.all(np.dot(sh.planes(), pt) <= thr): # note use of thr
+                good.append(p); break
+    good = np.array(good)               # indices of points in shadow
+    goodCloud = pointCloud.vertices[:, good]
+
+    # Try to align the model to the relevant data
+    trans = util.Transform(np.array(icpLocate(objCloud, goodCloud)))
+    transShape = objShape.applyLoc(trans)
+    transShape.draw('W', 'green')
+    raw_input('transShape (in green)')
+
+    # Evaluate the result by comparing the depth map from the point
+    # cloud to the simulated depth map for the detection.
+    goodScan = pc.Scan(pointCloud.headTrans, None, verts=goodCloud)
+    dmScan = goodScan.depthMap()
+    dmShape, contacts = pc.simulatedDepthMap(goodScan, [transShape])
+    score = 0.
+    diff = dmScan - dmShape
+    for i in range(diff.shape[0]):
+        if dmShape[i] == 10.: continue  # no prediction
+        if diff[i] > thr: score -= 0.1
+        elif diff[i] < -thr: score -= 1.0
+        else: score += 1.0
+
+    return score, transShape
+
+
+                  

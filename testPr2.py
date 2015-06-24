@@ -1821,7 +1821,7 @@ def gripOpen(conf, hand, width=0.08):
 
 def testOpen(hand='left'):
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
-    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)[0]
+    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)
     result, cnfOut = pr2GoToConf(gripOpen(startConf, hand), 'open')    
 
 def testBusy(hpn = True, skeleton = False, hierarchical = False,

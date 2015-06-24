@@ -17,7 +17,6 @@ from pr2Ops import lookAtBProgress
 from pr2RoadMap import validEdgeTest
 import icp
 reload(icp)
-from icp import icpLocate
 
 # debug tables
 import pointClouds as pc
@@ -245,13 +244,14 @@ class RealWorld(WorldState):
             scan = pc.simulatedScan(lookConf, laserScanParams,
                                     self.getNonShadowShapes()+ [self.robotPlace])
             scan.draw('W', color='red')
-            shape = icpLocate('meshes/shelves_points.off', scan,
-                              np.array([[1.0, -0.60, 0.85], [1.6, 0.60, 1.375]]))
-        
+
         for shape in self.getObjectShapes():
             curObj = shape.name()
-            # if self.world.getObjType(curObj) != objType:
-            #     continue
+
+            if debug('icp'):
+                placeB = self.bs.pbs.getPlaceB(curObj)
+                print icp.getObjectDetections(placeB, self.bs.pbs, scan)
+            
             obstacles = [s for s in self.getObjectShapes() if \
                          s.name() != curObj ]  + [self.robotPlace]
 
