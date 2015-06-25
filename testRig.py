@@ -120,12 +120,12 @@ def habbs(s, g, ops, ancestors):
         isSat = s.satisfies(g)
         if not isSat: 
             print '*** habbs is 0 but goal not sat ***'
-            if debug('heuristic'):
+            if debug('heuristic0'):
                 for thing in g.fluents:
                     if not thing.isGround() or \
                       thing.valueInDetails(s.details) == False:
                         print thing
-                raw_input('okay?')
+                raw_input('Unsat fluents')
             easyVal = hEasy(s, g, ops, ancestors)
             print '*** returning easyVal', easyVal, '***'
             return easyVal

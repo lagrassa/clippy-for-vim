@@ -1502,23 +1502,18 @@ class PlanningFailed(Exception):
 
 def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
         skeleton = None, verbose = False, nonMonOps = [], maxNodes = 500):
-    ps = PlanStack()
-    ancestors = []
-    lastOp = None
+    ps = PlanStack(); ancestors = []
     ps.push(Plan([(nop, State([])), (top, g)]))
-    (op, subgoal) = (top, g)
+    (op, subgoal, oldSkel) = (top, g, None)
     while not ps.isEmpty() and op != None:
         if op.isAbstract():
             # Plan again at a more concrete level
-            parent = ps.guts()[-1]
-            lastOp = op
-            writeSubgoalRefinement(f, parent, subgoal)
+            writeSubgoalRefinement(f, ps.guts()[-1], subgoal)
+            sk = (oldSkel and oldSkel[0]) or (skeleton and \
+                 len(skeleton)>subgoal.planNum and skeleton[subgoal.planNum])
             p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
-                                 lastOp = lastOp,
-                                 skeleton = skeleton[subgoal.planNum]\
-                                            if (skeleton and \
-                                                len(skeleton)>subgoal.planNum) \
-                                                else None,
+                                 lastOp = op,
+                                 skeleton = sk,
                                  nonMonOps = nonMonOps,
                                  maxNodes = maxNodes)
             if not p: raw_input('planning failed'); raise PlanningFailed
@@ -1530,12 +1525,12 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
         elif op.prim != None:
             # Execute
             executePrim(op, s, env, f)
-            lastOp = None
                 
         # Decide what to do next
         # will pop levels we don't need any more, so that p is on the top
         # op will be None if we are done
-        (op, subgoal) = ps.nextStep(s, f)
+        (op, subgoal, popSkel) = ps.nextStep(s, f, ops)
+        oldSkel = popSkel or (oldSkel and oldSkel[-1:])
         # Possibly pop ancestors
         ancestors = ancestors[0:ps.size()]
     # If we return, we have succeeded!
@@ -1558,7 +1553,10 @@ class PlanStack(Stack):
     # Ask each layer what it wants its next step to be
     # If it's different than the subgoal at the next layer below, pop all
     #    lower layers
-    def nextStep(self, s, f = None):
+    
+    # Also, return a skeleton constructed from any layers that get
+    # popped, if we're replanning.
+    def nextStep(self, s, ops, f = None):
         layers = self.guts()
         numLayers = len(layers)
         preImages = self.computePreimages()
@@ -1597,20 +1595,37 @@ class PlanStack(Stack):
                     self.nextLayerStep(layers[j], preImages[j], s, f,
                                        quiet = True)
 
-                # Get rid of layers i and below
+                # Get rid of layers i and below, but save skeleton
+                oldSkel = self.getSkelFromSubtree(i)
                 self.popTo(i)
                 # Replan again for upperSubgoal
-                return (upperOp, upperSubgoal)
+                return (upperOp, upperSubgoal, oldSkel)
             elif i == len(layers)-1:
                 # bottom layer, return subgoal at level i
                 debugMsg('nextStep', 'bottomLayer', op, subgoal)
                 assert op.isAbstract() or op.prim != None, \
                              'Selected inferential op for execution'
-                return (op, subgoal)
+                return (op, subgoal, None)
             else:
                 # go down a level
                 (upperOp, upperSubgoal) = (op, subgoal)
-        return (upperOp, upperSubgoal)
+        return (upperOp, upperSubgoal, None)
+
+    def getSkelFromSubtree(self, i):
+        return None
+        # def abstract(op):
+        #     # Make an abstract version of the operator
+        
+        # sk = []
+        # guts = self.guts()
+        # for j in range(i, len(guts)):
+        #     sk.append(list(reversed([abstract(op) for (op, _) in guts[j][1:]])))
+        # print 'Skeleton from popped tree:'
+        # for thing in sk:
+        #     print 'skeleton'
+        #     for (n, o) in enumerate(thing): print '   ', n, ':', o
+        # raw_input('okay?')
+        # return sk
 
     # Return op and subgoal in this layer to be addressed next
     def nextLayerStep(self, layer, preImages, s, f = None, quiet = False):
@@ -1885,10 +1900,11 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
             debugMsg('skeleton', g.depth, skeleton[g.depth])
         else:
             debugMsg('skeleton', 'Skeleton exhausted', g.depth)
-            glob.debugOn = glob.debugOn + ['satisfies']
-            startState.satisfies(g)
-            debugMsg('skeleton', 'Skeleton exhausted', g.depth)
-            glob.debugOn = glob.debugOn[:-1]
+            if debug('skeleton'):
+                glob.debugOn = glob.debugOn + ['satisfies']
+                startState.satisfies(g)
+                debugMsg('skeleton', 'Skeleton exhausted', g.depth)
+                glob.debugOn = glob.debugOn[:-1]
             return []
     # elif lastOp and g.depth == 0:
     #     # At least ensure we try these bindings
@@ -2025,7 +2041,7 @@ def getGrounding(fluents, details):
 def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
                     lastOp, nonMonOps, heuristic, h, visitF, expandF,
                     prevExpandF, maxCost, maxNodes = 500):
-    return ucSearch.search(goal,
+    p, c =  ucSearch.search(goal,
                            lambda subgoal: startState.satisfies(subgoal),
                            lambda g: applicableOps(g, ops,
                                                    startState,
@@ -2046,7 +2062,13 @@ def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
                            hmax = hmax, 
                            greedy = plannerGreedy,
                            verbose = False,
-                           maxCost = maxCost)        
+                           maxCost = maxCost)
+    if p: return p, c
+    if not skeleton: return None, None
+    # If we failed and had a skeleton, try without it
+    return planBackwardAux(goal, startState, ops, ancestors, None, monotonic,
+                    lastOp, nonMonOps, heuristic, h, visitF, expandF,
+                    prevExpandF, maxCost, maxNodes = 500)
 
 def planBackward(startState, goal, ops, ancestors = [],
                  h = None, fileTag = None, skeleton = None, lastOp = None,

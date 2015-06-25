@@ -731,7 +731,7 @@ def costFun(primCost, prob):
 # Add in a real distance from cs to ce
 
 def moveCostFun(al, args, details):
-    rawCost = 1
+    rawCost = 5
     result = costFun(rawCost, movePreProb)
     return result
 

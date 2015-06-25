@@ -293,15 +293,12 @@ class CanReachHome(Fluent):
                   ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
           and not ('*' in f.args)
 
-    def getViols(self, bState, v, p, strict = True):
+    def getViols(self, bState, v, p):
         assert v == True
         (conf, fcp, cond) = self.args  
 
         newPBS = bState.pbs.copy()
-        if strict:
-            newPBS.updateFromAllPoses(cond, permShadows=True)
-        else:
-            newPBS.updateFromGoalPoses(cond, permShadows=True)
+        newPBS.updateFromGoalPoses(cond, permShadows=True)
 
         avoidShadow = [cond[0].args[0].args[0]] if fcp else []
         newPBS.addAvoidShadow(avoidShadow)
@@ -314,11 +311,10 @@ class CanReachHome(Fluent):
     def bTest(self, bState, v, p):
         path, violations = self.getViols(bState, v, p)
 
-        result = bool(path and violations.empty())
-        return result
+        return bool(path and violations.empty())
 
     def feasible(self, bState, v, p):
-        path, violations = self.getViols(bState, v, p, strict = False)
+        path, violations = self.getViols(bState, v, p)
         return violations != None
 
     def heuristicVal(self, details, v, p):
@@ -331,7 +327,7 @@ class CanReachHome(Fluent):
             dummyOp.instanceCost = obstCost
             return (obstCost, {dummyOp})
         
-        path, violations = self.getViols(details, v, p, strict = False)
+        path, violations = self.getViols(details, v, p)
 
         (ops, totalCost) = hCost(violations, obstCost, details)
         if debug('hAddBack'):
@@ -433,20 +429,17 @@ class CanReachNB(Fluent):
             (startConf, endConf, cond) = self.args
             assert isGround(endConf) and isGround(cond)
             path, violations = CanReachNB([endConf, endConf, cond], True).\
-                                    getViols(bState, v, p, strict = False)
+                                    getViols(bState, v, p)
         else:
-            path, violations = self.getViols(bState, v, p, strict = False)
+            path, violations = self.getViols(bState, v, p)
         return violations != None
 
-    def getViols(self, bState, v, p, strict = True):
+    def getViols(self, bState, v, p):
         assert v == True
         (startConf, endConf, cond) = self.args 
 
         newPBS = bState.pbs.copy()
-        if strict:
-            newPBS.updateFromAllPoses(cond, permShadows=True)
-        else:
-            newPBS.updateFromGoalPoses(cond, permShadows=True)
+        newPBS.updateFromGoalPoses(cond, permShadows=True)
 
         path, violations = canReachNB(newPBS, startConf, endConf, p,
                                       Violations())
@@ -463,9 +456,8 @@ class CanReachNB(Fluent):
             assert 'need to have end conf bound to test'
         elif isVar(startConf):
             print self
-            print 'BTest canReachNB returning True'
-            # Assume we can make it work out
-            return True
+            print 'BTest canReachNB returning False because startconf unbound'
+            return False
         elif startConf['pr2Base'] != endConf['pr2Base']:
             # Bases have to be equal!
             debugMsg('canReachNB', 'Base not belong to us', startConf, endConf)
@@ -511,7 +503,7 @@ class CanReachNB(Fluent):
             dummyOp.instanceCost = unboundCost
             return (obstCost, {dummyOp})
             
-        path, violations = self.getViols(details, v, p, strict = False)
+        path, violations = self.getViols(details, v, p)
 
         (ops, totalCost) = hCost(violations, obstCost, details)
         if debug('hAddBack'):
@@ -549,7 +541,7 @@ class CanPickPlace(Fluent):
           and not ('*' in f.args)
 
     def feasible(self, bState, v, p):
-        path, violations = self.getViols(bState, v, p, strict = False)
+        path, violations = self.getViols(bState, v, p)
         return violations != None
 
     # Add a glb method that will at least return False, {} if the two are
@@ -609,14 +601,13 @@ class CanPickPlace(Fluent):
             for c in self.conds: c.addConditions(inconds, details)
         return self.conds
 
-    def getViols(self, bState, v, p, strict = True):
+    def getViols(self, bState, v, p):
         def violCombo(v1, v2):
             return v1.update(v2)
-        condViols = [c.getViols(bState, v, p, strict) \
-                     for c in self.getConds(bState)]
+        condViols = [c.getViols(bState, v, p) for c in self.getConds(bState)]
 
         if debug('CanPickPlace'):
-            print 'canPickPlace getViols, strict=', strict
+            print 'canPickPlace getViols'
             for (cond, (p, viol)) in zip(self.getConds(bState), condViols):
                 print '    cond', cond
                 print '    viol', viol
@@ -629,8 +620,8 @@ class CanPickPlace(Fluent):
         return True, violations
 
     def bTest(self, bState, v, p):
-        path, violations = self.getViols(bState, v, p, strict = True)
-        success = bool(path and violations.empty())
+        path, violations = self.getViols(bState, v, p)
+        success = bool(violations and violations.empty())
 
         # Test the other way to be sure we are consistent
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
@@ -672,7 +663,7 @@ class CanPickPlace(Fluent):
             sc = self.copy()
             sc.args[-1] = tuple()
             sc.update()
-            p2, v2 = sc.getViols(bState, v, p, strict = True)
+            p2, v2 = sc.getViols(bState, v, p)
             if bool(p2 and v2.empty()):
                 print 'CanPickPlace fluent made false by conditions'
                 print self
@@ -691,7 +682,7 @@ class CanPickPlace(Fluent):
             dummyOp.instanceCost = obstCost
             return (obstCost, {dummyOp})
 
-        path, violations = self.getViols(details, v, p, strict = False)
+        path, violations = self.getViols(details, v, p)
         (ops, totalCost) = hCost(violations, obstCost, details)
         if debug('hAddBack'):
             print 'Heuristic val', self.predicate
@@ -908,16 +899,13 @@ class CanSeeFrom(Fluent):
         ans, _ = visible(shWorld, conf, sh, obstacles, p, moveHead=False)
         return ans
 
-    def getViols(self, bState, v, p, strict = True):
+    def getViols(self, bState, v, p):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
          
         # Note that all object poses are permanent, no collisions can be ignored
         newPBS = bState.pbs.copy()
-        if strict:
-            newPBS.updateFromAllPoses(cond, permShadows=True)
-        else:
-            newPBS.updateFromGoalPoses(cond, permShadows=True)
+        newPBS.updateFromGoalPoses(cond, permShadows=True)
 
         placeB = newPBS.getPlaceB(obj)
         if placeB.support.mode() != poseFace and poseFace != '*':
@@ -947,7 +935,7 @@ class CanSeeFrom(Fluent):
             dummyOp.instanceCost = obstCost
             return (obstCost, {dummyOp})
         
-        vis, occluders = self.getViols(details, v, p, strict = False)
+        vis, occluders = self.getViols(details, v, p)
         (ops, totalCost) = hCostSee(vis, occluders, obstCost, details)
         if debug('hAddBack'):
             print 'Heuristic val', self.predicate
