@@ -1780,6 +1780,12 @@ def prof(test, n=100):
     p.sort_stats('cumulative').print_stats(n)
     p.sort_stats('cumulative').print_callers(n)
 
+def profPrint(test, n=100):
+    import pstats
+    p = pstats.Stats('prof')
+    p.sort_stats('cumulative').print_stats(n)
+    p.sort_stats('cumulative').print_callers(n)
+
 
 # Evaluate on details and a fluent to flush the caches and evaluate
 def firstAid(details, fluent = None):

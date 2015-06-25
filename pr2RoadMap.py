@@ -25,8 +25,8 @@ from pr2Util import Violations, NextColor, drawPath, shadowWidths, Hashable, com
 
 violationCosts = (10.0, 2.0, 10.0, 5.0)
 
-maxSearchNodes = 5000                   # 5000
-maxExpandedNodes = 2000                  # 2000
+maxSearchNodes = 2500                   # 5000
+maxExpandedNodes = 1000                  # 2000
 searchGreedy = 0.75 # greedy, trust that the heuristic is good...
 searchOpt = 0.5     # should be 0.5 ideally, but it's slow...
 

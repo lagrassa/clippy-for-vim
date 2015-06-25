@@ -40,7 +40,7 @@ def rigid_transform_3D(A, B, trans_only=False):
     # special reflection case
     if np.linalg.det(R) < 0:
        print "Reflection detected"
-       Vt[2,:] *= -1
+       Vt[Vt.shape[0]-1,:] *= -1
        R = Vt.T * U.T
 
     t = -R*centroid_A.T + centroid_B.T
@@ -106,28 +106,33 @@ def test_transform():
 
     return icp(A, B, 0.25)
 
-def icp(model, data, dmax, niter=10, trans_only=False):
+def icp0(model, data, dmax, niter=100, trans_only=False):
     kdTree = cKDTree(data, 20)
+
     n = model.shape[0]
-    if trans_only:
-        R, t = rigid_transform_3D(model, data, trans_only=True)
-    else:
-        R, t, _ = icp(model, data, dmax, niter=4, trans_only=True)
+    # if trans_only:
+    #     R, t = rigid_transform_3D(model, data, trans_only=True)
+    # else:
+    #     R, t, _ = icp(model, data, dmax, niter=4, trans_only=True)
+    R = np.mat(np.eye(3))
+    t = np.mat(np.zeros(3)).T
     print 'Initial'
     print R
     print t
     for iter in range(niter):
         trans_model = (R*model.T + np.tile(t, (1, n))).T
-        dists, nbrs = kdTree.query(trans_model, distance_upper_bound=dmax)
+        dmx = dmax - iter*0.001
+        dists, nbrs = kdTree.query(trans_model, distance_upper_bound=dmx)
         print 'Iter', iter
         # print 'dists', dists
         # print 'nbrs', nbrs
         valid = nbrs < data.shape[0]
-        print 'aligning', dists[valid].shape[0], 'points'
+        validData = set(nbrs[valid])
+        print 'aligning', dists[valid].shape[0], 'model points to', len(validData), 'data points'
         err = sum(np.multiply(dists[valid], dists[valid]))
         rmse = sqrt(err/n);
         print 'rmse', rmse
-        if rmse < 0.001: break
+        if rmse < 0.001 or len(validData) < 10 or dmx < 0.02: break
         if trans_only:
             R, t = rigid_transform_3D(model[valid], data[nbrs[valid]], trans_only=trans_only)
         else:
@@ -138,51 +143,85 @@ def icp(model, data, dmax, niter=10, trans_only=False):
         print t
     return R, t, trans_model[valid]
 
+def icp(model, data, trimFactor=0.9, niter=10, trans_only=False):
+    kdTree = cKDTree(model, 20)         # initialize with model
+    R = np.mat(np.eye(3))
+    t = np.mat(np.zeros(3)).T
+    trans_data = data                   # we'll transform data
+    N = data.shape[0]
+    Nt = trimFactor*N
+    print 'N=', N, 'Nt=', Nt
+    e_old = 0.0
+    for iter in range(niter):
+        print 'Iter', iter
+        dists, nbrs = kdTree.query(trans_data) # find assignments for data
+        sdists = np.sort(dists)
+        err = sum(np.multiply(sdists, sdists)[:Nt])
+        e = sqrt(err/Nt)                # rmse for trim fraction of the data
+        rel_de = abs(e - e_old)/e
+        print 'rmse', e, 'rel change in rmse', rel_de
+        if e < 0.001 or rel_de < 0.0001: break
+        e_old = e
+        valid = dists <= sdists[Nt-1]   # relevant subset of data
+        # Compute trans based on relevant subset
+        if trans_only:
+            R, t = rigid_transform_3D(data[valid], model[nbrs[valid]], trans_only=trans_only)
+        else:
+            R, t = rigid_transform_3D(data[valid], model[nbrs[valid]], trans_only=True)
+            R2, t2 = rigid_transform_3D(data[valid][:,:2], model[nbrs[valid]][:,:2], trans_only=trans_only)
+            R[:2,:2] = R2
+        print R
+        print t
+        trans_data = (R*data.T + np.tile(t, (1, N))).T
+    return R, t, e
+
 # Construct rotated model for a range of theta
 # Do ICP with translation only to get initial alignment for each theta
 # Pick best alignment as the starting point for a full search
 # or simply do bisection search on the angle.
 
-def drawVerts(verts, color='blue'):
+def drawVerts(verts, win = 'W', color='blue'):
     for v in xrange(verts.shape[1]):
-        pointBox(verts[:3,v],r=0.01).draw('W', color)
+        pointBox(verts[:3,v],r=0.01).draw(win, color)
 
-def drawMat(mat, color='blue'):
+def drawMat(mat, win = 'W', color='blue'):
     for v in xrange(mat.shape[0]):
-        pointBox(np.array(mat[v])[0],r=0.01).draw('W', color)
+        pointBox(np.array(mat[v])[0],r=0.01).draw(win, color)
 
 # model and scan are vertex arrays
 def icpLocate(model, data):
     model_mat = np.matrix(model.T[:,:3])
     data_mat = np.matrix(data.T[:,:3])
     drawMat(data_mat, 'orange')
-    R, t, validModel = icp(model_mat, data_mat, 0.05)
-    drawMat(validModel, 'green')
-    raw_input('Matched model points')
-    trans = np.matrix(np.eye(4))
-    trans[:3,:3] = R
-    trans[:3, 3] = t
-    r_model = np.dot(np.array(trans), model)
-    drawVerts(r_model)
-    raw_input('icp')
+    best_score = None
+    best_R = None
+    best_t = None
+    for frac in np.arange(0.4, 1.0, 0.1):
+        R, t, e = icp(model_mat, data_mat, trimFactor=frac)
+        score = e*(frac**(-3))
+        if best_score == None or score < best_score:
+            best_score = score
+            best_R = R
+            best_t = t
+            trans = np.matrix(np.eye(4))
+            trans[:3,:3] = best_R
+            trans[:3, 3] = best_t
     return trans
 
 def getObjectDetections(placeB, pbs, pointCloud):
     startTime = time.time()
     objName = placeB.obj
-    pose = placeB.poseD.mode().pose()
+    pose = placeB.objFrame().pose()
     shWorld = pbs.getShadowWorld(0.95)
     world = pbs.getWorld()
-    objShape = placeB.shape(shWorld)
+    objShape = placeB.shape(pbs.getWorld()) # nominal shape
     objShadow = placeB.shadow(shWorld)
     objCloud = world.typePointClouds[world.objectTypes[objName]]
-
-    # Rotate the objCloud to the poseD.mode()
-    
+    objCloud = np.dot(np.array(pose.matrix), objCloud)
     var = placeB.poseD.variance()
     std = var[-1]**0.5          # std for angles
     angles = [pose.theta+d for d in (-3*std, -2*std, std, 0., std, 2*std, 3*std)]    
-    if debug('objDetections'):
+    if debug('icp'):
         print 'Candidate obj angles:', angles
     score, detection = \
            bestObjDetection(objShape, objShadow, objCloud, pointCloud, angles = angles, thr = 0.05)
@@ -190,11 +229,11 @@ def getObjectDetections(placeB, pbs, pointCloud):
     print 'Running time for obj detections =',  time.time() - startTime
     if detection:
         detection.draw('MAP', 'blue')
-        debugMsg('objDetections', 'Detection for obj=%s'%objName)
+        debugMsg('icp', 'Detection for obj=%s'%objName)
         return (score, detection)
 
 def bestObjDetection(objShape, objShadow, objCloud, pointCloud, angles = [0.], thr = 0.02):
-    good = []
+    good = [0]                          # include eye
     points = pointCloud.vertices
     headTrans = pointCloud.headTrans
     for p in range(1, points.shape[1]):   # index 0 is eye
@@ -204,27 +243,52 @@ def bestObjDetection(objShape, objShadow, objCloud, pointCloud, angles = [0.], t
                 good.append(p); break
     good = np.array(good)               # indices of points in shadow
     goodCloud = pointCloud.vertices[:, good]
+    goodScan = pc.Scan(pointCloud.headTrans, None, verts=goodCloud)
+
+    print 'initial score', depthScore(objShape, goodScan, thr)
 
     # Try to align the model to the relevant data
-    trans = util.Transform(np.array(icpLocate(objCloud, goodCloud)))
-    transShape = objShape.applyLoc(trans)
+    atrans = icpLocate(objCloud, goodCloud[:,1:])
+    trans = util.Transform(np.array(atrans)).inverse()
+    transShape = objShape.applyTrans(trans)
     transShape.draw('W', 'green')
     raw_input('transShape (in green)')
 
     # Evaluate the result by comparing the depth map from the point
     # cloud to the simulated depth map for the detection.
-    goodScan = pc.Scan(pointCloud.headTrans, None, verts=goodCloud)
-    dmScan = goodScan.depthMap()
-    dmShape, contacts = pc.simulatedDepthMap(goodScan, [transShape])
+    score = depthScore(transShape, goodScan, thr)
+
+    raw_input('score=%f'%score)
+    return score, transShape
+
+def depthScore(shape, scan, thr):
+    dmScan = scan.depthMap()        # actual depths
+    # dmShape is normalized depths
+    dmShape, contacts = pc.simulatedDepthMap(scan, [shape])
+    dmShape = dmScan * dmShape
+    drawVerts(vertsForDM(dmShape, scan), 'cyan')
     score = 0.
     diff = dmScan - dmShape
     for i in range(diff.shape[0]):
-        if dmShape[i] == 10.: continue  # no prediction
-        if diff[i] > thr: score -= 0.1
-        elif diff[i] < -thr: score -= 1.0
+        if dmShape[i] > 5.: continue    # no prediction
+        # if scan point is farther from eye than prediction from
+        # shape, then we saw through the object, this is very bad.
+        if diff[i] > thr: score -= 1.0
+        # if scan is closer to eye, then it could be an occlusion,
+        # which is penalized but not as much.
+        elif diff[i] < -thr: score -= 0.1
         else: score += 1.0
+    return score
 
-    return score, transShape
-
-
-                  
+def vertsForDM(dm, scan):
+    verts = np.zeros((4, dm.shape[0]))
+    scanVerts = scan.vertices
+    scanDM = scan.depthMap()
+    for i in xrange(dm.shape[0]):
+        uv = scanVerts[:,i] - scanVerts[:,0]
+        if scanDM[i] != 0.:
+            uv = uv/scanDM[i]
+            verts[:,i] = scanVerts[:,0] + dm[i]*uv
+        else:
+            verts[:,i] = scanVerts[:,0]
+    return verts

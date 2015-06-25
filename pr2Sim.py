@@ -46,7 +46,7 @@ simOdoErrorRate = 0.02
 
 pickSuccessDist = 0.1  # pretty big for now
 
-laserScanParams = (0.3, 0.2, 0.1, 3., 20) # narrow
+laserScanParams = (0.3, 0.2, 0.1, 3., 30) # narrow
 
 class RealWorld(WorldState):
     def __init__(self, world, bs, probs):
