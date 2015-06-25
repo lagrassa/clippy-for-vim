@@ -106,7 +106,11 @@ if useROS:
 def hEasy(s, g, ops, ancestors):
     return g.easyH(s, defaultFluentCost = 1.5)
 
+heuristicTime = 0.0
+
 def habbs(s, g, ops, ancestors):
+    global heuristicTime
+    startTime = time.time()
     hops = ops + [hRegrasp]
     val = hAddBackBSetID(s, g, hops, ancestors, ddPartitionFn = partition,
                          maxK = 20)
@@ -125,6 +129,7 @@ def habbs(s, g, ops, ancestors):
             easyVal = hEasy(s, g, ops, ancestors)
             print '*** returning easyVal', easyVal, '***'
             return easyVal
+    heuristicTime += (time.time() - startTime)
     return val
 
 from timeout import timeout, TimeoutError
@@ -665,7 +670,8 @@ class PlanTest:
             self.realWorld.draw('World')
             for regName in self.bs.pbs.regions:
                 self.realWorld.regionShapes[regName].draw('World', 'purple')
-            if self.bs.pbs.regions: raw_input('Regions')
+            if self.bs.pbs.regions and debug('regions'):
+                raw_input('Regions')
 
         if not goal: return
 
@@ -703,6 +709,9 @@ class PlanTest:
         print '**************', self.name, \
                 'Hierarchical' if hierarchical else '', \
                 'Time =', runTime, '***************'
+        print 'Heuristic time:', heuristicTime
+        global heuristicTime
+        heuristicTime = 0.0
 
 ######################################################################
 # Test Cases

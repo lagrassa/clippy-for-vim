@@ -1346,12 +1346,13 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
                 print 'brown is as far as it goes'
                 drawObjAndShadow(newBS2, placeB2, prob, 'W', color='brown')
                 raw_input('Go?')
-            if debug(tag, skip=skip):
-                drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
-                debugMsg(tag, 'Trying to reduce shadow (on W in red) %s'%obst)
-                trace('    %s() shadow:'%tag, obst)
-            yield (obst, placeB.poseD.mode().xyztTuple(), placeB.support.mode(),
-                   lookVar, lookDelta)
+            else:
+                if debug(tag, skip=skip):
+                    drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
+                    debugMsg(tag,'Trying to reduce shadow (on W in red) %s'%obst)
+                    trace('    %s() shadow:'%tag, obst)
+                yield (obst, placeB.poseD.mode().xyztTuple(),
+                       placeB.support.mode(), lookVar, lookDelta)
         # Either reducing the shadow is not enough or we failed and
         # need to move the object (if it's movable).
         if obst not in newBS.fixObjBs:

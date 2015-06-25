@@ -98,8 +98,12 @@ class PBS:
                     obj = objectName(sh)
                     pB = self.getPlaceB(obj)
                     var = pB.poseD.variance()
-                    pB.modifyPoseD(var = tuple(v/2.0 for v in var))
+                    print 'oldVar', var
+                    pB.poseD.var = tuple(v/2.0 for v in var)
+                    print 'newVar', pB.poseD.variance()
                 self.shadowWorld = None
+            confViols = self.beliefContext.roadMap.confViolations(self.conf,
+                                                          self, .98)
             shadows = confViols.allShadows()
 
         # Finally, look for object-object collisions
