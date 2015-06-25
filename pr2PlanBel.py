@@ -120,7 +120,7 @@ class PBS:
                 if shape.collides(shape2) and \
                   not (shape.name() in self.fixObjBs and \
                        shape2.name() in self.fixObjBs):
-                    for shape in objShapes: shape.draw('W', 'black')
+                    for shapeXX in objShapes: shapeXX.draw('W', 'black')
                     shape2.draw('W', 'magenta')
                     raise Exception, 'Object-Object collision: '+ \
                                      shape.name()+' - '+shape2.name()
