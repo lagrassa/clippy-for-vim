@@ -622,7 +622,6 @@ class CanPickPlace(Fluent):
     def bTest(self, bState, v, p):
         path, violations = self.getViols(bState, v, p)
         success = bool(violations and violations.empty())
-
         # Test the other way to be sure we are consistent
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
           graspFace, graspMu, graspVar, graspDelta,

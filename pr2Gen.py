@@ -404,6 +404,9 @@ def placeGen(args, goalConds, bState, outBindings):
         yield (hand, gB.poseD.mode().xyztTuple(), gB.grasp.mode(), c, ca,
                pB.poseD.mode().xyztTuple(), pB.support.mode())
 
+
+# Either hand or poses will be specified, but generally not both.  They will never both be unspecified.
+
 def placeGenGen(args, goalConds, bState, outBindings):
     (obj, hand, poses, support, objV, graspV, objDelta, graspDelta, confDelta,
      prob) = args
@@ -421,24 +424,13 @@ def placeGenGen(args, goalConds, bState, outBindings):
 
     if poses == '*' or isVar(poses) or support == '*' or isVar(support):
         print '    placeGen with unspecified pose'
-        hand = 'left'
-        if goalConds:
-            if base:
-                tracep('placeGen', '    same base constraint, failing')
-                return
-            if getConf(goalConds, None):
-                tracep('placeGen', '    goal conf specified, failing')
-                return
-            holding = dict(getHolding(goalConds))
-            if 'left' in holding and 'right' in holding:
-                tracep('placeGen', '    both hands are already Holding')
-                return
-            elif 'left' in holding:
-                hand = 'right'
-            else:
-                hand = 'left'
+        if base:
+            # Don't try to keep the same base, if we're trying to place the object away.
+            tracep('placeGen', '    same base constraint, failing')
+            return
+        assert not isVar(hand)
+        
         # Just placements specified in goal (and excluding obj)
-
         # placeInGenAway does not do this when calling placeGen
         newBS = pbs.copy()
         newBS = newBS.updateFromGoalPoses(goalConds, updateConf=False)
@@ -449,7 +441,6 @@ def placeGenGen(args, goalConds, bState, outBindings):
             (pB, gB, c, ca) = ans
             yield (gB, pB, c, ca), v, hand
         return
-
 
     if not isinstance(poses[0], (list, tuple, frozenset)):
         poses = frozenset([poses])
@@ -462,6 +453,8 @@ def placeGenGen(args, goalConds, bState, outBindings):
                             PoseD(pose, objV), delta=objDelta)
     placeBs = Memoizer('placeBGen_placeGen', placeBGen())
 
+    # Figure out whether one hand or the other is required;  if not, do round robin
+
     assert not (pbs.useRight == False and hand == 'right')
 
     mustUseLeft = (hand == 'left' or not pbs.useRight)
@@ -470,11 +463,14 @@ def placeGenGen(args, goalConds, bState, outBindings):
                                  goalConds, pbs, outBindings)
     rightGen = placeGenTop((obj, graspB, placeBs, 'right', base, prob),
                                  goalConds, pbs, outBindings)
-    holding = dict(getHolding(goalConds))
+    holding = dict(getHolding(goalConds))   # values might be 'none'
+    # What are we required to be holding
     leftHeldInGoal = 'left' in holding
     rightHeldInGoal = 'right' in holding
+    # What are we currently holding (heuristic value)
     leftHeldNow = pbs.held['left'].mode() != 'none'
     rightHeldNow = pbs.held['right'].mode() != 'none'
+    # Are we already holding the desired object
     leftHeldTargetObjNow = pbs.held['left'].mode() == obj
     rightHeldTargetObjNow = pbs.held['right'].mode() == obj
 
@@ -1112,7 +1108,8 @@ def lookAtConfCanView(pbs, prob, conf, shape, hands=['left', 'right']):
                 return None
             path = canView(pbs, prob, lookConf, hand, shape)
             if not path:
-                raw_input('lookAtConfCanView failed path')
+                if debug('lookAtConfCanView'):
+                    raw_input('lookAtConfCanView failed path')
                 return None
             lookConf = path[-1]
     return lookConf

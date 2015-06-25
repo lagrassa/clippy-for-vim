@@ -400,9 +400,10 @@ class RoadMap:
                         print '    returning', ans
                     return ans
                 elif considerReUsingPaths:
-                    initObst = set(initViol.allObstacles())
-                    initShadows = set(initViol.allShadows())
+                    initObst = set(endPtViol.allObstacles())
+                    initShadows = set(endPtViol.allShadows())
                     for i, cacheValue in enumerate(sortedCacheValues):
+                        if i > 2: break # don't try too many times
                         (_, _, ans) = cacheValue
                         (_, _, edgePath) = ans
                         viol2 = self.checkEdgePath(edgePath, pbs, prob)
@@ -471,11 +472,11 @@ class RoadMap:
 
         cv1 = self.confViolations(targetConf, pbs, prob)
         cv2 = self.confViolations(initConf, pbs, prob)
-        initViol = combineViols(cv1, cv2, initViol)
+        endPtViol = combineViols(cv1, cv2)
 
         targetNode = makeNode(targetConf)
         attached = pbs.getShadowWorld(prob).attached
-        if initViol == None:
+        if endPtViol == None:
             if debug('endPoint:collision'):
                 pbs.draw(prob, 'W')
                 initConf.draw('W', 'blue')
@@ -509,63 +510,42 @@ class RoadMap:
                                          reverse = (not reversePath),
                                          useStartH = True)
         ans = next(ansGen, None)
-        if (ans == None or ans[0] == None):
-            if debug('traceCRH'): print '    path failed... trying RRT'
-            path, viol = rrt.planRobotPathSeq(pbs, prob, initConf, targetConf, None,
-                                              # targetConf.conf.keys(),
+        
+        # if (ans == None or ans[0] == None):
+        #     if debug('traceCRH'): print '    path failed... trying RRT'
+        #     path, viol = rrt.planRobotPathSeq(pbs, prob, initConf, targetConf, None,
+        #                                       # targetConf.conf.keys(),
+        #                                       maxIter=50, failIter=10)
+        #     if viol:
+        #         viol = viol.update(initViol)
+        #     else:
+        #         debugMsg('confReachViol', 'RRT for NB failed')
+        #     return (viol, 0, path)
+
+        if ans == None or \
+               (ans[0] and not ans[0].empty() and ans[0].names() != initViol.names()):
+            print '    trying RRT'
+            path, viol = rrt.planRobotPathSeq(pbs, prob, initConf, targetConf, endPtViol,
                                               maxIter=50, failIter=10)
             if viol:
                 viol = viol.update(initViol)
             else:
-                debugMsg('confReachViol', 'RRT for NB failed')
+                debugMsg('confReachViol', 'RRT failed')
+            if not viol:
+                pass
+            elif ans == None or \
+                 (set(viol.allObstacles()) < set(ans[0].allObstacles()) and \
+                  set(viol.allShadows()) < set(ans[0].allShadows())):
+                print 'original viol', ans if ans==None else ans[0]
+                print 'RRT viol', viol
+                print '    returning RRT ans'
+                return (viol, 0, path)
 
-            return (viol, 0, path)
         if startConf:
             return confAns(ans, reverse=False)
         else:
             cacheAns(ans)
             return confAns(ans, reverse=True)
-
-    def climbTree(self, graph, targetNode, initNode, pbs, prob, initViol):
-        def climb(node):
-            nodePath = [node]
-            cost = 0.0
-            while node:
-                if node == initNode:
-                    edgePath = self.edgePathFromNodePath(graph, nodePath)
-                    return (initViol, cost, edgePath)
-                if node.parent:
-                    edge = graph.edges.get((node, node.parent), None) or graph.edges.get((node.parent, node), None)
-                    if not edge:
-                        print 'climb: no edge between nodes', node, node.parent
-                        return None
-                    nviol = self.colliders(edge, pbs, prob, initViol)
-                    if nviol != initViol:
-                        print 'new violation', nviol
-                        print 'old violation', initViol
-                        return None
-                    nodePath.append(node.parent)
-                    cost += node.hVal
-                    node = node.parent
-                else:
-                    return False
-        print 'climbTree', targetNode, initNode
-        if targetNode.parent:
-            ans = climb(targetNode)
-            print 'targetNode has parent, ans=', ans
-        else:
-            for edge in graph.incidence.get(targetNode, []):
-                (a, b)  = edge.ends
-                node = a if a != targetNode else b
-                if node.parent:
-                    targetNode.parent = node
-                    targetNode.hVal = pointDist(targetNode.point, node.point)
-                    ans = climb(targetNode)
-                    print 'connected to tree at', node, 'ans=', ans
-                    if ans:
-                        return ans
-                else:
-                    raw_input('could not connect to tree')
 
     def addToCluster(self, node, rep=False, connect=True):
         if debug('addToCluster'): print 'Adding', node, 'to cluster'

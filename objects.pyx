@@ -79,6 +79,7 @@ class World:
         def simplify(shape, depth=0):
             if depth >= 10:
                 print 'Simplify loop:', objName, shape, shape.parts()
+                raw_input('Huh')
                 return shape
             if shape.name() == objName and \
                len(shape.parts()) == 1 and  \

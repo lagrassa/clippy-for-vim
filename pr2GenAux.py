@@ -732,14 +732,15 @@ def getCRHObsts(goalConds, pbs):
     debugMsg('getReachObsts', ('->', len(obsts), 'CRH obsts'))
     return obsts
 
-# Returns (hand, obj) for Holding fluents
+# Returns (hand, obj) for Holding fluents.   Leave it out if obj is 'none'
 def getHolding(goalConds):
     pfbs = fbch.getMatchingFluents(goalConds,
                                    Bd([Holding(['Hand']), 'Obj', 'P'], True))
     held = []
     for (pf, pb) in pfbs:
         if isGround(pb.values()):
-            held.append((pb['Hand'], pb['Obj']))
+            if pb['obj'] != 'none':
+                held.append((pb['Hand'], pb['Obj']))
     return held
 
 def bboxRandomDrawCoords(bb):
