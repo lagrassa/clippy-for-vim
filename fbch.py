@@ -1529,7 +1529,7 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
         # Decide what to do next
         # will pop levels we don't need any more, so that p is on the top
         # op will be None if we are done
-        (op, subgoal, popSkel) = ps.nextStep(s, f, ops)
+        (op, subgoal, popSkel) = ps.nextStep(s, ops, f)
         oldSkel = popSkel or (oldSkel and oldSkel[-1:])
         # Possibly pop ancestors
         ancestors = ancestors[0:ps.size()]
