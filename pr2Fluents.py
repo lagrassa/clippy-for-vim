@@ -352,6 +352,7 @@ class CanReachHome(Fluent):
 
 def hCost(violations, obstCost, details):
     if violations == None:
+        debugMsg('hAddBackInf', 'hv infinite')
         print 'hv infinite'
         return float('inf'), {}
     obstacles = violations.obstacles

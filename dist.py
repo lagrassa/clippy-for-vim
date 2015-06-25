@@ -51,7 +51,8 @@ class DiscreteDist:
                     best.append((elt, p))
                 else:
                     best = [(elt, p)]
-        return random.choice(best) if len(best) > 1 else best[0]
+        #return random.choice(best) if len(best) > 1 else best[0]
+        return best[0]
 
     # Returns the x with highest weight
     def mode(self):
