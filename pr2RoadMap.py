@@ -23,6 +23,8 @@ from miscUtil import prettyString
 from heapq import heappush, heappop
 from pr2Util import Violations, NextColor, drawPath, shadowWidths, Hashable, combineViols, shadowp
 
+considerReUsingPaths = True
+
 violationCosts = (10.0, 2.0, 10.0, 5.0)
 
 maxSearchNodes = 2500                   # 5000
@@ -51,6 +53,7 @@ class Node(Hashable):
         self.point = tuple(point or self.pointFromConf(self.conf)) # used for nearest neighbors
         self.key = False
         self.hVal = None
+        self.parent = None
     def cartConf(self):
         if not self.cartConf:
             self.cartConf = self.conf.cartConf()
@@ -96,11 +99,12 @@ def makeNode(conf, cart=None):
 
 edge_idnum = 0
 class Edge(Hashable):
-    def __init__(self, n1, n2):
+    def __init__(self, n1, n2, interpolator):
         global edge_idnum
         self.id = edge_idnum; edge_idnum += 1
         self.ends = (n1, n2)
-        self.nodes = []              # intermediate nodes
+        self.interpolator = interpolator
+        self.nodes = None  # intermediate nodes
         # Cache for collisions on this edge.
         # aColl: {object : {True, False}}
         # hColl {graspB: {object : {True, False}}}
@@ -113,6 +117,11 @@ class Edge(Hashable):
     def draw(self, window, color = 'cyan'):
         for node in self.nodes:
             node.draw(window, color=color)
+    def getNodes(self):
+        if self.nodes is None:
+            node_f, node_i = self.ends
+            self.nodes = self.interpolator(node_f, node_i, minStep)
+        return self.nodes
     def desc(self):
         return frozenset(self.ends)
     def __str__(self):
@@ -379,7 +388,7 @@ class RoadMap:
         def checkCache(key, type='full', loose=False):
             if fbch.inHeuristic or optimize: return 
             if key in self.confReachCache:
-                if debug('confReachViolCache'): print 'confReachCache tentative hit'
+                if debug('traceCRH'): print '    cache?',
                 cacheValues = self.confReachCache[key]
                 sortedCacheValues = sorted(cacheValues,
                                            key=lambda v: v[-1][0].weight() if v[-1][0] else 1000.)
@@ -390,6 +399,23 @@ class RoadMap:
                         debugMsg('confReachViolCache', 'confReachCache '+type+' actual hit')
                         print '    returning', ans
                     return ans
+                elif considerReUsingPaths:
+                    initObst = set(initViol.allObstacles())
+                    initShadows = set(initViol.allShadows())
+                    for i, cacheValue in enumerate(sortedCacheValues):
+                        (_, _, ans) = cacheValue
+                        (_, _, edgePath) = ans
+                        viol2 = self.checkEdgePath(edgePath, pbs, prob)
+                        if viol2 and set(viol2.allObstacles()) <= initObst and set(viol2.allShadows()) <= initShadows:
+                            if debug('traceCRH'): print '    reusing path'
+                            (_, cost, path) = ans
+                            ans = (viol2, cost, path) # use the new violations
+                            if debug('confReachViolCache'):
+                                debugMsg('confReachViolCache', 'confReachCache reusing path')
+                                print '    returning', ans
+                            return ans
+                        else:
+                            print i, 'bad path', 
             else:
                 self.confReachCache[key] = []
                 if debug('confReachViolCache'): print 'confReachCache miss'
@@ -412,7 +438,7 @@ class RoadMap:
                         i2 = (i1+1)%2
                         print dir, e, validEdge(e.ends[i1], e.ends[i2])
                         print '    ', e.ends
-                        for p in e.nodes: print '      ', p.conf['pr2Base']
+                        for p in e.getNodes(): print '      ', p.conf['pr2Base']
                     print 'final path'
                     for p in path: print '    ', p['pr2Base']
                 if not fbch.inHeuristic and debug('showPath'):
@@ -472,7 +498,7 @@ class RoadMap:
         # search back from target... if we will execute in reverse, it's a double negative.
         if startConf:
             # If we're moving from arbitrary startConf, don't reverse
-            # or use pre-computed heuristic to homeConf.
+            # or use pre-computed heuristic to homeConf.  This is used by canReachNB.
             ansGen = self.minViolPathGen(graph, initNode, [targetNode], pbs, prob,
                                          optimize=optimize, moveBase=moveBase,
                                          reverse = False,
@@ -499,6 +525,47 @@ class RoadMap:
         else:
             cacheAns(ans)
             return confAns(ans, reverse=True)
+
+    def climbTree(self, graph, targetNode, initNode, pbs, prob, initViol):
+        def climb(node):
+            nodePath = [node]
+            cost = 0.0
+            while node:
+                if node == initNode:
+                    edgePath = self.edgePathFromNodePath(graph, nodePath)
+                    return (initViol, cost, edgePath)
+                if node.parent:
+                    edge = graph.edges.get((node, node.parent), None) or graph.edges.get((node.parent, node), None)
+                    if not edge:
+                        print 'climb: no edge between nodes', node, node.parent
+                        return None
+                    nviol = self.colliders(edge, pbs, prob, initViol)
+                    if nviol != initViol:
+                        print 'new violation', nviol
+                        print 'old violation', initViol
+                        return None
+                    nodePath.append(node.parent)
+                    cost += node.hVal
+                    node = node.parent
+                else:
+                    return False
+        print 'climbTree', targetNode, initNode
+        if targetNode.parent:
+            ans = climb(targetNode)
+            print 'targetNode has parent, ans=', ans
+        else:
+            for edge in graph.incidence.get(targetNode, []):
+                (a, b)  = edge.ends
+                node = a if a != targetNode else b
+                if node.parent:
+                    targetNode.parent = node
+                    targetNode.hVal = pointDist(targetNode.point, node.point)
+                    ans = climb(targetNode)
+                    print 'connected to tree at', node, 'ans=', ans
+                    if ans:
+                        return ans
+                else:
+                    raw_input('could not connect to tree')
 
     def addToCluster(self, node, rep=False, connect=True):
         if debug('addToCluster'): print 'Adding', node, 'to cluster'
@@ -790,13 +857,10 @@ class RoadMap:
             base_i = node_i.conf['pr2Base']
             # Change position or angle, but not both.
             if all([f != i for (f,i) in zip(base_f, base_i)]): return
-        edge = Edge(node_f, node_i)
         if self.params['cartesian']:
-            edge.nodes = self.cartLineSteps(node_f, node_i,
-                                            2*minStep if fbch.inHeuristic else minStep)
+            edge = Edge(node_f, node_i, self.cartLineSteps)
         else:
-            edge.nodes = self.jointLineSteps(node_f, node_i,
-                                             2*minStep if fbch.inHeuristic else minStep)
+            edge = Edge(node_f, node_i, self.jointLineSteps)
         graph.edges[(node_f, node_i)] = edge
         for node in (node_f, node_i):
             if node in graph.incidence:
@@ -889,7 +953,7 @@ class RoadMap:
         shWorld = pbs.getShadowWorld(prob)
         # Start with empty viol so caching reflects only edge
         (aColl, hColl, hsColl) = violToColl(viol0)
-        for node in edge.nodes:
+        for node in edge.getNodes():
             # updates aColl, hColl, hsColl by side-effect
             if self.confColliders(pbs, prob, node.conf, aColl, hColl, hsColl,
                                   edge=edge) is None:
@@ -922,7 +986,7 @@ class RoadMap:
         viol = initViol.update(makeViolations(shWorld, (aColl, hColl, hsColl)))
 
         if debug('verifyPath'):
-            testViol = self.checkPath([n.conf for n in edge.nodes],
+            testViol = self.checkPath([n.conf for n in edge.getNodes()],
                                       pbs, prob)
             testViol = testViol.update(initViol)
             if testViol.names() != viol.names():
@@ -1028,7 +1092,7 @@ class RoadMap:
                 nviol = testConnection(edge, viol)
 
                 if debug('verifyPath'):
-                    vi = all(self.confViolations(n.conf, pbs, prob) for n in edge.nodes)
+                    vi = all(self.confViolations(n.conf, pbs, prob) for n in edge.getNodes())
                     if (nviol == None and vi) or (nviol != None and not vi):
                         raw_input('successors: bad edge')
 
@@ -1079,7 +1143,7 @@ class RoadMap:
                 cvt = self.confViolations(targetNode.conf, pbs, prob,
                                           initViol=cv, ignoreAttached=True)
                 if cvt == None or not testFn(targetNode): continue
-                edge = Edge(startNode, targetNode)
+                edge = Edge(startNode, targetNode, self.jointLineSteps)
                 ans = (cvt, cvt.weight(violationCosts),
                        [(edge, 0), (edge, 1)])
                 yield ans
@@ -1174,7 +1238,7 @@ class RoadMap:
         confPath = [edge1.ends[end1].conf]
         if len(edgePath) > 1:
             for (edge2, end2) in edgePath[1:]:
-                nodes = edge1.nodes
+                nodes = edge1.getNodes()
                 if end1 == 1:
                     nodes = nodes[::-1]
                 confPath.extend([n.conf for n in nodes[1:]])
@@ -1190,11 +1254,11 @@ class RoadMap:
             for i in range(len(nodePath)-1):
                 edge = graph.edges.get((nodePath[i], nodePath[i+1]), None)
                 if edge:
-                    confs = [n.conf for n in edge.nodes[::-1]]
+                    confs = [n.conf for n in edge.getNodes()[::-1]]
                 else:
                     edge = graph.edges.get((nodePath[i+1], nodePath[i]), None)
                     if edge:
-                        confs = [n.conf for n in edge.nodes]
+                        confs = [n.conf for n in edge.getNodes()]
                 assert edge
                 if confPath:
                     confPath.extend(confs[1:])
@@ -1429,6 +1493,7 @@ def scanH(graph, start):
         (cost, v, parent) = heappop(agenda)
         if v in expanded: continue
         v.hVal = cost
+        v.parent = parent
         expanded.add(v)
         count += 1
         if debug('scanH'):
@@ -1461,3 +1526,6 @@ def showPath(pbs, p, path):
         raw_input('Next?')
     raw_input('Path end')
 
+    
+
+            

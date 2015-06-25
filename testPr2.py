@@ -1780,7 +1780,7 @@ def prof(test, n=100):
     p.sort_stats('cumulative').print_stats(n)
     p.sort_stats('cumulative').print_callers(n)
 
-def profPrint(test, n=100):
+def profPrint(n=100):
     import pstats
     p = pstats.Stats('prof')
     p.sort_stats('cumulative').print_stats(n)

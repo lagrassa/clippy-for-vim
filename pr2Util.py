@@ -94,7 +94,7 @@ class ObjGraspB(Hashable):
         if self.obj == 'none':
             return None
         else:
-            return (self.obj, self.grasp.mode(), self.poseD, self.delta)
+            return (self.obj, self.grasp, self.poseD, self.delta) # .mode() for grasp?
     def __eq__(self, other):
         if other is None and self.obj == 'none': return True
         return hasattr(other, 'desc') and self.desc() == other.desc()
@@ -130,7 +130,7 @@ class ObjPlaceB(Hashable):
                          var or self.poseD.var)
         return pB
     def desc(self):
-        return (self.obj, self.support.mode(), self.poseD, self.delta)
+        return (self.obj, self.support, self.poseD, self.delta) # .mode() for support
     def shape(self, ws):                # in WorldState, e.g. shadow world
         return ws.world.getObjectShapeAtOrigin(self.obj).applyLoc(self.objFrame())
     def shadow(self, ws):
