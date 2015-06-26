@@ -83,7 +83,8 @@ class PBS:
                                                               self, 0.)
         if confViols == None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]:
-            raise Exception, 'Collision with robot: '+name
+            print 'Write code to move the object in the belief state.'
+            raise Exception, 'Hard collision with robot in belief'
         # Now for shadow collisions;  reduce the shadow if necessary
         confViols = self.beliefContext.roadMap.confViolations(self.conf,
                                                           self, .98)

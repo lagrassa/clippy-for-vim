@@ -740,7 +740,7 @@ def getHolding(goalConds):
     held = []
     for (pf, pb) in pfbs:
         if isGround(pb.values()):
-            if pb['obj'] != 'none':
+            if pb['Obj'] != 'none':
                 held.append((pb['Hand'], pb['Obj']))
     return held
 
