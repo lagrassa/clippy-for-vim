@@ -1613,19 +1613,19 @@ class PlanStack(Stack):
 
     def getSkelFromSubtree(self, i):
         return None
-        # def abstract(op):
-        #     # Make an abstract version of the operator
-        
-        # sk = []
-        # guts = self.guts()
-        # for j in range(i, len(guts)):
-        #     sk.append(list(reversed([abstract(op) for (op, _) in guts[j][1:]])))
-        # print 'Skeleton from popped tree:'
-        # for thing in sk:
-        #     print 'skeleton'
-        #     for (n, o) in enumerate(thing): print '   ', n, ':', o
-        # raw_input('okay?')
-        # return sk
+        def abstract(op):
+            # Make an abstract version of the operator
+            return op
+        sk = []
+        guts = self.guts()
+        for j in range(i, len(guts)):
+            sk.append(list(reversed([abstract(op) for (op, _) in guts[j][1:]])))
+        print 'Skeleton from popped tree:'
+        for thing in sk:
+            print 'skeleton'
+            for (n, o) in enumerate(thing): print '   ', n, ':', o
+        raw_input('okay?')
+        return sk
 
     # Return op and subgoal in this layer to be addressed next
     def nextLayerStep(self, layer, preImages, s, f = None, quiet = False):

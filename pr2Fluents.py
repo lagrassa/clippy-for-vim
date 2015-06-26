@@ -7,7 +7,7 @@ from planGlobals import debugMsg, debugDraw, debug, pause
 import planGlobals as glob
 from miscUtil import isGround, isVar, prettyString, applyBindings
 import fbch
-from fbch import Fluent, getMatchingFluents, Operator
+from fbch import Fluent, getMatchingFluents, Operator, inHeuristic
 from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
@@ -295,7 +295,13 @@ class CanReachHome(Fluent):
 
     def getViols(self, bState, v, p):
         assert v == True
-        (conf, fcp, cond) = self.args  
+        (conf, fcp, cond) = self.args
+
+        key = hash(bState.pbs)
+        if not hasattr(self, 'viols'): self.viols = {}
+        if not hasattr(self, 'hviols'): self.hviols = {}
+        if key in self.viols: return self.viols[key]
+        if inHeuristic and key in self.hviols: return self.hviols[key]
 
         newPBS = bState.pbs.copy()
         newPBS.updateFromGoalPoses(cond, permShadows=True)
@@ -306,6 +312,11 @@ class CanReachHome(Fluent):
         debugMsg('CanReachHome',
                  ('conf', conf),
                  ('->', violations))
+        if inHeuristic:
+            self.hviols[key] = path, violations
+        else:
+            self.viols[key] = path, violations
+            
         return path, violations
 
     def bTest(self, bState, v, p):
@@ -436,7 +447,12 @@ class CanReachNB(Fluent):
 
     def getViols(self, bState, v, p):
         assert v == True
-        (startConf, endConf, cond) = self.args 
+        (startConf, endConf, cond) = self.args
+        key = hash(bState.pbs)
+        if not hasattr(self, 'viols'): self.viols = {}
+        if not hasattr(self, 'hviols'): self.hviols = {}
+        if key in self.viols: return self.viols[key]
+        if inHeuristic and key in self.hviols: return self.hviols[key]
 
         newPBS = bState.pbs.copy()
         newPBS.updateFromGoalPoses(cond, permShadows=True)
@@ -446,6 +462,10 @@ class CanReachNB(Fluent):
         debugMsg('CanReachNB',
                  ('confs', startConf, endConf),
                  ('->', violations))
+        if inHeuristic:
+            self.hviols[key] = path, violations
+        else:
+            self.viols[key] = path, violations
         return path, violations
 
     def bTest(self, bState, v, p):
@@ -604,6 +624,13 @@ class CanPickPlace(Fluent):
     def getViols(self, bState, v, p):
         def violCombo(v1, v2):
             return v1.update(v2)
+
+        key = hash(bState.pbs)
+        if not hasattr(self, 'viols'): self.viols = {}
+        if not hasattr(self, 'hviols'): self.hviols = {}
+        if key in self.viols: return self.viols[key]
+        if inHeuristic and key in self.hviols: return self.hviols[key]
+            
         condViols = [c.getViols(bState, v, p) for c in self.getConds(bState)]
 
         if debug('CanPickPlace'):
@@ -617,6 +644,10 @@ class CanPickPlace(Fluent):
             return (None, None)
         allViols = [v for (p, v) in condViols]
         violations = reduce(violCombo, allViols)
+        if inHeuristic:
+            self.hviols[key] = True, violations
+        else:
+            self.viols[key] = True, violations
         return True, violations
 
     def bTest(self, bState, v, p):
@@ -901,7 +932,12 @@ class CanSeeFrom(Fluent):
     def getViols(self, bState, v, p):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
-         
+        key = hash(bState.pbs)
+        if not hasattr(self, 'viols'): self.viols = {}
+        if not hasattr(self, 'hviols'): self.hviols = {}
+        if key in self.viols: return self.viols[key]
+        if inHeuristic and key in self.hviols: return self.hviols[key]
+
         # Note that all object poses are permanent, no collisions can be ignored
         newPBS = bState.pbs.copy()
         newPBS.updateFromGoalPoses(cond, permShadows=True)
@@ -922,6 +958,11 @@ class CanSeeFrom(Fluent):
         debugMsg('CanSeeFrom',
                 ('obj', obj, pose), ('conf', conf),
                  ('->', occluders))
+        if inHeuristic:
+            self.hviols[key] = ans, occluders
+        else:
+            self.viols[key] = ans, occluders
+
         return ans, occluders
     
     def heuristicVal(self, details, v, p):
