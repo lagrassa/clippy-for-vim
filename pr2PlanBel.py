@@ -11,7 +11,8 @@ from objects import World, WorldState
 from pr2Robot import PR2, pr2Init, makePr2Chains
 from planGlobals import debugMsg, debugDraw, debug, pause
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
-from pr2Util import ObjGraspB, ObjPlaceB, shadowName, shadowWidths, objectName
+from planUtil import ObjGraspB, ObjPlaceB
+from pr2Util import shadowName, shadowWidths, objectName
 import fbch
 from fbch import getMatchingFluents
 from belief import B, Bd
@@ -99,9 +100,10 @@ class PBS:
                     pB = self.getPlaceB(obj)
                     var = pB.poseD.variance()
                     print 'oldVar', var
-                    pB.poseD.var = tuple(v/2.0 for v in var)
-                    print 'newVar', pB.poseD.variance()
-                self.shadowWorld = None
+                    newVar = tuple(v/2.0 for v in var)
+                    print 'newVar', newVar
+                    self.resetPlaceB(obj, pB.modifyPoseD(var=newVar))
+                self.reset()
             confViols = self.beliefContext.roadMap.confViolations(self.conf,
                                                           self, .98)
             shadows = confViols.allShadows()
@@ -146,6 +148,13 @@ class PBS:
             return self.defaultPlaceB(obj)
         else:
             return None
+    def resetPlaceB(self, obj, pB):
+        if self.fixObjBs.get(obj, None):
+            self.fixObjBs[obj] = pB
+        elif self.moveObjBs.get(obj, None):
+            self.moveObjBs[obj] = pB
+        else:
+            assert None, 'Unknown obj in resetPlaceB'
     def defaultPlaceB(self, obj):
         world = self.getWorld()
         fr = world.getFaceFrames(obj)

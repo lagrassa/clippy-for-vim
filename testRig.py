@@ -29,6 +29,8 @@ import pr2Util
 reload(pr2Util)
 from pr2Util import *
 
+from planUtil import Violations, PoseD, ObjGraspB, ObjPlaceB
+
 import dist
 reload(dist)
 from dist import DDist, DeltaDist, MultivariateGaussianDistribution, makeDiag

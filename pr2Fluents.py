@@ -1,7 +1,8 @@
 import util
 from util import nearAngle
 import numpy as np
-from pr2Util import PoseD, defaultPoseD, NextColor, shadowName, Violations, drawPath, objectName, ObjGraspB, ObjPlaceB
+from planUtil import PoseD, Violations, ObjGraspB, ObjPlaceB
+from pr2Util import defaultPoseD, NextColor, shadowName, drawPath, objectName
 from dist import DeltaDist, probModeMoved
 from planGlobals import debugMsg, debugDraw, debug, pause
 import planGlobals as glob

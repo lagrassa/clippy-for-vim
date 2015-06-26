@@ -10,8 +10,8 @@ from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ
 from miscUtil import isVar, argmax, isGround, tuplify, roundrobin
 from dist import DeltaDist, UniformDist
 from pr2Robot import CartConf
-from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, \
-     NextColor, supportFaceIndex, Memoizer, shadowWidths
+from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
+from pr2Util import shadowName, objectName, NextColor, supportFaceIndex, Memoizer, shadowWidths
 import fbch
 from belief import Bd
 from pr2Fluents import CanReachHome, canReachHome, inTest
@@ -1040,12 +1040,10 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         return
 
     # A shape for the purposes of viewing.  Make the shadow very small
-    smallPlaceB = copy.copy(placeB)
-    smallPlaceB.poseD = copy.copy(placeB.poseD)
     placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
     # be smarter about this?  LPK took this out
     # tempPlaceB.delta = (.01, .01, .01, .01)
-    shape = smallPlaceB.shadow(newBS.getShadowWorld(prob))
+    shape = placeB.shadow(newBS.getShadowWorld(prob))
 
     # Check current conf
     curr = newBS.conf

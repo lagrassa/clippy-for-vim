@@ -11,7 +11,8 @@ from planGlobals import debugMsg, debugDraw, debug, pause, torsoZ
 from miscUtil import argmax, isGround, isVar, argmax, squashOne
 from dist import UniformDist, DDist
 from pr2Robot import CartConf, gripperFaceFrame
-from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, Memoizer
+from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
+from pr2Util import shadowName, objectName, Memoizer
 import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B

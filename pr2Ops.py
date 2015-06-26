@@ -6,8 +6,8 @@ from dist import DeltaDist, varBeforeObs, DDist, probModeMoved, MixtureDist,\
 import fbch
 from fbch import Function, getMatchingFluents, Operator, simplifyCond
 from miscUtil import isVar, prettyString, makeDiag, isGround, argmax
-from pr2Util import PoseD, shadowName, ObjGraspB, ObjPlaceB, Violations,\
-     shadowWidths
+from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
+from pr2Util import shadowName, shadowWidths
 from pr2Gen import pickGen, canReachHome, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen, placeInRegionGen, placeGen
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
