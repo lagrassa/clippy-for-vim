@@ -123,19 +123,19 @@ def primPath(bs, cs, ce, p):
     assert path2
 
     # !! Debugging hack
-    if glob.realWorld:
-        rw = glob.realWorld
-        held = rw.held.values()
-        objShapes = [rw.objectShapes[obj] \
-                     for obj in rw.objectShapes if not obj in held]
-        attached = bs.getShadowWorld(p).attached
-        for path in (path1, path2):
-            for conf in path:
-                for obst in objShapes:
-                    if conf.placement(attached=attached).collides(obst):
-                        wm.getWindow('W').clear(); rw.draw('W');
-                        conf.draw('W', 'magenta'); obst.draw('W', 'magenta')
-                        raw_input('RealWorld crash! with '+obst.name())
+    # if glob.realWorld:
+    #     rw = glob.realWorld
+    #     held = rw.held.values()
+    #     objShapes = [rw.objectShapes[obj] \
+    #                  for obj in rw.objectShapes if not obj in held]
+    #     attached = bs.getShadowWorld(p).attached
+    #     for path in (path1, path2):
+    #         for conf in path:
+    #             for obst in objShapes:
+    #                 if conf.placement(attached=attached).collides(obst):
+    #                     wm.getWindow('W').clear(); rw.draw('W');
+    #                     conf.draw('W', 'magenta'); obst.draw('W', 'magenta')
+    #                     raw_input('RealWorld crash! with '+obst.name())
     
     if v1.weight() > 0 or v2.weight() > 0:
         if v1.weight() > 0: print 'start viol', v1

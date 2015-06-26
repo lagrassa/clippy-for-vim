@@ -28,8 +28,10 @@ considerReUsingPaths = True
 
 violationCosts = (10.0, 2.0, 10.0, 5.0)
 
-maxSearchNodes = 2500                   # 5000
-maxExpandedNodes = 1000                  # 2000
+# Don't try too hard, fall back to the RRT when we can't find a path quickly
+maxSearchNodes = 500                   # 5000
+maxExpandedNodes = 100                  # 2000
+
 searchGreedy = 0.75 # greedy, trust that the heuristic is good...
 searchOpt = 0.5     # should be 0.5 ideally, but it's slow...
 
@@ -408,8 +410,9 @@ class RoadMap:
                     initObst = set(endPtViol.allObstacles())
                     initShadows = set(endPtViol.allShadows())
                     for i, cacheValue in enumerate(sortedCacheValues):
-                        if i > 2: break # don't try too many times
+                        if i > 0: break # don't try too many times - just once?
                         (_, _, ans) = cacheValue
+                        if not ans[0]: return None
                         (_, _, edgePath) = ans
                         viol2 = self.checkEdgePath(edgePath, pbs, prob)
                         if viol2 and set(viol2.allObstacles()) <= initObst and set(viol2.allShadows()) <= initShadows:
