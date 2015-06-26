@@ -1514,7 +1514,7 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
                  len(skeleton)>subgoal.planNum and skeleton[subgoal.planNum])
             # Ignore last operation if we popped to get here.
             p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
-                                 lastOp = None if oldSkel else op,
+                                 lastOp = op if oldSkel == None else op,
                                  skeleton = sk,
                                  nonMonOps = nonMonOps,
                                  maxNodes = maxNodes)
@@ -1614,7 +1614,7 @@ class PlanStack(Stack):
         return (upperOp, upperSubgoal, None)
 
     def getSkelFromSubtree(self, i):
-        return None
+        return False
         def abstract(op):
             # Make an abstract version of the operator
             return op
