@@ -5,6 +5,7 @@ import windowManager3D as wm
 import copy
 import util
 import shapes
+import random
 from miscUtil import isGround
 from dist import UniformDist,  DeltaDist
 from objects import World, WorldState
@@ -76,6 +77,22 @@ class PBS:
         self.shadowWorld = None
         self.shadowProb = None
 
+    def ditherRobotOutOfCollision(self):
+        count = 0
+        confViols = self.beliefContext.roadMap.confViolations(self.conf,
+                                                              self, 0.)
+        while count < 100 and (confViols == None or confViols.obstacles or \
+          confViols.heldObstacles[0] or confViols.heldObstacles[1]):
+            self.draw(0.0, 'W')
+            base = self.conf['pr2Base']
+            newBase = tuple([b + random.random() * 0.02 for b in base])
+            self.conf['pr2Base'] = newBase
+            self.reset()
+            confViols = self.beliefContext.roadMap.confViolations(self.conf,
+                                                              self, 0.)
+        if count == 100:
+            raise Exception, 'Failed to move robot out of collision'
+
     def internalCollisionCheck(self):
         ws = self.getShadowWorld(0.0)   # minimal shadow
         # First check the robot for hard collisions
@@ -83,8 +100,9 @@ class PBS:
                                                               self, 0.)
         if confViols == None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]:
-            print 'Write code to move the object in the belief state.'
-            raise Exception, 'Hard collision with robot in belief'
+            self.draw(0.0, 'W')
+            print 'Robot in collision.  Will try to fix.'
+            self.ditherRobotOutOfCollision()
         # Now for shadow collisions;  reduce the shadow if necessary
         confViols = self.beliefContext.roadMap.confViolations(self.conf,
                                                           self, .98)
