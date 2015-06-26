@@ -122,7 +122,7 @@ class State:
                 numNonGround = len([thing for thing in self.fluents \
                                     if not thing.isGround()])
                 # There is no other reason why this value should be 0
-                if numNonGround == 0:
+                if numNonGround == 0 and debug('heuristic0'):
                     fizz = [thing for thing in self.fluents if \
                             thing.valueInDetails(start.details) == False]
                     print 'Fluents not true in start, but zero cost in H'
@@ -506,7 +506,8 @@ class Fluent(object):
     def getGrounding(self, details):
         if not isGround(self.args):
             return None
-        v = self.valueInDetails(details)
+        #v = self.valueInDetails(details)
+        v = details.fluentValue(self)
         b = {}
         if isVar(self.value):
             b[self.value] = v
@@ -1511,8 +1512,9 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
             writeSubgoalRefinement(f, ps.guts()[-1], subgoal)
             sk = (oldSkel and oldSkel[0]) or (skeleton and \
                  len(skeleton)>subgoal.planNum and skeleton[subgoal.planNum])
+            # Ignore last operation if we popped to get here.
             p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
-                                 lastOp = op,
+                                 lastOp = None if oldSkel else op,
                                  skeleton = sk,
                                  nonMonOps = nonMonOps,
                                  maxNodes = maxNodes)
@@ -1906,9 +1908,9 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                 debugMsg('skeleton', 'Skeleton exhausted', g.depth)
                 glob.debugOn = glob.debugOn[:-1]
             return []
-    # elif lastOp and g.depth == 0:
-    #     # At least ensure we try these bindings
-    #     ops = [lastOp] + [o for o in operators if o.name != lastOp.name]
+    elif lastOp and g.depth == 0:
+        # At least ensure we try these bindings at the top node of the plan
+        ops = [lastOp] + [o for o in operators if o.name != lastOp.name]
     else:
         ops = operators
 

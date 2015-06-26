@@ -741,13 +741,16 @@ def moveNBCostFun(al, args, details):
     return result
 
 def placeCostFun(al, args, details):
+    rawCost = 3
     (_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,p1) = args
-    result = costFun(1.0, p1 * canPPProb *(1-details.domainProbs.placeFailProb))
+    result = costFun(rawCost,
+                     p1*canPPProb*(1-details.domainProbs.placeFailProb))
     return result
 
 def pickCostFun(al, args, details):
     (o,h,pf,p,pd,gf,gm,gv,gd,prc,cd,pc,rgv,pv,p1,pr1,pr2,pr3) = args
-    result = costFun(1.0, p1*canPPProb*canPPProb*\
+    rawCost = 3
+    result = costFun(rawCost, p1*canPPProb*canPPProb*\
                      (1 - details.domainProbs.pickFailProb))
     return result
 
