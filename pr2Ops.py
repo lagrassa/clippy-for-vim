@@ -1235,17 +1235,18 @@ poseAchIn = Operator(\
                             'ObjPose1', 'PoseFace1',
                             'Obj2', 'ObjPose2', 'PoseFace2',
                             'PoseVar', 'TotalVar', 'P1', 'P2', 'PR'],
-            # Very prescriptive:  find objects, then nail down obj2, then
-            # obj 1
+            # Very prescriptive:  find objects, then nail down obj1,
+            # then obj 2.  Changed so we don't try to maintain
+            # detailed k of the table as we are picking other obj.
             {0 : set(),
              1 : {BLoc(['Obj1', planVar, planP], True), # 'PoseVar'
                   BLoc(['Obj2', planVar, planP], True)},
-             2 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
-                               defaultPoseDelta, 'P2'], True),
-                  Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)},
-             3 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
+             2 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
                                defaultPoseDelta, 'P1'], True),
-                  Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True)}},
+                  Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True)},
+             3 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
+                               defaultPoseDelta, 'P2'], True),
+                  Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)}},
             # Results
             [({Bd([In(['Obj1', 'Region']), True, 'PR'], True)},{})],
             functions = [\
