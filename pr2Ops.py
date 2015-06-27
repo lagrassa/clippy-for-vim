@@ -432,12 +432,14 @@ def realPoseVar((graspVar,), goal, start, vals):
     return [[tuple([gv+pv for (gv, pv) in zip(graspVar, placeVar)])]]
 
 def placeInPoseVar(args, goal, start, vals):
-    pv = [v * 3 for v in start.domainProbs.obsVarTuple]
+    pv = [v * 2 for v in start.domainProbs.obsVarTuple]
     pv[2] = pv[0]
     return [[tuple(pv)]]
 
-def times2((thing,), goal, start, vals):
-    return [[tuple([v*2 for v in thing])]]
+# Thing is a variance; compute a variance that corresponds to doubling
+# the stdev.    (sqrt(v) * 2)^2 = v * 4
+def stdevTimes2((thing,), goal, start, vals):
+    return [[tuple([v*4 for v in thing])]]
 
 # For place, grasp var is desired poseVar minus fixed placeVar
 # Don't let it be bigger than maxGraspVar 
@@ -1259,9 +1261,9 @@ poseAchIn = Operator(\
               # Assume it doesn't move
               Function(['PoseFace2', 'ObjPose2'], ['Obj2'],
                        poseInStart, 'poseInStart'),
-              # totalVar = 2 * poseVar; totalDelta = 2 * poseDelta
+              # totalVar = square(2 * sqrt(poseVar)); totalDelta = 2 * poseDelta
               Function(['PoseVar'], [], placeInPoseVar, 'placeInPoseVar'),
-              Function(['TotalVar'], ['PoseVar'], times2, 'times2'),
+              Function(['TotalVar'], ['PoseVar'], stdevTimes2, 'stdevTimes2'),
               # call main generator
               Function(['ObjPose1', 'PoseFace1'],
                      ['Obj1', 'Region', 'TotalVar',

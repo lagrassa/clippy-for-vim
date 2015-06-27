@@ -83,11 +83,13 @@ class PBS:
                                                               self, 0.)
         while count < 100 and (confViols == None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]):
+            count += 1
             self.draw(0.0, 'W')
+            raw_input('go?')
             base = self.conf['pr2Base']
-            newBase = tuple([b + random.random() * 0.02 for b in base])
-            self.conf.set('pr2Base', newBase)
-            self.reset()
+            newBase = tuple([b + random.random() * 0.05 for b in base])
+            newConf = self.conf.set('pr2Base', newBase)
+            self.updateConf(newConf)
             confViols = self.beliefContext.roadMap.confViolations(self.conf,
                                                               self, 0.)
         if count == 100:

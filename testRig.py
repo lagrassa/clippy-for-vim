@@ -178,7 +178,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
               draw = True):
     ((x0, y0, _), (x1, y1, dz)) = workspace
     w = 0.1
-    wm.makeWindow('W', viewPort, 800)   # was 800
+    wm.makeWindow('W', viewPort, 600)   # was 800
     if useROS: wm.makeWindow('MAP', viewPort)
     def hor((x0, x1), y, w):
         return Ba([(x0, y-w/2, 0), (x1, y+w/2.0, dz)])
@@ -744,9 +744,10 @@ typicalErrProbs = DomainProbs(\
             pickTolerance = (0.025, 0.025, 0.025, 0.1),
             maxGraspVar = (0.005**2, .005**2, .005**2, .015**2),
             # Use this for placing objects
-            placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
-            graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
-
+            # placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
+            # graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
+            placeDelta = (0.01, 0.01, 1.0e-4, 0.05),
+            graspDelta = (0.005, 0.005, 1.0e-4, 0.008))
 
 tinyErrProbs = DomainProbs(\
             # stdev, constant, assuming we control it by tracking while moving

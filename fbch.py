@@ -1237,7 +1237,7 @@ class Operator(object):
                             if cost < float('inf'): break
                         if cost < float('inf'): break
 
-        if not inHeuristic or debug('debugInHeuristic'):
+        if not inHeuristic or debug('debugInHeuristic') and debug(tag):
             debugMsg(tag, 'Final regression result', ('Op', self),
                      ('cost', cost),
                      ('goal',  goal.prettyString(False, startState)),
@@ -1328,7 +1328,7 @@ class RebindOp:
         g.rebind = False
         results = op.regress(g, startState, heuristic, operators)
 
-        if len(results) > 0:
+        if len(results) > 0 and debug('rebind'):
             debugMsg('rebind', 'successfully rebound local vars',
                      'costs', [c for (s, c) in results], 'minus',
                      glob.rebindPenalty)
@@ -1518,12 +1518,16 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
                                  skeleton = sk,
                                  nonMonOps = nonMonOps,
                                  maxNodes = maxNodes)
-            if not p: raw_input('planning failed'); raise PlanningFailed
-            planObj = makePlanObj(p, s)
-            planObj.printIt(verbose = verbose)
-            ps.push(planObj)
-            ancestors.append(planObj.getOps())
-            writeSubtasks(f, planObj, subgoal)
+            #if not p: raw_input('planning failed'); raise PlanningFailed
+            if p:
+                planObj = makePlanObj(p, s)
+                planObj.printIt(verbose = verbose)
+                ps.push(planObj)
+                ancestors.append(planObj.getOps())
+                writeSubtasks(f, planObj, subgoal)
+            else:
+                raw_input('Planning failed;  popping plan stack')
+                ps.pop()
         elif op.prim != None:
             # Execute
             executePrim(op, s, env, f)
@@ -1632,8 +1636,10 @@ class PlanStack(Stack):
 
     # Return op and subgoal in this layer to be addressed next
     def nextLayerStep(self, layer, preImages, s, f = None, quiet = False):
+        # Precompute.  Alternative is to try early out
+        satPI = [[s.satisfies(sg) for sg in pi] for pi in preImages]
         # If the final subgoal holds, then we're done
-        if any([s.satisfies(sg) for sg in preImages[-1]]):
+        if any(satPI[-1]):
             if debug('nextStep'):
                 for sg in preImages[-1]:
                     print sg, s.satisfies(sg)
@@ -1641,13 +1647,12 @@ class PlanStack(Stack):
             return None, None
         # Work backwards to find the latest subgoal that's satisfied
         for i in range(layer.length-1, -1, -1):
-            if not quiet:
-                debugMsg('nextStep', [s.satisfies(sg) for sg in preImages[i]])
-            if any([s.satisfies(sg) for sg in preImages[i]]):
+            if not quiet and debug('nextStep'):
+                debugMsg('nextStep', satPI[i])
+            if any(satPI[i]):
                 layer.lastStepExecuted = i+1
                 if not quiet:
                     debugMsg('nextStep', 'returning', layer.steps[i+1])
-
                 (op, _) = layer.steps[i+1]
                 if op.prim == None and not (op.isAbstract() or op == top):
                     print 'Selecting an inferential operator for execution'
@@ -1657,19 +1662,15 @@ class PlanStack(Stack):
                     print 'Post conditions not satisfied'
                     for thing in postCond:
                         for fl in thing.fluents:
-                            #if not fl.valueInDetails(s.details) == True:
                             if not s.fluentValue(fl) == True:
                                 print fl
                     raw_input('Continue?')
                 return layer.steps[i+1]
-        # Not in the envelope
         debugMsg('nextStep', 'not in envelope')
         
-
         fooFluents = []
         for fl in layer.steps[layer.lastStepExecuted][1].fluents:
-            fv = s.fluentValue(fl, recompute = True)
-            if fl.value != fv:
+            if fl.value != s.fluentValue(fl):
                 fooFluents.append(fl)
         print 'Failure: expected to satisfy subgoal', layer.lastStepExecuted, \
           'at layer', layer.level, '; Unsatisfied fluents:'
@@ -1683,7 +1684,7 @@ class PlanStack(Stack):
             glob.debugOn.append('testVerbose')
             foundError = False
             for fl in layer.steps[layer.lastStepExecuted][1].fluents:
-                fv = s.fluentValue(fl, recompute = True)
+                fv = s.fluentValue(fl)
                 if fl.value != fv:
                     print 'wanted:', fl.value, 'got:', fv
                     print '    ', fl.prettyString()
@@ -2175,7 +2176,8 @@ def getBindingsBetweenAux(resultFs, goalFs, startState):
                 newB = gf.entails(rfb, startState.details)
                 if newB != False:
                     matched = True
-                    debugMsg('gbb:detail', 'entails', b, gf.applyBindings(b),
+                    if debug('gbb:detail'):
+                        debugMsg('gbb:detail','entails', b, gf.applyBindings(b),
                               ('newB', newB))
                     newB.update(b)
                     result.append(newB)

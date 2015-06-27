@@ -67,9 +67,9 @@ def easyGraspGen(args, goalConds, bState, outBindings):
     if obj == newBS.held[hand].mode():
         gB = newBS.graspB[hand]
         trace('    easyGraspGen(%s,%s)='%(obj, hand), '(p,g)=', (None, gB.grasp.mode()))
-
-        debugMsg('easyGraspGen', 'obj in hand')
-        debugMsg('easyGraspGen', ('->', (gB.grasp.mode(),
+        if debug('easyGraspGen'):
+            debugMsg('easyGraspGen', 'obj in hand')
+            debugMsg('easyGraspGen', ('->', (gB.grasp.mode(),
                                          gB.poseD.mode().xyztTuple(),
                 graspVar, graspDelta)))
 
@@ -184,7 +184,8 @@ def pickGenTop(args, goalConds, pbs, outBindings,
 
     graspDelta = pbs.domainProbs.pickStdev
 
-    debugMsgSkip('pickGen', skip,
+    if debug('pickGen'):
+        debugMsgSkip('pickGen', skip,
                  zip(('obj', 'graspB', 'placeB', 'hand', 'prob'), args),
                  ('goalConds', goalConds),
                  ('moveObjBs', pbs.moveObjBs),
@@ -502,7 +503,8 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False, up
 
     startTime = time.clock()
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
-    debugMsgSkip('placeGen', skip,
+    if debug('placeGen'):
+        debugMsgSkip('placeGen', skip,
                  zip(('obj', 'graspB', 'placeBs', 'hand', 'prob'), args),
                  ('goalConds', goalConds),
                  ('moveObjBs', pbs.moveObjBs),
@@ -834,7 +836,8 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     (obj, regShapes, graspB, placeB, base, prob) = args
     trace('placeInGen(%s,%s) h='%(obj,[x.name() for x in regShapes]), fbch.inHeuristic)
     skip = (fbch.inHeuristic and not debug('inHeuristic'))
-    debugMsgSkip('placeInGen', skip,
+    if debug('placeInGen'):
+        debugMsgSkip('placeInGen', skip,
              zip(('obj', 'regShapes', 'graspB', 'placeB', 'prob'), args),
              outBindings)
     if obj == 'none' or not regShapes:

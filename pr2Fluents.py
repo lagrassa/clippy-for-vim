@@ -654,17 +654,18 @@ class CanPickPlace(Fluent):
     def bTest(self, bState, v, p):
         path, violations = self.getViols(bState, v, p)
         success = bool(violations and violations.empty())
-        # Test the other way to be sure we are consistent
-        (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
-          graspFace, graspMu, graspVar, graspDelta,
-          opType, inconds) = self.args
 
-        newBS = bState.pbs.copy().updateFromGoalPoses(inconds, permShadows=True)
-        world = newBS.getWorld()
-        graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
-                           PoseD(graspMu, graspVar), delta= graspDelta)
-        placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
-                           PoseD(pose, poseVar), delta=poseDelta)
+        # Test the other way to be sure we are consistent
+        # (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
+        #   graspFace, graspMu, graspVar, graspDelta,
+        #   opType, inconds) = self.args
+
+        # newBS = bState.pbs.copy().updateFromGoalPoses(inconds, permShadows=True)
+        # world = newBS.getWorld()
+        # graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
+        #                    PoseD(graspMu, graspVar), delta= graspDelta)
+        # placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
+        #                    PoseD(pose, poseVar), delta=poseDelta)
         # violPPTest = canPickPlaceTest(newBS, preConf, ppConf, hand,
         #                               graspB, placeB, p, op=opType)
 
@@ -689,20 +690,20 @@ class CanPickPlace(Fluent):
         
         # If fluent is false but would have been true without
         # conditioning, raise a flag
-        if not success:
-            # this fluent, but with no conditions
-            sc = self.copy()
-            sc.args[-1] = tuple()
-            sc.update()
-            p2, v2 = sc.getViols(bState, v, p)
-            if bool(p2 and v2.empty()):
-                print 'CanPickPlace fluent made false by conditions'
-                print self
-                raw_input('go?')
-            elif len(self.args[-1]) > 0:
-                print 'CanPickPlace fluent false'
-                print self
-                #raw_input('go?')
+        # if not success:
+        #     # this fluent, but with no conditions
+        #     sc = self.copy()
+        #     sc.args[-1] = tuple()
+        #     sc.update()
+        #     p2, v2 = sc.getViols(bState, v, p)
+        #     if bool(p2 and v2.empty()):
+        #         print 'CanPickPlace fluent made false by conditions'
+        #         print self
+        #         raw_input('go?')
+        #     elif len(self.args[-1]) > 0:
+        #         print 'CanPickPlace fluent false'
+        #         print self
+        #         #raw_input('go?')
         return success
 
     def heuristicVal(self, details, v, p):
@@ -895,39 +896,7 @@ class CanSeeFrom(Fluent):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
 
-        # Note that all object poses are permanent, no collisions can be ignored
-        newPBS = details.pbs.copy()
-
-        if pose == '*' and \
-          (newPBS.getHeld('left').mode() == obj or \
-           newPBS.getHeld('right').mode() == obj):
-           # Can't see it (in the usual way) if it's in the hand and a pose
-           # isn't specified
-           return False
-         
-        newPBS.updateFromAllPoses(cond)
-        placeB = newPBS.getPlaceB(obj)
-
-        # LPK! Forcing the variance to be very small.  Currently it's
-        # using variance from the initial state, and then overriding
-        # it based on conditions.  This is incoherent.  Could change
-        # it to put variance explicitly in the fluent.
-        placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
-
-        if placeB.support.mode() != poseFace and poseFace != '*':
-            placeB.support = DeltaDist(poseFace)
-        if placeB.poseD.mode() != pose and pose != '*':
-            placeB = placeB.modifyPoseD(mu = pose)
-        newPBS.updatePermObjPose(placeB)
-
-        newPBS.reset()   # recompute shadow world
-
-        shWorld = newPBS.getShadowWorld(p)
-        shName = shadowName(obj)
-        sh = shWorld.objectShapes[shName]
-        obstacles = [s for s in shWorld.getNonShadowShapes() if s.name()!=obj]+\
-                    [conf.placement(shWorld.attached)]
-        ans, _ = visible(shWorld, conf, sh, obstacles, p, moveHead=False)
+        ans, occluders = self.getViols(details, v, p)
         return ans
 
     def getViols(self, bState, v, p):
@@ -939,31 +908,45 @@ class CanSeeFrom(Fluent):
         if key in self.viols: return self.viols[key]
         if inHeuristic and key in self.hviols: return self.hviols[key]
 
-        # Note that all object poses are permanent, no collisions can be ignored
-        newPBS = bState.pbs.copy()
-        newPBS.updateFromGoalPoses(cond, permShadows=True)
+        pbs = bState.pbs
+        if pose == '*' and \
+          (pbs.getHeld('left').mode() == obj or \
+           pbs.getHeld('right').mode() == obj):
+            # Can't see it (in the usual way) if it's in the hand and a pose
+            # isn't specified
+            (ans, occluders) = False, None
+        else:
+            # All object poses are permanent, no collisions can be ignored
+            newPBS = bState.pbs.copy()
+            newPBS.updateFromGoalPoses(cond, permShadows=True)
+            placeB = newPBS.getPlaceB(obj)
+            # LPK! Forcing the variance to be very small.  Currently it's
+            # using variance from the initial state, and then overriding
+            # it based on conditions.  This is incoherent.  Could change
+            # it to put variance explicitly in the fluent.
+            placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
+            if placeB.support.mode() != poseFace and poseFace != '*':
+                placeB.support = DeltaDist(poseFace)
+            if placeB.poseD.mode() != pose and pose != '*':
+                placeB = placeB.modifyPoseD(mu=pose)
+            newPBS.updatePermObjPose(placeB)
+            newPBS.reset()   # recompute shadow world
+            shWorld = newPBS.getShadowWorld(p)
+            shName = shadowName(obj)
+            sh = shWorld.objectShapes[shName]
+            obstacles = [s for s in shWorld.getNonShadowShapes() if \
+                        s.name() != obj ] + \
+                        [conf.placement(shWorld.attached)]
+            ans, occluders = visible(shWorld, conf, sh, obstacles,
+                                     p, moveHead=False)
 
-        placeB = newPBS.getPlaceB(obj)
-        if placeB.support.mode() != poseFace and poseFace != '*':
-            placeB.support = DeltaDist(poseFace)
-        if placeB.poseD.mode() != pose and pose != '*':
-            newPBS.updatePermObjPose(placeB.modifyPoseD(mu=pose))
-        shWorld = newPBS.getShadowWorld(p)
-        shName = shadowName(obj)
-        sh = shWorld.objectShapes[shName]
-        obstacles = [s for s in shWorld.getNonShadowShapes() if \
-                     s.name() != obj ] + \
-                     [conf.placement(shWorld.attached)]
-        ans, occluders = visible(shWorld, conf, sh, obstacles, p, moveHead=False)
-
-        debugMsg('CanSeeFrom',
-                ('obj', obj, pose), ('conf', conf),
-                 ('->', occluders))
+            debugMsg('CanSeeFrom',
+                    ('obj', obj, pose), ('conf', conf),
+                    ('->', occluders))
         if inHeuristic:
             self.hviols[key] = ans, occluders
         else:
             self.viols[key] = ans, occluders
-
         return ans, occluders
     
     def heuristicVal(self, details, v, p):
