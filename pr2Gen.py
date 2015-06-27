@@ -655,7 +655,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
     regraspablePB = {}
     rm = pbs.getRoadMap()
     if regrasp:
-         graspBOther = copy.copy(graspB)
+         graspBOther = graspB.copy()
          otherGrasps = range(len(graspBOther.graspDesc))
          otherGrasps.remove(graspB.grasp.mode())
          if otherGrasps:

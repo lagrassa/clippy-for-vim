@@ -13,6 +13,7 @@ cdef class Scan:
         util.Point eye
         np.ndarray vertices, edges, bbox
         tuple scanParams
+        list contacts
     cpdef Scan applyTrans(self, util.Transform trans)
     cpdef np.ndarray depthMap(self)
     cpdef bool visible(self, util.Point pt)

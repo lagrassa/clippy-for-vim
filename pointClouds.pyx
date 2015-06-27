@@ -22,7 +22,7 @@ tiny = 1.0e-6
 cdef class Scan:
     # The input verts includes eye as vertex 0
     def __init__(self, util.Transform headTrans, tuple scanParams,
-                 verts = None, str name='scan', str color=None):
+                 verts = None, str name='scan', str color=None, contacts = None):
         self.name = name
         self.color = color
         self.headTrans = headTrans
@@ -36,6 +36,7 @@ cdef class Scan:
         for i in range(1, self.vertices.shape[1]):
             edges[i,0] = 0; edges[i,1] = i
         self.edges = edges
+        self.contacts = contacts
         self.bbox = vertsBBox(self.vertices, None)
         self.scanParams = scanParams
 
@@ -147,7 +148,8 @@ def simulatedScan(conf, scanParams, objects, name='scan', color=None):
             verts[:,i] = contacts[i][0]
         else:
             verts[:, i] = scan.vertices[:, i]
-    return Scan(headTrans, scanParams, verts=verts, name=name, color=color)
+    return Scan(headTrans, scanParams, verts=verts,
+                name=name, color=color, contacts=contacts)
 
 def simulatedDepthMap(scan, objects):
     n = scan.edges.shape[0]

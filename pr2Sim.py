@@ -243,47 +243,48 @@ class RealWorld(WorldState):
         if debug('icp'):
             scan = pc.simulatedScan(lookConf, laserScanParams,
                                     self.getNonShadowShapes()+ [self.robotPlace])
-            scan.draw('W', color='red')
+            # scan.draw('W', color='red')
 
         for shape in self.getObjectShapes():
             curObj = shape.name()
-
+            objType = self.world.getObjType(curObj)
             if debug('icp'):
                 placeB = self.bs.pbs.getPlaceB(curObj)
-                print icp.getObjectDetections(placeB, self.bs.pbs, scan)
-            
-            obstacles = [s for s in self.getObjectShapes() if \
-                         s.name() != curObj ]  + [self.robotPlace]
-
-            deb = 'visible' in debugOn
-            if (not deb) and debug('visibleEx'): debugOn.append('visible')
-            vis, _ = visible(self, self.robotConf,
-                             self.objectShapes[curObj],
-                             obstacles, 0.75, moveHead=False,
-                             fixed=[self.robotPlace.name()])
-            if not deb and debug('visibleEx'): debugOn.remove('visible')
-            if not vis:
-                print 'Object', curObj, 'is not visible'
-                continue
+                (score, obsPose, obsShape) =\
+                        icp.getObjectDetections(lookConf, placeB, self.bs.pbs, scan)
+                obs.append((objType, supportFaceIndex(obsShape), obsPose))
             else:
-                print 'Object', curObj, 'is visible'
+                obstacles = [s for s in self.getObjectShapes() if \
+                             s.name() != curObj ]  + [self.robotPlace]
 
-            truePose = self.getObjectPose(curObj)
-            # Have to get the resting face.  And add noise.
-            trueFace = supportFaceIndex(self.objectShapes[curObj])
-            print 'observed Face', trueFace
-            ff = self.objectShapes[curObj].faceFrames()[trueFace]
-            obsMissProb = self.domainProbs.obsTypeErrProb
-            miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
-            if miss:
-                print 'Missed observation'
-                continue
-            else:
-                obsVar = self.domainProbs.obsVar
-                obsPose = util.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
-                obsPlace = obsPose.compose(ff).pose().xyztTuple()
-                objType = self.world.getObjType(curObj)
-                obs.append((objType, trueFace, util.Pose(*obsPlace)))
+                deb = 'visible' in debugOn
+                if (not deb) and debug('visibleEx'): debugOn.append('visible')
+                vis, _ = visible(self, self.robotConf,
+                                 self.objectShapes[curObj],
+                                 obstacles, 0.75, moveHead=False,
+                                 fixed=[self.robotPlace.name()])
+                if not deb and debug('visibleEx'): debugOn.remove('visible')
+                if not vis:
+                    print 'Object', curObj, 'is not visible'
+                    continue
+                else:
+                    print 'Object', curObj, 'is visible'
+
+                truePose = self.getObjectPose(curObj)
+                # Have to get the resting face.  And add noise.
+                trueFace = supportFaceIndex(self.objectShapes[curObj])
+                print 'observed Face', trueFace
+                ff = self.objectShapes[curObj].faceFrames()[trueFace]
+                obsMissProb = self.domainProbs.obsTypeErrProb
+                miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
+                if miss:
+                    print 'Missed observation'
+                    continue
+                else:
+                    obsVar = self.domainProbs.obsVar
+                    obsPose = util.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
+                    obsPlace = obsPose.compose(ff).pose().xyztTuple()
+                    obs.append((objType, trueFace, util.Pose(*obsPlace)))
         print 'Observation', obs
         if not obs:
             debugMsg('sim', 'Null observation')

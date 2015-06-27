@@ -1,12 +1,16 @@
 import numpy as np
 from math import sqrt
 from scipy.spatial import cKDTree
+from scipy.optimize import fmin, fmin_powell
 from transformations import euler_matrix
 from shapes import toPrims, pointBox, readOff
 import pointClouds as pc
 import time
 from planGlobals import debug, debugMsg
+import windowManager3D as wm
 import util
+from dist import MultivariateGaussianDistribution
+MVG = MultivariateGaussianDistribution
 
 # Input: expects Nx3 matrix of points
 # Returns R,t
@@ -143,7 +147,7 @@ def icp0(model, data, dmax, niter=100, trans_only=False):
         print t
     return R, t, trans_model[valid]
 
-def icp(model, data, trimFactor=0.9, niter=10, trans_only=False):
+def icp(model, data, trimFactor=0.9, niter=100, trans_only=False):
     kdTree = cKDTree(model, 20)         # initialize with model
     R = np.mat(np.eye(3))
     t = np.mat(np.zeros(3)).T
@@ -160,19 +164,28 @@ def icp(model, data, trimFactor=0.9, niter=10, trans_only=False):
         e = sqrt(err/Nt)                # rmse for trim fraction of the data
         rel_de = abs(e - e_old)/e
         print 'rmse', e, 'rel change in rmse', rel_de
-        if e < 0.001 or rel_de < 0.0001: break
+        if e < 0.001 or rel_de < 0.001: break
         e_old = e
         valid = dists <= sdists[Nt-1]   # relevant subset of data
         # Compute trans based on relevant subset
         if trans_only:
             R, t = rigid_transform_3D(data[valid], model[nbrs[valid]], trans_only=trans_only)
         else:
-            R, t = rigid_transform_3D(data[valid], model[nbrs[valid]], trans_only=True)
+            # R, t = rigid_transform_3D(data[valid], model[nbrs[valid]], trans_only=True)
             R2, t2 = rigid_transform_3D(data[valid][:,:2], model[nbrs[valid]][:,:2], trans_only=trans_only)
             R[:2,:2] = R2
+            t[:2] = t2
         print R
         print t
         trans_data = (R*data.T + np.tile(t, (1, N))).T
+        if iter%5 == 0:
+            wm.getWindow('W').clear()
+            drawMat(trans_data, 'W', 'orange')
+            matched = nbrs[valid]
+            drawMat(model[matched], 'W', 'green')
+            unmatched = np.array([i not in matched for i in np.arange(model.shape[0])])
+            drawMat(model[unmatched], 'W', 'red')
+            raw_input('Ok?')
     return R, t, e
 
 # Construct rotated model for a range of theta
@@ -192,13 +205,13 @@ def drawMat(mat, win = 'W', color='blue'):
 def icpLocate(model, data):
     model_mat = np.matrix(model.T[:,:3])
     data_mat = np.matrix(data.T[:,:3])
-    drawMat(data_mat, 'orange')
     best_score = None
     best_R = None
     best_t = None
     for frac in np.arange(0.4, 1.0, 0.1):
         R, t, e = icp(model_mat, data_mat, trimFactor=frac)
         score = e*(frac**(-3))
+        print 'frac', frac, 'error', e, 'score', score, 'best_score', best_score
         if best_score == None or score < best_score:
             best_score = score
             best_R = R
@@ -209,6 +222,7 @@ def icpLocate(model, data):
     return trans
 
 def getObjectDetections(placeB, pbs, pointCloud):
+    if placeB.obj == 'objA': return
     startTime = time.time()
     objName = placeB.obj
     pose = placeB.objFrame().pose()
@@ -266,7 +280,7 @@ def depthScore(shape, scan, thr):
     # dmShape is normalized depths
     dmShape, contacts = pc.simulatedDepthMap(scan, [shape])
     dmShape = dmScan * dmShape
-    drawVerts(vertsForDM(dmShape, scan), 'cyan')
+    drawVerts(vertsForDM(dmShape, scan), 'W', 'cyan')
     score = 0.
     diff = dmScan - dmShape
     for i in range(diff.shape[0]):
@@ -292,3 +306,161 @@ def vertsForDM(dm, scan):
         else:
             verts[:,i] = scanVerts[:,0]
     return verts
+
+# ==================
+
+laserScanParams = (0.3, 0.1, 0.1, 2., 20)
+def getObjectDetections(lookConf, placeB, pbs, pointCloud):
+    startTime = time.time()
+    objName = placeB.obj
+    pose = placeB.objFrame().pose()
+    shWorld = pbs.getShadowWorld(0.95)
+    world = pbs.getWorld()
+    objShape = placeB.shape(pbs.getWorld()) # nominal shape
+    objShadow = placeB.shadow(shWorld)
+    # objCloud = world.typePointClouds[world.objectTypes[objName]]
+    # objCloud = np.dot(np.array(pose.matrix), objCloud)
+    # Generate point cloud for object at the expected pose
+    objScan = pc.simulatedScan(lookConf, laserScanParams, [objShape])
+    contacts = np.array([bool(c) for c in objScan.contacts])
+    objCloud = objScan.vertices[:, contacts]
+    drawVerts(objCloud, 'W', 'green')
+    raw_input('objCloud')
+    
+    var = placeB.poseD.variance()
+    score, trans, detection = \
+           bestObjDetection(placeB, objShape, objShadow, objCloud, pointCloud, var, thr = 0.02)
+    print 'Obj detection', detection, 'with score', score
+    print 'Running time for obj detections =',  time.time() - startTime
+    if detection:
+        debugMsg('icp', 'Detection for obj=%s'%objName)
+        return (score, placeB.poseD.mode().compose(trans), detection)
+
+def bestObjDetection(placeB, objShape, objShadow, objCloud, pointCloud, variance, thr = 0.02):
+    good = [0]                          # include eye
+    points = pointCloud.vertices
+    headTrans = pointCloud.headTrans
+    for p in range(1, points.shape[1]):   # index 0 is eye
+        pt = points[:,p]
+        for sh in objShadow.parts():
+            if np.all(np.dot(sh.planes(), pt) <= thr): # note use of thr
+                good.append(p); break
+    good = np.array(good)               # indices of points in shadow
+    goodCloud = pointCloud.vertices[:, good]
+    goodScan = pc.Scan(pointCloud.headTrans, None, verts=goodCloud)
+
+    print 'initial score', depthScore(objShape, goodScan, thr)
+
+    # Try to align the model to the relevant data
+    # score, trans = locate(placeB, objCloud, goodCloud[:,1:], variance, thr, objShape)
+    score, trans = locateByFmin(placeB, objCloud, goodCloud[:,1:], objShape, variance)
+    print 'best score', score, 'best trans', trans
+    transShape = objShape.applyTrans(trans)
+    transShape.draw('W', 'magenta')
+    raw_input('transShape (in magenta)')
+
+    # Evaluate the result by comparing the depth map from the point
+    # cloud to the simulated depth map for the detection.
+    score = depthScore(transShape, goodScan, thr)
+
+    raw_input('score=%f'%score)
+    return score, trans, transShape
+
+def diagToSq(d):
+    return [[(d[i] if i==j else 0.0) \
+             for i in range(len(d))] for j in range(len(d))]
+
+def locateAux(placeB, model_verts, data_verts, variance, thr, trimFactor, shape):
+    mvg = MVG((0.,0.,0.,0.), diagToSq(variance))
+    data = np.mat(data_verts.T[:,:3])
+    kdTree = cKDTree(data, 20)
+    dmax = 0.02                         # ??
+    best_mse = 1.0e10
+    best_pose = None
+    R = np.mat(np.eye(3))
+    t = np.mat(np.zeros(3)).T
+    N = model_verts.shape[1]
+    Nt = int(trimFactor*N)
+    wm.getWindow('W').clear()
+    drawVerts(data_verts, 'W', 'red')
+    trans = np.matrix(np.eye(4))
+    for i in range(10000):
+        obsPose = util.Pose(*mvg.draw())
+        model_verts_trans = np.dot(np.array(obsPose.matrix), model_verts)
+        model_trans = model_verts_trans.T[:, :3]
+        dists, nbrs = kdTree.query(model_trans)
+        sdists = np.sort(dists)[:Nt]
+
+        # valid = dists <= sdists[Nt-1]   # relevant subset of data
+        # R2, t2 = rigid_transform_3D(np.mat(model_verts_trans.T)[valid][:,:2], data[nbrs[valid]][:,:2])
+        # R[:2,:2] = R2
+        # t[:2] = t2
+        # trans[:3,:3] = R
+        # trans[:3, 3] = t
+        # tr = util.Transform(np.array(trans))
+
+        err = sum(np.multiply(sdists, sdists))
+        mse = err/Nt                # mse for trim fraction of the data
+        if i%1000 == 0 and best_pose:
+            print i, sqrt(best_mse), best_pose
+            shape.applyTrans(best_pose).draw('W', 'cyan')
+            # shape.applyTrans(tr).draw('W', 'purple')
+            raw_input('Ok?')
+        if mse < best_mse:
+            best_mse = mse
+            best_pose = obsPose
+    print 'best', best_mse, best_pose
+    return (best_mse, best_pose)
+
+def locate(placeB, model_verts, data_verts, variance, thr, shape):
+    best_score = None
+    best_trans = None
+    best_frac = None
+    for frac in np.arange(0.7, 1.0, 0.1):
+        mse, pose = locateAux(placeB, model_verts, data_verts, variance, thr, frac, shape)
+        score = mse*(frac**(-2))
+        print 'frac', frac, 'mse', mse, 'score', score, 'best_score', best_score
+        transShape = shape.applyTrans(pose).draw('W', 'orange')
+        raw_input('Next?')
+        if best_score == None or score < best_score:
+            best_score = score
+            best_trans = pose
+            best_frac = frac
+    print 'best_score', best_score, 'best_frac', best_frac
+    return (best_score, best_trans)
+
+def locateByFmin(placeB, model_verts, data_verts, shape, variance):
+    data = np.mat(data_verts.T[:,:3])
+    drawVerts(data_verts, 'W', 'red')
+    kdTree = cKDTree(data, 20)
+    N = model_verts.shape[1]
+    frac = 0.9
+    def poseScore(x):
+        (x, y, z, th) = x
+        Nt = int(frac*N)
+        pose = util.Pose(x,y,z,th)
+        model_verts_trans = np.dot(np.array(pose.matrix), model_verts)
+        model_trans = model_verts_trans.T[:, :3]
+        dists, nbrs = kdTree.query(model_trans)
+        sdists = np.sort(dists)[:Nt]
+        err = sum(np.multiply(sdists, sdists))
+        mse = err/Nt
+        # score = mse*(frac**(-2))
+        return mse
+    mvg = MVG((0.,0.,0.,0.), diagToSq(variance))
+    best_score = None
+    best_trans = None
+    for attempt in xrange(5):
+        ans = fmin_powell(poseScore, np.array(util.Pose(*mvg.draw()).xyztTuple()))
+        (x, y, z, th) = ans
+        pose = util.Pose(x,y,z,th)
+        mse = poseScore(ans)
+        score = mse*(frac**(-2))
+        print 'frac', frac, 'mse', mse, 'score', score, 'best_score', best_score
+        transShape = shape.applyTrans(pose).draw('W', 'orange')
+        if best_score == None or score < best_score:
+            best_score = score
+            best_trans = pose
+    print 'best_score', best_score
+    return (best_score, best_trans)
+    
