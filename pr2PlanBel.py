@@ -86,7 +86,7 @@ class PBS:
             self.draw(0.0, 'W')
             base = self.conf['pr2Base']
             newBase = tuple([b + random.random() * 0.02 for b in base])
-            self.conf['pr2Base'] = newBase
+            self.conf.set('pr2Base', newBase)
             self.reset()
             confViols = self.beliefContext.roadMap.confViolations(self.conf,
                                                               self, 0.)
