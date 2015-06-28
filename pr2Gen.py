@@ -27,7 +27,7 @@ from pr2GenAux import *
 
 #  How many candidates to generate at a time...  Larger numbers will
 #  generally lead to better solutions.
-pickPlaceBatchSize = 5
+pickPlaceBatchSize = 3
 
 easyGraspGenCacheStats = [0,0]
 
@@ -305,13 +305,17 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                 yield (placeB, c, ca), viol        
         graspConfGen = potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob)
         firstConf = next(graspApproachConfGen(None), None)
-        if (not firstConf) or (firstConf and checkInfeasible(firstConf)):
+        # This used to have an or clause
+        # (firstConf and checkInfeasible(firstConf))
+        # but infeasibility of one of the grasp confs due to held
+        # object does not guarantee there are no solutions.
+        if (not firstConf):
             debugMsg('pickGen', 'No potential grasp confs, will need to regrasp')
             pbs.draw(prob, 'W')
             raw_input('need to regrasp')
         else:
             targetConfs = graspApproachConfGen(firstConf)
-            batchSize = pickPlaceBatchSize
+            batchSize = 1 if fbch.inHeuristic else pickPlaceBatchSize
             batch = 0
             while True:
                 # Collect the next batch of trialConfs
@@ -411,7 +415,6 @@ def placeGen(args, goalConds, bState, outBindings):
 def placeGenGen(args, goalConds, bState, outBindings):
     (obj, hand, poses, support, objV, graspV, objDelta, graspDelta, confDelta,
      prob) = args
-
     base = sameBase(goalConds)
     if base:
         print('Same base constraint in placeGen')
@@ -496,9 +499,21 @@ def placeGenGen(args, goalConds, bState, outBindings):
     for ans in gen:
         yield ans
 
+placeGenTopCache = {}
+
 # returns values for (?graspPose, ?graspFace, ?conf, ?confAppr)
 def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False, update=True):
     (obj, graspB, placeBs, hand, base, prob) = args
+
+    key = ((obj, graspB, placeBs, hand, tuple(base) if base else None, prob),
+           frozenset(goalConds), pbs, regrasp, away, update)
+    # if not fbch.inHeuristic:
+    #     if key in placeGenTopCache:
+    #         print '********* placeGenTopCache HIT'
+    #     else:
+    #         print '********* placeGenTopCache MISS, adding to cache'
+    #         placeGenTopCache[key] = True
+    #         raw_input('Continue?')
     trace('placeGen(%s,%s) h='%(obj,hand), fbch.inHeuristic)
 
     startTime = time.clock()
@@ -568,7 +583,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         if pB in regraspablePB:
             return regraspablePB[pB]
         other =  [next(potentialGraspConfGen(pbs, pB, gBO, conf, hand, base, prob, nMax=1),
-                       (None, None))[0] \
+                       (None, None, None))[0] \
                   for gBO in gBOther]
         if any(other):
             if debug('placeGen', skip=skip):
@@ -602,7 +617,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         if pbsOrig and pbsOrig.held[hand].mode() != obj and pB:
             nextGr = next(potentialGraspConfGen(pbsOrig, pB, gB, conf, hand, base,
                                           prob, nMax=1),
-                              (None, None))
+                              (None, None, None))
             # !!! LPK changed this because next was returning None
             if nextGr and nextGr[0]:
                 return 1
@@ -671,7 +686,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
 
     for grasps, gCost in zip(gClasses, gCosts):
         targetConfs = placeApproachConfGen(grasps)
-        batchSize = pickPlaceBatchSize
+        batchSize = 1 if fbch.inHeuristic else pickPlaceBatchSize
         batch = 0
         while True:
             # Collect the next batach of trialConfs

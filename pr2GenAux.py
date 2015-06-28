@@ -347,6 +347,7 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None
                         potentialGraspConfGenAux(*key))
         cache[key] = memo
     for x in memo:
+        assert len(x) == 3 and x[-1] != None
         yield x
 
 graspConfs = set([])
@@ -395,7 +396,11 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
 
 def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=10):
     if conf:
-        yield conf, Violations()
+        ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
+        if ca:
+            viol = rm.confViolations(ca, pbs, prob, ignoreAttached=True)
+            if viol:
+                yield conf, ca, viol
         return
     wrist = objectGraspFrame(pbs, graspB, placeB, hand)
     if debug('potentialGraspConfs'):

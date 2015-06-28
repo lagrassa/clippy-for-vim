@@ -336,8 +336,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             targets.append((targetObj, placeBs[targetObj]))
 
         if targets:
-            print 'Fix height of table'
-            surfacePoly = makeROSPolygon(tableRob, zPlane=0.67) # from perceived table
+            surfacePoly = makeROSPolygon(tableRob) # from perceived table
             ans = getObjDetections(self.world,
                                    dict(targets),
                                    outConf, # the lookConf actually achieved

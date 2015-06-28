@@ -15,8 +15,8 @@ from pr2Visible import visible, lookAtConf
 from time import sleep
 from pr2Ops import lookAtBProgress
 from pr2RoadMap import validEdgeTest
-import icp
-reload(icp)
+import locate
+reload(locate)
 
 # debug tables
 import pointClouds as pc
@@ -46,7 +46,7 @@ simOdoErrorRate = 0.02
 
 pickSuccessDist = 0.1  # pretty big for now
 
-laserScanParams = (0.3, 0.2, 0.1, 3., 30) # narrow
+laserScanParams = (0.3, 0.2, 0.1, 3., 50)
 
 class RealWorld(WorldState):
     def __init__(self, world, bs, probs):
@@ -240,19 +240,28 @@ class RealWorld(WorldState):
         # objType = self.world.getObjType(targetObj)
         obs = []
 
-        if debug('icp'):
+        if debug('locate'):
             scan = pc.simulatedScan(lookConf, laserScanParams,
                                     self.getNonShadowShapes()+ [self.robotPlace])
-            # scan.draw('W', color='red')
 
         for shape in self.getObjectShapes():
             curObj = shape.name()
             objType = self.world.getObjType(curObj)
-            if debug('icp'):
+            if debug('locate'):
                 placeB = self.bs.pbs.getPlaceB(curObj)
-                (score, obsPose, obsShape) =\
-                        icp.getObjectDetections(lookConf, placeB, self.bs.pbs, scan)
-                obs.append((objType, supportFaceIndex(obsShape), obsPose))
+                (score, trans, obsShape) =\
+                        locate.getObjectDetections(lookConf, placeB, self.bs.pbs, scan)
+                if score != None:
+                    print 'Object', curObj, 'is visible'
+                    obsPose = trans.pose()
+                    print 'placeB.poseD.mode()', placeB.poseD.mode()
+                    print 'truePose', self.getObjectPose(curObj)
+                    print ' obsPose', obsPose
+                    obsShape.draw('World', 'cyan')
+                    raw_input('Go?')
+                    obs.append((objType, supportFaceIndex(obsShape), obsPose))
+                else:
+                    print 'Object', curObj, 'is not visible'
             else:
                 obstacles = [s for s in self.getObjectShapes() if \
                              s.name() != curObj ]  + [self.robotPlace]

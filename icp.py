@@ -326,14 +326,15 @@ def getObjectDetections(lookConf, placeB, pbs, pointCloud):
     objCloud = objScan.vertices[:, contacts]
     drawVerts(objCloud, 'W', 'green')
     raw_input('objCloud')
-    
     var = placeB.poseD.variance()
     score, trans, detection = \
            bestObjDetection(placeB, objShape, objShadow, objCloud, pointCloud, var, thr = 0.02)
     print 'Obj detection', detection, 'with score', score
     print 'Running time for obj detections =',  time.time() - startTime
-    if detection:
-        debugMsg('icp', 'Detection for obj=%s'%objName)
+    debugMsg('icp', 'Detection for obj=%s'%objName)
+    if score < 0:
+        return (score, None, None)
+    else:
         return (score, placeB.poseD.mode().compose(trans), detection)
 
 def bestObjDetection(placeB, objShape, objShadow, objCloud, pointCloud, variance, thr = 0.02):
@@ -347,6 +348,8 @@ def bestObjDetection(placeB, objShape, objShadow, objCloud, pointCloud, variance
                 good.append(p); break
     good = np.array(good)               # indices of points in shadow
     goodCloud = pointCloud.vertices[:, good]
+    if goodCloud.shape[1] < 0.5*objCloud.shape[1]:
+        return (-1, None, None)
     goodScan = pc.Scan(pointCloud.headTrans, None, verts=goodCloud)
 
     print 'initial score', depthScore(objShape, goodScan, thr)
@@ -445,7 +448,6 @@ def locateByFmin(placeB, model_verts, data_verts, shape, variance):
         sdists = np.sort(dists)[:Nt]
         err = sum(np.multiply(sdists, sdists))
         mse = err/Nt
-        # score = mse*(frac**(-2))
         return mse
     mvg = MVG((0.,0.,0.,0.), diagToSq(variance))
     best_score = None
@@ -455,12 +457,10 @@ def locateByFmin(placeB, model_verts, data_verts, shape, variance):
         (x, y, z, th) = ans
         pose = util.Pose(x,y,z,th)
         mse = poseScore(ans)
-        score = mse*(frac**(-2))
         print 'frac', frac, 'mse', mse, 'score', score, 'best_score', best_score
-        transShape = shape.applyTrans(pose).draw('W', 'orange')
         if best_score == None or score < best_score:
             best_score = score
             best_trans = pose
-    print 'best_score', best_score
+    print 'best_score', best_score, 'best_trans', best_trans
     return (best_score, best_trans)
     

@@ -87,7 +87,9 @@ class PBS:
             self.draw(0.0, 'W')
             raw_input('go?')
             base = self.conf['pr2Base']
-            newBase = tuple([b + random.random() * 0.05 for b in base])
+            # Should consider motions in both positive and negative directions
+            # It won't wonder away too far... TLP
+            newBase = tuple([b + (random.random() - 0.5) * 0.05 for b in base])
             newConf = self.conf.set('pr2Base', newBase)
             self.updateConf(newConf)
             confViols = self.beliefContext.roadMap.confViolations(self.conf,
@@ -595,19 +597,19 @@ def makeShadow(shape, prob, bel, name=None, color='gray'):
         if debug('getShadowWorld'):
             shParts[-1].draw('W', 'brown')
             raw_input('Next part?')
-    if len(shParts) == 1:
-        if name:
-            shParts[0].properties['name'] = name
-        if debug('getShadowWorld'):
-            print 'shadow name', shParts[0].name()
-            raw_input('1 part shadow, Ok?')
-        return shParts[0]
-    else:
-        if debug('getShadowWorld'):
-            raw_input('multiple part shadow, Ok?')
-        return shapes.Shape(shParts, shape.origin(),
-                            name=name or shape.name(),
-                            color=shColor)
+    # if len(shParts) == 1:
+    #     if name:
+    #         shParts[0].properties['name'] = name
+    #     if debug('getShadowWorld'):
+    #         print 'shadow name', shParts[0].name()
+    #         raw_input('1 part shadow, Ok?')
+    #     return shParts[0]
+    # else:
+    if debug('getShadowWorld'):
+        raw_input('multiple part shadow, Ok?')
+    return shapes.Shape(shParts, shape.origin(),
+                        name=name or shape.name(),
+                        color=shColor)
 
 def LEQ(x, y):
     return all([x1 <= y1 for (x1, y1) in zip(x,y)])

@@ -138,8 +138,8 @@ from timeout import timeout, TimeoutError
 
 # 5 min timeout for all tests
 @timeout(600)
-def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=False, easy=False):
-    eval('test%d(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical, easy=easy)'%n)
+def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=True, easy=False, rip=True):
+    eval('test%s(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical, easy=easy, rip=rip)'%str(n))
 
 def testRepeat(n, repeat=3, **args):
     for i in range(repeat):
@@ -273,7 +273,6 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     for i, objName in enumerate(manipulanda):
         thing = Sh([place((-0.0445, 0.0445), (-0.027, 0.027), (0.0, 0.1175))],
                    name = objName, color=colors[i%len(colors)])
-        # thing.typeName = 'soda'  #!! HACK
         height = thing.bbox()[1,2]
         world.addObjectShape(thing)
         # The bbox has been centered

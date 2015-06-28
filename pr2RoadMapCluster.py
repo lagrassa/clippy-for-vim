@@ -541,8 +541,8 @@ class RoadMap:
             elif ans == None or \
                  (set(viol.allObstacles()) < set(ans[0].allObstacles()) and \
                   set(viol.allShadows()) < set(ans[0].allShadows())):
-                print 'original viol', ans if ans==None else ans[0]
-                print 'RRT viol', viol
+                # print 'original viol', ans if ans==None else ans[0]
+                # print 'RRT viol', viol
                 print '    returning RRT ans'
                 return (viol, 0, path)
 
