@@ -1,12 +1,22 @@
+
+import numpy as np
 import shapes
 
 def Ba(bb, **prop): return shapes.BoxAligned(np.array(bb), None, **prop)
 def Sh(args, **prop): return shapes.Shape(list(args), None, **prop)
 
-tZ = 0.68
-coolerZ = 0.225
+def makeSoda(dx=0.0445, dy=0.027, dz=0.1175, name='objA', color='blue'):
+    return Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name, color=color)])
 
-def makeTable(dx, dy, dz, name, width = 0.1, color = 'orange'):
+soupZ = 0.1
+def makeSoup(radius=0.0675/2, height=0.1, name='soup', color='red'):
+    return Sh([shapes.Ngon(radius, height, 6)], name=name, color=color)
+
+def makeSolidTable(dx=0.603, dy=0.298, dz=0.67, name='table2', width=0.1, color = 'orange'):
+    return Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)])], name=name, color=color)
+
+tZ = 0.68
+def makeLegTable(dx=0.603, dy=0.298, dz=0.67, name='table1', width=0.1, color = 'orange'):
     legInset = 0.02
     legOver = 0.02
     return Sh([\
@@ -24,7 +34,7 @@ eps = 0.01
 epsz = 0.02
 shelfDepth = 0.3
 shelfWidth = 0.02
-# makeShelves(shelfDepth/2.0, 0.305, 0.45, width=0.02, nshelf=2)
+coolerZ = 0.225
 
 def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                 width = shelfWidth, nshelf = 2,

@@ -81,6 +81,10 @@ import pr2ROS
 reload(pr2ROS)
 from pr2ROS import RobotEnv, pr2GoToConf, reactiveApproach, testReactive
 
+import testObjects
+reload(testObjects)
+from testObjects import *
+
 writeSearch = True
 
 ######################################################################
@@ -164,15 +168,9 @@ def testAll(indices, repeat=3, crashIsError=True, **args):
 def cl(window='W'):
     wm.getWindow(window).clear()
 
-def Ba(bb, **prop): return shapes.BoxAligned(np.array(bb), None, **prop)
-def Sh(args, **prop): return shapes.Shape(list(args), None, **prop)
-
 workspace = ((-1.0, -2.5, 0.0), (3.0, 2.5, 2.0))
 ((x0, y0, _), (x1, y1, dz)) = workspace
 viewPort = [x0, x1, y0, y1, 0, dz]
-
-tZ = 0.68
-coolerZ = 0.225
 
 def testWorld(include = ['objA', 'objB', 'objC'],
               draw = True):
@@ -205,11 +203,11 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     world.addObjectShape(walls)
     # Some tables
     # table1 = Sh([place((-0.603, 0.603), (-0.298, 0.298), (0.0, 0.67))], name = 'table1', color='brown')
-    table1 = makeTable(0.603, 0.298, 0.67, name = 'table1', color='brown')
+    table1 = makeLegTable(name = 'table1', color='brown')
     if 'table1' in include: world.addObjectShape(table1)
-    table2 = Sh([place((-0.603, 0.603), (-0.298, 0.298), (0.0, 0.67))], name = 'table2', color='brown')
+    table2 = makeSolidTable(name='table2', color='brown')
     if 'table2' in include: world.addObjectShape(table2)
-    table3 = Sh([place((-0.603, 0.603), (-0.125, 0.125), (0.0, 0.67))], name = 'table3', color='brown')
+    table3 = makeSolidTable(name='table3', color='brown')
     if 'table3' in include: world.addObjectShape(table3)
 
     for i in range(1,4):
@@ -257,10 +255,6 @@ def testWorld(include = ['objA', 'objB', 'objC'],
                      name = 'cupboardSide2', color='brown')
     if 'cupboardSide1' in include: world.addObjectShape(cupboard1)
     if 'cupboardSide2' in include: world.addObjectShape(cupboard2)
-    cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)])],
-                name='cooler')
-
-    # if 'cooler' in include: world.addObjectShape(cooler)
     (coolShelves, aboveCoolShelves) = makeCoolShelves(name='coolShelves')
     if 'coolShelves' in include: world.addObjectShape(coolShelves)
     for (reg, pose) in aboveCoolShelves:
@@ -271,8 +265,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
 
     colors = ['red', 'green', 'blue', 'cyan', 'purple', 'pink', 'orange']
     for i, objName in enumerate(manipulanda):
-        thing = Sh([place((-0.0445, 0.0445), (-0.027, 0.027), (0.0, 0.1175))],
-                   name = objName, color=colors[i%len(colors)])
+        thing = makeSoda(name = objName, color=colors[i%len(colors)])
         height = thing.bbox()[1,2]
         world.addObjectShape(thing)
         # The bbox has been centered
