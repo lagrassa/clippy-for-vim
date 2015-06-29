@@ -22,7 +22,7 @@ tiny = 1.0e-6
 cdef class Scan:
     # The input verts includes eye as vertex 0
     def __init__(self, util.Transform headTrans, tuple scanParams,
-                 verts = None, str name='scan', str color=None):
+                 verts = None, str name='scan', str color=None, contacts = None):
         self.name = name
         self.color = color
         self.headTrans = headTrans
@@ -36,12 +36,21 @@ cdef class Scan:
         for i in range(1, self.vertices.shape[1]):
             edges[i,0] = 0; edges[i,1] = i
         self.edges = edges
+        self.contacts = contacts
         self.bbox = vertsBBox(self.vertices, None)
         self.scanParams = scanParams
 
     def __str__(self):
         return 'Scan:'+str(self.name)+'_'+str(self.eye)
     __repr__ = __str__
+
+    cpdef np.ndarray depthMap(self):
+        n = self.edges.shape[0]
+        v = self.vertices.T
+        dm = (v[self.edges[:,1]] - v[0])**2
+        dm = np.sum(dm, axis=1)
+        dm = np.sqrt(dm)
+        return dm
 
     cpdef Scan applyTrans(self, util.Transform trans):
         return Scan(trans.compose(self.headTrans), self.scanParams,
@@ -139,7 +148,17 @@ def simulatedScan(conf, scanParams, objects, name='scan', color=None):
             verts[:,i] = contacts[i][0]
         else:
             verts[:, i] = scan.vertices[:, i]
-    return Scan(headTrans, scanParams, verts=verts, name=name, color=color)
+    return Scan(headTrans, scanParams, verts=verts,
+                name=name, color=color, contacts=contacts)
+
+def simulatedDepthMap(scan, objects):
+    n = scan.edges.shape[0]
+    dm = np.zeros(n); dm.fill(10.0)
+    contacts = n*[None]
+    for i, shape in enumerate(objects):
+        for objPrim in shapes.toPrims(shape):
+            updateDepthMap(scan, objPrim, dm, contacts, i)
+    return dm, contacts
 
 ######################################
 # Below is based on collision.pyx

@@ -3,6 +3,30 @@ import testRig
 reload(testRig)
 from testRig import *
 
+
+from timeout import timeout, TimeoutError
+
+# 10 min timeout for all tests
+@timeout(600)
+def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=True, easy=False, rip=True):
+    eval('test%s(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical, easy=easy, rip=rip)'%str(n))
+
+def testRepeat(n, repeat=3, **args):
+    for i in range(repeat):
+        try:
+            testFunc(n, **args)
+        except TimeoutError:
+            print '************** Timed out **************'
+
+testResults = {}
+
+def testAll(indices, repeat=3, crashIsError=True, **args):
+    pr2Sim.crashIsError = crashIsError
+    for i in indices:
+        if i == 0: continue
+        testRepeat(i, repeat=repeat, **args)
+    print testResults
+
 ######################################################################
 # Test 0: 1 table move 1 object
 ######################################################################
@@ -1780,6 +1804,12 @@ def prof(test, n=100):
     p.sort_stats('cumulative').print_stats(n)
     p.sort_stats('cumulative').print_callers(n)
 
+def profPrint(n=100):
+    import pstats
+    p = pstats.Stats('prof')
+    p.sort_stats('cumulative').print_stats(n)
+    p.sort_stats('cumulative').print_callers(n)
+
 
 # Evaluate on details and a fluent to flush the caches and evaluate
 def firstAid(details, fluent = None):
@@ -1820,7 +1850,8 @@ def gripOpen(conf, hand, width=0.08):
 
 def testOpen(hand='left'):
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
-    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)[0]
+
+    startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)
     result, cnfOut, _ = pr2GoToConf(gripOpen(startConf, hand), 'open')    
 
 def testBusy(hpn = True, skeleton = False, hierarchical = False,

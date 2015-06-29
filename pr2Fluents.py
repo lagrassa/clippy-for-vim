@@ -1,13 +1,14 @@
 import util
 from util import nearAngle
 import numpy as np
-from pr2Util import PoseD, defaultPoseD, NextColor, shadowName, Violations, drawPath, objectName, ObjGraspB, ObjPlaceB
+from planUtil import PoseD, Violations, ObjGraspB, ObjPlaceB
+from pr2Util import defaultPoseD, NextColor, shadowName, drawPath, objectName
 from dist import DeltaDist, probModeMoved
 from planGlobals import debugMsg, debugDraw, debug, pause
 import planGlobals as glob
 from miscUtil import isGround, isVar, prettyString, applyBindings
 import fbch
-from fbch import Fluent, getMatchingFluents, Operator
+from fbch import Fluent, getMatchingFluents, Operator, inHeuristic
 from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
@@ -293,15 +294,18 @@ class CanReachHome(Fluent):
                   ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
           and not ('*' in f.args)
 
-    def getViols(self, bState, v, p, strict = True):
+    def getViols(self, bState, v, p):
         assert v == True
-        (conf, fcp, cond) = self.args  
+        (conf, fcp, cond) = self.args
+
+        key = hash(bState.pbs)
+        if not hasattr(self, 'viols'): self.viols = {}
+        if not hasattr(self, 'hviols'): self.hviols = {}
+        if key in self.viols: return self.viols[key]
+        if inHeuristic and key in self.hviols: return self.hviols[key]
 
         newPBS = bState.pbs.copy()
-        if strict:
-            newPBS.updateFromAllPoses(cond, permShadows=True)
-        else:
-            newPBS.updateFromGoalPoses(cond, permShadows=True)
+        newPBS.updateFromGoalPoses(cond, permShadows=True)
 
         avoidShadow = [cond[0].args[0].args[0]] if fcp else []
         newPBS.addAvoidShadow(avoidShadow)
@@ -309,16 +313,20 @@ class CanReachHome(Fluent):
         debugMsg('CanReachHome',
                  ('conf', conf),
                  ('->', violations))
+        if inHeuristic:
+            self.hviols[key] = path, violations
+        else:
+            self.viols[key] = path, violations
+            
         return path, violations
 
     def bTest(self, bState, v, p):
         path, violations = self.getViols(bState, v, p)
 
-        result = bool(path and violations.empty())
-        return result
+        return bool(path and violations.empty())
 
     def feasible(self, bState, v, p):
-        path, violations = self.getViols(bState, v, p, strict = False)
+        path, violations = self.getViols(bState, v, p)
         return violations != None
 
     def heuristicVal(self, details, v, p):
@@ -331,7 +339,7 @@ class CanReachHome(Fluent):
             dummyOp.instanceCost = obstCost
             return (obstCost, {dummyOp})
         
-        path, violations = self.getViols(details, v, p, strict = False)
+        path, violations = self.getViols(details, v, p)
 
         (ops, totalCost) = hCost(violations, obstCost, details)
         if debug('hAddBack'):
@@ -352,6 +360,7 @@ class CanReachHome(Fluent):
 
 def hCost(violations, obstCost, details):
     if violations == None:
+        debugMsg('hAddBackInf', 'hv infinite')
         print 'hv infinite'
         return float('inf'), {}
     obstacles = violations.obstacles
@@ -432,26 +441,32 @@ class CanReachNB(Fluent):
             (startConf, endConf, cond) = self.args
             assert isGround(endConf) and isGround(cond)
             path, violations = CanReachNB([endConf, endConf, cond], True).\
-                                    getViols(bState, v, p, strict = False)
+                                    getViols(bState, v, p)
         else:
-            path, violations = self.getViols(bState, v, p, strict = False)
+            path, violations = self.getViols(bState, v, p)
         return violations != None
 
-    def getViols(self, bState, v, p, strict = True):
+    def getViols(self, bState, v, p):
         assert v == True
-        (startConf, endConf, cond) = self.args 
+        (startConf, endConf, cond) = self.args
+        key = hash(bState.pbs)
+        if not hasattr(self, 'viols'): self.viols = {}
+        if not hasattr(self, 'hviols'): self.hviols = {}
+        if key in self.viols: return self.viols[key]
+        if inHeuristic and key in self.hviols: return self.hviols[key]
 
         newPBS = bState.pbs.copy()
-        if strict:
-            newPBS.updateFromAllPoses(cond, permShadows=True)
-        else:
-            newPBS.updateFromGoalPoses(cond, permShadows=True)
+        newPBS.updateFromGoalPoses(cond, permShadows=True)
 
         path, violations = canReachNB(newPBS, startConf, endConf, p,
                                       Violations())
         debugMsg('CanReachNB',
                  ('confs', startConf, endConf),
                  ('->', violations))
+        if inHeuristic:
+            self.hviols[key] = path, violations
+        else:
+            self.viols[key] = path, violations
         return path, violations
 
     def bTest(self, bState, v, p):
@@ -462,9 +477,8 @@ class CanReachNB(Fluent):
             assert 'need to have end conf bound to test'
         elif isVar(startConf):
             print self
-            print 'BTest canReachNB returning True'
-            # Assume we can make it work out
-            return True
+            print 'BTest canReachNB returning False because startconf unbound'
+            return False
         elif startConf['pr2Base'] != endConf['pr2Base']:
             # Bases have to be equal!
             debugMsg('canReachNB', 'Base not belong to us', startConf, endConf)
@@ -510,7 +524,7 @@ class CanReachNB(Fluent):
             dummyOp.instanceCost = unboundCost
             return (obstCost, {dummyOp})
             
-        path, violations = self.getViols(details, v, p, strict = False)
+        path, violations = self.getViols(details, v, p)
 
         (ops, totalCost) = hCost(violations, obstCost, details)
         if debug('hAddBack'):
@@ -548,7 +562,7 @@ class CanPickPlace(Fluent):
           and not ('*' in f.args)
 
     def feasible(self, bState, v, p):
-        path, violations = self.getViols(bState, v, p, strict = False)
+        path, violations = self.getViols(bState, v, p)
         return violations != None
 
     # Add a glb method that will at least return False, {} if the two are
@@ -608,14 +622,20 @@ class CanPickPlace(Fluent):
             for c in self.conds: c.addConditions(inconds, details)
         return self.conds
 
-    def getViols(self, bState, v, p, strict = True):
+    def getViols(self, bState, v, p):
         def violCombo(v1, v2):
             return v1.update(v2)
-        condViols = [c.getViols(bState, v, p, strict) \
-                     for c in self.getConds(bState)]
+
+        key = hash(bState.pbs)
+        if not hasattr(self, 'viols'): self.viols = {}
+        if not hasattr(self, 'hviols'): self.hviols = {}
+        if key in self.viols: return self.viols[key]
+        if inHeuristic and key in self.hviols: return self.hviols[key]
+            
+        condViols = [c.getViols(bState, v, p) for c in self.getConds(bState)]
 
         if debug('CanPickPlace'):
-            print 'canPickPlace getViols, strict=', strict
+            print 'canPickPlace getViols'
             for (cond, (p, viol)) in zip(self.getConds(bState), condViols):
                 print '    cond', cond
                 print '    viol', viol
@@ -625,23 +645,27 @@ class CanPickPlace(Fluent):
             return (None, None)
         allViols = [v for (p, v) in condViols]
         violations = reduce(violCombo, allViols)
+        if inHeuristic:
+            self.hviols[key] = True, violations
+        else:
+            self.viols[key] = True, violations
         return True, violations
 
     def bTest(self, bState, v, p):
-        path, violations = self.getViols(bState, v, p, strict = True)
-        success = bool(path and violations.empty())
+        path, violations = self.getViols(bState, v, p)
+        success = bool(violations and violations.empty())
 
         # Test the other way to be sure we are consistent
-        (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
-          graspFace, graspMu, graspVar, graspDelta,
-          opType, inconds) = self.args
+        # (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
+        #   graspFace, graspMu, graspVar, graspDelta,
+        #   opType, inconds) = self.args
 
-        newBS = bState.pbs.copy().updateFromGoalPoses(inconds, permShadows=True)
-        world = newBS.getWorld()
-        graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
-                           PoseD(graspMu, graspVar), delta= graspDelta)
-        placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
-                           PoseD(pose, poseVar), delta=poseDelta)
+        # newBS = bState.pbs.copy().updateFromGoalPoses(inconds, permShadows=True)
+        # world = newBS.getWorld()
+        # graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
+        #                    PoseD(graspMu, graspVar), delta= graspDelta)
+        # placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
+        #                    PoseD(pose, poseVar), delta=poseDelta)
         # violPPTest = canPickPlaceTest(newBS, preConf, ppConf, hand,
         #                               graspB, placeB, p, op=opType)
 
@@ -666,20 +690,20 @@ class CanPickPlace(Fluent):
         
         # If fluent is false but would have been true without
         # conditioning, raise a flag
-        if not success:
-            # this fluent, but with no conditions
-            sc = self.copy()
-            sc.args[-1] = tuple()
-            sc.update()
-            p2, v2 = sc.getViols(bState, v, p, strict = True)
-            if bool(p2 and v2.empty()):
-                print 'CanPickPlace fluent made false by conditions'
-                print self
-                raw_input('go?')
-            elif len(self.args[-1]) > 0:
-                print 'CanPickPlace fluent false'
-                print self
-                #raw_input('go?')
+        # if not success:
+        #     # this fluent, but with no conditions
+        #     sc = self.copy()
+        #     sc.args[-1] = tuple()
+        #     sc.update()
+        #     p2, v2 = sc.getViols(bState, v, p)
+        #     if bool(p2 and v2.empty()):
+        #         print 'CanPickPlace fluent made false by conditions'
+        #         print self
+        #         raw_input('go?')
+        #     elif len(self.args[-1]) > 0:
+        #         print 'CanPickPlace fluent false'
+        #         print self
+        #         #raw_input('go?')
         return success
 
     def heuristicVal(self, details, v, p):
@@ -690,7 +714,7 @@ class CanPickPlace(Fluent):
             dummyOp.instanceCost = obstCost
             return (obstCost, {dummyOp})
 
-        path, violations = self.getViols(details, v, p, strict = False)
+        path, violations = self.getViols(details, v, p)
         (ops, totalCost) = hCost(violations, obstCost, details)
         if debug('hAddBack'):
             print 'Heuristic val', self.predicate
@@ -872,68 +896,57 @@ class CanSeeFrom(Fluent):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
 
-        # Note that all object poses are permanent, no collisions can be ignored
-        newPBS = details.pbs.copy()
-
-        if pose == '*' and \
-          (newPBS.getHeld('left').mode() == obj or \
-           newPBS.getHeld('right').mode() == obj):
-           # Can't see it (in the usual way) if it's in the hand and a pose
-           # isn't specified
-           return False
-         
-        newPBS.updateFromAllPoses(cond)
-        placeB = newPBS.getPlaceB(obj)
-
-        # LPK! Forcing the variance to be very small.  Currently it's
-        # using variance from the initial state, and then overriding
-        # it based on conditions.  This is incoherent.  Could change
-        # it to put variance explicitly in the fluent.
-        placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
-
-        if placeB.support.mode() != poseFace and poseFace != '*':
-            placeB.support = DeltaDist(poseFace)
-        if placeB.poseD.mode() != pose and pose != '*':
-            placeB = placeB.modifyPoseD(mu = pose)
-        newPBS.updatePermObjPose(placeB)
-
-        newPBS.reset()   # recompute shadow world
-
-        shWorld = newPBS.getShadowWorld(p)
-        shName = shadowName(obj)
-        sh = shWorld.objectShapes[shName]
-        obstacles = [s for s in shWorld.getNonShadowShapes() if s.name()!=obj]+\
-                    [conf.placement(shWorld.attached)]
-        ans, _ = visible(shWorld, conf, sh, obstacles, p, moveHead=False)
+        ans, occluders = self.getViols(details, v, p)
         return ans
 
-    def getViols(self, bState, v, p, strict = True):
+    def getViols(self, bState, v, p):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
-         
-        # Note that all object poses are permanent, no collisions can be ignored
-        newPBS = bState.pbs.copy()
-        if strict:
-            newPBS.updateFromAllPoses(cond, permShadows=True)
+        key = hash(bState.pbs)
+        if not hasattr(self, 'viols'): self.viols = {}
+        if not hasattr(self, 'hviols'): self.hviols = {}
+        if key in self.viols: return self.viols[key]
+        if inHeuristic and key in self.hviols: return self.hviols[key]
+
+        pbs = bState.pbs
+        if pose == '*' and \
+          (pbs.getHeld('left').mode() == obj or \
+           pbs.getHeld('right').mode() == obj):
+            # Can't see it (in the usual way) if it's in the hand and a pose
+            # isn't specified
+            (ans, occluders) = False, None
         else:
+            # All object poses are permanent, no collisions can be ignored
+            newPBS = bState.pbs.copy()
             newPBS.updateFromGoalPoses(cond, permShadows=True)
+            placeB = newPBS.getPlaceB(obj)
+            # LPK! Forcing the variance to be very small.  Currently it's
+            # using variance from the initial state, and then overriding
+            # it based on conditions.  This is incoherent.  Could change
+            # it to put variance explicitly in the fluent.
+            placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
+            if placeB.support.mode() != poseFace and poseFace != '*':
+                placeB.support = DeltaDist(poseFace)
+            if placeB.poseD.mode() != pose and pose != '*':
+                placeB = placeB.modifyPoseD(mu=pose)
+            newPBS.updatePermObjPose(placeB)
+            newPBS.reset()   # recompute shadow world
+            shWorld = newPBS.getShadowWorld(p)
+            shName = shadowName(obj)
+            sh = shWorld.objectShapes[shName]
+            obstacles = [s for s in shWorld.getNonShadowShapes() if \
+                        s.name() != obj ] + \
+                        [conf.placement(shWorld.attached)]
+            ans, occluders = visible(shWorld, conf, sh, obstacles,
+                                     p, moveHead=False)
 
-        placeB = newPBS.getPlaceB(obj)
-        if placeB.support.mode() != poseFace and poseFace != '*':
-            placeB.support = DeltaDist(poseFace)
-        if placeB.poseD.mode() != pose and pose != '*':
-            newPBS.updatePermObjPose(placeB.modifyPoseD(mu=pose))
-        shWorld = newPBS.getShadowWorld(p)
-        shName = shadowName(obj)
-        sh = shWorld.objectShapes[shName]
-        obstacles = [s for s in shWorld.getNonShadowShapes() if \
-                     s.name() != obj ] + \
-                     [conf.placement(shWorld.attached)]
-        ans, occluders = visible(shWorld, conf, sh, obstacles, p, moveHead=False)
-
-        debugMsg('CanSeeFrom',
-                ('obj', obj, pose), ('conf', conf),
-                 ('->', occluders))
+            debugMsg('CanSeeFrom',
+                    ('obj', obj, pose), ('conf', conf),
+                    ('->', occluders))
+        if inHeuristic:
+            self.hviols[key] = ans, occluders
+        else:
+            self.viols[key] = ans, occluders
         return ans, occluders
     
     def heuristicVal(self, details, v, p):
@@ -946,7 +959,7 @@ class CanSeeFrom(Fluent):
             dummyOp.instanceCost = obstCost
             return (obstCost, {dummyOp})
         
-        vis, occluders = self.getViols(details, v, p, strict = False)
+        vis, occluders = self.getViols(details, v, p)
         (ops, totalCost) = hCostSee(vis, occluders, obstCost, details)
         if debug('hAddBack'):
             print 'Heuristic val', self.predicate

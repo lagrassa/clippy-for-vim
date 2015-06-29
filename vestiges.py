@@ -813,3 +813,45 @@ def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
               + table.parts(),
               name=name, color=color)
     return (obj, shelfSpaces)
+
+    def climbTree(self, graph, targetNode, initNode, pbs, prob, initViol):
+        def climb(node):
+            nodePath = [node]
+            cost = 0.0
+            while node:
+                if node == initNode:
+                    edgePath = self.edgePathFromNodePath(graph, nodePath)
+                    return (initViol, cost, edgePath)
+                if node.parent:
+                    edge = graph.edges.get((node, node.parent), None) or graph.edges.get((node.parent, node), None)
+                    if not edge:
+                        print 'climb: no edge between nodes', node, node.parent
+                        return None
+                    nviol = self.colliders(edge, pbs, prob, initViol)
+                    if nviol != initViol:
+                        print 'new violation', nviol
+                        print 'old violation', initViol
+                        return None
+                    nodePath.append(node.parent)
+                    cost += node.hVal
+                    node = node.parent
+                else:
+                    return False
+        print 'climbTree', targetNode, initNode
+        if targetNode.parent:
+            ans = climb(targetNode)
+            print 'targetNode has parent, ans=', ans
+        else:
+            for edge in graph.incidence.get(targetNode, []):
+                (a, b)  = edge.ends
+                node = a if a != targetNode else b
+                if node.parent:
+                    targetNode.parent = node
+                    targetNode.hVal = pointDist(targetNode.point, node.point)
+                    ans = climb(targetNode)
+                    print 'connected to tree at', node, 'ans=', ans
+                    if ans:
+                        return ans
+                else:
+                    raw_input('could not connect to tree')
+

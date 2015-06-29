@@ -51,7 +51,8 @@ class DiscreteDist:
                     best.append((elt, p))
                 else:
                     best = [(elt, p)]
-        return random.choice(best) if len(best) > 1 else best[0]
+        #return random.choice(best) if len(best) > 1 else best[0]
+        return best[0]
 
     # Returns the x with highest weight
     def mode(self):
@@ -101,29 +102,42 @@ class DDist(DiscreteDist):
     sparse, in the sense that elements that are not explicitly
     contained in the dictionary are assuemd to have zero probability."""
     def __init__(self, dictionary = {}, name = None):
-        self.d = copy.copy(dictionary)
+        self.__d = copy.copy(dictionary)
         """ Dictionary whose keys are elements of the domain and values
         are their probabilities. """
         self.name = name
         """Optional name;  used in sum-out operations"""
+        self.update()
+
+    def update(self):
+        self.mpe = self.computeMPE()
+
+    def computeMPE(self):
+        return max(self.__d.items(), lambda (k, p): p)[0]
+
+    def maxProbElt(self):
+        return self.mpe
 
     def addProb(self, val, p):
         """
         Increase the probability of element C{val} by C{p}
         """
         self.setProb(val, self.prob(val) + p)
+        self.update()
+        
     def mulProb(self, val, p):
         """
         Multiply the probability of element C{val} by C{p}
         """
         self.setProb(val, self.prob(val) * p)
+        self.update()
 
     def prob(self, elt):
         """
         @returns: the probability associated with C{elt}
         """
-        if self.d.has_key(elt):
-            return self.d[elt]
+        if self.__d.has_key(elt):
+            return self.__d[elt]
         else:
             return 0
 
@@ -133,14 +147,15 @@ class DDist(DiscreteDist):
         @param p: probability
         Sets probability of C{elt} to be C{p}
         """
-        self.d[elt] = p
+        self.__d[elt] = p
+        self.update()
 
     def support(self):
         """
         @returns: A list (in any order) of the elements of this
         distribution with non-zero probabability.
         """
-        return [x for x in self.d.keys() if self.d[x] > 0]
+        return [x for x in self.__d.keys() if self.__d[x] > 0]
 
     def normalize(self):
         """
@@ -157,8 +172,9 @@ class DDist(DiscreteDist):
         alpha = 1.0 / z
         newD = {}
         for e in self.support():
-            newD[e] = self.d[e] * alpha
-        self.d = newD
+            newD[e] = self.__d[e] * alpha
+        self.__d = newD
+        self.update()
         return self
 
     def normalizeOrSmooth(self):
@@ -205,7 +221,7 @@ class DDist(DiscreteDist):
         with each element replaced by f(elt)
         """
         newD = {}
-        for (key, val) in self.d.items():
+        for (key, val) in self.__d.items():
             newK = f(key)
             newD[newK] = val + newD[newK] if newK in newD else val
         return DDist(newD)
@@ -218,7 +234,8 @@ class DDist(DiscreteDist):
             for s in tDistS.support():
                 #prob of transitioning to s from sPrime                
                 new[s] = new.get(s,0) + tDistS.prob(s)*oldP 
-        self.d = new
+        self.__d = new
+        self.update()
 
     def obsUpdate(d, om, obs):
         for si in d.support():
@@ -230,9 +247,9 @@ class DDist(DiscreteDist):
     #     return sum([p for (x, p) in self.d.items() if distMetric(x,m) < delta])
 
     def __repr__(self):
-        if self.d.items():
+        if self.__d.items():
             dictRepr = reduce(operator.add,[repr(k)+": "+prettyString(p)+", " \
-                                            for (k, p) in self.d.items()])
+                                            for (k, p) in self.__d.items()])
         else:
             dictRepr = '{}'
         return "DDist(" + dictRepr[:-2] + ")"
@@ -249,11 +266,11 @@ class DDist(DiscreteDist):
             return result
 
     def __hash__(self):
-        return hash(frozenset(self.d.items()))
+        return hash(frozenset(self.__d.items()))
     def __eq__(self, other):
-        return self.d == other.d
+        return self.__d == other.__d
     def __ne__(self, other):
-        return self.d != other.d
+        return self.__d != other.__d
             
 ######################################################################
 #   Special cases

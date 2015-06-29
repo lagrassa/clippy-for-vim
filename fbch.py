@@ -122,7 +122,7 @@ class State:
                 numNonGround = len([thing for thing in self.fluents \
                                     if not thing.isGround()])
                 # There is no other reason why this value should be 0
-                if numNonGround == 0:
+                if numNonGround == 0 and debug('heuristic0'):
                     fizz = [thing for thing in self.fluents if \
                             thing.valueInDetails(start.details) == False]
                     print 'Fluents not true in start, but zero cost in H'
@@ -506,7 +506,8 @@ class Fluent(object):
     def getGrounding(self, details):
         if not isGround(self.args):
             return None
-        v = self.valueInDetails(details)
+        #v = self.valueInDetails(details)
+        v = details.fluentValue(self)
         b = {}
         if isVar(self.value):
             b[self.value] = v
@@ -1236,7 +1237,7 @@ class Operator(object):
                             if cost < float('inf'): break
                         if cost < float('inf'): break
 
-        if not inHeuristic or debug('debugInHeuristic'):
+        if not inHeuristic or debug('debugInHeuristic') and debug(tag):
             debugMsg(tag, 'Final regression result', ('Op', self),
                      ('cost', cost),
                      ('goal',  goal.prettyString(False, startState)),
@@ -1327,7 +1328,7 @@ class RebindOp:
         g.rebind = False
         results = op.regress(g, startState, heuristic, operators)
 
-        if len(results) > 0:
+        if len(results) > 0 and debug('rebind'):
             debugMsg('rebind', 'successfully rebound local vars',
                      'costs', [c for (s, c) in results], 'minus',
                      glob.rebindPenalty)
@@ -1502,40 +1503,40 @@ class PlanningFailed(Exception):
 
 def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
         skeleton = None, verbose = False, nonMonOps = [], maxNodes = 500):
-    ps = PlanStack()
-    ancestors = []
-    lastOp = None
+    ps = PlanStack(); ancestors = []
     ps.push(Plan([(nop, State([])), (top, g)]))
-    (op, subgoal) = (top, g)
+    (op, subgoal, oldSkel) = (top, g, None)
     while not ps.isEmpty() and op != None:
         if op.isAbstract():
             # Plan again at a more concrete level
-            parent = ps.guts()[-1]
-            lastOp = op
-            writeSubgoalRefinement(f, parent, subgoal)
+            writeSubgoalRefinement(f, ps.guts()[-1], subgoal)
+            sk = (oldSkel and oldSkel[0]) or (skeleton and \
+                 len(skeleton)>subgoal.planNum and skeleton[subgoal.planNum])
+            # Ignore last operation if we popped to get here.
             p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
-                                 lastOp = lastOp,
-                                 skeleton = skeleton[subgoal.planNum]\
-                                            if (skeleton and \
-                                                len(skeleton)>subgoal.planNum) \
-                                                else None,
+                                 lastOp = op if oldSkel == None else None,
+                                 skeleton = sk,
                                  nonMonOps = nonMonOps,
                                  maxNodes = maxNodes)
-            if not p: raw_input('planning failed'); raise PlanningFailed
-            planObj = makePlanObj(p, s)
-            planObj.printIt(verbose = verbose)
-            ps.push(planObj)
-            ancestors.append(planObj.getOps())
-            writeSubtasks(f, planObj, subgoal)
+            #if not p: raw_input('planning failed'); raise PlanningFailed
+            if p:
+                planObj = makePlanObj(p, s)
+                planObj.printIt(verbose = verbose)
+                ps.push(planObj)
+                ancestors.append(planObj.getOps())
+                writeSubtasks(f, planObj, subgoal)
+            else:
+                raw_input('Planning failed;  popping plan stack')
+                ps.pop()
         elif op.prim != None:
             # Execute
             executePrim(op, s, env, f)
-            lastOp = None
                 
         # Decide what to do next
         # will pop levels we don't need any more, so that p is on the top
         # op will be None if we are done
-        (op, subgoal) = ps.nextStep(s, f)
+        (op, subgoal, popSkel) = ps.nextStep(s, ops, f)
+        oldSkel = popSkel or (oldSkel and oldSkel[-1:])
         # Possibly pop ancestors
         ancestors = ancestors[0:ps.size()]
     # If we return, we have succeeded!
@@ -1558,7 +1559,10 @@ class PlanStack(Stack):
     # Ask each layer what it wants its next step to be
     # If it's different than the subgoal at the next layer below, pop all
     #    lower layers
-    def nextStep(self, s, f = None):
+    
+    # Also, return a skeleton constructed from any layers that get
+    # popped, if we're replanning.
+    def nextStep(self, s, ops, f = None):
         layers = self.guts()
         numLayers = len(layers)
         preImages = self.computePreimages()
@@ -1597,25 +1601,45 @@ class PlanStack(Stack):
                     self.nextLayerStep(layers[j], preImages[j], s, f,
                                        quiet = True)
 
-                # Get rid of layers i and below
+                # Get rid of layers i and below, but save skeleton
+                oldSkel = self.getSkelFromSubtree(i)
                 self.popTo(i)
                 # Replan again for upperSubgoal
-                return (upperOp, upperSubgoal)
+                return (upperOp, upperSubgoal, oldSkel)
             elif i == len(layers)-1:
                 # bottom layer, return subgoal at level i
                 debugMsg('nextStep', 'bottomLayer', op, subgoal)
                 assert op.isAbstract() or op.prim != None, \
                              'Selected inferential op for execution'
-                return (op, subgoal)
+                return (op, subgoal, None)
             else:
                 # go down a level
                 (upperOp, upperSubgoal) = (op, subgoal)
-        return (upperOp, upperSubgoal)
+        return (upperOp, upperSubgoal, None)
+
+    def getSkelFromSubtree(self, i):
+        return False
+        #### Code below not finished
+        def abstract(op):
+            # Make an abstract version of the operator
+            return op
+        sk = []
+        guts = self.guts()
+        for j in range(i, len(guts)):
+            sk.append(list(reversed([abstract(op) for (op, _) in guts[j][1:]])))
+        print 'Skeleton from popped tree:'
+        for thing in sk:
+            print 'skeleton'
+            for (n, o) in enumerate(thing): print '   ', n, ':', o
+        raw_input('okay?')
+        return sk
 
     # Return op and subgoal in this layer to be addressed next
     def nextLayerStep(self, layer, preImages, s, f = None, quiet = False):
+        # Precompute.  Alternative is to try early out
+        satPI = [[s.satisfies(sg) for sg in pi] for pi in preImages]
         # If the final subgoal holds, then we're done
-        if any([s.satisfies(sg) for sg in preImages[-1]]):
+        if any(satPI[-1]):
             if debug('nextStep'):
                 for sg in preImages[-1]:
                     print sg, s.satisfies(sg)
@@ -1623,13 +1647,12 @@ class PlanStack(Stack):
             return None, None
         # Work backwards to find the latest subgoal that's satisfied
         for i in range(layer.length-1, -1, -1):
-            if not quiet:
-                debugMsg('nextStep', [s.satisfies(sg) for sg in preImages[i]])
-            if any([s.satisfies(sg) for sg in preImages[i]]):
+            if not quiet and debug('nextStep'):
+                debugMsg('nextStep', satPI[i])
+            if any(satPI[i]):
                 layer.lastStepExecuted = i+1
                 if not quiet:
                     debugMsg('nextStep', 'returning', layer.steps[i+1])
-
                 (op, _) = layer.steps[i+1]
                 if op.prim == None and not (op.isAbstract() or op == top):
                     print 'Selecting an inferential operator for execution'
@@ -1639,19 +1662,15 @@ class PlanStack(Stack):
                     print 'Post conditions not satisfied'
                     for thing in postCond:
                         for fl in thing.fluents:
-                            #if not fl.valueInDetails(s.details) == True:
                             if not s.fluentValue(fl) == True:
                                 print fl
                     raw_input('Continue?')
                 return layer.steps[i+1]
-        # Not in the envelope
         debugMsg('nextStep', 'not in envelope')
         
-
         fooFluents = []
         for fl in layer.steps[layer.lastStepExecuted][1].fluents:
-            fv = s.fluentValue(fl, recompute = True)
-            if fl.value != fv:
+            if fl.value != s.fluentValue(fl):
                 fooFluents.append(fl)
         print 'Failure: expected to satisfy subgoal', layer.lastStepExecuted, \
           'at layer', layer.level, '; Unsatisfied fluents:'
@@ -1665,7 +1684,7 @@ class PlanStack(Stack):
             glob.debugOn.append('testVerbose')
             foundError = False
             for fl in layer.steps[layer.lastStepExecuted][1].fluents:
-                fv = s.fluentValue(fl, recompute = True)
+                fv = s.fluentValue(fl)
                 if fl.value != fv:
                     print 'wanted:', fl.value, 'got:', fv
                     print '    ', fl.prettyString()
@@ -1885,14 +1904,15 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
             debugMsg('skeleton', g.depth, skeleton[g.depth])
         else:
             debugMsg('skeleton', 'Skeleton exhausted', g.depth)
-            glob.debugOn = glob.debugOn + ['satisfies']
-            startState.satisfies(g)
-            debugMsg('skeleton', 'Skeleton exhausted', g.depth)
-            glob.debugOn = glob.debugOn[:-1]
+            if debug('skeleton'):
+                glob.debugOn = glob.debugOn + ['satisfies']
+                startState.satisfies(g)
+                debugMsg('skeleton', 'Skeleton exhausted', g.depth)
+                glob.debugOn = glob.debugOn[:-1]
             return []
-    # elif lastOp and g.depth == 0:
-    #     # At least ensure we try these bindings
-    #     ops = [lastOp] + [o for o in operators if o.name != lastOp.name]
+    elif lastOp and g.depth == 0:
+        # At least ensure we try these bindings at the top node of the plan
+        ops = [lastOp] + [o for o in operators if o.name != lastOp.name]
     else:
         ops = operators
 
@@ -2025,7 +2045,7 @@ def getGrounding(fluents, details):
 def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
                     lastOp, nonMonOps, heuristic, h, visitF, expandF,
                     prevExpandF, maxCost, maxNodes = 500):
-    return ucSearch.search(goal,
+    p, c =  ucSearch.search(goal,
                            lambda subgoal: startState.satisfies(subgoal),
                            lambda g: applicableOps(g, ops,
                                                    startState,
@@ -2046,7 +2066,13 @@ def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
                            hmax = hmax, 
                            greedy = plannerGreedy,
                            verbose = False,
-                           maxCost = maxCost)        
+                           maxCost = maxCost)
+    if p: return p, c
+    if not skeleton: return None, None
+    # If we failed and had a skeleton, try without it
+    return planBackwardAux(goal, startState, ops, ancestors, None, monotonic,
+                    lastOp, nonMonOps, heuristic, h, visitF, expandF,
+                    prevExpandF, maxCost, maxNodes = 500)
 
 def planBackward(startState, goal, ops, ancestors = [],
                  h = None, fileTag = None, skeleton = None, lastOp = None,
@@ -2150,7 +2176,8 @@ def getBindingsBetweenAux(resultFs, goalFs, startState):
                 newB = gf.entails(rfb, startState.details)
                 if newB != False:
                     matched = True
-                    debugMsg('gbb:detail', 'entails', b, gf.applyBindings(b),
+                    if debug('gbb:detail'):
+                        debugMsg('gbb:detail','entails', b, gf.applyBindings(b),
                               ('newB', newB))
                     newB.update(b)
                     result.append(newB)

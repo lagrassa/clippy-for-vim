@@ -29,6 +29,8 @@ import pr2Util
 reload(pr2Util)
 from pr2Util import *
 
+from planUtil import Violations, PoseD, ObjGraspB, ObjPlaceB
+
 import dist
 reload(dist)
 from dist import DDist, DeltaDist, MultivariateGaussianDistribution, makeDiag
@@ -79,6 +81,10 @@ import pr2ROS
 reload(pr2ROS)
 from pr2ROS import RobotEnv, pr2GoToConf, reactiveApproach, testReactive
 
+import testObjects
+reload(testObjects)
+from testObjects import *
+
 writeSearch = True
 
 ######################################################################
@@ -106,7 +112,11 @@ if useROS:
 def hEasy(s, g, ops, ancestors):
     return g.easyH(s, defaultFluentCost = 1.5)
 
+heuristicTime = 0.0
+
 def habbs(s, g, ops, ancestors):
+    global heuristicTime
+    startTime = time.time()
     hops = ops + [hRegrasp]
     val = hAddBackBSetID(s, g, hops, ancestors, ddPartitionFn = partition,
                          maxK = 20)
@@ -116,23 +126,24 @@ def habbs(s, g, ops, ancestors):
         isSat = s.satisfies(g)
         if not isSat: 
             print '*** habbs is 0 but goal not sat ***'
-            if debug('heuristic'):
+            if debug('heuristic0'):
                 for thing in g.fluents:
                     if not thing.isGround() or \
                       thing.valueInDetails(s.details) == False:
                         print thing
-                raw_input('okay?')
+                raw_input('Unsat fluents')
             easyVal = hEasy(s, g, ops, ancestors)
             print '*** returning easyVal', easyVal, '***'
             return easyVal
+    heuristicTime += (time.time() - startTime)
     return val
 
 from timeout import timeout, TimeoutError
 
 # 5 min timeout for all tests
 @timeout(600)
-def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=False, easy=False):
-    eval('test%d(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical, easy=easy)'%n)
+def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=True, easy=False, rip=True):
+    eval('test%s(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical, easy=easy, rip=rip)'%str(n))
 
 def testRepeat(n, repeat=3, **args):
     for i in range(repeat):
@@ -157,21 +168,15 @@ def testAll(indices, repeat=3, crashIsError=True, **args):
 def cl(window='W'):
     wm.getWindow(window).clear()
 
-def Ba(bb, **prop): return shapes.BoxAligned(np.array(bb), None, **prop)
-def Sh(args, **prop): return shapes.Shape(list(args), None, **prop)
-
 workspace = ((-1.0, -2.5, 0.0), (3.0, 2.5, 2.0))
 ((x0, y0, _), (x1, y1, dz)) = workspace
 viewPort = [x0, x1, y0, y1, 0, dz]
-
-tZ = 0.68
-coolerZ = 0.225
 
 def testWorld(include = ['objA', 'objB', 'objC'],
               draw = True):
     ((x0, y0, _), (x1, y1, dz)) = workspace
     w = 0.1
-    wm.makeWindow('W', viewPort, 800)   # was 800
+    wm.makeWindow('W', viewPort, 600)   # was 800
     if useROS: wm.makeWindow('MAP', viewPort)
     def hor((x0, x1), y, w):
         return Ba([(x0, y-w/2, 0), (x1, y+w/2.0, dz)])
@@ -198,11 +203,11 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     world.addObjectShape(walls)
     # Some tables
     # table1 = Sh([place((-0.603, 0.603), (-0.298, 0.298), (0.0, 0.67))], name = 'table1', color='brown')
-    table1 = makeTable(0.603, 0.298, 0.67, name = 'table1', color='brown')
+    table1 = makeLegTable(name = 'table1', color='brown')
     if 'table1' in include: world.addObjectShape(table1)
-    table2 = Sh([place((-0.603, 0.603), (-0.298, 0.298), (0.0, 0.67))], name = 'table2', color='brown')
+    table2 = makeSolidTable(name='table2', color='brown')
     if 'table2' in include: world.addObjectShape(table2)
-    table3 = Sh([place((-0.603, 0.603), (-0.125, 0.125), (0.0, 0.67))], name = 'table3', color='brown')
+    table3 = makeSolidTable(name='table3', color='brown')
     if 'table3' in include: world.addObjectShape(table3)
 
     for i in range(1,4):
@@ -250,10 +255,6 @@ def testWorld(include = ['objA', 'objB', 'objC'],
                      name = 'cupboardSide2', color='brown')
     if 'cupboardSide1' in include: world.addObjectShape(cupboard1)
     if 'cupboardSide2' in include: world.addObjectShape(cupboard2)
-    cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)])],
-                name='cooler')
-
-    # if 'cooler' in include: world.addObjectShape(cooler)
     (coolShelves, aboveCoolShelves) = makeCoolShelves(name='coolShelves')
     if 'coolShelves' in include: world.addObjectShape(coolShelves)
     for (reg, pose) in aboveCoolShelves:
@@ -264,9 +265,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
 
     colors = ['red', 'green', 'blue', 'cyan', 'purple', 'pink', 'orange']
     for i, objName in enumerate(manipulanda):
-        thing = Sh([place((-0.0445, 0.0445), (-0.027, 0.027), (0.0, 0.1175))],
-                   name = objName, color=colors[i%len(colors)])
-        # thing.typeName = 'soda'  #!! HACK
+        thing = makeSoda(name = objName, color=colors[i%len(colors)])
         height = thing.bbox()[1,2]
         world.addObjectShape(thing)
         # The bbox has been centered
@@ -344,7 +343,7 @@ standardHorizontalConf = None
 def makeConf(robot,x,y,th,g=0.07, vertical=False):
     global standardVerticalConf, standardHorizontalConf
     dx = dy = dz = 0
-    dt = glob.torsoZ - 0.3
+    dt = 0.0 if vertical else glob.torsoZ - 0.3
     if vertical and standardVerticalConf:
         c = standardVerticalConf.copy()
         c.conf['pr2Base'] = [x, y, th]            
@@ -352,7 +351,7 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False):
         if useRight:
             c.conf['pr2RightGripper'] = [g]
         return c
-    elif standardHorizontalConf:
+    elif (not vertical) and standardHorizontalConf:
         c = standardHorizontalConf.copy()
         c.conf['pr2Base'] = [x, y, th]            
         c.conf['pr2LeftGripper'] = [g]
@@ -481,7 +480,7 @@ class PlanTest:
     def __init__(self, name, domainProbs, operators,
                  objects = ['table1','objA'], fixPoses = {},
                  movePoses = {}, held = None, grasp = None,
-                 multiplier = 8, var = 1.0e-5, varDict = None):   # var was 10e-10
+                 multiplier = 6, var = 1.0e-5, varDict = None):   # var was 10e-10
         self.name = name
         self.multiplier = multiplier
         self.objects = objects          # list of objects to consider
@@ -665,7 +664,8 @@ class PlanTest:
             self.realWorld.draw('World')
             for regName in self.bs.pbs.regions:
                 self.realWorld.regionShapes[regName].draw('World', 'purple')
-            if self.bs.pbs.regions: raw_input('Regions')
+            if self.bs.pbs.regions and debug('regions'):
+                raw_input('Regions')
 
         if not goal: return
 
@@ -703,6 +703,9 @@ class PlanTest:
         print '**************', self.name, \
                 'Hierarchical' if hierarchical else '', \
                 'Time =', runTime, '***************'
+        print 'Heuristic time:', heuristicTime
+        global heuristicTime
+        heuristicTime = 0.0
 
 ######################################################################
 # Test Cases
@@ -733,9 +736,10 @@ typicalErrProbs = DomainProbs(\
             pickTolerance = (0.025, 0.025, 0.025, 0.1),
             maxGraspVar = (0.005**2, .005**2, .005**2, .015**2),
             # Use this for placing objects
-            placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
-            graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
-
+            # placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
+            # graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
+            placeDelta = (0.01, 0.01, 1.0e-4, 0.05),
+            graspDelta = (0.005, 0.005, 1.0e-4, 0.008))
 
 tinyErrProbs = DomainProbs(\
             # stdev, constant, assuming we control it by tracking while moving

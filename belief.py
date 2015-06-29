@@ -514,6 +514,19 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
             if debug('hAddBackV'): print 'c',
             return hCacheLookup(fUp, idk)
 
+        # If this group has only 1 fluent and a special way to
+        # compute the value, then use that.
+        if len(fUp) == 1:
+            f = list(fUp)[0]
+            hv =  f.heuristicVal(start.details)
+            if hv != False:
+                # We actually do have a special value
+                (cost, ops) = hv
+                addToCachesSet(fUp, cost, ops, idk)
+                if debug('hAddBackV'): print 'hv',
+                return cost,ops
+
+        # See if it's true in start state
         g = State(fUp)
         if start.satisfies(g):
             if debug('hAddBackV'): print 's',
@@ -529,7 +542,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                 if c == 0:
                     assert start.satisfies(g)
                 addToCachesSet(fUp, c, a, idk)
-                if debug('hAddBackV'): print 'e',
+            if debug('hAddBackV'): print 'e',
             return result
 
         if k == 0:
@@ -547,130 +560,112 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                 addToCachesSet(fUp, float('inf'), set(), idk)
             return hCacheLookup(fUp, idk)
 
-        elif all([not f.isGround() for f in fUp]):
+        if all([not f.isGround() for f in fUp]):
             # None of these fluents are ground; assume they can be
             # made true by matching
+            if debug('hAddBackV'): print 'ng',
             return 0, set()
-        else:
-            # If this group has only 1 fluent and a special way to
-            # compute the value, then use that.
-            if len(fUp) == 1:
-                f = list(fUp)[0]
-                hv =  f.heuristicVal(start.details)
-                if hv != False:
-                    # We actually do have a special value
-                    (cost, ops) = hv
-                    addToCachesSet(fUp, cost, ops, idk)
-                    # if cost == 0:
-                    #     assert start.satisfies(g)
-                    if debug('hAddBackV') or True: print 'hv',
-                    return cost,ops
 
-            # Otherwise, do regression
+        # Otherwise, do regression
+        # If it's not cheaper than the upper bound, we'll quit
+        totalCost = minSoFar
+        store = False
 
-            # If it's not cheaper than the upper bound, we'll quit
-            totalCost = minSoFar
-            store = False
-
-            # OR loop over operators and ways of achieving them
-            # Need to pass in ancestors to use the appropriate level of
-            # abstraction in computing the heuristic (does this make sense?)
-            ops = applicableOps(g, operators, start, ancestors,
+        # OR loop over operators and ways of achieving them
+        # Need to pass in ancestors to use the appropriate level of
+        # abstraction in computing the heuristic (does this make sense?)
+        ops = applicableOps(g, operators, start, ancestors,
                                 monotonic = False)
-            if len(ops) == 0:
-                debugMsg('hAddBack', 'no applicable ops', g)
-            for o in ops:
-                if debug('primitiveHeuristicAlways'):
-                    o.abstractionLevel = o.concreteAbstractionLevel
-                pres = o.regress(g, start)
-                if len(pres) == 1:
-                    debugMsg('hAddBack', 'no preimage', g, o)
-                for pre in pres[:-1]:
-                    (preImage, newOpCost) = pre
-                    newActSet = set([preImage.operator])
-                    children = []
-                    partialCost = preImage.operator.instanceCost
-                    assert partialCost < float('inf')
-                    # AND loop over preconditions
-                    store = True
-                    for ff in partitionFn(preImage.fluents):
-                        if partialCost >= totalCost:
-                            # This op can never be cheaper than the best we
-                            # have found so far in this loop
-                            if debug('hAddBackV'): print 'BB!',
-                            store = False # This is not a good cost estimate
-                            break
+        if len(ops) == 0:
+            debugMsg('hAddBack', 'no applicable ops', g)
+        for o in ops:
+            if debug('primitiveHeuristicAlways'):
+                o.abstractionLevel = o.concreteAbstractionLevel
+            pres = o.regress(g, start)
+            if len(pres) == 1:
+                debugMsg('hAddBack', 'no preimage', g, o)
+            for pre in pres[:-1]:
+                (preImage, newOpCost) = pre
+                newActSet = set([preImage.operator])
+                children = []
+                partialCost = preImage.operator.instanceCost
+                assert partialCost < float('inf')
+                # AND loop over preconditions
+                store = True
+                for ff in partitionFn(preImage.fluents):
+                    if partialCost >= totalCost:
+                        # This op can never be cheaper than the best we
+                        # have found so far in this loop
+                        if debug('hAddBackV'): print 'BB!',
+                        store = False # This is not a good cost estimate
+                        break
 
-                        children.append(ff)
-                        if debug('hAddBack'):
-                            print spaces+'C Aux:', k-1,\
-                                 prettyString(totalCost - partialCost),\
-                                   [f.shortName() for f in ff]
-                            for f in ff: print spaces+'--'+f.prettyString()
-    
-                                   
-                        subCost, subActSet = aux(ff, k-1,
-                                                 totalCost - partialCost)
-                        if debug('hAddBack'):
-                            print spaces+'R Aux:', k-1, prettyString(subCost),\
-                                   [f.shortName() for f in ff]
-
-                        # make this side effect
-                        if subCost == float('inf'):
-                            partialCost, newActSet = (float('inf'), set())
-                        else:
-                            newActSet = newActSet.union(subActSet)
-                            partialCost = sum([op.instanceCost \
-                                               for op in newActSet])
-
-                    newTotalCost = partialCost
-
+                    children.append(ff)
                     if debug('hAddBack'):
-                        childCosts = [aux(c, k-1, float('inf'))[0] \
-                                      for c in children]
-                        print spaces+'goal', k, prettyString(minSoFar),\
-                                    [f.shortName() for f in fUp]
-                        print spaces+'op', o.name
-                        print spaces+'Children:'
-                        for (x,y) in zip(childCosts, children):
-                            print spaces+'    ', x, [f.shortName() for f in y]
-
-                    if store and newTotalCost < totalCost:
-                        addToCachesSet(fUp, newTotalCost, newActSet, idk)
-                        if newTotalCost == 0:
-                            assert start.satisfies(g)
-                        (totalCost, actSet) = (newTotalCost, newActSet)
-                        if debug('hAddBackV'):
-                            print '\n'+spaces+'H', prettyString(totalCost), \
-                                  [f.shortName() for f in fUp]
-                        if debug('hAddBack'):
-                            print spaces+'stored value', k, idk, newTotalCost
-                            print spaces+'actSet', [a.name for a in actSet]
-                            raw_input('okay?')
-                    elif not store:
-                        if debug('hAddBack'):
-                            print spaces+'BB prevented value'
+                        print spaces+'C Aux:', k-1,\
+                             prettyString(totalCost - partialCost),\
+                                  [f.shortName() for f in ff]
+                        for f in ff: print spaces+'--'+f.prettyString()
+                                       
+                    subCost, subActSet = aux(ff, k-1,
+                                                 totalCost - partialCost)
+                    if debug('hAddBack'):
+                        print spaces+'R Aux:', k-1, prettyString(subCost),\
+                               [f.shortName() for f in ff]
+                    # make this side effect
+                    if subCost == float('inf'):
+                        partialCost, newActSet = (float('inf'), set())
                     else:
-                        if debug('hAddBack'):
-                            print spaces+'New Cost', newTotalCost, \
-                              'not better than', totalCost
+                        newActSet = newActSet.union(subActSet)
+                        partialCost = sum([op.instanceCost \
+                                               for op in newActSet])
+                newTotalCost = partialCost
+                if debug('hAddBack'):
+                    childCosts = [aux(c, k-1, float('inf'))[0] \
+                                  for c in children]
+                    print spaces+'goal', k, prettyString(minSoFar),\
+                                    [f.shortName() for f in fUp]
+                    print spaces+'op', o.name
+                    print spaces+'Children:'
+                    for (x,y) in zip(childCosts, children):
+                        print spaces+'    ', x, [f.shortName() for f in y]
 
-            assert totalCost >= 0
-            if totalCost == float('inf'):
-                print 'Infinite cost goal set'
-                actSet = set()
-                for f in fUp:
-                    print '    ', f.shortName()
-                debugMsg('hAddBackInfV',
+                if store and newTotalCost < totalCost:
+                    addToCachesSet(fUp, newTotalCost, newActSet, idk)
+                    if newTotalCost == 0:
+                        assert start.satisfies(g)
+                    (totalCost, actSet) = (newTotalCost, newActSet)
+                    if debug('hAddBackV'):
+                        print '\n'+spaces+'H', prettyString(totalCost), \
+                                  [f.shortName() for f in fUp]
+                    if debug('hAddBack'):
+                        print spaces+'stored value', k, idk, newTotalCost
+                        print spaces+'actSet', [a.name for a in actSet]
+                        raw_input('okay?')
+                elif not store:
+                    if debug('hAddBack'):
+                        print spaces+'BB prevented value'
+                else:
+                    if debug('hAddBack'):
+                        print spaces+'New Cost', newTotalCost, \
+                          'not better than', totalCost
+
+        assert totalCost >= 0
+        if totalCost == float('inf'):
+            print 'Infinite cost goal set'
+            actSet = set()
+            for f in fUp:
+                print '    ', f.shortName()
+            debugMsg('hAddBackInf',
                          'Warning: storing infinite value in hCache')
-                addToCachesSet(fUp, totalCost, set(), idk)
-                if totalCost == 0:
-                    assert start.satisfies(State(fUp))
+            addToCachesSet(fUp, totalCost, set(), idk)
+            if totalCost == 0:
+                assert start.satisfies(State(fUp))
 
-            thing = hCacheLookup(fUp, idk)
-            # If it's not in the cache, we bailed out before computing a good
-            # value.  Just return inf
-            return thing if thing != False else (float('inf'), set())
+        thing = hCacheLookup(fUp, idk)
+        # If it's not in the cache, we bailed out before computing a good
+        # value.  Just return inf
+        return thing if thing != False else (float('inf'), set())
 
     totalActSet = set()
     # AND loop over fluents

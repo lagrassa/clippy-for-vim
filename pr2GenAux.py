@@ -11,7 +11,8 @@ from planGlobals import debugMsg, debugDraw, debug, pause, torsoZ
 from miscUtil import argmax, isGround, isVar, argmax, squashOne
 from dist import UniformDist, DDist
 from pr2Robot import CartConf, gripperFaceFrame
-from pr2Util import PoseD, ObjGraspB, ObjPlaceB, Violations, shadowName, objectName, Memoizer
+from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
+from pr2Util import shadowName, objectName, Memoizer
 import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
@@ -346,6 +347,7 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None
                         potentialGraspConfGenAux(*key))
         cache[key] = memo
     for x in memo:
+        assert len(x) == 3 and x[-1] != None
         yield x
 
 graspConfs = set([])
@@ -394,7 +396,11 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
 
 def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=10):
     if conf:
-        yield conf, Violations()
+        ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
+        if ca:
+            viol = rm.confViolations(ca, pbs, prob, ignoreAttached=True)
+            if viol:
+                yield conf, ca, viol
         return
     wrist = objectGraspFrame(pbs, graspB, placeB, hand)
     if debug('potentialGraspConfs'):
@@ -732,14 +738,15 @@ def getCRHObsts(goalConds, pbs):
     debugMsg('getReachObsts', ('->', len(obsts), 'CRH obsts'))
     return obsts
 
-# Returns (hand, obj) for Holding fluents
+# Returns (hand, obj) for Holding fluents.   Leave it out if obj is 'none'
 def getHolding(goalConds):
     pfbs = fbch.getMatchingFluents(goalConds,
                                    Bd([Holding(['Hand']), 'Obj', 'P'], True))
     held = []
     for (pf, pb) in pfbs:
         if isGround(pb.values()):
-            held.append((pb['Hand'], pb['Obj']))
+            if pb['Obj'] != 'none':
+                held.append((pb['Hand'], pb['Obj']))
     return held
 
 def bboxRandomDrawCoords(bb):

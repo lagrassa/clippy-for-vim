@@ -33,9 +33,9 @@ def bestTable(zone, table, pointCloud, exclude,
     cdef util.Transform pose, bestPose
     
     minTablePoints = int(glob.minTableDim / glob.cloudPointsResolution)
-    # height = table.zRange()[1] - table.zRange()[0]
-    height = 0.67
-    print 'Fix table height determination'
+    height = table.zRange()[1] - table.zRange()[0]
+    # height = 0.67
+    # print 'Fix table height determination'
     bb = table.bbox()
     if debug('tables'): print 'table bbox=\n', bb
     radius = 0.75*math.sqrt((bb[1,0] - bb[0,0])**2 + (bb[1,1] - bb[0,1])**2)
@@ -208,7 +208,7 @@ def getTableDetections(world, obsPlaceBs, pointCloud):
     tables = []
     exclude = []
     # A zone of interest
-    zone = shapes.BoxAligned(np.array([(0, -2, 0), (3, 2, 1.5)]), None)
+    # zone = shapes.BoxAligned(np.array([(0, -2, 0), (3, 2, 1.5)]), None)
     allAngles = anglesList(30)
     for placeB in obsPlaceBs:
         objName = placeB.obj
@@ -224,7 +224,7 @@ def getTableDetections(world, obsPlaceBs, pointCloud):
             var = placeB.poseD.variance()
             std = max(var[:3])**0.5     # std for displacement
             zone = shapes.BoxAligned(geom.bboxGrow(tableShape.bbox(),
-						    np.array([3*std, 3*std, 0.01])), None)
+				     np.array([3*std, 3*std, 0.01])), None)
             std = var[-1]**0.5          # std for angles
             res = 0.01 if std < 0.05 else 0.02
             angles = [angle for angle in allAngles if \

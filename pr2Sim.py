@@ -15,9 +15,8 @@ from pr2Visible import visible, lookAtConf
 from time import sleep
 from pr2Ops import lookAtBProgress
 from pr2RoadMap import validEdgeTest
-import icp
-reload(icp)
-from icp import icpLocate
+import locate
+reload(locate)
 
 # debug tables
 import pointClouds as pc
@@ -47,7 +46,7 @@ simOdoErrorRate = 0.02
 
 pickSuccessDist = 0.1  # pretty big for now
 
-laserScanParams = (0.3, 0.2, 0.1, 3., 20) # narrow
+laserScanParams = (0.3, 0.2, 0.1, 3., 50)
 
 class RealWorld(WorldState):
     def __init__(self, world, bs, probs):
@@ -241,49 +240,60 @@ class RealWorld(WorldState):
         # objType = self.world.getObjType(targetObj)
         obs = []
 
-        if debug('icp'):
+        if debug('locate'):
             scan = pc.simulatedScan(lookConf, laserScanParams,
                                     self.getNonShadowShapes()+ [self.robotPlace])
-            scan.draw('W', color='red')
-            shape = icpLocate('meshes/shelves_points.off', scan,
-                              np.array([[1.0, -0.60, 0.85], [1.6, 0.60, 1.375]]))
-        
+
         for shape in self.getObjectShapes():
             curObj = shape.name()
-            # if self.world.getObjType(curObj) != objType:
-            #     continue
-            obstacles = [s for s in self.getObjectShapes() if \
-                         s.name() != curObj ]  + [self.robotPlace]
-
-            deb = 'visible' in debugOn
-            if (not deb) and debug('visibleEx'): debugOn.append('visible')
-            vis, _ = visible(self, self.robotConf,
-                             self.objectShapes[curObj],
-                             obstacles, 0.75, moveHead=False,
-                             fixed=[self.robotPlace.name()])
-            if not deb and debug('visibleEx'): debugOn.remove('visible')
-            if not vis:
-                print 'Object', curObj, 'is not visible'
-                continue
+            objType = self.world.getObjType(curObj)
+            if debug('locate'):
+                placeB = self.bs.pbs.getPlaceB(curObj)
+                (score, trans, obsShape) =\
+                        locate.getObjectDetections(lookConf, placeB, self.bs.pbs, scan)
+                if score != None:
+                    print 'Object', curObj, 'is visible'
+                    obsPose = trans.pose()
+                    print 'placeB.poseD.mode()', placeB.poseD.mode()
+                    print 'truePose', self.getObjectPose(curObj)
+                    print ' obsPose', obsPose
+                    obsShape.draw('World', 'cyan')
+                    raw_input('Go?')
+                    obs.append((objType, supportFaceIndex(obsShape), obsPose))
+                else:
+                    print 'Object', curObj, 'is not visible'
             else:
-                print 'Object', curObj, 'is visible'
+                obstacles = [s for s in self.getObjectShapes() if \
+                             s.name() != curObj ]  + [self.robotPlace]
 
-            truePose = self.getObjectPose(curObj)
-            # Have to get the resting face.  And add noise.
-            trueFace = supportFaceIndex(self.objectShapes[curObj])
-            print 'observed Face', trueFace
-            ff = self.objectShapes[curObj].faceFrames()[trueFace]
-            obsMissProb = self.domainProbs.obsTypeErrProb
-            miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
-            if miss:
-                print 'Missed observation'
-                continue
-            else:
-                obsVar = self.domainProbs.obsVar
-                obsPose = util.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
-                obsPlace = obsPose.compose(ff).pose().xyztTuple()
-                objType = self.world.getObjType(curObj)
-                obs.append((objType, trueFace, util.Pose(*obsPlace)))
+                deb = 'visible' in debugOn
+                if (not deb) and debug('visibleEx'): debugOn.append('visible')
+                vis, _ = visible(self, self.robotConf,
+                                 self.objectShapes[curObj],
+                                 obstacles, 0.75, moveHead=False,
+                                 fixed=[self.robotPlace.name()])
+                if not deb and debug('visibleEx'): debugOn.remove('visible')
+                if not vis:
+                    print 'Object', curObj, 'is not visible'
+                    continue
+                else:
+                    print 'Object', curObj, 'is visible'
+
+                truePose = self.getObjectPose(curObj)
+                # Have to get the resting face.  And add noise.
+                trueFace = supportFaceIndex(self.objectShapes[curObj])
+                print 'observed Face', trueFace
+                ff = self.objectShapes[curObj].faceFrames()[trueFace]
+                obsMissProb = self.domainProbs.obsTypeErrProb
+                miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
+                if miss:
+                    print 'Missed observation'
+                    continue
+                else:
+                    obsVar = self.domainProbs.obsVar
+                    obsPose = util.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
+                    obsPlace = obsPose.compose(ff).pose().xyztTuple()
+                    obs.append((objType, trueFace, util.Pose(*obsPlace)))
         print 'Observation', obs
         if not obs:
             debugMsg('sim', 'Null observation')

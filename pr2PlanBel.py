@@ -5,13 +5,15 @@ import windowManager3D as wm
 import copy
 import util
 import shapes
+import random
 from miscUtil import isGround
 from dist import UniformDist,  DeltaDist
 from objects import World, WorldState
 from pr2Robot import PR2, pr2Init, makePr2Chains
 from planGlobals import debugMsg, debugDraw, debug, pause
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
-from pr2Util import ObjGraspB, ObjPlaceB, shadowName, shadowWidths
+from planUtil import ObjGraspB, ObjPlaceB
+from pr2Util import shadowName, shadowWidths, objectName
 import fbch
 from fbch import getMatchingFluents
 from belief import B, Bd
@@ -75,14 +77,63 @@ class PBS:
         self.shadowWorld = None
         self.shadowProb = None
 
+    def ditherRobotOutOfCollision(self):
+        count = 0
+        confViols = self.beliefContext.roadMap.confViolations(self.conf,
+                                                              self, 0.)
+        while count < 100 and (confViols == None or confViols.obstacles or \
+          confViols.heldObstacles[0] or confViols.heldObstacles[1]):
+            count += 1
+            self.draw(0.0, 'W')
+            raw_input('go?')
+            base = self.conf['pr2Base']
+            # Should consider motions in both positive and negative directions
+            # It won't wonder away too far... TLP
+            newBase = tuple([b + (random.random() - 0.5) * 0.05 for b in base])
+            newConf = self.conf.set('pr2Base', newBase)
+            self.updateConf(newConf)
+            confViols = self.beliefContext.roadMap.confViolations(self.conf,
+                                                              self, 0.)
+        if count == 100:
+            raise Exception, 'Failed to move robot out of collision'
+
     def internalCollisionCheck(self):
         ws = self.getShadowWorld(0.0)   # minimal shadow
-        # First check the robot
-        confViols = self.beliefContext.roadMap.confViolations(self.conf, self, 0.)
+        # First check the robot for hard collisions
+        confViols = self.beliefContext.roadMap.confViolations(self.conf,
+                                                              self, 0.)
         if confViols == None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]:
-            raise Exception, 'Collision with robot: '+name
-        objShapes = [o for o in ws.getObjectShapes() if 'shadow' not in o.name()]
+            self.draw(0.0, 'W')
+            print 'Robot in collision.  Will try to fix.'
+            self.ditherRobotOutOfCollision()
+        # Now for shadow collisions;  reduce the shadow if necessary
+        confViols = self.beliefContext.roadMap.confViolations(self.conf,
+                                                          self, .98)
+        shadows = confViols.allShadows()
+        while shadows:
+            if shadows:
+                print 'Robot collides with shadows', shadows
+                self.draw(0.98, 'W')
+                raw_input('Try to fix?')
+                # Divide variance in half.  Very crude.  Should find the
+                # max variance that does not result in a shadow colliion.
+                for sh in shadows:
+                    obj = objectName(sh)
+                    pB = self.getPlaceB(obj)
+                    var = pB.poseD.variance()
+                    print 'oldVar', var
+                    newVar = tuple(v/2.0 for v in var)
+                    print 'newVar', newVar
+                    self.resetPlaceB(obj, pB.modifyPoseD(var=newVar))
+                self.reset()
+            confViols = self.beliefContext.roadMap.confViolations(self.conf,
+                                                          self, .98)
+            shadows = confViols.allShadows()
+
+        # Finally, look for object-object collisions
+        objShapes = [o for o in ws.getObjectShapes() \
+                     if 'shadow' not in o.name()]
         n = len(objShapes)
         for index in range(n):
             shape = objShapes[index]
@@ -94,7 +145,7 @@ class PBS:
                 if shape.collides(shape2) and \
                   not (shape.name() in self.fixObjBs and \
                        shape2.name() in self.fixObjBs):
-                    for shape in objShapes: shape.draw('W', 'black')
+                    for shapeXX in objShapes: shapeXX.draw('W', 'black')
                     shape2.draw('W', 'magenta')
                     raise Exception, 'Object-Object collision: '+ \
                                      shape.name()+' - '+shape2.name()
@@ -120,6 +171,13 @@ class PBS:
             return self.defaultPlaceB(obj)
         else:
             return None
+    def resetPlaceB(self, obj, pB):
+        if self.fixObjBs.get(obj, None):
+            self.fixObjBs[obj] = pB
+        elif self.moveObjBs.get(obj, None):
+            self.moveObjBs[obj] = pB
+        else:
+            assert None, 'Unknown obj in resetPlaceB'
     def defaultPlaceB(self, obj):
         world = self.getWorld()
         fr = world.getFaceFrames(obj)
@@ -539,19 +597,19 @@ def makeShadow(shape, prob, bel, name=None, color='gray'):
         if debug('getShadowWorld'):
             shParts[-1].draw('W', 'brown')
             raw_input('Next part?')
-    if len(shParts) == 1:
-        if name:
-            shParts[0].properties['name'] = name
-        if debug('getShadowWorld'):
-            print 'shadow name', shParts[0].name()
-            raw_input('1 part shadow, Ok?')
-        return shParts[0]
-    else:
-        if debug('getShadowWorld'):
-            raw_input('multiple part shadow, Ok?')
-        return shapes.Shape(shParts, shape.origin(),
-                            name=name or shape.name(),
-                            color=shColor)
+    # if len(shParts) == 1:
+    #     if name:
+    #         shParts[0].properties['name'] = name
+    #     if debug('getShadowWorld'):
+    #         print 'shadow name', shParts[0].name()
+    #         raw_input('1 part shadow, Ok?')
+    #     return shParts[0]
+    # else:
+    if debug('getShadowWorld'):
+        raw_input('multiple part shadow, Ok?')
+    return shapes.Shape(shParts, shape.origin(),
+                        name=name or shape.name(),
+                        color=shColor)
 
 def LEQ(x, y):
     return all([x1 <= y1 for (x1, y1) in zip(x,y)])
