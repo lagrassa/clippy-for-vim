@@ -98,8 +98,6 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         if debug('pr2GoToConf'): print 'response', resp
         c = resp.resultConf
 
-        print c
-
         cnfOut = {}
         cnfOut['pr2Base'] = c.base
         cnfOut['pr2Torso']  = c.torso
@@ -109,14 +107,17 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         cnfOut['pr2RightGripper'] = [max(0., min(0.8, c.right_grip[0]))]
         cnfOut['pr2Head'] = cnfIn.get('pr2Head', [0.,0.])
 
-        print cnfOut
+        if debug('pr2GoToConf'): print cnfOut
+
+        fingerStatus = {'left': resp.resultConf.left_finger_sensor_status,
+                        'right': resp.resultConf.right_finger_sensor_status}
 
         if cnfIn:
             cnfOut = cnfIn.robot.normConf(JointConf(cnfOut, cnfIn.robot), cnfIn)
             cnfOut = enforceLimits(cnfOut)
-            return resp.result, cnfOut
+            return resp.result, cnfOut, fingerStatus
         else:
-            return resp.result, JointConf(cnfOut, None)  # !!
+            return resp.result, JointConf(cnfOut, None), fingerStatus  # !!
 
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
@@ -124,7 +125,7 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         return None, None               # should we pretend it worked?
 
 def pr2GetConf():
-    result, conf = pr2GoToConf(JointConf({}, None), 'getConf')
+    result, conf = pr2GoToConf({}, 'getConf')
     return conf
 
 def gazeCoords(cnfIn):
@@ -306,7 +307,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         obs = []
 
         debugMsg('robotEnv', 'executeLookAt', lookConf.conf)
-        result, outConf = pr2GoToConf(lookConf, 'look')
+        result, outConf, _ = pr2GoToConf(lookConf, 'look')
         outConfCart = lookConf.robot.forwardKin(outConf)
         if visTables:
             assert len(visTables) == 1
@@ -377,25 +378,26 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         gripper = 'pr2LeftGripper' if hand=='left' else 'pr2RightGripper'
 
         debugMsg('robotEnv', 'executePick - open')
-        result, outConf = pr2GoToConf(approachConf, 'move')
-        result, outConf = pr2GoToConf(lookAtConf(approachConf, self.lookObjShape(placeBs[obj])),
+        result, outConf, _ = pr2GoToConf(approachConf, 'move')
+        result, outConf, _ = pr2GoToConf(lookAtConf(approachConf, self.lookObjShape(placeBs[obj])),
                                       'look')
         
         debugMsg('robotEnv', 'executePick - move to pickConf')
         reactiveApproach(approachConf, pickConf, 0.06, hand)
 
         debugMsg('robotEnv', 'executePick - close')
-        result, outConf = pr2GoToConf(pickConf, 'close', arm=hand[0]) # 'l' or 'r'
+        result, outConf, _ = pr2GoToConf(pickConf, 'close', arm=hand[0]) # 'l' or 'r'
         g = confGrip(outConf, hand)
         gripConf = gripOpen(outConf, hand, g-0.03)
         # close then grab
-        result, outConf = pr2GoToConf(gripConf, 'open')
-        result, outConf = pr2GoToConf(gripConf, 'grab', arm=hand[0])
+        # result, outConf, _ = pr2GoToConf(gripConf, 'open')
+        # result, outConf, _ = pr2GoToConf(gripConf, 'grab', arm=hand[0])
+        result, outConf, _ = closeFirmly(outConf, hand)
         if debug('robotEnv'):
             raw_input('Closed?')
 
         debugMsg('robotEnv', 'executePick - move to approachConf')
-        result, outConf = pr2GoToConf(approachConf, 'move')
+        result, outConf, _ = pr2GoToConf(approachConf, 'move')
 
         return None
 
@@ -404,17 +406,17 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                (op.args[1], op.args[-6], op.args[-8])
 
         debugMsg('robotEnv', 'executePlace - move to approachConf')
-        result, outConf = pr2GoToConf(approachConf, 'move')
+        result, outConf, _ = pr2GoToConf(approachConf, 'move')
         
         debugMsg('robotEnv', 'executePlace - move to placeConf')
-        result, outConf = pr2GoToConf(placeConf, 'move')
+        result, outConf, _ = pr2GoToConf(placeConf, 'move')
 
         debugMsg('robotEnv', 'executePlace - open')
         placeConf = gripOpen(outConf, hand, 0.08) # keep height
-        result, outConf = pr2GoToConf(placeConf, 'open')
+        result, outConf, _ = pr2GoToConf(placeConf, 'open')
 
         debugMsg('robotEnv', 'executePlace - move to approachConf')
-        result, outConf = pr2GoToConf(approachConf, 'move')
+        result, outConf, _ = pr2GoToConf(approachConf, 'move')
         
         return None
 
@@ -799,8 +801,37 @@ def testReactive(startConf,
     g = confGrip(curConf, hand)
     print 'grip after reactive', g
     gripConf = gripOpen(curConf, hand, 0.04)
-    result, outConf = pr2GoToConfNB(gripConf, 'open')
+    result, outConf, _ = pr2GoToConfNB(gripConf, 'open')
     g = confGrip(outConf, hand)
     print 'grip after tightening', g
     raw_input('Done?')
 
+  ##fingertip regions are touching (tip, plus_z_side, neg_z_side, front, back) for each sensor
+
+l_region_elements = [[2,3,4,5], [1,], [6,], [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21], [0]]
+r_region_elements = [[2,3,4,5], [6,], [1,], [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21], [0]]
+
+def elts(l, i): return [l[x] for x in i]
+
+def closeFirmly(conf, hand, delta = 0.005):
+    ind = l_region_elements[3], r_region_elements[3]
+    result, out, fs = pr2GoToConfNB(conf, 'open', hand)
+    grip = confGrip(out, hand)
+    vals = (elts(fs[hand].l_readings, ind[0]), elts(fs[hand].r_readings, ind[1]))
+    init = vals
+    lmax0 = max(vals[0])
+    rmax0 = max(vals[1])
+    n = int((grip-0.01)/delta)
+    print '+++++++++++'
+    for i in range(n):
+        grip = confGrip(out, hand)
+        lmax = max(vals[0])
+        rmax = max(vals[1])
+        print 'grip', grip, 'lmax', lmax, 'rmax', rmax
+        # print min(vals[0]), max(vals[0]), sum(vals[0])/15
+        # print min(vals[1]), max(vals[1]), sum(vals[1])/15
+        print '+++++++++++'
+        if lmax > 1.5*lmax0 or rmax > 1.5*rmax0: break
+        result, out, fs = pr2GoToConfNB(gripOpen(conf, hand, grip-delta), 'open', hand)
+        vals = (elts(fs[hand].l_readings, ind[0]), elts(fs[hand].r_readings, ind[1]))
+    return 'closed', out, fs

@@ -223,8 +223,8 @@ def getTableDetections(world, obsPlaceBs, pointCloud):
             pose = placeB.poseD.mode().pose()
             var = placeB.poseD.variance()
             std = max(var[:3])**0.5     # std for displacement
-            zone = shapes.BoxAligned(bboxGrow(tableShape.bbox(),
-                                              np.array([3*std, 3*std, 0.01])), None)
+            zone = shapes.BoxAligned(geom.bboxGrow(tableShape.bbox(),
+						    np.array([3*std, 3*std, 0.01])), None)
             std = var[-1]**0.5          # std for angles
             res = 0.01 if std < 0.05 else 0.02
             angles = [angle for angle in allAngles if \

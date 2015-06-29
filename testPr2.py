@@ -1809,11 +1809,10 @@ def ff(g, details):
 def testReact():
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
     startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)
-    result, cnfOut = pr2GoToConf(startConf, 'move')
-    result, cnfOut = pr2GoToConf(startConf, 'look')
+    result, cnfOut, _ = pr2GoToConf(startConf, 'move')
+    result, cnfOut, _ = pr2GoToConf(startConf, 'look')
     # Reset the internal coordinate frames
-    result, cnfOut = pr2GoToConf(startConf, 'reset')
-    glob.debugOn.append('invkin')
+    result, cnfOut, _ = pr2GoToConf(startConf, 'reset')
     testReactive(startConf)
 
 def gripOpen(conf, hand, width=0.08):
@@ -1822,7 +1821,7 @@ def gripOpen(conf, hand, width=0.08):
 def testOpen(hand='left'):
     t = PlanTest('testReact', typicalErrProbs, allOperators, multiplier = 1)
     startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)[0]
-    result, cnfOut = pr2GoToConf(gripOpen(startConf, hand), 'open')    
+    result, cnfOut, _ = pr2GoToConf(gripOpen(startConf, hand), 'open')    
 
 def testBusy(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy = False, rip = False,

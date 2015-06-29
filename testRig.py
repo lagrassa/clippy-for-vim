@@ -609,9 +609,9 @@ class PlanTest:
             startConf = self.bs.pbs.conf.copy()
             # Move base to [0., 0., 0.]
             startConf.set('pr2Base', 3*[0.])
-            result, cnfOut = pr2GoToConf(startConf,'move')
+            result, cnfOut, _ = pr2GoToConf(startConf,'move')
             # Reset the internal coordinate frames
-            result, cnfOut = pr2GoToConf(cnfOut, 'reset')
+            result, cnfOut, _ = pr2GoToConf(cnfOut, 'reset')
             debugMsg('robotEnv', result, cnfOut)
         else:
             self.realWorld = RealWorld(world, self.bs,
