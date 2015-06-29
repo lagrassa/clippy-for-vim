@@ -6,7 +6,7 @@ def Ba(bb, **prop): return shapes.BoxAligned(np.array(bb), None, **prop)
 def Sh(args, **prop): return shapes.Shape(list(args), None, **prop)
 
 def makeSoda(dx=0.0445, dy=0.027, dz=0.1175, name='objA', color='blue'):
-    return Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name, color=color)])
+    return Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)])], name=name, color=color)
 
 soupZ = 0.1
 def makeSoup(radius=0.0675/2, height=0.1, name='soup', color='red'):
