@@ -22,17 +22,10 @@ import windowManager3D as wm
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
-placePoseDelta = (0.01, 0.01, 0.01, 0.03)
-defaultPoseDelta = placePoseDelta
-defaultTotalDelta = (0.05, 0.05, 0.05, 0.1)  # for place in region
-lookConfDelta = (0.01, 0.01, 0.0001, 0.01)
 
 # If it's bigger than this, we can't just plan to look and see it
 # Should be more subtle than this...
 maxPoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
-
-# Assume fixed delta on confs, determined by motion controller.
-fixedConfDelta = (0.001, 0.001, 0.0000001, 0.002)
 
 # Fixed accuracy to use for some standard preconditions
 canPPProb = 0.9
@@ -46,7 +39,7 @@ movePreProb = 0.8
 # Prob for generators.  Keep it high.   Should this be = maxProbValue?
 probForGenerators = 0.98
 
-
+# Generic large values for the purposes of planning
 planVar = (0.04**2, 0.04**2, 0.04**2, 0.08**2)
 planP = 0.95
 
@@ -430,6 +423,14 @@ def maxGraspVarFun((var,), goal, start, vals):
         result.append([tuple([min(x,y) for (x,y) in zip(var, rgs[3])])])
     return result
 
+def moveConfDelta(args, goal, start, vals):
+    return [[start.domainProbs.moveConfDelta]]
+def defaultPlaceDelta(args, goal, start, vals):
+    return [[start.domainProbs.placeDelta]]
+def defaultGraspDelta(args, goal, start, vals):
+    return [[start.domainProbs.graspDelta]]
+def obsVar(args, goal, start, vals):
+    return [[start.domainProbs.obsVar]]
 
 def realPoseVar((graspVar,), goal, start, vals):
     placeVar = start.domainProbs.placeVar
@@ -444,6 +445,9 @@ def placeInPoseVar(args, goal, start, vals):
 # the stdev.    (sqrt(v) * 2)^2 = v * 4
 def stdevTimes2((thing,), goal, start, vals):
     return [[tuple([v*4 for v in thing])]]
+
+def times2((thing,), goal, start, vals):
+    return [[tuple([v*2 for v in thing])]]
 
 # For place, grasp var is desired poseVar minus fixed placeVar
 # Don't let it be bigger than maxGraspVar 
@@ -560,7 +564,7 @@ def realPoseVarAfterObs((varAfter,), goal, start, vals):
 def genLookObjHandPrevVariance((ve, hand, obj, face), goal, start, vals):
     epsilon = 10e-5
     lookVar = start.domainProbs.obsVarTuple
-    maxGraspVar = (0.0008, 0.0008, 0.0008, 0.008)
+    maxGraspVar = start.domainProbs.maxGraspVar
 
     result = []
     hs = start.pbs.getHeld(hand).mode()
@@ -765,7 +769,7 @@ def pickCostFun(al, args, details):
 # When we go to non-diagonal covariance, this will be fun...
 # For now, just use the first term!
 def lookAtCostFun(al, args, details):
-    (_,_,_,_,vb,d,va,rva,p,pb,pPoseR,pFaceR) = args
+    (_,_,_,_,vb,d,va,rva,cd,ov,p,pb,pPoseR,pFaceR) = args
     placeProb = min(pPoseR,pFaceR) if (not isVar(pPoseR) and not isVar(pFaceR))\
                            else p
     vo = details.domainProbs.obsVarTuple
@@ -877,7 +881,7 @@ def placeBProgress(details, args, obs=None):
     
 # obs has the form (obj-type, face, relative pose)
 def lookAtBProgress(details, args, obs):
-    (_, lookConf, _, _, _, _, _, _, _, _, _, _) = args
+    (_, lookConf, _, _, _, _, _, _, _, _, _, _, _, _) = args
     objectObsUpdate(details, lookConf, obs)
     details.pbs.reset()
     details.pbs.getRoadMap().confReachCache = {} # Clear motion planning cache
@@ -1243,7 +1247,8 @@ poseAchIn = Operator(\
              'PosesAchIn', ['Obj1', 'Region',
                             'ObjPose1', 'PoseFace1',
                             'Obj2', 'ObjPose2', 'PoseFace2',
-                            'PoseVar', 'TotalVar', 'P1', 'P2', 'PR'],
+                            'PoseVar', 'TotalVar', 'PoseDelta', 'TotalDelta',
+                            'P1', 'P2', 'PR'],
             # Very prescriptive:  find objects, then nail down obj1,
             # then obj 2.  Changed so we don't try to maintain
             # detailed k of the table as we are picking other obj.
@@ -1251,10 +1256,10 @@ poseAchIn = Operator(\
              1 : {BLoc(['Obj1', planVar, planP], True), # 'PoseVar'
                   BLoc(['Obj2', planVar, planP], True)},
              2 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
-                               defaultPoseDelta, 'P1'], True),
+                               'PoseDelta', 'P1'], True),
                   Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True)},
              3 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
-                               defaultPoseDelta, 'P2'], True),
+                               'PoseDelta', 'P2'], True),
                   Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)}},
             # Results
             [({Bd([In(['Obj1', 'Region']), True, 'PR'], True)},{})],
@@ -1262,16 +1267,18 @@ poseAchIn = Operator(\
               Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2'),
               # Object region is defined wrto
               Function(['Obj2'], ['Region'], regionParent, 'regionParent'),
+              Function(['PoseDelta'], [], defaultPlaceDelta,
+                       'defaultPlaceDelta'),
               # Assume it doesn't move
               Function(['PoseFace2', 'ObjPose2'], ['Obj2'],
                        poseInStart, 'poseInStart'),
-              # totalVar = square(2 * sqrt(poseVar)); totalDelta = 2 * poseDelta
+              # totalVar = square(2 * sqrt(poseVar))
               Function(['PoseVar'], [], placeInPoseVar, 'placeInPoseVar'),
               Function(['TotalVar'], ['PoseVar'], stdevTimes2, 'stdevTimes2'),
+              Function(['TotalDelta'], ['PoseDelta'], times2, 'times2'),
               # call main generator
               Function(['ObjPose1', 'PoseFace1'],
-                     ['Obj1', 'Region', 'TotalVar',
-                      tuple([d*2 for d in defaultPoseDelta]),
+                     ['Obj1', 'Region', 'TotalVar', 'TotalDelta',
                       probForGenerators],
                      placeInRegionGen, 'placeInRegionGen')],
             argsToPrint = [0, 1],
@@ -1337,9 +1344,9 @@ place = Operator(\
                      ['GraspVar'], realPoseVar, 'realPoseVar'),
             
             # In case PoseDelta isn't defined
-            Function(['PoseDelta'],[[placePoseDelta]], assign, 'assign'),
+            Function(['PoseDelta'], [], defaultPlaceDelta, 'defPlaceDelta'),
             # Assume fixed conf delta
-            Function(['ConfDelta'], [[fixedConfDelta]], assign, 'assign'),
+            Function(['ConfDelta'], [], moveConfDelta, 'moveConfDelta'),
 
             Function(['GraspDelta'], ['PoseDelta', 'ConfDelta'],
                       subtract, 'subtract'),
@@ -1409,9 +1416,9 @@ pick = Operator(\
                      'realGraspVar'),
 
             # Assume fixed conf delta
-            Function(['ConfDelta'], [[fixedConfDelta]], assign, 'assign'),
+            Function(['ConfDelta'], [], moveConfDelta, 'moveConfDelta'),
                      
-            # Divide delta evenly
+            # Subtract off conf delta
             Function(['PoseDelta'], ['GraspDelta', 'ConfDelta'],
                       subtract, 'subtract'),
 
@@ -1440,13 +1447,11 @@ pick = Operator(\
 # results...unfortunate increase in branching factor unless
 # applicableOps handles them well.
 
-# This is is gross
-obsVar = (0.005**2, 0.005**2,0.005**2, 0.01**2)
-
 lookAt = Operator(\
     'LookAt',
     ['Obj', 'LookConf', 'PoseFace', 'Pose',
      'PoseVarBefore', 'PoseDelta', 'PoseVarAfter', 'RealPoseVarAfter',
+     'ConfDelta', 'ObsVar', 
      'P1', 'PR0', 'PR1', 'PR2'],
     # Pre
     {0: {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
@@ -1454,10 +1459,10 @@ lookAt = Operator(\
                  'P1'], True)},
      1: {Bd([CanSeeFrom(['Obj', 'Pose', 'PoseFace', 'LookConf', []]),
              True, canSeeProb], True),
-         Conf(['LookConf', lookConfDelta], True)}},
+         Conf(['LookConf', fixedConfDelta], True)}},
     [({B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
          'PR1'],True),
-       B([Pose(['Obj', 'PoseFace']), 'Pose', obsVar, 'PoseDelta',
+       B([Pose(['Obj', 'PoseFace']), 'Pose', 'ObsVar', 'PoseDelta',
          'PR1'],True),         
        Bd([SupportFace(['Obj']), 'PoseFace', 'PR2'], True)}, {})
        ],
@@ -1467,6 +1472,8 @@ lookAt = Operator(\
         Function(['PoseFace'], [['*']], assign, 'assign'),
         Function(['Pose'], [['*']], assign, 'assign'),
         Function(['PoseDelta'], [['*']], assign, 'assign'),
+        Function(['ConfDelta'], [], moveConfDelta, 'moveConfDelta'),
+        Function(['ObsVar'], [], obsVar, 'obsVar'),
         Function(['RealPoseVarAfter'], ['PoseVarAfter'],
                  realPoseVarAfterObs, 'realPoseVarAfterObs'),
         # Look increases probability.  
@@ -1476,7 +1483,7 @@ lookAt = Operator(\
                 genLookObjPrevVariance, 'genLookObjPrevVariance'),
         Function(['LookConf'],
                  ['Obj', 'Pose', 'PoseFace', 'PoseVarBefore', 'PoseDelta',
-                         lookConfDelta, probForGenerators],
+                         'ConfDelta', probForGenerators],
                  lookGen, 'lookGen')
         ],
     cost = lookAtCostFun,

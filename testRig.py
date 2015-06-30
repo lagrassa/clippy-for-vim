@@ -738,6 +738,7 @@ typicalErrProbs = DomainProbs(\
             # Use this for placing objects
             # placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             # graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
+            moveConfDelta = (0.001, 0.001, 0.0, 0.002),
             placeDelta = (0.01, 0.01, 1.0e-4, 0.05),
             graspDelta = (0.005, 0.005, 1.0e-4, 0.008))
 

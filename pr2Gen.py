@@ -1034,7 +1034,10 @@ def lookGenTop(args, goalConds, pbs, outBindings):
 
     if base:
         conf = targetConf(goalConds)
-        assert conf, 'No conf found for lookConf with specified base'
+        if conf == None:
+            print 'No conf found for lookConf with specified base'
+            raw_input('This might be an error in regression')
+            return
         path, viol = canReachHome(newBS, conf, prob, Violations(), moveBase=False)
         trace('    lookGen(%s) specified base viol='%obj, viol.weight() if viol else None)
         if not path:
@@ -1319,13 +1322,15 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
     if viol.empty():
         tracep(tag, 'No obstacles or shadows; returning')
         return
-    # If possible, it might be better to make the deltas big; but we
-    # have to be sure to use the same delta when generating paths.
-    objBMinDelta = newBS.domainProbs.placeDelta
-    objBMinVar = newBS.domainProbs.obsVarTuple
+
+    objBMinVarGrasp = tuple([x**2/2*x for x in pbs.domainProbs.obsVarTuple])
+    objBMinVarStatic = tuple([x**2 for x in pbs.domainProbs.odoError])
     objBMinProb = 0.95
+    # The irreducible shadow
+    objBMinDelta = pbs.domainProbs.moveConfDelta
+    
     lookDelta = objBMinDelta
-    moveDelta = objBMinDelta
+    moveDelta = pbs.domainProbs.placeDelta
     shWorld = newBS.getShadowWorld(prob)
     fixed = shWorld.fixedObjects
     # Try to fix one of the violations if any...
@@ -1344,28 +1349,39 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
     if shadows:
         shadowName = shadows[0]
         obst = objectName(shadowName)
+        graspable = obst in pbs.getWorld().graspDesc    
+        objBMinVar = objBMinVarGrasp if graspable else objBMinVarStatic
         placeB = newBS.getPlaceB(obst)
+        if debug(tag, skip=skip):
+            drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
+            debugMsg(tag,'Trying to reduce shadow (on W in red) %s'%obst)
+            trace('    %s() shadow:'%tag, obst)
+        yield (obst, placeB.poseD.mode().xyztTuple(),
+                placeB.support.mode(), objBMinVar, lookDelta)
+
         # !! It could be that sensing is not good enough to reduce the
         # shadow so that we can actually achieve goal
-        newBS2 = newBS.copy()
-        placeB2 = placeB.modifyPoseD(var = lookVar)
-        placeB2.delta = lookDelta
-        newBS2.updatePermObjPose(placeB2)
-        viol2 = violFn(newBS2)
-        if viol2:
-            if shadowName in [x.name() for x in viol2.allShadows()]:
-                print 'could not reduce the shadow for', obst, 'enough to avoid'
-                drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
-                print 'brown is as far as it goes'
-                drawObjAndShadow(newBS2, placeB2, prob, 'W', color='brown')
-                raw_input('Go?')
-            else:
-                if debug(tag, skip=skip):
-                    drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
-                    debugMsg(tag,'Trying to reduce shadow (on W in red) %s'%obst)
-                    trace('    %s() shadow:'%tag, obst)
-                yield (obst, placeB.poseD.mode().xyztTuple(),
-                       placeB.support.mode(), lookVar, lookDelta)
+        # LPK:  now that we have the irreducible shadow, this is not an issue.
+        # newBS2 = newBS.copy()
+        # placeB2 = placeB.modifyPoseD(var = lookVar)
+        # placeB2.delta = lookDelta
+        # newBS2.updatePermObjPose(placeB2)
+        # viol2 = violFn(newBS2)
+        # if viol2:
+        #     if shadowName in [x.name() for x in viol2.allShadows()]:
+        #         print 'could not reduce the shadow for', obst, 'enough to avoid'
+        #         drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
+        #         print 'brown is as far as it goes'
+        #         drawObjAndShadow(newBS2, placeB2, prob, 'W', color='brown')
+        #         raw_input('Go?')
+        #     else:
+        #         if debug(tag, skip=skip):
+        #             drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
+        #             debugMsg(tag,'Trying to reduce shadow (on W in red) %s'%obst)
+        #             trace('    %s() shadow:'%tag, obst)
+        #         yield (obst, placeB.poseD.mode().xyztTuple(),
+        #                placeB.support.mode(), lookVar, lookDelta)
+
         # Either reducing the shadow is not enough or we failed and
         # need to move the object (if it's movable).
         if obst not in newBS.fixObjBs:
@@ -1427,7 +1443,7 @@ def canSeeGenTop(args, goalConds, pbs, outBindings):
         tracep('canSeeGen', 'no occluders')
         return
     obst = occluders[0] # !! just pick one
-    moveDelta = (0.01, 0.01, 0.01, 0.02)
+    moveDelta = pbs.domainProbs.placeDelta
     for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
         yield ans 
 

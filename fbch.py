@@ -712,6 +712,7 @@ class Operator(object):
         self.ignorableArgs = ignorableArgs
         self.instanceCost = 'none'
         self.specialRegress = specialRegress
+        self.subPlans = []
 
     def verifyArgs(self):
         varsUsed = set({})
@@ -900,6 +901,7 @@ class Operator(object):
                 neededVars = neededVars.union(inVarSet)
                 result.append(f)
         result.reverse()
+
         return result
 
 
@@ -1134,6 +1136,8 @@ class Operator(object):
             for f in newGoal.fluents:
                 if f.isConditional(): 
                     if not f.feasible(startState.details):
+                        print f
+                        raw_input('conditional fluent is infeasible')
                         debugMsg('regression:fail',
                                  'conditional fluent is infeasible',
                                  f)
@@ -1297,7 +1301,8 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
                             start,
                             [lookup(v, sofar) for v in f.outVars])
             if values == None or values == []:
-                debugMsg('btbind', 'fun failed', f, f.inVars, sofar)
+                debugMsg('btbind', 'fun failed', f,
+                         [lookup(v, sofar) for v in f.inVars], sofar)
                 return None
             for val in values:
                 assert len(f.outVars) == len(val)
@@ -1482,7 +1487,7 @@ nop = Operator('Nop', [], {1:[]}, [], [], None)
 # NonMonOps are allowed to be treated monotonically
 
 def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
-        skeleton = None, verbose = False, nonMonOps = [], maxNodes = 500):
+        skeleton = None, verbose = False, nonMonOps = [], maxNodes = 300):
     f = writePreamble(hpnFileTag or fileTag)
     try:
         successful = False
@@ -1503,16 +1508,18 @@ class PlanningFailed(Exception):
 
 def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
         skeleton = None, verbose = False, nonMonOps = [], maxNodes = 500):
-    ps = PlanStack(); ancestors = []
+    ps = PlanStack(); ancestors = []; lastPlan = -1; planBeforeLastAction = -1
     ps.push(Plan([(nop, State([])), (top, g)]))
     (op, subgoal, oldSkel) = (top, g, None)
     while not ps.isEmpty() and op != None:
         if op.isAbstract():
             # Plan again at a more concrete level
             writeSubgoalRefinement(f, ps.guts()[-1], subgoal)
+            op.subPlans.append(subgoal.planNum)
             sk = (oldSkel and oldSkel[0]) or (skeleton and \
                  len(skeleton)>subgoal.planNum and skeleton[subgoal.planNum])
             # Ignore last operation if we popped to get here.
+            print 'oldSkel', oldSkel
             p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
                                  lastOp = op if oldSkel == None else None,
                                  skeleton = sk,
@@ -1522,23 +1529,36 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
             if p:
                 planObj = makePlanObj(p, s)
                 planObj.printIt(verbose = verbose)
+                lastPlan = subgoal.planNum
                 ps.push(planObj)
                 ancestors.append(planObj.getOps())
                 writeSubtasks(f, planObj, subgoal)
             else:
+                print 'Plan stack depth', ps.depth()
                 raw_input('Planning failed;  popping plan stack')
                 ps.pop()
         elif op.prim != None:
             # Execute
             executePrim(op, s, env, f)
+            planBeforeLastAction = lastPlan
                 
         # Decide what to do next
         # will pop levels we don't need any more, so that p is on the top
         # op will be None if we are done
         (op, subgoal, popSkel) = ps.nextStep(s, ops, f)
-        oldSkel = popSkel or (oldSkel and oldSkel[-1:])
+        oldSkel = popSkel #or (oldSkel and oldSkel[-1:])
         # Possibly pop ancestors
         ancestors = ancestors[0:ps.size()]
+        # Tidy up this bookkeeping
+        if op and op.subPlans and op.subPlans[-1] > planBeforeLastAction:
+            # we have not executed an action since the last time we
+            # tried to plan for this subgoal.  We're stuck.  Give up
+            # and try from the top.  Could maybe be smarter.
+            raw_input('Trying to plan for the same goal without intervening'+\
+                     ' action.  Seems like we are stuck.  Restarting HPN from'+\
+                     ' the top.')
+            raise PlanningFailed
+
     # If we return, we have succeeded!
         
 def executePrim(op, s, env, f = None):
@@ -1559,6 +1579,9 @@ class PlanStack(Stack):
     # Ask each layer what it wants its next step to be
     # If it's different than the subgoal at the next layer below, pop all
     #    lower layers
+
+    def depth(self):
+        return len(self.guts())
     
     # Also, return a skeleton constructed from any layers that get
     # popped, if we're replanning.
@@ -1619,7 +1642,7 @@ class PlanStack(Stack):
 
     def getSkelFromSubtree(self, i):
         return False
-        #### Code below not finished
+        #### Code below not finished.  Do more work to use it in hpn, too.
         def abstract(op):
             # Make an abstract version of the operator
             return op
