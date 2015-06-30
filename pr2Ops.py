@@ -1464,7 +1464,7 @@ lookAt = Operator(\
                  'P1'], True)},
      1: {Bd([CanSeeFrom(['Obj', 'Pose', 'PoseFace', 'LookConf', []]),
              True, canSeeProb], True),
-         Conf(['LookConf', fixedConfDelta], True)}},
+         Conf(['LookConf', 'ConfDelta'], True)}},
     [({B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarAfter', 'PoseDelta',
          'PR1'],True),
        B([Pose(['Obj', 'PoseFace']), 'Pose', 'ObsVar', 'PoseDelta',
