@@ -437,6 +437,7 @@ class RoadMap:
             if ans and ans[0]:
                 (viol, cost, edgePath) = ans
                 viol = viol.update(initViol)
+                viol = viol.update(endPtViol)
                 path = self.confPathFromEdgePath(edgePath)
                 if show and debug('showPath') and not fbch.inHeuristic:
                     print 'confAns'
@@ -462,18 +463,10 @@ class RoadMap:
 
         initConf = startConf or self.homeConf
         initNode = makeNode(initConf)
-        finalConf = None
-        if not fbch.inHeuristic and targetConf in self.approachConfs:
-            finalConf = targetConf
-            targetConf = self.approachConfs[targetConf]
-            if debug('traceCRH'): print '    using approach conf'
 
         cv1 = self.confViolations(targetConf, pbs, prob)
         cv2 = self.confViolations(initConf, pbs, prob)
         endPtViol = combineViols(cv1, cv2)
-
-        targetNode = makeNode(targetConf)
-        attached = pbs.getShadowWorld(prob).attached
         if endPtViol == None:
             if debug('endPoint:collision'):
                 pbs.draw(prob, 'W')
@@ -482,6 +475,13 @@ class RoadMap:
                 print '    collision at end point'
                 raw_input('okay?')
             return confAns(None)
+        finalConf = None
+        if not fbch.inHeuristic and targetConf in self.approachConfs:
+            finalConf = targetConf
+            targetConf = self.approachConfs[targetConf]
+            if debug('traceCRH'): print '    using approach conf'
+        targetNode = makeNode(targetConf)
+        attached = pbs.getShadowWorld(prob).attached
         cached = checkFullCache()
         if cached:
             return confAns(cached)

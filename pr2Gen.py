@@ -719,6 +719,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                 c = approached[ca]
                 ans = (gB, pB, c, ca)
                 if debug('placeGen', skip=skip):
+                    pbs.draw(prob, 'W')
                     drawPoseConf(pbs, pB, c, ca, prob, 'W', color='magenta')
                     debugMsg('placeGen', ('->', ans), ('viol', viol))
                     wm.getWindow('W').clear()
