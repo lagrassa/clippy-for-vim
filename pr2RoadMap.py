@@ -461,8 +461,12 @@ class RoadMap:
                 print 'startConf is blue; targetConf is pink'
                 raw_input('confReachViol')
 
+
+        ######### procedure starts ##########
+
         initConf = startConf or self.homeConf
         initNode = makeNode(initConf)
+        attached = pbs.getShadowWorld(prob).attached
 
         cv1 = self.confViolations(targetConf, pbs, prob)
         cv2 = self.confViolations(initConf, pbs, prob)
@@ -481,7 +485,6 @@ class RoadMap:
             targetConf = self.approachConfs[targetConf]
             if debug('traceCRH'): print '    using approach conf'
         targetNode = makeNode(targetConf)
-        attached = pbs.getShadowWorld(prob).attached
         cached = checkFullCache()
         if cached:
             return confAns(cached)

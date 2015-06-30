@@ -297,6 +297,7 @@ class DomainProbs:
                  maxGraspVar = (0.015**2, .015**2, .015**2, .03**2),
                  placeDelta = (0.005, 0.005, 1.0e-6, 0.005),
                  graspDelta = (0.005, 0.005, 1.0e-6, 0.005),
+                 shadowDelta = (0.005, 0.005, 1.0e-6, 0.005),
                  moveConfDelta = (0.001, 0.001, 0.0, 0.002)):
         self.odoError = odoError # std dev per meter / radian in base motion
         self.obsVar = np.diag(obsVar) # error in observations
@@ -316,6 +317,7 @@ class DomainProbs:
         self.placeFailProb = placeFailProb
         self.placeDelta = placeDelta
         self.graspDelta = graspDelta
+        self.shadowDelta = shadowDelta
         self.moveConfDelta = moveConfDelta
         minDelta = [2*x for x in self.placeStdev]
         minDelta[2] = 1e-3

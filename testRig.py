@@ -719,9 +719,9 @@ class PlanTest:
 
 typicalErrProbs = DomainProbs(\
             # stdev, constant, assuming we control it by tracking while moving
-            odoError = (0.008, 0.008, 1e-11, 0.015),
+            odoError = (0.008, 0.008, 1e-5, 0.015),
             # variance in observations; diagonal for now
-            obsVar = (0.005**2, 0.005**2,0.005**2, 0.01**2),
+            obsVar = (0.005**2, 0.005**2,0.00005**2, 0.01**2),
             # big angle var from robot experience
             # obsVar = (0.005**2, 0.005**2,0.005**2, 0.15**2),
             # get type of object wrong
@@ -736,10 +736,12 @@ typicalErrProbs = DomainProbs(\
             # pickTolerance
             pickTolerance = (0.025, 0.025, 0.025, 0.1),
             maxGraspVar = (0.005**2, .005**2, .005**2, .015**2),
+            moveConfDelta = (0.001, 0.001, 0.0, 0.002),
+            #shadowDelta = (0.01, 0.01, 1.0e-8, 0.05),
+            shadowDelta = (0.001, 0.001, 0.0, 0.002),
             # Use this for placing objects
             # placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             # graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
-            moveConfDelta = (0.001, 0.001, 0.0, 0.002),
             placeDelta = (0.01, 0.01, 1.0e-4, 0.05),
             graspDelta = (0.005, 0.005, 1.0e-4, 0.008))
 
@@ -763,10 +765,6 @@ tinyErrProbs = DomainProbs(\
             # Use this for placing objects
             placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
-
-
-
-
 
 allOperators = [move, pick, place, lookAt, poseAchCanReach,
                 poseAchCanSee, poseAchCanPickPlace, poseAchIn, moveNB,

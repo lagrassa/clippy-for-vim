@@ -1323,11 +1323,12 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
         tracep(tag, 'No obstacles or shadows; returning')
         return
 
-    objBMinVarGrasp = tuple([x**2/2*x for x in pbs.domainProbs.obsVarTuple])
+    #objBMinVarGrasp = tuple([x**2/2*x for x in pbs.domainProbs.obsVarTuple])
+    objBMinVarGrasp = tuple([x/2 for x in pbs.domainProbs.obsVarTuple])
     objBMinVarStatic = tuple([x**2 for x in pbs.domainProbs.odoError])
     objBMinProb = 0.95
     # The irreducible shadow
-    objBMinDelta = pbs.domainProbs.moveConfDelta
+    objBMinDelta = pbs.domainProbs.shadowDelta
     
     lookDelta = objBMinDelta
     moveDelta = pbs.domainProbs.placeDelta

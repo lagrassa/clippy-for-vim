@@ -757,16 +757,20 @@ def moveNBCostFun(al, args, details):
 
 def placeCostFun(al, args, details):
     rawCost = 3
+    abstractCost = 5
     (_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,p1) = args
     result = costFun(rawCost,
-                     p1*canPPProb*(1-details.domainProbs.placeFailProb))
+                     p1*canPPProb*(1-details.domainProbs.placeFailProb)) + \
+               abstractCost if al == 0 else 0
     return result
 
 def pickCostFun(al, args, details):
     (o,h,pf,p,pd,gf,gm,gv,gd,prc,cd,pc,rgv,pv,p1,pr1,pr2,pr3) = args
     rawCost = 3
+    abstractCost = 1
     result = costFun(rawCost, p1*canPPProb*canPPProb*\
-                     (1 - details.domainProbs.pickFailProb))
+                     (1 - details.domainProbs.pickFailProb)) + \
+               abstractCost if al == 0 else 0
     return result
 
 # Cost depends on likelihood of seeing the object and of moving the
