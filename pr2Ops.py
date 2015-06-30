@@ -1500,6 +1500,7 @@ lookAt = Operator(\
 ## Should have a CanSeeFrom precondition
 ## Needs major update
 
+'''
 lookAtHand = Operator(\
     'LookAtHand',
     ['Obj', 'Hand', 'LookConf', 'GraspFace', 'Grasp',
@@ -1534,7 +1535,8 @@ lookAtHand = Operator(\
     f = lookAtHandBProgress,
     prim = lookHandPrim,
     argsToPrint = [0, 1],
-    ignorableArgs = range(1, 11)) 
+    ignorableArgs = range(1, 11))
+'''    
 
 # This is an inference step that is true for all pairs of a
 # conditional fluent and a primitive one.
