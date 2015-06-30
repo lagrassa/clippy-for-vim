@@ -55,12 +55,13 @@ handI = {'left' : 0, 'right' : 1}
 ######################################################################
 
 tryDirectPath = False
+# canReachHome(conf) returns a path from conf to home!
 def primPath(bs, cs, ce, p):
     if tryDirectPath:
         path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
                                           maxIter=50, failIter=10)
-        # path, viols = canReachHome(bs, ce, p, Violations(),
-        #                            startConf=cs, optimize=True)
+        # path, viols = canReachHome(bs, cs, p, Violations(),
+        #                            homeConf=ce, optimize=True)
         if not viols or viols.weight() > 0:
             print 'viol', viols
             raw_input('Failure in direct primitive path')
@@ -71,15 +72,17 @@ def primPath(bs, cs, ce, p):
             verifyPaths(bs, p, path, smoothed, interpolated)
             return smoothed, interpolated
 
-    #!! Used to have: reversePath=True, why?
     home = bs.getRoadMap().homeConf
+    # This path is executed as returned (cs->home)
     path1, v1 = canReachHome(bs, cs, p, Violations())
     if not path1:
         print 'Path1 failed, trying RRT'
         path1, v1 = rrt.planRobotPathSeq(bs, p, home, cs, None,
                                          maxIter=50, failIter=10)
     assert path1
-    path2, v2 = canReachHome(bs, ce, p, Violations())
+    # This path will be executed in reverse (home->ce), so change the
+    # direction of the constraint on edge traversal.
+    path2, v2 = canReachHome(bs, ce, p, Violations(), reversePath=True)
     if not path2:
         print 'Path2 failed, trying RRT'
         path2, v2 = rrt.planRobotPathSeq(bs, p, home, ce, None,
@@ -90,17 +93,18 @@ def primPath(bs, cs, ce, p):
         if v1.weight() > 0: print 'start viol', v1
         if v2.weight() > 0: print 'end viol', v2
         raw_input('Potential collision in primitive path')
-        path = path1[::-1] + path2
     else:
         print 'Success'
-        path = path1[::-1] + path2
+    path = path1 + path2[::-1]
     smoothed = bs.getRoadMap().smoothPath(path, bs, p)
     interpolated = interpolate(smoothed)
     verifyPaths(bs, p, path, smoothed, interpolated)
     return smoothed, interpolated
 
 def primNBPath(bs, cs, ce, p):
-    path, v = canReachNB(bs, cs, ce, p, Violations())
+    print '*************primNBPath DEBUG'
+    path = None
+    # path, v = canReachNB(bs, cs, ce, p, Violations())
     if not path:
         print 'NB Path failed, trying RRT'
         path, v = rrt.planRobotPathSeq(bs, p, cs, ce, None,
@@ -126,18 +130,19 @@ def interpolate(path):
     return interpolated
 
 def verifyPath(pbs, prob, path, msg):
+    print 'Verifying', msg, 'path'
     shWorld = pbs.getShadowWorld(prob)
     attached = shWorld.attached
     pbsDrawn = False
     for conf in path:
         viol = pbs.getRoadMap().confViolations(conf, pbs, prob)
+        pbs.draw(prob, 'W')
         if not viol or viol.weight() > 0:
-            if not pbsDrawn:
-                pbs.draw(prob, 'W')
-                pbsDrawn = True
             print msg, 'path', viol
             conf.draw('W', 'red', attached=attached)
-            raw_input('Ok?')
+        else:
+            conf.draw('W')            
+        raw_input('Ok?')
 
 def verifyPaths(bs, p, path, smoothed, interpolated):
     if debug('verifyPath'):

@@ -124,7 +124,7 @@ class Edge(Hashable):
             node.draw(window, color=color)
     def getNodes(self):
         if self.nodes is None:
-            node_f, node_i = self.ends
+            node_i, node_f = self.ends
             self.nodes = self.interpolator(node_f, node_i, minStep)
         return self.nodes
     def desc(self):
@@ -357,6 +357,7 @@ class RoadMap:
         for entry in self.kdTree.entries + self.kdTree.newEntries:
             entry.draw('W', color=color)
 
+    # NB: Returns a path from targetConf to startConf
     def confReachViol(self, targetConf, pbs, prob,
                       initViol=viol0, startConf = None, reversePath = False,
                       optimize = False, moveBase = True):
@@ -383,8 +384,7 @@ class RoadMap:
                          ('fixObjBs', pbs.fixObjBs),
                          ('held', (pbs.held['left'].mode(),
                                    pbs.held['right'].mode())),
-                         ('initViol', initViol),
-                         ('avoidShadow', pbs.avoidShadow))
+                         ('initViol', initViol))
             if not (optimize or fbch.inHeuristic):
                 key = (targetConf, initConf, moveBase)
                 if not key in self.confReachCache:
@@ -432,30 +432,20 @@ class RoadMap:
         def checkFullCache():
             return checkCache((targetConf, initConf, moveBase))
 
-        def confAns(ans, reverse=False):
+        def confAns(ans, show=False):
             displayAns(ans)
             if ans and ans[0]:
                 (viol, cost, edgePath) = ans
                 viol = viol.update(initViol)
                 path = self.confPathFromEdgePath(edgePath)
-                if reverse:
-                    path = path[::-1]
-                if debug('backwardsDetail'):
-                    print 'reverse=', reverse
-                    for (e, dir) in edgePath:
-                        i1 = (dir+1)%2 if reverse else dir
-                        i2 = (i1+1)%2
-                        print dir, e, validEdge(e.ends[i1], e.ends[i2])
-                        print '    ', e.ends
-                        for p in e.getNodes(): print '      ', p.conf['pr2Base']
-                    print 'final path'
-                    for p in path: print '    ', p['pr2Base']
-                if not fbch.inHeuristic and debug('showPath'):
-                    print 'confAns reverse=', reverse
+                if show and debug('showPath') and not fbch.inHeuristic:
+                    print 'confAns'
                     showPath(pbs, prob, path)
                 if debug('verifyPath'):
                     if not self.checkPath(path, pbs, prob):
                         raw_input('Failed checkPath')
+                assert path[0] == targetConf and path[-1] == initConf
+                if finalConf: path = [finalConf] + path
                 return (viol, cost, path)
             else:
                 return (None, None, None)
@@ -472,9 +462,9 @@ class RoadMap:
 
         initConf = startConf or self.homeConf
         initNode = makeNode(initConf)
-        approach = False
+        finalConf = None
         if not fbch.inHeuristic and targetConf in self.approachConfs:
-            approach = True
+            finalConf = targetConf
             targetConf = self.approachConfs[targetConf]
             if debug('traceCRH'): print '    using approach conf'
 
@@ -494,7 +484,7 @@ class RoadMap:
             return confAns(None)
         cached = checkFullCache()
         if cached:
-            return confAns(cached, reverse=True)
+            return confAns(cached)
 
         targetCluster = self.addToCluster(targetNode, connect=False)
         startCluster = self.addToCluster(initNode)
@@ -505,35 +495,16 @@ class RoadMap:
         #     print '    Graph nodes =', len(graph.incidence), 'graph edges', len(graph.edges)
         if debug('traceCRH'): print '    find path',
         # search back from target... if we will execute in reverse, it's a double negative.
-        if startConf:
-            # If we're moving from arbitrary startConf, don't reverse
-            # or use pre-computed heuristic to homeConf.  This is used by canReachNB.
-            ansGen = self.minViolPathGen(graph, initNode, [targetNode], pbs, prob,
-                                         optimize=optimize, moveBase=moveBase,
-                                         reverse = False,
-                                         useStartH = False)
-        else:
-            ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
-                                         optimize=optimize, moveBase=moveBase,
-                                         reverse = (not reversePath),
-                                         useStartH = True)
+        ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
+                                     optimize=optimize, moveBase=moveBase,
+                                     reverse = (not reversePath),
+                                     useStartH = True)
         ans = next(ansGen, None)
         
-        # if (ans == None or ans[0] == None):
-        #     if debug('traceCRH'): print '    path failed... trying RRT'
-        #     path, viol = rrt.planRobotPathSeq(pbs, prob, initConf, targetConf, None,
-        #                                       # targetConf.conf.keys(),
-        #                                       maxIter=50, failIter=10)
-        #     if viol:
-        #         viol = viol.update(initViol)
-        #     else:
-        #         debugMsg('confReachViol', 'RRT for NB failed')
-        #     return (viol, 0, path)
-
         if ans == None or \
                (ans[0] and not ans[0].empty() and ans[0].names() != initViol.names()):
             print '    trying RRT'
-            path, viol = rrt.planRobotPathSeq(pbs, prob, initConf, targetConf, endPtViol,
+            path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
                                               maxIter=50, failIter=10)
             if viol:
                 viol = viol.update(initViol)
@@ -547,13 +518,11 @@ class RoadMap:
                 # print 'original viol', ans if ans==None else ans[0]
                 # print 'RRT viol', viol
                 print '    returning RRT ans'
+                assert path[0] == targetConf and path[-1] == initConf
+                if finalConf: path = [finalConf] + path
                 return (viol, 0, path)
-
-        if startConf:
-            return confAns(ans, reverse=False)
-        else:
-            cacheAns(ans)
-            return confAns(ans, reverse=True)
+        cacheAns(ans)
+        return confAns(ans, show=True)
 
     def addToCluster(self, node, rep=False, connect=True):
         if debug('addToCluster'): print 'Adding', node, 'to cluster'
@@ -777,12 +746,13 @@ class RoadMap:
     def jointInterpolators(self, n_f, n_i, minLength, depth=0):
         if n_f.conf == n_i.conf: return [n_f]
         final = []
-        for c in rrt.interpolate(n_i.conf, n_f.conf,
+        for c in rrt.interpolate(n_f.conf, n_i.conf,
                                  minLength, moveChains=self.params['moveChains']):
             for chain in self.robot.chainNames: #  fill in
                 if not chain in c.conf:
                     c[chain] = n_i.conf[chain]
             final.append(makeNode(c))
+        assert n_i == final[0] and n_f == final[-1]
         return final
 
     # Returns list of nodes that go from initial node to final node
@@ -794,10 +764,10 @@ class RoadMap:
             node_f.key = True
             return [node_f]
         else:
-            nodes = [node_f]
+            nodes = [node_i]
             for n in interp:
                 if not n == nodes[-1]: nodes.append(n)
-            if not node_i == nodes[-1]: nodes.append(node_i)
+            if not node_f == nodes[-1]: nodes.append(node_f)
             node_i.key = True; node_f.key = True
             return nodes
 
@@ -1182,8 +1152,16 @@ class RoadMap:
                     for ((_, (node, viol)) , cost) in zip(path, costs):
                         node.conf.draw('W', 'blue')
                         raw_input('v=%s, cost=%f'%(viol.weight(), cost))
+
                 nodePath = [node for (_, (node, _)) in path]
                 edgePath = self.edgePathFromNodePath(graph, nodePath)
+
+                # print 'startNode', startNode
+                # print 'targetNodes', targetNodes
+                # print 'nodePath', nodePath
+                # print 'edgePath', edgePath
+                # raw_input('Node path and edge path')
+                
                 yield finalViolation, costs[-1], edgePath
 
     def nodePathFromEdgePath(self, edgePath):
@@ -1231,6 +1209,10 @@ class RoadMap:
                     nodes = nodes[::-1]
                 confPath.extend([n.conf for n in nodes[1:]])
                 edge1, end1 = edge2, end2
+
+        # for conf in confPath:
+        #     conf.draw('W'); raw_input('confPathFromEdgePath')
+
         return confPath
 
     def confPathFromNodePath(self, graph, nodePathIn):

@@ -2,6 +2,7 @@ import math
 import random
 import copy
 import time
+from time import sleep
 import planGlobals as glob
 from planGlobals import debug, debugMsg
 import util
@@ -238,8 +239,9 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
         print 'Found path in', rrtTime, 'secs'
     path = [c.conf for c in nodes]
     if debug('verifyRRTPath'):
-        verifyPath(pbs, prob, path, 'rrt:'+str(moveChains))
-        verifyPath(pbs, prob, interpolatePath(path), 'interp rrt:'+str(moveChains))
+        # verifyPath(pbs, prob, path, 'rrt:'+str(moveChains))
+        verifyPath(pbs, prob, interpolatePath(path), allowedViol,
+                   'interp rrt:'+str(moveChains))
 
     # Verify that only the moving chain is moved.
     #for chain in initConf.conf:
@@ -253,6 +255,14 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
     return path, allowedViol
 
 def planRobotPathSeq(pbs, prob, initConf, destConf, allowedViol,
+                     maxIter = None, failIter = None):
+    chains = [chain for chain in destConf.conf \
+              if chain in initConf.conf \
+              and max([abs(x-y) > 1.0e-6 for (x,y) in zip(initConf.conf[chain], destConf.conf[chain])])]
+    return planRobotPath(pbs, prob, initConf, destConf, allowedViol, chains,
+                  maxIter = maxIter, failIter = failIter, safeCheck = False)
+
+def planRobotPathSeqBuggy(pbs, prob, initConf, destConf, allowedViol,
                      maxIter = None, failIter = None):
     path = [initConf]
     v = allowedViol
@@ -271,6 +281,7 @@ def planRobotPathSeq(pbs, prob, initConf, destConf, allowedViol,
                 if debug('rrt'): print 'RRT - failed to find path for', chain
                 return [], None
     return path, v
+
 
 def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
                       maxIter = None, failIter = None):
@@ -304,8 +315,8 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
         if chain not in moveChains:
             assert all(initConf.conf[chain] == c.conf[chain] for c in path)
     if debug('verifyRRTPath'):
-        verifyPath(pbs, prob, path, 'rrt:'+chain)
-        verifyPath(pbs, prob, interpolatePath(path), 'interp rrt:'+chain)
+        # verifyPath(pbs, prob, path, allowedViol, 'rrt:'+chain)
+        verifyPath(pbs, prob, interpolatePath(path), allowedViol, 'interp rrt:'+chain)
     return path, allowedViol
 
 def interpolate(q_f, q_i, stepSize=0.25, moveChains=None, maxSteps=100):
@@ -323,17 +334,28 @@ def interpolate(q_f, q_i, stepSize=0.25, moveChains=None, maxSteps=100):
         q = qn
         path.append(q)
         step += 1
+    if eqChains(path[-1], q_f, moveChains):
+        path.pop()
     path.append(q_f)
+    assert path[0] == q_i and path[-1] == q_f
     return path
 
-def verifyPath(pbs, p, path, msg='rrt'):
+def verifyPath(pbs, p, path, allowedViol, msg='rrt'):
     shWorld = pbs.getShadowWorld(p)
     obst = shWorld.getObjectShapes()
     attached = shWorld.attached
     pbsDrawn = False
+    allowed = allowedViol.allObstacles() + allowedViol.allShadows()
+    win = wm.getWindow('W')
     for conf in path:
         robotShape = conf.placement(attached=attached)
-        if any(robotShape.collides(o) for o in obst):
+        if debug('verifyRRTPath'):
+            pbs.draw(p, 'W')
+            pbsDrawn = True
+            conf.draw('W')
+            win.update()
+            sleep(0.2)
+        if any(o not in allowed and robotShape.collides(o) for o in obst):
             if not pbsDrawn:
                 pbs.draw(p, 'W')
                 pbsDrawn = True

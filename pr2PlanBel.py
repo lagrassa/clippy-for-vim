@@ -385,7 +385,7 @@ class PBS:
         objBMinDelta = (0.002, 0.002, 0.0, 0.004)
          # 2 looks
         objBMinVarGrasp = tuple([x**2/2*x for x in self.domainProbs.obsVarTuple])
-        objBMinVarStatic = tuple([x**2 for x in self.domainProbs.odoError])
+        objBMinVarStatic = tuple([o**2 for o in self.domainProbs.odoError])
         objBMinProb = 0.95
         # The irreducible shadow
         objBMinVar = objBMinVarGrasp if graspable else objBMinVarStatic

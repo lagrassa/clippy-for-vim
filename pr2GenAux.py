@@ -643,7 +643,7 @@ def pathObst(cs, cd, p, pbs, name, start=None):
     key = (cs, newBS, p)
     if key in pbs.beliefContext.pathObstCache:
         return pbs.beliefContext.pathObstCache[key]
-    path,  viol = canReachHome(newBS, cs, p, Violations(), startConf = start)
+    path,  viol = canReachHome(newBS, cs, p, Violations(), homeConf = start)
     if debug('pathObst'):
         newBS.draw(p, 'W')
         cs.draw('W', 'red', attached=newBS.getShadowWorld(p).attached)

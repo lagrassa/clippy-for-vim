@@ -1048,7 +1048,6 @@ def lookGenTop(args, goalConds, pbs, outBindings):
                 envs = ppConfs.get(tuple(conf['pr2Base']), None)
                 raw_input('okay?')
             return
-        conf = path[-1]
         if testFn(conf):
             lookConf = lookAtConfCanView(newBS, prob, conf, sh)
             if lookConf:

@@ -1083,40 +1083,43 @@ def partition(fluents):
 
 # LPK: canReachNB which is like canReachHome, but without moving
 # the base.  
-
 def canReachNB(pbs, startConf, conf, prob, initViol,
                optimize = False):
-    return canReachHome(pbs, conf, prob, initViol,
-                        startConf=startConf, moveBase=False,
+    # canReachHome goes towards its homeConf arg, that is it's destination.
+    return canReachHome(pbs, startConf, prob, initViol,
+                        homeConf=conf, moveBase=False,
                         optimize=optimize) 
 
-def canReachHome(pbs, conf, prob, initViol,
-                 avoidShadow = [], startConf = None, reversePath = False,
+# returns a path (conf -> homeConf (usually home))
+def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False,
                  optimize = False, moveBase = True):
-    ### LPK: ignores avoidShadow argument.  Also, confReachViol seems
-    ### to ignore pbs.avoidShadow
-
     rm = pbs.getRoadMap()
+    if not homeConf: homeConf = rm.homeConf
     robot = pbs.getRobot()
     tag = 'canReachHome' if moveBase else 'canReachNB'
-    # Reverse start and target
     viol, cost, path = rm.confReachViol(conf, pbs, prob, initViol,
-                                        startConf=startConf,
+                                        startConf=homeConf,
                                         reversePath = reversePath,
                                         moveBase = moveBase,
                                         optimize = optimize)
+
+    if path:
+        assert path[0] == conf, 'Start of path'
+        assert path[-1] == homeConf, 'End of path'
 
     if debug('traceCRH'):
         print '    %s h='%tag, fbch.inHeuristic, 'viol=:', \
                        viol.weight() if viol else None
 
-    if path:
+    if path and debug('backwards'):
         backSteps = []
-        for i, c in enumerate(path):
+        # unless reversePath is True, the direction of motion is
+        # "backwards", that is, from conf to home.
+        for i, c in enumerate(path[::-1] if reversePath else path ):
             if i == 0: continue
-            if debug('backwards') and \
-                       not validEdgeTest(path[i-1]['pr2Base'], c['pr2Base']):
-                backSteps.append((path[i-1]['pr2Base'], c['pr2Base']))
+            # that is, moving from i to i-1 should be forwards (valid)
+            if not validEdgeTest(c['pr2Base'], path[i-1]['pr2Base']):
+                backSteps.append((c['pr2Base'], path[i-1]['pr2Base']))
         if backSteps:
             for (pre, post) in backSteps:
                 print pre, '->', post

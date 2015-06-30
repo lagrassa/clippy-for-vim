@@ -36,13 +36,13 @@ crashIsError = False
 
 simulateError = False
 
-animate = False
+animate = True
 
 animateSleep = 0.2
 
 maxOpenLoopDist = 2.0
 
-simOdoErrorRate = 0.02
+simOdoErrorRate = 0.0                   # was 0.02
 
 pickSuccessDist = 0.1  # pretty big for now
 
