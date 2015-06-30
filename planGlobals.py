@@ -109,7 +109,7 @@ maxPlaceVarTuple = (.02, .02)            # Target variance for placing
 
 tableMaxShrink = 0.1
 minTableDim = 2.0
-cloudPointsResolution = 0.05            # should be 0.1
+cloudPointsResolution = 0.01            # should be 0.1
 tableBadWeight = 5
 
 ########################################

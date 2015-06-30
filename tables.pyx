@@ -43,12 +43,16 @@ def bestTable(zone, table, pointCloud, exclude,
     below = []
     thrHi = height + zthr
     thrLo = height - zthr
+    print 'zlo', thrLo, 'zhi', thrHi
     points = pointCloud.vertices
     headTrans = pointCloud.headTrans
+    zcount = 0
+    planes = zone.planes()
     for p in range(1, points.shape[1]):   # index 0 is eye
         if thrLo <= points[2,p] <= thrHi: # points on the plane
+            zcount += 1
             pt = points[:,p]
-            if not np.all(np.dot(zone.planes(), pt) <= tiny):
+            if not np.all(np.dot(planes, pt) <= tiny):
                 continue
             inside = False
             for obj in exclude:
@@ -61,6 +65,8 @@ def bestTable(zone, table, pointCloud, exclude,
             below.append(p)             # points below the plane
 
     if debug('tables'):
+        print planes
+        print 'z good', zcount
         print 'len(good)=', len(good), 'len(below)=', len(below)
     if len(good) < minTablePoints:
         return 0, None
@@ -223,8 +229,10 @@ def getTableDetections(world, obsPlaceBs, pointCloud):
             pose = placeB.poseD.mode().pose()
             var = placeB.poseD.variance()
             std = max(var[:3])**0.5     # std for displacement
-            zone = shapes.BoxAligned(geom.bboxGrow(tableShape.bbox(),
-				     np.array([3*std, 3*std, 0.01])), None)
+            bbox = tableShape.applyTrans(pose).bbox()
+            print 'bbox for zone', bbox
+            zone = shapes.BoxAligned(geom.bboxGrow(bbox,
+				     np.array([3*std, 3*std, 0.05])), None)
             std = var[-1]**0.5          # std for angles
             res = 0.01 if std < 0.05 else 0.02
             angles = [angle for angle in allAngles if \

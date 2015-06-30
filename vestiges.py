@@ -855,3 +855,18 @@ def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                 else:
                     raw_input('could not connect to tree')
 
+    # !! Debugging hack
+    # if glob.realWorld:
+    #     rw = glob.realWorld
+    #     held = rw.held.values()
+    #     objShapes = [rw.objectShapes[obj] \
+    #                  for obj in rw.objectShapes if not obj in held]
+    #     attached = bs.getShadowWorld(p).attached
+    #     for path in (path1, path2):
+    #         for conf in path:
+    #             for obst in objShapes:
+    #                 if conf.placement(attached=attached).collides(obst):
+    #                     wm.getWindow('W').clear(); rw.draw('W');
+    #                     conf.draw('W', 'magenta'); obst.draw('W', 'magenta')
+    #                     raw_input('RealWorld crash! with '+obst.name())
+    

@@ -119,7 +119,7 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 
 # pick and place into region.  2 tables
 def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-          easy = False, rip = False, multiplier=8):
+          easy = False, rip = False, multiplier=6):
 
     glob.rebindPenalty = 700
     glob.monotonicFirst = True
@@ -199,7 +199,7 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     return t
 
 def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-                easy = False, rip = False):
+                easy = False, rip = False, multiplier=6):
 
     glob.rebindPenalty = 700
     glob.monotonicFirst = True
@@ -231,7 +231,8 @@ def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=ha
                  movePoses={'objA': right1,
                             # 'objB': left1
                             },
-                 varDict = varDict)
+                 varDict = varDict,
+                 multiplier = multiplier)
 
     t.run(goal1,
           hpn = hpn,
@@ -243,7 +244,7 @@ def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=ha
     return t
 
 def testPick(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-          easy = False, rip = False, multiplier=8):
+          easy = False, rip = False, multiplier=6):
 
     glob.rebindPenalty = 700
     glob.monotonicFirst = True

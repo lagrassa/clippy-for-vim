@@ -64,7 +64,7 @@ drawRebindNodes = True
 '''
 
 debugOn = ['traceGen', 'traceCRH', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon',
-           # 'locate'
+           'verifyPath'
            ]
 
 if platform.system() == 'Linux':

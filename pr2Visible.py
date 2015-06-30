@@ -31,10 +31,12 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     if key in cache:
         cacheStats[1 if fbch.inHeuristic else 4] += 1
         return cache[key]
-    if debug(visible):
-        print 'visible from base=', conf['pr2Base'], 'head=', conf['pr2Head']
+    if debug('visible'):
+        print 'visible', shape.name(), 'from base=', conf['pr2Base'], 'head=', conf['pr2Head']
     lookConf = lookAtConf(conf, shape) if moveHead else conf
     if not lookConf:
+        if debug('visible'):
+            print 'lookConf failed'
         cache[key] = (False, [])
         return False, []
     vc = viewCone(conf, shape, moveHead=moveHead)
@@ -73,7 +75,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
             debugMsg('visible', 'Not enough hit points')
         cache[key] = (False, [])
         return False, []
-    if fbch.inHeuristic:
+    if 'table' in shape.name() or fbch.inHeuristic:
         threshold = 0.5*prob            # generous
     else:
         threshold = 0.75*prob
@@ -133,13 +135,16 @@ def countContacts(contacts, id):
 
 def lookAtConf(conf, shape):
     center = bboxCenter(shape.bbox())   # base=True?
-    center[2] = shape.bbox()[1,2]       # at the top
-    cartConf = conf.cartConf()
-    assert cartConf['pr2Head']
-    lookCartConf = cartConf.set('pr2Head', util.Pose(*center.tolist()+[0.,]))
-    lookConf = conf.robot.inverseKin(lookCartConf, conf=conf)
-    if all(lookConf.values()):
-        return lookConf
+    z = shape.bbox()[1,2]       # at the top
+    for dz in (0, 0.02, 0.04, 0.06):
+        center[2] = z + dz
+        cartConf = conf.cartConf()
+        assert cartConf['pr2Head']
+        lookCartConf = cartConf.set('pr2Head', util.Pose(*center.tolist()+[0.,]))
+        lookConf = conf.robot.inverseKin(lookCartConf, conf=conf)
+        if all(lookConf.values()):
+            return lookConf
+    print 'Failed to look at', shape.name(), center.tolist()
 
 def viewCone(conf, shape, offset = 0.1, moveHead=True):
     if moveHead:

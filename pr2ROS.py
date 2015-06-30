@@ -21,6 +21,9 @@ import util
 import tables
 reload(tables)
 
+import locate
+reload(locate)
+
 twoPi = 2.0*math.pi
 
 if glob.useROS:
@@ -125,7 +128,7 @@ def pr2GoToConf(cnfIn,                  # could be partial...
         return None, None               # should we pretend it worked?
 
 def pr2GetConf():
-    result, conf = pr2GoToConf({}, 'getConf')
+    result, conf, _ = pr2GoToConf({}, 'getConf')
     return conf
 
 def gazeCoords(cnfIn):
@@ -207,7 +210,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         for (i, conf) in enumerate(path):
             debugMsg('robotEnvCareful', '    conf[%d]'%i)
             newXYT = conf['pr2Base']
-            result, outConf = pr2GoToConf(conf, 'move')
+            result, outConf, _ = pr2GoToConf(conf, 'move')
 
             # !! Do some looking and update the belief state.
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
@@ -237,17 +240,21 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         return None
 
     def executeMove(self, op, params, noBase=False):
+        def baseNear(conf1, conf2, thr):
+            return all(abs(x-y)<=thr for (x,y) in zip(conf1['pr2Base'], conf2['pr2Base']))
         if noBase:
-            # !! This should not move the base...use a better test  LPK
             startConf = op.args[0]
             targetConf = op.args[1]
             assert targetConf['pr2Base'] == \
                    startConf if isinstance(startConf, list) else startConf['pr2Base']
-            raw_input('Should check noBase against actual robot conf')
-
+            actualConf = pr2GetConf()
+            assert baseNear(actualConf, targetConf, 0.01), 'Actual base should match'
         if params:
             path, interpolated, placeBs = params
             debugMsg('robotEnv', 'executeMove: path len = ', len(path))
+            if noBase:
+                for conf in path:
+                    assert baseNear(conf, targetConf, 0.01), 'Base should not move'
             obs = self.executePath(path, placeBs)
         else:
             print op
@@ -267,6 +274,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             if visible(shWorld, conf, s, rem(obst,s), prob,
                        moveHead=True, fixed=rem(obst,s))[0]:
                 yield s
+            else:
+                continue
 
     def executeLookAtHand(self, op, params):
         pass
@@ -284,9 +293,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         return self.doLook(lookConf, placeBs)
 
     def doLook(self, lookConf, placeBs):
-        def lookAtTable(basePose, placeB):
-            debugMsg('robotEnv', 'Get cloud?')
-            scan = getPointCloud(basePose)
+        def lookAtTable(scan, placeB):
+            debugMsg('robotEnv', 'Get table detection?')
             ans = tables.getTableDetections(self.world, [placeB], scan)
             if ans:
                 score, table = ans[0]
@@ -303,7 +311,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         objShapes = shWorld.getObjectShapes()
         visShapes = list(self.visibleShapes(lookConf, objShapes))
         visTables = [shape.name() for shape in visShapes \
-                     if 'table' in shape.name() and 'shadow' not in shape.name()]
+                     if 'table' in shape.name()]
+        visShelves = [shape.name() for shape in visShapes \
+                     if 'coolShelves' in shape.name()]
         obs = []
 
         debugMsg('robotEnv', 'executeLookAt', lookConf.conf)
@@ -312,21 +322,45 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         if visTables:
             assert len(visTables) == 1
             tableName = visTables[0]
-            print 'Looking at table', tableName
+            basePose = outConfCart['pr2Base']
+            debugMsg('robotEnv', 'Get cloud?')
+            scan = getPointCloud(basePose)
             # Table is in world coordinates
-            table = lookAtTable(outConfCart['pr2Base'], placeBs[tableName])
+            print 'Looking at table', tableName
+            table = lookAtTable(scan, placeBs[tableName])
             if not table: return []
             basePose = outConfCart['pr2Base']
             tableRob = table.applyTrans(basePose.inverse())
             trueFace = supportFaceIndex(table)
             tablePose = getSupportPose(table, trueFace)
             obs.append((self.world.getObjType(tableName), trueFace, tablePose))
+
+            if visShelves:
+                shelvesName = visShelves[0]
+                placeB = placeBs[shelvesName]
+                (score, trans, obsShape) =\
+                        locate.getObjectDetections(lookConf, placeB, self.bs.pbs, scan)
+                if score != None:
+                    print 'Object', shelvesName, 'is visible'
+                    obsPose = trans.pose()
+                    obsShape.draw('MAP', 'cyan')
+                    shelvesRob = obsShape.applyTrans(basePose.inverse())
+                    shelvesPose = getSupportPose(obsShape, trueFace).pose()
+                    print 'placeB.poseD.mode()', placeB.poseD.mode()
+                    print ' obsPose', obsPose
+                    print 'shelvesPose', shelvesPose
+                    raw_input('Go?')
+                    obs.append((self.world.getObjType(shelvesName), trueFace, shelvesPose))
+                else:
+                    print 'Object', shelvesName, 'is not visible'
+                    raw_input('Go?')
         else:
             raw_input('No tables visible... returning null obs')
             return []
         targets = []
         for shape in visShapes:
             if 'table' in shape.name(): continue
+            if 'coolShelves' in shape.name(): continue
             targetObj = shape.name()
             supportTableB = findSupportTable(targetObj, self.world, placeBs)
             assert supportTableB
@@ -571,13 +605,13 @@ xoffset = 0.05
 yoffset = 0.01
 fingerLength = 0.06
 
-def pr2GoToConfNB(conf, op, arm='both', speedFactor=glob.speedFactor):
+def pr2GoToConfNB(conf, op, arm='both', args=[], speedFactor=glob.speedFactor):
     c = conf.conf.copy()
     if 'pr2Base' in c: del c['pr2Base']
-    return pr2GoToConf(conf, op, arm=arm, speedFactor=speedFactor)
+    return pr2GoToConf(conf, op, arm=arm, args=args, speedFactor=speedFactor)
 
 def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
-    result, curConf = pr2GoToConfNB(startConf, 'resetForce', arm=hand[0])
+    result, curConf, _ = pr2GoToConfNB(startConf, 'resetForce', args=[750, 750], arm=hand[0])
     print '***closing'
     startConfClose = gripOpen(startConf, hand, 0.01)
     pr2GoToConfNB(startConfClose, 'move')
@@ -589,11 +623,11 @@ def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
     print '***Contact'
     # Back off
     backConf = displaceHand(curConf, hand, dx=-xoffset, dz=0.01, nearTo=startConf)
-    result, nConf = pr2GoToConfNB(backConf, 'move')
+    result, nConf, _ = pr2GoToConfNB(backConf, 'move')
     backConf = displaceHand(backConf, hand, zFrom=targetConf, nearTo=startConf)
-    result, nConf = pr2GoToConfNB(backConf, 'move')
+    result, nConf, _ = pr2GoToConfNB(backConf, 'move')
     backConf = gripOpen(backConf, hand)
-    result, nConf = pr2GoToConfNB(backConf, 'open')
+    result, nConf, _ = pr2GoToConfNB(backConf, 'open')
     print 'backConf', handTrans(nConf, hand).point(), result
     # Try to grab
     target = displaceHand(curConf, hand, dx=xoffset+fingerLength, zFrom=targetConf, nearTo=startConf)
@@ -622,7 +656,7 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, maxTarget,
     if reactLeft(obs):
         print spaces+'***reactLeft'
         backConf = displaceHand(curConf, hand, dx=-xoffset, nearTo=startConf)
-        result, nConf = pr2GoToConfNB(backConf, 'move')
+        result, nConf, _ = pr2GoToConfNB(backConf, 'move')
         print spaces+'backConf', handTrans(nConf, hand).point(), result
         return reactiveApproachLoop(backConf, 
                                     displaceHand(curConf, hand,
@@ -633,7 +667,7 @@ def reactiveApproachLoop(startConf, targetConf, gripDes, hand, maxTarget,
     else:                           # default, just to do something...
         print spaces+'***reactRight'
         backConf = displaceHand(curConf, hand, dx=-xoffset, nearTo=startConf)
-        result, nConf = pr2GoToConfNB(backConf, 'move')
+        result, nConf, _ = pr2GoToConfNB(backConf, 'move')
         print spaces+'backConf', handTrans(nConf, hand).point(), result
         return reactiveApproachLoop(backConf, 
                                     displaceHand(curConf, hand,
@@ -718,7 +752,7 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
     print 'tryGrasp'
     print '    from', handTrans(approachConf, hand).point()
     print '      to', handTrans(graspConf, hand).point()
-    result, curConf = pr2GoToConfNB(approachConf, 'move')
+    result, curConf, _ = pr2GoToConfNB(approachConf, 'move')
     moveChains = [approachConf.robot.armChainNames[hand]+'Frame']
     path = cartInterpolators(graspConf, approachConf, stepSize)[::-1]
     # path = [approachConf, graspConf]
@@ -744,7 +778,7 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
         if prevConf:
             bigAngleWarn(prevConf, conf)
         prevConf = conf
-        result, curConf = pr2GoToConfNB(conf, 'moveGuarded', speedFactor=0.1)
+        result, curConf, _ = pr2GoToConfNB(conf, 'moveGuarded', speedFactor=0.1)
         print 'tryGrasp result', result, handTrans(curConf, hand).point()
         if result in ('LR_tip', 'L_tip', 'R_tip',
                       'LR_pad', 'L_pad', 'R_pad'):
@@ -768,15 +802,15 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
 
 def compliantClose(conf, hand, step = 0.01, n = 1):
     if n > 5:
-        (result, cnfOut) = pr2GoToConfNB(conf, 'close', arm=hand[0])
+        (result, cnfOut, _) = pr2GoToConfNB(conf, 'close', arm=hand[0])
         return result
     print 'compliantClose step=', step
-    result, curConf = pr2GoToConfNB(conf, 'closeGuarded', arm=hand[0])
+    result, curConf, _ = pr2GoToConfNB(conf, 'closeGuarded', arm=hand[0])
     print 'compliantClose result', result, handTrans(curConf, hand).point()
     # could displace to find contact with the other finger
     # instead of repeatedly closing.
     if result == 'LR_pad':
-        (result, cnfOut) = pr2GoToConfNB(conf, 'close', arm=hand[0], speedFactor=0.1)
+        (result, cnfOut, _) = pr2GoToConfNB(conf, 'close', arm=hand[0], speedFactor=0.1)
         return result
     elif result in ('L_pad', 'R_pad'):
         off = step if result == 'L_pad' else -step

@@ -8,11 +8,11 @@ from fbch import Function, getMatchingFluents, Operator, simplifyCond
 from miscUtil import isVar, prettyString, makeDiag, isGround, argmax
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowName, shadowWidths
-from pr2Gen import pickGen, canReachHome, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen, placeInRegionGen, placeGen
+from pr2Gen import pickGen, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen, placeInRegionGen, placeGen
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
-     findRegionParent, CanReachNB, BaseConf, BLoc
+     findRegionParent, CanReachNB, BaseConf, BLoc, canReachHome, canReachNB
 import planGlobals as glob
 from planGlobals import debugMsg, debug, useROS
 import pr2RRT as rrt
@@ -63,34 +63,6 @@ handI = {'left' : 0, 'right' : 1}
 
 tryDirectPath = False
 def primPath(bs, cs, ce, p):
-    def interpolate(smoothed):
-        interpolated = []
-        for i in range(1, len(smoothed)):
-            qf = smoothed[i]
-            qi = smoothed[i-1]
-            confs = rrt.interpolate(qf, qi, stepSize=0.25)
-            print i, 'path segment has', len(confs), 'confs'
-            interpolated.extend(confs)
-        return interpolated
-    def verifyPath(pbs, prob, path, msg):
-        shWorld = pbs.getShadowWorld(prob)
-        attached = shWorld.attached
-        pbsDrawn = False
-        for conf in path:
-            viol = pbs.getRoadMap().confViolations(conf, pbs, prob)
-            if not viol or viol.weight() > 0:
-                if not pbsDrawn:
-                    pbs.draw(p, 'W')
-                    pbsDrawn = True
-                print msg, 'path', viol
-                conf.draw('W', 'red', attached=attached)
-                raw_input('Ok?')
-    def verifyPaths(path, smoothed, interpolated):
-        if debug('verifyPath'):
-            verifyPath(bs, p, path, 'original')
-            verifyPath(bs, p, interpolate(path), 'original interpolated')
-            verifyPath(bs, p, smoothed, 'smoothed')
-            verifyPath(bs, p, interpolated, 'smoothed interpolated')
     if tryDirectPath:
         path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
                                           maxIter=50, failIter=10)
@@ -103,9 +75,8 @@ def primPath(bs, cs, ce, p):
         else:
             smoothed = bs.getRoadMap().smoothPath(path, bs, p)
             interpolated = interpolate(smoothed)
-            verifyPaths(path, smoothed, interpolated)
+            verifyPaths(bs, p, path, smoothed, interpolated)
             return smoothed, interpolated
-    # Should use optimize = True, but sometimes leads to failure - why??
 
     #!! Used to have: reversePath=True, why?
     home = bs.getRoadMap().homeConf
@@ -122,21 +93,6 @@ def primPath(bs, cs, ce, p):
                                          maxIter=50, failIter=10)
     assert path2
 
-    # !! Debugging hack
-    # if glob.realWorld:
-    #     rw = glob.realWorld
-    #     held = rw.held.values()
-    #     objShapes = [rw.objectShapes[obj] \
-    #                  for obj in rw.objectShapes if not obj in held]
-    #     attached = bs.getShadowWorld(p).attached
-    #     for path in (path1, path2):
-    #         for conf in path:
-    #             for obst in objShapes:
-    #                 if conf.placement(attached=attached).collides(obst):
-    #                     wm.getWindow('W').clear(); rw.draw('W');
-    #                     conf.draw('W', 'magenta'); obst.draw('W', 'magenta')
-    #                     raw_input('RealWorld crash! with '+obst.name())
-    
     if v1.weight() > 0 or v2.weight() > 0:
         if v1.weight() > 0: print 'start viol', v1
         if v2.weight() > 0: print 'end viol', v2
@@ -147,8 +103,56 @@ def primPath(bs, cs, ce, p):
         path = path1[::-1] + path2
     smoothed = bs.getRoadMap().smoothPath(path, bs, p)
     interpolated = interpolate(smoothed)
-    verifyPaths(path, smoothed, interpolated)
+    verifyPaths(bs, p, path, smoothed, interpolated)
     return smoothed, interpolated
+
+def primNBPath(bs, cs, ce, p):
+    path, v = canReachNB(bs, cs, ce, p, Violations())
+    if not path:
+        print 'NB Path failed, trying RRT'
+        path, v = rrt.planRobotPathSeq(bs, p, cs, ce, None,
+                                       maxIter=50, failIter=10)
+    assert path
+    if v.weight() > 0:
+        raw_input('Potential collision in primitive path')
+    else:
+        print 'Success'
+    smoothed = bs.getRoadMap().smoothPath(path, bs, p)
+    interpolated = interpolate(smoothed)
+    verifyPaths(bs, p, path, smoothed, interpolated)
+    return smoothed, interpolated
+
+def interpolate(path):
+    interpolated = []
+    for i in range(1, len(path)):
+        qf = path[i]
+        qi = path[i-1]
+        confs = rrt.interpolate(qf, qi, stepSize=0.25)
+        print i, 'path segment has', len(confs), 'confs'
+        interpolated.extend(confs)
+    return interpolated
+
+def verifyPath(pbs, prob, path, msg):
+    shWorld = pbs.getShadowWorld(prob)
+    attached = shWorld.attached
+    pbsDrawn = False
+    for conf in path:
+        viol = pbs.getRoadMap().confViolations(conf, pbs, prob)
+        if not viol or viol.weight() > 0:
+            if not pbsDrawn:
+                pbs.draw(prob, 'W')
+                pbsDrawn = True
+            print msg, 'path', viol
+            conf.draw('W', 'red', attached=attached)
+            raw_input('Ok?')
+
+def verifyPaths(bs, p, path, smoothed, interpolated):
+    if debug('verifyPath'):
+        verifyPath(bs, p, path, 'original')
+        verifyPath(bs, p, interpolate(path), 'original interpolated')
+        verifyPath(bs, p, smoothed, 'smoothed')
+        verifyPath(bs, p, interpolated, 'smoothed interpolated')
+
 
 def moveNBPrim(args, details):
     (base, cs, ce, cd) = args
@@ -157,10 +161,10 @@ def moveNBPrim(args, details):
     # Make all the objects be fixed
     bs.fixObjBs.update(bs.moveObjBs)
     bs.moveObjBs = {}
-    print 'movePrim (start, end)'
+    print 'moveNBPrim (start, end)'
     printConf(cs); printConf(ce)
 
-    path, interpolated = primPath(bs, cs, ce, movePreProb)
+    path, interpolated = primNBPath(bs, cs, ce, movePreProb)
     if debug('prim'):
         print '*** movePrim No base'
         print list(enumerate(zip(vl, args)))
