@@ -117,7 +117,8 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob):
             yield ca
 
     def pickable(ca, c, pB, gB):
-        return canPickPlaceTest(newBS, ca, c, hand, gB, pB, prob, op='pick')
+        viol, reason = canPickPlaceTest(newBS, ca, c, hand, gB, pB, prob, op='pick')
+        return viol
 
     obj = placeB.obj
     approached = {}
@@ -305,6 +306,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                 yield (placeB, c, ca), viol        
         graspConfGen = potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob)
         firstConf = next(graspApproachConfGen(None), None)
+        failureReasons = []
         # This used to have an or clause
         # (firstConf and checkInfeasible(firstConf))
         # but infeasibility of one of the grasp confs due to held
@@ -324,11 +326,14 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                 count = 0
                 minCost = 1e6
                 for ca in targetConfs:       # targetConfs is a generator
-                    viol = pickable(ca, approached[ca], placeB, graspB)
+                    viol, reason = pickable(ca, approached[ca], placeB, graspB)
                     if viol:
                         trialConfs.append((viol.weight(), viol, ca))
                         minCost = min(viol.weight(), minCost)
                     else:
+                        failureReasons.append(reason)
+                        if debug('pickGen', skip=skip):
+                            print 'target conf failed', reason
                         continue
                     count += 1
                     if count == batchSize or minCost == 0: break
@@ -349,6 +354,10 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
     # Try a regrasp... that is place the object somewhere else where it can be grasped.
     if fbch.inHeuristic:
         return
+    if failureReasons and all(['visibility' in reason for reason in failureReasons]):
+        raw_input('There were valid targets that failed due to visibility')
+        return
+    
     print 'Calling for regrasping... h=', fbch.inHeuristic
     raw_input('Regrasp?')
     tracep('pickGen', 'Regrasp?')
@@ -361,7 +370,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                           )
     for pl, viol in plGen:
         (pB, gB, cf, ca) = pl
-        v = pickable(ca, cf, pB, gB)
+        v, reason = pickable(ca, cf, pB, gB)
         if debug('pickGen'):
             pbs.draw(prob, 'W')
             ca.draw('W', attached=shWorld.attached)
@@ -695,14 +704,14 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
             count = 0
             minCost = 1e6
             for ca in targetConfs:   # targetConfs is a generator
-                viol = placeable(ca, approached[ca])
+                viol, reason = placeable(ca, approached[ca])
                 if viol:
                     cost = viol.weight() + gCost + regraspCost(ca)
                     minCost = min(cost, minCost)
                     trialConfs.append((cost, viol, ca))
                 else:
                     if debug('placeable'):
-                        print 'Failure of placeable'
+                        print 'Failure of placeable', reason
                         save = glob.debugOn[:]
                         glob.debugOn.extend(['successors', 'confReachViol', 'confReachViolGen',
                                              'minViolPath', 'canPickPlaceTest', 'addToCluster'])
@@ -1293,8 +1302,9 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
                        PoseD(pose, realPoseVar), delta=poseDelta)
     # Initial test
     def violFn(pbs):
-        return canPickPlaceTest(pbs, preconf, ppconf, hand,
+        v, r = canPickPlaceTest(pbs, preconf, ppconf, hand,
                                 graspB, placeB, prob, op=op)
+        return v
     lookVar = bState.domainProbs.obsVarTuple
     for ans in canXGenTop(violFn, (cond, prob, lookVar),
                           goalConds, pbs, outBindings, 'canPickPlaceGen'):

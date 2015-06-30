@@ -382,9 +382,14 @@ class PBS:
             return all([w1[i] <= w2[i] for i in (0,1,3)])
         obj = objB.obj
         graspable = obj in self.getWorld().graspDesc
-        objBMinDelta = self.domainProbs.shadowDelta
-         # 2 looks
-        objBMinVarGrasp = tuple([x/2 for x in self.domainProbs.obsVarTuple])
+        # We set these to zero for canPickPlaceTest.
+        if sum(objB.poseD.var) == 0.0 and sum(objB.delta) == 0.0:
+            objBMinDelta = objB.delta
+            objBMinVarGrasp = objB.poseD.var
+        else:
+            objBMinDelta = self.domainProbs.shadowDelta
+            # 2 looks
+            objBMinVarGrasp = tuple([x/2 for x in self.domainProbs.obsVarTuple])
         objBMinVarStatic = tuple([o**2 for o in self.domainProbs.odoError])
         objBMinProb = 0.95
         # The irreducible shadow

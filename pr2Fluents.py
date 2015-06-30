@@ -13,7 +13,6 @@ from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from pr2RoadMap import validEdgeTest
-# from pr2GenAux import canPickPlaceTest
 
 tiny = 1.0e-6
 obstCost = 10  # Heuristic cost of moving an object
@@ -1137,7 +1136,8 @@ def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False
         debugMsg(tag, ('viol', viol))
 
     if not viol and debug('canReachHome'):
-        pbs.draw(prob, 'W'); conf.draw('W', 'blue')
+        pbs.draw(prob, 'W')
+        conf.draw('W', 'blue', attached=pbs.getShadowWorld(prob).attached)
         raw_input('CRH Failed')
 
     return path, viol

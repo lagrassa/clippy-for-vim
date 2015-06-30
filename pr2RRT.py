@@ -337,7 +337,8 @@ def interpolate(q_f, q_i, stepSize=0.25, moveChains=None, maxSteps=100):
     if eqChains(path[-1], q_f, moveChains):
         path.pop()
     path.append(q_f)
-    assert path[0] == q_i and path[-1] == q_f
+    if len(path) > 1 and not(path[0] == q_i and path[-1] == q_f):
+        raw_input('Path inconsistency')
     return path
 
 def verifyPath(pbs, p, path, allowedViol, msg='rrt'):
