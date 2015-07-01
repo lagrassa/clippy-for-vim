@@ -255,7 +255,7 @@ def pickGenTop(args, goalConds, pbs, outBindings,
             grasp = graspB.grasp.mode() if graspB else None
             pg = (placeB.support.mode(), grasp)
             w = v.weight() if v else None
-            tr(tag, 1, '(%s) viol='%obj, w, '(h,p,g)=%s'%(hand, pg, pose))
+            tr(tag, 1, '(%s) viol='%obj, w, '(h=%s,p=%,g=%s)'%(hand, pg, pose))
         yield x,v
 
 def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
