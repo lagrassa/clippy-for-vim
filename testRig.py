@@ -72,7 +72,8 @@ reload(pr2Ops)
 # lookAtHand
 from pr2Ops import move, pick, place, lookAt, poseAchCanReach, poseAchCanSee,\
       hRegrasp, poseAchCanPickPlace, \
-      poseAchIn, moveNB, bLoc1, bLoc2, dropAchCanReach, dropAchCanPickPlace
+      poseAchIn, moveNB, bLoc1, bLoc2, bLoc3, \
+      dropAchCanReach, dropAchCanPickPlace
 
 import pr2Sim
 reload(pr2Sim)
@@ -768,6 +769,6 @@ tinyErrProbs = DomainProbs(\
 
 allOperators = [move, pick, place, lookAt, poseAchCanReach,
                 poseAchCanSee, poseAchCanPickPlace, poseAchIn, moveNB,
-                bLoc1, bLoc2, dropAchCanReach, dropAchCanPickPlace]
+                bLoc1, bLoc2, bLoc3, dropAchCanReach, dropAchCanPickPlace]
               #lookAtHand    #graspAchCanPickPlace #dropAchCanPickPlace
 

@@ -539,10 +539,12 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     v4 = tuple([v / 4.0 for v in cappedVbo1])
     v9 = tuple([v / 9.0 for v in cappedVbo1])
     v25 = tuple([v / 25.0 for v in cappedVbo1])
+    ov = lookVar
         
     if useful(v4): result.append([v4])
     if useful(v9): result.append([v9])
     if useful(v25): result.append([v25])
+    if useful(ov): result.append([ov])
 
     if cappedVbo2 != cappedVbo1:
         result.append([cappedVbo2])
@@ -761,7 +763,7 @@ def placeCostFun(al, args, details):
     (_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,p1) = args
     result = costFun(rawCost,
                      p1*canPPProb*(1-details.domainProbs.placeFailProb)) + \
-               abstractCost if al == 0 else 0
+               (abstractCost if al == 0 else 0)
     return result
 
 def pickCostFun(al, args, details):
@@ -770,7 +772,7 @@ def pickCostFun(al, args, details):
     abstractCost = 1
     result = costFun(rawCost, p1*canPPProb*canPPProb*\
                      (1 - details.domainProbs.pickFailProb)) + \
-               abstractCost if al == 0 else 0
+               (abstractCost if al == 0 else 0)
     return result
 
 # Cost depends on likelihood of seeing the object and of moving the
@@ -1240,16 +1242,25 @@ moveNB = Operator(\
 # All this work to say you can know the location of something by knowing its
 # pose or its grasp
 bLoc1 = Operator(\
-         'BLoc', ['Obj', 'Var', 'P'],
+         'BLoc1', ['Obj', 'Var', 'P'],
          {0 : {B([Pose(['Obj', '*']), '*', 'Var', '*', 'P'], True),
                Bd([SupportFace(['Obj']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})])
 
 bLoc2 = Operator(\
-         'BLoc', ['Obj', 'Var', 'P'],
-         {0 : {B([Grasp(['Obj', '*', '*']), '*', 'Var', '*', 'P'], True),
-               Bd([Holding(['*']), 'Obj', 'P'], True),
-               Bd([GraspFace(['Obj', '*']), '*', 'P'], True)}},
+         'BLoc2', ['Obj', 'Var', 'P'],
+         {0 : {Graspable(['Obj'], True),
+               B([Grasp(['Obj', 'left', '*']), '*', 'Var', '*', 'P'], True),
+               Bd([Holding(['left']), 'Obj', 'P'], True),
+               Bd([GraspFace(['Obj', 'left']), '*', 'P'], True)}},
+         [({BLoc(['Obj', 'Var', 'P'], True)}, {})])
+
+bLoc3 = Operator(\
+         'BLoc3', ['Obj', 'Var', 'P'],
+         {0 : {Graspable(['Obj'], True),
+               B([Grasp(['Obj', 'right', '*']), '*', 'Var', '*', 'P'], True),
+               Bd([Holding(['right']), 'Obj', 'P'], True),
+               Bd([GraspFace(['Obj', 'right']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})])
 
 poseAchIn = Operator(\

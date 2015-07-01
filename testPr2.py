@@ -83,6 +83,8 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              place.applyBindings({'Obj': 'objA'}),
              poseAchCanPickPlace,
              moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}),   # 10
+             moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), 
              move,      
              pick,
