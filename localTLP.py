@@ -64,6 +64,7 @@ drawRebindNodes = True
 '''
 
 debugOn = ['traceGen', 'traceCRH', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon',
+           'heuristic0'
            #'verifyPath', 'backwards', 'verifyRRTPath'
            ]
 

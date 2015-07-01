@@ -102,9 +102,7 @@ def primPath(bs, cs, ce, p):
     return smoothed, interpolated
 
 def primNBPath(bs, cs, ce, p):
-    print '*************primNBPath DEBUG'
-    path = None
-    # path, v = canReachNB(bs, cs, ce, p, Violations())
+    path, v = canReachNB(bs, cs, ce, p, Violations())
     if not path:
         print 'NB Path failed, trying RRT'
         path, v = rrt.planRobotPathSeq(bs, p, cs, ce, None,
