@@ -245,6 +245,8 @@ class JointConf:
         return self.items
     def __str__(self):
         return 'JointConf('+str(self.conf)+')'
+    def ss(self):
+        return 'J%s'%(prettyString(self.conf['pr2Base']))
     def __getitem__(self, name):
         return self.conf[name]
     def __hash__(self):

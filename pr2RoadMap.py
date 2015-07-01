@@ -425,6 +425,8 @@ class RoadMap:
                             return ans
                         else:
                             print i, 'bad path', 
+                elif finalConf:
+                    raw_input('Caching failed')
             else:
                 self.confReachCache[key] = []
                 if debug('confReachViolCache'): print 'confReachCache miss'

@@ -31,6 +31,20 @@ pickPlaceBatchSize = 3
 
 easyGraspGenCacheStats = [0,0]
 
+def trace(genTag, *msg):
+    if debug('traceGen'):
+        print genTag+':',
+        for m in msg: print m,
+        print ' '
+
+def tracep(pause, *msg):
+    if debug('traceGen'):
+        print pause+':',
+        for m in msg: print m,
+        print ' '
+    if pause:
+        debugMsg(pause)
+
 minTraceLevel = 1
 def traced(genTag, level):
     if not debug('traceGen') \
@@ -137,7 +151,7 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob):
             tr(tag, 3, 'no confs for grasp = %s'%gB)
             continue
         for ca in graspApproachConfGen(firstConf):
-            tr(tag, 3, 'considering conf = %s'%ca)
+            tr(tag, 3, 'considering conf=%s'%ca.ss())
             if pickable(ca, approached[ca], placeB, gB):
                 tr(tag, 3, 'pickable')
                 ans = (gB.grasp.mode(), gB.poseD.mode().xyztTuple(),

@@ -5,7 +5,7 @@ cimport numpy as np
 from cpython cimport bool
 cimport shapes
 import shapes
-import DrawingWindowStandalone as dw
+import DrawingWindowStandalonePIL as dw
 import colorNames
 
 noWindow = False

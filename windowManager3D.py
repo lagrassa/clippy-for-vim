@@ -1,4 +1,4 @@
-import DrawingWindowStandalone as dw
+import DrawingWindowStandalonePIL as dw
 reload(dw)
 from graphics3D import Window3D
 
