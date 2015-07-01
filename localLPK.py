@@ -39,6 +39,7 @@ extraTests (test for rendundancy and contradiction within state fluent set;
 fluentCache (be sure the fluent cache is behaving)
 hAddBack   (super verbose)
 hAddBackInf
+hAddBackInfFinal
 hAddBackV  (just values)
 heuristic (in ucSearch: positive value at goal or 0 value elsewhere)
 heuristicInversion  (prim actually achieves more than abs)
@@ -72,6 +73,7 @@ visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
 debugOn = ['nonmon', 'traceGen', 'skeleton',
+           'heuristic0', 'canPickPlaceGen', 'hAddBackInfFinal',
           'simpleAbstractCostEstimates']
 
 pauseOn = debugOn

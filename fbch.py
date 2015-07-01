@@ -1064,6 +1064,8 @@ class Operator(object):
 
         for f in newBoundFluents:
             if f.isConditional():
+                valueBefore = startState.fluentValue(f)
+                fBefore = f.copy()
                 # Preconds will not override results
                 f.addConditions(explicitResults, startState.details)
                 if not self.prim:
@@ -1078,6 +1080,12 @@ class Operator(object):
                     raw_input('conditional fluent infeasible')
                     bindingsNoGood = True
                     break
+                valueAfter = startState.fluentValue(f)
+                if valueBefore and not valueAfter:
+                    print 'conditioning made fluent false'
+                    print 'before', fBefore
+                    print 'after', f
+                    raw_input('suspicious')
             newGoal.add(f, startState.details)
 
         # # Stop right away if an immutable precond is false
