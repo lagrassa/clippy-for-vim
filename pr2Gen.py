@@ -295,6 +295,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
     shWorld = pbs.getShadowWorld(prob)
     approached = {}
     rm = pbs.getRoadMap()
+    failureReasons = []
     if placeB.poseD.mode() != None: # otherwise go to regrasp
         if not base:
             # Try current conf
@@ -306,7 +307,6 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                 yield (placeB, c, ca), viol        
         graspConfGen = potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob)
         firstConf = next(graspApproachConfGen(None), None)
-        failureReasons = []
         # This used to have an or clause
         # (firstConf and checkInfeasible(firstConf))
         # but infeasibility of one of the grasp confs due to held
