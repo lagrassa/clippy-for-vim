@@ -29,8 +29,8 @@ considerReUsingPaths = True
 violationCosts = (10.0, 2.0, 10.0, 5.0)
 
 # Don't try too hard, fall back to the RRT when we can't find a path quickly
-maxSearchNodes = 500                   # 5000
-maxExpandedNodes = 100                  # 2000
+maxSearchNodes = 1000                   # 5000
+maxExpandedNodes = 400                  # 2000
 
 searchGreedy = 0.75 # greedy, trust that the heuristic is good...
 searchOpt = 0.5     # should be 0.5 ideally, but it's slow...
@@ -505,8 +505,8 @@ class RoadMap:
                                      useStartH = True)
         ans = next(ansGen, None)
         
-        if ans == None or \
-               (ans[0] and not ans[0].empty() and ans[0].names() != initViol.names()):
+        if ans == None:
+            # (ans[0] and not ans[0].empty() and ans[0].names() != initViol.names()):
             print '    trying RRT'
             path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
                                               maxIter=50, failIter=10)
