@@ -445,7 +445,7 @@ class RoadMap:
                 if debug('verifyPath'):
                     if not self.checkPath(path, pbs, prob):
                         raw_input('Failed checkPath')
-                if not (path[0] == targetConf and path[-1] == initConf):
+                if len(path) > 1 and not (path[0] == targetConf and path[-1] == initConf):
                     raw_input('Path inconsistency')
                 if finalConf: path = [finalConf] + path
                 return (viol, cost, path)
@@ -522,7 +522,7 @@ class RoadMap:
                 # print 'original viol', ans if ans==None else ans[0]
                 # print 'RRT viol', viol
                 print '    returning RRT ans'
-                if not( path[0] == targetConf and path[-1] == initConf):
+                if len(path) > 1 and not( path[0] == targetConf and path[-1] == initConf):
                     raw_input('Path inconsistency')
                 if finalConf: path = [finalConf] + path
                 return (viol, 0, path)
@@ -757,7 +757,7 @@ class RoadMap:
                 if not chain in c.conf:
                     c[chain] = n_i.conf[chain]
             final.append(makeNode(c))
-        if not(n_i == final[0] and n_f == final[-1]):
+        if len(final) > 1 and not(n_i == final[0] and n_f == final[-1]):
             raw_input('Path inconsistency')
         return final
 

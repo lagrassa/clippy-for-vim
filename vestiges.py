@@ -870,3 +870,26 @@ def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
     #                     conf.draw('W', 'magenta'); obst.draw('W', 'magenta')
     #                     raw_input('RealWorld crash! with '+obst.name())
     
+        # !! It could be that sensing is not good enough to reduce the
+        # shadow so that we can actually achieve goal
+        # LPK:  now that we have the irreducible shadow, this is not an issue.
+        # newBS2 = newBS.copy()
+        # placeB2 = placeB.modifyPoseD(var = lookVar)
+        # placeB2.delta = lookDelta
+        # newBS2.updatePermObjPose(placeB2)
+        # viol2 = violFn(newBS2)
+        # if viol2:
+        #     if shadowName in [x.name() for x in viol2.allShadows()]:
+        #         print 'could not reduce the shadow for', obst, 'enough to avoid'
+        #         drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
+        #         print 'brown is as far as it goes'
+        #         drawObjAndShadow(newBS2, placeB2, prob, 'W', color='brown')
+        #         raw_input('Go?')
+        #     else:
+        #         if debug(tag, skip=skip):
+        #             drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
+        #             debugMsg(tag,'Trying to reduce shadow (on W in red) %s'%obst)
+        #             trace('    %s() shadow:'%tag, obst)
+        #         yield (obst, placeB.poseD.mode().xyztTuple(),
+        #                placeB.support.mode(), lookVar, lookDelta)
+

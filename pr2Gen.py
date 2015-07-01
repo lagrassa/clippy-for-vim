@@ -31,51 +31,44 @@ pickPlaceBatchSize = 3
 
 easyGraspGenCacheStats = [0,0]
 
-def trace(genTag, *msg):
-    if debug('traceGen'):
-        print genTag+':',
-        for m in msg: print m,
-        print ' '
-
-def tracep(pause, *msg):
-    if debug('traceGen'):
-        print pause+':',
-        for m in msg: print m,
-        print ' '
-    if pause:
-        debugMsg(pause)
-
-minTraceLevel = 0
-def traced(genTag, level, *msg, **keys):
+minTraceLevel = 1
+def traced(genTag, level):
     if not debug('traceGen') \
-       or (level > 0 and (fbch.inHeuristic and not debug('inHeuristic'))) \
+       or (level > 1 and (fbch.inHeuristic and not debug('inHeuristic'))) \
        or (level > minTraceLevel and not debug(genTag)):
-        return
+        return False
+    return True
+
+def tr(genTag, level, *msg, **keys):
+    if not traced(genTag, level): return
     if msg:
-        level = level + 1
         print level*'  ', genTag+':', msg[0]
         for m in msg[1:]:
             print level*'  ', m
-    for obj in keys.get('draw', []):
+    draw = keys.get('draw', [])
+    for obj in draw:
         if isinstance(obj, (list, tuple)):
             obj[0].draw(*obj[1:])
         else:
             obj.draw('W')
     debugMsg(genTag)
-    if keys.get('pause', False):
-        raw_input(level*' '+genTag+':pause')
+    if level >= 0:
+        debugMsg(genTag+str(level))         # more specific pause tag
+    if draw or keys.get('pause', False):
+        raw_input(genTag+':pause')
 
 def easyGraspGen(args, goalConds, bState, outBindings):
     assert fbch.inHeuristic
+    tag = 'easyGraspGen'
     graspVar = 4*(0.1,)                # make precondition even weaker
     graspDelta = 4*(0.001,)            # put back to prev value
     
     pbs = bState.pbs.copy()
     (obj, hand) = args
     assert obj != None and obj != 'none'
-    trace('easyGraspGen', '(%s,%s) h=%s'%(obj,hand,fbch.inHeuristic))
+    tr(tag, 0, '(%s,%s) h=%s'%(obj,hand,fbch.inHeuristic))
     if obj == 'none' or (goalConds and getConf(goalConds, None)):
-        traced('easyGraspGen', 'obj is none or conf in goal conds')
+        tr(tag, 1, 'obj is none or conf in goal conds')
         return
     prob = 0.75
     # Set up pbs
@@ -85,40 +78,41 @@ def easyGraspGen(args, goalConds, bState, outBindings):
     shWorld = newBS.getShadowWorld(prob)
     if obj == newBS.held[hand].mode():
         gB = newBS.graspB[hand]
-        traced(easyGraspGen, 0, '(%s,%s)'%(obj, hand)+'=> inHand (g=%s)'%gB.grasp.mode())
         ans = (gB.grasp.mode(), gB.poseD.mode().xyztTuple(), graspVar, graspDelta)
-        traced(easyGraspGen, 1, ans)
+        tr(easyGraspGen, 1, '(%s,%s)'%(obj, hand)+'=> inHand (g=%s)'%gB.grasp.mode())
+        tr(easyGraspGen, 2, ans)
         yield ans
         return
     if obj == newBS.held[otherHand(hand)].mode():
-        traced('easyGraspGen', 0, 'no easy grasp with this hand')
+        tr(tag, 1, 'no easy grasp with this hand')
         return
     rm = newBS.getRoadMap()
     placeB = newBS.getPlaceB(obj)
     graspB = ObjGraspB(obj, pbs.getWorld().getGraspDesc(obj), None,
                        PoseD(None, graspVar), delta=graspDelta)
-    cache = pbs.beliefContext.genCaches['easyGraspGen']
+    cache = pbs.beliefContext.genCaches[tag]
     key = (newBS, placeB, graspB, hand, prob)
     easyGraspGenCacheStats[0] += 1
     val = cache.get(key, None)
     if val != None:
         easyGraspGenCacheStats[1] += 1
-        cached = 'C'
+        cached = 'Cached'
         memo = val.copy()
     else:
-        memo = Memoizer('easyGraspGen',
+        memo = Memoizer(tag,
                         easyGraspGenAux(newBS, placeB, graspB, hand, prob))
         cache[key] = memo
         cached = ''
     for ans in memo:
-        traced('easyGraspGen', 0, '%s (%s,%s)'%(cached, obj, hand)+ \
-               '=> (p=%s,g=%s)'%(placeB.support.mode(), ans[0]))
-        traced('easyGraspGen', 1, 'ans=%s'%(ans,))
+        tr(tag, 1, '%s (%s,%s)'%(cached, obj, hand)+ \
+           '=> (p=%s,g=%s)'%(placeB.support.mode(), ans[0]))
+        tr(tag, 2, 'ans=%s'%(ans,))
         yield ans
-    traced(easyGraspGen, 0, '(%s,%s)='%(obj, hand)+'=> out of values')
+    tr(easyGraspGen, 1, '(%s,%s)='%(obj, hand)+'=> out of values')
     return
 
 def easyGraspGenAux(newBS, placeB, graspB, hand, prob):
+    tag = 'easyGraspGen'
     graspVar = 4*(0.001,)
     graspDelta = 4*(0.001,)   # put back to prev value
     
@@ -136,15 +130,22 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob):
     obj = placeB.obj
     approached = {}
     for gB in graspGen(newBS, obj, graspB):
+        tr(tag, 3, 'considering grasp=%s'%gB)
         graspConfGen = potentialGraspConfGen(newBS, placeB, gB, None, hand, None, prob)
         firstConf = next(graspApproachConfGen(None), None)
-        if not firstConf: continue
+        if not firstConf:
+            tr(tag, 3, 'no confs for grasp = %s'%gB)
+            continue
         for ca in graspApproachConfGen(firstConf):
+            tr(tag, 3, 'considering conf = %s'%ca)
             if pickable(ca, approached[ca], placeB, gB):
+                tr(tag, 3, 'pickable')
                 ans = (gB.grasp.mode(), gB.poseD.mode().xyztTuple(),
                        graspVar, graspDelta)
                 yield ans
                 break
+            else:
+                tr(tag, 3, 'not pickable')
 
 # R1: Pick bindings that make pre-conditions not inconsistent with goalConds
 # R2: Pick bindings so that results do not make conditional fluents in the goalConds infeasible
@@ -173,13 +174,10 @@ def pickGen(args, goalConds, bState, outBindings, onlyCurrent = False):
      objV, graspV, objDelta, confDelta, graspDelta, hand, prob) = args
 
     base = sameBase(goalConds)          # base is (x, y, th)
-    if base:
-        print('Same base constraint in pickGen')
-
-    traced('pickGen', 1, ('args', args), ('base', base))
+    tr('pickGen', 0, 'obj=%s, base=%s'%(obj, base))
+    tr('pickGen', 2, ('args', args))
 
     pbs = bState.pbs.copy()
-
     world = pbs.getWorld()
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
                        PoseD(util.Pose(*graspPose), graspV), delta=graspDelta)
@@ -193,28 +191,25 @@ def pickGen(args, goalConds, bState, outBindings, onlyCurrent = False):
 def pickGenTop(args, goalConds, pbs, outBindings,
                onlyCurrent = False):
     (obj, graspB, placeB, hand, base, prob) = args
-    traced('pickGen', 0, '(%s,%s,%d) b=%s h=%s'%(obj,hand,graspB.grasp.mode(),base,fbch.inHeuristic))
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
-
+    tag = 'pickGen'
     graspDelta = pbs.domainProbs.pickStdev
-
-    if debug('pickGen'):
-        debugMsgSkip('pickGen', skip,
-                 zip(('obj', 'graspB', 'placeB', 'hand', 'prob'), args),
-                 ('goalConds', goalConds),
-                 ('moveObjBs', pbs.moveObjBs),
-                 ('fixObjBs', pbs.fixObjBs),
-                 ('held', (pbs.held['left'].mode(),
-                           pbs.held['right'].mode(),
-                           pbs.graspB['left'],
-                           pbs.graspB['right'])))
+    tr(tag, 0, '(%s,%s,%d) b=%s h=%s'%(obj,hand,graspB.grasp.mode(),base,fbch.inHeuristic))
+    tr(tag, 2, 
+       zip(('obj', 'graspB', 'placeB', 'hand', 'prob'), args),
+       ('goalConds', goalConds),
+       ('moveObjBs', pbs.moveObjBs),
+       ('fixObjBs', pbs.fixObjBs),
+       ('held', (pbs.held['left'].mode(),
+                 pbs.held['right'].mode(),
+                 pbs.graspB['left'],
+                 pbs.graspB['right'])))
 
     if obj == 'none':                   # can't pick up 'none'
-        traced('pickGen', 0, '  cannot pick up none')
+        tr(tag, 1, 'cannot pick up none')
         return
     if goalConds:
-        if  getConf(goalConds, None):
-            traced('pickGen', 0, '  conf is already specified')
+        if getConf(goalConds, None):
+            tr(tag, 1, '=> conf is already specified')
             return
     if obj == pbs.held[hand].mode():
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
@@ -225,9 +220,7 @@ def pickGenTop(args, goalConds, pbs, outBindings,
         pose = None
         conf = None
         confAppr = None
-        debugMsg('pickGen',
-                 ('Trying to pick object already in hand',
-                  ' -- support surface is', sup))
+        tr(tag, 2, 'Object already in hand, support=%s'%sup)
     elif obj == pbs.held[otherHand(hand)].mode():
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
                                                    otherHand(hand))
@@ -237,33 +230,32 @@ def pickGenTop(args, goalConds, pbs, outBindings,
         pose = None
         conf = None
         confAppr = None
-        debugMsg('pickGen',
-                 ('Trying to pick object already in hand other hand',
-                  '-- support surface is', sup))
+        tr(tag, 2, 'Object already in other hand, support=%s'%sup)
     else:
         # Use placeB from the current state
         pose = pbs.getPlaceB(obj).poseD.mode()
         sup =  pbs.getPlaceB(obj).support.mode()
         conf = None
         confAppr = None
+        tr(tag, 2, 'Using current state, support=%s, pose=%s'%(sup, pose.xyztTuple()))
     placeB.poseD = PoseD(pose, placeB.poseD.var) # record the pose
-    placeB.support = DeltaDist(sup)                             # and supportFace
-    debugMsgSkip('pickGen', skip, ('target placeB', placeB))
+    placeB.support = DeltaDist(sup)              # and supportFace
+    tr(tag, 2, 'target placeB=%s'%placeB)
     # Set up pbs
     newBS = pbs.copy()
     # Just placements specified in goal
     newBS = newBS.updateFromGoalPoses(goalConds)
-    traced('pickGen', 1, 'Goal conditions', draw=[(newBS, prob, 'W')], pause=True)
+    tr('pickGen', 2, 'Goal conditions', draw=[(newBS, prob, 'W')])
     gen = pickGenAux(newBS, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                      goalConds, onlyCurrent=onlyCurrent)
     for x,v in gen:
-        if debug('traceGen'):
+        if traced(tag, 1):
             (pB, cf, ca) = x
             pose = pB.poseD.mode() if pB else None
             grasp = graspB.grasp.mode() if graspB else None
             pg = (placeB.support.mode(), grasp)
             w = v.weight() if v else None
-            trace('    pickGen(%s) viol='%obj, w, '(h,p,g)=', hand, pg, pose)
+            tr(tag, 1, '(%s) viol='%obj, w, '(h,p,g)=%s'%(hand, pg, pose))
         yield x,v
 
 def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
@@ -1380,29 +1372,6 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
             trace('    %s() shadow:'%tag, obst)
         yield (obst, placeB.poseD.mode().xyztTuple(),
                 placeB.support.mode(), objBMinVar, lookDelta)
-
-        # !! It could be that sensing is not good enough to reduce the
-        # shadow so that we can actually achieve goal
-        # LPK:  now that we have the irreducible shadow, this is not an issue.
-        # newBS2 = newBS.copy()
-        # placeB2 = placeB.modifyPoseD(var = lookVar)
-        # placeB2.delta = lookDelta
-        # newBS2.updatePermObjPose(placeB2)
-        # viol2 = violFn(newBS2)
-        # if viol2:
-        #     if shadowName in [x.name() for x in viol2.allShadows()]:
-        #         print 'could not reduce the shadow for', obst, 'enough to avoid'
-        #         drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
-        #         print 'brown is as far as it goes'
-        #         drawObjAndShadow(newBS2, placeB2, prob, 'W', color='brown')
-        #         raw_input('Go?')
-        #     else:
-        #         if debug(tag, skip=skip):
-        #             drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
-        #             debugMsg(tag,'Trying to reduce shadow (on W in red) %s'%obst)
-        #             trace('    %s() shadow:'%tag, obst)
-        #         yield (obst, placeB.poseD.mode().xyztTuple(),
-        #                placeB.support.mode(), lookVar, lookDelta)
 
         # Either reducing the shadow is not enough or we failed and
         # need to move the object (if it's movable).
