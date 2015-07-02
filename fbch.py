@@ -517,7 +517,7 @@ class Fluent(object):
 
     def __str__(self):
         if debug('extraTests'):
-            assert self.strStored == self.getStr()
+            assert self.strStored == self.getStr(True)
         return self.strStored
 
     def getStr(self, eq = False):
