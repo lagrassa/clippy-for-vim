@@ -676,7 +676,6 @@ class PlanTest:
         if not goal: return
 
         s = State([], details = self.bs)
-
         try:
             traceStart()
             print '**************', self.name,\
@@ -691,7 +690,8 @@ class PlanTest:
                     h = heuristic,
                     verbose = False,
                     fileTag = self.name if writeSearch else None,
-                    nonMonOps = ['Move', 'MoveNB', 'LookAt', 'Place'])
+                    nonMonOps = ['Move', 'MoveNB', 'LookAt', 'Place'],
+                    maxNodes = 100)
             else:
                 p = planBackward(s,
                                  goal,
