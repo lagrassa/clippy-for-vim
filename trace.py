@@ -60,10 +60,20 @@ def traceStart():
     global htmlFile, htmlFileId
     htmlFile = open(local.htmlGen%(str(htmlFileId), timeString()), 'w')
     htmlFileId += 1
+    # Could use this for css styles
+    header = '''
+<!DOCTYPE html>
+<html>
+<body>
+'''
+    htmlFile.write(header)
 
 def traceEnd():
     global htmlFile
+    footer = '''
+</body>'''
     if htmlFile: 
+        htmlFile.write(footer)
         htmlFile.close()
     htmlFile = None
 
@@ -83,4 +93,4 @@ def snap(*windows):
 def trLog(string):
     print string
     if htmlFile:
-        htmlFile.write('<br><pre>%s</pre><br>\n'%string)
+        htmlFile.write('<pre>%s</pre>\n'%string)

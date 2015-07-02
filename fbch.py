@@ -1576,7 +1576,6 @@ def executePrim(op, s, env, f = None):
     writePrimRefinement(f, op)
     obs = env.executePrim(op, params)
     s.updateStateEstimate(op, obs)
-    tr('beliefUpdate', 0, snap = ['Belief'])
     debugMsg('prim', 'done')
 
 class PlanStack(Stack):

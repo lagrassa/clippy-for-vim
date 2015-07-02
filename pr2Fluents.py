@@ -13,7 +13,7 @@ from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from pr2RoadMap import validEdgeTest
-from trace import tr
+from trace import tr, trLog
 
 tiny = 1.0e-6
 obstCost = 10  # Heuristic cost of moving an object
@@ -309,6 +309,7 @@ class CanReachHome(Fluent):
 
         avoidShadow = [cond[0].args[0].args[0]] if fcp else []
         newPBS.addAvoidShadow(avoidShadow)
+        # trLog('Testing '+ self.prettyString())
         path, violations = canReachHome(newPBS, conf, p, Violations())
         debugMsg('CanReachHome',
                  ('conf', conf),

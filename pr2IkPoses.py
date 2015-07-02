@@ -503,29 +503,30 @@ def clean(poses):
             out.append(pose)
     return out
 
-def ikTransNew():
+def ikTrans():
     def poseScore(pose):
-        return 3*abs(pose.theta) + abs(pose.y)
+        return 3*abs(pose.theta) + abs(pose.y) - abs(pose.x)
     horizontal = setupNuggets(n=1)
     scored = sorted([(poseScore(tr.pose()), tr) for tr in horizontal])
     horizontal = [tr for (sc, tr) in scored]
     print 'Horizontal=', len(horizontal)
-    wrist = util.Transform(np.array([[0.0, 0.0, 1.0, 1.0],
+    wrist = util.Transform(np.array([[0.0, 0.0, 1.0, 1.10],
                                      [0.0, 1.0, 0.0, 0.0],
                                      [-1.0, 0.0, 0.0, 1.0],
                                      [0.0, 0.0, 0.0, 1.0]]))
     vertical = [util.Transform(p=np.array([[a] for a in p]), q=np.array(q)) \
                 for (q,p) in uprightTrans]
-    poses = [(wrist.compose(tr).pose(fail=False), tr) for tr in vertical]
+    poses = [(wrist.compose(tr.inverse()).pose(zthr=0.1, fail=False), tr) for tr in vertical]
     poses = [p for p in poses if p[0]]
     scored = sorted([(poseScore(pose), tr) for (pose, tr) in poses])
     vertical = [tr for (sc, tr) in scored]
     print 'Vertical=', len(vertical)
+    raw_input('ikTrans')
     return horizontal, vertical
 
-def ikTrans():
+def ikTransSimple():
     def poseScore(pose):
-        return 3*abs(pose.theta) + abs(pose.y)
+        return 3*abs(pose.theta) + abs(pose.y) - abs(pose.x)
     horizontal = setupNuggets(n=1)
     scored = sorted([(poseScore(tr.pose()), tr) for tr in horizontal])
     horizontal = [tr for (sc, tr) in scored]

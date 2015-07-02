@@ -395,13 +395,15 @@ class RoadMap:
         def checkCache(key, type='full', loose=False):
             if glob.inHeuristic or optimize: return 
             if key in self.confReachCache:
+                if debug('traceCRH'): print '    cache?', 
                 # tr('CRH', 1, 'cache?')
                 cacheValues = self.confReachCache[key]
                 sortedCacheValues = sorted(cacheValues,
                                            key=lambda v: v[-1][0].weight() if v[-1][0] else 1000.)
                 ans = bsEntails(pbs, prob, sortedCacheValues, loose=loose)
                 if ans != None:
-                    tr('CRH', 1, 'actual ' + type + 'cache hit')
+                    if debug('traceCRH'): print '    actual', type, 'cache hit', 
+                    # tr('CRH', 1, 'actual ' + type + 'cache hit')
                     return ans
                 elif considerReUsingPaths:
                     initObst = set(endPtViol.allObstacles())
@@ -413,7 +415,8 @@ class RoadMap:
                         (_, _, edgePath) = ans
                         viol2 = self.checkEdgePath(edgePath, pbs, prob)
                         if viol2 and set(viol2.allObstacles()) <= initObst and set(viol2.allShadows()) <= initShadows:
-                            tr('CRH', 1, 'reusing path')
+                            if debug('traceCRH'): print '    reusing path', 
+                            # tr('CRH', 1, 'reusing path')
                             (_, cost, path) = ans
                             ans = (viol2, cost, path) # use the new violations
                             if debug('confReachViolCache'):
@@ -481,6 +484,7 @@ class RoadMap:
         if not glob.inHeuristic and targetConf in self.approachConfs:
             finalConf = targetConf
             targetConf = self.approachConfs[targetConf]
+            if debug('traceCRH'): print '    using approach conf',
             # tr('CRH', 1, 'using approach conf')
         targetNode = makeNode(targetConf)
         cached = checkFullCache()
@@ -494,7 +498,8 @@ class RoadMap:
                                   targetCluster.nodeGraph)
         # if not glob.inHeuristic:
         #     print '    Graph nodes =', len(graph.incidence), 'graph edges', len(graph.edges)
-        tr('CRH', 1, 'find path')
+        if debug('traceCRH'): print '    find path',
+        # tr('CRH', 1, 'find path')
         # search back from target... if we will execute in reverse, it's a double negative.
         ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
                                      optimize=optimize, moveBase=moveBase,

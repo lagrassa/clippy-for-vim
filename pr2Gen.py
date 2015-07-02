@@ -53,8 +53,8 @@ def easyGraspGen(args, goalConds, bState, outBindings):
     if obj == newBS.held[hand].mode():
         gB = newBS.graspB[hand]
         ans = (gB.grasp.mode(), gB.poseD.mode().xyztTuple(), graspVar, graspDelta)
-        tr(easyGraspGen, 1, '(%s,%s)'%(obj, hand)+'=> inHand (g=%s)'%gB.grasp.mode())
-        tr(easyGraspGen, 2, ans)
+        tr(tag, 1, '(%s,%s)'%(obj, hand)+'=> inHand (g=%s)'%gB.grasp.mode())
+        tr(tag, 2, ans)
         yield ans
         return
     if obj == newBS.held[otherHand(hand)].mode():
@@ -82,7 +82,7 @@ def easyGraspGen(args, goalConds, bState, outBindings):
            '=> (p=%s,g=%s)'%(placeB.support.mode(), ans[0]))
         tr(tag, 2, 'ans=%s'%(ans,))
         yield ans
-    tr(easyGraspGen, 1, '(%s,%s)='%(obj, hand)+'=> out of values')
+    tr(tag, 1, '(%s,%s)='%(obj, hand)+'=> out of values')
     return
 
 def easyGraspGenAux(newBS, placeB, graspB, hand, prob):

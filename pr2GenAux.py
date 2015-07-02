@@ -419,9 +419,9 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
 
     if debug('collectGraspConfs'):
         xAxisZ = wrist.matrix[2,0]
+        bases = robot.potentialBasePosesGen(wrist, hand)
         if abs(xAxisZ) < 0.01:
             if not glob.horizontal:
-                bases = list(robot.potentialBasePosesGen(wrist, hand))
                 glob.horizontal = [(b,
                                     CartConf({'pr2BaseFrame': b,
                                               robot.armChainNames[hand]+'Frame' : wrist,
@@ -429,7 +429,6 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
                                    for b in bases]
         elif abs(xAxisZ + 1.0) < 0.01:
             if not glob.vertical:
-                bases = list(robot.potentialBasePosesGen(wrist, hand))
                 glob.vertical = [(b,
                                   CartConf({'pr2BaseFrame': b,
                                             robot.armChainNames[hand]+'Frame' : wrist,
