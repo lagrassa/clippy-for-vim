@@ -521,7 +521,6 @@ def ikTrans():
     scored = sorted([(poseScore(pose), tr) for (pose, tr) in poses])
     vertical = [tr for (sc, tr) in scored]
     print 'Vertical=', len(vertical)
-    raw_input('ikTrans')
     return horizontal, vertical
 
 def ikTransSimple():
