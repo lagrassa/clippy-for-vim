@@ -8,7 +8,7 @@ from planGlobals import debugMsg, debugDraw, debug, pause
 import planGlobals as glob
 from miscUtil import isGround, isVar, prettyString, applyBindings
 import fbch
-from fbch import Fluent, getMatchingFluents, Operator, inHeuristic
+from fbch import Fluent, getMatchingFluents, Operator
 from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
@@ -301,7 +301,7 @@ class CanReachHome(Fluent):
         if not hasattr(self, 'viols'): self.viols = {}
         if not hasattr(self, 'hviols'): self.hviols = {}
         if key in self.viols: return self.viols[key]
-        if inHeuristic and key in self.hviols: return self.hviols[key]
+        if glob.inHeuristic and key in self.hviols: return self.hviols[key]
 
         newPBS = bState.pbs.copy()
         newPBS.updateFromGoalPoses(cond, permShadows=True)
@@ -312,7 +312,7 @@ class CanReachHome(Fluent):
         debugMsg('CanReachHome',
                  ('conf', conf),
                  ('->', violations))
-        if inHeuristic:
+        if glob.inHeuristic:
             self.hviols[key] = path, violations
         else:
             self.viols[key] = path, violations
@@ -452,7 +452,7 @@ class CanReachNB(Fluent):
         if not hasattr(self, 'viols'): self.viols = {}
         if not hasattr(self, 'hviols'): self.hviols = {}
         if key in self.viols: return self.viols[key]
-        if inHeuristic and key in self.hviols: return self.hviols[key]
+        if glob.inHeuristic and key in self.hviols: return self.hviols[key]
 
         newPBS = bState.pbs.copy()
         newPBS.updateFromGoalPoses(cond, permShadows=True)
@@ -462,7 +462,7 @@ class CanReachNB(Fluent):
         debugMsg('CanReachNB',
                  ('confs', startConf, endConf),
                  ('->', violations))
-        if inHeuristic:
+        if glob.inHeuristic:
             self.hviols[key] = path, violations
         else:
             self.viols[key] = path, violations
@@ -629,7 +629,7 @@ class CanPickPlace(Fluent):
         if not hasattr(self, 'viols'): self.viols = {}
         if not hasattr(self, 'hviols'): self.hviols = {}
         if key in self.viols: return self.viols[key]
-        if inHeuristic and key in self.hviols: return self.hviols[key]
+        if glob.inHeuristic and key in self.hviols: return self.hviols[key]
             
         condViols = [c.getViols(bState, v, p) for c in self.getConds(bState)]
 
@@ -644,7 +644,7 @@ class CanPickPlace(Fluent):
             return (None, None)
         allViols = [v for (p, v) in condViols]
         violations = reduce(violCombo, allViols)
-        if inHeuristic:
+        if glob.inHeuristic:
             self.hviols[key] = True, violations
         else:
             self.viols[key] = True, violations
@@ -905,7 +905,7 @@ class CanSeeFrom(Fluent):
         if not hasattr(self, 'viols'): self.viols = {}
         if not hasattr(self, 'hviols'): self.hviols = {}
         if key in self.viols: return self.viols[key]
-        if inHeuristic and key in self.hviols: return self.hviols[key]
+        if glob.inHeuristic and key in self.hviols: return self.hviols[key]
 
         pbs = bState.pbs
         if pose == '*' and \
@@ -942,7 +942,7 @@ class CanSeeFrom(Fluent):
             debugMsg('CanSeeFrom',
                     ('obj', obj, pose), ('conf', conf),
                     ('->', occluders))
-        if inHeuristic:
+        if glob.inHeuristic:
             self.hviols[key] = ans, occluders
         else:
             self.viols[key] = ans, occluders
@@ -1107,7 +1107,7 @@ def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False
         assert path[-1] == homeConf, 'End of path'
 
     if debug('traceCRH'):
-        print '    %s h='%tag, fbch.inHeuristic, 'viol=:', \
+        print '    %s h='%tag, glob.inHeuristic, 'viol=:', \
                        viol.weight() if viol else None
 
     if path and debug('backwards'):
@@ -1124,7 +1124,7 @@ def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False
                 print pre, '->', post
             # raw_input('CRH - Backwards steps')
 
-    if (not fbch.inHeuristic) or debug('drawInHeuristic'):
+    if (not glob.inHeuristic) or debug('drawInHeuristic'):
         if (moveBase and debug('canReachHome')) or \
                                    ((not moveBase) and debug('canReachNB')):
             pbs.draw(prob, 'W')

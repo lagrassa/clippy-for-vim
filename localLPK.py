@@ -70,6 +70,7 @@ regression
 regression:fail
 regression:inconsistent (maybe evidence that generator could have failed
                           earlier)
+satisfies                          
 sim
 simpleAbstractCostEstimates  (cut down on generator calls high in the hierarchy)
 skeleton

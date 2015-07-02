@@ -8,6 +8,8 @@ from planGlobals import debugMsg, debug
 import ucSearchPQ as ucSearch
 reload(ucSearch)
 
+from trace import tr
+
 import miscUtil
 reload(miscUtil)
 from miscUtil import applyBindings, timeString, prettyString,\
@@ -19,7 +21,7 @@ from miscUtil import applyBindings, timeString, prettyString,\
 
 import local
 
-inHeuristic = False
+glob.inHeuristic = False
 
 flatPlan = False   # Set to False if you want hierarchy
 maxHDelta = None      # check that heuristic does not change radically
@@ -200,7 +202,7 @@ class State:
     # Return the value of the fluent in this state.
     def fluentValue(self, fluent, recompute = False):
         cache = None if recompute else \
-                 (self.relaxedValueCache if inHeuristic else self.valueCache)
+               (self.relaxedValueCache if glob.inHeuristic else self.valueCache)
         cachedVal = self.fluentValueWithCache(fluent, cache)
         if debug('fluentCache'):
             fval = fluent.valueInDetails(self.details)
@@ -299,9 +301,6 @@ class State:
                    for f in self.fluents])
 
     def __str__(self):
-        fluentString = '\\n'.join(sorted([str(y) for y in \
-                        self.fluents]))
-
         # Try using prettyString so that real values will be truncated
         fluentString = self.prettyString(True)
                         
@@ -521,10 +520,8 @@ class Fluent(object):
             assert self.strStored == self.getStr()
         return self.strStored
 
-    def getStr(self):
-        # return self.predicate + prettyString(self.args) + \
-        #   ' = ' + prettyString(self.value)
-        return self.predicate + self.argString(True) +\
+    def getStr(self, eq = False):
+        return self.predicate + self.argString(eq) +\
           ' = ' + prettyString(self.value)
 
     def argString(self, eq):
@@ -554,7 +551,7 @@ class Fluent(object):
     
     __repr__ = __str__
     def __hash__(self):
-        return str(self).__hash__()
+        return hash(self.prettyString(eq=True))
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()
     def __ne__(self, other):
@@ -962,11 +959,11 @@ class Operator(object):
         debugMsg('regression:bind', 'getting new bindings',
                  self.functions, goal.fluents, ('result', newBindings))
         if newBindings == None:
-            if not inHeuristic or debug('debugInHeuristic'):
+            if not glob.inHeuristic or debug('debugInHeuristic'):
                 debugMsg('regression:fail', self, 'could not get bindings',
-                     'h = '+str(inHeuristic))
+                     'h = '+str(glob.inHeuristic))
             if debug('regression:fail') and \
-                    (not inHeuristic or debug('debugInHeuristic')):
+                    (not glob.inHeuristic or debug('debugInHeuristic')):
                 glob.debugOn = glob.debugOn + ['btbind']
                 newBindings = btGetBindings(necessaryFunctions,
                                             goal.fluents,
@@ -990,7 +987,7 @@ class Operator(object):
 
         # Be sure the result is consistent
         if not goal.isConsistent(boundResults, startState.details):
-            if not inHeuristic or debug('debugInHeuristic'):
+            if not glob.inHeuristic or debug('debugInHeuristic'):
                 debugMsg('regression:fail', self,
                          'results inconsistent with goal')
             # This is not a fatal flaw;  just a problem with these bindings
@@ -1026,8 +1023,8 @@ class Operator(object):
                 else:
                     nf = gf.copy()
                 if nf == None:
-                    if not inHeuristic or debug('debugInHeuristic'):
-                        print 'special regression fail; h =', inHeuristic
+                    if not glob.inHeuristic or debug('debugInHeuristic'):
+                        print 'special regression fail; h =', glob.inHeuristic
                         debugMsg('regression:fail', 'special regress failure')
                     return []
                 newFluents.append(nf)
@@ -1098,7 +1095,7 @@ class Operator(object):
 
         # Could fold the boundPrecond part of this in to addSet later
         if not newGoal.isConsistent(boundPreconds, startState.details):
-            if not inHeuristic or debug('debugInHeuristic'):
+            if not glob.inHeuristic or debug('debugInHeuristic'):
                 if debug('regression:fail'):
                     for f1 in boundPreconds:
                         for f2 in newGoal.fluents:
@@ -1110,7 +1107,7 @@ class Operator(object):
             bindingsNoGood = True
             
         elif newGoal.couldBeClobbered(boundSE, startState.details):
-            if not inHeuristic or debug('debugInHeuristic'):
+            if not glob.inHeuristic or debug('debugInHeuristic'):
                 if True: #debug('regression:fail'):
                     for f1 in boundSE:
                         for f2 in newGoal.fluents:
@@ -1198,7 +1195,7 @@ class Operator(object):
                 if len(primOpRegr) < 2:
                     # Looks good abstractly, but can't apply concrete op
                     # Try other ops!
-                    if not inHeuristic or debug('debugInHeuristic'):
+                    if not glob.inHeuristic or debug('debugInHeuristic'):
                         debugMsg('infeasible', 'Concrete op not applicable',
                                  goal)
                     cost = float('inf')
@@ -1249,7 +1246,7 @@ class Operator(object):
                             if cost < float('inf'): break
                         if cost < float('inf'): break
 
-        if not inHeuristic or debug('debugInHeuristic') and debug(tag):
+        if not glob.inHeuristic or debug('debugInHeuristic') and debug(tag):
             debugMsg(tag, 'Final regression result', ('Op', self),
                      ('cost', cost),
                      ('goal',  goal.prettyString(False, startState)),
@@ -1257,7 +1254,7 @@ class Operator(object):
 
         rebindLater.suspendedOperator.instanceCost = rebindCost
         if cost == float('inf'):
-            if not inHeuristic or debug('debugInHeuristic'):
+            if not glob.inHeuristic or debug('debugInHeuristic'):
                 print self
                 debugMsg('regression:fail', 'infinite cost')
             return [[rebindLater, rebindCost]]
@@ -1579,6 +1576,7 @@ def executePrim(op, s, env, f = None):
     writePrimRefinement(f, op)
     obs = env.executePrim(op, params)
     s.updateStateEstimate(op, obs)
+    tr('beliefUpdate', 0, snap = ['Belief'])
     debugMsg('prim', 'done')
 
 class PlanStack(Stack):
@@ -2039,8 +2037,9 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
 
     resultNames = [o.name for o in result]
     if len(result) == 0:
-        debugMsg('appOp:number', ('h', inHeuristic, 'number', len(result)))
-    debugMsg(tag, ('h', inHeuristic, 'number', len(result)), ('result', result))
+        debugMsg('appOp:number', ('h', glob.inHeuristic, 'number', len(result)))
+    debugMsg(tag, ('h', glob.inHeuristic, 'number', len(result)),
+             ('result', result))
     return result
 
 def redundant(o1, opList):

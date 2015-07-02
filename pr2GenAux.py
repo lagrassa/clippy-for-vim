@@ -122,7 +122,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
     preConfShape = preConf.placement(attached = pbs1.getShadowWorld(p).attached)
     objShadow = objPlace.shadow(pbs1.getShadowWorld(p))
     # Check visibility at preConf (for pick)
-    if op=='pick' and not (fbch.inHeuristic or quick):
+    if op=='pick' and not (glob.inHeuristic or quick):
         path = canView(pbs1, p, preConf, hand, objShadow)
         if path:
             debugMsg('canPickPlaceTest', 'Succeeded visibility test for pick')
@@ -156,7 +156,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         debugMsg('canPickPlaceTest', 'path 2')
 
     # Check visibility of support table at preConf (for pick AND place)
-    if op in ('pick', 'place') and not (fbch.inHeuristic or quick):
+    if op in ('pick', 'place') and not (glob.inHeuristic or quick):
         tableB = findSupportTableInPbs(pbs1, objPlace.obj) # use pbs1 so obj is there
         assert tableB
         print 'Looking at support for', obj, '->', tableB.obj
@@ -982,7 +982,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         return
     count = 0
     maxTries = min(2*maxPoses, len(pointDist))
-    if False: # fbch.inHeuristic:
+    if False: # glob.inHeuristic:
         while count < maxPoses and tries < maxTries:
             tries += 1
             # Randomized

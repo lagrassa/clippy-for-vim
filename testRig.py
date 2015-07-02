@@ -596,7 +596,7 @@ class PlanTest:
             initBelief = None, initWorld=None,
             rip = False):
         randomizedInitialPoses = rip
-        fbch.inHeuristic = False
+        glob.inHeuristic = False
         if skeleton: fbch.dotSearchId = 0
         startTime = time.clock()
         fbch.flatPlan = not hierarchical

@@ -1,9 +1,9 @@
-import fbch
 import planGlobals
 from planGlobals import debug, debugMsg
 import windowManager3D as wm
 from miscUtil import timeString, prettyString
 import local
+import planGlobals as glob
 
 # Tracing interface, one level up from debug...
 
@@ -24,7 +24,7 @@ def tracep(pause, *msg):
 minTraceLevel = 1
 def traced(genTag, level):
     if not debug('traceGen') \
-       or (level > 1 and (fbch.inHeuristic and not debug('inHeuristic'))) \
+       or (level > 1 and (glob.inHeuristic and not debug('inHeuristic'))) \
        or (level > minTraceLevel and not debug(genTag)):
         return False
     return True
@@ -63,7 +63,8 @@ def traceStart():
 
 def traceEnd():
     global htmlFile
-    htmlFile.close()
+    if htmlFile: 
+        htmlFile.close()
     htmlFile = None
 
 def snap(*windows):

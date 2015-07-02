@@ -33,7 +33,6 @@ pickPlaceBatchSize = 3
 easyGraspGenCacheStats = [0,0]
 
 def easyGraspGen(args, goalConds, bState, outBindings):
-    assert fbch.inHeuristic
     tag = 'easyGraspGen'
     graspVar = 4*(0.1,)                # make precondition even weaker
     graspDelta = 4*(0.001,)            # put back to prev value
@@ -41,7 +40,7 @@ def easyGraspGen(args, goalConds, bState, outBindings):
     pbs = bState.pbs.copy()
     (obj, hand) = args
     assert obj != None and obj != 'none'
-    tr(tag, 0, '(%s,%s) h=%s'%(obj,hand,fbch.inHeuristic))
+    tr(tag, 0, '(%s,%s) h=%s'%(obj,hand,glob.inHeuristic))
     if obj == 'none' or (goalConds and getConf(goalConds, None)):
         tr(tag, 1, 'obj is none or conf in goal conds')
         return
@@ -168,7 +167,7 @@ def pickGenTop(args, goalConds, pbs, outBindings,
     (obj, graspB, placeB, hand, base, prob) = args
     tag = 'pickGen'
     graspDelta = pbs.domainProbs.pickStdev
-    tr(tag, 0, '(%s,%s,%d) b=%s h=%s'%(obj,hand,graspB.grasp.mode(),base,fbch.inHeuristic))
+    tr(tag, 0, '(%s,%s,%d) b=%s h=%s'%(obj,hand,graspB.grasp.mode(),base,glob.inHeuristic))
     tr(tag, 2, 
        zip(('obj', 'graspB', 'placeB', 'hand', 'prob'), args),
        ('goalConds', goalConds),
@@ -290,7 +289,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
             raw_input('need to regrasp')
         else:
             targetConfs = graspApproachConfGen(firstConf)
-            batchSize = 1 if fbch.inHeuristic else pickPlaceBatchSize
+            batchSize = 1 if glob.inHeuristic else pickPlaceBatchSize
             batch = 0
             while True:
                 # Collect the next batch of trialConfs
@@ -326,13 +325,13 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
             return
         
     # Try a regrasp... that is place the object somewhere else where it can be grasped.
-    if fbch.inHeuristic:
+    if glob.inHeuristic:
         return
     if failureReasons and all(['visibility' in reason for reason in failureReasons]):
         tr(tag, 1, 'There were valid targets that failed due to visibility')
         return
     
-    tr(tag, 0, 'Calling for regrasping... h=%s'%fbch.inHeuristic)
+    tr(tag, 0, 'Calling for regrasping... h=%s'%glob.inHeuristic)
     raw_input('Regrasp?')
     shWorld = pbs.getShadowWorld(prob)
     # !! Needs to look for plausible regions...
@@ -481,7 +480,7 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False, up
            frozenset(goalConds), pbs, regrasp, away, update)
     startTime = time.clock()
     tag = 'placeGen'
-    tr(tag, 0, '(%s,%s) h=%s'%(obj,hand, fbch.inHeuristic))
+    tr(tag, 0, '(%s,%s) h=%s'%(obj,hand, glob.inHeuristic))
     tr(tag, 2, 
        zip(('obj', 'graspB', 'placeBs', 'hand', 'prob'), args),
        ('goalConds', goalConds),
@@ -635,7 +634,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
 
     for grasps, gCost in zip(gClasses, gCosts):
         targetConfs = placeApproachConfGen(grasps)
-        batchSize = 1 if fbch.inHeuristic else pickPlaceBatchSize
+        batchSize = 1 if glob.inHeuristic else pickPlaceBatchSize
         batch = 0
         while True:
             # Collect the next batach of trialConfs
@@ -793,7 +792,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     (obj, regShapes, graspB, placeB, base, prob) = args
     tag = 'placeInGen'
     regions = [x.name() for x in regShapes]
-    tr(tag, 0, '(%s,%s) h=%s'%(obj,regions, fbch.inHeuristic))
+    tr(tag, 0, '(%s,%s) h=%s'%(obj,regions, glob.inHeuristic))
     tr(tag, 2, 
        zip(('obj', 'regShapes', 'graspB', 'placeB', 'prob'), args))
     if obj == 'none' or not regShapes:
@@ -818,7 +817,7 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     newBS = pbs.copy()           #  not necessary
     pB = placeB
 
-    nPoses = placeInGenMaxPosesH if fbch.inHeuristic else placeInGenMaxPoses
+    nPoses = placeInGenMaxPosesH if glob.inHeuristic else placeInGenMaxPoses
     poseGenLeft = Memoizer('regionPosesLeft',
                            potentialRegionPoseGen(newBS, obj, pB, graspB, prob, regShapes,
                                                   reachObsts, 'left', base,
@@ -936,7 +935,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
 
     (obj, placeB, lookDelta, base, prob) = args
     tag = 'lookGen'
-    tr(tag, 0, '(%s) h=%s'%(obj, fbch.inHeuristic))
+    tr(tag, 0, '(%s) h=%s'%(obj, glob.inHeuristic))
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
     newBS.addAvoidShadow([obj])
@@ -997,7 +996,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         yield (lookConf,), rm.confViolations(curr, newBS, prob)
         
     world = newBS.getWorld()
-    if obj in world.graspDesc and not fbch.inHeuristic:
+    if obj in world.graspDesc and not glob.inHeuristic:
         graspVar = 4*(0.001,)
         graspDelta = 4*(0.001,)   # put back to prev value
         graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
@@ -1042,7 +1041,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
 
 def lookAtConfCanView(pbs, prob, conf, shape, hands=['left', 'right']):
     lookConf = lookAtConf(conf, shape)
-    if not fbch.inHeuristic:
+    if not glob.inHeuristic:
         for hand in hands:
             if not lookConf:
                 raw_input('lookAtConfCanView failed conf')
@@ -1104,12 +1103,12 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
     tag = 'lookHandGen'
     placements = {}
     handObj = {}
-    trace(tag, 0, '(%s) h=%s'%(obj, fbch.inHeuristic))
+    trace(tag, 0, '(%s) h=%s'%(obj, glob.inHeuristic))
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
     newBS.updateHeldBel(graspB, hand)
     shWorld = newBS.getShadowWorld(prob)
-    if fbch.inHeuristic:
+    if glob.inHeuristic:
         lookConf = lookAtConf(newBS.conf, objInHand(newBS.conf, hand))
         if lookConf:
             tr(tag, 1, ('->', lookConf))
@@ -1223,7 +1222,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
 
 def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
     (cond, prob, lookVar) = args
-    tr(tag, 0, 'h=%s'%fbch.inHeuristic)
+    tr(tag, 0, 'h=%s'%glob.inHeuristic)
     # Set up PBS
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
@@ -1319,7 +1318,7 @@ def canSeeGen(args, goalConds, bState, outBindings):
 def canSeeGenTop(args, goalConds, pbs, outBindings):
     (conf, placeB, cond, prob) = args
     obj = placeB.obj
-    tr('canSeeGen', 0, '(%s) h=%s'%(obj, fbch.inHeuristic))
+    tr('canSeeGen', 0, '(%s) h=%s'%(obj, glob.inHeuristic))
     tr('canSeeGen', 2, zip(('conf', 'placeB', 'cond', 'prob'), args))
 
     newBS = pbs.copy()

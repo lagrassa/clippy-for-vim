@@ -16,7 +16,6 @@ import ucSearchPQ as search
 reload(search)
 import pr2RRT as rrt
 reload(rrt)
-import fbch
 import planGlobals as glob
 from planGlobals import debugMsg, debug, debugDraw, debugOn
 from miscUtil import prettyString
@@ -362,7 +361,7 @@ class RoadMap:
         def displayAns(ans):
             if not debug('confReachViol'): return
             if ans:
-                if (not fbch.inHeuristic or debug('drawInHeuristic')):
+                if (not glob.inHeuristic or debug('drawInHeuristic')):
                     (viol, cost, edgePath) = ans
                     path = self.confPathFromEdgePath(edgePath)
                     drawPath(path, viol=viol, attached=attached)
@@ -383,7 +382,7 @@ class RoadMap:
                                    pbs.held['right'].mode())),
                          ('initViol', initViol),
                          ('avoidShadow', pbs.avoidShadow))
-            if not (optimize or fbch.inHeuristic):
+            if not (optimize or glob.inHeuristic):
                 key = (targetConf, initConf, moveBase)
                 if not key in self.confReachCache:
                     self.confReachCache[key] = []
@@ -391,7 +390,7 @@ class RoadMap:
                                                  ans if ans else (None, None, None)))
 
         def checkCache(key, type='full', loose=False):
-            if fbch.inHeuristic or optimize: return 
+            if glob.inHeuristic or optimize: return 
             if key in self.confReachCache:
                 if debug('traceCRH'): print '    cache?',
                 cacheValues = self.confReachCache[key]
@@ -447,7 +446,7 @@ class RoadMap:
                         for p in e.getNodes(): print '      ', p.conf['pr2Base']
                     print 'final path'
                     for p in path: print '    ', p['pr2Base']
-                if not fbch.inHeuristic and debug('showPath'):
+                if not glob.inHeuristic and debug('showPath'):
                     print 'confAns reverse=', reverse
                     showPath(pbs, prob, path)
                 if debug('verifyPath'):
@@ -460,7 +459,7 @@ class RoadMap:
         def drawProblem(forceDraw=False):
             if forceDraw or \
                    (debug('confReachViol') and \
-                    (not fbch.inHeuristic  or debug('drawInHeuristic'))):
+                    (not glob.inHeuristic  or debug('drawInHeuristic'))):
                 pbs.draw(prob, 'W')
                 initConf.draw('W', 'blue', attached=attached)
                 targetConf.draw('W', 'pink', attached=attached)
@@ -470,7 +469,7 @@ class RoadMap:
         initConf = startConf or self.homeConf
         initNode = makeNode(initConf)
         approach = False
-        if not fbch.inHeuristic and targetConf in self.approachConfs:
+        if not glob.inHeuristic and targetConf in self.approachConfs:
             approach = True
             targetConf = self.approachConfs[targetConf]
             if debug('traceCRH'): print '    using approach conf'
@@ -498,7 +497,7 @@ class RoadMap:
         graph = combineNodeGraphs(self.clusterGraph,
                                   startCluster.nodeGraph,
                                   targetCluster.nodeGraph)
-        # if not fbch.inHeuristic:
+        # if not glob.inHeuristic:
         #     print '    Graph nodes =', len(graph.incidence), 'graph edges', len(graph.edges)
         if debug('traceCRH'): print '    find path',
         # search back from target... if we will execute in reverse, it's a double negative.
@@ -657,7 +656,7 @@ class RoadMap:
                     print '** Finished the batches'
                 break
             random.shuffle(trialConfs)
-            if debug('confReachViolGen') and not fbch.inHeuristic:
+            if debug('confReachViolGen') and not glob.inHeuristic:
                 pbs.draw(prob, 'W')
                 initConf.draw('W', 'blue', attached=attached)
                 for trialConf in trialConfs:
@@ -681,7 +680,7 @@ class RoadMap:
                 if ans and ans[0] and ans[2]:
                     (viol, cost, edgePath) = ans
                     path = self.confPathFromEdgePath(edgePath)
-                    if debug('confReachViolGen') and not fbch.inHeuristic:
+                    if debug('confReachViolGen') and not glob.inHeuristic:
                         drawPath(path, viol=viol, attached=attached)
                         newViol = self.checkPath(path, pbs, prob)
                         if newViol.weight() != viol.weight():
@@ -691,7 +690,7 @@ class RoadMap:
                         debugMsg('confReachViolGen', ('->', (viol, cost, 'path len = %d'%len(path))))
                     yield (viol, cost, path)
                 else:
-                    if not fbch.inHeuristic:
+                    if not glob.inHeuristic:
                         debugMsg('confReachViolGen', ('->', ans))
                     break
         ans = None, 0, []
@@ -747,7 +746,7 @@ class RoadMap:
             # Switch to joint interpolation if cartesian interpolation fails!!
             final = []
             for c in rrt.interpolate(n_i.conf, n_f.conf,
-                                     stepSize=2*minStep if fbch.inHeuristic else minStep,
+                                     stepSize=2*minStep if glob.inHeuristic else minStep,
                                      moveChains=self.moveChains):
                 for chain in self.robot.chainNames: #  fill in
                     if not chain in c.conf:
@@ -799,7 +798,7 @@ class RoadMap:
             return nodes
 
     def robotSelfCollide(self, shape, heldDict={}):
-        if fbch.inHeuristic: return False
+        if glob.inHeuristic: return False
         # Very sparse checks...
         checkParts = {'pr2LeftArm': ['pr2RightArm', 'pr2RightGripper', 'right'],
                       'pr2LeftGripper': ['pr2RightArm', 'pr2RightGripper', 'right'],
@@ -1116,7 +1115,7 @@ class RoadMap:
         targets = [(goalCostFn(tnode), tnode) for tnode in targetNodes]
         targets.sort()
 
-        if fbch.inHeuristic:
+        if glob.inHeuristic:
             # Static tests at init and target.  Ignore attached as a weakening.
             cv = self.confViolations(startNode.conf, pbs, prob,
                                      initViol=initViol, ignoreAttached=True)
@@ -1216,7 +1215,7 @@ class RoadMap:
 
     def confPathFromEdgePath(self, edgePath):
         # Each edgePath element is an end point of an edge
-        if fbch.inHeuristic:
+        if glob.inHeuristic:
             return [e.ends[end].conf for (e, end) in edgePath]
         if not edgePath: return []
         edge1, end1 = edgePath[0]
@@ -1232,7 +1231,7 @@ class RoadMap:
 
     def confPathFromNodePath(self, graph, nodePathIn):
         confPath = []
-        if fbch.inHeuristic:
+        if glob.inHeuristic:
             return [n.conf for n in nodePathIn]
         nodePath = [node for node in nodePathIn if node.key]
         if len(nodePath) > 1:

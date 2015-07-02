@@ -175,7 +175,6 @@ class Bd(BFluent):
             newP = sp
 
         if needNewFluent:
-            assert fglb.predicate != 'Pose'   # LPK chasing stupid bug
             return Bd([fglb, fglb.value, newP], True), b
         else:
             # This is pure entailment
@@ -292,6 +291,13 @@ class B(BFluent):
         return self.args[1].dist().mode()
     
     def glb(self, other, details = None):
+        if str(self) == str(other) and self != other:
+            print 'Strings match but not equal'
+            print self
+            print self.args
+            print other.args
+            raw_input('okay?')
+        
         # Quick test
         if self == other:
             return self, {}
@@ -669,7 +675,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
 
     totalActSet = set()
     # AND loop over fluents
-    #fbch.inHeuristic = True
+    #glob.inHeuristic = True
     for ff in partitionFn(goal.fluents):
         (ic, actSet) = aux(ff, idk, float('inf'))
         if ic == float('inf'):
@@ -695,7 +701,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
 def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,
                    staticEval = lambda f: 500,
                    ddPartitionFn = lambda fs: [frozenset([f]) for f in fs]):
-    fbch.inHeuristic = True
+    glob.inHeuristic = True
     startDepth = maxK-1
     for k in range(startDepth, maxK):
         hCacheID[k] = set()
@@ -710,5 +716,5 @@ def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,
         for thing in goal.fluents: print thing
         debugMsg('hAddBackInf', 'Bad if this is the root')
         return vk
-    fbch.inHeuristic = False
+    glob.inHeuristic = False
     return result

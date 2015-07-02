@@ -494,7 +494,7 @@ class PBS:
                                          color = graspShadowMin.properties.get('color', 'black'))
                 robot.attachRel(heldShape, sw, hand)
                 sw.held[hand] = heldObj
-                if debug('getShadowWorldGrasp') and not fbch.inHeuristic:
+                if debug('getShadowWorldGrasp') and not glob.inHeuristic:
                     print 'faceFrame\n', faceFrame.matrix
                     print 'shadow\n', shadow.bbox()
                     print 'fingerFrame\n', fingerFrame.matrix
@@ -505,7 +505,7 @@ class PBS:
         sw.fixedHeld = self.fixHeld
         sw.fixedGrasp = self.fixGrasp
         sw.setRobotConf(self.conf)
-        if debug('getShadowWorldGrasp') and not fbch.inHeuristic:
+        if debug('getShadowWorldGrasp') and not glob.inHeuristic:
             sw.draw('W')
         cache[key] = sw
         return sw

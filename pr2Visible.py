@@ -2,11 +2,11 @@ import math
 import numpy as np
 from pointClouds import Scan, updateDepthMap
 import util
+import planGlobals as glob
 from geom import bboxCenter
 from shapes import toPrims, pointBox, BoxScale
 import transformations as transf
 from pr2Util import shadowName
-import fbch
 from planGlobals import debugMsg, debugDraw, debug, pause
 import windowManager3D as wm
 from miscUtil import argmax
@@ -26,10 +26,10 @@ cacheStats = [0, 0, 0, 0, 0, 0]                   # h tries, h hits, h easy, rea
 # !! cache visibility computations
 def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     global laserScanGlobal, laserScanSparseGlobal
-    key = (ws, conf, shape, tuple(obstacles), prob, moveHead, tuple(fixed), fbch.inHeuristic)
-    cacheStats[0 if fbch.inHeuristic else 3] += 1
+    key = (ws, conf, shape, tuple(obstacles), prob, moveHead, tuple(fixed), glob.inHeuristic)
+    cacheStats[0 if glob.inHeuristic else 3] += 1
     if key in cache:
-        cacheStats[1 if fbch.inHeuristic else 4] += 1
+        cacheStats[1 if glob.inHeuristic else 4] += 1
         return cache[key]
     if debug('visible'):
         print 'visible', shape.name(), 'from base=', conf['pr2Base'], 'head=', conf['pr2Head']
@@ -57,7 +57,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     if debug('visible'):
         print 'potentialOccluders', potentialOccluders
     if not potentialOccluders:
-        cacheStats[2 if fbch.inHeuristic else 5] += 1
+        cacheStats[2 if glob.inHeuristic else 5] += 1
         return True, []
     occluders = []
 
@@ -75,7 +75,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
             debugMsg('visible', 'Not enough hit points')
         cache[key] = (False, [])
         return False, []
-    if 'table' in shape.name() or fbch.inHeuristic:
+    if 'table' in shape.name() or glob.inHeuristic:
         threshold = 0.5*prob            # generous
     else:
         threshold = 0.75*prob
@@ -190,7 +190,7 @@ def lookScan(lookConf):
     global laserScanSparseGlobal, laserScanGlobal
     lookCartConf = lookConf.cartConf()
     headTrans = lookCartConf['pr2Head']
-    if fbch.inHeuristic:
+    if glob.inHeuristic:
         if not laserScanSparseGlobal:
             laserScanSparseGlobal = Scan(Ident, laserScanParamsSparse)
         laserScan = laserScanSparseGlobal
