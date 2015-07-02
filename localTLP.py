@@ -3,10 +3,14 @@ import platform
 libkinDir = './IK/'
 if platform.system() == 'Linux':
     outDir = '/mit/tlp/search/'
+    genDir = '/mit/tlp/gen/'
 else:
     outDir = '/Users/tlp/Documents/search/'
+    genDir = '/Users/tlp/Documents/gen/'
 dotSearch = outDir + 's%s%s.dot'
 dotSearchX = outDir + 'sX%s%s.dot'
+pngGen = genDir + 'g%s_%s.png'
+htmlGen = genDir + 'g%s_%s.html'
 
 rebindPenalty = 100
 

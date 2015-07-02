@@ -7,6 +7,7 @@ import time
 import windowManager3D as wm
 import planGlobals as glob
 from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ
+from trace import traced, tr, trace, tracep, traceStart, traceEnd, snap
 from miscUtil import isVar, argmax, isGround, tuplify, roundrobin
 from dist import DeltaDist, UniformDist
 from pr2Robot import CartConf
@@ -30,46 +31,6 @@ from pr2GenAux import *
 pickPlaceBatchSize = 3
 
 easyGraspGenCacheStats = [0,0]
-
-def trace(genTag, *msg):
-    if debug('traceGen'):
-        print genTag+':',
-        for m in msg: print m,
-        print ' '
-
-def tracep(pause, *msg):
-    if debug('traceGen'):
-        print pause+':',
-        for m in msg: print m,
-        print ' '
-    if pause:
-        debugMsg(pause)
-
-minTraceLevel = 1
-def traced(genTag, level):
-    if not debug('traceGen') \
-       or (level > 1 and (fbch.inHeuristic and not debug('inHeuristic'))) \
-       or (level > minTraceLevel and not debug(genTag)):
-        return False
-    return True
-
-def tr(genTag, level, *msg, **keys):
-    if not traced(genTag, level): return
-    if msg:
-        print level*'  ', genTag+':', msg[0]
-        for m in msg[1:]:
-            print level*'  ', m
-    draw = keys.get('draw', [])
-    for obj in draw:
-        if isinstance(obj, (list, tuple)):
-            obj[0].draw(*obj[1:])
-        else:
-            obj.draw('W')
-    debugMsg(genTag)
-    if level >= 0:
-        debugMsg(genTag+str(level))         # more specific pause tag
-    if draw or keys.get('pause', False):
-        raw_input(genTag+':pause')
 
 def easyGraspGen(args, goalConds, bState, outBindings):
     assert fbch.inHeuristic
@@ -151,7 +112,7 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob):
             tr(tag, 3, 'no confs for grasp = %s'%gB)
             continue
         for ca in graspApproachConfGen(firstConf):
-            tr(tag, 3, 'considering conf=%s'%ca.ss())
+            tr(tag, 3, 'considering conf=%s'%ca.conf)
             if pickable(ca, approached[ca], placeB, gB):
                 tr(tag, 3, 'pickable')
                 ans = (gB.grasp.mode(), gB.poseD.mode().xyztTuple(),
@@ -219,7 +180,7 @@ def pickGenTop(args, goalConds, pbs, outBindings,
                  pbs.graspB['right'])))
 
     if obj == 'none':                   # can't pick up 'none'
-        tr(tag, 1, 'cannot pick up none')
+        tr(tag, 1, '=> cannot pick up none')
         return
     if goalConds:
         if getConf(goalConds, None):
@@ -259,17 +220,16 @@ def pickGenTop(args, goalConds, pbs, outBindings,
     newBS = pbs.copy()
     # Just placements specified in goal
     newBS = newBS.updateFromGoalPoses(goalConds)
-    tr('pickGen', 2, 'Goal conditions', draw=[(newBS, prob, 'W')])
+    tr('pickGen', 2, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
     gen = pickGenAux(newBS, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                      goalConds, onlyCurrent=onlyCurrent)
     for x,v in gen:
-        if traced(tag, 1):
-            (pB, cf, ca) = x
-            pose = pB.poseD.mode() if pB else None
-            grasp = graspB.grasp.mode() if graspB else None
-            pg = (placeB.support.mode(), grasp)
-            w = v.weight() if v else None
-            tr(tag, 1, '(%s) viol='%obj, w, '(h=%s,p=%s,g=%s)'%(hand, pg, pose))
+        (pB, cf, ca) = x
+        pose = pB.poseD.mode().xyztTuple() if pB else None
+        grasp = graspB.grasp.mode() if graspB else None
+        pg = (placeB.support.mode(), grasp)
+        w = v.weight() if v else None
+        tr(tag, 1, '(%s) viol=%s'%(obj, w)+'=> (h=%s,pg=%s,pose=%s)'%(hand, pg, pose))
         yield x,v
 
 def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
@@ -283,10 +243,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         newBS.updateHeldBel(graspB, hand)
         viol = rm.confViolations(conf, newBS, prob)
         if not viol:                # was valid when not holding, so...
-            trace('    pickGen: Held collision')
-            if debug('pickGen'):
-                newBS.draw(prob, 'W')
-                debugMsg('pickGen', 'Held collision.')
+            tr(tag, 0, 'Held collision', draw=[(newBS, prob, 'W')], snap=['W'])
             return True            # punt.
 
     def graspApproachConfGen(firstConf):
@@ -299,16 +256,15 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
     def currentGraspFeasible():
         wrist = objectGraspFrame(pbs, graspB, placeB, hand)
 
+    tag = 'pickGen'
     shw = shadowWidths(placeB.poseD.var, placeB.delta, prob)
     if any(w > t for (w, t) in zip(shw, pbs.domainProbs.pickTolerance)):
         print 'pickGen shadow widths', shw
         print 'poseVar', placeB.poseD.var
         print 'delta', placeB.delta
         print 'prob', prob
-        debugMsg('pickGen', 'Shadow widths exceed tolerance in pickGen')
+        tr(tag, 0, '=> Shadow widths exceed tolerance in pickGen')
         return
-
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
     shWorld = pbs.getShadowWorld(prob)
     approached = {}
     rm = pbs.getRoadMap()
@@ -329,8 +285,8 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         # but infeasibility of one of the grasp confs due to held
         # object does not guarantee there are no solutions.
         if (not firstConf):
-            debugMsg('pickGen', 'No potential grasp confs, will need to regrasp')
-            pbs.draw(prob, 'W')
+            tr(tag, 1, 'No potential grasp confs, will need to regrasp',
+               draw=[(pbs, prob, 'W')], snap=['W'])
             raw_input('need to regrasp')
         else:
             targetConfs = graspApproachConfGen(firstConf)
@@ -349,8 +305,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                         minCost = min(viol.weight(), minCost)
                     else:
                         failureReasons.append(reason)
-                        if debug('pickGen', skip=skip):
-                            print 'target conf failed', reason
+                        tr(tag, 2, 'target conf failed: ' + reason)
                         continue
                     count += 1
                     if count == batchSize or minCost == 0: break
@@ -359,25 +314,26 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                 for _, viol, ca in trialConfs:
                     c = approached[ca]
                     ans = (placeB, c, ca)
-                    if debug('pickGen', skip=skip):
-                        drawPoseConf(pbs, placeB, c, ca, prob, 'W', color = 'navy')
-                        debugMsg('pickGen', ('-> currently graspable', ans), ('viol', viol))
-                        wm.getWindow('W').clear()
+                    tr(tag, 2,
+                       ('currently graspable ->', ans), ('viol', viol),
+                       draw=[(pbs, prob, 'W'),
+                             (placeB.shape(pbs.getShadowWorld(prob)), 'W', 'navy'),
+                             (c, 'W', 'navy')],
+                       snap=['W'])
                     yield ans, viol
         if onlyCurrent:
-            tracep('pickGen', 'onlyCurrent: out of values')
+            tr(tag, 0, 'onlyCurrent: out of values')
             return
         
     # Try a regrasp... that is place the object somewhere else where it can be grasped.
     if fbch.inHeuristic:
         return
     if failureReasons and all(['visibility' in reason for reason in failureReasons]):
-        raw_input('There were valid targets that failed due to visibility')
+        tr(tag, 1, 'There were valid targets that failed due to visibility')
         return
     
-    print 'Calling for regrasping... h=', fbch.inHeuristic
+    tr(tag, 0, 'Calling for regrasping... h=%s'%fbch.inHeuristic)
     raw_input('Regrasp?')
-    tracep('pickGen', 'Regrasp?')
     shWorld = pbs.getShadowWorld(prob)
     # !! Needs to look for plausible regions...
     regShapes = regShapes = [shWorld.regionShapes[region] for region in pbs.awayRegions()]
@@ -388,20 +344,12 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
     for pl, viol in plGen:
         (pB, gB, cf, ca) = pl
         v, reason = pickable(ca, cf, pB, gB)
-        if debug('pickGen'):
-            pbs.draw(prob, 'W')
-            ca.draw('W', attached=shWorld.attached)
-        if not v:
-            if debug('pickGen'):
-                print 'pickable viol=', v
-                debugMsg('pickGen', 'Regrasp is NOT pickable')
-            continue
-        else:
-            if debug('pickGen'):
-                print 'pickable viol=', v
-                debugMsg('pickGen', 'Regrasp is pickable')
-        yield (pB, cf, ca), viol
-    tracep('pickGen', 'out of values')
+        tr(tag, 2, 'Regrasp pickable=%s'%v,
+           draw=[(pbs, prob, 'W'), (cf, 'W', 'blue', shWorld.attached)],
+           snap=['W'])
+        if v:
+            yield (pB, cf, ca), v
+    tr(tag, 1, 'out of values')
 
 # Preconditions (for R1):
 
@@ -424,39 +372,37 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
 
 def placeGen(args, goalConds, bState, outBindings):
     gen = placeGenGen(args, goalConds, bState, outBindings)
-    if debug('placeGen'):
-        print 'goalConds in placeGen'
-        for x in goalConds: print x
     for ans, viol, hand in gen:
-        print 'placeGen ->', hand
+        tr('placeGen', 1, 'hand='+hand)
         (gB, pB, c, ca) = ans
          # LPK: added return of pose mode and face, in the case they
          # weren't boudn coming in.
         yield (hand, gB.poseD.mode().xyztTuple(), gB.grasp.mode(), c, ca,
                pB.poseD.mode().xyztTuple(), pB.support.mode())
 
-
 # Either hand or poses will be specified, but generally not both.  They will never both be unspecified.
 
 def placeGenGen(args, goalConds, bState, outBindings):
     (obj, hand, poses, support, objV, graspV, objDelta, graspDelta, confDelta,
      prob) = args
+    tag = 'placeGen'
     base = sameBase(goalConds)
-    if base:
-        print('Same base constraint in placeGen')
+    tr(tag, 0, 'obj=%s, base=%s'%(obj, base))
+    tr(tag, 2, ('args', args))
+
     if goalConds:
-        if  getConf(goalConds, None):
-            tracep('placeGen', '    conf is already specified')
+        if getConf(goalConds, None):
+            tr(tag, 1, '=> conf is already specified')
             return
 
     pbs = bState.pbs.copy()
     world = pbs.getWorld()
 
     if poses == '*' or isVar(poses) or support == '*' or isVar(support):
-        print '    placeGen with unspecified pose'
+        tr(tag, 2, 'Unspecified pose')
         if base:
             # Don't try to keep the same base, if we're trying to place the object away.
-            tracep('placeGen', '    same base constraint, failing')
+            tr(tag, 1, '=> same base constraint, failing')
             return
         assert not isVar(hand)
         
@@ -466,6 +412,8 @@ def placeGenGen(args, goalConds, bState, outBindings):
         newBS = newBS.updateFromGoalPoses(goalConds, updateConf=False)
         newBS = newBS.excludeObjs([obj])
         # v is viol
+        tr(tag, 2, 'PBS for placeInGenAway',
+           draw=[(newBS, prob, 'W')], snap=['W'])
         for ans,v in placeInGenAway((obj, objDelta, prob),
                                     goalConds, newBS, outBindings, hand):
             (pB, gB, c, ca) = ans
@@ -506,13 +454,13 @@ def placeGenGen(args, goalConds, bState, outBindings):
 
     if mustUseLeft or rightHeldInGoal:
         if leftHeldInGoal:
-            debugMsgSkip('placeGen', skip, 'Left held already in goal')
+            tr(tag, 0, '=> Left held already in goal, fail')
             return
         else:
             gen = leftGen
     elif mustUseRight or leftHeldInGoal:
         if rightHeldInGoal:
-            debugMsgSkip('placeGen', skip, 'Right held already in goal')
+            tr(tag, 0, '=> Right held already in goal, fail')
             return
         else:
             gen = rightGen
@@ -525,47 +473,35 @@ def placeGenGen(args, goalConds, bState, outBindings):
     for ans in gen:
         yield ans
 
-placeGenTopCache = {}
-
 # returns values for (?graspPose, ?graspFace, ?conf, ?confAppr)
 def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False, update=True):
     (obj, graspB, placeBs, hand, base, prob) = args
 
     key = ((obj, graspB, placeBs, hand, tuple(base) if base else None, prob),
            frozenset(goalConds), pbs, regrasp, away, update)
-    # if not fbch.inHeuristic:
-    #     if key in placeGenTopCache:
-    #         print '********* placeGenTopCache HIT'
-    #     else:
-    #         print '********* placeGenTopCache MISS, adding to cache'
-    #         placeGenTopCache[key] = True
-    #         raw_input('Continue?')
-    trace('placeGen(%s,%s) h='%(obj,hand), fbch.inHeuristic)
-
     startTime = time.clock()
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
-    if debug('placeGen'):
-        debugMsgSkip('placeGen', skip,
-                 zip(('obj', 'graspB', 'placeBs', 'hand', 'prob'), args),
-                 ('goalConds', goalConds),
-                 ('moveObjBs', pbs.moveObjBs),
-                 ('fixObjBs', pbs.fixObjBs),
-                 ('held', (pbs.held['left'].mode(),
-                           pbs.held['right'].mode(),
-                           pbs.graspB['left'],
-                           pbs.graspB['right'])))
+    tag = 'placeGen'
+    tr(tag, 0, '(%s,%s) h=%s'%(obj,hand, fbch.inHeuristic))
+    tr(tag, 2, 
+       zip(('obj', 'graspB', 'placeBs', 'hand', 'prob'), args),
+       ('goalConds', goalConds),
+       ('moveObjBs', pbs.moveObjBs),
+       ('fixObjBs', pbs.fixObjBs),
+       ('held', (pbs.held['left'].mode(),
+                 pbs.held['right'].mode(),
+                 pbs.graspB['left'],
+                 pbs.graspB['right'])))
     if obj == 'none' or not placeBs:
-        tracep('placeGen', '    objs is none or no placeB')
+        tr(tag, 1, '=> obj is none or no placeB')
         return
     if goalConds:
         if getConf(goalConds, None) and not away:
-            tracep('placeGen', '    goal conf specified and not away')
+            tr(tag, 1, '=> goal conf specified and not away')
             return
         for (h, o) in getHolding(goalConds):
             if h == hand:
-                tracep('placeGen', '    this hand is already Holding')
+                tr(tag, 1, '=> Hand=%s is already Holding'%hand)
                 return
-
     conf = None
     confAppr = None
     # Set up pbs
@@ -574,28 +510,20 @@ def placeGenTop(args, goalConds, pbs, outBindings, regrasp=False, away=False, up
     if update:                          # could be done by caller
         newBS = newBS.updateFromGoalPoses(goalConds, updateConf=not away)
         newBS = newBS.excludeObjs([obj])
-    if debug('placeGen', skip=skip):
-        for gc in goalConds: print gc
-        newBS.draw(prob, 'W')
-        debugMsg('placeGen', 'Goal conditions')
+    tr(tag, 2, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
     gen = placeGenAux(newBS, obj, confAppr, conf, placeBs.copy(),
                       graspB, hand, base, prob,
                       regrasp=regrasp, pbsOrig = pbs)
 
     # !! double check reachObst collision?
     for x,v in gen:
-        if debug('traceGen'):
-            (gB, pB, c, ca) = x
-            pose = pB.poseD.mode() if pB else None
-            grasp = gB.grasp.mode() if gB else None
-            pg = (pB.support.mode(), grasp)
-            w = v.weight() if v else None
-            trace('    placeGen(%s,%s) viol='%(obj,hand), w, '(p,g)=', pg,
-                  pose, '(t=', time.clock()-startTime, ')')
-            # if not fbch.inHeuristic:
-            #     print '    placeGen(%s,%s) viol='%(obj,hand), w, '(p,g)=', pg,\
-            #       pose, '(t=', time.clock()-startTime, ')'
-            #     raw_input('okay?')
+        (gB, pB, c, ca) = x
+        pose = pB.poseD.mode().xyztTuple() if pB else None
+        grasp = gB.grasp.mode() if gB else None
+        pg = (pB.support.mode(), grasp)
+        w = v.weight() if v else None
+        tr(tag, 1, '(%s,%s) viol=%s'%(obj,hand, w)+' (p,g)=%s'%(pg,)\
+           +' pose=%s'%(pose,) +' (t=%s)'%(time.clock()-startTime))
         yield x,v, hand
 
 def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
@@ -612,16 +540,14 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                        (None, None, None))[0] \
                   for gBO in gBOther]
         if any(other):
-            if debug('placeGen', skip=skip):
-                print 'Regraspable', pB.poseD.mode(), [gBO.grasp.mode() for gBO in gBOther]
-                for (c, ca, v) in other:
-                    c.draw('W', 'green')
-                    debugMsg('placeGen', 'other')
+            tr(tag, 2,
+               ('Regraspable', pB.poseD.mode(), [gBO.grasp.mode() for gBO in gBOther]),
+               draw=[(c, 'W', 'green') for (c, ca, v) in other], snap=['W'])
             regraspablePB[pB] = True
             return True
         else:
             regraspablePB[pB] = False
-            if debug('placeGen', skip=skip): print 'Not regraspable'
+            tr(tag, 2, ('Not regraspable', pB.poseD.mode()))
             return False
 
     def checkOrigGrasp(gB):
@@ -635,8 +561,8 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
             match = (gB.grasp.mode() == currGraspB.grasp.mode()) and \
                       gB.poseD.mode().near(currGraspB.poseD.mode(), .01, .01)
             if match:
-                debugMsg('placeGen', 'current grasp is a match',
-                          ('curr', currGraspB), ('desired', gB))
+                tr(tag, 2, 'current grasp is a match',
+                   ('curr', currGraspB), ('desired', gB))
                 return 0
 
         pB = pbsOrig.getPlaceB(obj, default=False) # check we know where obj is.
@@ -656,25 +582,22 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         placeBsCopy = placeBs.copy()
         for pB in placeBsCopy:          # re-generate
             for gB in grasps:
-                if debug('placeGen', skip=skip):
-                    print 'placeGen: considering grasps for ', pB
-                    print 'placeGen: for grasp class', gB.grasp
-                    print 'placeBsCopy.values', len(placeBsCopy.values)
+                tr(tag, 2,
+                   ('considering grasps for ', pB),
+                   ('for grasp class', gB.grasp),
+                   ('placeBsCopy.values', len(placeBsCopy.values)))
                 if regrasp:
                     checkRegraspable(pB)
                 graspConfGen = potentialGraspConfGen(pbs, pB, gB, conf, hand, base, prob)
                 count = 0
                 for c,ca,_ in graspConfGen:
-                    if debug('placeGen', skip=skip):
-                        c.draw('W', 'orange')
-                        debugMsg('placeGenVerbose', 'Yielding conf')
+                    tr(tag, 2, 'Yielding conf', draw=[(c, 'W', 'orange')], snap=['W'])
                     approached[ca] = c
                     count += 1
                     context[ca] = (pB, gB)
                     yield ca
                     # if count > 2: break # !! ??
-        if debug('placeGen', skip=skip):
-            print '    placeGen: found', count, 'confs'
+        tr(tag, 2, 'found %d confs'%count)
 
     def regraspCost(ca):
         if not regrasp:
@@ -692,7 +615,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
             # if debug('placeGen'): print 'unknown pB, cost = 0'
             return 0
 
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    tag = 'placeGen'
     approached = {}
     context = {}
     regraspablePB = {}
@@ -727,14 +650,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                     minCost = min(cost, minCost)
                     trialConfs.append((cost, viol, ca))
                 else:
-                    if debug('placeable'):
-                        print 'Failure of placeable', reason
-                        save = glob.debugOn[:]
-                        glob.debugOn.extend(['successors', 'confReachViol', 'confReachViolGen',
-                                             'minViolPath', 'canPickPlaceTest', 'addToCluster'])
-                        placeable(ca, approached[ca])
-                        glob.debugOn = save
-                        raw_input('Continue?')
+                    tr(tag, 2, 'Failure of placeable: '+reason)
                     continue
                 count += 1
                 if count == batchSize or minCost == 0: break
@@ -744,14 +660,14 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                 (pB, gB) = context[ca]
                 c = approached[ca]
                 ans = (gB, pB, c, ca)
-                if debug('placeGen', skip=skip):
-                    pbs.draw(prob, 'W')
-                    drawPoseConf(pbs, pB, c, ca, prob, 'W', color='magenta')
-                    debugMsg('placeGen', ('->', ans), ('viol', viol))
-                    wm.getWindow('W').clear()
-                print 'Trying grasp', gB
+                tr(tag, 2,
+                   ('->', ans), ('viol', viol),
+                   draw=[(pbs, prob, 'W'),
+                         (pB.shape(pbs.getShadowWorld(prob)), 'W', 'magenta'),
+                         (c, 'W', 'magenta')],
+                   snap=['W'])
                 yield ans, viol
-    tracep('placeGen', 'out of values')
+    tr(tag, 0, 'out of values')
 
 # Preconditions (for R1):
 
@@ -773,7 +689,7 @@ def placeInRegionGen(args, goalConds, bState, outBindings, away = False, update=
 
 def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, update=True):
     (obj, region, var, delta, prob) = args
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    tag = 'placeInGen'
     pbs = bState.pbs.copy()
     world = pbs.getWorld()
 
@@ -786,11 +702,8 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
         regions = frozenset(region)
     shWorld = pbs.getShadowWorld(prob)
     regShapes = [shWorld.regionShapes[region] for region in regions]
-    if debug('placeInGen'):
-        pbs.draw(prob, 'W')
-        for rs in regShapes: rs.draw('W', 'purple')
-        debugMsgSkip('placeInGen', skip, 'Target region in purple')
-
+    tr(tag, 1, 'Target region in purple',
+       draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes], snap=['W'])
     # Set pose and support from current state
     pose = None
     if pbs.getPlaceB(obj, default=False):
@@ -830,14 +743,16 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
             gen = placeGenGen(args, goalConds, bState, outBindings)
             for ans, v, hand in gen:
                 (gB, pB, c, ca) = ans
-                if debug('traceGen'):
-                    pose = pB.poseD.mode() if pB else None
-                    grasp = gB.grasp.mode() if gB else None
-                    sup = pB.support.mode() if pB else None
-                    pg = (sup, grasp)
-                    print '    placeInGen(%s,%s) h='%(obj,[x.name() \
-                                                           for x in regShapes]), \
-                          v.weight() if v else None, '(p,g)=', pg, pose
+                pose = pB.poseD.mode() if pB else None
+                grasp = gB.grasp.mode() if gB else None
+                sup = pB.support.mode() if pB else None
+                pg = (sup, grasp)
+                regions = [x.name() for x in regShapes]
+                tr(tag, 1, '(%s,%s) h=%s'%(obj,regions) + \
+                   'v=%s'%(v.weight() if v else None) + \
+                   '(p,g)=%s, pose=%s', (pg, pose),
+                   draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
+                   snap=['W'])
                 yield (pB, gB, c, ca), v
             return
         else:
@@ -876,20 +791,18 @@ placeInGenMaxPosesH = 10
 def placeInGenTop(args, goalConds, pbs, outBindings,
                   regrasp=False, away = False, update=True):
     (obj, regShapes, graspB, placeB, base, prob) = args
-    trace('placeInGen(%s,%s) h='%(obj,[x.name() for x in regShapes]), fbch.inHeuristic)
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
-    if debug('placeInGen'):
-        debugMsgSkip('placeInGen', skip,
-             zip(('obj', 'regShapes', 'graspB', 'placeB', 'prob'), args),
-             outBindings)
+    tag = 'placeInGen'
+    regions = [x.name() for x in regShapes]
+    tr(tag, 0, '(%s,%s) h=%s'%(obj,regions, fbch.inHeuristic))
+    tr(tag, 2, 
+       zip(('obj', 'regShapes', 'graspB', 'placeB', 'prob'), args))
     if obj == 'none' or not regShapes:
         # Nothing to do
-        trace('    placeInGen(%s,%s) h='%(obj,[x.name() for x in regShapes]), fbch.inHeuristic, 'nothing to do')
+        tr(tag, 1, '=> object is none or no regions')
         return
-
     if goalConds and getConf(goalConds, None) and not away:
         # if conf is specified, just fail
-        tracep('placeInGen', '    conf is specified so failing')
+        tr(tag, 1, '=> conf is specified so failing')
         return
 
     conf = None
@@ -897,19 +810,12 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
     # Obstacles for all Reachable fluents
     reachObsts = getReachObsts(goalConds, pbs)
     if reachObsts == None:
-        tracep('placeInGen', '    quitting because no path')
+        tr(tag, 1, '=> quitting because no path')
         return
-    if debug('placeInGen', skip=skip) or debug('reachObsts', skip=skip):
-        pbs.draw(prob, 'W')
-        for _, obst in reachObsts: obst.draw('W', 'brown')
-        raw_input('%d reachObsts - in brown'%len(reachObsts))
-
+    tr(tag, 2, '%d reachObsts - in brown'%len(reachObsts),
+       draw=[(pbs, prob, 'W')] + [(obst, 'W', 'brown') for _,obst in reachObsts],
+       snap=['W'])
     newBS = pbs.copy()           #  not necessary
-
-    # Shadow (at origin) for object to be placed.
-    # domainPlaceVar = newBS.domainProbs.obsVarTuple 
-    # pB = placeB.modifyPoseD(var=domainPlaceVar)
-    # pB.delta = (0.01, 0.01, 1.0e-6, 0.02)
     pB = placeB
 
     nPoses = placeInGenMaxPosesH if fbch.inHeuristic else placeInGenMaxPoses
@@ -934,19 +840,16 @@ def placeInGenTop(args, goalConds, pbs, outBindings,
 
     # Picks among possible target poses and then try to place it in region
     for ans,v in mainGen:
-        if debug('traceGen'):
-            (pB, gB, c, ca) = ans
-            pose = pB.poseD.mode() if pB else None
-            grasp = gB.grasp.mode() if gB else None
-            sup = pB.support.mode() if pB else None
-            pg = (sup, grasp)
-            print '    placeInGen(%s,%s) h='%(obj,[x.name() \
-                                                   for x in regShapes]), \
-                  v.weight() if v else None, '(p,g)=', pg, pose
-        if debug('placeInGen'):
-            c.draw('W', 'green')
-            raw_input('placeInGen result')
-        #val.append((ans, v))
+        (pB, gB, c, ca) = ans
+        pose = pB.poseD.mode() if pB else None
+        grasp = gB.grasp.mode() if gB else None
+        sup = pB.support.mode() if pB else None
+        pg = (sup, grasp)
+        tr(tag, 1, '(%s,%s) h='%(obj,regions) + \
+           ' v=%s'%(v.weight() if v else None) + \
+           '(p,g)=%s pose=%s'%(pg, pose),
+           draw=[(c, 'W', 'green')] + [(rs, 'W', 'purple') for rs in regShapes],
+           snap=['W'])
         yield ans,v
 
 # Don't try to place all objects at once
@@ -956,15 +859,16 @@ def placeInGenAux(pbs, poseGen, goalConds, confAppr, conf, placeB, graspB,
     def placeBGen():
         for pose in poseGen.copy():
             yield placeB.modifyPoseD(mu=pose)
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
     tries = 0
     gen = Memoizer('placeBGen_placeInGenAux1', placeBGen())
     for ans, viol, hand in placeGenTop((graspB.obj, graspB, gen, hand, base, prob),
                                goalConds, pbs, [], regrasp=regrasp, away=away, update=update):
         (gB, pB, cf, ca) = ans
-        if debug('placeInGen', skip=skip):
-            drawPoseConf(pbs, pB, cf, ca, prob, 'W', 'blue')
-            debugMsg('placeInGen', ('-> cyan', ans))
+        tr('placeInGen', 1, ('-> blue', ans),
+           draw=[(pbs, prob, 'W'),
+                 (pB.shape(pbs.getShadowWorld(prob)), 'W', 'blue'),
+                 (cf, 'W', 'blue')],
+           snap=['W'])
         yield (pB, gB, cf, ca), viol
 
 maxLookDist = 1.5
@@ -1031,19 +935,19 @@ def lookGenTop(args, goalConds, pbs, outBindings):
         return visible(shWorld, c, sh, obst_rob, prob, moveHead=True)[0]
 
     (obj, placeB, lookDelta, base, prob) = args
-    trace('lookGen(%s) h='%obj, fbch.inHeuristic)
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    tag = 'lookGen'
+    tr(tag, 0, '(%s) h=%s'%(obj, fbch.inHeuristic))
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
     newBS.addAvoidShadow([obj])
     if placeB.poseD.mode() == None:
-        tracep('lookGen', '    object is in the hand')
+        tr(tag, 1, '=> object is in the hand')
         return
     newBS.updatePermObjPose(placeB)
     rm = newBS.getRoadMap()
     shWorld = newBS.getShadowWorld(prob)
     if any(shWorld.attached.values()):
-        trace('    attached=', shWorld.attached)
+        tr(tag, 1, 'attached=%s'%shWorld.attached)
     shName = shadowName(obj)
     # Uses original placeB
     sh = shWorld.objectShapes[shName]
@@ -1052,13 +956,11 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     goalConf = getConf(goalConds, None)
     if goalConds and goalConf:
         # if conf is specified, just fail
-        tracep('lookGen', '    Conf is specified so failing: ' + str(goalConf))
+        tr(tag, 1, '=> Conf is specified, failing: ' + str(goalConf))
         return
-
     if obj in [newBS.held[hand].mode() for hand in ['left', 'right']]:
-        tracep('lookGen', '    object is in the hand')
+        tr(tag, 1, '=> object is in the hand, failing')
         return
-
     if base:
         conf = targetConf(goalConds)
         if conf == None:
@@ -1066,23 +968,18 @@ def lookGenTop(args, goalConds, pbs, outBindings):
             raw_input('This might be an error in regression')
             return
         path, viol = canReachHome(newBS, conf, prob, Violations(), moveBase=False)
-        trace('    lookGen(%s) specified base viol='%obj, viol.weight() if viol else None)
+        tr(tag, 1, '(%s) specified base viol=%s'%(obj, viol.weight() if viol else None))
         if not path:
-            print 'Failed to find a path to look conf (cyan) with specified base.'
-            if debug('lookGen'):
-                newBS.draw(prob, 'W')
-                conf.draw('W', 'cyan')
-                envs = ppConfs.get(tuple(conf['pr2Base']), None)
-                raw_input('okay?')
+            tr(tag, 2, 'Failed to find a path to look conf (cyan) with specified base.',
+               draw=[(newBS, prob, 'W'), (conf, 'W', 'cyan', shWorld.attached)], snap=['W'])
             return
         if testFn(conf):
             lookConf = lookAtConfCanView(newBS, prob, conf, sh)
             if lookConf:
-                trace('    Found a path to look conf with specified base.')
-                if debug('lookGen', skip=skip):
-                    newBS.draw(prob, 'W')
-                    lookConf.draw('W', color='cyan', attached=shWorld.attached)
-                    debugMsg('lookGen', ('-> cyan', lookConf.conf))
+                tr(tag, 1, '=> Found a path to look conf with specified base.',
+                   ('-> cyan', lookConf.conf),
+                   draw=[(newBS, prob, 'W'), (lookConf, 'W', 'cyan', shWorld.attached)],
+                   snap=['W'])
                 yield (lookConf,), viol
         return
 
@@ -1096,7 +993,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
     curr = newBS.conf
     lookConf = lookAtConfCanView(newBS, prob, curr, shape)
     if lookConf and testFn(lookConf):
-        trace('    Using current conf.')
+        tr(tag, 1, '=> Using current conf.')
         yield (lookConf,), rm.confViolations(curr, newBS, prob)
         
     world = newBS.getWorld()
@@ -1117,31 +1014,30 @@ def lookGenTop(args, goalConds, pbs, outBindings):
                     (pB, c, ca) = ans   # pB should be placeB
                     lookConf = lookAtConfCanView(pbs, prob, ca, shape)
                     if not lookConf:
-                        trace('    lookGen(%s) canView failed clear')
+                        tr(tag, 2, 'canView failed')
                         continue
                     viol = rm.confViolations(lookConf, pbs, prob)
                     if testFn(lookConf):
-                        trace('    lookGen(%s) canView cleared viol='%obj, viol.weight() if viol else None)
+                        vw = viol.weight() if viol else None
+                        tr(tag, 2, '(%s) canView cleared viol=%s'%(obj, vw))
                         yield (lookConf,), viol
     lookConfGen = potentialLookConfGen(newBS, prob, sh, maxLookDist) # look unconstrained by base
     for ans in rm.confReachViolGen(lookConfGen, newBS, prob,
                                    testFn = testFn):
         viol, cost, path = ans
-        trace('    lookGen(%s) viol='%obj, viol.weight() if viol else None)
+        tr(tag, 2, '(%s) viol=%s'%(obj, viol.weight() if viol else None))
         if not path:
-            tracep('lookGen', 'Failed to find a path to look conf.')
-
+            tr(tag, 2, 'Failed to find a path to look conf.')
             raw_input('Failed to find a path to look conf.')
-
             continue
         conf = path[-1]
         lookConf = lookAtConfCanView(newBS, prob, conf, sh)
         if lookConf:
-            trace('    lookGen(%s) general conf viol='%obj, viol.weight() if viol else None)
-            if debug('lookGen', skip=skip):
-                pbs.draw(prob, 'W')
-                lookConf.draw('W', color='cyan', attached=shWorld.attached)
-                debugMsg('lookGen', ('-> cyan', lookConf.conf))
+            tr(tag, 2, '(%s) general conf viol=%s'%(obj, viol.weight() if viol else None),
+               ('-> cyan', lookConf.conf),
+               draw=[(pbs, prob, 'W'),
+                     (lookConf, 'W', 'cyan', shWorld.attached)],
+               snap=['W'])
             yield (lookConf,), viol
 
 def lookAtConfCanView(pbs, prob, conf, shape, hands=['left', 'right']):
@@ -1153,8 +1049,7 @@ def lookAtConfCanView(pbs, prob, conf, shape, hands=['left', 'right']):
                 return None
             path = canView(pbs, prob, lookConf, hand, shape)
             if not path:
-                if debug('lookAtConfCanView'):
-                    raw_input('lookAtConfCanView failed path')
+                tr('lookAtConfCanView', 1, 'lookAtConfCanView failed path')
                 return None
             lookConf = path[-1]
     return lookConf
@@ -1204,12 +1099,12 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
         ans = visible(shWorld, c, objInHand(c, hand),
                        [placements[c]]+obst, prob, moveHead=True)[0]
         return ans
-
+    
     (obj, hand, graspB, prob) = args
+    tag = 'lookHandGen'
     placements = {}
     handObj = {}
-    trace('lookHandGen(%s) h='%obj, fbch.inHeuristic)
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    trace(tag, 0, '(%s) h=%s'%(obj, fbch.inHeuristic))
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
     newBS.updateHeldBel(graspB, hand)
@@ -1217,11 +1112,11 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
     if fbch.inHeuristic:
         lookConf = lookAtConf(newBS.conf, objInHand(newBS.conf, hand))
         if lookConf:
+            tr(tag, 1, ('->', lookConf))
             yield (lookConf,), Violations()
         return
     if goalConds and getConf(goalConds, None):
-        debugMsg('lookHandGen', 'conf is specified')
-        # if conf is specified, just fail
+        tr(tag, 1, '=> conf is specified, failing')
         return
     rm = newBS.getRoadMap()
     obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
@@ -1230,22 +1125,18 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
                                    startConf = newBS.conf,
                                    testFn = testFn):
         viol, cost, path = ans
-        trace('    lookHandGen(%s) viol='%obj, viol.weight() if viol else None)
+        tr(tag, 2, '(%s) viol=%s'%(obj, viol.weight() if viol else None))
         if not path:
-            tracep('lookHandGen', 'Failed to find a path to look conf.')
+            tr(tag, 2, 'Failed to find a path to look conf.')
             continue
-        conf = path[-1]
-        lookConf = lookAtConf(conf, objInHand(conf, hand))
-        if lookConf is None: continue # can't look at it.
-        if debug('lookHandGen', skip=skip):
-            pbs.draw(prob, 'W')
-            lookConf.draw('W', color='cyan', attached=shWorld.attached)
-            debugMsg('lookHandGen', ('-> cyan', lookConf.conf))
+        tr(tag, 1, ('-> cyan', lookConf.conf),
+           draw=[(pbs, prob, 'W'),
+                 (lookConf, 'W', 'cyan', shWorld.attached)],
+           snap=['W'])
         yield (lookConf,), viol
 
 def moveOut(pbs, prob, obst, delta, goalConds):
-    if debug('traceGen') or debug('canReachGen'):
-        print '    canReachGen() obst:', obst
+    tr('moveOut', 0, 'obst=%s'%obst)
     domainPlaceVar = pbs.domainProbs.obsVarTuple 
     if not isinstance(obst, str):
         obst = obst.name()
@@ -1272,8 +1163,7 @@ def canReachGen(args, goalConds, bState, outBindings):
     # Don't make this infeasible
     goalFluent = Bd([CanReachHome([conf, fcp, cond]), True, prob], True)
     goalConds = goalConds + [goalFluent]
-    # Debug
-    debugMsg('canReachGen', args)
+    tr('canReachGen', 2, zip(('conf', 'fcp', 'prob', 'cond'),args))
     # Call
     def violFn(pbs):
         path, viol = canReachHome(pbs, conf, prob, Violations())
@@ -1281,9 +1171,9 @@ def canReachGen(args, goalConds, bState, outBindings):
     lookVar = bState.domainProbs.obsVarTuple
     for ans in canXGenTop(violFn, (cond, prob, lookVar),
                           goalConds, pbs, outBindings, 'canReachGen'):
-        debugMsg('canReachGen', ('->', ans))
+        tr('canReachGen', 1, ('->', ans))
         yield ans
-    debugMsg('canReachGen', 'exhausted')
+    tr('canReachGen', 1, 'exhausted')
 
 # Preconditions (for R1):
 
@@ -1309,8 +1199,10 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
                     True)
     goalConds = goalConds + [cppFluent, poseFluent]
     # Debug
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
-    debugMsg('canPickPlaceGen', args)
+    tr('canPickPlaceGen', 2,
+       zip(('preconf', 'ppconf', 'hand', 'obj', 'pose', 'realPoseVar', 'poseDelta', 'poseFace',
+            'graspFace', 'graspMu', 'graspVar', 'graspDelta', 'prob', 'cond', 'op'),
+           args))
     world = pbs.getWorld()
     lookVar = bState.domainProbs.obsVarTuple
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
@@ -1325,29 +1217,27 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     lookVar = bState.domainProbs.obsVarTuple
     for ans in canXGenTop(violFn, (cond, prob, lookVar),
                           goalConds, pbs, outBindings, 'canPickPlaceGen'):
-        debugMsg('canPickPlacechGen', ('->', ans))
+        tr('canPickPlacechGen', 1, ('->', ans))
         yield ans
-    debugMsg('canPickPlaceGen', 'exhausted')
+    tr('canPickPlaceGen', 1, 'exhausted')
 
 def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
     (cond, prob, lookVar) = args
-    trace('%s() h='%tag, fbch.inHeuristic)
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
+    tr(tag, 0, 'h=%s'%fbch.inHeuristic)
     # Set up PBS
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
     newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
     # Initial test
     viol = violFn(newBS)
-    if debug(tag):
-        newBS.draw(prob, 'W')
-    debugMsg(tag, ('viol', viol))
+    tr(tag, 1, ('viol', viol),
+       draw=[(newBS, prob, 'W')], snap=['W'])
     if not viol:                  # hopeless
-        tracep(tag, 'Impossible dream')
-        raw_input('Impossible dream')
+        tr(tag, 1, 'Impossible dream')
+        raw_input('=> Impossible dream')
         return
     if viol.empty():
-        tracep(tag, 'No obstacles or shadows; returning')
+        tr(tag, 1, '=> No obstacles or shadows; returning')
         return
 
     #objBMinVarGrasp = tuple([x**2/2*x for x in pbs.domainProbs.obsVarTuple])
@@ -1367,7 +1257,7 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
     shadows = [sh.name() for sh in viol.allShadows() \
                if not sh.name() in fixed]
     if not (obstacles or shadows):
-        debugMsg(tag, 'No movable obstacles or shadows to fix')
+        tr(tag, 1, '=> No movable obstacles or shadows to fix')
         return       # nothing available
     if obstacles:
         obstacleName = obstacles[0]
@@ -1380,10 +1270,10 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
         graspable = obst in pbs.getWorld().graspDesc    
         objBMinVar = objBMinVarGrasp if graspable else objBMinVarStatic
         placeB = newBS.getPlaceB(obst)
-        if debug(tag, skip=skip):
-            drawObjAndShadow(newBS, placeB, prob, 'W', color='red')
-            debugMsg(tag,'Trying to reduce shadow (on W in red) %s'%obst)
-            trace('    %s() shadow:'%tag, obst)
+        tr(tag, 1, 'reduce shadow %s (in red):'%obst,
+           draw=[(newBS, prob, 'W'),
+                 (pB.shadow(newBS.getShadowWorld(prob)), 'W', 'red')],
+           snap=['W'])
         yield (obst, placeB.poseD.mode().xyztTuple(),
                 placeB.support.mode(), objBMinVar, lookDelta)
 
@@ -1429,9 +1319,8 @@ def canSeeGen(args, goalConds, bState, outBindings):
 def canSeeGenTop(args, goalConds, pbs, outBindings):
     (conf, placeB, cond, prob) = args
     obj = placeB.obj
-    trace('canSeeGen(%s) h='%obj, fbch.inHeuristic)
-    skip = (fbch.inHeuristic and not debug('inHeuristic'))
-    debugMsgSkip('canSeeGen', skip, ('args', args))
+    tr('canSeeGen', 0, '(%s) h=%s'%(obj, fbch.inHeuristic))
+    tr('canSeeGen', 2, zip(('conf', 'placeB', 'cond', 'prob'), args))
 
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
@@ -1445,7 +1334,7 @@ def canSeeGenTop(args, goalConds, pbs, outBindings):
     p, occluders = visible(shWorld, conf, shape, obst, prob, moveHead=True)
     occluders = [oc for oc in occluders if oc not in newBS.fixObjBs]
     if not occluders:
-        tracep('canSeeGen', 'no occluders')
+        tr('canSeeGen', 1, '=> no occluders')
         return
     obst = occluders[0] # !! just pick one
     moveDelta = pbs.domainProbs.placeDelta

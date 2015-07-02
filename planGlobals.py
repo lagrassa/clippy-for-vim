@@ -150,4 +150,3 @@ def debugDraw(tag, obj, window, color = None, skip=False):
         obj.draw(window, color = color)
     if pause(tag):
         raw_input(tag+'-Go?')
-

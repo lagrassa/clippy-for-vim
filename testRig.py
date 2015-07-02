@@ -17,6 +17,10 @@ import planGlobals as glob
 reload(glob)
 from planGlobals import debug, debugMsg, useROS
 
+import trace
+reload(trace)
+from trace import traceStart, traceEnd
+
 import fbch
 reload(fbch)
 from fbch import State, planBackward, makePlanObj, HPN
@@ -673,31 +677,35 @@ class PlanTest:
 
         s = State([], details = self.bs)
 
-        print '**************', self.name,\
-                 'Hierarchical' if hierarchical else '', '***************'
-        if hpn:
-            HPN(s,
-                goal,
-                self.operators,
-                self.realWorld,
-                hpnFileTag = self.name,
-                skeleton = skeleton,
-                h = heuristic,
-                verbose = False,
-                fileTag = self.name if writeSearch else None,
-                nonMonOps = ['Move', 'MoveNB', 'LookAt', 'Place'])
-        else:
-            p = planBackward(s,
-                             goal,
-                             self.operators,
-                             h = heuristic,
-                             fileTag = self.name if writeSearch else None,
-                             nonMonOps = [move])
-            if p:
-                makePlanObj(p, s).printIt(verbose = False)
+        try:
+            traceStart()
+            print '**************', self.name,\
+                     'Hierarchical' if hierarchical else '', '***************'
+            if hpn:
+                HPN(s,
+                    goal,
+                    self.operators,
+                    self.realWorld,
+                    hpnFileTag = self.name,
+                    skeleton = skeleton,
+                    h = heuristic,
+                    verbose = False,
+                    fileTag = self.name if writeSearch else None,
+                    nonMonOps = ['Move', 'MoveNB', 'LookAt', 'Place'])
             else:
-                print 'Planning failed'
-        runTime = time.clock() - startTime
+                p = planBackward(s,
+                                 goal,
+                                 self.operators,
+                                 h = heuristic,
+                                 fileTag = self.name if writeSearch else None,
+                                 nonMonOps = [move])
+                if p:
+                    makePlanObj(p, s).printIt(verbose = False)
+                else:
+                    print 'Planning failed'
+            runTime = time.clock() - startTime
+        finally:
+            traceEnd()
         if (self.name, hierarchical) not in testResults:
             testResults[(self.name, hierarchical)] = [runTime]
         else:
