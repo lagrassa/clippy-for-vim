@@ -1,11 +1,19 @@
 import os
+import platform
 path = os.getcwd()
 parent = path[:path.rfind('/')] + '/../'
 libkinDir = './IK/'
 
-outDir = '/Users/lpk/Desktop/search/'
+if platform.system() == 'Linux':
+   outDir = '/mit/tlp/search/'
+   genDir = '/mit/tlp/gen/'
+else:
+   outDir = '/Users/lpk/Desktop/search/'
+   genDir = '/Users/lpk/Desktop/genFiles/'
 dotSearch = outDir + 's%s%s.dot'
 dotSearchX = outDir + 'sX%s%s.dot'
+pngGen = genDir + 'g%s_%s.png'
+htmlGen = genDir + 'g%s_%s.html'
 
 rebindPenalty = 100
 
@@ -72,8 +80,8 @@ visible
 visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
-debugOn = ['nonmon', 'traceGen', 'skeleton',
-           'heuristic0', 'canPickPlaceGen', 'hAddBackInfFinal',
+debugOn = ['nonmon', 'traceGen', 'traceCRH', 'skeleton',
+           'heuristic0', 'hAddBackInfFinal',
           'simpleAbstractCostEstimates']
 
 pauseOn = debugOn

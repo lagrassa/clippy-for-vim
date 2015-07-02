@@ -1834,6 +1834,24 @@ def firstAid(details, fluent = None):
     if fluent:
         return fluent.valueInDetails(details)
 
+def canPPDebug(details, fluent):
+    glob.debugOn.extend(['confViolations', 'canPickPlace'])
+    pbs.getRoadMap().confReachCache.clear()
+    bc.pathObstCache.clear()
+    bc.objectShadowCache.clear()
+    for c in bc.genCaches.values():
+        c.clear()
+    pr2GenAux.graspConfGenCache.clear()
+    bc.world.robot.cacheReset()
+    pr2Visible.cache.clear()
+    belief.hCacheReset()
+
+    rf = fluent.args[0]
+    conds = rf.getConds()
+    for c in conds:
+        c.viols = {}; c.hviols = {}
+        c.getViols(details, True, fluent.args[-1])
+
 # Get false fluents
 def ff(g, details):
     return [thing for thing in g.fluents if thing.isGround() \

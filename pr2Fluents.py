@@ -297,7 +297,7 @@ class CanReachHome(Fluent):
         assert v == True
         (conf, fcp, cond) = self.args
 
-        key = hash(bState.pbs)
+        key = (hash(bState.pbs), p)
         if not hasattr(self, 'viols'): self.viols = {}
         if not hasattr(self, 'hviols'): self.hviols = {}
         if key in self.viols: return self.viols[key]
@@ -448,7 +448,7 @@ class CanReachNB(Fluent):
     def getViols(self, bState, v, p):
         assert v == True
         (startConf, endConf, cond) = self.args
-        key = hash(bState.pbs)
+        key = (hash(bState.pbs), p)
         if not hasattr(self, 'viols'): self.viols = {}
         if not hasattr(self, 'hviols'): self.hviols = {}
         if key in self.viols: return self.viols[key]
@@ -625,7 +625,7 @@ class CanPickPlace(Fluent):
         def violCombo(v1, v2):
             return v1.update(v2)
 
-        key = hash(bState.pbs)
+        key = (hash(bState.pbs), p)
         if not hasattr(self, 'viols'): self.viols = {}
         if not hasattr(self, 'hviols'): self.hviols = {}
         if key in self.viols: return self.viols[key]
@@ -901,7 +901,7 @@ class CanSeeFrom(Fluent):
     def getViols(self, bState, v, p):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
-        key = hash(bState.pbs)
+        key = (hash(bState.pbs), p)
         if not hasattr(self, 'viols'): self.viols = {}
         if not hasattr(self, 'hviols'): self.hviols = {}
         if key in self.viols: return self.viols[key]
