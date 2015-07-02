@@ -81,5 +81,6 @@ def snap(*windows):
                 htmlFile.write('<br><b>No change to window %s</b><br>\n'%win)
 
 def trLog(string):
+    print string
     if htmlFile:
         htmlFile.write('<br><pre>%s</pre><br>\n'%string)

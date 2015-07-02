@@ -59,7 +59,7 @@ class RealWorld(WorldState):
         def endExec(obs):
             self.draw('World')
             tr('sim', 0, 'Executed %s got obs= %s'%(op.name, obs),
-               snap=('World',))
+               snap=['World'])
             return obs
         if op.name == 'Move':
             return endExec(self.executeMove(op, params))

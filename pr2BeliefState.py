@@ -3,6 +3,7 @@ import windowManager3D as wm
 from dist import GMU, MultivariateGaussianDistribution, UniformDist, \
      DeltaDist, chiSqFromP
 from miscUtil import prettyString
+from trace import tr, trLog
 MVG = MultivariateGaussianDistribution
 
 zeroObjectVarianceArray = [[0]*4]*4
@@ -51,7 +52,7 @@ class BeliefState:
             return GMU([(MVG(poseD.mu.xyztTuple(), diagToSq(poseD.var)),
                          self.poseModeProbs[obj])])
 
-    def draw(self, w = 'Belief'):
+    def drawOld(self, w = 'Belief'):
         print '------------  Belief -------------'
         print 'Conf:'
         for key in self.pbs.conf.keys():
@@ -85,6 +86,37 @@ class BeliefState:
             print ' stdev :', prettyStdev(stuff.poseD.varTuple())
         print '------------  Belief -------------'
         print self.pbs.draw(0.9, w)
+        wm.getWindow(w).update()
+
+    def draw(self, w = 'Belief'):
+        s = '------------  Belief -------------\n'
+        s += 'Conf:\n'
+        for key in self.pbs.conf.keys():
+            s += '   ' + key + ' ' + prettyString(self.pbs.conf[key]) + '\n'
+        gb = self.pbs.graspB
+        gbl = gb['left']
+        gbr = gb['right']
+        s += 'Held Left: %s mode prob %s\n'%\
+             (self.pbs.held['left'], prettyString(self.graspModeProb['left']))
+        s += '    Grasp type: %s\n'%(prettyString(gbl.grasp) if gbl else None)
+        s += '    Grasp mean: %s\n'%(prettyString(gbl.poseD.meanTuple()) if (gbl and gbl.poseD) else None)
+        s += '    Grasp stdev: %s\n'%(prettyStdev(gbl.poseD.varTuple())  if (gbl and gbl.poseD) else None)
+        s += 'Held Right: %s mode prob %s\n'%\
+             (self.pbs.held['right'],prettyString(self.graspModeProb['right']))
+        s += '    Grasp type: %s\n'%(prettyString(gbr.grasp) if gbr else None)
+        s += '    Grasp mean: %s\n'%(prettyString(gbr.poseD.meanTuple()) if (gbr and gbr.poseD) else None)
+        s += '    Grasp stdev: %s\n'%(prettyStdev(gbr.poseD.varTuple())  if (gbr and gbr.poseD) else None)
+        s += 'Objects:\n'
+        for (name, stuff) in self.pbs.moveObjBs.items() + \
+                             self.pbs.fixObjBs.items():
+            s += name + '\n'
+            s += '   prob: %s\n'%self.poseModeProbs[name]
+            s += '   face: %s\n'%stuff.support
+            s += '   pose: %s\n'%prettyString(stuff.poseD.meanTuple())
+            s += '  stdev: %s\n'%prettyStdev(stuff.poseD.varTuple())
+        s += '------------  Belief -------------\n'
+        trLog(s)
+        tr('B', 0, draw=[(self.pbs, 0.9, w)], snap=[w])
         wm.getWindow(w).update()
 
 def diagToSq(d):

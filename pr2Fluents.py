@@ -13,6 +13,7 @@ from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from pr2RoadMap import validEdgeTest
+from trace import tr
 
 tiny = 1.0e-6
 obstCost = 10  # Heuristic cost of moving an object
@@ -1106,9 +1107,8 @@ def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False
         assert path[0] == conf, 'Start of path'
         assert path[-1] == homeConf, 'End of path'
 
-    if debug('traceCRH'):
-        print '    %s h='%tag, glob.inHeuristic, 'viol=:', \
-                       viol.weight() if viol else None
+    tr('CRH', 0, '%s h=%s'%(tag, glob.inHeuristic) + \
+       ' viol=%s'%(viol.weight() if viol else None))
 
     if path and debug('backwards'):
         backSteps = []

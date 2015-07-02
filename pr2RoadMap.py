@@ -22,6 +22,7 @@ from miscUtil import prettyString
 from heapq import heappush, heappop
 from planUtil import Violations
 from pr2Util import NextColor, drawPath, shadowWidths, Hashable, combineViols, shadowp
+from trace import tr
 
 considerReUsingPaths = True
 
@@ -394,16 +395,13 @@ class RoadMap:
         def checkCache(key, type='full', loose=False):
             if glob.inHeuristic or optimize: return 
             if key in self.confReachCache:
-                if debug('traceCRH'): print '    cache?',
+                # tr('CRH', 1, 'cache?')
                 cacheValues = self.confReachCache[key]
                 sortedCacheValues = sorted(cacheValues,
                                            key=lambda v: v[-1][0].weight() if v[-1][0] else 1000.)
                 ans = bsEntails(pbs, prob, sortedCacheValues, loose=loose)
                 if ans != None:
-                    if debug('traceCRH'): print '    actual', type, 'cache hit',
-                    if debug('confReachViolCache'):
-                        debugMsg('confReachViolCache', 'confReachCache '+type+' actual hit')
-                        print '    returning', ans
+                    tr('CRH', 1, 'actual ' + type + 'cache hit')
                     return ans
                 elif considerReUsingPaths:
                     initObst = set(endPtViol.allObstacles())
@@ -415,15 +413,13 @@ class RoadMap:
                         (_, _, edgePath) = ans
                         viol2 = self.checkEdgePath(edgePath, pbs, prob)
                         if viol2 and set(viol2.allObstacles()) <= initObst and set(viol2.allShadows()) <= initShadows:
-                            if debug('traceCRH'): print '    reusing path'
+                            tr('CRH', 1, 'reusing path')
                             (_, cost, path) = ans
                             ans = (viol2, cost, path) # use the new violations
                             if debug('confReachViolCache'):
                                 debugMsg('confReachViolCache', 'confReachCache reusing path')
                                 print '    returning', ans
                             return ans
-                        else:
-                            print i, 'bad path', 
                 elif finalConf:
                     raw_input('Caching failed')
             else:
@@ -485,7 +481,7 @@ class RoadMap:
         if not glob.inHeuristic and targetConf in self.approachConfs:
             finalConf = targetConf
             targetConf = self.approachConfs[targetConf]
-            if debug('traceCRH'): print '    using approach conf'
+            # tr('CRH', 1, 'using approach conf')
         targetNode = makeNode(targetConf)
         cached = checkFullCache()
         if cached:
@@ -498,7 +494,7 @@ class RoadMap:
                                   targetCluster.nodeGraph)
         # if not glob.inHeuristic:
         #     print '    Graph nodes =', len(graph.incidence), 'graph edges', len(graph.edges)
-        if debug('traceCRH'): print '    find path',
+        tr('CRH', 1, 'find path')
         # search back from target... if we will execute in reverse, it's a double negative.
         ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
                                      optimize=optimize, moveBase=moveBase,
@@ -508,13 +504,13 @@ class RoadMap:
         
         if ans == None:
             # (ans[0] and not ans[0].empty() and ans[0].names() != initViol.names()):
-            print '    trying RRT'
+            tr('CRH', 1, 'trying RRT')
             path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
                                               maxIter=50, failIter=10)
             if viol:
                 viol = viol.update(initViol)
             else:
-                debugMsg('confReachViol', 'RRT failed')
+                tr('CRH', 1, 'RRT failed')
             if not viol:
                 pass
             elif ans == None or \
@@ -1133,7 +1129,8 @@ class RoadMap:
                                    heuristic = lambda s,g: (useStartH and s.hVal) or pointDist(s.point, g.point),
                                    goalKey = lambda x: x[0],
                                    goalCostFn = goalCostFn,
-                                   maxNodes = maxSearchNodes, maxExpanded = maxExpandedNodes,
+                                   maxNodes = maxSearchNodes*2 if optimize else maxSearchNodes,
+                                   maxExpanded = maxExpandedNodes*2 if optimize else maxExpandedNodes,
                                    maxHDelta = None,
                                    expandF = minViolPathDebugExpand if debug('expand') else None,
                                    visitF = minViolPathDebugVisit if debug('expand') else None,

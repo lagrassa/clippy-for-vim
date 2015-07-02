@@ -54,7 +54,7 @@ handI = {'left' : 0, 'right' : 1}
 #
 ######################################################################
 
-tryDirectPath = True
+tryDirectPath = False
 # canReachHome(conf) returns a path from conf to home!
 def primPath(bs, cs, ce, p):
     home = bs.getRoadMap().homeConf
@@ -62,32 +62,33 @@ def primPath(bs, cs, ce, p):
     if tryDirectPath:
         path, viols = canReachHome(bs, cs, p, Violations(),
                                    homeConf=ce, optimize=True)
-        if (not path) or viols.weight() > 0:
-            path1, v1 = canReachHome(bs, cs, p, Violations())
+    if (not path) or viols.weight() > 0:
+        path1, v1 = canReachHome(bs, cs, p, Violations(), optimize=True)
+        if (not path1) or v1.weight() > 0:
+            print 'Path1 failed, trying RRT'
+            path1, v1 = rrt.planRobotPathSeq(bs, p, home, cs, None,
+                                             maxIter=50, failIter=10)
             if (not path1) or v1.weight() > 0:
-                print 'Path1 failed, trying RRT'
-                path1, v1 = rrt.planRobotPathSeq(bs, p, home, cs, None,
-                                                 maxIter=50, failIter=10)
-                if (not path1) or v1.weight() > 0:
-                    print 'Path1 RRT failed, trying full RRT'
-                    path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
-                                                       maxIter=50, failIter=10)            
-                    assert path and viols.weight() == 0
-            if (not path) and path1:
-                path2, v2 = canReachHome(bs, ce, p, Violations(), reversePath=True)
-                if (not path2) or v2.weight() > 0:
-                    print 'Path2 failed, trying RRT'
-                    path2, v2 = rrt.planRobotPathSeq(bs, p, home, ce, None,
-                                                     maxIter=50, failIter=10)                
-                if (not path2) or v2.weight() > 0:
-                    print 'Path2 RRT failed, trying full RRT'
-                    path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
-                                                       maxIter=50, failIter=10)            
-                    assert path and viols.weight == 0
-            if (not path) and path1 and path2:
-                path = path1 + path2[::-1]
-        else:
-            print 'Direct path succeeded'
+                print 'Path1 RRT failed, trying full RRT'
+                path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
+                                                   maxIter=50, failIter=10)            
+                assert path and viols.weight() == 0
+        if (not path) and path1:
+            path2, v2 = canReachHome(bs, ce, p, Violations(),
+                                     optimize=True, reversePath=True)
+            if (not path2) or v2.weight() > 0:
+                print 'Path2 failed, trying RRT'
+                path2, v2 = rrt.planRobotPathSeq(bs, p, home, ce, None,
+                                                 maxIter=50, failIter=10)                
+            if (not path2) or v2.weight() > 0:
+                print 'Path2 RRT failed, trying full RRT'
+                path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
+                                                   maxIter=50, failIter=10)            
+                assert path and viols.weight == 0
+        if (not path) and path1 and path2:
+            path = path1 + path2[::-1]
+    else:
+        print 'Direct path succeeded'
 
     smoothed = bs.getRoadMap().smoothPath(path, bs, p)
     interpolated = interpolate(smoothed)
