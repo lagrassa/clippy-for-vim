@@ -1272,7 +1272,7 @@ def canXGenTop(violFn, args, goalConds, pbs, outBindings, tag):
         placeB = newBS.getPlaceB(obst)
         tr(tag, 1, 'reduce shadow %s (in red):'%obst,
            draw=[(newBS, prob, 'W'),
-                 (pB.shadow(newBS.getShadowWorld(prob)), 'W', 'red')],
+                 (placeB.shadow(newBS.getShadowWorld(prob)), 'W', 'red')],
            snap=['W'])
         yield (obst, placeB.poseD.mode().xyztTuple(),
                 placeB.support.mode(), objBMinVar, lookDelta)
