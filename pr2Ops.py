@@ -373,7 +373,8 @@ def isBound(args, goal, start, vals):
 # Subtract
 def subtract((a, b), goal, start, vals):
     ans = tuple([aa - bb for (aa, bb) in zip(a, b)])
-    if any([x < 0.0 for x in ans]):
+    if any([x <=  0.0 for x in ans]):
+        debugMsg('smallDelta', 'Delta would be negative or zero', ans)
         return []
     return [[ans]]
         
