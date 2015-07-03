@@ -1,6 +1,7 @@
 import copy
 import itertools
 import os
+import pdb
 
 import planGlobals as glob
 from planGlobals import debugMsg, debug
@@ -1505,6 +1506,7 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
                 successful = True
             except PlanningFailed:
                 print 'Planning failed.  Trying HPN from the top.'
+                pdb.set_trace()
                 raw_input('go?')
     finally:
         writeCoda(f)

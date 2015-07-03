@@ -130,9 +130,9 @@ def habbs(s, g, ops, ancestors):
         # Just in case the addBack heuristic thinks we're at 0 when
         # the goal is not yet satisfied.
         isSat = s.satisfies(g)
-        if not isSat: 
-            print '*** habbs is 0 but goal not sat ***'
+        if not isSat:
             if debug('heuristic0'):
+                print '*** habbs is 0 but goal not sat ***'
                 for thing in g.fluents:
                     if not thing.isGround() or \
                       thing.valueInDetails(s.details) == False:
@@ -751,7 +751,7 @@ typicalErrProbs = DomainProbs(\
             # pickTolerance
             pickTolerance = (0.025, 0.025, 0.025, 0.1),
             maxGraspVar = (0.005**2, .005**2, .005**2, .015**2),
-            moveConfDelta = (0.001, 0.001, 1e-11, 0.002),
+            moveConfDelta = (0.001, 0.001, 1e-8, 0.002),
             #shadowDelta = (0.01, 0.01, 1.0e-8, 0.05),
             #shadowDelta = (0.001, 0.001, 1e-11, 0.002),
             shadowDelta = (0.004, 0.004, 1e-10, 0.008),
