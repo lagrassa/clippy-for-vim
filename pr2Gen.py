@@ -712,7 +712,7 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
     pose = None
     if pbs.getPlaceB(obj, default=False):
         # If it is currently placed, use that support
-        support = pbs.getPlaceB(obj).support
+        support = pbs.getPlaceB(obj).support.mode()
         pose = pbs.getPlaceB(obj).poseD.mode()
     elif obj == pbs.held['left'].mode():
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
