@@ -294,6 +294,11 @@ class CanReachHome(Fluent):
                   ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
           and not ('*' in f.args)
 
+    def update(self):
+        super(CanReachHome, self).update()
+        self.viols = {}
+        self.hviols = {}
+
     def getViols(self, bState, v, p):
         assert v == True
         (conf, fcp, cond) = self.args
@@ -446,6 +451,11 @@ class CanReachNB(Fluent):
         else:
             path, violations = self.getViols(bState, v, p)
         return violations != None
+
+    def update(self):
+        super(CanReachNB, self).update()
+        self.viols = {}
+        self.hviols = {}
 
     def getViols(self, bState, v, p):
         assert v == True
@@ -622,6 +632,12 @@ class CanPickPlace(Fluent):
               CanReachHome([ppConf, False, objInHandZeroVar])]
             for c in self.conds: c.addConditions(inconds, details)
         return self.conds
+
+
+    def update(self):
+        super(CanPickPlace, self).update()
+        self.viols = {}
+        self.hviols = {}
 
     def getViols(self, bState, v, p):
         def violCombo(v1, v2):
@@ -899,6 +915,11 @@ class CanSeeFrom(Fluent):
 
         ans, occluders = self.getViols(details, v, p)
         return ans
+
+    def update(self):
+        super(CanSeeFrom, self).update()
+        self.viols = {}
+        self.hviols = {}
 
     def getViols(self, bState, v, p):
         assert v == True

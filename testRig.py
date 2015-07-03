@@ -138,6 +138,12 @@ def habbs(s, g, ops, ancestors):
                       thing.valueInDetails(s.details) == False:
                         print thing
                 raw_input('Unsat fluents')
+                raw_input('Try resetting cache?')
+                fbch.hCacheReset()
+                newVal = hAddBackBSetID(s, g, hops, ancestors,
+                                        ddPartitionFn = partition,
+                                        maxK = 20)
+                if newVal >= 0: return newVal
             easyVal = hEasy(s, g, ops, ancestors)
             print '*** returning easyVal', easyVal, '***'
             return easyVal
@@ -748,7 +754,7 @@ typicalErrProbs = DomainProbs(\
             moveConfDelta = (0.001, 0.001, 1e-11, 0.002),
             #shadowDelta = (0.01, 0.01, 1.0e-8, 0.05),
             #shadowDelta = (0.001, 0.001, 1e-11, 0.002),
-            shadowDelta = (0.002, 0.002, 1e-10, 0.004),
+            shadowDelta = (0.004, 0.004, 1e-10, 0.008),
             # Use this for placing objects
             # placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             # graspDelta = (0.001, 0.001, 1.0e-4, 0.002))

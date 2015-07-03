@@ -520,9 +520,9 @@ class Fluent(object):
             assert self.strStored == self.getStr(True)
         return self.strStored
 
-    def getStr(self, eq = False):
+    def getStr(self, eq = True):
         return self.predicate + self.argString(eq) +\
-          ' = ' + prettyString(self.value)
+          ' = ' + prettyString(self.value, eq)
 
     def argString(self, eq):
         return '['+ ', '.join([prettyString(a, eq) for a in self.args]) + ']'
@@ -551,7 +551,8 @@ class Fluent(object):
     
     __repr__ = __str__
     def __hash__(self):
-        return hash(self.prettyString(eq=True))
+        #return hash(self.prettyString(eq=True))
+        return hash(self.strStored)
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()
     def __ne__(self, other):
@@ -1385,6 +1386,7 @@ class Function:
 
 hCache = {}
 def hCacheReset():
+    print '************  FBCH HCache Reset ***************'
     hCache.clear()
 
 def hCacheDel(f):

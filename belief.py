@@ -408,6 +408,7 @@ hCache2 = {}
 hCacheID = {}
 
 def hCacheReset():
+    print '************   Belief HCache Reset ***************'
     fbch.hCache.clear()
     hCache2.clear()
     hCacheID.clear()
