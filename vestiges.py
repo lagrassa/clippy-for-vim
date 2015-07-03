@@ -959,3 +959,55 @@ def potentialRegionPoseGenCut(pbs, obj, placeB, prob, regShapes, reachObsts, max
         print 'Returned', count, 'for regions', [r.name() for r in regShapes]
     return
 '''
+
+    # Makes all objects permanent
+    def updateFromAllPoses(self, goalConds,
+                           updateHeld=True, updateConf=True, permShadows=False):
+        initialObjects = self.objectsInPBS()
+        world = self.getWorld()
+        if updateHeld:
+            (held, graspB) = \
+                   getHeldAndGraspBel(goalConds, world.getGraspDesc)
+            for h in ('left', 'right'):
+                if held[h]:
+                    self.fixHeld[h] = True
+                    self.held[h] = held[h]
+                if graspB[h]:
+                    self.fixGrasp[h] = True
+                    self.graspB[h] = graspB[h]
+            for gB in self.graspB.values():
+                if gB: self.excludeObjs([gB.obj])
+        if updateConf:
+            self.conf = getConf(goalConds, self.conf)
+        self.fixObjBs = getAllPoseBels(goalConds, world.getFaceFrames,
+                                       self.getPlacedObjBs())
+        self.moveObjBs = {}
+        # The shadows of Pose(obj) in the cond are also permanent
+        if permShadows:
+            self.updateAvoidShadow(getPoseObjs(goalConds))
+        self.reset()
+        finalObjects = self.objectsInPBS()
+        if debug('conservation') and initialObjects != finalObjects:
+            print 'Failure of conservation'
+            print '    initial', sorted(list(initialObjects))
+            print '    final', sorted(list(finalObjects))
+            raw_input('conservation')
+        return self
+
+def getPoseObjs(goalConds):
+    pfbs = fbch.getMatchingFluents(goalConds,
+                                   B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
+    objs = []
+    for (pf, pb) in pfbs:
+        if isGround(pb.values()):
+            objs.append(pb['Obj'])
+    return objs
+
+# Overrides is a list of fluents
+# Returns dictionary of objects in belief state, overriden as appropriate.
+def getAllPoseBels(overrides, getFaceFrames, curr):
+    if not overrides: return curr
+    objects = curr.copy()
+    for (o, p) in getGoalPoseBels(overrides, getFaceFrames).iteritems():
+        objects[o] = p
+    return objects

@@ -544,12 +544,12 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     if vs != cappedVbo1 and vs != cappedVbo2:
         result.append([vs])
 
-    # print '@@@@@@@@@@@@@ Prev var'
-    # print 'Target', prettyString(sqrts(ve))
-    # print 'Capped before', prettyString(sqrts(cappedVbo1))
-    # print 'Other suggestions'
-    # for xx in result: print '   ', prettyString(sqrts(xx)[0])
-    # print '@@@@@@@@@@@@@ Prev var'
+    if debug('varBeforeObs'):
+        print '@@@@@@@@@@@@@ Prev var'
+        print 'Target', prettyString(sqrts(ve))
+        print 'Capped before', prettyString(sqrts(cappedVbo1))
+        print 'Other suggestions'
+        for xx in result: print '   ', prettyString(sqrts(xx)[0])
 
     debugMsg('genLookObjPrevVariance', result)
 
@@ -1004,7 +1004,9 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
         print 'No match above threshold', objName, oldP, newP
 
         newMu = oldPlaceB.poseD.mode().pose().xyztTuple()
-        newSigma = tuple([v + .001 for v in oldPlaceB.poseD.varTuple()])
+        newSigma = [v + .001 for v in oldPlaceB.poseD.varTuple()]
+        newSigma[2] = 1e-10
+        newSigma = tuple(newSigma)
     else:
         # Update mode prob if we do get a good score
         oldP = details.poseModeProbs[objName]

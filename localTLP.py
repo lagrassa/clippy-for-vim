@@ -10,7 +10,8 @@ else:
 dotSearch = outDir + 's%s%s.dot'
 dotSearchX = outDir + 'sX%s%s.dot'
 pngGen = genDir + 'g%s_%s.png'
-htmlGen = genDir + 'g%s_%s.html'
+htmlGen = genDir + 'a%s_%s.html'
+htmlGenH = genDir + 'aH%s_%s.html'
 
 rebindPenalty = 100
 

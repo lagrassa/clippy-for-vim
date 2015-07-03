@@ -53,7 +53,8 @@ class BeliefContext:
 class PBS:
     def __init__(self, beliefContext, held=None, conf=None,
                  graspB=None, fixObjBs=None, moveObjBs=None, regions=[],
-                 domainProbs=None, useRight=True, avoidShadow=[]):
+                 domainProbs=None, useRight=True, avoidShadow=[],
+                 fixGrasp=None, fixHeld=None):
         self.beliefContext = beliefContext
         self.conf = conf or None
         self.held = held or \
@@ -62,8 +63,8 @@ class PBS:
         self.graspB = graspB or {'left':None, 'right':None}
         self.fixObjBs = fixObjBs or {}            # {obj: objPlaceB}
         self.moveObjBs = moveObjBs or {}          # {obj: objPlaceB}
-        self.fixGrasp = {'left':False, 'right':False} # the graspB can be changed
-        self.fixHeld = {'left':False, 'right':False} # whether the held can be changed
+        self.fixGrasp = fixGrasp or {'left':False, 'right':False} # the graspB can be changed
+        self.fixHeld = fixHeld or {'left':False, 'right':False} # whether the held can be changed
         self.regions = regions
         self.pbs = self
         self.useRight = useRight
@@ -217,7 +218,8 @@ class PBS:
     def copy(self):
         return PBS(self.beliefContext, self.held.copy(), self.conf.copy(),
                    self.graspB.copy(), self.fixObjBs.copy(), self.moveObjBs.copy(),
-                   self.regions, self.domainProbs, self.useRight, self.avoidShadow[:])
+                   self.regions, self.domainProbs, self.useRight, self.avoidShadow[:],
+                   self.fixGrasp.copy(), self.fixHeld.copy())
 
     def objectsInPBS(self):
         objects = []
@@ -237,46 +239,13 @@ class PBS:
             if s not in self.avoidShadow:
                 self.avoidShadow = self.avoidShadow + [s]
         return self
-
-    # Makes all objects permanent
-    def updateFromAllPoses(self, goalConds,
-                           updateHeld=True, updateConf=True, permShadows=False):
-        initialObjects = self.objectsInPBS()
-        world = self.getWorld()
-        if updateHeld:
-            (held, graspB) = \
-                   getHeldAndGraspBel(goalConds, world.getGraspDesc)
-            for h in ('left', 'right'):
-                if held[h]:
-                    self.fixHeld[h] = True
-                    self.held[h] = held[h]
-                if graspB[h]:
-                    self.fixGrasp[h] = True
-                    self.graspB[h] = graspB[h]
-            for gB in self.graspB.values():
-                if gB: self.excludeObjs([gB.obj])
-        if updateConf:
-            self.conf = getConf(goalConds, self.conf)
-        self.fixObjBs = getAllPoseBels(goalConds, world.getFaceFrames,
-                                       self.getPlacedObjBs())
-        self.moveObjBs = {}
-        # The shadows of Pose(obj) in the cond are also permanent
-        if permShadows:
-            self.updateAvoidShadow(getPoseObjs(goalConds))
-        self.reset()
-        finalObjects = self.objectsInPBS()
-        if debug('conservation') and initialObjects != finalObjects:
-            print 'Failure of conservation'
-            print '    initial', sorted(list(initialObjects))
-            print '    final', sorted(list(finalObjects))
-            raw_input('conservation')
-        return self
     
     # Makes objects mentioned in the goal permanent
     def updateFromGoalPoses(self, goalConds,
                             updateHeld=True, updateConf=True, permShadows=False):
-        initialObjects = self.objectsInPBS()
         world = self.getWorld()
+        initialObjects = self.objectsInPBS()
+        goalPoseBels = getGoalPoseBels(goalConds, world.getFaceFrames)
         if updateHeld:
             (held, graspB) = \
                    getHeldAndGraspBel(goalConds, world.getGraspDesc)
@@ -289,16 +258,20 @@ class PBS:
                     self.graspB[h] = graspB[h]
             for gB in self.graspB.values():
                 if gB: self.excludeObjs([gB.obj])
+            for h in ('left', 'right'):
+                if self.held[h] in goalPoseBels:
+                    print 'Held object in pose conditions, removing from hand'
+                    self.updateHeldBel(None, h)
         if updateConf:
             self.conf = getConf(goalConds, self.conf)
         world = self.getWorld()
-        self.fixObjBs.update(getGoalPoseBels(goalConds, world.getFaceFrames))
+        self.fixObjBs.update(goalPoseBels)
         self.moveObjBs = dict([(o, p) for (o, p) \
                                in self.getPlacedObjBs().iteritems() \
                                if o not in self.fixObjBs])
         # The shadows of Pose(obj) in the cond are also permanent
         if permShadows:
-            self.updateAvoidShadow(getPoseObjs(goalConds))
+            self.updateAvoidShadow(goalPoseBels.keys())
         self.reset()
         finalObjects = self.objectsInPBS()
         if debug('conservation') and initialObjects != finalObjects:
@@ -322,6 +295,8 @@ class PBS:
         self.graspB[hand] = graspB
         if graspB is None:
             self.held[hand] = DeltaDist('none')
+            self.fixHeld[hand] = False
+            self.fixGrasp[hand] = False
         else:
             self.held[hand] = DeltaDist(graspB.obj) # !! Is this rigt??
         if graspB:
@@ -630,22 +605,13 @@ def getGoalPoseBels(goalConds, getFaceFrames):
                             B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
 
     ans = dict([(b['Obj'], ObjPlaceB(b['Obj'],
-                                      getFaceFrames(b['Obj']), # !! ??
-                                      DeltaDist(b['Face']),
-                                      util.Pose(* b['Mu']),
-                                      b['Var'], b['Delta'])) \
+                                     getFaceFrames(b['Obj']), # !! ??
+                                     DeltaDist(b['Face']),
+                                     util.Pose(* b['Mu']),
+                                     b['Var'], b['Delta'])) \
                  for (f, b) in fbs if \
                       (isGround(b.values()) and not ('*' in b.values()))])
     return ans
-
-# Overrides is a list of fluents
-# Returns dictionary of objects in belief state, overriden as appropriate.
-def getAllPoseBels(overrides, getFaceFrames, curr):
-    if not overrides: return curr
-    objects = curr.copy()
-    for (o, p) in getGoalPoseBels(overrides, getFaceFrames).iteritems():
-        objects[o] = p
-    return objects
 
 def getConf(overrides, curr):
     if not overrides: return curr
@@ -704,13 +670,4 @@ def getHeldAndGraspBel(overrides, getGraspDesc):
                                          DeltaDist(face), util.Pose(*mu), var, delta)
 
     return (held, graspB)
-
-def getPoseObjs(goalConds):
-    pfbs = fbch.getMatchingFluents(goalConds,
-                                   B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
-    objs = []
-    for (pf, pb) in pfbs:
-        if isGround(pb.values()):
-            objs.append(pb['Obj'])
-    return objs
 
