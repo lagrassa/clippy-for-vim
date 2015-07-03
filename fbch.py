@@ -2132,6 +2132,7 @@ def planBackward(startState, goal, ops, ancestors = [],
 
     if not hasattr(goal, 'planNum'):
         goal.planNum = 0
+        glob.planNum = 0
 
     (f1, f2) = None, None
     try:
@@ -2360,6 +2361,7 @@ dotSearchId = 0
 def writeGoalNode(f, goal):
     global dotSearchId 
     goal.planNum = dotSearchId
+    glob.planNum = goal.planNum
     dotSearchId += 1    
     print 'Planning for goal', goal.planNum
     for fl in goal.fluents: print '    ', fl.prettyString()
