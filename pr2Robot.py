@@ -405,7 +405,7 @@ def makePr2ChainsShadow(name, workspaceBounds, radiusVar=0.0, angleVar=0.0, reac
     # Chain for left gripper
     leftGripperChain = GripperChain('pr2LeftGripper', 'l_wrist_roll_joint',
                                     pr2GripperJoints('l'),
-                                    pr2GripperLinksGrown())
+                                    pr2GripperLinks()) # NB
     # Chain for right arm
     rightArmChain = Chain('pr2RightArm', 'torso_lift_joint',
                          getUrdfJoints(armJointNames('r', pr2_arm_joints)),
@@ -413,7 +413,7 @@ def makePr2ChainsShadow(name, workspaceBounds, radiusVar=0.0, angleVar=0.0, reac
     # Chain for right gripper
     rightGripperChain = GripperChain('pr2RightGripper', 'r_wrist_roll_joint',
                                      pr2GripperJoints('r'),
-                                     pr2GripperLinksGrown())
+                                     pr2GripperLinks()) # NB
     # Chain for head
     headChain = Chain('pr2Head', 'torso_lift_joint',
                       getUrdfJoints(pr2_head_joints),

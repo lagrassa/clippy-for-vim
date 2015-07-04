@@ -22,7 +22,18 @@ if filename.lower() == "all":
     path = os.getcwd()
     dirList=os.listdir(path)
     dirList = sorted(dirList)
+    setup(
+        name = "gjk",
+        ext_modules=[
+        Extension("gjk",
+                  sources=["./gjk_def.pyx", "./gjk/gjk.c"],
+                  include_dirs=[".", "./gjk"],
+                  language="c"),
+        ],
+        cmdclass={"build_ext": build_ext},
+        )
     for fname in dirList:
+        if fname.find("gjk_def") >= 0: continue
 	i = fname.find(".pyx")
 	if i != -1 and fname.find("~") == -1:
 	    convert(fname, i)

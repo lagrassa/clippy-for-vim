@@ -42,7 +42,7 @@ MVG = MultivariateGaussianDistribution
 
 import pr2Robot
 reload(pr2Robot)
-from pr2Robot import makePr2Chains, PR2, JointConf, CartConf, pr2Init
+from pr2Robot import makePr2Chains, makePr2ChainsShadow, PR2, JointConf, CartConf, pr2Init
 
 import pr2RoadMap
 reload(pr2RoadMap)
@@ -336,19 +336,23 @@ def testWorld(include = ['objA', 'objB', 'objC'],
 
     world.typePointClouds = {t:shapes.readOff('meshes/%s_points.off'%t, name=t) \
                              for t in set(world.objectTypes.values())}
-
-    robot = PR2('MM', makePr2Chains('PR2', world.workspace))
+    # The planning robot is a bit fatter, except in the hands...  This
+    # is to provide some added tolerance for modeling and execution
+    # uncertainty.
+    robot = PR2('MM', makePr2ChainsShadow('PR2', world.workspace, radiusVar=0.01))
+    thinRobot = PR2('MM', makePr2Chains('PR2', world.workspace))
     # This affects randomConf and stepAlongLine, unless overriden
-    if useRight:
-        robot.moveChainNames = ['pr2LeftArm', 'pr2LeftGripper', 'pr2Base',
+    for r in (robot, thinRobot):
+        if useRight:
+            r.moveChainNames = ['pr2LeftArm', 'pr2LeftGripper', 'pr2Base',
                                 'pr2RightArm', 'pr2RightGripper']
-    else:
-        robot.moveChainNames = ['pr2LeftArm', 'pr2LeftGripper', 'pr2Base']
+        else:
+            r.moveChainNames = ['pr2LeftArm', 'pr2LeftGripper', 'pr2Base']
     # This uses the initial Conf as a reference for inverseKin, when no conf is given
     robot.nominalConf = JointConf(pr2Init, robot)
-    world.setRobot(robot) # robot is in world
-
-    return world
+    world.setRobot(robot) # robot is in world and used for planning
+    thinRobot.nominalConf = JointConf(pr2Init, robot) # used in simulator
+    return world, thinRobot
 
 standardVerticalConf = None
 standardHorizontalConf = None
@@ -497,7 +501,7 @@ class PlanTest:
         self.multiplier = multiplier
         self.objects = objects          # list of objects to consider
         self.domainProbs = domainProbs
-        self.world = testWorld(include=self.objects)
+        self.world, self.thinRobot = testWorld(include=self.objects)
         if not initConfs:
             startTime = time.time()
             print 'Creating initial confs ...',
@@ -626,7 +630,8 @@ class PlanTest:
             debugMsg('robotEnv', result, cnfOut)
         else:
             self.realWorld = RealWorld(world, self.bs,
-                                       self.domainProbs) # simulator
+                                       self.domainProbs,
+                                       robot = self.thinRobot) # simulator
 
             # !! Gross hack for debugging
             glob.realWorld = self.realWorld

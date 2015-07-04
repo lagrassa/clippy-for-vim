@@ -1075,8 +1075,8 @@ class Operator(object):
                 if not f.feasible(startState.details):
                     debugMsg('regression:fail', 'conditional fluent infeasible',
                             f)
-                    print f
-                    raw_input('conditional fluent infeasible')
+                    #print f
+                    #raw_input('conditional fluent infeasible')
                     bindingsNoGood = True
                     break
                 valueAfter = startState.fluentValue(f)

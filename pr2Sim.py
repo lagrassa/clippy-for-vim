@@ -48,9 +48,9 @@ pickSuccessDist = 0.1  # pretty big for now
 laserScanParams = (0.3, 0.2, 0.1, 3., 50)
 
 class RealWorld(WorldState):
-    def __init__(self, world, bs, probs):
+    def __init__(self, world, bs, probs, robot = None):
         # probs is an instance of DomainProbs
-        WorldState.__init__(self, world)
+        WorldState.__init__(self, world, robot)
         self.bs = bs
         self.domainProbs = probs
 
@@ -165,9 +165,9 @@ class RealWorld(WorldState):
     def visibleObj(self, objShapes):
         def rem(l,x): return [y for y in l if y != x]
         prob = 0.95
-        world = self.bs.pbs.getWorld()
+        world = self.world
         shWorld = self.bs.pbs.getShadowWorld(prob)
-        rob = self.bs.pbs.getRobot().placement(self.robotConf, attached=shWorld.attached)[0]
+        rob = world.placement(self.robotConf, attached=shWorld.attached)[0]
         fixed = [s.name() for s in objShapes] + [rob.name()]
         immovable = [s for s in objShapes if s not in world.graspDesc]
         movable = [s for s in objShapes if s in world.graspDesc]

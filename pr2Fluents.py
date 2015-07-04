@@ -1129,8 +1129,10 @@ def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False
         assert path[0] == conf, 'Start of path'
         assert path[-1] == homeConf, 'End of path'
 
-    tr('CRH', 0, '%s h=%s'%(tag, glob.inHeuristic) + \
-       ' viol=%s'%(viol.weight() if viol else None))
+    if viol == None or viol.weight() > 0:
+        # Don't log the "trivial" ones...
+        tr('CRH', 0, '%s h=%s'%(tag, glob.inHeuristic) + \
+           ' viol=%s'%(viol.weight() if viol else None))
 
     if path and debug('backwards'):
         backSteps = []

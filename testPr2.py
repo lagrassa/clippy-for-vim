@@ -1836,15 +1836,17 @@ def firstAid(details, fluent = None):
 
 def canPPDebug(details, fluent):
     glob.debugOn.extend(['confViolations', 'canPickPlace'])
-    pbs.getRoadMap().confReachCache.clear()
-    bc.pathObstCache.clear()
-    bc.objectShadowCache.clear()
-    for c in bc.genCaches.values():
-        c.clear()
-    pr2GenAux.graspConfGenCache.clear()
-    bc.world.robot.cacheReset()
-    pr2Visible.cache.clear()
-    belief.hCacheReset()
+    pbs = details.pbs
+    # pbs.getRoadMap().confReachCache.clear()
+    # bc = pbs.beliefContext
+    # bc.pathObstCache.clear()
+    # bc.objectShadowCache.clear()
+    # for c in bc.genCaches.values():
+    #     c.clear()
+    # pr2GenAux.graspConfGenCache.clear()
+    # bc.world.robot.cacheReset()
+    # pr2Visible.cache.clear()
+    # belief.hCacheReset()
 
     rf = fluent.args[0]
     conds = rf.getConds()

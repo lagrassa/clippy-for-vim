@@ -28,6 +28,8 @@ considerReUsingPaths = True
 
 violationCosts = (10.0, 2.0, 10.0, 5.0)
 
+minGripperDistance = 0.5
+
 # Don't try too hard, fall back to the RRT when we can't find a path quickly
 maxSearchNodes = 1000                   # 5000
 maxExpandedNodes = 400                  # 2000
@@ -780,6 +782,10 @@ class RoadMap:
             return nodes
 
     def robotSelfCollide(self, shape, heldDict={}):
+        def partDistance(p1, p2):
+            c1 = util.Point(np.resize(np.hstack([p1.center(), [1]]), (4,1)))
+            c2 = util.Point(np.resize(np.hstack([p2.center(), [1]]), (4,1)))
+            return c1.distance(c2)
         if glob.inHeuristic: return False
         # Very sparse checks...
         checkParts = {'pr2LeftArm': ['pr2RightArm', 'pr2RightGripper', 'right'],
@@ -787,6 +793,8 @@ class RoadMap:
                       'pr2RightArm': ['left'],
                       'pr2RightGripper': ['left']}
         parts = dict([(part.name(), part) for part in shape.parts()])
+        if partDistance(parts['pr2RightGripper'], parts['pr2LeftGripper']) < minGripperDistance:
+            return True
         for h in handName:
             if h in heldDict and heldDict[h]:
                 parts[h] = heldDict[h]
