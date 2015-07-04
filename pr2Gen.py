@@ -780,6 +780,10 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
     for ans in gen:
         yield ans
 
+placeVarIncreaseFactor = 3 # was 2
+lookVarIncreaseFactor = 2
+
+
 def placeInGenAway(args, goalConds, pbs, outBindings):
     # !! Should search over regions and hands
     (obj, delta, prob) = args
@@ -788,7 +792,8 @@ def placeInGenAway(args, goalConds, pbs, outBindings):
         return
     tr('placeInGenAway', 2, zip(('obj', 'delta', 'prob'), args),
        draw=[(pbs, prob, 'W')], snap=['W'])
-    targetPlaceVar = tuple([2 * x for x in pbs.domainProbs.obsVarTuple])
+    targetPlaceVar = tuple([placeVarIncreaseFactor * x \
+                            for x in pbs.domainProbs.obsVarTuple])
     for ans,v in placeInRegionGenGen((obj, pbs.awayRegions(),
                                       targetPlaceVar, delta, prob),
                                      # preserve goalConds to get reachObsts
@@ -1150,7 +1155,8 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
 
 def moveOut(pbs, prob, obst, delta, goalConds):
     tr('moveOut', 0, 'obst=%s'%obst)
-    domainPlaceVar = pbs.domainProbs.obsVarTuple 
+    domainPlaceVar = tuple([placeVarIncreaseFactor * x \
+                            for x in pbs.domainProbs.obsVarTuple])
     if not isinstance(obst, str):
         obst = obst.name()
     for ans, v in placeInGenAway((obst, delta, prob), goalConds, pbs, None):
@@ -1189,7 +1195,8 @@ def canReachGen(args, goalConds, bState, outBindings):
     def violFn(pbs):
         path, viol = canReachHome(pbs, conf, prob, Violations())
         return viol
-    lookVar = bState.domainProbs.obsVarTuple
+    lookVar = tuple([lookVarIncreaseFactor * x \
+                            for x in pbs.domainProbs.obsVarTuple])
     for ans in canXGenTop(violFn, (cond, prob, lookVar),
                           goalConds, newBS, outBindings, 'canReachGen'):
         tr('canReachGen', 1, ('->', ans))
@@ -1220,7 +1227,8 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
                     True)
     goalConds = goalConds + [cppFluent, poseFluent]
     world = pbs.getWorld()
-    lookVar = bState.domainProbs.obsVarTuple
+    lookVar = tuple([lookVarIncreaseFactor * x \
+                            for x in pbs.domainProbs.obsVarTuple])
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
                        PoseD(graspMu, graspVar), delta= graspDelta)
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
@@ -1272,6 +1280,8 @@ def canXGenTop(violFn, args, goalConds, newBS, outBindings, tag):
         return
 
     #objBMinVarGrasp = tuple([x**2/2*x for x in newBS.domainProbs.obsVarTuple])
+    
+    # LPK Make this a little bigger?
     objBMinVarGrasp = tuple([x/2 for x in newBS.domainProbs.obsVarTuple])
     objBMinVarStatic = tuple([x**2 for x in newBS.domainProbs.odoError])
     objBMinProb = 0.95
