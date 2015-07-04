@@ -115,9 +115,9 @@ def prettyString(struct, eq = True):
         return str(struct)
     elif type(struct)!= int and type(struct) != bool and \
              hasattr(struct, '__float__'):
-        struct = round(struct, 6 if eq else 3)
+        struct = round(struct, 8 if eq else 3)
         if struct == 0: struct = 0      #  catch stupid -0.0
-        return ("%5.6f" % struct) if eq else ("%5.3f" % struct)
+        return ("%5.8f" % struct) if eq else ("%5.3f" % struct)
     elif hasattr(struct, 'prettyString'):
         return struct.prettyString(eq)
     else:

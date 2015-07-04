@@ -114,18 +114,17 @@ class PBS:
         shadows = confViols.allShadows()
         while shadows:
             if shadows:
-                print 'Robot collides with shadows', shadows
-                self.draw(0.98, 'W')
-                raw_input('Try to fix?')
-                # Divide variance in half.  Very crude.  Should find the
-                # max variance that does not result in a shadow colliion.
+                if debug('beliefUpdate'):
+                    print 'Robot collides with shadows', shadows
+                    self.draw(0.98, 'W')
+                    raw_input('Try to fix?')
+                    # Divide variance in half.  Very crude.  Should find the
+                    # max variance that does not result in a shadow colliion.
                 for sh in shadows:
                     obj = objectName(sh)
                     pB = self.getPlaceB(obj)
                     var = pB.poseD.variance()
-                    print 'oldVar', var
                     newVar = tuple(v/2.0 for v in var)
-                    print 'newVar', newVar
                     self.resetPlaceB(obj, pB.modifyPoseD(var=newVar))
                 self.reset()
             confViols = self.beliefContext.roadMap.confViolations(self.conf,
