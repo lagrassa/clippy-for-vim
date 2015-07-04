@@ -167,7 +167,7 @@ class RealWorld(WorldState):
         prob = 0.95
         world = self.world
         shWorld = self.bs.pbs.getShadowWorld(prob)
-        rob = world.placement(self.robotConf, attached=shWorld.attached)[0]
+        rob = world.robot.placement(self.robotConf, attached=shWorld.attached)[0]
         fixed = [s.name() for s in objShapes] + [rob.name()]
         immovable = [s for s in objShapes if s not in world.graspDesc]
         movable = [s for s in objShapes if s in world.graspDesc]
