@@ -15,7 +15,7 @@ from pr2Visible import visible, lookAtConf
 from time import sleep
 from pr2Ops import lookAtBProgress
 from pr2RoadMap import validEdgeTest
-from trace import tr, snap
+from traceFile import tr, snap
 import locate
 reload(locate)
 

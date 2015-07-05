@@ -44,6 +44,7 @@ mergeShadows = False
 approachBackoff = 0.1
 approachPerpBackoff = 0.025
 
+inHeuristic = False
 
 ########################################
 # Robot Parameters

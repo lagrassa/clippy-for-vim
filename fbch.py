@@ -9,7 +9,7 @@ from planGlobals import debugMsg, debug
 import ucSearchPQ as ucSearch
 reload(ucSearch)
 
-from trace import tr
+from traceFile import tr
 
 import miscUtil
 reload(miscUtil)

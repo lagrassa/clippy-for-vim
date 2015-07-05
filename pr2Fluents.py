@@ -13,7 +13,7 @@ from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from pr2RoadMap import validEdgeTest
-from trace import tr, trLog
+from traceFile import tr, trLog
 
 tiny = 1.0e-6
 obstCost = 10  # Heuristic cost of moving an object

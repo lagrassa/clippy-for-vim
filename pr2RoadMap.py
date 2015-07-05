@@ -22,7 +22,7 @@ from miscUtil import prettyString
 from heapq import heappush, heappop
 from planUtil import Violations
 from pr2Util import NextColor, drawPath, shadowWidths, Hashable, combineViols, shadowp
-from trace import tr
+from traceFile import tr
 
 considerReUsingPaths = True
 

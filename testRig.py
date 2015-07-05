@@ -17,9 +17,9 @@ import planGlobals as glob
 reload(glob)
 from planGlobals import debug, debugMsg, useROS
 
-import trace
-reload(trace)
-from trace import traceStart, traceEnd
+import traceFile
+reload(traceFile)
+from traceFile import traceStart, traceEnd
 
 import fbch
 reload(fbch)

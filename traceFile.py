@@ -1,7 +1,6 @@
-import planGlobals
 from planGlobals import debug, debugMsg
 import windowManager3D as wm
-from miscUtil import timeString, prettyString
+from miscUtil import timeString
 import local
 import planGlobals as glob
 
@@ -64,6 +63,7 @@ pngFileId = 0
 htmlFile = None
 htmlFileH = None
 htmlFileId = 0
+
 def traceStart():
     global htmlFile, htmlFileH, htmlFileId
     htmlFile = open(local.htmlGen%(str(htmlFileId), timeString()), 'w')

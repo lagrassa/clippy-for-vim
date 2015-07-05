@@ -7,7 +7,7 @@ import time
 import windowManager3D as wm
 import planGlobals as glob
 from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ
-from trace import tr
+from traceFile import tr
 from miscUtil import isVar, argmax, isGround, tuplify, roundrobin
 from dist import DeltaDist, UniformDist
 from pr2Robot import CartConf

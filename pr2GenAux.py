@@ -22,7 +22,7 @@ from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCOParts
 from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
 from pr2RRT import planRobotGoalPath
-from trace import tr
+from traceFile import tr
 
 Ident = util.Transform(np.eye(4))            # identity transform
 tiny = 1.0e-6

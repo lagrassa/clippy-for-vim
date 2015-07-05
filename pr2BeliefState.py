@@ -3,7 +3,7 @@ import windowManager3D as wm
 from dist import GMU, MultivariateGaussianDistribution, UniformDist, \
      DeltaDist, chiSqFromP
 from miscUtil import prettyString
-from trace import tr, trLog
+from traceFile import tr, trLog
 MVG = MultivariateGaussianDistribution
 
 zeroObjectVarianceArray = [[0]*4]*4
