@@ -23,7 +23,7 @@ def tracep(pause, *msg):
 minTraceLevel = 1
 def traced(genTag, level):
     if not debug('traceGen') \
-       or (level > 1 and (glob.inHeuristic and not debug('inHeuristic'))) \
+       or (level > 1 and (glob.inHeuristic and not debug('debugInHeuristic'))) \
        or (level > minTraceLevel and not debug(genTag)):
         return False
     return True
@@ -35,19 +35,20 @@ def tr(genTag, level, *msg, **keys):
         targetFile = htmlFile
     else:
         targetFile = None
-    if msg and targetFile:
-        targetFile.write('<pre>'+level*'  '+' '+genTag+': '+str(msg[0])+'</pre>\n')
-        for m in msg[1:]:
-            targetFile.write('<pre>'+level*'  '+str(m)+'</pre>\n')
-    draw = keys.get('draw', [])
-    for obj in draw:
-        if not obj[0]: continue
-        if isinstance(obj, (list, tuple)):
-            obj[0].draw(*obj[1:])
-        else:
-            obj.draw('W')
-    if keys.get('snap', []):
-        snap(*keys['snap'])
+    if (not glob.inHeuristic) or debug('debugInHeuristic'):
+        if msg and targetFile:
+            targetFile.write('<pre>'+level*'  '+' '+'(%d)%s'%(glob.planNum, genTag)+': '+str(msg[0])+'</pre>\n')
+            for m in msg[1:]:
+                targetFile.write('<pre>'+level*'  '+str(m)+'</pre>\n')
+        draw = keys.get('draw', [])
+        for obj in draw:
+            if not obj[0]: continue
+            if isinstance(obj, (list, tuple)):
+                obj[0].draw(*obj[1:])
+            else:
+                obj.draw('W')
+        if keys.get('snap', []):
+            snap(*keys['snap'])
     if not traced(genTag, level): return
     if msg:
         print level*'  ', genTag+':', msg[0]
