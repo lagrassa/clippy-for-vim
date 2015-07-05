@@ -603,7 +603,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                     context[ca] = (pB, gB)
                     yield ca
                     # if count > 2: break # !! ??
-        tr(tag, 2, 'found %d confs'%count)
+                tr(tag, 2, 'found %d confs'%count)
 
     def regraspCost(ca):
         if not regrasp:

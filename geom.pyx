@@ -40,7 +40,7 @@ cpdef shapes.Prim convexHullPrim(np.ndarray[np.float64_t, ndim=2] verts,
     # unique indices of ch vertices
     indices = np.array(sorted(list(set(ch.simplices.flatten().tolist()))))
     # create the prim from verts and faces
-    pr = shapes.Prim(verts[:, indices], chFaces(ch, indices), origin)
+    pr = shapes.Prim(verts[:, indices], chFaces(ch, indices), origin, None)
     # pr.draw('W')
     # raw_input('Next')
     return pr

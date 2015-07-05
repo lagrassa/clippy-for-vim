@@ -5,6 +5,15 @@ import util
 cimport util
 from cpython cimport bool
 
+cdef class BaseShape:
+    cdef public dict properties
+    cdef public np.ndarray baseVerts, baseBBox, baseCenter, basePlanes, baseEdges
+    cdef public list baseFaceFrames
+    cdef public Prim basePrim
+    cdef public util.Transform baseOrigin
+    cdef public str baseString
+    cdef public int index
+
 cdef class Thing:
     cdef public dict properties
     cdef public np.ndarray thingVerts, thingBBox, thingCenter, thingPlanes, thingEdges
@@ -25,11 +34,9 @@ cdef class Thing:
     cpdef np.ndarray[np.float64_t, ndim=2] planes(self)
     cpdef np.ndarray[np.int_t, ndim=2] edges(self)
     cpdef Prim prim(self)
-    cpdef Thing applyTransMod(self, util.Transform trans, Thing shape, str frame=*)
-    cpdef Thing applyLocMod(self, util.Transform trans, Thing shape, str frame=*)
     cpdef Thing applyTrans(self, util.Transform trans, str frame=*)
     cpdef Thing applyLoc(self, util.Transform trans, str frame=*)
-    cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt)
+    # cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt)
     cpdef bool collides(self, Thing obj)
     cpdef Shape cut(self, Thing obj, bool isect = *)
     cpdef draw(self, str window, str color = *, float opacity = *)
@@ -37,8 +44,7 @@ cdef class Thing:
     cpdef Prim boundingRectPrim(self)
 
 cdef class Prim(Thing):
-    cdef public np.ndarray primVerts, primPlanes, primEdges
-    cdef public list primFaces
+    cdef BaseShape baseShape
 
     cpdef Prim prim(self)
     cpdef list parts(self)
@@ -47,10 +53,9 @@ cdef class Prim(Thing):
     cpdef np.ndarray[np.float64_t, ndim=2] planes(self)
     cpdef np.ndarray[np.int_t, ndim=2] edges(self)
     cpdef Thing applyTrans(self, util.Transform trans, str frame=*)
-    cpdef Thing applyTransMod(self, util.Transform trans, Thing shape, str frame=*)
-    cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt)
+    # cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt)
     cpdef Shape cut(self, Thing obj, bool isect = *)
-    cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts)
+    # cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts)
     cpdef bool collides(self, Thing obj)
     cpdef Prim xyPrim(self)
     cpdef Prim boundingRectPrim(self)
@@ -58,14 +63,12 @@ cdef class Prim(Thing):
 
 cdef class Shape(Thing):
     cdef public list compParts
-    cdef public np.ndarray compVerts
     cpdef list parts(self)
     cpdef emptyP(self)
     cpdef np.ndarray[np.float64_t, ndim=2] vertices(self)
     cpdef Thing applyTrans(self, util.Transform, str frame=*)
-    cpdef Thing applyTransMod(self, util.Transform, Thing shape, str frame=*)
-    cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt)
-    cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts)
+    # cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt)
+    # cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts)
     cpdef bool collides(self, Thing obj)
     cpdef Shape cut(self, Thing obj, bool isect = *)
     cpdef Prim prim(self)
