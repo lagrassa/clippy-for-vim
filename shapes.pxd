@@ -7,7 +7,7 @@ from cpython cimport bool
 
 cdef class BaseShape:
     cdef public dict properties
-    cdef public np.ndarray baseVerts, baseBBox, baseCenter, basePlanes, baseEdges
+    cdef public np.ndarray baseVerts, basePlanes, baseEdges
     cdef public list baseFaceFrames
     cdef public Prim basePrim
     cdef public util.Transform baseOrigin
@@ -44,7 +44,7 @@ cdef class Thing:
     cpdef Prim boundingRectPrim(self)
 
 cdef class Prim(Thing):
-    cdef BaseShape baseShape
+    cdef public BaseShape baseShape
 
     cpdef Prim prim(self)
     cpdef list parts(self)

@@ -28,27 +28,26 @@ cdef class BaseShape:
                  list faces,
                  util.Transform origin,
                  **props):
+        cdef np.ndarray[np.float64_t, ndim=2] bb
         global BaseIndex
         self.properties = props.copy()
         if not 'name' in self.properties:
             self.properties['name'] = util.gensym('Base')
-        self.baseBBox = vertsBBox(verts, None)
-        self.baseCenter = bboxCenter(self.baseBBox)
+        bb = vertsBBox(verts, None)   # the bbox for original verts
         if origin:
             self.baseOrigin = origin
         else:
             trans = np.eye(4, dtype=np.float64)
-            trans[:3, 3] = self.baseCenter[:3]
+            trans[:3, 3] = bboxCenter(bb)[:3]
             self.baseOrigin = util.Transform(trans)
         self.baseVerts = verts
-        self.basePlanes = primPlanes(verts, faces)
-        self.baseEdges = primEdges(verts, faces)
-        bb = self.baseBBox
+        self.basePlanes = primPlanes(self.baseVerts, faces)
+        self.baseEdges = primEdges(self.baseVerts, faces)
         bbPlanes = np.array([[-1.,0.,0., bb[0,0]], [1.,0.,0., -bb[1,0]],
                              [0.,-1,0., bb[0,1]], [0.,1.,0., -bb[1,1]],
                              [0.,0.,-1., bb[0,2]], [0.,0.,1., -bb[1,2]]])
         self.baseFaceFrames = thingFaceFrames(bbPlanes, self.baseOrigin)
-        self.baseString = self.properties['name']+':'+str(self.baseBBox.tolist())
+        self.baseString = self.properties['name']+':'+str(bb.tolist())
         self.index = BaseIndex
         BaseIndex += 1
     
@@ -247,12 +246,17 @@ cdef class Prim(Thing):
 
     cpdef np.ndarray[np.float64_t, ndim=2] vertices(self):
         if self.thingVerts is None:
-            self.thingVerts = np.dot(self.thingOrigin.matrix, self.baseShape.baseVerts)
+            self.thingVerts = np.dot(np.dot(self.thingOrigin.matrix,
+                                            self.baseShape.baseOrigin.inverse().matrix),
+                                     self.baseShape.baseVerts)
         return self.thingVerts
 
     cpdef np.ndarray[np.float64_t, ndim=2] planes(self):
         if self.thingPlanes is None:
-            self.thingPlanes = np.dot(self.baseShape.basePlanes, self.thingOrigin.inverse().matrix)
+            trans = np.dot(self.thingOrigin.matrix,
+                           self.baseShape.baseOrigin.inverse().matrix)
+            self.thingPlanes = np.dot(self.baseShape.basePlanes,
+                                      trans.inverse().matrix)
         return self.thingPlanes
 
     cpdef list faces(self):
@@ -325,7 +329,11 @@ cdef class Shape(Thing):
     def __init__(self, list parts, util.Transform origin, **props):
         self.compParts = parts
         if parts:
-            Thing.__init__(self, None, origin, **props)
+
+            # Need to avoid instantiating all the vertices when
+            # constructing a composite object, like a robot placement !!
+            
+            Thing.__init__(self, bboxUnion([x.bbox() for x in self.parts()]), origin, **props)
             if not 'name' in self.properties:
                 self.properties['name'] = util.gensym('Shape')
         else:
