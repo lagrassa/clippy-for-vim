@@ -251,3 +251,19 @@ cpdef np.ndarray bboxMinkowskiXY(np.ndarray[np.float64_t, ndim=2] bb1,
 # The bbox referenced to its base center
 cpdef np.ndarray bboxRefXY(np.ndarray[np.float64_t, ndim=2] bb):
     return bb - bboxCenter(bboxZproject(bb))
+
+cpdef np.ndarray bboxOrigin(np.ndarray[np.float64_t, ndim=2] bb):
+    trans = np.eye(4, dtype=np.float64)
+    trans[:3, 3] = bboxCenter(bb)[:3]
+    return trans
+
+cpdef bool bboxGrownOverlap(np.ndarray[np.float64_t, ndim=2] bb1,
+                            np.ndarray[np.float64_t, ndim=2] bb2,
+                            float delta = 0.01):
+    # Touching is not overlap
+    # return not (np.any(bb1[0] >= bb2[1]) or np.any(bb1[1] <= bb2[0]))
+    # Due to a Cython bug... cannot convert numpy.bool_ to bool
+    return False if \
+           bb1[0][0]-delta >= bb2[1][0]+delta or bb1[1][0]+delta <= bb2[0][0]-delta or \
+           bb1[0][1]-delta >= bb2[1][1]+delta or bb1[1][1]+delta <= bb2[0][1]-delta or \
+           bb1[0][2]-delta >= bb2[1][2]+delta or bb1[1][2]+delta <= bb2[0][2]-delta else True

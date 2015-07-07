@@ -1194,7 +1194,8 @@ def inTest(bState, obj, regName, prob, pB=None):
     shWorld = bState.pbs.getShadowWorld(prob)
     region = shWorld.regionShapes[regName]
 
-    ans = np.all(np.all(np.dot(region.planes(), shadow.prim().vertices()) <= tiny, axis=1))
+    ans = any([np.all(np.all(np.dot(r.planes(), shadow.prim().vertices()) <= tiny, axis=1)) \
+               for r in region.parts()])
 
     if debug('testVerbose') or debug('inTest'):
         bState.pbs.draw(prob, 'W')

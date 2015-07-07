@@ -32,3 +32,7 @@ cpdef np.ndarray[np.float64_t, ndim=2] bboxZproject(np.ndarray[np.float64_t, ndi
 cpdef np.ndarray[np.float64_t, ndim=2] bboxMinkowskiXY(np.ndarray[np.float64_t, ndim=2] bb1,
                                  np.ndarray[np.float64_t, ndim=2] bb2)
 cpdef np.ndarray[np.float64_t, ndim=2] bboxRefXY(np.ndarray[np.float64_t, ndim=2] bb)
+cpdef np.ndarray[np.float64_t, ndim=2] bboxOrigin(np.ndarray[np.float64_t, ndim=2] bb)
+cpdef bool bboxGrownOverlap(np.ndarray[np.float64_t, ndim=2] bb1,
+                  	    np.ndarray[np.float64_t, ndim=2] bb2,
+		            float delta = *)			

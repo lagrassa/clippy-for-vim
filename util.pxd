@@ -8,6 +8,7 @@ cdef class Transform(object):
     cdef np.ndarray matrixInv
     cdef Quat q 
     cdef Point pt
+    cdef str reprString
 
     cpdef Transform inverse(self)
     cpdef Transform invertCompose(self, Transform trans)
@@ -22,7 +23,6 @@ cdef class Transform(object):
 
 cdef class Pose(Transform):
     cdef public float x,y,z,theta
-    cdef  reprString
 
     cpdef initTrans(self)
     cpdef setX(self, float x)

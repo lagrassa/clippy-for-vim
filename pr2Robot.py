@@ -34,7 +34,7 @@ from pr2InvKin import armInvKin
 # ik.fkLeft.restype = None
 # ik.fkRight.restype = None
 
-Ident = util.Transform(np.eye(4))            # identity transform
+Ident = util.Transform(np.eye(4, dtype=np.float64)) # identity transform
 
 def vec(str):
     return [float(x) for x in str.split()]

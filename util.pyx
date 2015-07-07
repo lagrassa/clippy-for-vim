@@ -29,6 +29,7 @@ cdef class Transform:
         self.eqAngleEps = 0.01                 # for equality
         self.matrix = m
         self.matrixInv = None
+        self.reprString = None
         if (not q is None) and (not p is None):
             self.q = Quat(q)
             self.pt = Point(p)
@@ -155,25 +156,24 @@ cdef class Transform:
         return self.applyToPoint(point)
 
     def __repr__(self):
-        return 'util.Transform(p='+str(self.point().matrix.T)+', q='+str(self.quat().matrix)+')'
+        if not self.reprString:
+            self.reprString = str(self.matrix.tolist())
+        return self.reprString
     def __str__(self):
-        return str(self.matrix)
+        return repr(self)
     def __copy__(self):
         return Transform(self.matrix.copy())
     def __richcmp__(self, other, int op):
         if not (other and isinstance(other, Transform)):
             return True if op == 3 else False
-        # print 'Testing equality for:'
-        # print self
-        # print other
-        # print 'epsilons', self.eqDistEps, self.eqAngleEps
         ans = self.near(other, self.eqDistEps, self.eqAngleEps) if op == 2 else False
-        # print 'ans=', ans
         return ans
     def __hash__(self):
-        return id(self)
-    __deepcopy__ = __copy__
-    copy = __copy__
+        return hash(repr(self))
+    def __deepcopy__(self):
+        return self.__copy__(self)
+    def copy(self):
+        return self.__copy__(self)
 
 cdef Transform Ident = Transform(np.eye(4))            # identity transform
 
@@ -294,23 +294,23 @@ cdef class Pose(Transform):             # 2.5D transform
         return Pose(self.x, self.y, self.z, self.theta)
     def __deepcopy__(self):
         return Pose(self.x, self.y, self.z, self.theta)
-
     def __str__(self):
-        if not self.reprString:
-            # An attempt to make string equality useful
-            self.reprString = 'Pose[' + prettyString(self.x) + ', ' +\
-                              prettyString(self.y) + ', ' +\
-                              prettyString(self.z) + ', ' +\
-                              (prettyString(self.theta) \
-                              if self.theta <= 6.283 else prettyString(0.0))\
-                              + ']'
-        return self.reprString
+        return 'Pose[' + prettyString(self.x) + ', ' +\
+               prettyString(self.y) + ', ' +\
+               prettyString(self.z) + ', ' +\
+               (prettyString(self.theta) \
+                if self.theta <= 6.283 else prettyString(0.0))\
+                + ']'
     def __repr__(self):
-        return 'util.Pose(' + \
-               repr(self.x) + ',' + \
-               repr(self.y) + ',' + \
-               repr(self.z) + ',' + \
-               repr(self.theta) + ')'
+        if not self.reprString:
+            self.reprString = 'util.Pose(' + \
+                              repr(self.x) + ',' + \
+                              repr(self.y) + ',' + \
+                              repr(self.z) + ',' + \
+                              repr(self.theta) + ')'
+        return self.reprString
+    def __hash__(self):
+        return hash(str(self))
 
 #################################
 # Point

@@ -12,6 +12,7 @@ import shapes
 
 cimport geom
 from geom import vertsBBox, bboxContains
+import windowManager3D as wm
 
 tiny = 1.0e-6
 
@@ -69,16 +70,14 @@ cdef class Scan:
                and abs(t*ptLocal.z) <= height \
                and (ptLocal.x**2 + ptLocal.y**2 + ptLocal.z**2 < length**2)
 
-    cpdef draw(self, window, str color = None):
-        cdef:
-            float r = 0.01
-            np.ndarray[np.float64_t, ndim=2] v
+    def draw(self, window, str color = None):
         if self.scanParams:
             (focal, height, width, length, n) = self.scanParams
         else:
             length = 3.0
 
         # Draw a coordinate frame (RGB = XYZ)
+        r = 0.01
         ray = shapes.BoxAligned(np.array([(-r, -r, -r), (length/3., r, r)]), None)
         ray.applyTrans(self.headTrans).draw(window, color='red')
         ray = shapes.BoxAligned(np.array([(-r, -r, -r), (r, length/3., r)]), None)
@@ -86,13 +85,16 @@ cdef class Scan:
         ray = shapes.BoxAligned(np.array([(-r, -r, -r), (r, r, length/3.)]), None)
         ray.applyTrans(self.headTrans).draw(window, color='blue')
 
-        pointBox = shapes.BoxAligned(np.array([(-r, -r, -r), (r, r, r)]), None)
-        v = self.vertices
-        for i from 0 <= i < v.shape[1]:
-            pose = util.Pose(v[0,i], v[1,i], v[2,i], 0.0)
-            pointBox.applyTrans(pose).draw(window, color or self.color)
+        wm.getWindow(window).draw(self.vertices, color or self.color)
 
-cpdef np.ndarray[np.float64_t, ndim=2] scanVerts(tuple scanParams, util.Transform pose):
+        # pointBox = shapes.BoxAligned(np.array([(-r, -r, -r), (r, r, r)]), None)
+        # v = self.vertices
+        # for i from 0 <= i < v.shape[1]:
+        #     pose = util.Pose(v[0,i], v[1,i], v[2,i], 0.0)
+        #     pointBox.applyTrans(pose).draw(window, color or self.color)
+
+
+cpdef np.ndarray scanVerts(tuple scanParams, util.Transform pose):
     cdef:
        float focal, height, width, length, deltaX, deltaY, dirX, dirY, y, z, x, w
        set points
@@ -166,7 +168,7 @@ def simulatedDepthMap(scan, objects):
 
 # Computes an array of normalized depths [0,1] along given "edge" segments
 # t1 is "fake" object with only vertices and edges, but no faces.
-cpdef bool updateDepthMap(Scan scan, shapes.Thing thing,
+cpdef bool updateDepthMap(Scan scan, shapes.Prim thing,
                           np.ndarray[np.float64_t, ndim=1] depth,
                           list contacts, int objId, list onlyUpdate = []):
     cdef:
@@ -214,7 +216,7 @@ cpdef bool updateDepthMap(Scan scan, shapes.Thing thing,
 cpdef float edgeCross(np.ndarray[np.float64_t, ndim=1] p0, # row vector
                       np.ndarray[np.float64_t, ndim=1] p1, # row vector
                       np.ndarray[np.float64_t, ndim=2] dots,
-                      shapes.Thing thing):
+                      shapes.Prim thing):
     cdef:
         np.ndarray[np.float64_t, ndim=1] diff, pt
         float d0, d1, prod, t

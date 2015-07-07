@@ -501,7 +501,8 @@ class PBS:
         sh = shape.applyLoc(frame)      # the shape with the specified support
         shadow = makeShadow(sh, prob, poseBel, name=shName, color=color)
         self.beliefContext.objectShadowCache[key] = shadow
-        debugMsg('objShadow', key, ('->', shadow.bbox()))
+        if debug('objShadow'):
+            debugMsg('objShadow', key, ('->', shadow.bbox()))
         return shadow
 
     def draw(self, p = 0.9, win = 'W', clear=True):

@@ -3,7 +3,8 @@ import numpy as np
 cimport numpy as np
 from cpython cimport bool
 cimport shapes
-import shapes
+from planGlobals import debug
+import gjk
 
 #################################
 # Basic collision tests
@@ -21,7 +22,14 @@ tiny = 1.0e-6
 
 # np.any seems to be really slow... so it's been re-written...
 
-cpdef bool thingThingCollides(shapes.Thing t1, shapes.Thing t2):
+cpdef bool primPrimCollides(shapes.Prim t1, shapes.Prim t2):
+    if debug('useGJK'):
+        ans2 = gjk.gjkDist(t1, t2)
+        return ans2 < 1.0e-6
+    else:
+        return primPrimCollidesReal(t1, t2)
+
+cpdef bool primPrimCollidesReal(shapes.Prim t1, shapes.Prim t2):
     cdef:
         np.ndarray[np.float64_t, ndim=2] verts1, verts2, planes1, planes2, f2xv1, f1xv2
         int nv1, nv2, nt1, nt2, i, j, inside, separate
@@ -66,11 +74,11 @@ cpdef bool thingThingCollides(shapes.Thing t1, shapes.Thing t2):
     # Check if centers are inside, mostly to handle alignments.
     if np.all(np.dot(planes1, np.resize((1./nv2)*np.sum(verts2, axis=1),(4,1)))<=0): return True
     if np.all(np.dot(planes2, np.resize((1./nv1)*np.sum(verts1, axis=1),(4,1)))<=0): return True
-    return thingThingCollidesAux(t1, t2, f2xv1) or\
-           thingThingCollidesAux(t2, t1, f1xv2)
+    return primPrimCollidesAux(t1, t2, f2xv1) or\
+           primPrimCollidesAux(t2, t1, f1xv2)
 
 # check edges of 1 vs faces of 2
-cpdef bool thingThingCollidesAux(shapes.Thing thing1, shapes.Thing thing2,
+cpdef bool primPrimCollidesAux(shapes.Prim prim1, shapes.Prim prim2,
                                 np.ndarray[np.float64_t, ndim=2] f2xv1): 
     cdef:
         np.ndarray[np.float64_t, ndim=2] verts
@@ -78,8 +86,8 @@ cpdef bool thingThingCollidesAux(shapes.Thing thing1, shapes.Thing thing2,
         np.ndarray[np.int_t, ndim=2] edges
         np.ndarray[np.int_t, ndim=1] indices
         int e
-    verts = thing1.vertices()            # 4xn array
-    edges = thing1.edges()               # ex2 array
+    verts = prim1.vertices()            # 4xn array
+    edges = prim1.edges()               # ex2 array
     for e in range(edges.shape[0]):
         crossPlanes = f2xv1[:, edges[e,0]] * f2xv1[:, edges[e,1]]
         indices = np.where(crossPlanes < 0)[0]
@@ -88,14 +96,14 @@ cpdef bool thingThingCollidesAux(shapes.Thing thing1, shapes.Thing thing2,
             p1 = verts[:, edges[e,1]]
             if edgeCross(p0, p1,
                          f2xv1[np.ix_(indices, edges[e])],
-                         thing2):
+                         prim2):
                 return True
     return False
 
 cpdef bool edgeCross(np.ndarray[np.float64_t, ndim=1] p0, # row vector
                      np.ndarray[np.float64_t, ndim=1] p1, # row vector
                      np.ndarray[np.float64_t, ndim=2] dots,
-                     shapes.Thing thing):
+                     shapes.Prim prim):
     cdef:
         np.ndarray[np.float64_t, ndim=1] diff, pt
         float d0, d1, prod, t
@@ -108,7 +116,7 @@ cpdef bool edgeCross(np.ndarray[np.float64_t, ndim=1] p0, # row vector
         t = - d0/(d1 - d0)
         assert 0 <= t <= 1
         pt = p0 + t*diff
-        if np.all(np.dot(thing.planes(), pt.reshape(4,1)) <= tiny):          # brute force
+        if np.all(np.dot(prim.planes(), pt.reshape(4,1)) <= tiny):          # brute force
             return True
     return False
 

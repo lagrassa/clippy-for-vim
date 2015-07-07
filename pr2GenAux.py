@@ -10,6 +10,7 @@ import planGlobals as glob
 from planGlobals import debugMsg, debugDraw, debug, pause, torsoZ
 from miscUtil import argmax, isGround, isVar, argmax, squashOne
 from dist import UniformDist, DDist
+from geom import bboxCenter
 from pr2Robot import CartConf, gripperFaceFrame
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowName, objectName, Memoizer
@@ -464,7 +465,7 @@ def potentialLookConfGen(pbs, prob, shape, maxDist):
         bb = shape.applyTrans(basePoseInv).bbox()
         return bb[0][0] > 0 and bb[1][0] > 0
 
-    centerPoint = util.Point(np.resize(np.hstack([shape.center(), [1]]), (4,1)))
+    centerPoint = util.Point(np.resize(np.hstack([bboxCenter(shape.bbox()), [1]]), (4,1)))
     tested = set([])
     rm = pbs.getRoadMap()
     for node in rm.nodes():             # !!
@@ -832,7 +833,9 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     if placeB.poseD.mode():
         print 'potentialRegionPoseGen pose specified', placeB.poseD.mode()
         sh = objShadow.applyLoc(placeB.objFrame()).prim()
-        if any(np.all(np.all(np.dot(rs.planes(), sh.vertices()) <= tiny, axis=1)) \
+        verts = sh.vertices()
+        if any(any(np.all(np.all(np.dot(r.planes(), verts) <= tiny, axis=1)) \
+                   for r in rs.parts()) \
                for rs in regShapes)  and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
             print 'potentialRegionPoseGen pose specified and safely in region', placeB.poseD.mode()
@@ -1006,6 +1009,9 @@ def bboxGridCoords(bb, n=5, z=None, res=None):
     return points
 
 def inside(obj, reg):
+    return any(insideAux(obj, r) for r in reg.parts())
+
+def insideAux(obj, reg):
     # all([np.all(np.dot(reg.planes(), p) <= 1.0e-6) for p in obj.vertices().T])
     verts = obj.vertices()
     for i in xrange(verts.shape[1]):

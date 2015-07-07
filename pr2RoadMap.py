@@ -10,7 +10,7 @@ import shapes
 from ranges import *
 from pr2Robot import CartConf
 from objects import WorldState
-from geom import bboxOverlap, bboxUnion
+from geom import bboxOverlap, bboxUnion, bboxCenter
 from transformations import quaternion_slerp
 import ucSearchPQ as search
 reload(search)
@@ -783,8 +783,9 @@ class RoadMap:
 
     def robotSelfCollide(self, shape, heldDict={}):
         def partDistance(p1, p2):
-            c1 = util.Point(np.resize(np.hstack([p1.center(), [1]]), (4,1)))
-            c2 = util.Point(np.resize(np.hstack([p2.center(), [1]]), (4,1)))
+            
+            c1 = util.Point(np.resize(np.hstack([bboxCenter(p1.bbox()), [1]]), (4,1)))
+            c2 = util.Point(np.resize(np.hstack([bboxCenter(p2.bbox()), [1]]), (4,1)))
             return c1.distance(c2)
         if glob.inHeuristic: return False
         # Very sparse checks...

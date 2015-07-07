@@ -164,14 +164,14 @@ def testRepeat(n, repeat=3, **args):
         except TimeoutError:
             print '************** Timed out **************'
 
-testResults = {}
-
 def testAll(indices, repeat=3, crashIsError=True, **args):
     pr2Sim.crashIsError = crashIsError
     for i in indices:
         if i == 0: continue
         testRepeat(i, repeat=repeat, **args)
     print testResults
+
+testResults = {}
 
 ######################################################################
 # Test Cases
@@ -228,6 +228,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
             bbox = world.getObjectShapeAtOrigin(name).bbox()
             regName = name+'Top'
             print 'Region', regName, '\n', bbox
+
             world.addObjectRegion(name, regName, Sh([Ba(bbox)], name=regName),
                                   util.Pose(0,0,2*bbox[1,2],0))
             bboxLeft = np.empty_like(bbox); bboxLeft[:] = bbox
