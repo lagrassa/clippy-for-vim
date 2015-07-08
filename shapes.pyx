@@ -22,7 +22,7 @@ from collision import primPrimCollides
 # Object classes: Thing, Prim, Shape
 #################################
 
-cdef float tiny = 1.0e-6
+cdef double tiny = 1.0e-6
 
 cdef class Thing:
     """Most unspecific class of object, characterized by a bbox. All
@@ -71,7 +71,7 @@ cdef class Thing:
 
     cpdef np.ndarray[np.float64_t, ndim=2] vertices(self):
         cdef:
-            float xlo, ylo, zlo, xhi, yhi, zhi
+            double xlo, ylo, zlo, xhi, yhi, zhi
             np.ndarray[np.float64_t, ndim=2] points, bb
         if self.thingVerts is None:
             bb = self.bbox()
@@ -84,7 +84,7 @@ cdef class Thing:
 
     cpdef np.ndarray[np.float64_t, ndim=2] planes(self):
         cdef:
-            float xlo, ylo, zlo, xhi, yhi, zhi
+            double xlo, ylo, zlo, xhi, yhi, zhi
             np.ndarray[np.float64_t, ndim=2] bb
         if self.thingPlanes is None:
             bb = self.bbox()
@@ -146,7 +146,7 @@ cdef class Thing:
     # cpdef Prim boundingRectPrim(self):
     #     return self.prim()
 
-    cpdef draw(self, str window, str color = 'black', float opacity = 1.0):
+    cpdef draw(self, str window, str color = 'black', double opacity = 1.0):
         """Ask the window to draw this object."""
         win.getWindow(window).draw(self, color, opacity)
         
@@ -182,8 +182,10 @@ cdef class BasePrim:
             self.properties['name'] = util.gensym('Base')
         self.baseBBox = bb = vertsBBox(verts, None)   # the bbox for original verts
         self.baseVerts = verts
+        self.baseFaces = faces
         self.basePlanes = primPlanes(self.baseVerts, faces)
         self.baseEdges = primEdges(self.baseVerts, faces)
+        self.baseRings = None # primRings(self.baseEdges)
         bbPlanes = np.array([[-1.,0.,0., bb[0,0]], [1.,0.,0., -bb[1,0]],
                              [0.,-1,0., bb[0,1]], [0.,1.,0., -bb[1,1]],
                              [0.,0.,-1., bb[0,2]], [0.,0.,1., -bb[1,2]]])
@@ -210,6 +212,7 @@ cdef class Prim:
         self.primVerts = None
         self.primPlanes = None
         self.primBBox = None
+        self.tupleBBox = None
 
     cpdef Prim prim(self):
         return self
@@ -243,6 +246,7 @@ cdef class Prim:
     cpdef np.ndarray[np.float64_t, ndim=2] bbox(self):
         if self.primBBox is None:
             self.primBBox = vertsBBox(self.vertices(), None)
+            self.tupleBBox = tuple([tuple(x) for x in self.primBBox.tolist()])
         return self.primBBox
 
     cpdef tuple zRange(self):
@@ -317,18 +321,20 @@ cdef class Prim:
     cpdef Prim boundingRectPrim(self):
         return boundingRectPrimAux(self.vertices(), self.primOrigin, self.properties)
 
-    cpdef draw(self, str window, str color = 'black', float opacity = 1.0):
+    cpdef draw(self, str window, str color = 'black', double opacity = 1.0):
         """Ask the window to draw this object."""
         win.getWindow(window).draw(self, color, opacity)
 
     cpdef tuple desc(self):
-        return (tuple([tuple(x) for x in self.basePrim.baseBBox.tolist()]), self.primOrigin)
+        if not self.tupleBBox:
+            self.bbox()                 # sets it
+        return self.properties['name']+':'+str(self.tupleBBox)
     def __str__(self):
         return self.properties['name']+':'+str(self.desc())
     def __repr__(self):
         return str(self)
     def __hash__(self):
-        return hash(self.desc())
+        return hash(self.properties['name']+':'+str(self.desc()))
     def __richcmp__(self, other, int op):
         if not (other and isinstance(other, Prim)):
             return True if op == 3 else False
@@ -353,6 +359,7 @@ cdef class Shape:
         if not 'name' in self.properties:
             self.properties['name'] = util.gensym('Shape')
         self.shapeBBox = None
+        self.tupleBBox = None
 
     cpdef list parts(self):
         return self.shapeParts
@@ -379,6 +386,7 @@ cdef class Shape:
     cpdef np.ndarray[np.float64_t, ndim=2] bbox(self):
         if self.shapeBBox is None:
             self.shapeBBox = bboxUnion([x.bbox() for x in self.parts()])
+            self.tupleBBox = tuple([tuple(x) for x in self.shapeBBox.tolist()])
         return self.shapeBBox
 
     # cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt):
@@ -459,9 +467,11 @@ cdef class Shape:
                if self.parts() else None
 
     cpdef tuple desc(self):
-        return tuple([p.desc() for p in self.parts()])
+        if not self.tupleBBox:
+            self.bbox()                 # sets it
+        return self.tupleBBox
 
-    cpdef draw(self, str window, str color = 'black', float opacity = 1.0):
+    cpdef draw(self, str window, str color = 'black', double opacity = 1.0):
         """Ask the window to draw this object."""
         win.getWindow(window).draw(self, color, opacity)
     
@@ -470,7 +480,7 @@ cdef class Shape:
     def __repr__(self):
         return str(self)
     def __hash__(self):
-        return hash(self.desc())
+        return hash(self.properties['name']+':'+str(self.desc()))
     def __richcmp__(self, other, int op):
         if not (other and isinstance(other, Shape)):
             return True if op == 3 else False
@@ -488,11 +498,11 @@ cdef class Shape:
 #################################
 
 cdef class Box(Prim):
-    def __init__(self, float dx, float dy, float dz, util.Transform origin, **props):
+    def __init__(self, double dx, double dy, double dz, util.Transform origin, **props):
         cdef:
-            float hdx = 0.5*dx
-            float hdy = 0.5*dy
-            float hdz = 0.5*dz
+            double hdx = 0.5*dx
+            double hdy = 0.5*dy
+            double hdz = 0.5*dz
             np.ndarray[np.float64_t, ndim=2] points
         if not 'name' in props:
             props = mergeProps(props, {'name':util.gensym("box")})
@@ -505,11 +515,11 @@ cdef class Box(Prim):
                       **props)
 
 cdef class BoxScale(Prim):
-    def __init__(self, float dx, float dy, float dz, util.Transform origin, float scale, **props):
+    def __init__(self, double dx, double dy, double dz, util.Transform origin, double scale, **props):
         cdef:
-            float hdx = 0.5*dx
-            float hdy = 0.5*dy
-            float hdz = 0.5*dz
+            double hdx = 0.5*dx
+            double hdy = 0.5*dy
+            double hdz = 0.5*dz
             np.ndarray[np.float64_t, ndim=2] points
         if not 'name' in props:
             props = mergeProps(props, {'name':util.gensym("box")})
@@ -522,9 +532,9 @@ cdef class BoxScale(Prim):
                       **props)
 
 cdef class Ngon(Prim):
-    def __init__(self, float r, dz, int nsides, util.Transform origin, **props):
+    def __init__(self, double r, dz, int nsides, util.Transform origin, **props):
         cdef:
-            float hdz, ang
+            double hdz, ang
             int i
             np.ndarray[np.float64_t, ndim=2] points
         hdz = 0.5*dz
@@ -542,12 +552,19 @@ cdef class Ngon(Prim):
 cdef class BoxAligned(Prim):
     def __init__(self, np.ndarray[np.float64_t, ndim=2] bbox, util.Transform origin, **props):
         cdef:
-            float xlo, ylo, zlo, xhi, yhi, zhi
+            double xlo, ylo, zlo, xhi, yhi, zhi
             np.ndarray[np.float64_t, ndim=2] points
         if not 'name' in props:
             props = mergeProps(props, {'name':util.gensym("box")})
-        center = util.Transform(bboxOrigin(bbox))
         ((xlo, ylo, zlo), (xhi, yhi, zhi)) = bbox.tolist()
+        if xhi < xlo or yhi < ylo or zhi < zlo:
+            print 'bbox', bbox, props
+            raw_input('BBox for BoxAligned is inside out, ok to flip?')
+            xlo, xhi = min(xlo, xhi), max(xlo, xhi)
+            ylo, yhi = min(ylo, yhi), max(ylo, yhi)
+            zlo, zhi = min(zlo, zhi), max(zlo, zhi)
+            bbox = np.array(((xlo, ylo, zlo), (xhi, yhi, zhi)))
+        center = util.Transform(bboxOrigin(bbox))
         points = np.array([[xlo, ylo, zlo, 1.], [xhi, ylo, zlo, 1.],
                            [xhi, yhi, zlo, 1.], [xlo, yhi, zlo, 1.]]).T
         if origin:
@@ -578,7 +595,7 @@ cdef class Polygon(Prim):
 #################################################################################
 
 cpdef np.ndarray[np.float64_t, ndim=2] vertsFrom2D(np.ndarray[np.float64_t, ndim=2] verts,
-                                                   float zlo, float zhi):
+                                                   double zlo, double zhi):
     cdef:
         np.ndarray[np.float64_t, ndim=2] vertsLo, vertsHi
         int i
@@ -590,7 +607,7 @@ cpdef np.ndarray[np.float64_t, ndim=2] vertsFrom2D(np.ndarray[np.float64_t, ndim
     return np.hstack([vertsLo, vertsHi])
 
 cpdef np.ndarray[np.float64_t, ndim=2] vertsFrom2DScale(np.ndarray[np.float64_t, ndim=2] verts,
-                                                        float zlo, float zhi, float scale):
+                                                        double zlo, double zhi, double scale):
     cdef:
         np.ndarray[np.float64_t, ndim=2] vertsLo, vertsHi
         int i
@@ -618,10 +635,10 @@ cpdef list facesFrom2D(int n):
 
 # Returns an array of planes, one for each face
 # The plane equations is n x + d = 0.  n;d are rows of matrix.
-cdef np.ndarray[np.float64_t, ndim=2] primPlanes(np.ndarray[np.float64_t, ndim=2] verts,
+cpdef np.ndarray[np.float64_t, ndim=2] primPlanes(np.ndarray[np.float64_t, ndim=2] verts,
                                                  list faces):
     cdef:
-        float mag, d
+        double mag, d
         np.ndarray[np.float64_t, ndim=1] n
         np.ndarray[np.float64_t, ndim=2] planes
         np.ndarray[np.int_t, ndim=1] face
@@ -637,6 +654,8 @@ cdef np.ndarray[np.float64_t, ndim=2] primPlanes(np.ndarray[np.float64_t, ndim=2
                  np.dot(n, verts[:, face[2]][:3]))/3.0
             planes[f,:3] = n            # unit normal
             planes[f,3] = -d            # -distance from origin
+    if np.any(np.dot(planes, np.average(verts, axis=1)) > 0.0):
+        raw_input('Planes do not enclose centroid')
     return planes
 
 # The indices of edges
@@ -661,6 +680,32 @@ cdef np.ndarray[np.int_t, ndim=2] primEdges(np.ndarray[np.float64_t, ndim=2] ver
         edges[i,0] = tail
         edges[i,1] = head
     return edges
+
+cdef np.ndarray[np.int_t, ndim=1] primRings(np.ndarray[np.int_t, ndim=2] edges):
+    cdef:
+        dict vconn = {}
+        int i, j, ind, nv, n
+        list vc, entries
+        np.ndarray[np.int_t, ndim=1] rings
+    for i in range(edges.shape[0]):
+        for (a,b) in ((0,1),(1,0)):
+            if edges[i,a] in vconn:
+                vconn[edges[i,a]].append(edges[i, b])
+            else:
+                vconn[edges[i,a]] = [edges[i,b]]
+    nv = len(vconn)
+    n = nv + sum([len(vc)+1 for vc in vconn.values()])
+    rings = np.zeros(n, dtype=np.int)
+    ind = nv
+    for i in range(nv):
+        rings[i] = ind
+        entries = vconn[i]
+        for j, e in enumerate(entries):
+            rings[j + ind] = e
+        ind += len(entries)
+        rings[ind] = -1
+        ind += 1
+    return rings
 
 cdef Prim xyPrimAux(np.ndarray[np.float64_t, ndim=2] verts,
                     tuple zr, util.Transform origin, dict props):
@@ -710,7 +755,7 @@ def toPrims(obj):
 cpdef list thingFaceFrames(np.ndarray[np.float64_t, ndim=2] planes,
                          util.Transform origin):
     cdef:
-        float d, cr
+        double d, cr
         int i, yi
         list vo
         np.ndarray[np.float64_t, ndim=1] x, y, z

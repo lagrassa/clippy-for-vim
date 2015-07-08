@@ -12,7 +12,7 @@ from planGlobals import debug
 ######################################################################
 # Cutting one polyhedron with another
 ######################################################################
-cdef float tiny = 1.0e-6
+cdef double tiny = 1.0e-6
 
 cpdef shapes.Shape primPrimCut(shapes.Prim p1, shapes.Prim p2, bool isect = False):
     """
@@ -85,7 +85,7 @@ cdef tuple facePrimCut(np.ndarray[np.float64_t, ndim=1] plane,
         np.ndarray[np.float64_t, ndim=1] dots, pt, p0, p1
         np.ndarray[np.int_t, ndim=2] edges
         np.ndarray[np.int_t, ndim=1] inv, outv
-        float d0, d1, prod, t
+        double d0, d1, prod, t
         int e
     verts = prim.vertices()
     edges = prim.edges()

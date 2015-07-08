@@ -24,7 +24,11 @@ tiny = 1.0e-6
 
 cpdef bool primPrimCollides(shapes.Prim t1, shapes.Prim t2):
     if debug('useGJK'):
+        # ans1 = primPrimCollidesReal(t1, t2)
         ans2 = gjk.gjkDist(t1, t2)
+        # if (ans2 < 1.0e-6) != ans1:
+        #     print ans1, ans2
+        #     raw_input('Inconsistent collision')
         return ans2 < 1.0e-6
     else:
         return primPrimCollidesReal(t1, t2)
@@ -106,7 +110,7 @@ cpdef bool edgeCross(np.ndarray[np.float64_t, ndim=1] p0, # row vector
                      shapes.Prim prim):
     cdef:
         np.ndarray[np.float64_t, ndim=1] diff, pt
-        float d0, d1, prod, t
+        double d0, d1, prod, t
         int i
     diff = p1 - p0
     for i in range(dots.shape[0]):

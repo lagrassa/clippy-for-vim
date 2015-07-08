@@ -76,11 +76,11 @@ cdef class Transform:
     def __mul__(self, other):
         return self.compose(other)
 
-    cpdef Pose pose(self, float zthr = 0.01, bool fail = True):
+    cpdef Pose pose(self, double zthr = 0.01, bool fail = True):
         """
         Convert to Pose
         """
-        cdef float theta
+        cdef double theta
         if abs(1.0 - self.matrix[2,2]) < zthr:
             theta = math.atan2(self.matrix[1,0], self.matrix[0,0])
             return Pose(self.matrix[0,3], self.matrix[1,3], self.matrix[2,3], theta)
@@ -106,7 +106,7 @@ cdef class Transform:
         """
         return Point(np.dot(self.matrix, point.matrix))
 
-    cpdef bool near(self, Transform trans, float distEps, float angleEps):
+    cpdef bool near(self, Transform trans, double distEps, double angleEps):
         """
         Return True if point of transform is within distEps of self
         and the quaternion distance is with angleEps.
@@ -145,7 +145,7 @@ cdef class Transform:
             return False
         return True
 
-    cpdef float distance(self, Transform tr):
+    cpdef double distance(self, Transform tr):
         """
         Return the distance between the x,y,z part of self and the x,y,z
         part of pose.
@@ -157,7 +157,7 @@ cdef class Transform:
 
     def __repr__(self):
         if not self.reprString:
-            self.reprString = str(self.matrix.tolist())
+            self.reprString = 'util.Transform('+str(self.matrix.tolist())+')'
         return self.reprString
     def __str__(self):
         return repr(self)
@@ -169,7 +169,7 @@ cdef class Transform:
         ans = self.near(other, self.eqDistEps, self.eqAngleEps) if op == 2 else False
         return ans
     def __hash__(self):
-        return hash(repr(self))
+        return id(self)
     def __deepcopy__(self):
         return self.__copy__(self)
     def copy(self):
@@ -185,7 +185,7 @@ cdef class Pose(Transform):             # 2.5D transform
     """
     Represent the x,y,z,theta pose of an object in 2.5D space
     """
-    def __init__(self, float x, float y, float z, float theta):
+    def __init__(self, double x, double y, double z, double theta):
         self.x = x
         """x coordinate"""
         self.y = y
@@ -198,8 +198,8 @@ cdef class Pose(Transform):             # 2.5D transform
         self.initTrans()
 
     cpdef initTrans(self):
-        cdef float cosTh
-        cdef float sinTh
+        cdef double cosTh
+        cdef double sinTh
         cosTh = math.cos(self.theta)
         sinTh = math.sin(self.theta)
         self.reprString = None
@@ -208,27 +208,27 @@ cdef class Pose(Transform):             # 2.5D transform
                                            [0.0, 0.0, 1.0, self.z],
                                            [0, 0, 0, 1]], dtype=np.float64))
 
-    cpdef setX(self, float x):
+    cpdef setX(self, double x):
         raw_input('Modifying Pose... not a good idea')
         self.x = x
         self.initTrans()
 
-    cpdef setY(self, float y):
+    cpdef setY(self, double y):
         raw_input('Modifying Pose... not a good idea')
         self.y = y
         self.initTrans()
 
-    cpdef setZ(self, float z):
+    cpdef setZ(self, double z):
         raw_input('Modifying Pose... not a good idea')
         self.z = z
         self.initTrans()
 
-    cpdef setTheta(self, float theta):
+    cpdef setTheta(self, double theta):
         raw_input('Modifying Pose... not a good idea')
         self.theta = theta
         self.initTrans()
 
-    cpdef Pose average(self, Pose other, float alpha):
+    cpdef Pose average(self, Pose other, double alpha):
         """
         Weighted average of this pose and other
         """
@@ -253,7 +253,7 @@ cdef class Pose(Transform):             # 2.5D transform
                     self.z-pose.z,
                     fixAnglePlusMinusPi(self.theta-pose.theta))
 
-    cpdef float totalDist(self, Pose pose, float angleScale = 1):
+    cpdef double totalDist(self, Pose pose, double angleScale = 1):
         return self.distance(pose) + \
                abs(fixAnglePlusMinusPi(self.theta-pose.theta)) * angleScale
 
@@ -270,7 +270,7 @@ cdef class Pose(Transform):             # 2.5D transform
         """
         return (self.x, self.y, self.z, self.theta)
 
-    cpdef Pose corrupt(self, float e, float eAng = 0.0, bool noZ = False):
+    cpdef Pose corrupt(self, double e, double eAng = 0.0, bool noZ = False):
         """
         Corrupt with a uniformly distributed Pose.
         """
@@ -280,7 +280,7 @@ cdef class Pose(Transform):             # 2.5D transform
                     0.0 if noZ else np.random.uniform(-e, e),
                     np.random.uniform(-eAng, eAng)).compose(self)
 
-    cpdef Pose corruptGauss(self, float mu, tuple stdDev, bool noZ = False):
+    cpdef Pose corruptGauss(self, double mu, tuple stdDev, bool noZ = False):
         """
         Corrupt with a Gaussian distributed Pose.
         """
@@ -309,8 +309,6 @@ cdef class Pose(Transform):             # 2.5D transform
                               repr(self.z) + ',' + \
                               repr(self.theta) + ')'
         return self.reprString
-    def __hash__(self):
-        return hash(str(self))
 
 #################################
 # Point
@@ -323,26 +321,26 @@ cdef class Point:
     def __init__(self, np.ndarray[np.float64_t, ndim=2] p): # column matrix
         self.matrix = p
 
-    cpdef bool isNear(self, Point point, float distEps):
+    cpdef bool isNear(self, Point point, double distEps):
         """
         Return true if the distance between self and point is less
         than distEps
         """
         return self.distance(point) < distEps
 
-    cpdef float distance(self, Point point):
+    cpdef double distance(self, Point point):
         """
         Euclidean distance between two points
         """
         return np.linalg.norm((self.matrix - point.matrix)[:3])
 
-    cpdef float distanceXY(self, Point point):
+    cpdef double distanceXY(self, Point point):
         """
         Euclidean distance between two XY points
         """
         return np.linalg.norm((self.matrix - point.matrix)[:2])
 
-    cpdef float distanceSq(self, Point point):
+    cpdef double distanceSq(self, Point point):
         """
         Euclidean distance (squared) between two points
         """
@@ -350,7 +348,7 @@ cdef class Point:
         delta = (self.matrix - point.matrix)[:3]
         return np.dot(delta.T, delta)
 
-    cpdef float distanceSqXY(self, Point point):
+    cpdef double distanceSqXY(self, Point point):
         """
         Euclidean distance (squared) between two XY points
         """
@@ -358,7 +356,7 @@ cdef class Point:
         delta = (self.matrix - point.matrix)[:2]
         return np.dot(delta.T, delta)
 
-    cpdef float magnitude(self):
+    cpdef double magnitude(self):
         """
         Magnitude of this point, interpreted as a vector in 3-space
         """
@@ -370,7 +368,7 @@ cdef class Point:
         """
         return tuple(self.matrix[:3])
 
-    cpdef Pose pose(self, float angle = 0.0): #Pose
+    cpdef Pose pose(self, double angle = 0.0): #Pose
         """
         Return a pose with the position of the point.
         """
@@ -394,7 +392,7 @@ cdef class Point:
     def __repr__(self):
         return 'util.Point(np.array(' + str(self.matrix) + '))'
 
-    cpdef float angleToXY(self, Point p):
+    cpdef double angleToXY(self, Point p):
         """
         Return angle in radians of vector from self to p (in the xy projection)
         """
@@ -423,7 +421,7 @@ cdef class Point:
         return Point(diff)
     def __sub__(self, point):
         return self.sub(point)
-    cpdef Point scale(self, float s):
+    cpdef Point scale(self, double s):
         """
         Vector scaling
         """
@@ -433,7 +431,7 @@ cdef class Point:
         return Point(sc)
     def __mul__(self, s):
         return self.scale(s)
-    cpdef float dot(self, Point p):
+    cpdef double dot(self, Point p):
         """
         Dot product
         """
@@ -462,31 +460,31 @@ cdef class Quat:
 cpdef list smash(list lists):
     return [item for sublist in lists for item in sublist]
 
-cpdef bool within(float v1, float v2, float eps):
+cpdef bool within(double v1, double v2, double eps):
     """
     Return True if v1 is with eps of v2. All params are numbers
     """
     return abs(v1 - v2) < eps
 
-cpdef bool nearAngle(float a1, float a2, float eps):
+cpdef bool nearAngle(double a1, double a2, double eps):
     """
     Return True if angle a1 is within epsilon of angle a2  Don't use
     within for this, because angles wrap around!
     """
     return abs(fixAnglePlusMinusPi(a1-a2)) < eps
 
-cpdef bool nearlyEqual(float x, float y):
+cpdef bool nearlyEqual(double x, double y):
     """
     Like within, but with the tolerance built in
     """
     return abs(x-y)<.0001
 
-cpdef float fixAnglePlusMinusPi(float a):
+cpdef double fixAnglePlusMinusPi(double a):
     """
     A is an angle in radians;  return an equivalent angle between plus
     and minus pi
     """
-    cdef float pi2
+    cdef double pi2
     cdef int i
     pi2 = 2.0* math.pi
     i = 0
@@ -504,7 +502,7 @@ cpdef fixAngle02Pi(a):
     A is an angle in radians;  return an equivalent angle between 0
     and 2 pi
     """
-    cdef float pi2 = 2.0* math.pi
+    cdef double pi2 = 2.0* math.pi
     cdef int i = 0
     while a < 0 or a > pi2:
         if a < 0:
@@ -532,8 +530,8 @@ cpdef tuple argmaxWithVal(list l, f):
     """
     best = l[0]
     cdef:
-        float bestScore = f(best)
-        float xScore
+        double bestScore = f(best)
+        double xScore
     for x in l:
         xScore = f(x)
         if xScore > bestScore:
@@ -549,8 +547,8 @@ cpdef tuple argmaxIndex(list l, f): #edit - f = lambda x: x
     cdef:
         int i
         int best = 0
-        float bestScore = f(l[best])
-        float xScore
+        double bestScore = f(l[best])
+        double xScore
     for i from 0 <= i < len(l):
         xScore = f(l[i])
         if xScore > bestScore:
@@ -565,8 +563,8 @@ cpdef tuple argmaxIndexWithTies(list l, f): #edit - f = lambda x: x
     """
     cdef:
         list best = []
-        float bestScore = f(l[0])
-        float xScore
+        double bestScore = f(l[0])
+        double xScore
         int i
     for i from 0 <= i < len(l):
         xScore = f(l[i])
@@ -576,7 +574,7 @@ cpdef tuple argmaxIndexWithTies(list l, f): #edit - f = lambda x: x
             best, bestScore = best + [i], xScore
     return (best, bestScore)
 
-cpdef float clip(float v, vMin, vMax):
+cpdef double clip(double v, vMin, vMax):
     """
     @param v: number
     @param vMin: number (may be None, if no limit)
@@ -595,7 +593,7 @@ cpdef float clip(float v, vMin, vMax):
         else:
             return max(min(v, vMax), vMin)
 
-cpdef int sign(float x):
+cpdef int sign(double x):
     """
     Return 1, 0, or -1 depending on the sign of x
     """
@@ -641,14 +639,14 @@ cdef class SymbolGenerator:
 gensym = SymbolGenerator().gensym
 """Call this function to get a new symbol"""
 
-cpdef float logGaussian(float x, float mu, float sigma):
+cpdef double logGaussian(double x, double mu, double sigma):
     """
     Log of the value of the gaussian distribution with mean mu and
     stdev sigma at value x
     """
     return -((x-mu)**2 / (2*sigma**2)) - math.log(sigma*math.sqrt(2*math.pi))
 
-cpdef float gaussian(float x, float mu, float sigma):
+cpdef double gaussian(double x, double mu, double sigma):
     """
     Value of the gaussian distribution with mean mu and
     stdev sigma at value x
@@ -667,8 +665,8 @@ cpdef list lineIndices(tuple one, tuple two):
         list ans = [(i0,j0)]
         int di = i1 - i0
         int dj = j1 - j0
-        float t = 0.5
-        float m
+        double t = 0.5
+        double m
     if abs(di) > abs(dj):               # slope < 1
         m = float(dj) / float(di)       # compute slope
         t += j0
@@ -692,10 +690,10 @@ cpdef list lineIndices(tuple one, tuple two):
                 ans.append((int(t), j0))
     return ans
 
-cpdef float angleDiff(float x, float y):
+cpdef double angleDiff(double x, double y):
     cdef:
-        float twoPi = 2*math.pi
-        float z = (x - y)%twoPi
+        double twoPi = 2*math.pi
+        double z = (x - y)%twoPi
     if z > math.pi:
         return z - twoPi
     else:
@@ -710,7 +708,7 @@ cpdef bool rangeOverlap(tuple r1, tuple r2):
 cpdef tuple rangeIntersect(tuple r1, tuple r2):
     return (max(r1[0], r2[0]), min(r1[1], r2[1]))
 
-cpdef float average(list stuff):
+cpdef double average(list stuff):
     return sum(stuff) * (1.0 / float(len(stuff)))
 
 cpdef tuple tuplify(x):
@@ -723,11 +721,11 @@ cpdef list squash(list listOfLists):
     return reduce(operator.add, listOfLists)
 
 # Average two angles
-cpdef float angleAverage(float th1, float th2, float alpha):
+cpdef double angleAverage(double th1, double th2, double alpha):
     return math.atan2(alpha * math.sin(th1) + (1 - alpha) * math.sin(th2),
                       alpha * math.cos(th1) + (1 - alpha) * math.cos(th2))
 
-cpdef list floatRange(float lo, float hi, float stepsize):
+cpdef list floatRange(double lo, double hi, double stepsize):
     """
     @returns: a list of numbers, starting with C{lo}, and increasing
     by C{stepsize} each time, until C{hi} is equaled or exceeded.
@@ -737,7 +735,7 @@ cpdef list floatRange(float lo, float hi, float stepsize):
     if stepsize == 0:
        print 'Stepsize is 0 in floatRange'
     cdef list result = []
-    cdef float v = lo
+    cdef double v = lo
     while v <= hi:
         result.append(v)
         v += stepsize

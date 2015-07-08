@@ -69,7 +69,7 @@ drawRebindNodes = True
 '''
 
 debugOn = ['traceGen', 'traceCRH', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon',
-           'heuristic0', 'collectGraspConfs', 'useGJK'
+           'heuristic0', 'useGJK'
            # 'addRegion',
            # 'verifyPath', 'pickGen', 'placeGen', 'placeInGen', 'lookGen', 
            # 'confReachViol', 'debugInHeuristic', 'getShadowWorld',

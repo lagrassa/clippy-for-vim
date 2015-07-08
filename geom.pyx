@@ -226,7 +226,7 @@ cpdef bool bboxInside(np.ndarray[np.float64_t, ndim=2] bb1,
                       np.ndarray[np.float64_t, ndim=2] bb2):
     return bboxIn(bb2, bb1[0]) and bboxIn(bb2, bb1[1])
 
-cpdef float bboxVolume(np.ndarray[np.float64_t, ndim=2] bb):
+cpdef double bboxVolume(np.ndarray[np.float64_t, ndim=2] bb):
     return np.prod(bb[1]-bb[0])
 
 cpdef np.ndarray bboxGrow(np.ndarray[np.float64_t, ndim=2] bb,
@@ -259,7 +259,7 @@ cpdef np.ndarray bboxOrigin(np.ndarray[np.float64_t, ndim=2] bb):
 
 cpdef bool bboxGrownOverlap(np.ndarray[np.float64_t, ndim=2] bb1,
                             np.ndarray[np.float64_t, ndim=2] bb2,
-                            float delta = 0.01):
+                            double delta = 0.01):
     # Touching is not overlap
     # return not (np.any(bb1[0] >= bb2[1]) or np.any(bb1[1] <= bb2[0]))
     # Due to a Cython bug... cannot convert numpy.bool_ to bool

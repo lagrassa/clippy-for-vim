@@ -1941,6 +1941,7 @@ def testBusy(hpn = True, skeleton = False, hierarchical = False,
 def testIt():
     import gjk
     fizz = shapes.Box(0.1,0.2,0.3, None)
+    print fizz.parts()[0].basePrim.baseRings
     fuzz = shapes.Box(0.1,0.2,0.3, None)
     win = wm.getWindow('W')
     for x in range(100):

@@ -58,12 +58,12 @@ cdef class Scan:
                     np.dot(trans.matrix, self.vertices), self.name, self.color)
 
     cpdef bool visible(self, util.Point pt):
-        cdef float height, width, length, focal
+        cdef double height, width, length, focal
         cdef int n
         (focal, height, width, length, n) = self.scanParams
         cdef:
             util.Point ptLocal = self.headTransInverse.applyToPoint(pt)
-            float t
+            double t
         if ptLocal.x <= focal: return False
         t = focal/ptLocal.x
         return abs(t*ptLocal.y) <= width \
@@ -96,7 +96,7 @@ cdef class Scan:
 
 cpdef np.ndarray scanVerts(tuple scanParams, util.Transform pose):
     cdef:
-       float focal, height, width, length, deltaX, deltaY, dirX, dirY, y, z, x, w
+       double focal, height, width, length, deltaX, deltaY, dirX, dirY, y, z, x, w
        set points
        int iX, iY, n, nv, i
        tuple pt
@@ -178,7 +178,7 @@ cpdef bool updateDepthMap(Scan scan, shapes.Prim thing,
         np.ndarray[np.int_t, ndim=1] indices
         int e
         bool ans
-        float d0, d1, prod, t
+        double d0, d1, prod, t
     verts = scan.vertices             # 4xn array
     edges = scan.edges                # ex2 array
     f2xv1 = np.dot(thing.planes(), verts);
@@ -213,13 +213,13 @@ cpdef bool updateDepthMap(Scan scan, shapes.Prim thing,
     return ans
 
 # This has been merged into the code above...
-cpdef float edgeCross(np.ndarray[np.float64_t, ndim=1] p0, # row vector
+cpdef double edgeCross(np.ndarray[np.float64_t, ndim=1] p0, # row vector
                       np.ndarray[np.float64_t, ndim=1] p1, # row vector
                       np.ndarray[np.float64_t, ndim=2] dots,
                       shapes.Prim thing):
     cdef:
         np.ndarray[np.float64_t, ndim=1] diff, pt
-        float d0, d1, prod, t
+        double d0, d1, prod, t
         int i
     diff = p1 - p0
     for i in range(dots.shape[0]):

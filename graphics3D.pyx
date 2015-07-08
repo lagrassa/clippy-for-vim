@@ -94,7 +94,7 @@ cdef class Window3D:
             self.window.Point(matrix[0,0], matrix[1,0], color = color or 'black')
             self.window.drawPoint(matrix[0,0]+dx, matrix[2,0]+dy, color = color or 'black')
         elif isinstance(thing, np.ndarray):
-            for i in thing.shape[1]:
+            for i in range(thing.shape[1]):
                 matrix = thing
                 self.window.drawPoint(matrix[0,i], matrix[1,i], color = color or 'black')
                 self.window.drawPoint(matrix[0,i]+dx, matrix[2,i]+dy, color = color or 'black')

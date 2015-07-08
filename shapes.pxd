@@ -24,7 +24,7 @@ cdef class Thing:
     cpdef np.ndarray[np.int_t, ndim=2] edges(self)
     cpdef Thing applyTrans(self, util.Transform trans, str frame=*)
     cpdef Thing applyLoc(self, util.Transform trans, str frame=*)
-    cpdef draw(self, str window, str color = *, float opacity = *)
+    cpdef draw(self, str window, str color = *, double opacity = *)
     # cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt)
     # cpdef Prim prim(self)
     # cpdef bool collides(self, Thing obj)
@@ -34,8 +34,8 @@ cdef class Thing:
 
 cdef class BasePrim:
     cdef public dict properties
-    cdef public np.ndarray baseVerts, basePlanes, baseEdges, baseBBox
-    cdef public list baseFaceFrames
+    cdef public np.ndarray baseVerts, basePlanes, baseEdges, baseBBox, baseRings
+    cdef public list baseFaceFrames, baseFaces
     cdef public Prim basePrim
     cdef public util.Transform baseOrigin
     cdef public str baseString
@@ -45,6 +45,7 @@ cdef class Prim:
     cdef public dict properties
     cdef util.Transform primOrigin
     cdef np.ndarray primVerts, primPlanes, primBBox
+    cdef tuple tupleBBox
 
     cpdef Prim prim(self)
     cpdef list parts(self)
@@ -66,13 +67,14 @@ cdef class Prim:
     cpdef Prim xyPrim(self)
     cpdef Prim boundingRectPrim(self)
     cpdef tuple desc(self)
-    cpdef draw(self, str window, str color = *, float opacity = *)	
+    cpdef draw(self, str window, str color = *, double opacity = *)	
 
 cdef class Shape:
     cdef public dict properties
     cdef list shapeParts
     cdef util.Transform shapeOrigin
     cdef np.ndarray shapeBBox
+    cdef tuple tupleBBox
     
     cpdef list parts(self)
     cpdef str name(self)
@@ -90,7 +92,7 @@ cdef class Shape:
     cpdef Prim boundingRectPrim(self)
     cpdef list faceFrames(self)
     cpdef tuple desc(self)
-    cpdef draw(self, str window, str color = *, float opacity = *)
+    cpdef draw(self, str window, str color = *, double opacity = *)
 
 cdef class Box(Prim):
     cdef nothing

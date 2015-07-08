@@ -66,12 +66,12 @@ cdef class Joint:
 
 cdef class Prismatic(Joint):
      cpdef transform(self, val)
-     cpdef bool valid(self, float val)
+     cpdef bool valid(self, double val)
      cpdef diff(self, a, b)
 
 cdef class Revolute(Joint):
      cpdef transform(self, val)
-     cpdef bool valid(self, float val)
+     cpdef bool valid(self, double val)
      cpdef diff(self, a, b)
 
 cdef list normalizedAngleLimits(tuple limits)

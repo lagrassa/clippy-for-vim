@@ -377,7 +377,7 @@ cdef class Chain:
         return [lo + random.random()*(hi-lo) for (lo, hi) in self.limits()]
 
     cpdef bool valid(self, list jointValues):
-        cdef float jv
+        cdef double jv
         cdef Joint joint
         assert len(jointValues) == len(self.movingJoints)
         for (joint, jv) in zip(self.movingJoints, jointValues):
@@ -628,8 +628,8 @@ cdef class Prismatic(Joint):
     cpdef transform(self, val):
         return Transform(np.dot(self.trans.matrix,
                                      transf.translation_matrix([q*val for q in self.axis])))
-    cpdef bool valid(self, float val):
-        cdef float lo, hi
+    cpdef bool valid(self, double val):
+        cdef double lo, hi
         (lo, hi) = self.limits
         return lo-0.0001 <= val <= hi+0.0001
     cpdef diff(self, a, b):
@@ -667,8 +667,8 @@ cdef class Revolute(Joint):
             rot = transf.rotation_matrix(val, self.axis)
         return Transform(np.dot(self.trans.matrix, rot))
                                  
-    cpdef bool valid(self, float val):
-        cdef float lo, hi, vw
+    cpdef bool valid(self, double val):
+        cdef double lo, hi, vw
         if not self.normalized:
             self.normalized = normalizedAngleLimits(self.limits)
         for (lo, hi) in self.normalized:

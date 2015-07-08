@@ -545,7 +545,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         if any(other):
             tr(tag, 2,
                ('Regraspable', pB.poseD.mode(), [gBO.grasp.mode() for gBO in gBOther]),
-               draw=[(c, 'W', 'green') for (c, ca, v) in \
+               draw=[(c, 'W', 'green') for c in \
                      [o for o in other if o != None]], snap=['W'])
             regraspablePB[pB] = True
             return True
