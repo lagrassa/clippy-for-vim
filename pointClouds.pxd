@@ -20,7 +20,7 @@ cdef class Scan:
     # cpdef draw(self, window, str color = *)
 
 cpdef np.ndarray scanVerts(tuple scanParams, hu.Transform pose)
-cpdef bool updateDepthMap(Scan thing1, shapes.Thing thing2,
+cpdef bool updateDepthMap(Scan thing1, shapes.Prim thing2,
                           np.ndarray[np.float64_t, ndim=1] depth,
                           list contacts, int objId, list onlyUpdate = *)
 
