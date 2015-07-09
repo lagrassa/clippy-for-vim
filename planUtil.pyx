@@ -209,8 +209,8 @@ cdef class Violations(Hash):
     cpdef float weight(self, weights=(1.0, 0.5, 1.0, 0.5)):
         return weights[0]*len(self.obstacles) + \
                weights[1]*len(self.shadows) + \
-               weights[2]*sum([1 if ho else 0 for ho in self.heldObstacles]) +\
-               weights[3]*sum([1 if hs else 0 for hs in self.heldShadows])
+               weights[2]*sum([len(ho) for ho in self.heldObstacles]) +\
+               weights[3]*sum([len(hs) for hs in self.heldShadows])
     cpdef bool LEQ(self, other):
         return self.weight() <= other.weight()
     cpdef tuple desc(self):
