@@ -1161,7 +1161,7 @@ class RoadMap:
                                    expandF = minViolPathDebugExpand if debug('expand') else None,
                                    visitF = minViolPathDebugVisit if debug('expand') else None,
                                    greedy = searchOpt if optimize else searchGreedy,
-                                   printFinal = debug(minViolPath),
+                                   printFinal = debug('minViolPath'),
                                    verbose = False)
             for ans in gen:
                 (path, costs) = ans
