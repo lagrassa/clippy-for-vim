@@ -484,7 +484,7 @@ class CanReachNB(Fluent):
         if isVar(endConf):
             assert 'need to have end conf bound to test'
         elif isVar(startConf):
-            trAlways('BTest canReachNB returning False because startconf unbound',
+            tr('canReachNB', 2, 'BTest canReachNB returning False because startconf unbound',
                      self)
             return False
         elif startConf['pr2Base'] != endConf['pr2Base']:
