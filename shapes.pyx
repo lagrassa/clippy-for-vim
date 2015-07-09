@@ -559,7 +559,7 @@ cdef class BoxAligned(Prim):
         ((xlo, ylo, zlo), (xhi, yhi, zhi)) = bbox.tolist()
         if xhi < xlo or yhi < ylo or zhi < zlo:
             print 'bbox', bbox, props
-            raw_input('BBox for BoxAligned is inside out, ok to flip?')
+            print 'BBox for BoxAligned is inside out, flipping it'
             xlo, xhi = min(xlo, xhi), max(xlo, xhi)
             ylo, yhi = min(ylo, yhi), max(ylo, yhi)
             zlo, zhi = min(zlo, zhi), max(zlo, zhi)

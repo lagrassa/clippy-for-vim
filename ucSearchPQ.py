@@ -301,7 +301,7 @@ def searchGen(initialState, goalStates, actions, successor,
                 if newS in expanded:
                     if prevExpandF and visitF:
                         hValue = getH(gk)
-                        newN = SearchNode(a, newS, n, cost+goalCost, hValue)
+                        newN = SearchNode(a, newS, n, cost+goalCostFn(gk), hValue)
                         visitF(n.state, n.cost, n.heuristicCost, a,
                                newS, newN.cost, hValue)
                         prevExpandF(newN)

@@ -161,7 +161,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
     if op in ('pick', 'place') and not (glob.inHeuristic or quick):
         tableB = findSupportTableInPbs(pbs1, objPlace.obj) # use pbs1 so obj is there
         assert tableB
-        print 'Looking at support for', obj, '->', tableB.obj
+        if debug('canPickPlaceTest'): print 'Looking at support for', obj, '->', tableB.obj
         preConfShape = preConf.placement(attached = pbs2.getShadowWorld(p).attached)
         ppConfShape = ppConf.placement() # no attached
         lookDelta = pbs2.domainProbs.minDelta
@@ -258,7 +258,8 @@ def canView(pbs, prob, conf, hand, shape, maxIter = 50):
         pathFull = []
         for h in ['left', 'right']:     # try both hands
             if not vc.collides(armShape(conf, h)): continue
-            print 'canView collision with', h, 'arm', conf['pr2Base']
+            if debug('canView'):
+                print 'canView collision with', h, 'arm', conf['pr2Base']
             chainName = pbs.getRobot().armChainNames[h]
             path, viol = planRobotGoalPath(pbs, prob, conf,
                                            lambda c: not avoid.collides(armShape(c,h)), None,

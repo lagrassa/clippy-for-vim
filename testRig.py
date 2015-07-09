@@ -131,16 +131,15 @@ def habbs(s, g, ops, ancestors):
         # the goal is not yet satisfied.
         isSat = s.satisfies(g)
         if not isSat:
-            tr('heuristic0', 0,
-               '*** habbs is 0 but goal not sat ***',
-               [thing for thing in g.fluents if \
-                   not thing.isGround() or s.fluentValue(thing)==False])
-            #raw_input('Try resetting cache?')
             fbch.hCacheReset()
             newVal = hAddBackBSetID(s, g, hops, ancestors,
                                         ddPartitionFn = partition,
                                         maxK = 20)
-            if newVal >= 0: return newVal
+            if newVal >= 0:
+                tr('heuristic0', 0, 'Heuristic cache inconsistent.  Leslie should fix this!', pause = False)
+                return newVal
+            tr('heuristic0', 0, 'habbs is 0 but goal not sat',
+               [thing for thing in g.fluents if not thing.isGround() or s.fluentValue(thing)==False])
             easyVal = hEasy(s, g, ops, ancestors)
             tr('heuristic0', 0, '*** returning easyVal', easyVal,
                ol = True)
@@ -495,14 +494,12 @@ class PlanTest:
                  objects = ['table1','objA'], fixPoses = {},
                  movePoses = {}, held = None, grasp = None,
                  multiplier = 6, var = 1.0e-5, varDict = None):   # var was 10e-10
-        startTime = time.time()
         self.name = name
         self.multiplier = multiplier
         self.objects = objects          # list of objects to consider
         self.domainProbs = domainProbs
         self.world, self.thinRobot = testWorld(include=self.objects)
         if not initConfs:
-            #print 'Creating initial confs ...',
             ((x0, y0, _), (x1, y1, dz)) = workspace
             dx = x1 - x0; dy = y1 - y0
             count = 2*multiplier
@@ -521,9 +518,6 @@ class PlanTest:
                                       x0+x*dx/float(count),
                                       y0+y*dy/float(count), angle, vertical=True))
         self.initConfs = initConfs
-        trAlways('initial confs done in', time.time() - startTime,
-                     ('num initial confs', len(self.initConfs)),
-                     pause = False)
         var4 = (var, var, 1e-10, var)
         del0 = (0.0, 0.0, 0.0, 0.0)
         del02 = (0.02, 0.02, 0.2, 0.04)

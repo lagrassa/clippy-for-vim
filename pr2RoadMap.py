@@ -112,14 +112,10 @@ class Edge(Hashable):
         self.interpolator = interpolator
         self.nodes = None  # intermediate nodes
         # Cache for collisions on this edge.
-        # aColl: {object : {True, False}}
-        # hColl {graspB: {object : {True, False}}}
-        # hsColl {graspB: {object : {True, False}}}
         self.aColl = {}
         self.hColl = {'left':{}, 'right':{}}
         self.hsColl = {'left':{}, 'right':{}}
         self.bbox = None
-        # print 'Creating', self
         Hashable.__init__(self)
     def draw(self, window, color = 'cyan'):
         for node in self.nodes:
@@ -431,11 +427,11 @@ class RoadMap:
                                 print '    returning', ans
                             return ans
                     if finalConf:
-                        print 'Caching failed for approach'
+                        if debug('traceCRH'): print 'Caching failed for approach'
             else:
                 if debug('confReachViolCache'): print 'confReachCache miss'
                 if finalConf:
-                    print 'Cache miss with approach'
+                    if debug('traceCRH'): print 'Cache miss with approach'
 
         def checkFullCache():
             return checkCache((targetConf, initConf, moveBase))
@@ -495,8 +491,7 @@ class RoadMap:
         if not glob.inHeuristic and targetConf in self.approachConfs:
             finalConf = targetConf
             targetConf = self.approachConfs[targetConf]
-            if debug('traceCRH'):
-                print '    using approach conf',
+            if debug('traceCRH'): print '    using approach conf',
         targetNode = makeNode(targetConf)
         cached = checkFullCache()
         if cached:
@@ -509,7 +504,7 @@ class RoadMap:
                                   targetCluster.nodeGraph)
         # if not glob.inHeuristic:
         #     print '    Graph nodes =', len(graph.incidence), 'graph edges', len(graph.edges)
-        if debug('traceCRH'): print '    find path',
+        if debug('traceCRH'): print '    find path'
         # tr('CRH', 1, 'find path')
         # search back from target... if we will execute in reverse, it's a double negative.
         ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
@@ -989,8 +984,7 @@ class RoadMap:
         for conf in path:
             newViol = self.confViolations(conf, pbs, prob, initViol=newViol)
             if newViol is None:
-                print 'viol', newViol
-                pbs.draw(prob, 'W'); conf.draw('W', 'magenta')
+                # pbs.draw(prob, 'W'); conf.draw('W', 'magenta')
                 return None
         return newViol
 
