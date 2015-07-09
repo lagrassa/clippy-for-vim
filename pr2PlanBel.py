@@ -501,7 +501,8 @@ class PBS:
         sh = shape.applyLoc(frame)      # the shape with the specified support
         shadow = makeShadow(sh, prob, poseBel, name=shName, color=color)
         self.beliefContext.objectShadowCache[key] = shadow
-        debugMsg('objShadow', key, ('->', shadow.bbox()))
+        if debug('objShadow'):
+            debugMsg('objShadow', key, ('->', shadow.bbox()))
         return shadow
 
     def draw(self, p = 0.9, win = 'W', clear=True):
@@ -576,19 +577,16 @@ def makeShadow(shape, prob, bel, name=None, color='gray'):
         if debug('getShadowWorld'):
             shParts[-1].draw('W', 'brown')
             raw_input('Next part?')
-    # if len(shParts) == 1:
-    #     if name:
-    #         shParts[0].properties['name'] = name
-    #     if debug('getShadowWorld'):
-    #         print 'shadow name', shParts[0].name()
-    #         raw_input('1 part shadow, Ok?')
-    #     return shParts[0]
-    # else:
     if debug('getShadowWorld'):
         raw_input('multiple part shadow, Ok?')
-    return shapes.Shape(shParts, shape.origin(),
-                        name=name or shape.name(),
-                        color=shColor)
+    final = shapes.Shape(shParts, shape.origin(),
+                         name=name or shape.name(),
+                         color=shColor)
+    if debug('getShadowWorld'):
+        shape.draw('W', 'blue')
+        final.draw('W', 'pink')
+        raw_input('input shape (blue), final shadow (pink), Ok?')
+    return final
 
 def LEQ(x, y):
     return all([x1 <= y1 for (x1, y1) in zip(x,y)])

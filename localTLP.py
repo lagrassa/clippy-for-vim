@@ -69,9 +69,10 @@ drawRebindNodes = True
 '''
 
 debugOn = ['traceGen', 'traceCRH', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon',
-           'heuristic0',
-           # 'collectGraspConfs',
-           # 'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'confReachViol', 'debugInHeuristic'
+           'heuristic0', 'useGJK'
+           # 'addRegion',
+           # 'verifyPath', 'pickGen', 'placeGen', 'placeInGen', 'lookGen', 
+           # 'confReachViol', 'debugInHeuristic', 'getShadowWorld',
            ]
 
 if platform.system() == 'Linux':

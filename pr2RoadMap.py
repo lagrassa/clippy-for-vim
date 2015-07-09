@@ -10,7 +10,7 @@ import shapes
 from ranges import *
 from pr2Robot import CartConf
 from objects import WorldState
-from geom import bboxOverlap, bboxUnion
+from geom import bboxOverlap, bboxUnion, bboxCenter
 from transformations import quaternion_slerp
 import ucSearchPQ as search
 reload(search)
@@ -368,8 +368,13 @@ class RoadMap:
             if not debug('confReachViol'): return
             if ans:
                 if (not glob.inHeuristic or debug('drawInHeuristic')):
-                    (viol, cost, edgePath) = ans
-                    path = self.confPathFromEdgePath(edgePath)
+                    (viol, cost, cachedPath) = ans
+                    if cachedPath[0] == 'edges':
+                        path = self.confPathFromEdgePath(cachedPath[1])
+                    elif cachedPath[0] == 'confs':
+                        path = cachedPath[1]
+                    else:
+                        assert None, 'Illegal cached path'
                     drawPath(path, viol=viol, attached=attached)
                     debugMsg('confReachViol', ('->', (viol, cost, 'path len = %d'%len(path))))
             else:
@@ -397,39 +402,40 @@ class RoadMap:
         def checkCache(key, type='full', loose=False):
             if glob.inHeuristic or optimize: return 
             if key in self.confReachCache:
-                if debug('traceCRH'): print '    cache?', 
-                # tr('CRH', 1, 'cache?')
+                if debug('traceCRH'): print '    cache?',
                 cacheValues = self.confReachCache[key]
                 sortedCacheValues = sorted(cacheValues,
                                            key=lambda v: v[-1][0].weight() if v[-1][0] else 1000.)
                 ans = bsEntails(pbs, prob, sortedCacheValues, loose=loose)
                 if ans != None:
-                    if debug('traceCRH'): print '    actual', type, 'cache hit', 
-                    # tr('CRH', 1, 'actual ' + type + 'cache hit')
+                    if debug('traceCRH'): print '    actual', type, 'cache hit'
                     return ans
                 elif considerReUsingPaths:
                     initObst = set(endPtViol.allObstacles())
                     initShadows = set(endPtViol.allShadows())
                     for i, cacheValue in enumerate(sortedCacheValues):
-                        if i > 0: break # don't try too many times - just once?
+                        if i > 1: break # don't try too many times...
                         (_, _, ans) = cacheValue
                         if not ans[0]: return None
-                        (_, _, edgePath) = ans
-                        viol2 = self.checkEdgePath(edgePath, pbs, prob)
+                        (_, _, cachedPath) = ans
+                        if cachedPath[0] == 'edges':
+                            viol2 = self.checkEdgePath(cachedPath[1], pbs, prob)
+                        else:
+                            viol2 = self.checkPath(cachedPath[1], pbs, prob)
                         if viol2 and set(viol2.allObstacles()) <= initObst and set(viol2.allShadows()) <= initShadows:
-                            if debug('traceCRH'): print '    reusing path', 
-                            # tr('CRH', 1, 'reusing path')
+                            if debug('traceCRH'): print '    reusing path'
                             (_, cost, path) = ans
                             ans = (viol2, cost, path) # use the new violations
                             if debug('confReachViolCache'):
                                 debugMsg('confReachViolCache', 'confReachCache reusing path')
                                 print '    returning', ans
                             return ans
-                elif finalConf:
-                    raw_input('Caching failed')
+                    if finalConf:
+                        print 'Caching failed for approach'
             else:
-                self.confReachCache[key] = []
                 if debug('confReachViolCache'): print 'confReachCache miss'
+                if finalConf:
+                    print 'Cache miss with approach'
 
         def checkFullCache():
             return checkCache((targetConf, initConf, moveBase))
@@ -437,10 +443,13 @@ class RoadMap:
         def confAns(ans, show=False):
             displayAns(ans)
             if ans and ans[0]:
-                (viol, cost, edgePath) = ans
+                (viol, cost, cachedPath) = ans
                 viol = viol.update(initViol)
                 viol = viol.update(endPtViol)
-                path = self.confPathFromEdgePath(edgePath)
+                if cachedPath[0] == 'edges':
+                    path = self.confPathFromEdgePath(cachedPath[1])
+                else:
+                    path = cachedPath[1]
                 if show and debug('showPath') and not glob.inHeuristic:
                     print 'confAns'
                     showPath(pbs, prob, path)
@@ -486,8 +495,8 @@ class RoadMap:
         if not glob.inHeuristic and targetConf in self.approachConfs:
             finalConf = targetConf
             targetConf = self.approachConfs[targetConf]
-            if debug('traceCRH'): print '    using approach conf',
-            # tr('CRH', 1, 'using approach conf')
+            if debug('traceCRH'):
+                print '    using approach conf',
         targetNode = makeNode(targetConf)
         cached = checkFullCache()
         if cached:
@@ -529,7 +538,10 @@ class RoadMap:
                 if len(path) > 1 and not( path[0] == targetConf and path[-1] == initConf):
                     raw_input('Path inconsistency')
                 if finalConf: path = [finalConf] + path
-                return (viol, 0, path)
+                ans = (viol, 0, ('confs', path))
+        else:
+            viol, cost, edgePath = ans
+            ans = (viol, cost, ('edges', edgePath))
         cacheAns(ans)
         return confAns(ans, show=True)
 
@@ -784,8 +796,8 @@ class RoadMap:
 
     def robotSelfCollide(self, shape, heldDict={}):
         def partDistance(p1, p2):
-            c1 = hu.Point(np.resize(np.hstack([p1.center(), [1]]), (4,1)))
-            c2 = hu.Point(np.resize(np.hstack([p2.center(), [1]]), (4,1)))
+            c1 = hu.Point(np.resize(np.hstack([bboxCenter(p1.bbox()), [1]]), (4,1)))
+            c2 = hu.Point(np.resize(np.hstack([bboxCenter(p2.bbox()), [1]]), (4,1)))
             return c1.distance(c2)
         if glob.inHeuristic: return False
         # Very sparse checks...

@@ -18,7 +18,7 @@ cpdef np.ndarray[np.float64_t, ndim=1] quaternion_from_matrix(np.ndarray[np.floa
 
     """
     cdef np.ndarray[np.float64_t, ndim=1] q
-    cdef float t
+    cdef double t
     cdef int i, j, k
     q = np.empty((4, ), dtype=FL)
     t = np.trace(M)
@@ -49,7 +49,7 @@ cpdef np.ndarray[np.float64_t, ndim=2] quaternion_matrix(np.ndarray[np.float64_t
     True
 
     """
-    cdef float nq
+    cdef double nq
     cdef np.ndarray[np.float64_t, ndim=2] q
     iq = np.array(iq[:4], dtype=FL, copy=True)
     nq = np.dot(iq, iq)
@@ -77,7 +77,7 @@ cpdef np.ndarray[np.float64_t, ndim=2] translation_matrix(np.ndarray[np.float64_
     M[:3, 3] = direction[:3]
     return M
 
-cpdef np.ndarray[np.float64_t, ndim=1] quaternion_about_axis(float angle, tuple axis):
+cpdef np.ndarray[np.float64_t, ndim=1] quaternion_about_axis(double angle, tuple axis):
     """Return quaternion for rotation about axis.
 
     >>> q = quaternion_about_axis(0.123, (1, 0, 0))
@@ -86,7 +86,7 @@ cpdef np.ndarray[np.float64_t, ndim=1] quaternion_about_axis(float angle, tuple 
 
     """
     cdef np.ndarray[np.float64_t, ndim=1] quaternion
-    cdef float qlen
+    cdef double qlen
     quaternion = np.zeros((4, ), dtype=FL)
     quaternion[:3] = axis[:3]
     qlen = np.linalg.norm(quaternion)

@@ -6,6 +6,7 @@ cimport shapes
 import shapes
 import DrawingWindowStandalonePIL as dw
 import colorNames
+import util
 
 noWindow = False
 use3D = False
@@ -71,10 +72,10 @@ cdef class Window3D:
                 # self.update()
         self.capturing = capturing
 
-    cpdef draw(self, shapes.Thing thing, str color = None, float opacity = 1.0):
+    cpdef draw(self, thing, str color = None, float opacity = 1.0):
         cdef:
             shapes.Prim prim
-            np.ndarray[np.float64_t, ndim=2] verts
+            np.ndarray[np.float64_t, ndim=2] verts, matrix
             np.ndarray[np.float64_t, ndim=1] p1, p2
             np.ndarray[np.int_t, ndim=2] edges
             float dx, dy
@@ -87,21 +88,30 @@ cdef class Window3D:
                                  opacity,
                                  time.clock()])
         (dx, dy) = self.xzOffset
-        for part in thing.parts():
-            partColor = color or part.properties.get('color', None) or 'black'
-            if isinstance(part, shapes.Shape):
-                for p in part.parts(): self.draw(p, color=partColor, opacity=opacity)
-            elif isinstance(part, (shapes.Thing, shapes.Prim)):
-                prim = part.prim()
-                verts = prim.vertices()
-                edges = prim.edges()
-                for e in range(edges.shape[0]):
-                    p1 = verts[:,edges[e,0]]
-                    p2 = verts[:,edges[e,1]]
-                    self.window.drawLineSeg(p1[0], p1[1], p2[0], p2[1],
-                                            color = partColor)
-                    self.window.drawLineSeg(p1[0]+dx, p1[2]+dy, p2[0]+dx, p2[2]+dy,
-                                            color = partColor)
+        if isinstance(thing, util.Point):
+            matrix = thing.matrix
+            self.window.Point(matrix[0,0], matrix[1,0], color = color or 'black')
+            self.window.drawPoint(matrix[0,0]+dx, matrix[2,0]+dy, color = color or 'black')
+        elif isinstance(thing, np.ndarray):
+            for i in range(thing.shape[1]):
+                matrix = thing
+                self.window.drawPoint(matrix[0,i], matrix[1,i], color = color or 'black')
+                self.window.drawPoint(matrix[0,i]+dx, matrix[2,i]+dy, color = color or 'black')
+        elif hasattr(thing, 'parts'):
+            for part in thing.parts():
+                partColor = color or part.properties.get('color', None) or 'black'
+                if isinstance(part, shapes.Shape):
+                    for p in part.parts(): self.draw(p, color=partColor, opacity=opacity)
+                elif isinstance(part, (shapes.Thing, shapes.Prim)):
+                    verts = part.vertices()
+                    edges = part.edges()
+                    for e in range(edges.shape[0]):
+                        p1 = verts[:,edges[e,0]]
+                        p2 = verts[:,edges[e,1]]
+                        self.window.drawLineSeg(p1[0], p1[1], p2[0], p2[1],
+                                                color = partColor)
+                        self.window.drawLineSeg(p1[0]+dx, p1[2]+dy, p2[0]+dx, p2[2]+dy,
+                                                color = partColor)
 
     cpdef update(self):
         self.window.canvas.update()

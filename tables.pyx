@@ -24,7 +24,7 @@ def bestTable(zone, table, pointCloud, exclude,
                     res=0.01, zthr = 0.03, angles = []):
     
     cdef int minTablePoints, p, size, score, bestScore
-    cdef float height, radius, thrHi, thrLo, angle
+    cdef double height, radius, thrHi, thrLo, angle
     cdef list good, below
     cdef np.ndarray[np.float64_t, ndim=1] pt, center
     cdef np.ndarray[np.float64_t, ndim=2] bb, points, eye, badPoints, goodPoints, badOffset, bbGood
@@ -116,7 +116,7 @@ def bestTable(zone, table, pointCloud, exclude,
 cdef fillSummed(hu.Transform centerPoseInv, tuple ci,
                np.ndarray[np.float64_t, ndim=2] pts,
                np.ndarray[np.int_t, ndim=2] summed,
-               float res, int size):
+               double res, int size):
 
     cdef int pi, i, j, p, npts
     cdef np.ndarray[np.int_t, ndim=1] si, si_1, ind
@@ -159,10 +159,10 @@ cdef tuple scoreTable(tuple summed, int i, int j, int dimI, int dimJ):
             scoreTable1(summed[1], i, j, dimI, dimJ))
 
 cpdef tuple bestTablePose(shapes.Thing table, np.ndarray[np.float64_t, ndim=1 ]center,
-                          float angle,
+                          double angle,
                           np.ndarray[np.float64_t, ndim=2] good,
                           np.ndarray[np.float64_t, ndim=2] bad,
-                          tuple summed, float res, int size):
+                          tuple summed, double res, int size):
 
     cdef hu.Transform centerPose, centerPoseInv, pose, cpose
     cdef tuple ci, bestPlace

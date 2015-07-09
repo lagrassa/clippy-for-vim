@@ -25,10 +25,14 @@ cpdef bool bboxContains(np.ndarray[np.float64_t, ndim=2] bb,
                         np.ndarray[np.float64_t, ndim=1] pt)
 cpdef bool bboxInside(np.ndarray[np.float64_t, ndim=2] bb1,
                       np.ndarray[np.float64_t, ndim=2] bb2)
-cpdef float bboxVolume(np.ndarray[np.float64_t, ndim=2] bb)
+cpdef double bboxVolume(np.ndarray[np.float64_t, ndim=2] bb)
 cpdef np.ndarray[np.float64_t, ndim=2] bboxGrow(np.ndarray[np.float64_t, ndim=2] bb,
                           np.ndarray[np.float64_t, ndim=1] off)
 cpdef np.ndarray[np.float64_t, ndim=2] bboxZproject(np.ndarray[np.float64_t, ndim=2] bb)
 cpdef np.ndarray[np.float64_t, ndim=2] bboxMinkowskiXY(np.ndarray[np.float64_t, ndim=2] bb1,
                                  np.ndarray[np.float64_t, ndim=2] bb2)
 cpdef np.ndarray[np.float64_t, ndim=2] bboxRefXY(np.ndarray[np.float64_t, ndim=2] bb)
+cpdef np.ndarray[np.float64_t, ndim=2] bboxOrigin(np.ndarray[np.float64_t, ndim=2] bb)
+cpdef bool bboxGrownOverlap(np.ndarray[np.float64_t, ndim=2] bb1,
+                  	    np.ndarray[np.float64_t, ndim=2] bb2,
+		            double delta = *)			

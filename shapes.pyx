@@ -7,7 +7,6 @@ import hu
 cimport hu
 
 from cpython cimport bool
-from collision cimport thingThingCollides
 from geom cimport *
 from cut cimport *
 
@@ -15,22 +14,23 @@ import windowManager3D as win
 #import transformations as transf
 from planGlobals import debug
 
+cimport collision
+import collision
+from collision import primPrimCollides
+
 #################################
 # Object classes: Thing, Prim, Shape
 #################################
 
-cdef float tiny = 1.0e-6
-ThingIndex = 0
+cdef double tiny = 1.0e-6
 
 cdef class Thing:
-    """Most general class of object, characterized by a bbox. The more specific
-    types (Prim) are subclasses.  All Things also have a properties dictionary,
-    which includes a name."""
+    """Most unspecific class of object, characterized by a bbox. All
+    Things also have a properties dictionary, which includes a name."""
     def __init__(self,
                  np.ndarray[np.float64_t, ndim=2] bbox,
                  hu.Transform origin,
                  **props):
-        global ThingIndex
         self.properties = props.copy()
         if not 'name' in self.properties:
             self.properties['name'] = hu.gensym('Thing')
@@ -39,36 +39,14 @@ cdef class Thing:
             self.thingOrigin = origin
         else:
             trans = np.eye(4, dtype=np.float64)
-            trans[:3, 3] = bboxCenter(bbox)[:3]
+            trans[:3, 3] = bboxCenter(bbox)[:3] if (not bbox is None) else np.zeros(3)
             self.thingOrigin = hu.Transform(trans)
-        self.thingCenter = None
         self.thingVerts = None
         self.thingPlanes = None
         self.thingEdges = None
-        self.thingPrim = None
-        self.thingFaceFrames = None
-        self.thingString = None
-        self.index = ThingIndex
-        ThingIndex += 1
-
-    def getIndex(self):
-        return self.index
 
     cpdef str name(self):
         return self.properties.get('name', 'noName')
-
-    cpdef list faceFrames(self):
-        # Use faceFrames for bounding box -- FOR NOW
-        cdef:
-            np.ndarray[np.float64_t, ndim=2] bb
-        if self.thingFaceFrames is None:
-            bb = self.bbox()
-            bbPlanes = np.array([[-1.,0.,0., bb[0,0]], [1.,0.,0., -bb[1,0]],
-                                 [0.,-1,0., bb[0,1]], [0.,1.,0., -bb[1,1]],
-                                 [0.,0.,-1., bb[0,2]], [0.,0.,1., -bb[1,2]]])
-            self.thingFaceFrames = thingFaceFrames(bbPlanes,
-                                                   self.thingOrigin)
-        return self.thingFaceFrames
 
     cpdef hu.Transform origin(self):
         return self.thingOrigin
@@ -77,33 +55,36 @@ cdef class Thing:
         """Returns bbox (not a copy)."""
         return self.thingBBox
 
+    cpdef list parts(self):
+        return [self]
+
     cpdef tuple zRange(self):
         """Summarizes z range of bbox by a tuple"""
-        return (self.thingBBox[0,2], self.thingBBox[1,2])
+        cdef np.ndarray[np.float64_t, ndim=2] bb
+        bb = self.bbox()
+        return (bb[0,2], bb[1,2])
 
     cpdef np.ndarray[np.float64_t, ndim=1] center(self):
         """Returns a point at the center of the bbox."""
-        if self.thingCenter is None:
-            self.thingCenter = bboxCenter(self.thingBBox)
-        return self.thingCenter
+        cdef np.ndarray[np.float64_t, ndim=1] center = bboxCenter(self.bbox())
+        return center
 
     cpdef np.ndarray[np.float64_t, ndim=2] vertices(self):
         cdef:
-            float xlo, ylo, zlo, xhi, yhi, zhi
-            np.ndarray[np.float64_t, ndim=2] points, verts, bb
+            double xlo, ylo, zlo, xhi, yhi, zhi
+            np.ndarray[np.float64_t, ndim=2] points, bb
         if self.thingVerts is None:
             bb = self.bbox()
             xlo = bb[0,0]; ylo = bb[0,1]; zlo = bb[0,2]
             xhi = bb[1,0]; yhi = bb[1,1]; zhi = bb[1,2]
             points = np.array([[xlo, ylo, zlo, 1.], [xhi, ylo, zlo, 1.],
                                [xhi, yhi, zlo, 1.], [xlo, yhi, zlo, 1.]]).T
-            verts = vertsFrom2D(points, zlo, zhi)
-            self.thingVerts = verts
+            self.thingVerts = vertsFrom2D(points, zlo, zhi)
         return self.thingVerts
 
     cpdef np.ndarray[np.float64_t, ndim=2] planes(self):
         cdef:
-            float xlo, ylo, zlo, xhi, yhi, zhi
+            double xlo, ylo, zlo, xhi, yhi, zhi
             np.ndarray[np.float64_t, ndim=2] bb
         if self.thingPlanes is None:
             bb = self.bbox()
@@ -114,77 +95,63 @@ cdef class Thing:
 
     cpdef np.ndarray[np.int_t, ndim=2] edges(self):
         if self.thingEdges is None:
-            self.thingEdges = np.array([[3, 2], [2, 6], [6, 7], [1, 5], [4, 5], [2, 1],
-                                        [7, 4], [5, 6], [3, 7], [0, 3], [1, 0], [4, 0]], dtype=np.int)
-        return self.thingEdges    
+            self.thingEdges= np.array([[3, 2], [2, 6], [6, 7], [1, 5], [4, 5], [2, 1],
+                                       [7, 4], [5, 6], [3, 7], [0, 3], [1, 0], [4, 0]], dtype=np.int)
+        return self.thingEdges
 
-    cpdef Prim prim(self):
-        """Constructs a Prim that matches the bbox.  Useful when computing
-        collisions, etc."""
-        if self.thingPrim is None:
-            self.thingPrim = BoxAligned(self.bbox(), self.thingOrigin, **self.properties)
-        return self.thingPrim
-
-    cpdef list parts(self):
-        return [self]
-
-    cpdef Thing applyTransMod(self, hu.Transform trans, Thing shape, str frame='unspecified'):
-        """Displace the Thing; returns a Prim."""
-        return self.prim().applyTransMod(trans, shape, frame)
-
-    cpdef Thing applyLocMod(self, hu.Transform trans, Thing shape, str frame='unspecified'):
-        """Displace the Thing to a location; returns a Prim."""
-        return self.applyTransMod(trans.compose(self.thingOrigin.inverse()), shape, frame)
-    
     cpdef Thing applyTrans(self, hu.Transform trans, str frame='unspecified'):
         """Displace the Thing; returns a Prim."""
         return self.prim().applyTrans(trans, frame)
 
     cpdef Thing applyLoc(self, hu.Transform trans, str frame='unspecified'):
         """Displace the Thing to a location; returns a Prim."""
-        return self.applyTrans(trans.compose(self.thingOrigin.inverse()), frame)
+        return self.applyTrans(trans.compose(self.origin().inverse()), frame)
 
-    cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt):
-        """Test whether the Thing's bbox contains the Point pt."""
-        return bboxContains(self.bbox(), pt)
+    # cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt):
+    #     """Test whether the Thing's bbox contains the Point pt."""
+    #     return bboxContains(self.bbox(), pt)
 
-    cpdef bool collides(self, Thing obj):
-        """Test whether the Thing's collides with another obj, that
-        could be any of the types of Thing."""
-        if self.bbox() is None or obj.bbox() is None: return False
-        if  bboxOverlap(self.bbox(), obj.bbox()): 
-            if isinstance(obj, (Prim, Shape)): # more general type, pass the buck
-                return obj.collides(self)
-            elif isinstance(obj, Thing):
-                return True             # already checked bbox
-            else:
-                raise Exception, 'Unknown obj type'%str(obj)
-        return False
+    # cpdef Prim prim(self):
+    #     """Constructs a Prim that matches the bbox.  Useful when computing
+    #     collisions, etc."""
+    #     prim = BoxAligned(self.bbox(), self.thingOrigin, **self.properties)
+    #     return prim
 
-    cpdef Shape cut(self, Thing obj, bool isect = False):
-        if not (obj.bbox() is None) and bboxOverlap(self.bbox(), obj.bbox()):
-            if isinstance(obj, Shape):
-                return self.prim().cut(obj, isect=isect)
-            else:
-                ans = primPrimCut(self.prim(), obj.prim(), isect=isect)
-                if ans:
-                    return Shape([ans], self.origin(), **self.properties)
-        return None if isect else self
+    # cpdef bool collides(self, Thing obj):
+    #     """Test whether the Thing's collides with another obj, that
+    #     could be any of the types of Thing."""
+    #     if self.bbox() is None or obj.bbox() is None: return False
+    #     if  bboxOverlap(self.bbox(), obj.bbox()): 
+    #         if isinstance(obj, (Prim, Shape)): # more general type, pass the buck
+    #             return obj.collides(self)
+    #         elif isinstance(obj, Thing):
+    #             return True             # already checked bbox
+    #         else:
+    #             raise Exception, 'Unknown obj type'%str(obj)
+    #     return False
 
-    cpdef Prim xyPrim(self):
-        return self.prim()
+    # cpdef Shape cut(self, Thing obj, bool isect = False):
+    #     if not (obj.bbox() is None) and bboxOverlap(self.bbox(), obj.bbox()):
+    #         if isinstance(obj, Shape):
+    #             return self.prim().cut(obj, isect=isect)
+    #         else:
+    #             ans = primPrimCut(self.prim(), obj.prim(), isect=isect)
+    #             if ans:
+    #                 return Shape([ans], self.origin(), **self.properties)
+    #     return None if isect else self
 
-    cpdef Prim boundingRectPrim(self):
-        return self.prim()
+    # cpdef Prim xyPrim(self):
+    #     return self.prim()
 
-    cpdef draw(self, str window, str color = 'black', float opacity = 1.0):
+    # cpdef Prim boundingRectPrim(self):
+    #     return self.prim()
+
+    cpdef draw(self, str window, str color = 'black', double opacity = 1.0):
         """Ask the window to draw this object."""
         win.getWindow(window).draw(self, color, opacity)
         
     def __str__(self):
-        if not self.thingString:
-            self.thingString = self.properties['name']+':'+str(self.bbox().tolist())
-        return self.thingString
+        return self.properties['name']+':'+str(self.bbox().tolist())
     def __repr__(self):
         return str(self)
     def __hash__(self):
@@ -203,19 +170,49 @@ cdef class Thing:
 # Prim class: convex "chunk", has 3D description and we can get 2.5D
 # approx via convex hull of projection.
 
-cdef class Prim(Thing):
+# This is the base (unchanging) description of a convex chunk.
+cdef class BasePrim:
+    def __init__(self,
+                 np.ndarray[np.float64_t, ndim=2] verts,
+                 list faces,
+                 **props):
+        cdef np.ndarray[np.float64_t, ndim=2] bb
+        self.properties = props.copy()
+        if not 'name' in self.properties:
+            self.properties['name'] = hu.gensym('Base')
+        self.baseBBox = bb = vertsBBox(verts, None)   # the bbox for original verts
+        self.baseVerts = verts
+        self.baseFaces = faces
+        self.basePlanes = primPlanes(self.baseVerts, faces)
+        self.baseEdges = primEdges(self.baseVerts, faces)
+        self.baseRings = None # primRings(self.baseEdges)
+        bbPlanes = np.array([[-1.,0.,0., bb[0,0]], [1.,0.,0., -bb[1,0]],
+                             [0.,-1,0., bb[0,1]], [0.,1.,0., -bb[1,1]],
+                             [0.,0.,-1., bb[0,2]], [0.,0.,1., -bb[1,2]]])
+        self.baseFaceFrames = thingFaceFrames(bbPlanes, hu.Ident)
+        self.baseString = self.properties['name']+':'+str(self.baseBBox.tolist())
+    def __str__(self):
+        return self.baseString
+    def __repr__(self):
+        return self.baseString
+
+# This is a located convex chunk, need to provide (verts, faces, origin) or a BasePrim
+cdef class Prim:
     def __init__(self,
                  np.ndarray[np.float64_t, ndim=2] verts,
                  list faces,            # since faces have variable length
                  hu.Transform origin,
+                 BasePrim bs,
                  **props):
-        self.primVerts = verts
-        self.primFaces = faces
-        self.primPlanes = None
-        self.primEdges = None
-        Thing.__init__(self, vertsBBox(verts, None), origin, **props)
+        self.properties = props.copy()
+        self.primOrigin = origin or hu.Ident
+        self.basePrim = bs or BasePrim(np.dot(self.primOrigin.inverse().matrix, verts), faces, **props)
         if not 'name' in self.properties:
             self.properties['name'] = hu.gensym('Prim')
+        self.primVerts = None
+        self.primPlanes = None
+        self.primBBox = None
+        self.tupleBBox = None
 
     cpdef Prim prim(self):
         return self
@@ -223,59 +220,70 @@ cdef class Prim(Thing):
     cpdef list parts(self):
         return [self]
 
-    cpdef np.ndarray[np.float64_t, ndim=2] vertices(self):
-        return self.primVerts
+    cpdef str name(self):
+        return self.properties.get('name', 'noName')
 
-    cpdef list faces(self):
-        return self.primFaces
+    cpdef hu.Transform origin(self):
+        return self.primOrigin
+
+    cpdef np.ndarray[np.float64_t, ndim=2] vertices(self):
+        if self.primVerts is None:
+            self.primVerts = np.dot(self.primOrigin.matrix, self.basePrim.baseVerts)
+        return self.primVerts
 
     cpdef np.ndarray[np.float64_t, ndim=2] planes(self):
         if self.primPlanes is None:
-            self.primPlanes = primPlanes(self.vertices(), self.faces())
+            self.primPlanes = np.dot(self.basePrim.basePlanes,
+                                     self.primOrigin.inverse().matrix)
         return self.primPlanes
 
-    cpdef np.ndarray[np.int_t, ndim=2] edges(self):
-        if self.primEdges is None:
-            self.primEdges = primEdges(self.vertices(), self.faces())
-        return self.primEdges
+    cpdef list faces(self):
+        return self.basePrim.baseFaces
 
-    cpdef Thing applyTrans(self, hu.Transform trans, str frame='unspecified',):
-        if debug('mod'):
-            print trans.matrix
-            print self.vertices()
-        return Prim(np.dot(trans.matrix, self.vertices()),
-                    self.faces(),
-                    trans.compose(self.thingOrigin),
+    cpdef np.ndarray[np.int_t, ndim=2] edges(self):
+        return self.basePrim.baseEdges
+
+    cpdef np.ndarray[np.float64_t, ndim=2] bbox(self):
+        if self.primBBox is None:
+            self.primBBox = vertsBBox(self.vertices(), None)
+            self.tupleBBox = tuple([tuple(x) for x in self.primBBox.tolist()])
+        return self.primBBox
+
+    cpdef tuple zRange(self):
+        """Summarizes z range of bbox by a tuple"""
+        cdef np.ndarray[np.float64_t, ndim=2] bb
+        bb = self.bbox()
+        return (bb[0,2], bb[1,2])
+
+    cpdef Prim applyTrans(self, hu.Transform trans, str frame='unspecified',):
+        return Prim(None, None,         # basePrim has the relevant info
+                    trans.compose(self.primOrigin),
+                    self.basePrim,
                     **mergeProps(self.properties, {'frame':frame}))
 
-    cpdef Thing applyTransMod(self, hu.Transform trans, Thing shape, str frame='unspecified',):
-        if debug('mod'):
-            print trans.matrix
-            print 'Thing', self.getIndex(), '\n', self.vertices()
-        shape.primVerts = np.dot(trans.matrix, self.vertices())
-        shape.thingOrigin = trans.compose(self.thingOrigin)
-        shape.thingBBox = vertsBBox(shape.primVerts, None)
-        shape.primPlanes = None         # could be transformed...
-        shape.thingFaceFrames = None
-        shape.thingCenter = None
+    cpdef Prim applyLoc(self, hu.Transform trans, str frame='unspecified'):
+        """Displace the Thing to a location; returns a Prim."""
+        return self.applyTrans(trans.compose(self.origin().inverse()), frame)
 
-    cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt):
-        return True if np.all(np.dot(self.planes(), pt.reshape(4,1)) <= tiny) else False
+    cpdef list faceFrames(self):
+        return [self.primOrigin.compose(fr) for fr in self.basePrim.baseFaceFrames]
 
-    cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts):
-        """Returns array of booleans"""
-        return np.all(np.dot(self.planes(), pts) <= tiny, axis=0)
+    # cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt):
+    #     return True if np.all(np.dot(self.planes(), pt.reshape(4,1)) <= tiny) else False
 
-    cpdef bool collides(self, Thing obj):
-        if self.bbox() is None or obj.bbox() is None: return False
-        if bboxOverlap(self.bbox(), obj.bbox()):
-            if isinstance(obj, Shape): # more general type, pass the buck
-                return obj.collides(self)
-            else:
-                return thingThingCollides(self, obj)
-        return False
+    # cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts):
+    #     """Returns array of booleans"""
+    #     return np.all(np.dot(self.planes(), pts) <= tiny, axis=0)
 
-    cpdef Shape cut(self, Thing obj, bool isect = False):
+    cpdef bool collides(self, obj):
+        if isinstance(obj, Shape):  # more general type, pass the buck
+            return obj.collides(self)
+        else:
+            if not bboxGrownOverlap(self.bbox(), obj.bbox()):
+                return False
+            return primPrimCollides(self, obj)
+
+    cpdef Shape cut(self, obj, bool isect = False):
         if bboxOverlap(self.bbox(), obj.bbox()):
             if isinstance(obj, Shape):  # Shape is a union of objects
                 ans = []
@@ -307,78 +315,109 @@ cdef class Prim(Thing):
     
     # Compute XY convex hull
     cpdef Prim xyPrim(self):
-        return xyPrimAux(self.vertices(), self.zRange(), self.thingOrigin, self.properties)
+        return xyPrimAux(self.vertices(), self.zRange(), self.primOrigin, self.properties)
 
     # Compute least inertia box
     cpdef Prim boundingRectPrim(self):
-        return boundingRectPrimAux(self.vertices(), self.thingOrigin, self.properties)
+        return boundingRectPrimAux(self.vertices(), self.primOrigin, self.properties)
 
-    # def __repr__(self):
-    #     if not self.thingString:
-    #         self.thingString = 'Prim('+str(self.primVerts.tolist())+','+str(self.primFaces)+','+str(self.properties)+')'
-    #     return self.thingString
+    cpdef draw(self, str window, str color = 'black', double opacity = 1.0):
+        """Ask the window to draw this object."""
+        win.getWindow(window).draw(self, color, opacity)
 
-cdef class Shape(Thing):
-    def __init__(self, list parts, hu.Transform origin, **props):
-        self.compParts = parts
-        if parts:
-            # self.compVerts = np.hstack([p.vertices() for p in parts \
-            #                             if not p.vertices() is None])
-            self.compVerts = None
-            Thing.__init__(self, bboxUnion([x.bbox() for x in parts]), origin, **props)
-            if not 'name' in self.properties:
-                self.properties['name'] = hu.gensym('Shape')
+    cpdef tuple desc(self):
+        if not self.tupleBBox:
+            self.bbox()                 # sets it
+        return self.properties['name']+':'+str(self.tupleBBox)
+    def __str__(self):
+        return self.properties['name']+':'+str(self.desc())
+    def __repr__(self):
+        return str(self)
+    def __hash__(self):
+        return hash(self.properties['name']+':'+str(self.desc()))
+    def __richcmp__(self, other, int op):
+        if not (other and isinstance(other, Prim)):
+            return True if op == 3 else False
+        if op == 2:
+            ans = self.name() == other.name() and self.desc() == other.desc()
+        elif op == 3:
+            ans = self.name() != other.name() or self.desc() != other.desc()
         else:
-            self.compVerts = None
-            Thing.__init__(self, np.array([3*[0.0], 3*[0.0]]), origin, **props)
+            ans = False
+        return ans
 
-    cpdef emptyP(self):
-        return not self.compParts
+cdef class Shape:
+    def __init__(self, list parts, hu.Transform origin, **props):
+        self.properties = props.copy()
+        self.shapeParts = parts
+        if origin:
+            self.shapeOrigin = origin
+        elif parts:
+            self.shapeOrigin = hu.Transform(bboxOrigin(bboxUnion([p.bbox() for p in parts])))
+        else:
+            self.shapeOrigin = hu.Ident
+        if not 'name' in self.properties:
+            self.properties['name'] = hu.gensym('Shape')
+        self.shapeBBox = None
+        self.tupleBBox = None
 
     cpdef list parts(self):
-        return self.compParts
+        return self.shapeParts
+
+    cpdef str name(self):
+        return self.properties.get('name', 'noName')
+
+    cpdef hu.Transform origin(self):
+        return self.shapeOrigin
 
     cpdef np.ndarray[np.float64_t, ndim=2] vertices(self):
-        return self.compVerts
+        raw_input('Calling for vertices of compound shape')
+        return None
 
-    cpdef Thing applyTrans(self, hu.Transform trans, str frame='unspecified'):
-        if debug('mod'): print 'Shape applyTrans', self.name()
+    cpdef Shape applyTrans(self, hu.Transform trans, str frame='unspecified'):
         return Shape([p.applyTrans(trans, frame) for p in self.parts()],
-                     trans.compose(self.thingOrigin),
+                     trans.compose(self.shapeOrigin),
                      **mergeProps(self.properties, {'frame':frame}))
 
-    cpdef Thing applyTransMod(self, hu.Transform trans, Thing shape, str frame='unspecified'):
-        if debug('mod'): print 'Shape applyTransMod', self.name(), len(self.parts()), 'parts'
-        for p, pm in zip(self.parts(), shape.parts()):
-            p.applyTransMod(trans, pm)
-        if shape.parts():
-            shape.thingBBox = bboxUnion([x.bbox() for x in shape.parts()])
-            shape.thingOrigin = trans.compose(self.thingOrigin)
-            shape.thingFaceFrames = None
-            shape.thingCenter = None
+    cpdef Shape applyLoc(self, hu.Transform trans, str frame='unspecified'):
+        """Displace the Thing to a location; returns a Prim."""
+        return self.applyTrans(trans.compose(self.origin().inverse()), frame)
 
-    cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt):
-        for p in self.parts():
-            if p.containsPt(pt): return True
-        return False
+    cpdef np.ndarray[np.float64_t, ndim=2] bbox(self):
+        if self.shapeBBox is None:
+            self.shapeBBox = bboxUnion([x.bbox() for x in self.parts()])
+            self.tupleBBox = tuple([tuple(x) for x in self.shapeBBox.tolist()])
+        return self.shapeBBox
 
-    cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts):
-        """Returns array of booleans"""
-        return np.array([self.containsPt(pts[i]) for i in range(pts.shape[0])])
+    # cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt):
+    #     for p in self.parts():
+    #         if p.containsPt(pt): return True
+    #     return False
 
-    cpdef bool collides(self, Thing obj):
-        cdef Thing p1, p2, op
+    # cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts):
+    #     """Returns array of booleans"""
+    #     return np.array([self.containsPt(pts[i]) for i in range(pts.shape[0])])
+
+    cpdef list faceFrames(self):
+        # Use faceFrames for bounding box -- FOR NOW -- should be for convex hull?
+        cdef:
+            np.ndarray[np.float64_t, ndim=2] bb
+        bb = self.bbox()
+        bbPlanes = np.array([[-1.,0.,0., bb[0,0]], [1.,0.,0., -bb[1,0]],
+                             [0.,-1,0., bb[0,1]], [0.,1.,0., -bb[1,1]],
+                             [0.,0.,-1., bb[0,2]], [0.,0.,1., -bb[1,2]]])
+        return thingFaceFrames(bbPlanes, self.shapeOrigin)
+
+    cpdef bool collides(self, obj):
+        if not bboxGrownOverlap(self.bbox(), obj.bbox()):
+            return False
         # Is there any pairwise collision
-        if self.bbox() is None or obj.bbox() is None: return False
-        if bboxOverlap(self.bbox(), obj.bbox()):
-            for p1 in self.parts():
-                if p1.bbox() is None: continue
-                if bboxOverlap(p1.bbox(), obj.bbox()):
-                    for p2 in obj.parts():
-                        if p1.collides(p2): return True
+        for p1 in toPrims(self):
+            for p2 in toPrims(obj):
+                if p1.collides(p2): return True
         return False
 
-    cpdef Shape cut(self, Thing obj, bool isect = False):
+    cpdef Shape cut(self, obj, bool isect = False):
         # Shape is a union of objects
         cdef Prim p1, p2, op
         if bboxOverlap(self.bbox(), obj.bbox()):
@@ -409,36 +448,61 @@ cdef class Shape(Thing):
     cpdef Prim prim(self):
         verts = np.hstack([p.vertices() for p in toPrims(self) \
                            if not p.vertices() is None])
-        return convexHullPrim(verts, self.thingOrigin) \
+        return convexHullPrim(verts, self.shapeOrigin) \
                if self.parts() else None
 
     # Compute XY convex hull
     cpdef Prim xyPrim(self):
+        cdef np.ndarray[np.float64_t, ndim=2] bb
         verts = np.hstack([p.vertices() for p in toPrims(self) \
                            if not p.vertices() is None])
-        return xyPrimAux(verts, self.zRange(), self.thingOrigin, self.properties) \
+        bb = vertsBBox(verts, None)
+        zr = (bb[0,2], bb[1,2])
+        return xyPrimAux(verts, zr, self.shapeOrigin, self.properties) \
                if self.parts() else None
 
     # Compute least inertia box
     cpdef Prim boundingRectPrim(self):
-        return boundingRectPrimAux(self.vertices(), self.thingOrigin, self.properties) \
+        return boundingRectPrimAux(self.vertices(), self.shapeOrigin, self.properties) \
                if self.parts() else None
 
-    # def __repr__(self):
-    #     if not self.thingString:
-    #         self.thingString = 'Shape('+repr(self.parts())+','+str(self.properties)+')'
-    #     return self.thingString
+    cpdef tuple desc(self):
+        if not self.tupleBBox:
+            self.bbox()                 # sets it
+        return self.tupleBBox
+
+    cpdef draw(self, str window, str color = 'black', double opacity = 1.0):
+        """Ask the window to draw this object."""
+        win.getWindow(window).draw(self, color, opacity)
+    
+    def __str__(self):
+        return self.properties['name']+':'+str(self.desc())
+    def __repr__(self):
+        return str(self)
+    def __hash__(self):
+        return hash(self.properties['name']+':'+str(self.desc()))
+    def __richcmp__(self, other, int op):
+        if not (other and isinstance(other, Shape)):
+            return True if op == 3 else False
+        if op == 2:
+            ans = self.name() == other.name() and self.desc() == other.desc()
+        elif op == 3:
+            ans = self.name() != other.name() or self.desc() != other.desc()
+        else:
+            ans = False
+        return ans
+
 
 #################################
 # Object creation: Prims
 #################################
 
 cdef class Box(Prim):
-    def __init__(self, float dx, float dy, float dz, hu.Transform origin, **props):
+    def __init__(self, double dx, double dy, double dz, hu.Transform origin, **props):
         cdef:
-            float hdx = 0.5*dx
-            float hdy = 0.5*dy
-            float hdz = 0.5*dz
+            double hdx = 0.5*dx
+            double hdy = 0.5*dy
+            double hdz = 0.5*dz
             np.ndarray[np.float64_t, ndim=2] points
         if not 'name' in props:
             props = mergeProps(props, {'name':hu.gensym("box")})
@@ -447,15 +511,15 @@ cdef class Box(Prim):
         Prim.__init__(self,
                       vertsFrom2D(points, -hdz, hdz),
                       facesFrom2D(<int>points.shape[1]),
-                      origin,
+                      origin, None,
                       **props)
 
 cdef class BoxScale(Prim):
-    def __init__(self, float dx, float dy, float dz, hu.Transform origin, float scale, **props):
+    def __init__(self, double dx, double dy, double dz, hu.Transform origin, double scale, **props):
         cdef:
-            float hdx = 0.5*dx
-            float hdy = 0.5*dy
-            float hdz = 0.5*dz
+            double hdx = 0.5*dx
+            double hdy = 0.5*dy
+            double hdz = 0.5*dz
             np.ndarray[np.float64_t, ndim=2] points
         if not 'name' in props:
             props = mergeProps(props, {'name':hu.gensym("box")})
@@ -464,13 +528,13 @@ cdef class BoxScale(Prim):
         Prim.__init__(self,
                       vertsFrom2DScale(points, -hdz, hdz, scale),
                       facesFrom2D(<int>points.shape[1]),
-                      origin,
+                      origin, None,
                       **props)
 
 cdef class Ngon(Prim):
-    def __init__(self, float r, dz, int nsides, hu.Transform origin, **props):
+    def __init__(self, double r, dz, int nsides, hu.Transform origin, **props):
         cdef:
-            float hdz, ang
+            double hdz, ang
             int i
             np.ndarray[np.float64_t, ndim=2] points
         hdz = 0.5*dz
@@ -482,23 +546,33 @@ cdef class Ngon(Prim):
         Prim.__init__(self,
                       vertsFrom2D(points, -hdz, hdz),
                       facesFrom2D(<int>points.shape[1]),
-                      origin,
+                      origin, None,
                       **props)
 
 cdef class BoxAligned(Prim):
     def __init__(self, np.ndarray[np.float64_t, ndim=2] bbox, hu.Transform origin, **props):
         cdef:
-            float xlo, ylo, zlo, xhi, yhi, zhi
+            double xlo, ylo, zlo, xhi, yhi, zhi
             np.ndarray[np.float64_t, ndim=2] points
         if not 'name' in props:
             props = mergeProps(props, {'name':hu.gensym("box")})
         ((xlo, ylo, zlo), (xhi, yhi, zhi)) = bbox.tolist()
+        if xhi < xlo or yhi < ylo or zhi < zlo:
+            print 'bbox', bbox, props
+            raw_input('BBox for BoxAligned is inside out, ok to flip?')
+            xlo, xhi = min(xlo, xhi), max(xlo, xhi)
+            ylo, yhi = min(ylo, yhi), max(ylo, yhi)
+            zlo, zhi = min(zlo, zhi), max(zlo, zhi)
+            bbox = np.array(((xlo, ylo, zlo), (xhi, yhi, zhi)))
+        center = hu.Transform(bboxOrigin(bbox))
         points = np.array([[xlo, ylo, zlo, 1.], [xhi, ylo, zlo, 1.],
                            [xhi, yhi, zlo, 1.], [xlo, yhi, zlo, 1.]]).T
+        if origin:
+            center = origin.compose(center)
         Prim.__init__(self,
                       vertsFrom2D(points, zlo, zhi),
                       facesFrom2D(<int>points.shape[1]),
-                      origin,
+                      center, None,
                       **props)
 
 cpdef Thing pointBox(pt, r = 0.02):
@@ -513,7 +587,7 @@ cdef class Polygon(Prim):
         Prim.__init__(self,
                       vertsFrom2D(verts, zr[0], zr[1]),
                       facesFrom2D(<int>verts.shape[1]),
-                      origin,
+                      origin, None,
                       **props)
 
 #################################################################################
@@ -521,7 +595,7 @@ cdef class Polygon(Prim):
 #################################################################################
 
 cpdef np.ndarray[np.float64_t, ndim=2] vertsFrom2D(np.ndarray[np.float64_t, ndim=2] verts,
-                                                   float zlo, float zhi):
+                                                   double zlo, double zhi):
     cdef:
         np.ndarray[np.float64_t, ndim=2] vertsLo, vertsHi
         int i
@@ -533,7 +607,7 @@ cpdef np.ndarray[np.float64_t, ndim=2] vertsFrom2D(np.ndarray[np.float64_t, ndim
     return np.hstack([vertsLo, vertsHi])
 
 cpdef np.ndarray[np.float64_t, ndim=2] vertsFrom2DScale(np.ndarray[np.float64_t, ndim=2] verts,
-                                                        float zlo, float zhi, float scale):
+                                                        double zlo, double zhi, double scale):
     cdef:
         np.ndarray[np.float64_t, ndim=2] vertsLo, vertsHi
         int i
@@ -561,10 +635,10 @@ cpdef list facesFrom2D(int n):
 
 # Returns an array of planes, one for each face
 # The plane equations is n x + d = 0.  n;d are rows of matrix.
-cdef np.ndarray[np.float64_t, ndim=2] primPlanes(np.ndarray[np.float64_t, ndim=2] verts,
+cpdef np.ndarray[np.float64_t, ndim=2] primPlanes(np.ndarray[np.float64_t, ndim=2] verts,
                                                  list faces):
     cdef:
-        float mag, d
+        double mag, d
         np.ndarray[np.float64_t, ndim=1] n
         np.ndarray[np.float64_t, ndim=2] planes
         np.ndarray[np.int_t, ndim=1] face
@@ -580,6 +654,8 @@ cdef np.ndarray[np.float64_t, ndim=2] primPlanes(np.ndarray[np.float64_t, ndim=2
                  np.dot(n, verts[:, face[2]][:3]))/3.0
             planes[f,:3] = n            # unit normal
             planes[f,3] = -d            # -distance from origin
+    if np.any(np.dot(planes, np.average(verts, axis=1)) > 0.0):
+        raw_input('Planes do not enclose centroid')
     return planes
 
 # The indices of edges
@@ -605,6 +681,32 @@ cdef np.ndarray[np.int_t, ndim=2] primEdges(np.ndarray[np.float64_t, ndim=2] ver
         edges[i,1] = head
     return edges
 
+cdef np.ndarray[np.int_t, ndim=1] primRings(np.ndarray[np.int_t, ndim=2] edges):
+    cdef:
+        dict vconn = {}
+        int i, j, ind, nv, n
+        list vc, entries
+        np.ndarray[np.int_t, ndim=1] rings
+    for i in range(edges.shape[0]):
+        for (a,b) in ((0,1),(1,0)):
+            if edges[i,a] in vconn:
+                vconn[edges[i,a]].append(edges[i, b])
+            else:
+                vconn[edges[i,a]] = [edges[i,b]]
+    nv = len(vconn)
+    n = nv + sum([len(vc)+1 for vc in vconn.values()])
+    rings = np.zeros(n, dtype=np.int)
+    ind = nv
+    for i in range(nv):
+        rings[i] = ind
+        entries = vconn[i]
+        for j, e in enumerate(entries):
+            rings[j + ind] = e
+        ind += len(entries)
+        rings[ind] = -1
+        ind += 1
+    return rings
+
 cdef Prim xyPrimAux(np.ndarray[np.float64_t, ndim=2] verts,
                     tuple zr, hu.Transform origin, dict props):
     cdef:
@@ -612,7 +714,7 @@ cdef Prim xyPrimAux(np.ndarray[np.float64_t, ndim=2] verts,
     points = convexHullVertsXY(verts)
     return Prim(vertsFrom2D(points, zr[0], zr[1]),
                 facesFrom2D(<int>points.shape[1]),
-                origin,
+                origin, None,
                 **props)
 
 cdef Prim boundingRectPrimAux(np.ndarray[np.float64_t, ndim=2] verts,
@@ -653,7 +755,7 @@ def toPrims(obj):
 cpdef list thingFaceFrames(np.ndarray[np.float64_t, ndim=2] planes,
                          hu.Transform origin):
     cdef:
-        float d, cr
+        double d, cr
         int i, yi
         list vo
         np.ndarray[np.float64_t, ndim=1] x, y, z
@@ -717,4 +819,5 @@ def readOff(filename, name='offObj', scale=1.0):
     faces = []
     for f in range(nf):
         faces.append(np.array([int(x) for x in fl.readline().split()][1:]))
-    return shapes.Prim(verts, faces, hu.Pose(0,0,0,0), name=name)
+    return shapes.Prim(verts, faces, hu.Pose(0,0,0,0), None, name=name)
+

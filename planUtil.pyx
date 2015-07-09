@@ -206,7 +206,7 @@ cdef class Violations(Hash):
                                upd(self.heldObstacles[1], viol.heldObstacles[1])),
                               (upd(self.heldShadows[0], viol.heldShadows[0]),
                                upd(self.heldShadows[1], viol.heldShadows[1])))
-    cpdef float weight(self, weights=(1.0, 0.5, 1.0, 0.5)):
+    cpdef double weight(self, weights=(1.0, 0.5, 1.0, 0.5)):
         return weights[0]*len(self.obstacles) + \
                weights[1]*len(self.shadows) + \
                weights[2]*sum([len(ho) for ho in self.heldObstacles]) +\

@@ -39,7 +39,7 @@ cdef class Violations(Hash):
     cpdef list allShadows(self)
     cpdef Violations combine(self, obstacles, shadows, heldObstacles=*, heldShadows=*)
     cpdef Violations update(self, viol)
-    cpdef float weight(self, weights=*)
+    cpdef double weight(self, weights=*)
     cpdef bool LEQ(self, other)
     cpdef tuple desc(self)
     cpdef tuple names(self)

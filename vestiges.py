@@ -1012,6 +1012,7 @@ def getAllPoseBels(overrides, getFaceFrames, curr):
         objects[o] = p
     return objects
 
+<<<<<<< HEAD
 
 # regrasp
 def testRegrasp(hpn = False, draw=False):
@@ -1067,4 +1068,37 @@ def testScan():
             count += 1
     return count
 
+
+=======
+        
+    def setObjectConfOld(self, objName, conf):
+        obj = self.world.objects[objName]
+        if not isinstance(conf, dict):
+            conf = {objName:conf}
+        if not all([(cname in conf.keys()) for cname in obj.chainsByName]):
+            conf = conf.copy()
+            for chain in obj.chainsInOrder[1:]:
+                # print 'Setting region chain', chain.name, 'of', obj
+                assert isinstance(chain, Permanent)
+                conf[chain.name] = []
+        # Update the state of the world
+        self.objectConfs[objName] = conf
+        for chain in obj.chainsInOrder:
+            chainPlace, chainTrans = chain.placement(self.frames[chain.baseFname],
+                                                     conf[chain.name])
+            for part in chainPlace.parts():
+                if part.name() == objName:
+                    self.objectShapes[part.name()] = part
+                    # print 'Adding', part.name(), 'to objectShapes'
+                else:
+                    self.regionShapes[part.name()] = part
+                    # print 'Adding', part.name(), 'to regionShapes'
+            for fname, tr in zip(chain.fnames, chainTrans):
+                self.frames[fname] = tr
+
+    def addObjectRegionOld(self, objName, regName, regShape, regTr):
+        chain = self.objects[objName]
+        regChain = Permanent(regName, objName, regShape, regTr)
+        newChain = MultiChain(objName, chain.chainsInOrder + [regChain])
+        self.objects[objName] = newChain
 

@@ -7,5 +7,5 @@ cdef class Window3D:
      cdef public tuple xzOffset
      cdef public window
 
-     cpdef draw(self, shapes.Thing thing, str color = *, float opacity = *)
+     cpdef draw(self, thing, str color = *, float opacity = *)
      cpdef update(self)

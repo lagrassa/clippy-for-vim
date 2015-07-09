@@ -545,7 +545,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         if any(other):
             tr(tag, 2,
                ('Regraspable', pB.poseD.mode(), [gBO.grasp.mode() for gBO in gBOther]),
-               draw=[(c, 'W', 'green') for (c, ca, v) in \
+               draw=[(c, 'W', 'green') for c in \
                      [o for o in other if o != None]], snap=['W'])
             regraspablePB[pB] = True
             return True
@@ -603,7 +603,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                     context[ca] = (pB, gB)
                     yield ca
                     # if count > 2: break # !! ??
-        tr(tag, 2, 'found %d confs'%count)
+                tr(tag, 2, 'found %d confs'%count)
 
     def regraspCost(ca):
         if not regrasp:

@@ -1,4 +1,4 @@
-from itertools import *
+import pdb
 import testRig
 reload(testRig)
 from testRig import *
@@ -18,7 +18,8 @@ def testRepeat(n, repeat=3, **args):
         except TimeoutError:
             print '************** Timed out **************'
 
-testResults = {}
+# defined in testRig.
+#testResults = {}
 
 def testAll(indices, repeat=3, crashIsError=True, **args):
     pr2Sim.crashIsError = crashIsError
@@ -1936,3 +1937,18 @@ def testBusy(hpn = True, skeleton = False, hierarchical = False,
           regions=['table1Top', 'table2Top', 'table1MidFront',
                    'table1MidRear']
           )
+
+def testIt():
+    import gjk
+    fizz = shapes.Box(0.1,0.2,0.3, None)
+    print fizz.parts()[0].basePrim.baseRings
+    fuzz = shapes.Box(0.1,0.2,0.3, None)
+    win = wm.getWindow('W')
+    for x in range(100):
+        f = fuzz.applyTrans(util.Pose(x*0.005, 0., 0., 0.))
+        print f.origin().matrix
+        print x*0.005, gjk.gjkDist(fizz, f)**0.5
+        win.clear()
+        fizz.draw('W'); f.draw('W', 'red')
+        raw_input('Ok')
+    
