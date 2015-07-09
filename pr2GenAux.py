@@ -853,7 +853,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     count = 0
     world = pbs.getWorld()
     for rs in regShapes:
-        tr('potentialRegionPoseGen', obj, rs.name(), hand, ol = True)
+        tr('potentialRegionPoseGen', 0, obj, rs.name(), hand, ol = True)
         if debug('potentialRegionPoseGen'):
             print 'Considering region', rs.name()
         for (angle, shRot) in shRotations.items():

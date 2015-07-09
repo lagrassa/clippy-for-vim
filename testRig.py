@@ -495,13 +495,13 @@ class PlanTest:
                  objects = ['table1','objA'], fixPoses = {},
                  movePoses = {}, held = None, grasp = None,
                  multiplier = 6, var = 1.0e-5, varDict = None):   # var was 10e-10
+        startTime = time.time()
         self.name = name
         self.multiplier = multiplier
         self.objects = objects          # list of objects to consider
         self.domainProbs = domainProbs
         self.world, self.thinRobot = testWorld(include=self.objects)
         if not initConfs:
-            startTime = time.time()
             #print 'Creating initial confs ...',
             ((x0, y0, _), (x1, y1, dz)) = workspace
             dx = x1 - x0; dy = y1 - y0
