@@ -1,29 +1,29 @@
 import numpy as np
-import math
-import random
-import util
+#import math
+#import random
+import hu
 import copy
 import time
-import windowManager3D as wm
+#import windowManager3D as wm
 import planGlobals as glob
 from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ
-from traceFile import tr
-from miscUtil import isVar, argmax, isGround, tuplify, roundrobin
-from dist import DeltaDist, UniformDist
-from pr2Robot import CartConf
-from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
+#from traceFile import tr
+from miscUtil import roundrobin
+from dist import DeltaDist
+#from pr2Robot import CartConf
+#from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowName, objectName, NextColor, supportFaceIndex, Memoizer, shadowWidths
-import fbch
-from belief import Bd
-from pr2Fluents import CanReachHome, canReachHome, inTest
-from pr2Visible import visible, lookAtConf
+#import fbch
+#from belief import Bd
+#from pr2Fluents import CanReachHome, canReachHome, inTest
+#from pr2Visible import visible, lookAtConf
 from pr2PlanBel import getConf, getGoalPoseBels
 
 from shapes import Box
 
-Ident = util.Transform(np.eye(4))            # identity transform
+Ident = hu.Transform(np.eye(4))            # identity transform
 
-import pr2GenAux
+#import pr2GenAux
 from pr2GenAux import *
 
 #  How many candidates to generate at a time...  Larger numbers will
@@ -154,7 +154,7 @@ def pickGen(args, goalConds, bState, outBindings, onlyCurrent = False):
     pbs = bState.pbs.copy()
     world = pbs.getWorld()
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
-                       PoseD(util.Pose(*graspPose), graspV), delta=graspDelta)
+                       PoseD(hu.Pose(*graspPose), graspV), delta=graspDelta)
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), None,
                        PoseD(None,  objV), delta=objDelta)
     for ans, viol in pickGenTop((obj, graspB, placeB, hand, base, prob,),
@@ -276,7 +276,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         if not base:
             # Try current conf
             (x,y,th) = pbs.conf['pr2Base']
-            currBasePose = util.Pose(x, y, 0.0, th)
+            currBasePose = hu.Pose(x, y, 0.0, th)
             ans = graspConfForBase(pbs, placeB, graspB, hand, currBasePose, prob)
             if ans:
                 (c, ca, viol) = ans
@@ -946,7 +946,7 @@ def lookGen(args, goalConds, bState, outBindings):
 def lookGenTop(args, goalConds, pbs, outBindings):
 
     def testFn(c):
-        print 'Trying base conf', c['pr2Base']
+        tr(tag, 2, 'Trying base conf', c['pr2Base'], ol = True)
         obst_rob = obst + [c.placement(shWorld.attached)]
         return visible(shWorld, c, sh, obst_rob, prob, moveHead=True)[0]
 
@@ -1147,6 +1147,7 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
         if not path:
             tr(tag, 2, 'Failed to find a path to look conf.')
             continue
+        lookConf = path[-1]
         tr(tag, 1, ('-> cyan', lookConf.conf),
            draw=[(pbs, prob, 'W'),
                  (lookConf, 'W', 'cyan', shWorld.attached)],

@@ -1,5 +1,5 @@
-import pdb
-import math
+#import pdb
+#import math
 import operator
 import miscUtil
 from miscUtil import prettyString, makeDiag, undiag
@@ -8,6 +8,8 @@ from numpy import *
 import random
 import operator as op
 import copy
+import hu
+from traceFile import trAlways
 
 #from pylab import figure, show, rand
 #from matplotlib.patches import Ellipse
@@ -85,9 +87,6 @@ class DiscreteDist:
     def verify(self, verbose = False):
         probs = [self.prob(e) for e in self.support()]
         z = sum(probs)
-        if verbose:
-            print '* in verify *'
-            print 'min', min(probs), 'max', max(probs)
         assert z > 0.99999 and z < 1.00001, 'degenerate distribution ' + str(self)
 
        
@@ -527,13 +526,12 @@ def fixSigma(sigma, ridge = 0):
 
     eigs = linalg.eigvalsh(sigma)
     if any([type(e) in (complex, complex128) for e in eigs]):
-        print eigs
-        print '** Symmetric, but complex eigs **'
+        trAlways('Symmetric but complex eigs', eigs)
     minEig = min(eigs)
     if minEig < 0:
-        raw_input('** Not positive definite **'+str(minEig))
+        trAlways('Not positive definite', minEig, pause = True)
     elif minEig < ridge:
-        print '** Adding ridge', ridge, 'because minEig is', minEig, '**'
+        trAlways('Adding ridge', ridge, 'because minEig is', minEig, ol=True)
     if minEig < ridge:
         sigma = sigma + 2 * (ridge - minEig) * identity(len(sigma))
     return sigma
@@ -668,6 +666,7 @@ class MultivariateGaussianDistribution:
     def draw(self):
         return np.random.multivariate_normal(self.mu.flat, self.sigma)
 
+    '''
     def drawEllipse(self):
         if len(self.mu) != 2:
             print 'Can only draw 2D distributions'
@@ -689,6 +688,7 @@ class MultivariateGaussianDistribution:
         ax.set_xlim(-3, 3)
         ax.set_ylim(-3, 3)
         fig.show()
+    '''
 
     def kalmanTransUpdate(mvg, u, transSigma):
         mu = mvg.mu + u
@@ -830,7 +830,7 @@ def covPoses(data, mu):
     sigma = mat(zeros([n, n]))
     for x in data:
         # x is a row;  need to do subtraction respecting angles
-        delta = util.tangentSpaceAdd(x.T, -mu)
+        delta = hu.tangentSpaceAdd(x.T, -mu)
         sigma += delta * delta.T
     return sigma / n
 
@@ -1000,7 +1000,7 @@ def regressGaussianPNMTransition(epsr, transSigma, delta):
     
     denom = (2 * ss.erfinv(1-epsr)**2)
     if denom <= 0:
-        print "Error in erf calculation, epsr=", epsr
+        trAlways("Error in erf calculation, epsr=", epsr, ol = True)
         return 1.0
     
     resultVar = (delta**2) / denom
@@ -1029,8 +1029,8 @@ def gaussPN(value, delta, mu, sigma):
     return rv.cdf(value + delta) - rv.cdf(value - delta)
 
 def gaussPNAngle(value, delta, mu, sigma):
-    limit1 = util.fixAnglePlusMinusPi(value - mu - delta)
-    limit2 = util.fixAnglePlusMinusPi(value - mu + delta)
+    limit1 = hu.fixAnglePlusMinusPi(value - mu - delta)
+    limit2 = hu.fixAnglePlusMinusPi(value - mu + delta)
     upper = max(limit1, limit2)
     lower = min(limit1, limit2)
     rv = stats.norm(0, sigma)

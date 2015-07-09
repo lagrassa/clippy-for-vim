@@ -1,5 +1,5 @@
 from cpython cimport bool
-import util
+import hu
 import dist
 
 # Copied from pr2Util.py
@@ -39,8 +39,8 @@ cdef class Hash(object):
 cdef class PoseD(Hash):
     def __init__(self, mu, var):
         if isinstance(mu, tuple):
-            mu = util.Pose(*mu)
-        # assert isinstance(mu, util.Pose)
+            mu = hu.Pose(*mu)
+        # assert isinstance(mu, hu.Pose)
         self.mu = mu
         self.muTuple = self.mu.xyztTuple() if mu else None
         assert isinstance(var, tuple)

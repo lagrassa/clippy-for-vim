@@ -8,9 +8,13 @@ import pointClouds as pc
 import time
 from planGlobals import debug, debugMsg
 import windowManager3D as wm
-import util
+import hu
 from dist import MultivariateGaussianDistribution
+import random
 MVG = MultivariateGaussianDistribution
+
+print 'Replace print with trace or debug statements if we are using this!'
+raw_input('okay?')
 
 # Input: expects Nx3 matrix of points
 # Returns R,t
@@ -43,9 +47,9 @@ def rigid_transform_3D(A, B, trans_only=False):
 
     # special reflection case
     if np.linalg.det(R) < 0:
-       print "Reflection detected"
-       Vt[Vt.shape[0]-1,:] *= -1
-       R = Vt.T * U.T
+        print 'reflection detected'
+        Vt[Vt.shape[0]-1,:] *= -1
+        R = Vt.T * U.T
 
     t = -R*centroid_A.T + centroid_B.T
 
@@ -263,7 +267,7 @@ def bestObjDetection(objShape, objShadow, objCloud, pointCloud, angles = [0.], t
 
     # Try to align the model to the relevant data
     atrans = icpLocate(objCloud, goodCloud[:,1:])
-    trans = util.Transform(np.array(atrans)).inverse()
+    trans = hu.Transform(np.array(atrans)).inverse()
     transShape = objShape.applyTrans(trans)
     transShape.draw('W', 'green')
     raw_input('transShape (in green)')
@@ -388,7 +392,7 @@ def locateAux(placeB, model_verts, data_verts, variance, thr, trimFactor, shape)
     drawVerts(data_verts, 'W', 'red')
     trans = np.matrix(np.eye(4))
     for i in range(10000):
-        obsPose = util.Pose(*mvg.draw())
+        obsPose = hu.Pose(*mvg.draw())
         model_verts_trans = np.dot(np.array(obsPose.matrix), model_verts)
         model_trans = model_verts_trans.T[:, :3]
         dists, nbrs = kdTree.query(model_trans)
@@ -400,7 +404,7 @@ def locateAux(placeB, model_verts, data_verts, variance, thr, trimFactor, shape)
         # t[:2] = t2
         # trans[:3,:3] = R
         # trans[:3, 3] = t
-        # tr = util.Transform(np.array(trans))
+        # tr = hu.Transform(np.array(trans))
 
         err = sum(np.multiply(sdists, sdists))
         mse = err/Nt                # mse for trim fraction of the data
@@ -441,7 +445,7 @@ def locateByFmin(placeB, model_verts, data_verts, shape, variance):
     def poseScore(x):
         (x, y, z, th) = x
         Nt = int(frac*N)
-        pose = util.Pose(x,y,z,th)
+        pose = hu.Pose(x,y,z,th)
         model_verts_trans = np.dot(np.array(pose.matrix), model_verts)
         model_trans = model_verts_trans.T[:, :3]
         dists, nbrs = kdTree.query(model_trans)
@@ -453,11 +457,11 @@ def locateByFmin(placeB, model_verts, data_verts, shape, variance):
     best_score = None
     best_trans = None
     for attempt in xrange(5):
-        ans = fmin_powell(poseScore, np.array(util.Pose(*mvg.draw()).xyztTuple()))
+        ans = fmin_powell(poseScore, np.array(hu.Pose(*mvg.draw()).xyztTuple()))
         (x, y, z, th) = ans
-        pose = util.Pose(x,y,z,th)
-        mse = poseScore(ans)
-        print 'frac', frac, 'mse', mse, 'score', score, 'best_score', best_score
+        pose = hu.Pose(x,y,z,th)
+        score = poseScore(ans)
+        print 'frac', frac, 'score', score, 'best_score', best_score
         if best_score == None or score < best_score:
             best_score = score
             best_trans = pose

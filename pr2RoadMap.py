@@ -2,7 +2,7 @@ import math
 import random
 import copy
 import time
-import util
+import hu
 from scipy.spatial import cKDTree
 import windowManager3D as wm
 import numpy as np
@@ -238,7 +238,7 @@ class KDTree:
                 if debug('addEntry'):
                     print 'New', entry.point
                     print 'Old', ne.point
-                    raw_input('Entry too close, d=%s'%d)
+                    raw_input('Entry too close')
                 return ne
         self.newPoints.append(point)
         self.newEntries.append(entry)
@@ -525,7 +525,7 @@ class RoadMap:
                   set(viol.allShadows()) < set(ans[0].allShadows())):
                 # print 'original viol', ans if ans==None else ans[0]
                 # print 'RRT viol', viol
-                print '    returning RRT ans'
+                tr('CRH', 1, '    returning RRT ans')
                 if len(path) > 1 and not( path[0] == targetConf and path[-1] == initConf):
                     raw_input('Path inconsistency')
                 if finalConf: path = [finalConf] + path
@@ -586,7 +586,7 @@ class RoadMap:
 
     def batchAddClusters(self, initConfs):
         startTime = time.time()
-        print 'Start batchAddClusters'
+        tr('rm', 0, 'Start batchAddClusters')
         clusters = [self.rootCluster]
         for conf in initConfs:
             node = makeNode(conf)
@@ -608,7 +608,8 @@ class RoadMap:
                     n0 = cluster.addRep(n2)
                     self.addEdge(self.clusterGraph, n0, n2, strict=True)
         # scanH(self.clusterGraph, makeNode(self.homeConf))
-        print 'End batchAddClusters, time=', time.time()-startTime
+        tr('rm', 0, 'End batchAddClusters, time=', time.time()-startTime,
+           ol = True)
 
     def confReachViolGen(self, targetConfs, pbs, prob, initViol=viol0,
                          testFn = lambda x: True, goalCostFn = lambda x: 0,
@@ -687,7 +688,7 @@ class RoadMap:
         else:
             pr = pose_f.point()*ratio + pose_i.point()*(1-ratio)
             qr = quaternion_slerp(pose_i.quat().matrix, pose_f.quat().matrix, ratio)
-            return util.Transform(None, pr.matrix, qr), \
+            return hu.Transform(None, pr.matrix, qr), \
                    pose_f.near(pose_i, minLength, minLength)
 
     def cartInterpolators(self, n_f, n_i, minLength, depth=0):
@@ -783,8 +784,8 @@ class RoadMap:
 
     def robotSelfCollide(self, shape, heldDict={}):
         def partDistance(p1, p2):
-            c1 = util.Point(np.resize(np.hstack([p1.center(), [1]]), (4,1)))
-            c2 = util.Point(np.resize(np.hstack([p2.center(), [1]]), (4,1)))
+            c1 = hu.Point(np.resize(np.hstack([p1.center(), [1]]), (4,1)))
+            c2 = hu.Point(np.resize(np.hstack([p2.center(), [1]]), (4,1)))
             return c1.distance(c2)
         if glob.inHeuristic: return False
         # Very sparse checks...
@@ -1148,7 +1149,7 @@ class RoadMap:
                                    expandF = minViolPathDebugExpand if debug('expand') else None,
                                    visitF = minViolPathDebugVisit if debug('expand') else None,
                                    greedy = searchOpt if optimize else searchGreedy,
-                                   printFinal = True,
+                                   printFinal = debug(minViolPath),
                                    verbose = False)
             for ans in gen:
                 (path, costs) = ans
@@ -1437,7 +1438,7 @@ def validEdgeTest(xyt_i, xyt_f):
         # small enough displacement
         return True
     # Not strictly back, so the head can look at where it's going
-    return abs(util.angleDiff(math.atan2(yf-yi, xf-xi), thi)) <= 0.75*math.pi
+    return abs(hu.angleDiff(math.atan2(yf-yi, xf-xi), thi)) <= 0.75*math.pi
 
 r = 0.02
 boxPoint = shapes.Shape([shapes.BoxAligned(np.array([(-2*r, -2*r, -r), (2*r, 2*r, r)]), None),
@@ -1447,15 +1448,16 @@ def minViolPathDebugExpand(n):
     # node.conf.draw('W')
     # raw_input('expand')
     (x,y,th) = node.conf['pr2Base']
-    boxPoint.applyTrans(util.Pose(x,y,0,th)).draw('W')
+    boxPoint.applyTrans(hu.Pose(x,y,0,th)).draw('W')
     wm.getWindow('W').update()
 
 def minViolPathDebugVisit(state, cost, heuristicCost, a, newState, newCost, hValue):
     (node, _) = newState
     (x,y,th) = node.conf['pr2Base']
-    boxPoint.applyTrans(util.Pose(x,y,0,th)).draw('W', 'cyan')
+    boxPoint.applyTrans(hu.Pose(x,y,0,th)).draw('W', 'cyan')
     wm.getWindow('W').update()
 
+'''
 def reachable(graph, node):
     reach = set([])
     agenda = [node]
@@ -1468,6 +1470,7 @@ def reachable(graph, node):
         reach.add(other)
         agenda.append(other)
     return reach
+'''
 
 def scanH(graph, start):
     agenda = []
@@ -1492,14 +1495,14 @@ def scanH(graph, start):
                 vert = tuple(w.conf['pr2Base'])
                 if w not in verts:
                     (x,y,th) = vert
-                    boxPoint.applyTrans(util.Pose(x,y,0,th)).draw('W')
+                    boxPoint.applyTrans(hu.Pose(x,y,0,th)).draw('W')
                     verts.add(vert)
                 link = ((xv, yv), (x, y))
                 if not( x == xv and y == yv) and link not in links:
                     r = 0.02
                     length = ((xv - x)**2 + (yv - y)**2)**0.5
                     ray = shapes.BoxAligned(np.array([(-r, -r, -r), (length, r, r)]), None)
-                    pose = util.Pose(xv, yv, 0.0, math.atan2(y-yv, x-xv))
+                    pose = hu.Pose(xv, yv, 0.0, math.atan2(y-yv, x-xv))
                     ray.applyTrans(pose).draw('W', color='cyan')
                     links.add(link)
             heappush(agenda, (cost + pointDist(v.point, w.point), w, v))

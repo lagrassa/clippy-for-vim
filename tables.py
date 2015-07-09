@@ -25,8 +25,8 @@ def bestTable(zone, table, pointCloud, exclude,
     # cdef np.ndarray[np.float64_t, ndim=1] pt, center
     # cdef np.ndarray[np.float64_t, ndim=2] bb, points, eye, badPoints, goodPoints, badOffset, bbGood
     # cdef bool inside
-    # cdef util.Transform headTrans
-    # cdef util.Pose pose, bestPose
+    # cdef hu.Transform headTrans
+    # cdef hu.Pose pose, bestPose
     
     minTablePoints = int(glob.minTableDim / glob.cloudPointsResolution)
     height = table.zRange()[1] - table.zRange()[0]
@@ -141,13 +141,13 @@ def scoreTable(summed, i, j, dimI, dimJ):
 
 def bestTablePose(table, center, angle, good, bad, summed, res, size):
 
-    # cdef util.Pose centerPose, centerPoseInv, pose, cpose
+    # cdef hu.Pose centerPose, centerPoseInv, pose, cpose
     # cdef tuple ci, bestPlace
     # cdef np.ndarray[np.float64_t, ndim=2] bb
     # cdef int dimI, dimJ, bestScore
     # cdef int i, j, score, shrink, maxShrink, scoreGood, scoreBad
     
-    centerPose = util.Pose(*[center[0], center[1], 0., angle])
+    centerPose = hu.Pose(*[center[0], center[1], 0., angle])
     centerPoseInv = centerPose.inverse()
     ci = ((size-1)/2, (size-1)/2)
     fillSummed(centerPoseInv, ci, good, summed[0], res, size)
@@ -170,7 +170,7 @@ def bestTablePose(table, center, angle, good, bad, summed, res, size):
                     bestPlace = (i, j)
                     bestShrink = shrink
     # displacement pose for table center
-    pose = util.Pose((bestPlace[0] + int((dimI-bestShrink)/2.0) - ci[0])*res,
+    pose = hu.Pose((bestPlace[0] + int((dimI-bestShrink)/2.0) - ci[0])*res,
                      (bestPlace[1] + int((dimJ-bestShrink)/2.0) - ci[1])*res,
                      0, 0)
     cpose = centerPose.compose(pose)
@@ -199,7 +199,7 @@ def getTables(world, obsTargets, pointCloud):
             zr = tableShape.zRange()
             height = 0.5*(zr[1] - zr[0])
             dz = height - tableShape.origin().matrix[2,3]
-            tableShape = tableShape.applyTrans(util.Pose(0, 0, dz, 0))
+            tableShape = tableShape.applyTrans(hu.Pose(0, 0, dz, 0))
             score, detection = \
                    bestTable(zone, tableShape, pointCloud, exclude,
                              angles = anglesList(30), zthr = 0.05)

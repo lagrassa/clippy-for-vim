@@ -2,11 +2,11 @@ import numpy as np
 cimport numpy as np
 from cpython cimport bool
 cimport shapes
-cimport util
+cimport hu
 
 cpdef np.ndarray[np.float64_t, ndim=2] convexHullVertsXY(np.ndarray[np.float64_t, ndim=2] verts)
 
-cpdef shapes.Prim convexHullPrim(np.ndarray[np.float64_t, ndim=2] verts, util.Transform origin)
+cpdef shapes.Prim convexHullPrim(np.ndarray[np.float64_t, ndim=2] verts, hu.Transform origin)
 
 # BBoxes
 

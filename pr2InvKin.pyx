@@ -1,9 +1,11 @@
-import util
+import hu
 import math
-import numpy as np
+#import numpy as np
+import numpy
+# noinspection PyUnresolvedReferences
 cimport numpy as np
 import planGlobals as glob
-from planGlobals import debug, debugMsg
+from planGlobals import debug
 from miscUtil import prettyString
 from transformations import rotation_matrix
 
@@ -17,8 +19,8 @@ ik.fkLeft.restype = None
 ik.fkRight.restype = None
 
 # The nominal tool offset in ikFast
-gripperTip = util.Pose(0.18,0.0,0.0,0.0)
-gripperToolOffset = np.dot(gripperTip.matrix,
+gripperTip = hu.Pose(0.18,0.0,0.0,0.0)
+gripperToolOffset = numpy.dot(gripperTip.matrix,
                            rotation_matrix(math.pi/2,(0,1,0)))
 
 def armInvKin(chains, arm, torso, target, conf, robot,
@@ -27,13 +29,13 @@ def armInvKin(chains, arm, torso, target, conf, robot,
     armName = 'pr2LeftArm' if arm=='l' else 'pr2RightArm'
     cfg = conf.copy()             # this will be modified by safeTest
     def safeTest(armAngles):
-        if collisionAware:
-            cfg[armName] = armAngles
-            return wstate.robot.safeConf(cfg, wstate)
-        else:
-            return True
+        #if collisionAware:
+        #    cfg[armName] = armAngles
+        #    return wstate.robot.safeConf(cfg, wstate)
+        #else:
+        return True
     # The tool pose relative to the torso frame 
-    newHandPoseRel = reduce(np.dot, [torso.inverse().matrix,
+    newHandPoseRel = reduce(numpy.dot, [torso.inverse().matrix,
                                      target.matrix,
                                      gripperToolOffset])
     newArmAngles = pr2KinIKfast(arm, newHandPoseRel, conf[armName],
@@ -48,8 +50,8 @@ def armInvKin(chains, arm, torso, target, conf, robot,
 
 # This should be in Cython...
 #create a Ctypes array of type 'type' ('double' or 'int')
-def createCtypesArr(type, size):
-    if type == 'int':
+def createCtypesArr(ttype, size):
+    if ttype == 'int':
         arraytype = c_int * size
     else:
         arraytype = c_double * size
@@ -86,7 +88,7 @@ cpdef pr2KinIKfast(arm, T, current, chain, safeTest, returnAll = False):
         return bestSol
 
 cpdef float solnDist(sol1, sol2):
-    return max([abs(util.angleDiff(th1, th2)) for (th1, th2) in zip(sol1, sol2)])
+    return max([abs(hu.angleDiff(th1, th2)) for (th1, th2) in zip(sol1, sol2)])
 
 def pr2KinIKfastAll(arm, T, current, chain, safeTest):
     def collectSafe(n):

@@ -5,7 +5,14 @@ import local
 import planGlobals as glob
 
 # Tracing interface, one level up from debug...
+# targetFile
+# level
+# - writes to log at every level
+# - draws at every level
+# - levels 0 and 1 always printed to console
+# - determines whether to pause
 
+'''
 def trace(genTag, *msg):
     if debug('traceGen'):
         print genTag+':',
@@ -19,14 +26,36 @@ def tracep(pause, *msg):
         print ' '
     if pause:
         debugMsg(pause)
+'''
+
+# Decides whether to print to console.
+# - traceGen is debugged *and*
+# - (level is <= 1 or (we are not in the heuristic or debugging in heuristic)) *and*
+# - (level is <= minTraceLevel or we are debugging on this tag)
+
+# LPK simplified this
+
+# Lower traceLevel is more urgent
 
 minTraceLevel = 1
 def traced(genTag, level):
-    if not debug('traceGen') \
-       or (level > 1 and (glob.inHeuristic and not debug('debugInHeuristic'))) \
-       or (level > minTraceLevel and not debug(genTag)):
-        return False
-    return True
+    return level <= minTraceLevel and (debug(genTag) or genTag == '*')
+    # if not debug('traceGen') \
+    #    or (level > 1 and (glob.inHeuristic and not debug('debugInHeuristic'))) \
+    #    or (level > minTraceLevel and not debug(genTag)):
+    #     return False
+    # return True
+
+# Always print and log this
+def trAlways(*msg, **keys):
+    tr('*', 0, *msg, **keys)
+
+# keys is a dictionary
+# Possible keywords:  draw, snap, pause
+#    draw: draws into a window
+#    snap: puts image of listed windows into the log
+#    pause: pauses
+#    ol: write onto single line, if true
 
 def tr(genTag, level, *msg, **keys):
     if glob.inHeuristic and htmlFileH:
@@ -49,11 +78,18 @@ def tr(genTag, level, *msg, **keys):
                 obj.draw('W')
         if keys.get('snap', []):
             snap(*keys['snap'])
+    # Printing to the console
     if not traced(genTag, level): return
     if msg:
-        print level*'  ', genTag+':', msg[0]
-        for m in msg[1:]:
-            print level*'  ', m
+        if keys.get('ol', True):
+            # Print on one line
+            print level*'  ',
+            for m in msg: print m,
+            print '\n'
+        else:
+            print level*'  ', genTag+':', msg[0]
+            for m in msg:
+                print level*'  ', m
     debugMsg(genTag)
     if level >= 0:
         debugMsg(genTag+str(level))         # more specific pause tag

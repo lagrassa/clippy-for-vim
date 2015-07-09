@@ -17,7 +17,7 @@ reload(pr2Robot)
 from pr2Robot import cartInterpolators, JointConf, CartConf
 from pr2Ops import lookAtBProgress
 
-import util
+import hu
 import tables
 reload(tables)
 
@@ -54,7 +54,7 @@ if glob.useROS:
 # open - to commanded width
 # look - move head to look at target
 
-headTurn = util.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0)))
+headTurn = hu.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0)))
 
 def pr2GoToConf(cnfIn,                  # could be partial...
                 operation,              # a string
@@ -137,7 +137,7 @@ def gazeCoords(cnfIn):
     headTurned = cnfInCart['pr2Head'].compose(headTurn)
     # Transform relative to robot base
     headTrans = cnfInCart['pr2Base'].inverse().compose(head)
-    gaze = headTrans.applyToPoint(util.Point(np.array([0.,0.,1.,1.]).reshape(4,1)))
+    gaze = headTrans.applyToPoint(hu.Point(np.array([0.,0.,1.,1.]).reshape(4,1)))
     confHead = gaze.matrix.reshape(4).tolist()[:3]
     confHead[2] = confHead[2] - 0.2     # brute force correction
     # if confHead[0] < 0:
@@ -215,7 +215,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             # !! Do some looking and update the belief state.
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
             # approx pi => 1 meter
-            distSoFar += 0.33*abs(util.angleDiff(prevXYT[2],newXYT[2]))
+            distSoFar += 0.33*abs(hu.angleDiff(prevXYT[2],newXYT[2]))
             print 'distSoFar', distSoFar
             # Check whether we should look
             args = 12*[None]
@@ -457,7 +457,7 @@ def getObjDetections(world, obsTargets, robotConf, surfacePolys, maxFitness = 3)
     targetPoses = dict([(placeB.obj, placeB.poseD.mode()) \
                         for placeB in obsTargets.values()])
     baseX, baseY, baseTh = robotConf['pr2Base']
-    robotFrame = util.Pose(baseX, baseY, 0.0, baseTh)
+    robotFrame = hu.Pose(baseX, baseY, 0.0, baseTh)
     robotFrameInv = robotFrame.inverse()
     targetPosesRobot = dict([(obj, robotFrameInv.compose(p)) \
                              for (obj, p) in targetPoses.items()])
@@ -571,7 +571,7 @@ def makeROSPose3D(pose):
 def TransformFromROSMsg(pos, quat):
     pos = np.array([[x] for x in [pos.x, pos.y, pos.z, 1.0]])
     quat = np.array([quat.x, quat.y, quat.z, quat.w])
-    return util.Transform(p=pos, q=quat)
+    return hu.Transform(p=pos, q=quat)
 
 def transformPoly(poly, x, y, z, theta):
     def pt(coords):
@@ -694,7 +694,7 @@ def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0,
         max_dx = diff.matrix[0,3]
         print 'displaceHand', 'dx', dx, 'max_dx', max_dx
         dx = max(0., min(dx, max_dx)) # don't go past maxTrans
-    nTrans = trans.compose(util.Pose(dx, dy, dz, 0.0))
+    nTrans = trans.compose(hu.Pose(dx, dy, dz, 0.0))
     nCart = cart.set(handFrameName, nTrans)
     if debug('invkin'):
         if nearTo: nearTo.prettyPrint('nearTo conf:')

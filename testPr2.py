@@ -45,8 +45,8 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
 
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
-    front = util.Pose(1.1, 0.0, tZ, 0.0)
-    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     region = 'table1Left'
     goal = State([Bd([In(['objA', region]), True, goalProb], True)])
@@ -131,9 +131,9 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
-    front = util.Pose(1.1, 0.0, tZ, 0.0)
-    table2Pose = util.Pose(1.0, -1.00, 0.0, 0.0)
-    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    table2Pose = hu.Pose(1.0, -1.00, 0.0, 0.0)
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     region = 'table2Left'
     goal = State([Bd([In(['objA', region]), True, goalProb], True)])
@@ -172,9 +172,9 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2),
                                'objB': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
-    front = util.Pose(1.1, 0.0, tZ, 0.0)
-    right = util.Pose(1.1, -0.4, tZ, 0.0)
-    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    right = hu.Pose(1.1, -0.4, tZ, 0.0)
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     region = 'table1Left'
     goal = State([Bd([In(['objA', region]), True, goalProb], True),
@@ -213,12 +213,12 @@ def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=ha
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2),
                                'objB': (0.1**2, 0.1**2, 1e-10, 0.3**2)
                                } 
-    right1 = util.Pose(1.1, -0.5, tZ, 0.0)
-    right2 = util.Pose(1.5, -0.5, tZ, 0.0)
-    left1 = util.Pose(1.1, 0.5, tZ, 0.0)
-    left2 = util.Pose(1.5, 0.5, tZ, 0.0)
-    coolShelvesPose = util.Pose(1.3, 0.0, tZ, math.pi/2)
-    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+    right1 = hu.Pose(1.1, -0.5, tZ, 0.0)
+    right2 = hu.Pose(1.5, -0.5, tZ, 0.0)
+    left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
+    left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
+    coolShelvesPose = hu.Pose(1.3, 0.0, tZ, math.pi/2)
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
     
     region = 'coolShelves_space_2'
     goal1 = State([Bd([In(['objA', region]), True, goalProb], True)])
@@ -255,8 +255,8 @@ def testPick(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs
 
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
-    front = util.Pose(1.1, 0.0, tZ, 0.0)
-    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     hand = 'right'
     graspType = 0
@@ -315,8 +315,8 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
     glob.monotonicFirst = True
     
-    front = util.Pose(0.95, 0.0, tZ, 0.0)
-    back = util.Pose(1.25, 0.0, tZ, 0.0)
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
 
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
@@ -406,8 +406,8 @@ def testChangeGrasp(hpn = True, skeleton = False, hierarchical = False,
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
     glob.monotonicFirst = True
     
-    front = util.Pose(0.95, 0.0, tZ, 0.0)
-    back = util.Pose(1.25, 0.0, tZ, 0.0)
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
 
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
@@ -472,8 +472,8 @@ def test5(hpn = True, skeleton = False, hierarchical = False,
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
     glob.monotonicFirst = True
     
-    front = util.Pose(0.95, 0.0, tZ, 0.0)
-    back = util.Pose(1.25, 0.0, tZ, 0.0)
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
 
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
@@ -531,14 +531,14 @@ def testSwap(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 150
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
     glob.monotonicFirst = True
-    table2Pose = util.Pose(1.0, -1.2, 0.0, 0.0)
+    table2Pose = hu.Pose(1.0, -1.2, 0.0, 0.0)
     
-    front = util.Pose(0.95, 0.0, tZ, 0.0)
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
     # Put this back to make the problem harder
-    #back = util.Pose(1.1, 0.0, tZ, 0.0)
-    back = util.Pose(1.25, 0.0, tZ, 0.0)
-    parking1 = util.Pose(0.95, 0.3, tZ, 0.0)
-    parking2 = util.Pose(0.95, -0.3, tZ, 0.0)
+    #back = hu.Pose(1.1, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+    parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
+    parking2 = hu.Pose(0.95, -0.3, tZ, 0.0)
 
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
@@ -640,12 +640,12 @@ def testHold(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 150
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
     glob.monotonicFirst = True
-    table2Pose = util.Pose(1.0, -1.20, 0.0, 0.0)
+    table2Pose = hu.Pose(1.0, -1.20, 0.0, 0.0)
     
-    front = util.Pose(0.95, 0.0, tZ, 0.0)
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
     # Put this back to make the problem harder
-    #back = util.Pose(1.1, 0.0, tZ, 0.0)
-    back = util.Pose(1.25, 0.0, tZ, 0.0)
+    #back = hu.Pose(1.1, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
 
     easyVarDict = {'table1': (0.001**2, 0.001**2, 1e-10, 0.001**2),
                                'table2': (0.001**2, 0.001**2, 1e-10, 0.001**2),
@@ -730,8 +730,8 @@ def test5(hpn = True, skeleton = False, heuristic=habbs, hierarchical = False,
 
     goalProb, errProbs = (0.4,smallErrProbs) if easy else (0.95,typicalErrProbs)
 
-    p1 = util.Pose(0.95, 0.0, tZ, 0.0)
-    p2 = util.Pose(1.1, 0.0, tZ, 0.0)
+    p1 = hu.Pose(0.95, 0.0, tZ, 0.0)
+    p2 = hu.Pose(1.1, 0.0, tZ, 0.0)
     t = PlanTest('test5',  errProbs, allOperators,
                  objects=['table1', 'objA', 'table2'],
                  movePoses={'objA': p1,
@@ -752,7 +752,7 @@ def test6(hpn = True, skeleton=False, heuristic=habbs, hierarchical = False,
 
     goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.95,typicalErrProbs)
         
-    p2 = util.Pose(0.9, 0.0, tZ, 0.0)
+    p2 = hu.Pose(0.9, 0.0, tZ, 0.0)
     t = PlanTest('test6', errProbs, allOperators,
                  objects=['table1', 'objA'],
                  movePoses={'objA': p2},
@@ -790,8 +790,8 @@ def test7(hpn = True, flip=False, skeleton = False, heuristic=habbs,
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.8,smallErrProbs) if easy else (0.99,typicalErrProbs)
 
-    p1 = util.Pose(0.95, 0.0, tZ, 0.0)
-    p2 = util.Pose(1.1, 0.0, tZ, 0.0)
+    p1 = hu.Pose(0.95, 0.0, tZ, 0.0)
+    p2 = hu.Pose(1.1, 0.0, tZ, 0.0)
     delta = (0.02, 0.02, 0.02, 0.05)
 
     t = PlanTest('test7',  errProbs, allOperators,
@@ -861,7 +861,7 @@ def test9(hpn=True, skeleton = False, heuristic=habbs, hierarchical = False,
     t = PlanTest('test9', errProbs, allOperators,
                  objects = ['table1'],
                  varDict = {'table1': (0.1**2, 0.05**2, 0.0000001, 0.1**2)},
-                 # fixPoses={'table1': util.Pose(1.3, 0.0, 0.0, math.pi/2)}
+                 # fixPoses={'table1': hu.Pose(1.3, 0.0, 0.0, math.pi/2)}
                  )
 
     #goalConf = makeConf(t.world.robot, 1.1, 1.3, 0, 0.0)
@@ -1128,8 +1128,8 @@ def test14(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
-    p1 = util.Pose(0.9, 0.0, tZ, 0.0)
-    p2 = util.Pose(1.3, 0.0, tZ, 0.0)
+    p1 = hu.Pose(0.9, 0.0, tZ, 0.0)
+    p2 = hu.Pose(1.3, 0.0, tZ, 0.0)
     t = PlanTest('test14', errProbs, allOperators,
                  objects=['table1', 'objA', 'objB', 'table2',
                           'cupboardSide1', 'cupboardSide2'],
@@ -1225,9 +1225,9 @@ def test17(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
-    front = util.Pose(0.95, 0.0, tZ, 0.0)
-    back = util.Pose(1.1, 0.0, tZ, 0.0)
-    parking = util.Pose(0.95, 0.3, tZ, 0.0)
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
+    back = hu.Pose(1.1, 0.0, tZ, 0.0)
+    parking = hu.Pose(0.95, 0.3, tZ, 0.0)
     t = PlanTest('test17',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
@@ -1274,10 +1274,10 @@ def test18(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
-    front = util.Pose(0.95, 0.0, tZ, 0.0)
-    back = util.Pose(1.1, 0.0, tZ, 0.0)
-    parking1 = util.Pose(0.95, 0.3, tZ, 0.0)
-    parking2 = util.Pose(0.95, -0.3, tZ, 0.0)
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
+    back = hu.Pose(1.1, 0.0, tZ, 0.0)
+    parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
+    parking2 = hu.Pose(0.95, -0.3, tZ, 0.0)
     t = PlanTest('test18',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  fixPoses={'objA': parking1,
@@ -1323,10 +1323,10 @@ def test19(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 50
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
 
-    front = util.Pose(0.95, 0.0, tZ, 0.0)
-    back = util.Pose(1.1, 0.0, tZ, 0.0)
-    parking1 = util.Pose(0.95, 0.3, tZ, 0.0)
-    parking2 = util.Pose(0.95, -0.3, tZ, 0.0)
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
+    back = hu.Pose(1.1, 0.0, tZ, 0.0)
+    parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
+    parking2 = hu.Pose(0.95, -0.3, tZ, 0.0)
     t = PlanTest('test19',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
@@ -1372,11 +1372,11 @@ def test19a(hpn = True, skeleton = False, hierarchical = False,
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     glob.monotonicFirst = True
 
-    front = util.Pose(0.95, 0.0, tZ, 0.0)
-    back = util.Pose(1.1, 0.0, tZ, 0.0)
-    parking1 = util.Pose(0.95, 0.3, tZ, 0.0)
-    parking2 = util.Pose(0.95, -0.3, tZ, 0.0)
-    parkingBad = util.Pose(1.183, 0.222, tZ0, 1.571)
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
+    back = hu.Pose(1.1, 0.0, tZ, 0.0)
+    parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
+    parking2 = hu.Pose(0.95, -0.3, tZ, 0.0)
+    parkingBad = hu.Pose(1.183, 0.222, tZ0, 1.571)
     t = PlanTest('test19a',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': parkingBad,
@@ -1453,10 +1453,10 @@ def test20(hpn = True, skeleton = False, hierarchical = False,
     glob.monotonicFirst = True
 
 
-    front = util.Pose(0.95, 0.0, tZ, 0.0)
-    back = util.Pose(1.1, 0.0, tZ, 0.0)
-    parking1 = util.Pose(0.95, 0.3, tZ, 0.0)
-    parking2 = util.Pose(0.95, -0.3, tZ, 0.0)
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
+    back = hu.Pose(1.1, 0.0, tZ, 0.0)
+    parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
+    parking2 = hu.Pose(0.95, -0.3, tZ, 0.0)
     t = PlanTest('test20',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  movePoses={'objA': back,
@@ -1530,8 +1530,8 @@ def test20a(hpn = True, skeleton = False, hierarchical = False,
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.99,typicalErrProbs)
     glob.monotonicFirst = False
 
-    front = util.Pose(0.95, 0.0, tZ, 0.0)
-    back = util.Pose(1.15, 0.0, tZ, 0.0)
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
+    back = hu.Pose(1.15, 0.0, tZ, 0.0)
 
     t = PlanTest('test20a',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
@@ -1617,9 +1617,9 @@ def test20a(hpn = True, skeleton = False, hierarchical = False,
 # stack objects?
 def testStack(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs):
-    p1 = util.Pose(0.95, 0.0, tZ, 0.0)
-    p2 = util.Pose(1.1, 0.0, tZ, 0.0)
-    p3 = util.Pose(0.95, 0.2, tZ, 0.0)
+    p1 = hu.Pose(0.95, 0.0, tZ, 0.0)
+    p2 = hu.Pose(1.1, 0.0, tZ, 0.0)
+    p3 = hu.Pose(0.95, 0.2, tZ, 0.0)
     t = PlanTest('test18',  smallErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB', 'objC'],
                  movePoses={'objA': p1,
@@ -1654,8 +1654,8 @@ def testStack(hpn = True, skeleton = False, hierarchical = False,
 # Empty hand
 def test21(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy=False):
-    p1 = util.Pose(0.95, 0.0, tZ, 0.0)
-    p2 = util.Pose(0.95, 0.4, tZ, 0.0)
+    p1 = hu.Pose(0.95, 0.0, tZ, 0.0)
+    p2 = hu.Pose(0.95, 0.4, tZ, 0.0)
 
     t = PlanTest('test21',  smallErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
@@ -1723,8 +1723,8 @@ def test21(hpn = True, skeleton = False, hierarchical = False,
 # Need to verify that hand is empty
 def test22(hpn = True, skeleton = False, hierarchical = False,
            heuristic = habbs, easy=False):
-    p1 = util.Pose(0.95, 0.0, tZ, 0.0)
-    p2 = util.Pose(0.95, 0.4, tZ, 0.0)
+    p1 = hu.Pose(0.95, 0.0, tZ, 0.0)
+    p2 = hu.Pose(0.95, 0.4, tZ, 0.0)
 
     t = PlanTest('test22',  smallErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
@@ -1784,9 +1784,9 @@ def testSim():
     varDict =  {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                 'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2),
                 'objB': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
-    front = util.Pose(1.1, 0.0, tZ, 0.0)
-    right = util.Pose(1.1, -0.4, tZ, 0.0)
-    table1Pose = util.Pose(1.3, 0.0, 0.0, math.pi/2)
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    right = hu.Pose(1.1, -0.4, tZ, 0.0)
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     t = PlanTest('testSim', typicalErrProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
@@ -1889,10 +1889,10 @@ def testBusy(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 150
     goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
     glob.monotonicFirst = True
-    table2Pose = util.Pose(1.0, -1.2, 0.0, 0.0)
+    table2Pose = hu.Pose(1.0, -1.2, 0.0, 0.0)
     
-    front = util.Pose(0.95, 0.0, tZ, 0.0)
-    back = util.Pose(1.25, 0.0, tZ, 0.0)
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
 
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
                                'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),

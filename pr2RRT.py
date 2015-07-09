@@ -1,13 +1,13 @@
-import math
-import random
-import copy
+#import math
+#import random
+#import copy
 import time
 from time import sleep
 import planGlobals as glob
 from planGlobals import debug, debugMsg
-import util
+import hu
 import windowManager3D as wm
-from miscUtil import within
+#from miscUtil import within
 
 ############################################################
 #  TO DO:
@@ -89,7 +89,7 @@ class RRT:
     def safePath(self, qf, qi, display = False):
         q = self.Ta.stopNode(qf, Node(qi, None, None),
                              addNodes=False, display=display).conf
-        if verbose:
+        if display:
             wm.getWindow('W').clear()
             self.pbs.draw(self.prob, 'W')
             qi.draw('W', 'cyan')
@@ -168,7 +168,7 @@ class Tree:
         return n_new
 
     def nearest(self, q):               # q is conf
-        return util.argmax(self.nodes, lambda v: -self.robot.distConf(q, v.conf))   
+        return hu.argmax(self.nodes, lambda v: -self.robot.distConf(q, v.conf))
     
     def stopNode(self, q_f, n_i,
                  stepSize = glob.rrtInterpolateStepSize,

@@ -1,24 +1,26 @@
-import pdb
+#import pdb
 import numpy as np
 import math
 import windowManager3D as wm
 import copy
-import util
+import hu
 import shapes
 import random
 from miscUtil import isGround
 from dist import UniformDist,  DeltaDist
 from objects import World, WorldState
-from pr2Robot import PR2, pr2Init, makePr2Chains
+#from pr2Robot import PR2, pr2Init, makePr2Chains
 from planGlobals import debugMsg, debugDraw, debug, pause
+import planGlobals as glob
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
 from planUtil import ObjGraspB, ObjPlaceB
 from pr2Util import shadowName, shadowWidths, objectName
-import fbch
+#import fbch
 from fbch import getMatchingFluents
 from belief import B, Bd
+from traceFile import tr, trAlways
 
-Ident = util.Transform(np.eye(4))            # identity transform
+Ident = hu.Transform(np.eye(4))            # identity transform
 
 ########   Make fake belief update have lower variance on pick
 
@@ -105,8 +107,8 @@ class PBS:
                                                               self, 0.)
         if confViols == None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]:
-            self.draw(0.0, 'W')
-            print 'Robot in collision.  Will try to fix.'
+            trAlways('Robot in collision.  Will try to fix.',
+                     draw=[(self, 0.0, 'W')], snap=['W'])
             self.ditherRobotOutOfCollision()
         # Now for shadow collisions;  reduce the shadow if necessary
         confViols = self.beliefContext.roadMap.confViolations(self.conf,
@@ -114,10 +116,9 @@ class PBS:
         shadows = confViols.allShadows()
         while shadows:
             if shadows:
-                if debug('beliefUpdate'):
-                    print 'Robot collides with shadows', shadows
-                    self.draw(0.98, 'W')
-                    raw_input('Try to fix?')
+                tr('beliefUpdate', 0,
+                   'Robot collides with shadows.  Will try to fix', shadows,
+                    draw = [(self, 0.98, 'W')], snap = ['W'])
                     # Divide variance in half.  Very crude.  Should find the
                     # max variance that does not result in a shadow colliion.
                 for sh in shadows:
@@ -259,7 +260,7 @@ class PBS:
                 if gB: self.excludeObjs([gB.obj])
             for h in ('left', 'right'):
                 if self.held[h] in goalPoseBels:
-                    print 'Held object in pose conditions, removing from hand'
+                    # print 'Held object in pose conditions, removing from hand'
                     self.updateHeldBel(None, h)
         if updateConf:
             self.conf = getConf(goalConds, self.conf)
@@ -273,11 +274,10 @@ class PBS:
             self.updateAvoidShadow(goalPoseBels.keys())
         self.reset()
         finalObjects = self.objectsInPBS()
-        if debug('conservation') and initialObjects != finalObjects:
-            print 'Failure of conservation'
-            print '    initial', sorted(list(initialObjects))
-            print '    final', sorted(list(finalObjects))
-            raw_input('conservation')
+        if initialObjects != finalObjects:
+            tr('conservation', 0,
+               ('    initial', sorted(list(initialObjects))),
+               ('    final', sorted(list(finalObjects))))
         return self
 
     def updateHeld(self, obj, face, graspD, hand, delta = None):
@@ -553,7 +553,7 @@ def sigmaPoses(prob, poseD, poseDelta):
     for offset in offsets:
         # offPoseTuple = [c+o for c,o in zip(poseTuple, offset)]
         offPoseTuple = offset
-        poses.append(util.Pose(*offPoseTuple))
+        poses.append(hu.Pose(*offPoseTuple))
     return poses
 
 def makeShadow(shape, prob, bel, name=None, color='gray'):
@@ -606,7 +606,7 @@ def getGoalPoseBels(goalConds, getFaceFrames):
     ans = dict([(b['Obj'], ObjPlaceB(b['Obj'],
                                      getFaceFrames(b['Obj']), # !! ??
                                      DeltaDist(b['Face']),
-                                     util.Pose(* b['Mu']),
+                                     hu.Pose(* b['Mu']),
                                      b['Var'], b['Delta'])) \
                  for (f, b) in fbs if \
                       (isGround(b.values()) and not ('*' in b.values()))])
@@ -666,7 +666,7 @@ def getHeldAndGraspBel(overrides, getGraspDesc):
             assert hand in ('left', 'right') and not hand in grasps
             if obj != 'none':
                 graspB[hand] = ObjGraspB(obj, getGraspDesc(obj),
-                                         DeltaDist(face), util.Pose(*mu), var, delta)
+                                         DeltaDist(face), hu.Pose(*mu), var, delta)
 
     return (held, graspB)
 

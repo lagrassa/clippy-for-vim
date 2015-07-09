@@ -1,16 +1,16 @@
-import math
+#import math
 import random
-import copy
+#import copy
 import time
-import util
+#import hu
 from scipy.spatial import cKDTree
 import windowManager3D as wm
-import numpy as np
+#import numpy as np
 import shapes
 from ranges import *
-from pr2Robot import CartConf
-from objects import WorldState
-from geom import bboxOverlap, bboxUnion
+#from pr2Robot import CartConf
+#from objects import WorldState
+#from geom import bboxOverlap, bboxUnion
 from transformations import quaternion_slerp
 import ucSearchPQ as search
 reload(search)
@@ -233,7 +233,7 @@ class KDTree:
                 if debug('addEntry'):
                     print 'New', entry.point
                     print 'Old', ne.point
-                    raw_input('Entry too close, d=%s'%d)
+                    raw_input('Entry too close')
                 return ne
         self.newPoints.append(point)
         self.newEntries.append(entry)
@@ -705,7 +705,7 @@ class RoadMap:
         else:
             pr = pose_f.point()*ratio + pose_i.point()*(1-ratio)
             qr = quaternion_slerp(pose_i.quat().matrix, pose_f.quat().matrix, ratio)
-            return util.Transform(None, pr.matrix, qr), \
+            return hu.Transform(None, pr.matrix, qr), \
                    pose_f.near(pose_i, minLength, minLength)
 
     def cartInterpolators(self, n_f, n_i, minLength, depth=0):
@@ -1157,7 +1157,7 @@ class RoadMap:
                                    expandF = minViolPathDebugExpand if debug('expand') else None,
                                    visitF = minViolPathDebugVisit if debug('expand') else None,
                                    greedy = searchOpt if optimize else searchGreedy,
-                                   printFinal = True,
+                                   printFinal = debug('minViolPath'),
                                    verbose = False)
             for ans in gen:
                 (path, costs) = ans
@@ -1434,7 +1434,7 @@ def validEdgeTest(xyt_i, xyt_f):
         # small enough displacement
         return True
     # Not strictly back, so the head can look at where it's going
-    return abs(util.angleDiff(math.atan2(yf-yi, xf-xi), thi)) <= 0.75*math.pi
+    return abs(hu.angleDiff(math.atan2(yf-yi, xf-xi), thi)) <= 0.75*math.pi
 
 r = 0.02
 boxPoint = shapes.Shape([shapes.BoxAligned(np.array([(-2*r, -2*r, -r), (2*r, 2*r, r)]), None),
@@ -1444,15 +1444,16 @@ def minViolPathDebugExpand(n):
     # node.conf.draw('W')
     # raw_input('expand')
     (x,y,th) = node.conf['pr2Base']
-    boxPoint.applyTrans(util.Pose(x,y,0,th)).draw('W')
+    boxPoint.applyTrans(hu.Pose(x,y,0,th)).draw('W')
     wm.getWindow('W').update()
 
 def minViolPathDebugVisit(state, cost, heuristicCost, a, newState, newCost, hValue):
     (node, _) = newState
     (x,y,th) = node.conf['pr2Base']
-    boxPoint.applyTrans(util.Pose(x,y,0,th)).draw('W', 'cyan')
+    boxPoint.applyTrans(hu.Pose(x,y,0,th)).draw('W', 'cyan')
     wm.getWindow('W').update()
 
+'''
 def reachable(graph, node):
     reach = set([])
     agenda = [node]
@@ -1465,6 +1466,7 @@ def reachable(graph, node):
         reach.add(other)
         agenda.append(other)
     return reach
+'''
 
 def scanH(graph, start):
     agenda = []
@@ -1489,14 +1491,14 @@ def scanH(graph, start):
                 vert = tuple(w.conf['pr2Base'])
                 if w not in verts:
                     (x,y,th) = vert
-                    boxPoint.applyTrans(util.Pose(x,y,0,th)).draw('W')
+                    boxPoint.applyTrans(hu.Pose(x,y,0,th)).draw('W')
                     verts.add(vert)
                 link = ((xv, yv), (x, y))
                 if not( x == xv and y == yv) and link not in links:
                     r = 0.02
                     length = ((xv - x)**2 + (yv - y)**2)**0.5
                     ray = shapes.BoxAligned(np.array([(-r, -r, -r), (length, r, r)]), None)
-                    pose = util.Pose(xv, yv, 0.0, math.atan2(y-yv, x-xv))
+                    pose = hu.Pose(xv, yv, 0.0, math.atan2(y-yv, x-xv))
                     ray.applyTrans(pose).draw('W', color='cyan')
                     links.add(link)
             heappush(agenda, (cost + pointDist(v.point, w.point), w, v))

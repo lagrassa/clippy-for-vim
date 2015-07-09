@@ -50,6 +50,7 @@ hAddBack   (super verbose)
 hAddBackInf
 hAddBackInfFinal
 hAddBackV  (just values)
+h (really just values)
 heuristic (in ucSearch: positive value at goal or 0 value elsewhere)
 heuristicInversion  (prim actually achieves more than abs)
 infeasible (hierarchical subgoal)
@@ -82,9 +83,8 @@ visible
 visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
-debugOn = ['nonmon', 'traceGen', 'traceCRH', 'skeleton',
-           'heuristic0', 'hAddBackInfFinal',
-          'simpleAbstractCostEstimates']
+debugOn = ['nonmon', 'skeleton',
+           'simpleAbstractCostEstimates' ]
 
 pauseOn = debugOn
 

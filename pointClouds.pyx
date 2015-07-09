@@ -3,9 +3,9 @@ import numpy as np
 cimport numpy as np
 from cpython cimport bool
 
-cimport util
-import util
-Ident = util.Transform(np.eye(4))            # identity transform
+cimport hu
+import hu
+Ident = hu.Transform(np.eye(4))            # identity transform
 import transformations as transf
 cimport shapes
 import shapes
@@ -21,7 +21,7 @@ tiny = 1.0e-6
 
 cdef class Scan:
     # The input verts includes eye as vertex 0
-    def __init__(self, util.Transform headTrans, tuple scanParams,
+    def __init__(self, hu.Transform headTrans, tuple scanParams,
                  verts = None, str name='scan', str color=None, contacts = None):
         self.name = name
         self.color = color
@@ -52,16 +52,16 @@ cdef class Scan:
         dm = np.sqrt(dm)
         return dm
 
-    cpdef Scan applyTrans(self, util.Transform trans):
+    cpdef Scan applyTrans(self, hu.Transform trans):
         return Scan(trans.compose(self.headTrans), self.scanParams,
                     np.dot(trans.matrix, self.vertices), self.name, self.color)
 
-    cpdef bool visible(self, util.Point pt):
+    cpdef bool visible(self, hu.Point pt):
         cdef float height, width, length, focal
         cdef int n
         (focal, height, width, length, n) = self.scanParams
         cdef:
-            util.Point ptLocal = self.headTransInverse.applyToPoint(pt)
+            hu.Point ptLocal = self.headTransInverse.applyToPoint(pt)
             float t
         if ptLocal.x <= focal: return False
         t = focal/ptLocal.x
@@ -89,10 +89,10 @@ cdef class Scan:
         pointBox = shapes.BoxAligned(np.array([(-r, -r, -r), (r, r, r)]), None)
         v = self.vertices
         for i from 0 <= i < v.shape[1]:
-            pose = util.Pose(v[0,i], v[1,i], v[2,i], 0.0)
+            pose = hu.Pose(v[0,i], v[1,i], v[2,i], 0.0)
             pointBox.applyTrans(pose).draw(window, color or self.color)
 
-cpdef np.ndarray[np.float64_t, ndim=2] scanVerts(tuple scanParams, util.Transform pose):
+cpdef np.ndarray[np.float64_t, ndim=2] scanVerts(tuple scanParams, hu.Transform pose):
     cdef:
        float focal, height, width, length, deltaX, deltaY, dirX, dirY, y, z, x, w
        set points
@@ -134,7 +134,7 @@ def simulatedScan(conf, scanParams, objects, name='scan', color=None):
     else:
         laserScan = Scan(Ident, scanParams)
         scanCache[scanParams] = laserScan
-    scanTrans = headTrans.compose(util.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0))))
+    scanTrans = headTrans.compose(hu.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0))))
     scan = laserScan.applyTrans(scanTrans)
     n = scan.edges.shape[0]
     dm = np.zeros(n); dm.fill(10.0)

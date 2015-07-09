@@ -743,7 +743,7 @@ def placeInGenOld(args, goalConds, bState, outBindings,
         if debug('placeInGen'):
             pbs.draw(prob, 'W')
             debugMsgSkip('placeInGen', skip, ('Pose specified', pose))
-        oplaceB = placeB.modifyPoseD(mu=util.Pose(*pose))
+        oplaceB = placeB.modifyPoseD(mu=hu.Pose(*pose))
         def placeBGen():
             yield oplaceB
         placeBs = Memoizer('placeBGen', placeBGen())
@@ -783,8 +783,8 @@ def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
         Ba([(dx, -dy, 0), (dx+width, dy, dz)],
            name=name+'_backside', color=color),
         ]
-    coolerPose = util.Pose(0.0, 0.0, tZ, -math.pi/2)
-    shelvesPose = util.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
+    coolerPose = hu.Pose(0.0, 0.0, tZ, -math.pi/2)
+    shelvesPose = hu.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
     tH = 0.67                           # table height
     shelfSpaces = []
     shelfRungs = []
@@ -802,7 +802,7 @@ def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                     (dx-eps, dy+width-eps, (dz/nshelf) - width - eps)],
                    color='green', name=spaceName)
         space = Sh([space], name=spaceName, color='green').applyTrans(shelvesPose)
-        shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2)-(tH/2)-(coolerZ/2),0)))
+        shelfSpaces.append((space, hu.Pose(0,0,bot+eps-(dz/2)-(tH/2)-(coolerZ/2),0)))
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
                     name='cooler', color=color)],
                 name='cooler', color=color)
@@ -899,7 +899,7 @@ def potentialRegionPoseGenCut(pbs, obj, placeB, prob, regShapes, reachObsts, max
         for i in xrange(5):
             (x,y,z) = bboxRandomDrawCoords(chunk.bbox())
             # Support pose, we assume that sh is on support face
-            pose = util.Pose(x,y,z + clearance, angle)
+            pose = hu.Pose(x,y,z + clearance, angle)
             sh = shRotations[angle].applyTrans(pose)
             if debug('potentialRegionPoseGen'):
                 sh.draw('W', 'brown')
@@ -913,7 +913,7 @@ def potentialRegionPoseGenCut(pbs, obj, placeB, prob, regShapes, reachObsts, max
     shWorld = pbs.getShadowWorld(prob)
     objShadowBase = pbs.objShadow(obj, True, prob, placeB, ff)
     objShadow = objShadowBase.applyTrans(objShadowBase.origin().inverse())
-    shRotations = dict([(angle, objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()) \
+    shRotations = dict([(angle, objShadow.applyTrans(hu.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
     count = 0
     bICost = 5.
@@ -1011,3 +1011,60 @@ def getAllPoseBels(overrides, getFaceFrames, curr):
     for (o, p) in getGoalPoseBels(overrides, getFaceFrames).iteritems():
         objects[o] = p
     return objects
+
+
+# regrasp
+def testRegrasp(hpn = False, draw=False):
+    t = PlanTest('testRegrasp',  typicalErrProbs,
+    objects=['table1', 'table2', 'objA'], multiplier=4)
+    targetPose = (0.55, 0.25, 0.65, 0.0)
+
+    goalProb = 0.5
+
+    goal = State([Bd([SupportFace(['objA']), 4, .5], True),
+                  B([Pose(['objA', 4]),
+                     targetPose, (0.001, 0.001, 0.001, 0.005), (0.001,)*4,
+                     0.5], True)])
+    t.run(goal,
+          hpn = hpn,
+          skeleton = [['place', 'move', 'pick', 'move']],
+          operators=['move', 'pick', 'place']
+          )
+    raw_input('Done?')
+
+def testWorldState(draw = True):
+    world = testWorld(['table1', 'table2', 'objA', 'objB'])
+    ws = WorldState(world)
+    conf = JointConf(pr2Init.copy(), world.robot.chains)
+    ws.setRobotConf(conf)
+    ws.setObjectPose('objA', hu.Pose(-1.0, 0.0, 0.0, 0.0))
+    ws.setObjectPose('objB', hu.Pose(0.6, 0.0, 0.7, 1.57))
+    ws.setObjectPose('table1', hu.Pose(0.6, 0.0, 0.3, math.pi/2))
+    ws.setObjectPose('table2', hu.Pose(0.9, 0.0, 0.9, math.pi/2))
+    if draw: ws.draw('W')
+    return ws
+
+def testScan():
+    scan = (0.3, 0.7, 2.0, 2., 30)      # len should be 5
+    scan = (0.3, 0.1, 0.1, 2., 30)      # len should be 5
+    s = Scan(hu.Pose(0,0,1.5,0).compose(hu.Transform(transf.rotation_matrix(math.pi/4, (0,1,0)))), scan)
+    wm.makeWindow('W', viewPort)
+    s.draw('W', 'pink')
+    ws = testWorldState()
+    dm = np.zeros(3722)
+    dm.fill(10.0)
+    contacts = 3722*[None]
+    print updateDepthMap(s, ws.objectShapes['table1'], dm, contacts)
+    print updateDepthMap(s, ws.objectShapes['table2'], dm, contacts)
+    print updateDepthMap(s, ws.objectShapes['objB'], dm, contacts)
+    r = 0.01
+    pointBox = shapes.BoxAligned(np.array([(-r, -r, -r), (r, r, r)]), None)
+    count = 0
+    for c in contacts:
+        if c != None:
+            pose = hu.Pose(c[0], c[1], c[2], 0.0)
+            pointBox.applyTrans(pose).draw('W', 'red')
+            count += 1
+    return count
+
+

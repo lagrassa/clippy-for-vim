@@ -1,7 +1,7 @@
 import pdb
 import random
 import math
-import util
+import hu
 import copy
 import itertools
 import transformations as transf
@@ -34,13 +34,13 @@ from pr2InvKin import armInvKin
 # ik.fkLeft.restype = None
 # ik.fkRight.restype = None
 
-Ident = util.Transform(np.eye(4))            # identity transform
+Ident = hu.Transform(np.eye(4))            # identity transform
 
 def vec(str):
     return [float(x) for x in str.split()]
 
 def transProd(lt):
-    return util.Transform(reduce(np.dot, lt))
+    return hu.Transform(reduce(np.dot, lt))
 
 # Force sensor offsets from Gustavo's URDF
 
@@ -119,7 +119,7 @@ pr2HeadLinks = [\
 
 def pr2ArmLinks(arm):
     angle = math.pi/2 if arm=='r' else -math.pi/2
-    pose = util.Transform(transf.rotation_matrix(angle, (1,0,0)))
+    pose = hu.Transform(transf.rotation_matrix(angle, (1,0,0)))
     links = [\
         Sh(Ba([(-0.12, -0.12, -0.5), (0.24, 0.12, 0.1)], name='shoulder')),
         Sh(Ba([(0.12, -0.06, -0.08), (0.47, 0.06, 0.08)], name='upperArm')),
@@ -162,28 +162,28 @@ def pr2GripperJoints(arm):
     fing_dz = params['fingerThick']
     return [Rigid(arm+'_palm',
                   (r_forceSensorOffset if arm == 'r' else l_forceSensorOffset) * \
-                  util.Transform(transf.translation_matrix([o + palm_dx/2.,0.0,0.0])),
+                  hu.Transform(transf.translation_matrix([o + palm_dx/2.,0.0,0.0])),
                   None, None),
             Prismatic(arm+'_finger1',
-                      util.Transform(transf.translation_matrix([palm_dx/2+fing_dx/2.,fing_dy/2.,0.0])),
+                      hu.Transform(transf.translation_matrix([palm_dx/2+fing_dx/2.,fing_dy/2.,0.0])),
                       (0.0, params['gripMax']/2.), (0.,1.,0)),
             Prismatic(arm+'_finger2',
-                      util.Transform(transf.translation_matrix([0.0,-fing_dy,0.0])),
+                      hu.Transform(transf.translation_matrix([0.0,-fing_dy,0.0])),
                       (0.0, 0.08), (0.,-1.,0))]
 
 # Transforms from wrist frame to hand frame
 # This leaves X axis unchanged
-left_gripperToolOffsetX = util.Pose(0.18,0.0,0.0,0.0)
-right_gripperToolOffsetX = util.Transform(np.dot(r_forceSensorOffset.matrix,
+left_gripperToolOffsetX = hu.Pose(0.18,0.0,0.0,0.0)
+right_gripperToolOffsetX = hu.Transform(np.dot(r_forceSensorOffset.matrix,
                                                  left_gripperToolOffsetX.matrix))                          
 # This rotates around the Y axis... so Z' points along X an X' points along -Z
-left_gripperToolOffsetZ = util.Transform(np.dot(left_gripperToolOffsetX.matrix,
+left_gripperToolOffsetZ = hu.Transform(np.dot(left_gripperToolOffsetX.matrix,
                                                transf.rotation_matrix(math.pi/2,(0,1,0))))
-right_gripperToolOffsetZ = util.Transform(np.dot(right_gripperToolOffsetX.matrix,
+right_gripperToolOffsetZ = hu.Transform(np.dot(right_gripperToolOffsetX.matrix,
                                                  transf.rotation_matrix(math.pi/2,(0,1,0))))
 
 # Rotates wrist to grasp face frame
-gFaceFrame = util.Transform(np.array([(0.,1.,0.,0.18),
+gFaceFrame = hu.Transform(np.array([(0.,1.,0.,0.18),
                                       (0.,0.,1.,0.),
                                       (1.,0.,0.,0.),
                                       (0.,0.,0.,1.)]))
@@ -283,7 +283,7 @@ class CartConf(JointConf):
             else:
                 c.conf[name] = [value]
         else:
-            assert value is None or isinstance(value, util.Transform)
+            assert value is None or isinstance(value, hu.Transform)
             c.conf[name] = value
         return c
     def confItems(self):
@@ -293,7 +293,7 @@ class CartConf(JointConf):
                 val = self.conf[chain]
                 if isinstance(val, list):
                     vals.append(tuple(val))
-                elif isinstance(val, util.Transform):
+                elif isinstance(val, hu.Transform):
                     vals.append(repr(val))
                 else:
                     vals.append(val)
@@ -364,11 +364,11 @@ def makePr2ChainsShadow(name, workspaceBounds, radiusVar=0.0, angleVar=0.0, reac
         )
     def pr2ArmLinksGrown(arm):
         angle = math.pi/2 if arm=='r' else -math.pi/2
-        pose = util.Transform(transf.rotation_matrix(angle, (1,0,0)))
+        pose = hu.Transform(transf.rotation_matrix(angle, (1,0,0)))
         gr1 = radiusVar + 0.43*reachPct*angleVar
         gr2 = radiusVar + 0.76*reachPct*angleVar
         gr3 = radiusVar + 1.05*reachPct*angleVar
-        print 'gr1', gr1, 'gr2', gr2, 'gr3', gr3
+        #print 'gr1', gr1, 'gr2', gr2, 'gr3', gr3
         # raw_input('arm growth factors')
         links = [\
             Sh(Ba([(-0.12-gr1, -0.12-gr1, -0.5), (0.24+gr1, 0.12+gr1, 0.1)], name='shoulder')),
@@ -426,17 +426,17 @@ def makePr2ChainsShadow(name, workspaceBounds, radiusVar=0.0, angleVar=0.0, reac
 def fliph(pose):
     params = list(pose.pose().xyztTuple())
     params[1] = -params[1]
-    return util.Pose(*params)
+    return hu.Pose(*params)
 
 def flipv(pose):
     m = pose.matrix.copy()
     m[1,3] = -m[1,3]
-    return util.Transform(m)
+    return hu.Transform(m)
 
 def ground(pose):
     params = list(pose.xyztTuple())
     params[2] = 0.0
-    return util.Pose(*params)
+    return hu.Pose(*params)
 
 # fkCount, fkCache, placeCount, placeCache
 confCacheStats = [0, 0, 0, 0]
@@ -522,7 +522,7 @@ class PR2:
         # y points along finger approach, z points in closing direction
         # offset aligns with the grasp face.
         # This is global gripperFaceFrame offset to center object
-        gripperFaceFrame_dy = util.Transform(np.array([(0.,1.,0.,0.18),
+        gripperFaceFrame_dy = hu.Transform(np.array([(0.,1.,0.,0.18),
                                                        (0.,0.,1.,-width/2),
                                                        (1.,0.,0.,0.),
                                                        (0.,0.,0.,1.)]))
@@ -853,7 +853,7 @@ def headInvKin(chains, torso, targetFrame, wstate,
 
     if abs(relFramePoint.matrix[0,0]) < 0.1:
         # If the frame is just the head frame, then displace it.
-        targetFrame = targetFrame.compose(util.Pose(0.,0., 0.2, 0.0))
+        targetFrame = targetFrame.compose(hu.Pose(0.,0., 0.2, 0.0))
         if debug('pr2Head'):
             print 'displacing head frame to\n', targetFrame.point().matrix
 
@@ -911,7 +911,7 @@ def tangentSolOld(x, y, x0, y0):
              y - r*math.sin(angle + theta0))
         vangle = math.atan2(v[1], v[0])
         # print 'angle', angle, 'atan', vangle
-        if util.angleDiff(angle, vangle) < 0.001:
+        if hu.angleDiff(angle, vangle) < 0.001:
             keep.append(vangle)
     # This generally returns two answers, but they may not be within limits.
     # print 'keep', keep
@@ -947,7 +947,7 @@ def tangentSol(x, y, x0, y0):
     angs = []
     for alpha in avals:
         angs.extend([ph - alpha - th0, ph + alpha - th0])
-    angs = [util.fixAnglePlusMinusPi(a) for a in angs]
+    angs = [hu.fixAnglePlusMinusPi(a) for a in angs]
     # print 'angs', angs
     ans = []
     for ang in angs:
@@ -981,7 +981,7 @@ def interpPose(pose_f, pose_i, minLength, ratio=0.5):
     else:
         pr = pose_f.point()*ratio + pose_i.point()*(1-ratio)
         qr = quaternion_slerp(pose_i.quat().matrix, pose_f.quat().matrix, ratio)
-        return util.Transform(None, pr.matrix, qr), \
+        return hu.Transform(None, pr.matrix, qr), \
                pose_f.near(pose_i, minLength, minLength)
 
 def cartInterpolators(conf_f, conf_i, minLength):

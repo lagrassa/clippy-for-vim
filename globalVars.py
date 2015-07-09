@@ -1,7 +1,6 @@
-import os
 import math
+import hu
 import numpy as np
-import util
 import transformations as transf
 
 def getBindings():
@@ -37,7 +36,7 @@ speedFactor = 0.5
 # Useful constant
 ########################################
 
-ZtoXTr = util.Transform(np.dot(transf.rotation_matrix(-math.pi/2, (0,1,0)),
+ZtoXTr = hu.Transform(np.dot(transf.rotation_matrix(-math.pi/2, (0,1,0)),
                                transf.rotation_matrix(math.pi/2, (1,0,0))))
 
 

@@ -1,5 +1,5 @@
 import math
-import util
+import hu
 import copy
 from colors import RGBToPyColor, HSVtoRGB
 from dist import chiSqFromP
@@ -31,8 +31,8 @@ class Hashable:
 # class PoseD(Hashable):
 #     def __init__(self, mu, var):
 #         if isinstance(mu, tuple):
-#             mu = util.Pose(*mu)
-#         # assert isinstance(mu, util.Pose)
+#             mu = hu.Pose(*mu)
+#         # assert isinstance(mu, hu.Pose)
 #         self.mu = mu
 #         self.muTuple = self.mu.xyztTuple() if mu else None
 #         assert isinstance(var, tuple)
@@ -67,7 +67,7 @@ class Hashable:
 #         else:
 #             self.grasp = dist.DeltaDist(grasp)
 #         # This is PoseD for the mode of the grasp
-#         if isinstance(poseD, (util.Pose, util.Transform)):
+#         if isinstance(poseD, (hu.Pose, hu.Transform)):
 #             self.poseD = PoseD(poseD.pose(), var or 4*(0.0,))
 #         elif poseD == None or hasattr(poseD, 'muTuple'):
 #             self.poseD = poseD
@@ -102,7 +102,7 @@ class Hashable:
 #         else:
 #             self.support = dist.DeltaDist(support)
 #         # This is PoseD for the mode of the support
-#         if isinstance(poseD, (util.Pose, util.Transform)):
+#         if isinstance(poseD, (hu.Pose, hu.Transform)):
 #             self.poseD = PoseD(poseD.pose(), var or 4*(0.0,))
 #         elif poseD == None or hasattr(poseD, 'muTuple'):
 #             self.poseD = poseD
@@ -214,7 +214,7 @@ class Hashable:
 # ========================
 
 # Useful as a default
-defaultPoseD = PoseD(util.Pose(0.0, 0.0, 0.0, 0.0),
+defaultPoseD = PoseD(hu.Pose(0.0, 0.0, 0.0, 0.0),
                      (0.0, 0.0, 0.0, 0.0))
 
 # Rect grasp set.
@@ -359,7 +359,7 @@ class MemoizerViol:
         if len(self.values) > len(self.done):
             elegible = set(range(len(self.values))) - self.done
             # Find min weight index among elegible
-            nextI = argmax(list(elegible), lambda i: -self.values[i][1].weight())
+            nextI = hu.argmax(list(elegible), lambda i: -self.values[i][1].weight())
             self.done.add(nextI)
             chosen = self.values[nextI]
             debugMsg('Memoizer',
@@ -400,7 +400,7 @@ def bigAngleWarn(conf1, conf2, thr = math.pi/8.):
     for chain in ['pr2LeftArm', 'pr2RightArm']:
         joint = 0
         for angle1, angle2 in zip(conf1[chain], conf2[chain]):
-            if abs(util.angleDiff(angle1, angle2)) >= thr:
+            if abs(hu.angleDiff(angle1, angle2)) >= thr:
                 print chain, joint, angle1, angle2
                 debugMsg('bigAngleChange', 'Big angle change')
             joint += 1

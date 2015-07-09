@@ -1,9 +1,9 @@
-import math
+#import math
 import numpy as np
 import shapes
 import geom
-import util
-from scipy.spatial import ConvexHull
+#import hu
+#from scipy.spatial import ConvexHull
 import itertools
 
 tiny = 1.0e-6

@@ -1,6 +1,8 @@
 import copy
 import numpy as np
 
+from traceFile import tr, trAlways
+
 import planGlobals as glob
 from planGlobals import debug, debugMsg
 
@@ -8,7 +10,6 @@ import fbch
 from fbch import Fluent, applyBindings, hCache, State, applicableOps,\
     Operator
 
-import miscUtil
 from miscUtil import isVar, isAnyVar, floatify, isStruct, customCopy,\
     lookup, squash, squashSets, prettyString, isGround, matchLists
 
@@ -139,6 +140,7 @@ class Bd(BFluent):
         return rFluent.heuristicVal(details, v, p)
 
     def beliefMode(self, details = None):
+        (rFluent, v, p) = self.args
         if hasattr(rFluent, 'bTest'):
             return rFluent.bTest(details, v, 0.5)
         
@@ -241,25 +243,23 @@ class B(BFluent):
         dv = rFluent.dist(b)
         (dc, dp) = dv.mlc()  # most likely mixture component
 
-        if debug('testVerbose'):
-            print 'B fluent test', rFluent
-            print '    ModeProb', dp
-            print '    Actual mode', dc
-            print '    Target mean', v
-            if v != '*':
-                print '    Mean diff', abs(dc.mode() - np.array(v))
-                print '    Delta', delta
-                print '    Mean diff < delta', \
-                 (abs(dc.mode() - np.array(v)) <= np.array(delta))
-            print '    Target var', var
-            print '    Sigma < var', (dc.sigma.diagonal() <= np.array(var))
-            print '    Target p', p
-            print '    Modep >= p', dp >= p
-
-            print '    value with star', \
+        tr('testVerbose', 2,
+           ('B fluent test', rFluent),
+           ('    ModeProb', dp),
+           ('    Actual mode', dc),
+           ('    Target mean', v),
+           ('    Mean diff', abs(dc.mode() - np.array(v)) if v!='*' else ''),
+           ('    Delta', delta),
+           ('    Mean diff < delta',
+            (abs(dc.mode() - np.array(v)) <= np.array(delta)) \
+                if v != '*' else ''),
+           ('    Target var', var),
+           ('    Sigma < var', (dc.sigma.diagonal() <= np.array(var))),
+           ('    Target p', p),
+           ('    Modep >= p', dp >= p),
+           ('    value with star', \
               (dc.sigma.diagonal() <= np.array(var)).all() \
-                   and dp >= p
-            raw_input('okay?')
+                   and dp >= p))
 
         if v == '*':
             # Just checking variance and p
@@ -292,12 +292,9 @@ class B(BFluent):
     
     def glb(self, other, details = None):
         if str(self) == str(other) and self != other:
-            print 'Strings match but not equal'
-            print self
-            print self.args
-            print other.args
-            raw_input('okay?')
-        
+            trAlways('Strings match but not equal', self,
+                     self.args, other.args, ol = True)
+
         # Quick test
         if self == other:
             return self, {}
@@ -408,7 +405,6 @@ hCache2 = {}
 hCacheID = {}
 
 def hCacheReset():
-    print '************   Belief HCache Reset ***************'
     fbch.hCache.clear()
     hCache2.clear()
     hCacheID.clear()
@@ -468,7 +464,7 @@ def hCacheLookup(fs, k):
     else:
         return False
 
-def hCacheEntailsSet(fs, k, debug = False):
+def hCacheEntailsSet(fs, k):
     fsStripped = frozenset([removeProbs(f) for f in fs])
     if not fsStripped in hCache2:
         return False
@@ -478,14 +474,8 @@ def hCacheEntailsSet(fs, k, debug = False):
         if setEntails(ff, fs) != False:
             if cost < bestCost:
                 (bestCost, bestActSet) = (cost, actSet)
-                if cost == 0 and debug:
-                     print 'hces cost 0'
-                     for thing in ff:
-                         print thing.prettyString()
-                     glob.rememberMe = ff
-                     raw_input('go?')
     if bestCost < float('inf'):
-        return (bestCost, bestActSet)
+        return bestCost, bestActSet
     return False
 
 # Is each of the fluents in f2 entailed by some fluent in f1?
@@ -659,12 +649,9 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
 
         assert totalCost >= 0
         if totalCost == float('inf'):
-            print 'Infinite cost goal set'
-            actSet = set()
-            for f in fUp:
-                print '    ', f.shortName()
-            debugMsg('hAddBackInf',
-                         'Warning: storing infinite value in hCache')
+            tr('hAddBackInf', 1,
+                         'Warning: storing infinite value in hCache',
+                     [f.shortName() for f in fUp])
             addToCachesSet(fUp, totalCost, set(), idk)
             if totalCost == 0:
                 assert start.satisfies(State(fUp))
@@ -695,8 +682,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
         def n(f):
             return f.args[0].predicate if f.predicate in ('B', 'Bd') \
                       else f.predicate
-
-        print 'H', prettyString(totalCost)
+        tr('h', 0, 'H ' + prettyString(totalCost), ol = True)
     return totalCost
 
 def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,

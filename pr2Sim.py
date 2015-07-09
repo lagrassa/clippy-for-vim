@@ -8,7 +8,8 @@ import pr2Util
 from pr2Util import supportFaceIndex, DomainProbs, bigAngleWarn
 from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
-import util
+import hu
+import copy
 from planGlobals import debug, debugOn, debugMsg
 from pr2Robot import gripperFaceFrame
 from pr2Visible import visible, lookAtConf
@@ -129,8 +130,8 @@ class RealWorld(WorldState):
             # Integrate the displacement
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
             # approx pi => 1 meter
-            distSoFar += 0.33*abs(util.angleDiff(prevXYT[2],newXYT[2]))
-            print 'distSoFar', distSoFar
+            distSoFar += 0.33*abs(hu.angleDiff(prevXYT[2],newXYT[2]))
+            #print 'distSoFar', distSoFar
             # Check whether we should look
             args = 14*[None]
             if distSoFar >= maxOpenLoopDist:
@@ -285,10 +286,10 @@ class RealWorld(WorldState):
                     continue
                 else:
                     obsVar = self.domainProbs.obsVar
-                    obsPose = util.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
+                    obsPose = hu.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
                     obsPlace = obsPose.compose(ff).pose().xyztTuple()
-                    obs.append((objType, trueFace, util.Pose(*obsPlace)))
-        print 'Observation', obs
+                    obs.append((objType, trueFace, hu.Pose(*obsPlace)))
+        tr('sim', 0, 'Observation', obs)
         if not obs:
             debugMsg('sim', 'Null observation')
         return obs
@@ -348,7 +349,7 @@ class RealWorld(WorldState):
                 self.robotPlace.draw('World', 'black')
                 self.setRobotConf(approachConf)
                 self.robotPlace.draw('World', 'orchid')
-                print 'retracted'
+                #print 'retracted'
             else:
                 # Failed to pick.  Move the object a little.
                 newObjPose = opose.pose().corruptGauss(0.0,
@@ -396,7 +397,7 @@ class RealWorld(WorldState):
                 print 'placed', obj, actualObjPose
             self.setRobotConf(approachConf)
             self.robotPlace.draw('World', 'orchid')
-            print 'retracted'
+            #print 'retracted'
         return None
 
     def copy(self):
@@ -415,7 +416,7 @@ def graspFaceIndexAndPose(conf, hand, shape, graspDescs):
     for g in range(len(graspDescs)):
         graspDesc = graspDescs[g]
         faceFrame = graspDesc.frame
-        centerFrame = faceFrame.compose(util.Pose(0,0,graspDesc.dz,0))
+        centerFrame = faceFrame.compose(hu.Pose(0,0,graspDesc.dz,0))
         graspFrame = objFrame.compose(centerFrame)
         candidatePose = graspFrame.inverse().compose(fingerFrame).pose(fail=False)
         if candidatePose:

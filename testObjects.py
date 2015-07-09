@@ -63,22 +63,22 @@ def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                     (dx-eps, dy+width-eps, (dz/nshelf) - width - eps)],
                    color='green', name=spaceName)
         space = Sh([space], name=spaceName, color='green')
-        shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2),0)))
+        shelfSpaces.append((space, hu.Pose(0,0,bot+eps-(dz/2),0)))
     shelves = Sh(sidePrims + shelfRungs, name = name+'Body', color=color)
     return (shelves, shelfSpaces)
 
 def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                 width = shelfWidth, nshelf = 2,
                 name='tableShelves', color='brown'):
-    coolerPose = util.Pose(0.0, 0.0, tZ, -math.pi/2)
-    shelvesPose = util.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
+    coolerPose = hu.Pose(0.0, 0.0, tZ, -math.pi/2)
+    shelvesPose = hu.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
     tH = 0.67                           # table height
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
                     name='cooler', color=color)],
                 name='cooler', color=color)
     table = makeTable(0.603, 0.298, tH, name = 'table1', color=color)
     shelves, shelfSpaces = makeShelves(dx, dy, dz, width, nshelf, name='tableShelves', color=color)
-    offset = shelvesPose.compose(util.Pose(0.,0.,-(tH/2+coolerZ/2),0.))
+    offset = shelvesPose.compose(hu.Pose(0.,0.,-(tH/2+coolerZ/2),0.))
     shelfSpaces = [(s,pose.compose(offset)) for (s, pose) in shelfSpaces]
     obj = Sh( shelves.applyTrans(shelvesPose).parts() \
               + cooler.applyTrans(coolerPose).parts() \
@@ -89,13 +89,13 @@ def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
 def makeCoolShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                       width = shelfWidth, nshelf = 2,
                       name='coolShelves', color='brown'):
-    coolerPose = util.Pose(0.0, 0.0, 0.0, -math.pi/2)
-    shelvesPose = util.Pose(0.0, 0.0, coolerZ, -math.pi/2)
+    coolerPose = hu.Pose(0.0, 0.0, 0.0, -math.pi/2)
+    shelvesPose = hu.Pose(0.0, 0.0, coolerZ, -math.pi/2)
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
                     name='cooler', color=color)],
                 name='cooler', color=color)
     shelves, shelfSpaces = makeShelves(dx, dy, dz, width, nshelf, name='coolShelves', color=color)
-    offset = shelvesPose.compose(util.Pose(0.,0.,-(coolerZ/2),0.))
+    offset = shelvesPose.compose(hu.Pose(0.,0.,-(coolerZ/2),0.))
     shelfSpaces = [(s,pose.compose(offset)) for (s, pose) in shelfSpaces]
     obj = Sh( shelves.applyTrans(shelvesPose).parts() \
               + cooler.applyTrans(coolerPose).parts(),

@@ -1,5 +1,6 @@
 import numpy as np
-import util
+import hu
+from traceFile import tr, trAlways
 from itertools import product, permutations, chain, imap
 from dist import DeltaDist, varBeforeObs, DDist, probModeMoved, MixtureDist,\
      UniformDist, chiSqFromP, MultivariateGaussianDistribution
@@ -34,7 +35,7 @@ canSeeProb = 0.9
 # No prob can go above this
 maxProbValue = 0.98  # was .999
 # How sure do we have to be of CRH for moving
-movePreProb = 0.98
+#movePreProb = 0.98
 movePreProb = 0.8
 # Prob for generators.  Keep it high.   Should this be = maxProbValue?
 probForGenerators = 0.98
@@ -117,7 +118,7 @@ def interpolate(path):
         qf = path[i]
         qi = path[i-1]
         confs = rrt.interpolate(qf, qi, stepSize=0.25)
-        print i, 'path segment has', len(confs), 'confs'
+        tr('path', 1, i, 'path segment has', len(confs), 'confs')
         interpolated.extend(confs)
     return interpolated
 
@@ -151,15 +152,11 @@ def moveNBPrim(args, details):
     # Make all the objects be fixed
     bs.fixObjBs.update(bs.moveObjBs)
     bs.moveObjBs = {}
-    print 'moveNBPrim (start, end)'
-    printConf(cs); printConf(ce)
-
+    tr('prim', 1, 'moveNBPrim (start, end)', confStr(cs), confStr(ce),
+       pause = False)
     path, interpolated = primNBPath(bs, cs, ce, movePreProb)
-    if debug('prim'):
-        print '*** movePrim No base'
-        print list(enumerate(zip(vl, args)))
-        print 'path length', len(path)
     assert path
+    tr('prim', 0, '*** movePrim no base', args, ('path length', len(path)))
     return path, interpolated, details.pbs.getPlacedObjBs()
 
 def movePrim(args, details):
@@ -169,57 +166,45 @@ def movePrim(args, details):
     # Make all the objects be fixed
     bs.fixObjBs.update(bs.moveObjBs)
     bs.moveObjBs = {}
-    print 'movePrim (start, end)'
-    printConf(cs); printConf(ce)
-
+    tr('prim', 1, 'movePrim (start, end)', confStr(cs), confStr(ce),
+       pause = False)
     path, interpolated = primPath(bs, cs, ce, movePreProb)
-    if debug('prim'):
-        print '*** movePrim'
-        print list(enumerate(zip(vl, args)))
-        print 'path length', len(path)
     assert path
+    tr('prim', 0, '*** movePrim no base', args, ('path length', len(path)))
     # path(s) and the distributions for the placed objects, to guide looking
     return path, interpolated, details.pbs.getPlacedObjBs()
 
-def printConf(conf):
+def confStr(conf):
     cart = conf.cartConf()
     pose = cart['pr2LeftArm'].pose(fail=False)
     if pose:
         hand = str(np.array(pose.xyztTuple()))
     else:
         hand = '\n'+str(cart['pr2LeftArm'].matrix)
-    print 'base', conf['pr2Base'], 'hand', hand
-    
+    return 'base: '+str(conf['pr2Base'])+'   hand: '+hand
+
+# probably don't need this
+def printConf(conf):
+    print confStr(conf)
+
 def pickPrim(args, details):
     (o,h,pf,p,pd,gf,gm,gv,gd,prc,cd,pc,rgv,pv,p1,pr1,pr2,pr3) = args
     bs = details.pbs.copy()
-    print 'plckPrim (start, end)'
     # !! Should close the fingers as well?
-    if debug('prim'):
-        print '*** pickPrim'
-        print list(enumerate(zip(vl, args)))
+    tr('prim', 0, '*** pickPrim', args)
     return details.pbs.getPlacedObjBs()
 
 def lookPrim(args, details):
     # In the real vision system, we might pass in a more general
     # structure with all the objects (and/or types) we expect to see
-    if debug('prim'):
-        print '*** lookPrim'
-        print list(enumerate(zip(vl, args)))
-
+    tr('prim', 0, '*** lookPrim', args)
     # The distributions for the placed objects, to guide looking
     return details.pbs.getPlacedObjBs()
 
 def lookHandPrim(args, details):
     # In the real vision system, we might pass in a more general
     # structure with all the objects (and/or types) we expect to see
-    vl = ['Obj', 'Hand', 'LookConf', 'GraspFace', 'Grasp',
-     'GraspVarBefore', 'GraspDelta', 'GraspVarAfter',
-     'P1', 'P2', 'PR1', 'PR2']
-    if debug('prim'):
-        print '*** lookHandPrim'
-        print list(enumerate(zip(vl, args)))
-
+    tr('prim', 0, '*** lookHandPrim', args)
     # The distributions for the grasped objects, to guide looking
     return details.pbs.graspB
     
@@ -230,13 +215,8 @@ def placePrim(args, details):
      pr1, pr2, pr3, p1) = args
 
     bs = details.pbs.copy()
-    print 'placePrim (start, end)'
-
     # !! Should open the fingers as well
-    if debug('prim'):
-        print '*** placePrim'
-        print list(enumerate(zip(vl, args)))
-
+    tr('prim', 0, '*** placePrim', args)
     return details.pbs.getPlacedObjBs()
 
 
@@ -372,6 +352,8 @@ def isBound(args, goal, start, vals):
 
 # Subtract
 def subtract((a, b), goal, start, vals):
+    if a == '*' or b == '*':
+        return [['*']]
     ans = tuple([aa - bb for (aa, bb) in zip(a, b)])
     if any([x <=  0.0 for x in ans]):
         debugMsg('smallDelta', 'Delta would be negative or zero', ans)
@@ -455,12 +437,8 @@ def placeGraspVar((poseVar,), goal, start, vals):
     graspVar = tuple([min(gv - pv, m) for (gv, pv, m) \
                       in zip(poseVar, placeVar, maxGraspVar)])
     if any([x <= 0 for x in graspVar]):
-        if debug('placeVar'):
-            print 'negative grasp var'
-            print 'poseVar', poseVar
-            print 'placeVar', placeVar
-            print 'maxGraspVar', maxGraspVar
-            raw_input('poseVar - placeVar is negative')
+        tr('placeVar', 0, 'negative grasp var', ('poseVar', poseVar),
+           ('placeVar', placeVar), ('maxGraspVar', maxGraspVar))
         return []
     else:
         return [[graspVar]]
@@ -472,6 +450,8 @@ def placeGraspVar((poseVar,), goal, start, vals):
 
 # For pick, pose var is desired graspVar minus fixed pickVar
 def pickPoseVar((graspVar, graspDelta, prob), goal, start, vals):
+    if graspDelta == '*':
+        return [[graspVar]]
     pickVar = start.domainProbs.pickVar
     pickTolerance = start.domainProbs.pickTolerance
     # What does the variance need to be so that we are within
@@ -484,21 +464,15 @@ def pickPoseVar((graspVar, graspDelta, prob), goal, start, vals):
     poseVar = tuple([min(gv - pv, tv) \
                      for (gv, pv, tv) in zip(graspVar, pickVar, tolerableVar)])
 
-    if debug('pickGenVar'):
-        print 'pick pose var'
-        print 'fixed pickVar', pickVar
-        print 'tolerance', pickTolerance
-        print 'num stdev', numStdDevs
-        print 'tolerable var', tolerableVar
-        print 'poseVar', poseVar
-        print 'shadow width', shadowWidths(poseVar, graspDelta, prob)
-        raw_input('okay?')
-                     
+    tr('pickGenVar', 0,
+       ('fixed pickVar', pickVar), ('tolerance', pickTolerance),
+       ('num stdev', numStdDevs), ('tolerable var', tolerableVar),
+       ('poseVar', poseVar),
+       ('shadow width', shadowWidths(poseVar, graspDelta, prob)))
+
     if any([x <= 0 for x in poseVar]):
-        debugMsg('pickGenVar', 'pick pose var negative', poseVar)
         return []
     else:
-        debugMsg('pickGenVar', 'pick pose var', poseVar)
         return [[poseVar]]
 
 
@@ -544,15 +518,11 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     if vs != cappedVbo1 and vs != cappedVbo2:
         result.append([vs])
 
-    if debug('varBeforeObs'):
-        print '@@@@@@@@@@@@@ Prev var'
-        print 'Target', prettyString(sqrts(ve))
-        print 'Capped before', prettyString(sqrts(cappedVbo1))
-        print 'Other suggestions'
-        for xx in result: print '   ', prettyString(sqrts(xx)[0])
-
-    debugMsg('genLookObjPrevVariance', result)
-
+    tr('genLookObsPrevVariance', 0,
+       ('Target', prettyString(sqrts(ve))),
+       ('Capped before', prettyString(sqrts(cappedVbo1))),
+       ('Other suggestions',
+           [prettyString(sqrts(xx)[0]) for xx in result]))
     return result
 
 def realPoseVarAfterObs((varAfter,), goal, start, vals):
@@ -672,10 +642,8 @@ def canPickPlaceDropGen(args, goal, start, vals):
                 matches = [b['Obj'] for (f, b) in fbs if isGround(b.values())]
                 if heldO != obj and heldO != 'none' and \
                    (len(matches) == 0 or matches == ['none']):
-                    print 'canPickPlaceDropGen dropping', heldO, dropHand
-                    print 'held obstacles', collidesWithHeld
-                    print 'goal held', matches
-                    raw_input('okay?')
+                    tr('canPickPlaceDropGen', 0, (heldO, dropHand),
+                       ('held obstacles', collidesWithHeld), ('goal held', matches))
                     result.append([dropHand])
     return result
 
@@ -688,8 +656,8 @@ attenuation = 0.5
 def moveSpecialRegress(f, details, abstractionLevel):
 
     # Only model these effects at the lower level of abstraction.
-    if abstractionLevel == 0:
-        return f.copy()
+    # if abstractionLevel == 0:
+    #     return f.copy()
 
     # Assume that odometry error is controlled during motion, so not more than 
     # this.  It's a stdev
@@ -701,29 +669,15 @@ def moveSpecialRegress(f, details, abstractionLevel):
         # newVar = tuple([v - e for (v, e) in zip(f.args[2], totalOdoErr)])
         targetVar = f.args[2]
         if any([tv < ov for (tv, ov) in zip(targetVar, odoVar)]):
-            print 'Move special regress failing; target var less than odo'
-            print f
-            # Can't achieve this 
+            tr('specialRegress', 0,
+               'Move special regress failing; target var less than odo', f)
             return None
-        # Regress to odoVar: assumption will be that we can maintain
-        # this variance if it's already this small
-        # newF = f.copy()
-        # newF.args[2] = odoVar
-        # newF.update()
-        # return newF
-
     elif f.predicate == 'BLoc':
         targetVar = f.args[1]
         if any([tv < ov for (tv, ov) in zip(targetVar, odoVar)]):
-            print 'Move special regress failing; target var less than odo'
-            print f.copy()
-            # Can't achieve this 
+            tr('specialRegress', 0,
+               'Move special regress failing; target var less than odo', f)
             return None
-        # newF = f.copy()
-        # newF.args[1] = odoVar
-        # newF.update()
-        # return newF
-
     return f.copy()
 
 ################################################################
@@ -733,8 +687,7 @@ def moveSpecialRegress(f, details, abstractionLevel):
 # So many ways to do this...
 def costFun(primCost, prob):
     if prob == 0:
-        print 'costFun: prob = 0, returning inf'
-        raw_input('okay?')
+        trAlways('costFun: prob = 0, returning inf')
     return float('inf') if prob == 0 else primCost / prob
 
 # Cost depends on likelihood of success: canReach, plus objects in each hand
@@ -952,12 +905,12 @@ def greedyBestAssignment(aList, bList, scores):
         if val < llMatchThreshold:
             result.append((obj, None, None))
             return result
-        print 'A', prettyString(val), obj.name(), tobs
+        tr('assign', 0, prettyString(val), obj.name(), tobs, old = True,
+           pause = False)
         result.append((obj, tobs, face))
         # Better not to copy so much
         scoresLeft = [((oj, os), stuff) for ((oj, os), stuff) in scoresLeft \
                       if oj != obj and (os != obs or obs == None)]
-    debugMsg('obsUpdate', 'greedy best assignment')
     return result
 
 def obsDist(details, obj):
@@ -1001,8 +954,8 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
         obsGivenNotH = (1 - details.domainProbs.obsTypeErrProb)
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
         details.poseModeProbs[objName] = newP
-        print 'No match above threshold', objName, oldP, newP
-
+        tr('assign', 0,  'No match above threshold', objName, oldP, newP,
+           ol = True, pause = False)
         newMu = oldPlaceB.poseD.mode().pose().xyztTuple()
         newSigma = [v + .001 for v in oldPlaceB.poseD.varTuple()]
         newSigma[2] = 1e-10
@@ -1014,8 +967,8 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
         obsGivenNotH = details.domainProbs.obsTypeErrProb
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
         details.poseModeProbs[objName] = newP
-        print 'Obs match for', objName, oldP, newP
-
+        tr('assign', 0, 'Obs match for', objName, oldP, newP, ol = True,
+           pause = False)
         # Should update face!!
         # Update mean and sigma
         ## Be sure handling angle right.
@@ -1024,6 +977,7 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
                                    obsPose.pose().xyztTuple(),
                                    oldPlaceB.poseD.variance(), obsVar)
         ff = w.getFaceFrames(objName)[obsFace]
+
         if debug('obsUpdate'):
             ## LPK!!  Should really draw the detected object but I don't have
             ## an immediate way to get the shape of a type.  Should fix that.
@@ -1031,13 +985,14 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
             objShape.applyLoc(obsPose.pose().compose(ff.inverse())).\
                             draw('Belief', 'cyan')
             objShape = details.pbs.getObjectShapeAtOrigin(objName)
-            objShape.applyLoc(util.Pose(*newMu).compose(ff.inverse())).\
+            objShape.applyLoc(hu.Pose(*newMu).compose(ff.inverse())).\
               draw('Belief', 'magenta')
-            raw_input('obs is Cyan; newMu is magenta')
+            tr('obsUpdate', 0, 'obs is Cyan; newMu is magenta',
+               snap = ['Belief'])
 
     details.pbs.updateObjB(ObjPlaceB(objName, w.getFaceFrames(objName),
                                      DeltaDist(oldPlaceB.support.mode()),
-                                     PoseD(util.Pose(*newMu), newSigma)))
+                                     PoseD(hu.Pose(*newMu), newSigma)))
     
 missedObsLikelihoodPenalty = llMatchThreshold
 
@@ -1066,12 +1021,15 @@ def scoreObsObj(details, obs, object):
 
     # Type
     if w.getObjType(object) != oType:
-        return (-float(inf), None, None)
+        # noinspection PyUnresolvedReferences
+        return -float(inf), None, None
     # Face
     assert symFacesType[poseFace] == poseFace, 'non canonical face in bel'
     if poseFace != canonicalFace:
+        # noinspection PyUnresolvedReferences
         return (-float(inf), None, None)
     # Iterate over symmetries for this object
+    # noinspection PyUnresolvedReferences
     bestObs, bestLL = None, -float('inf')
     for obsPoseCand in symPoses:
         ll = float(obsPoseD.logProb(np.mat(obsPoseCand.pose().xyztTuple()).T))
@@ -1093,11 +1051,6 @@ def gaussObsUpdate(oldMu, obs, oldSigma, obsVar, noZ = True):
     newY = (oldY * obsV + obsY * muV) / (obsV + muV)
     newTh = np.arctan2(newY, newX)
     newMu[3] = newTh
-    if debug('obsUpdate'):
-        print 'Angle obs update'
-        print '  oldTh', oldTh, 'obsTh', obsTh, 'newTh', newTh
-        raw_input('okay?')
-
     newSigma = tuple([(a * b) / (a + b) for (a, b) in zip(oldSigma,obsVar)])
     if noZ:
         newMu[2] = oldMu[2]
@@ -1132,7 +1085,7 @@ def lookAtHandBProgress(details, args, obs):
         elif mlo != oldMlo:
             details.graspModeProb[h] = 1 - details.domainProbs.obsTypeErrProb
             gd = details.pbs.graspB[h].graspDesc
-            newOGB = objGraspB(mlo, gd, PoseD(util.Pose(0, 0, 0, 0),
+            newOGB = ObjGraspB(mlo, gd, PoseD(hu.Pose(0, 0, 0, 0),
                                                   bigSigma))
         elif mlo != 'none' and obsObj != 'none':
             (_, ogf, ograsp) = obs            
@@ -1175,7 +1128,7 @@ def lookAtHandBProgress(details, args, obs):
                        zip(oldMu, oldSigma, ograsp, obsVar)])
                 newSigma = tuple([(a * b) / (a + b) for (a, b) in \
                                   zip(oldSigma,obsVar)])
-                newPoseDist = PoseD(util.Pose(*newMu), newSigma)
+                newPoseDist = PoseD(hu.Pose(*newMu), newSigma)
             newOGB = ObjGraspB(mlo, gd, faceDist, newPoseDist)
         details.pbs.updateHeldBel(newOGB, h)
     details.pbs.reset()

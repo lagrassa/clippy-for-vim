@@ -1,7 +1,7 @@
 import math
 import numpy as np
 from pointClouds import Scan, updateDepthMap
-import util
+import hu
 import planGlobals as glob
 from geom import bboxCenter
 from shapes import toPrims, pointBox, BoxScale
@@ -11,7 +11,7 @@ from planGlobals import debugMsg, debugDraw, debug, pause
 import windowManager3D as wm
 from miscUtil import argmax
 
-Ident = util.Transform(np.eye(4))            # identity transform
+Ident = hu.Transform(np.eye(4))            # identity transform
 laserScanGlobal = None
 laserScanSparseGlobal = None
 laserScanParams = (0.3, 0.1, 0.1, 2., 20) # narrow
@@ -140,7 +140,7 @@ def lookAtConf(conf, shape):
         center[2] = z + dz
         cartConf = conf.cartConf()
         assert cartConf['pr2Head']
-        lookCartConf = cartConf.set('pr2Head', util.Pose(*center.tolist()+[0.,]))
+        lookCartConf = cartConf.set('pr2Head', hu.Pose(*center.tolist()+[0.,]))
         lookConf = conf.robot.inverseKin(lookCartConf, conf=conf)
         if all(lookConf.values()):
             return lookConf
@@ -155,12 +155,12 @@ def viewCone(conf, shape, offset = 0.1, moveHead=True):
         return
     lookCartConf = lookConf.cartConf()
     headTrans = lookCartConf['pr2Head']
-    sensor = headTrans.compose(util.Transform(transf.rotation_matrix(-math.pi, (1,0,0))))
+    sensor = headTrans.compose(hu.Transform(transf.rotation_matrix(-math.pi, (1,0,0))))
     sensorShape = shape.applyTrans(sensor.inverse())
     ((x0,y0,z0),(x1,y1,z1)) = sensorShape.bbox()
     dz = -0.15-z1
     cone = BoxScale((x1-x0), (y1-y0), dz, None, 0.01,name='ViewConeFor%s'%shape.name())
-    final = cone.applyTrans(util.Pose(0.,0.,-(dz+0.15)/2,0.)).applyTrans(sensor)
+    final = cone.applyTrans(hu.Pose(0.,0.,-(dz+0.15)/2,0.)).applyTrans(sensor)
 
     if debug('viewCone'):
         wm.getWindow('W').clear()
@@ -198,6 +198,6 @@ def lookScan(lookConf):
         if not laserScanGlobal:
             laserScanGlobal = Scan(Ident, laserScanParams)
         laserScan = laserScanGlobal
-    scanTrans = headTrans.compose(util.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0))))
+    scanTrans = headTrans.compose(hu.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0))))
     scan = laserScan.applyTrans(scanTrans)
     return scan

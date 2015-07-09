@@ -155,7 +155,7 @@ cdef class Transform:
         return self.applyToPoint(point)
 
     def __repr__(self):
-        return 'util.Transform(p='+str(self.point().matrix.T)+', q='+str(self.quat().matrix)+')'
+        return 'hu.Transform(p='+str(self.point().matrix.T)+', q='+str(self.quat().matrix)+')'
     def __str__(self):
         return str(self.matrix)
     def __copy__(self):
@@ -306,7 +306,7 @@ cdef class Pose(Transform):             # 2.5D transform
                               + ']'
         return self.reprString
     def __repr__(self):
-        return 'util.Pose(' + \
+        return 'hu.Pose(' + \
                repr(self.x) + ',' + \
                repr(self.y) + ',' + \
                repr(self.z) + ',' + \
@@ -392,7 +392,7 @@ cdef class Point:
             return 'PointW'+ prettyString(tuple(self.matrix))
 
     def __repr__(self):
-        return 'util.Point(np.array(' + str(self.matrix) + '))'
+        return 'hu.Point(np.array(' + str(self.matrix) + '))'
 
     cpdef float angleToXY(self, Point p):
         """

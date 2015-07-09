@@ -1,4 +1,4 @@
-cimport util
+cimport hu
 import math
 import numpy as np
 from cpython cimport bool
@@ -69,7 +69,7 @@ cdef class angleRange(Range):
         self.lo = lo
         self.hi = hi
     cpdef bool inside(self, float value):
-        cdef float val = util.fixAngle02Pi(value)
+        cdef float val = hu.fixAngle02Pi(value)
         return (self.lo <= value < self.hi) or (self.lo-PI2 <= value < self.hi-PI2)
     cpdef float width(self):
         return self.hi - self.lo

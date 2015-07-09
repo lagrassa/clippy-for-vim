@@ -1,13 +1,12 @@
-import math
 import numpy as np
 cimport numpy as np
 from cpython cimport bool
 cimport shapes
 import shapes
 cimport geom
-cimport util
-from scipy.spatial import ConvexHull
+cimport hu
 from planGlobals import debug
+from traceFile import trAlways
 
 ######################################################################
 # Cutting one polyhedron with another
@@ -22,20 +21,20 @@ cpdef shapes.Shape primPrimCut(shapes.Prim p1, shapes.Prim p2, bool isect = Fals
         np.ndarray[np.float64_t, ndim=2] verts1, verts2, planes1, planes2, fxv
     if not geom.bboxOverlap(p1.bbox(), p2.bbox()):
         # no overlap
-        return shapes.Shape([], util.Ident) if isect else shapes.Shape([p1], p1.origin())
+        return shapes.Shape([], hu.Ident) if isect else shapes.Shape([p1], p1.origin())
     planes1 = p1.planes(); verts2 = p2.vertices()
     fxv = np.dot(planes1, verts2)       # nf x nv - signed distance of vert to face
     if np.any(np.all(fxv >= -tiny, axis=1)):
         # some plane of p1 separates the prims
-        return shapes.Shape([], util.Ident) if isect else shapes.Shape([p1], p1.origin())
+        return shapes.Shape([], hu.Ident) if isect else shapes.Shape([p1], p1.origin())
     planes2 = p2.planes(); verts1 = p1.vertices()
     fxv = np.dot(planes2, verts1)
     if np.any(np.all(fxv >= -tiny, axis=1)):
         # some plane of p2 separates
-        return shapes.Shape([], util.Ident) if isect else shapes.Shape([p1], p1.origin()) 
+        return shapes.Shape([], hu.Ident) if isect else shapes.Shape([p1], p1.origin())
     if np.all(np.all(fxv < tiny, axis=0)):
         # p1 is completely inside p2 (all verts inside)
-        return shapes.Shape([p1], p1.origin()) if isect else shapes.Shape([], util.Ident)
+        return shapes.Shape([p1], p1.origin()) if isect else shapes.Shape([], hu.Ident)
     return shapes.Shape(primPrimCutAux(p1, p2, isect), p1.origin())
 
 cdef list primPrimCutAux(shapes.Prim p1, shapes.Prim p2, bool isect):
@@ -48,6 +47,7 @@ cdef list primPrimCutAux(shapes.Prim p1, shapes.Prim p2, bool isect):
         shapes.Prim outP, outPn, inP, inPn # or None
         int f
         np.ndarray[np.float64_t, ndim=2] planes2
+
     if debug('cut'):
         p1.draw('W', 'blue')
         p2.draw('W', 'red')
@@ -59,7 +59,7 @@ cdef list primPrimCutAux(shapes.Prim p1, shapes.Prim p2, bool isect):
         (outPn, inPn) = facePrimCut(planes2[f], inP)
         if outPn is None and inPn is None:
             # Should not happen...
-            print 'Cut returned both in and out as empty'
+            trAlways('Cut returned both in and out as empty')
             continue
         (outP, inP) = (outPn, inPn)
         if not (outP is None or isect):
@@ -112,15 +112,18 @@ cdef tuple facePrimCut(np.ndarray[np.float64_t, ndim=1] plane,
         raise Exception, 'Inconsistent!'
     cutV = np.hstack(cutVerts)          # matrix of cutverts
     # Return convex hull of vertex sets
-    print 'cutting with', plane
-    print 'calling ConvexHull'
-    print np.hstack([verts[:, outv], cutV])
+    if debug('cut'):
+        print 'cutting with', plane
+        print 'calling ConvexHull'
+        print np.hstack([verts[:, outv], cutV])
     outPrim = geom.convexHullPrim(np.hstack([verts[:, outv], cutV]), prim.origin())
-    outPrim.draw('W', 'purple')
-    print 'returned from ConvexHull'
-    print 'calling ConvexHull'
+    if debug('cut'):
+        outPrim.draw('W', 'purple')
+        print 'returned from ConvexHull'
+        print 'calling ConvexHull'
     np.hstack([verts[:, inv], cutV])
     inPrim = geom.convexHullPrim(np.hstack([verts[:, inv], cutV]), prim.origin())
-    inPrim.draw('W', 'orange')
-    raw_input('returned from ConvexHull')
+    if debug('cut'):
+        inPrim.draw('W', 'orange')
+        raw_input('returned from ConvexHull')
     return (outPrim, inPrim)

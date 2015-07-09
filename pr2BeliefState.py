@@ -1,9 +1,8 @@
 import math
 import windowManager3D as wm
-from dist import GMU, MultivariateGaussianDistribution, UniformDist, \
-     DeltaDist, chiSqFromP
+from dist import GMU, MultivariateGaussianDistribution
 from miscUtil import prettyString
-from traceFile import tr, trLog
+from traceFile import tr
 MVG = MultivariateGaussianDistribution
 
 zeroObjectVarianceArray = [[0]*4]*4
@@ -52,6 +51,7 @@ class BeliefState:
             return GMU([(MVG(poseD.mu.xyztTuple(), diagToSq(poseD.var)),
                          self.poseModeProbs[obj])])
 
+    '''
     def drawOld(self, w = 'Belief'):
         print '------------  Belief -------------'
         print 'Conf:'
@@ -87,6 +87,7 @@ class BeliefState:
         print '------------  Belief -------------'
         print self.pbs.draw(0.9, w)
         wm.getWindow(w).update()
+    '''
 
     def draw(self, w = 'Belief'):
         s = '------------  Belief -------------\n'
@@ -115,7 +116,7 @@ class BeliefState:
             s += '   pose: %s\n'%prettyString(stuff.poseD.meanTuple())
             s += '  stdev: %s\n'%prettyStdev(stuff.poseD.varTuple())
         s += '------------  Belief -------------\n'
-        trLog(s)
+        tr('B', 0, s)
         tr('B', 0, draw=[(self.pbs, 0.9, w)], snap=[w])
         wm.getWindow(w).update()
 

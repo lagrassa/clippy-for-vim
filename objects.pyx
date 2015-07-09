@@ -5,7 +5,7 @@ import random
 import numpy as np
 import xml.etree.ElementTree as ET
 
-from util cimport Ident, Transform, angleDiff, fixAnglePlusMinusPi
+from hu cimport Ident, Transform, angleDiff, fixAnglePlusMinusPi
 from shapes cimport Shape
 from planGlobals import debug, debugMsg, mergeShadows
 from geom import bboxUnion
@@ -447,7 +447,7 @@ cdef class Chain:
             index = 0
             parts = place.parts()
             for (p, tr) in zip(self.links, trs):
-                if not isinstance(tr, util.Transform):
+                if not isinstance(tr, hu.Transform):
                     raw_input('Foo')
                 if p:
                     pM = parts[index]

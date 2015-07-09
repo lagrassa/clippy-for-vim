@@ -3,7 +3,7 @@ cimport numpy as np
 from cpython cimport bool
 cimport shapes
 import shapes
-cimport util
+cimport hu
 
 from scipy.spatial import ConvexHull
 
@@ -31,7 +31,7 @@ cpdef np.ndarray convexHullVertsXY(np.ndarray[np.float64_t, ndim=2] verts):
     return verts[:, indices[np.argsort(angles)]]
 
 cpdef shapes.Prim convexHullPrim(np.ndarray[np.float64_t, ndim=2] verts,
-                                 util.Transform origin):
+                                 hu.Transform origin):
     """
     Return a Prim that is the convex hull of the input verts.
     """

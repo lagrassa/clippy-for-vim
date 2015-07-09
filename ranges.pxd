@@ -1,8 +1,5 @@
-cimport util
-import math
 cimport numpy as np
 from cpython cimport bool
-from random import uniform
 
 cdef class Range:
     cdef public str kind

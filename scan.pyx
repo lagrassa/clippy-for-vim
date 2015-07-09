@@ -1,16 +1,14 @@
 from cpython cimport bool
-import copy
+#import copy
 import math
 import numpy as np
 cimport numpy as np
-import collections
-from collections import deque
-cimport util
-cimport shapes
+cimport hu
+#cimport shapes
 from shapes cimport *
 from geom cimport *
 from ranges cimport realRange, angleRange, splits
-from heapq import heappush, heappop
+#from heapq import heappush, heappop
 from collections import deque
 import windowManager as win
 
@@ -338,7 +336,7 @@ cdef class FreeSpaceMap:
         cdef int zi, thi
         zi = indexInRanges(z, self.zRanges)
         if zi is None: raise Exception, "z value %f not in ranges"%z
-        thi = indexInRanges(util.fixAngle02Pi(th), self.thRanges)
+        thi = indexInRanges(hu.fixAngle02Pi(th), self.thRanges)
         if thi is None: raise Exception, "theta value %f not in ranges"%th
         xyMap = self.zThMap[zi][thi]
         return zi, thi, xyMap

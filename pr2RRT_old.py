@@ -163,7 +163,7 @@ class Tree:
         return n_new
 
     def nearest(self, q):               # q is conf
-        return util.argmax(self.nodes, lambda v: -self.robot.distConf(q, v.conf))   
+        return hu.argmax(self.nodes, lambda v: -self.robot.distConf(q, v.conf))
     
     def stopNode(self, q_f, n_i,
                  stepSize = glob.rrtStep,

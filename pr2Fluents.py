@@ -1,19 +1,17 @@
-import util
-from util import nearAngle
+import hu
 import numpy as np
-from planUtil import PoseD, Violations, ObjGraspB, ObjPlaceB
-from pr2Util import defaultPoseD, NextColor, shadowName, drawPath, objectName
+from planUtil import Violations
+from pr2Util import shadowName, drawPath, objectName
 from dist import DeltaDist, probModeMoved
-from planGlobals import debugMsg, debugDraw, debug, pause
+from planGlobals import debugMsg, debug
 import planGlobals as glob
 from miscUtil import isGround, isVar, prettyString, applyBindings
-import fbch
 from fbch import Fluent, getMatchingFluents, Operator
 from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from pr2RoadMap import validEdgeTest
-from traceFile import tr, trLog
+from traceFile import tr, trAlways
 
 tiny = 1.0e-6
 obstCost = 10  # Heuristic cost of moving an object
@@ -26,6 +24,7 @@ obstCost = 10  # Heuristic cost of moving an object
 class Graspable(Fluent):
     predicate = 'Graspable'
     immutable = True
+    # noinspection PyUnusedLocal
     def test(self, details):
         (objName,) = self.args
         return objName[0:3] == 'obj'
@@ -50,15 +49,15 @@ class In(Fluent):
 def baseConfWithin(bc1, bc2, delta):
     (x1, y1, t1) = bc1
     (x2, y2, t2) = bc2
-    bp1 = util.Pose(x1, y1, 0, t1)
-    bp2 = util.Pose(x2, y2, 0, t2)
+    bp1 = hu.Pose(x1, y1, 0, t1)
+    bp2 = hu.Pose(x2, y2, 0, t2)
     return bp1.near(bp2, delta[0], delta[-1])
     
 def confWithin(c1, c2, delta):
     def withinDelta(a, b):
         if isinstance(a, list):
-            d = delta[0]                # !! hack
-            return all([abs(a[i] - b[i]) <= d \
+            dd = delta[0]                # !! hack
+            return all([abs(a[i] - b[i]) <= dd \
                         for i in range(min(len(a), len(b)))])
         else:
             return a.withinDelta(b, delta)
@@ -80,8 +79,8 @@ def confWithin(c1, c2, delta):
 
     return all([withinDelta(c1CartConf[x],c2CartConf[x]) \
                 for x in robot.moveChainNames]) and \
-                nearAngle(c1h1, c2h1, delta[-1]) and \
-                nearAngle(c1h2, c2h2, delta[-1])
+                hu.nearAngle(c1h1, c2h1, delta[-1]) and \
+                hu.nearAngle(c1h2, c2h2, delta[-1])
 
 # Do we know where the object is?
 class BLoc(Fluent):
@@ -91,6 +90,7 @@ class BLoc(Fluent):
         return B([Pose([obj, '*']), '*', var, '*', prob], True).test(state) \
           or B([Grasp([obj, '*', '*']), '*', var, '*', prob], True).test(state)
 
+    # noinspection PyUnusedLocal
     def fglb(self, other, details = None):
         (so, sv, sp) = self.args
         if other.predicate == 'BLoc':
@@ -102,11 +102,11 @@ class BLoc(Fluent):
             opGeq = op >= sp
 
             if ovGeq and spGeq and so == oo:
-                return (self, {})
+                return self, {}
             if svGeq and opGeq and so == oo:
-                return (other, {})
+                return other, {}
             else:
-                return ({self, other}, {})
+                return {self, other}, {}
 
         if other.predicate == 'B' and other.args[0].predicate == 'Pose' and \
                 other.args[0].args[0] == so:
@@ -115,9 +115,9 @@ class BLoc(Fluent):
             svGeq = all([a >= b for (a, b) in zip(sv, ov)])
             opGeq = op >= sp
             if svGeq and opGeq:
-                return (other, {})
+                return other, {}
             else:
-                return ({self, other}, {})
+                return {self, other}, {}
 
         if other.predicate == 'B' and other.args[0].predicate == 'Grasp' and \
                 other.args[0].args[0] == so:
@@ -126,16 +126,16 @@ class BLoc(Fluent):
             svGeq = all([a >= b for (a, b) in zip(sv, ov)])
             opGeq = op >= sp
             if svGeq and opGeq:
-                return (other, {})
+                return other, {}
             else:
-                return ({self, other}, {})
+                return {self, other}, {}
             
-        return ({self, other}, {})
+        return {self, other}, {}
 
     def argString(self, eq = True):
         (obj, var, prob) = self.args
         stdev = tuple([np.sqrt(v) for v in var]) \
-                         if (not var == None and not isVar(var)) else var
+                         if (not var is None and not isVar(var)) else var
         return '['+obj + ', '+prettyString(stdev)+', '+prettyString(prob)+']'
 
 class Conf(Fluent):
@@ -196,8 +196,8 @@ class Conf(Fluent):
                 else:
                     return other.applyBindings(b), b
 
-            print 'Should really compute the intersection of these intervals.'
-            print 'Too lazy.  GLB returning False.'
+            trAlways('Should really compute the intersection of these intervals.',
+                     'Too lazy.  GLB returning False.', pause = False)
             return False, {}
         else:
             return self.applyBindings(b), b
@@ -268,9 +268,9 @@ class BaseConf(Fluent):
                 else:
                     return other, b
 
-            print 'Fix this!!  It is easy for base conf'
-            print 'Should really compute the intersection of these intervals.'
-            print 'Too lazy.  GLB returning False.'
+            trAlways('Fix this!!  It is easy for base conf',
+                     'Should really compute the intersection of these intervals.',
+                     'Too lazy.  GLB returning False.', pause = False)
             return False, {}
         else:
             return self, b
@@ -348,11 +348,9 @@ class CanReachHome(Fluent):
         path, violations = self.getViols(details, v, p)
 
         (ops, totalCost) = hCost(violations, obstCost, details)
-        if debug('hAddBack'):
-            print 'Heuristic val', self.predicate
-            print 'ops', ops, 'cost', totalCost
-
-        return (ops, totalCost)
+        tr('hAddBack', 0, ('Heuristic val', self.predicate),
+           ('ops', ops), 'cost', totalCost)
+        return ops, totalCost
 
     def prettyString(self, eq = True, includeValue = True):
         (conf, fcp, cond) = self.args
@@ -365,9 +363,8 @@ class CanReachHome(Fluent):
         return self.predicate + ' ' + argStr + valueStr
 
 def hCost(violations, obstCost, details):
-    if violations == None:
-        debugMsg('hAddBackInf', 'hv infinite')
-        print 'hv infinite'
+    if violations is None:
+        tr('hAddBackInf', 0, 'computed hv infinite')
         return float('inf'), {}
     obstacles = violations.obstacles
     shadows = violations.shadows
@@ -424,13 +421,13 @@ def hCost(violations, obstCost, details):
 def hCostSee(vis, occluders, obstCost, details):
     # vis is whether enough is visible;   we're 0 cost if that's true
     if vis:
-        return (0, set())
+        return 0, set()
 
     obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
-                   for o in ocluders])
+                   for o in occluders])
     for o in obstOps: o.instanceCost = obstCost
-    totalCost = sum([o.instanceCost for o in ops])
-    return (totalCost, ops)
+    totalCost = sum([o.instanceCost for o in obstOps])
+    return totalCost, obstOps
 
 class CanReachNB(Fluent):
     predicate = 'CanReachNB'
@@ -442,15 +439,15 @@ class CanReachNB(Fluent):
                   ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
           and not ('*' in f.args)
 
-    def feasible(self, bState, v, p):
+    def feasible(self, details, v, p):
         if not self.isGround():
             (startConf, endConf, cond) = self.args
             assert isGround(endConf) and isGround(cond)
             path, violations = CanReachNB([endConf, endConf, cond], True).\
-                                    getViols(bState, v, p)
+                                    getViols(details, v, p)
         else:
-            path, violations = self.getViols(bState, v, p)
-        return violations != None
+            path, violations = self.getViols(details, v, p)
+        return violations is not  None
 
     def update(self):
         super(CanReachNB, self).update()
@@ -487,8 +484,8 @@ class CanReachNB(Fluent):
         if isVar(endConf):
             assert 'need to have end conf bound to test'
         elif isVar(startConf):
-            print self
-            print 'BTest canReachNB returning False because startconf unbound'
+            trAlways('BTest canReachNB returning False because startconf unbound',
+                     self)
             return False
         elif startConf['pr2Base'] != endConf['pr2Base']:
             # Bases have to be equal!
@@ -497,14 +494,12 @@ class CanReachNB(Fluent):
         
         path, violations = self.getViols(bState, v, p)
 
-        if violations == None and debug('canReachNB'):
-            startConf.draw('W', 'black')
-            endConf.draw('W', 'blue')
-            print 'Conditions'
-            for c in self.args[-1]: print '    ', c
-            print 'Violations', violations
-            debugMsg('canReachNB', 'CanReachNB is false!!')
-
+        if violations is None:
+            tr('canReachNB', 0, 'impossible',
+               ('conditions', self.args[-1]),
+               ('violations', violations),
+               draw = [(startConf, 'W', 'black'),(endConf, 'W', 'blue')],
+               snap = ['W'])
         return bool(path and violations.empty())
 
     def getGrounding(self, details):
@@ -526,25 +521,23 @@ class CanReachNB(Fluent):
     # Exactly the same as for CanReachHome
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
-        (startConf, conf, cond) = self.args   # Args
 
         unboundCost = 1  # we don't know whether this will be hard or not
 
         if not self.isGround():
             dummyOp = Operator('UnboundStart', ['dummy'],{},[])
             dummyOp.instanceCost = unboundCost
-            return (obstCost, {dummyOp})
+            return obstCost, {dummyOp}
             
         path, violations = self.getViols(details, v, p)
 
         (ops, totalCost) = hCost(violations, obstCost, details)
-        if debug('hAddBack'):
-            print 'Heuristic val', self.predicate
-            print 'ops', ops, 'cost', totalCost
+        tr('hAddBack', 0, ('Heuristic val', self.predicate),
+           ('ops', ops), 'cost', totalCost)
+        return ops, totalCost
 
-        return (ops, totalCost)
-
-    def prettyString(self, eq = True, includeValue = True):
+    def prettyString(self, eq = True, state = None, heuristic = None,
+                     includeValue = True):
         (startConf, endConf, cond) = self.args
         condStr = self.args[-1] if isVar(self.args[-1]) else \
           str([innerPred(c) for c in self.args[-1]]) 
@@ -574,7 +567,7 @@ class CanPickPlace(Fluent):
 
     def feasible(self, bState, v, p):
         path, violations = self.getViols(bState, v, p)
-        return violations != None
+        return violations is not None
 
     # Add a glb method that will at least return False, {} if the two are
     # in contradiction.  How to test, exactly?
@@ -729,18 +722,18 @@ class CanPickPlace(Fluent):
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
             dummyOp.instanceCost = obstCost
-            return (obstCost, {dummyOp})
+            return obstCost, {dummyOp}
 
         path, violations = self.getViols(details, v, p)
         (ops, totalCost) = hCost(violations, obstCost, details)
-        if debug('hAddBack'):
-            print 'Heuristic val', self.predicate
-            print 'ops', ops, 'cost', totalCost
 
-        return (ops, totalCost)
+        tr('hAddBack', 0, ('Heuristic val', self.predicate),
+           ('ops', ops), 'cost', totalCost)
+        return ops, totalCost
 
 
-    def prettyString(self, eq = True, includeValue = True):
+    def prettyString(self, eq = True, state = None, heuristic = None,
+                     includeValue = True):
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
           face, graspMu, graspVar, graspDelta,
           op, conds) = self.args
@@ -863,9 +856,8 @@ class Pose(Fluent):
 
 
     def fglb(self, other, bState = None):
-        if (other.predicate == 'Holding' and \
-            self.args[0] == other.value) or \
-           (other.predicate in ('Grasp', 'GraspFace') and \
+        if (other.predicate == 'Holding' and self.args[0] == other.value) or \
+           (other.predicate in ('Grasp', 'GraspFace') and
                  self.args[0] == other.args[0]):
            return False, {}
         else:
@@ -886,9 +878,8 @@ class SupportFace(Fluent):
             return bState.pbs.getPlaceB(obj).support # a DDist (over integers)
 
     def fglb(self, other, bState = None):
-        if (other.predicate == 'Holding' and \
-                self.args[0] == other.value) or \
-                (other.predicate in ('Grasp', 'GraspFace') and \
+        if (other.predicate == 'Holding' and self.args[0] == other.value) or \
+                (other.predicate in ('Grasp', 'GraspFace') and
                  self.args[0] == other.args[0]):
             return False, {}
         else:
@@ -907,12 +898,10 @@ class CanSeeFrom(Fluent):
 
     def feasible(self, bState, v, p):
         path, violations = self.getViols(bState, v, p)
-        return violations != None
+        return violations is not None
 
     def bTest(self, details, v, p):
         assert v == True
-        (obj, pose, poseFace, conf, cond) = self.args
-
         ans, occluders = self.getViols(details, v, p)
         return ans
 
@@ -983,10 +972,8 @@ class CanSeeFrom(Fluent):
         
         vis, occluders = self.getViols(details, v, p)
         (ops, totalCost) = hCostSee(vis, occluders, obstCost, details)
-        if debug('hAddBack'):
-            print 'Heuristic val', self.predicate
-            print 'ops', ops, 'cost', totalCost
-
+        tr('hAddBack', 0, ('Heuristic val', self.predicate),
+           ('ops', ops), 'cost', totalCost)
         return (ops, totalCost)
 
     def prettyString(self, eq = True, includeValue = True):
@@ -1145,19 +1132,17 @@ def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False
                 backSteps.append((c['pr2Base'], path[i-1]['pr2Base']))
         if backSteps:
             for (pre, post) in backSteps:
-                print pre, '->', post
+                trAlways('Backward step:', pre, '->', post, ol = True,
+                         pause = False)
             # raw_input('CRH - Backwards steps')
 
-    if (not glob.inHeuristic) or debug('drawInHeuristic'):
-        if (moveBase and debug('canReachHome')) or \
-                                   ((not moveBase) and debug('canReachNB')):
+        if debug('canReachHome'):
             pbs.draw(prob, 'W')
             if path:
                 drawPath(path, viol=viol,
                          attached=pbs.getShadowWorld(prob).attached)
-            else:
-                print 'viol, cost, path', viol, cost, path
-        debugMsg(tag, ('viol', viol))
+        tr('canReachHome', 0, ('viol', viol), ('cost', cost), ('path', path),
+               snap = ['W'])
 
     if not viol and debug('canReachHome'):
         pbs.draw(prob, 'W')
@@ -1196,18 +1181,10 @@ def inTest(bState, obj, regName, prob, pB=None):
 
     ans = np.all(np.all(np.dot(region.planes(), shadow.prim().vertices()) <= tiny, axis=1))
 
-    if debug('testVerbose') or debug('inTest'):
-        bState.pbs.draw(prob, 'W')
-        shadow.draw('W', 'brown')
-        region.draw('W', 'purple')
-
-        print 'shadow', shadow.bbox()
-        print 'region', region.bbox()
-
-        print 'shadow in brown, region in purple'
-        print 'inTest', obj, '->', ans
-        raw_input('Ok?')
-
+    tr('testVerbose', 0, 'In test, shadow in brown, region in purple',
+       (shadow, region, ans), draw = [(bState.pbs, prob, 'W'),
+                                      (shadow, 'W', 'brown'),
+                                      (region, 'W', 'purple')], snap=['W'])
     return ans
 
                 

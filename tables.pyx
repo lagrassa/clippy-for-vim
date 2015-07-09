@@ -7,8 +7,8 @@ from planGlobals import debugMsg, debug
 # Can be cimports
 cimport numpy as np
 import numpy as np
-cimport util
-import util
+cimport hu
+import hu
 cimport geom
 import geom
 cimport shapes
@@ -29,8 +29,8 @@ def bestTable(zone, table, pointCloud, exclude,
     cdef np.ndarray[np.float64_t, ndim=1] pt, center
     cdef np.ndarray[np.float64_t, ndim=2] bb, points, eye, badPoints, goodPoints, badOffset, bbGood
     cdef bool inside
-    cdef util.Transform headTrans
-    cdef util.Transform pose, bestPose
+    cdef hu.Transform headTrans
+    cdef hu.Transform pose, bestPose
     
     minTablePoints = int(glob.minTableDim / glob.cloudPointsResolution)
     height = table.zRange()[1] - table.zRange()[0]
@@ -113,7 +113,7 @@ def bestTable(zone, table, pointCloud, exclude,
     else:
         return bestScore, None
     
-cdef fillSummed(util.Transform centerPoseInv, tuple ci,
+cdef fillSummed(hu.Transform centerPoseInv, tuple ci,
                np.ndarray[np.float64_t, ndim=2] pts,
                np.ndarray[np.int_t, ndim=2] summed,
                float res, int size):
@@ -164,13 +164,13 @@ cpdef tuple bestTablePose(shapes.Thing table, np.ndarray[np.float64_t, ndim=1 ]c
                           np.ndarray[np.float64_t, ndim=2] bad,
                           tuple summed, float res, int size):
 
-    cdef util.Transform centerPose, centerPoseInv, pose, cpose
+    cdef hu.Transform centerPose, centerPoseInv, pose, cpose
     cdef tuple ci, bestPlace
     cdef np.ndarray[np.float64_t, ndim=2] bb
     cdef int dimI, dimJ, bestScore
     cdef int i, j, score, shrink, maxShrink, scoreGood, scoreBad
     
-    centerPose = util.Pose(*[center[0], center[1], 0., angle])
+    centerPose = hu.Pose(*[center[0], center[1], 0., angle])
     centerPoseInv = centerPose.inverse()
     ci = ((size-1)/2, (size-1)/2)
     fillSummed(centerPoseInv, ci, good, summed[0], res, size)
@@ -193,7 +193,7 @@ cpdef tuple bestTablePose(shapes.Thing table, np.ndarray[np.float64_t, ndim=1 ]c
                     bestPlace = (i, j)
                     bestShrink = shrink
     # displacement pose for table center
-    pose = util.Pose((bestPlace[0] + int((dimI-bestShrink)/2.0) - ci[0])*res,
+    pose = hu.Pose((bestPlace[0] + int((dimI-bestShrink)/2.0) - ci[0])*res,
                      (bestPlace[1] + int((dimJ-bestShrink)/2.0) - ci[1])*res,
                      0, 0)
     cpose = centerPose.compose(pose)
@@ -224,7 +224,7 @@ def getTableDetections(world, obsPlaceBs, pointCloud):
             zr = tableShape.zRange()
             height = 0.5*(zr[1] - zr[0])
             dz = height - tableShape.origin().matrix[2,3]
-            tableShape = tableShape.applyTrans(util.Pose(0, 0, dz, 0))
+            tableShape = tableShape.applyTrans(hu.Pose(0, 0, dz, 0))
             # Use the mode and variance to limit angles to consider.
             pose = placeB.poseD.mode().pose()
             var = placeB.poseD.variance()
@@ -236,7 +236,7 @@ def getTableDetections(world, obsPlaceBs, pointCloud):
             std = var[-1]**0.5          # std for angles
             res = 0.01 if std < 0.05 else 0.02
             angles = [angle for angle in allAngles if \
-                      abs(util.angleDiff(angle, pose.theta)) <= 3*std] + [pose.theta]
+                      abs(hu.angleDiff(angle, pose.theta)) <= 3*std] + [pose.theta]
             angles.sort()
             if len(angles) < 7:
                 angles = [pose.theta+d for d in (-3*std, -2*std, std, 0., std, 2*std, 3*std)]

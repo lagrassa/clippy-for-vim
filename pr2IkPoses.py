@@ -1,11 +1,12 @@
 import pdb
 import math
-import util
+import hu
 from ranges import realRange, angleRange
-import transformations as transf
-import windowManager3D as wm
+#import transformations as transf
+#import windowManager3D as wm
 import numpy as np
-import shapes
+import traceFile
+#import shapes
 
 ikNuggets = [
 [(0.263254,0.559217), (6.208818,7.197906), (0.550000,0.750000), (5.497787,7.068583)],
@@ -149,7 +150,7 @@ ikPoses = [[],                          # n = 0
            ikPosesAll]                              # n = 2 
 
 def setupNuggets(n=2):
-    nuggets = [util.Pose(*p) for p in ikPoses[n]]
+    nuggets = [hu.Pose(*p) for p in ikPoses[n]]
     for r in ikNuggets:
         ranges = [realRange(*r[0]), angleRange(*r[1]),
                   realRange(*r[2]), angleRange(*r[3])]
@@ -158,7 +159,7 @@ def setupNuggets(n=2):
 
 def nugPose(coord):
     r,phi,z,theta = coord
-    return util.Pose(r*math.cos(phi), r*math.sin(phi), z, theta)
+    return hu.Pose(r*math.cos(phi), r*math.sin(phi), z, theta)
 
 uprightTrans = [\
 ([-0.27059804167709445, 0.6532814687177892, 0.27059804167709445, 0.653281491527499], [-0.10000002384185792, 0.9009999930858612, 0.9500000029802322, 1.0]),
@@ -509,18 +510,18 @@ def ikTrans():
     horizontal = setupNuggets(n=1)
     scored = sorted([(poseScore(tr.pose()), tr) for tr in horizontal])
     horizontal = [tr for (sc, tr) in scored]
-    print 'Horizontal=', len(horizontal)
-    wrist = util.Transform(np.array([[0.0, 0.0, 1.0, 1.10],
+    traceFile.tr('ik', 0, 'Num Horizontal =', len(horizontal))
+    wrist = hu.Transform(np.array([[0.0, 0.0, 1.0, 1.10],
                                      [0.0, 1.0, 0.0, 0.0],
                                      [-1.0, 0.0, 0.0, 1.0],
                                      [0.0, 0.0, 0.0, 1.0]]))
-    vertical = [util.Transform(p=np.array([[a] for a in p]), q=np.array(q)) \
+    vertical = [hu.Transform(p=np.array([[a] for a in p]), q=np.array(q)) \
                 for (q,p) in uprightTrans]
     poses = [(wrist.compose(tr.inverse()).pose(zthr=0.1, fail=False), tr) for tr in vertical]
     poses = [p for p in poses if p[0]]
     scored = sorted([(poseScore(pose), tr) for (pose, tr) in poses])
     vertical = [tr for (sc, tr) in scored]
-    print 'Vertical=', len(vertical)
+    traceFile.tr('ik', 0, 'Num Vertical=', len(vertical))
     return horizontal, vertical
 
 def ikTransSimple():
@@ -530,7 +531,7 @@ def ikTransSimple():
     scored = sorted([(poseScore(tr.pose()), tr) for tr in horizontal])
     horizontal = [tr for (sc, tr) in scored]
     print 'Horizontal=', len(horizontal)
-    vertical = [util.Transform(p=np.array([[a] for a in p]), q=np.array(q)) \
+    vertical = [hu.Transform(p=np.array([[a] for a in p]), q=np.array(q)) \
                 for (q,p) in uprightTrans]
     print 'Vertical=', len(vertical)
     return horizontal, vertical

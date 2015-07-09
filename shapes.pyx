@@ -3,8 +3,8 @@ import math
 import numpy as np
 cimport numpy as np
 
-import util
-cimport util
+import hu
+cimport hu
 
 from cpython cimport bool
 from collision cimport thingThingCollides
@@ -12,8 +12,8 @@ from geom cimport *
 from cut cimport *
 
 import windowManager3D as win
-import transformations as transf
-from planGlobals import debug, debugMsg
+#import transformations as transf
+from planGlobals import debug
 
 #################################
 # Object classes: Thing, Prim, Shape
@@ -28,19 +28,19 @@ cdef class Thing:
     which includes a name."""
     def __init__(self,
                  np.ndarray[np.float64_t, ndim=2] bbox,
-                 util.Transform origin,
+                 hu.Transform origin,
                  **props):
         global ThingIndex
         self.properties = props.copy()
         if not 'name' in self.properties:
-            self.properties['name'] = util.gensym('Thing')
+            self.properties['name'] = hu.gensym('Thing')
         self.thingBBox = bbox
         if origin:
             self.thingOrigin = origin
         else:
             trans = np.eye(4, dtype=np.float64)
             trans[:3, 3] = bboxCenter(bbox)[:3]
-            self.thingOrigin = util.Transform(trans)
+            self.thingOrigin = hu.Transform(trans)
         self.thingCenter = None
         self.thingVerts = None
         self.thingPlanes = None
@@ -70,7 +70,7 @@ cdef class Thing:
                                                    self.thingOrigin)
         return self.thingFaceFrames
 
-    cpdef util.Transform origin(self):
+    cpdef hu.Transform origin(self):
         return self.thingOrigin
 
     cpdef np.ndarray[np.float64_t, ndim=2] bbox(self):
@@ -128,19 +128,19 @@ cdef class Thing:
     cpdef list parts(self):
         return [self]
 
-    cpdef Thing applyTransMod(self, util.Transform trans, Thing shape, str frame='unspecified'):
+    cpdef Thing applyTransMod(self, hu.Transform trans, Thing shape, str frame='unspecified'):
         """Displace the Thing; returns a Prim."""
         return self.prim().applyTransMod(trans, shape, frame)
 
-    cpdef Thing applyLocMod(self, util.Transform trans, Thing shape, str frame='unspecified'):
+    cpdef Thing applyLocMod(self, hu.Transform trans, Thing shape, str frame='unspecified'):
         """Displace the Thing to a location; returns a Prim."""
         return self.applyTransMod(trans.compose(self.thingOrigin.inverse()), shape, frame)
     
-    cpdef Thing applyTrans(self, util.Transform trans, str frame='unspecified'):
+    cpdef Thing applyTrans(self, hu.Transform trans, str frame='unspecified'):
         """Displace the Thing; returns a Prim."""
         return self.prim().applyTrans(trans, frame)
 
-    cpdef Thing applyLoc(self, util.Transform trans, str frame='unspecified'):
+    cpdef Thing applyLoc(self, hu.Transform trans, str frame='unspecified'):
         """Displace the Thing to a location; returns a Prim."""
         return self.applyTrans(trans.compose(self.thingOrigin.inverse()), frame)
 
@@ -207,7 +207,7 @@ cdef class Prim(Thing):
     def __init__(self,
                  np.ndarray[np.float64_t, ndim=2] verts,
                  list faces,            # since faces have variable length
-                 util.Transform origin,
+                 hu.Transform origin,
                  **props):
         self.primVerts = verts
         self.primFaces = faces
@@ -215,7 +215,7 @@ cdef class Prim(Thing):
         self.primEdges = None
         Thing.__init__(self, vertsBBox(verts, None), origin, **props)
         if not 'name' in self.properties:
-            self.properties['name'] = util.gensym('Prim')
+            self.properties['name'] = hu.gensym('Prim')
 
     cpdef Prim prim(self):
         return self
@@ -239,7 +239,7 @@ cdef class Prim(Thing):
             self.primEdges = primEdges(self.vertices(), self.faces())
         return self.primEdges
 
-    cpdef Thing applyTrans(self, util.Transform trans, str frame='unspecified',):
+    cpdef Thing applyTrans(self, hu.Transform trans, str frame='unspecified',):
         if debug('mod'):
             print trans.matrix
             print self.vertices()
@@ -248,7 +248,7 @@ cdef class Prim(Thing):
                     trans.compose(self.thingOrigin),
                     **mergeProps(self.properties, {'frame':frame}))
 
-    cpdef Thing applyTransMod(self, util.Transform trans, Thing shape, str frame='unspecified',):
+    cpdef Thing applyTransMod(self, hu.Transform trans, Thing shape, str frame='unspecified',):
         if debug('mod'):
             print trans.matrix
             print 'Thing', self.getIndex(), '\n', self.vertices()
@@ -319,7 +319,7 @@ cdef class Prim(Thing):
     #     return self.thingString
 
 cdef class Shape(Thing):
-    def __init__(self, list parts, util.Transform origin, **props):
+    def __init__(self, list parts, hu.Transform origin, **props):
         self.compParts = parts
         if parts:
             # self.compVerts = np.hstack([p.vertices() for p in parts \
@@ -327,7 +327,7 @@ cdef class Shape(Thing):
             self.compVerts = None
             Thing.__init__(self, bboxUnion([x.bbox() for x in parts]), origin, **props)
             if not 'name' in self.properties:
-                self.properties['name'] = util.gensym('Shape')
+                self.properties['name'] = hu.gensym('Shape')
         else:
             self.compVerts = None
             Thing.__init__(self, np.array([3*[0.0], 3*[0.0]]), origin, **props)
@@ -341,13 +341,13 @@ cdef class Shape(Thing):
     cpdef np.ndarray[np.float64_t, ndim=2] vertices(self):
         return self.compVerts
 
-    cpdef Thing applyTrans(self, util.Transform trans, str frame='unspecified'):
+    cpdef Thing applyTrans(self, hu.Transform trans, str frame='unspecified'):
         if debug('mod'): print 'Shape applyTrans', self.name()
         return Shape([p.applyTrans(trans, frame) for p in self.parts()],
                      trans.compose(self.thingOrigin),
                      **mergeProps(self.properties, {'frame':frame}))
 
-    cpdef Thing applyTransMod(self, util.Transform trans, Thing shape, str frame='unspecified'):
+    cpdef Thing applyTransMod(self, hu.Transform trans, Thing shape, str frame='unspecified'):
         if debug('mod'): print 'Shape applyTransMod', self.name(), len(self.parts()), 'parts'
         for p, pm in zip(self.parts(), shape.parts()):
             p.applyTransMod(trans, pm)
@@ -434,14 +434,14 @@ cdef class Shape(Thing):
 #################################
 
 cdef class Box(Prim):
-    def __init__(self, float dx, float dy, float dz, util.Transform origin, **props):
+    def __init__(self, float dx, float dy, float dz, hu.Transform origin, **props):
         cdef:
             float hdx = 0.5*dx
             float hdy = 0.5*dy
             float hdz = 0.5*dz
             np.ndarray[np.float64_t, ndim=2] points
         if not 'name' in props:
-            props = mergeProps(props, {'name':util.gensym("box")})
+            props = mergeProps(props, {'name':hu.gensym("box")})
         points = np.array([[-hdx, -hdy, -hdz, 1.], [hdx, -hdy, -hdz, 1.],
                            [hdx, hdy, -hdz, 1.], [-hdx, hdy, -hdz, 1.]]).T
         Prim.__init__(self,
@@ -451,14 +451,14 @@ cdef class Box(Prim):
                       **props)
 
 cdef class BoxScale(Prim):
-    def __init__(self, float dx, float dy, float dz, util.Transform origin, float scale, **props):
+    def __init__(self, float dx, float dy, float dz, hu.Transform origin, float scale, **props):
         cdef:
             float hdx = 0.5*dx
             float hdy = 0.5*dy
             float hdz = 0.5*dz
             np.ndarray[np.float64_t, ndim=2] points
         if not 'name' in props:
-            props = mergeProps(props, {'name':util.gensym("box")})
+            props = mergeProps(props, {'name':hu.gensym("box")})
         points = np.array([[-hdx, -hdy, -hdz, 1.], [hdx, -hdy, -hdz, 1.],
                            [hdx, hdy, -hdz, 1.], [-hdx, hdy, -hdz, 1.]]).T
         Prim.__init__(self,
@@ -468,7 +468,7 @@ cdef class BoxScale(Prim):
                       **props)
 
 cdef class Ngon(Prim):
-    def __init__(self, float r, dz, int nsides, util.Transform origin, **props):
+    def __init__(self, float r, dz, int nsides, hu.Transform origin, **props):
         cdef:
             float hdz, ang
             int i
@@ -476,7 +476,7 @@ cdef class Ngon(Prim):
         hdz = 0.5*dz
         ang = 2*math.pi/nsides
         if not 'name' in props:
-            props = mergeProps(props, {'name':util.gensym("ngon")})
+            props = mergeProps(props, {'name':hu.gensym("ngon")})
         points = np.array([[r*math.cos(i*ang), r*math.sin(i*ang), -hdz, 1.] \
                            for i in range(nsides)]).T
         Prim.__init__(self,
@@ -486,12 +486,12 @@ cdef class Ngon(Prim):
                       **props)
 
 cdef class BoxAligned(Prim):
-    def __init__(self, np.ndarray[np.float64_t, ndim=2] bbox, util.Transform origin, **props):
+    def __init__(self, np.ndarray[np.float64_t, ndim=2] bbox, hu.Transform origin, **props):
         cdef:
             float xlo, ylo, zlo, xhi, yhi, zhi
             np.ndarray[np.float64_t, ndim=2] points
         if not 'name' in props:
-            props = mergeProps(props, {'name':util.gensym("box")})
+            props = mergeProps(props, {'name':hu.gensym("box")})
         ((xlo, ylo, zlo), (xhi, yhi, zhi)) = bbox.tolist()
         points = np.array([[xlo, ylo, zlo, 1.], [xhi, ylo, zlo, 1.],
                            [xhi, yhi, zlo, 1.], [xlo, yhi, zlo, 1.]]).T
@@ -503,13 +503,13 @@ cdef class BoxAligned(Prim):
 
 cpdef Thing pointBox(pt, r = 0.02):
     return Thing(np.array([(pt[0]-r, pt[1]-r, pt[2]-r), (pt[0]+r, pt[1]+r, pt[2]+r)]),
-                 util.Ident)
+                 hu.Ident)
 
 cdef class Polygon(Prim):
     def __init__(self, np.ndarray[np.float64_t, ndim=2] verts,
-                 tuple zr, util.Transform origin, **props):
+                 tuple zr, hu.Transform origin, **props):
         if not 'name' in props:
-            props = mergeProps(props, {'name':util.gensym("box")})
+            props = mergeProps(props, {'name':hu.gensym("box")})
         Prim.__init__(self,
                       vertsFrom2D(verts, zr[0], zr[1]),
                       facesFrom2D(<int>verts.shape[1]),
@@ -606,7 +606,7 @@ cdef np.ndarray[np.int_t, ndim=2] primEdges(np.ndarray[np.float64_t, ndim=2] ver
     return edges
 
 cdef Prim xyPrimAux(np.ndarray[np.float64_t, ndim=2] verts,
-                    tuple zr, util.Transform origin, dict props):
+                    tuple zr, hu.Transform origin, dict props):
     cdef:
         np.ndarray[np.float64_t, ndim=2] points
     points = convexHullVertsXY(verts)
@@ -616,7 +616,7 @@ cdef Prim xyPrimAux(np.ndarray[np.float64_t, ndim=2] verts,
                 **props)
 
 cdef Prim boundingRectPrimAux(np.ndarray[np.float64_t, ndim=2] verts,
-                              util.Transform origin, dict props):
+                              hu.Transform origin, dict props):
     cdef:
         np.ndarray[np.float64_t, ndim=2] mu, centered, u, v, bbox
         np.ndarray[np.float64_t, ndim=1] l
@@ -625,7 +625,7 @@ cdef Prim boundingRectPrimAux(np.ndarray[np.float64_t, ndim=2] verts,
     (u, l, v) = np.linalg.svd(centered)
     bbox = vertsBBox(np.dot(u.T, centered), None)
     tr = np.hstack([u[:,:3], mu])
-    return BoxAligned(bbox, origin).applyTrans(util.Transform(tr),
+    return BoxAligned(bbox, origin).applyTrans(hu.Transform(tr),
                                                props.get('frame', 'unspecified'))
 
 # values in d2 take precedence
@@ -651,7 +651,7 @@ def toPrims(obj):
 
 # Returns a list of transforms for the faces.
 cpdef list thingFaceFrames(np.ndarray[np.float64_t, ndim=2] planes,
-                         util.Transform origin):
+                         hu.Transform origin):
     cdef:
         float d, cr
         int i, yi
@@ -661,7 +661,7 @@ cpdef list thingFaceFrames(np.ndarray[np.float64_t, ndim=2] planes,
     vo = [origin.matrix[:, i][:3] for i in range(4)]
     frames = []
     for f in range(planes.shape[0]):
-        tr = util.Transform(np.eye(4))
+        tr = hu.Transform(np.eye(4))
         mat = tr.matrix
         z = -planes[f, :3]
         d = -planes[f,3]
@@ -717,4 +717,4 @@ def readOff(filename, name='offObj', scale=1.0):
     faces = []
     for f in range(nf):
         faces.append(np.array([int(x) for x in fl.readline().split()][1:]))
-    return shapes.Prim(verts, faces, util.Pose(0,0,0,0), name=name)
+    return shapes.Prim(verts, faces, hu.Pose(0,0,0,0), name=name)

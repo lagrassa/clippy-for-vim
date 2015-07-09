@@ -4,10 +4,11 @@ from scipy.spatial import cKDTree
 from scipy.optimize import fmin, fmin_powell
 from shapes import pointBox
 import pointClouds as pc
+from traceFile import tr
 import time
-from planGlobals import debug, debugMsg
+#from planGlobals import debug, debugMsg
 import windowManager3D as wm
-import util
+import hu
 from pr2Util import colorGen
 from dist import MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
@@ -33,9 +34,10 @@ def getObjectDetections(lookConf, placeB, pbs, pointCloud):
     # trans is a Pose displacement from the nominal one
     score, trans, detection = \
            bestObjDetection(placeB, objShape, objShadow, objCloud, pointCloud, var)
-    print 'Obj detection', detection, 'with score', score
-    print 'Running time for obj detections =',  time.time() - startTime
-    debugMsg('locate', 'Detection for obj=%s'%objName)
+    tr('detect', 1, 'Obj detection', detection, 'with score', score, ol = True)
+    tr('detect', 1, 'Running time for obj detections =',  time.time() - startTime,
+       ol = True)
+    tr('locate', 0, 'Detection for obj=%s'%objName)
     if score == None:
         return (None, None, None)
     else:
@@ -64,16 +66,15 @@ def bestObjDetection(placeB, objShape, objShadow, objCloud, pointCloud, variance
     # Try to align the model to the relevant data
     # score, trans = locate(placeB, objCloud, goodCloud[:,1:], variance, thr, objShape)
     score, trans = locateByFmin(objCloud, goodCloud[:,1:], variance, shape=objShape)
-    print 'best score', score, 'best trans', trans
+    tr('locate', 2, 'best score', score, 'best trans', trans, ol = True)
     transShape = objShape.applyTrans(trans)
     transShape.draw('W', 'purple')
-    raw_input('transShape (in purple)')
+    tr('locate', 0, 'transShape (in purple)', snap = ['W'])
 
     # Evaluate the result by comparing the depth map from the point
     # cloud to the simulated depth map for the detection.
     # score = depthScore(transShape, goodScan, thr)
-
-    raw_input('score=%f'%score)
+    # raw_input('score=%f'%score)
     return score, trans, transShape
 
 def diagToSq(d):
@@ -89,7 +90,7 @@ def locateByFmin(model_verts, data_verts, variance, shape=None):
     Nt = int(frac*model_verts.shape[1])
     def poseScore(xv):
         (x, y, z, th) = xv
-        pose = util.Pose(x,y,z,th)
+        pose = hu.Pose(x,y,z,th)
         model_verts_trans = np.dot(pose.matrix, model_verts)
         model_trans = model_verts_trans.T[:, :3]
         dists, nbrs = kdTree.query(model_trans)
@@ -108,12 +109,13 @@ def locateByFmin(model_verts, data_verts, variance, shape=None):
         final = fmin_powell(poseScore, initial,
                             xtol = 0.001, ftol = 0.001)
         score = poseScore(final)
-        print 'score', score, 'final', final
-        print 'best_score', best_score, 'best_trans', best_trans
+        tr('locate', 3, 'score', score, 'final', final, ol = True)
+        tr('locate', 3,  'best_score', best_score, 'best_trans', best_trans,
+           ol = True)
         if best_score == None or score < best_score:
             no_improvement = 0
             best_score = score
-            best_trans = util.Pose(*final)
+            best_trans = hu.Pose(*final)
             if shape:
                 shape.applyTrans(best_trans).draw('W', 'orange'); win.update()
             # ans = raw_input('Continue?')

@@ -1,4 +1,3 @@
-import operator
 import datetime
 import numpy as np
 import collections
@@ -163,13 +162,13 @@ def clip(v, vMin, vMax):
     @returns: If C{vMin <= v <= vMax}, then return C{v}; if C{v <
     vMin} return C{vMin}; else return C{vMax}
     """
-    if vMin == None:
-        if vMax == None:
+    if vMin is None:
+        if vMax is None:
             return v
         else:
             return min(v, vMax)
     else:
-        if vMax == None:
+        if vMax is None:
             return max(v, vMin)
         else:
             return max(min(v, vMax), vMin)
@@ -287,6 +286,7 @@ def floatRange(minVal, maxVal, numSteps):
         v += step
     return vals
 
+'''
 # Assumes funTable is monotonic
 def inverseTableLookup(pQuery, table):
     for i in range(len(table)):
@@ -299,6 +299,7 @@ def inverseTableLookup(pQuery, table):
             rate = (r - rp) / (p - pp)
             return pp + (pQuery - pp) * rate
     return table[-1][p]
+'''
 
     
 # Variable name manipulation
@@ -316,20 +317,23 @@ def varNameToObj(vname):
     if '(' in vname:
         return vname[vname.index('(')+1 : vname.index(')')]
 
-def matchLists(s1, s2, bindings = {}, starIsWild = True):
-    if bindings == None or len(s1) != len(s2):
+# Bindings == None means we've failed
+def matchLists(s1, s2, bindings = 'empty', starIsWild = True):
+    if bindings == 'empty': bindings = {}
+    if bindings is None or len(s1) != len(s2):
         return None
     if bindings != {}:
         bindings = copy.copy(bindings)
     for (a1, a2) in zip(s1, s2):
         bindings = matchTerms(a1, a2, bindings, starIsWild = starIsWild)
-        if bindings == None: return bindings
+        if bindings is None: return bindings
     return bindings
 
 # Returns bindings, no side effect.  One-sided wrt '*': that is a
 # constant in t1 will match a * in t2, but not vv.
-def matchTerms(t1, t2, bindings = {}, starIsWild = True):
-    if bindings == None: return None
+def matchTerms(t1, t2, bindings = 'empty', starIsWild = True):
+    if bindings == 'empty': bindings = {}
+    if bindings is None: return None
     bt1 = applyBindings1(t1, bindings)
     bt2 = applyBindings1(t2, bindings)
     if bt1 == bt2 or t1 == t2:
@@ -353,22 +357,12 @@ def extendBindings(b, k, v):
     newB[k] = v
     return newB
 
-
 # Assert that all variables in the bindings are constraint vars.
 # A bound value of None means a function failed
 def goodBindings(b):
     return type(b) == dict and \
-           all(var != val and val != None \
-               for (var, val) in b.iteritems())
+           all(var != val and val is not None for (var, val) in b.iteritems())
 
-def getCVBindings(bindings):
-    return dict([(var, val) for (var, val) in bindings.iteritems() if \
-                 isConstraintVar(var)])
-
-def getRegularBindings(bindings):
-    return dict([(var, val) for (var, val) in bindings.iteritems() if \
-                 not isConstraintVar(var)])
-    
 def extractVars(struct):
     if isConstraintVar(struct):
         return [struct]
@@ -387,7 +381,7 @@ def orderedUnion(s1, s2):
 # Return the largest element of dom that is less than v.
 # in two dimensions
 def floorInDomain2(v, dom):
-    if v == None: return None
+    if v is None: return None
     # assumes dom is sorted
     for (i, vd) in enumerate(dom):
         if vd[0] > v[0] or vd[1] > v[1]:
@@ -404,7 +398,7 @@ def makeDiag(v):
     return np.diag(v)
 
 def undiag(m):
-    if m == None: return None
+    if m is None: return None
     return tuple(np.diag(m))
 
 def roundUp(v, prec):
@@ -415,14 +409,16 @@ def roundUp(v, prec):
         return vt
 
 def roundrobin(*iterables):
-    "roundrobin('ABC', 'D', 'EF') --> A D E B F C"
+    # roundrobin('ABC', 'D', 'EF') --> A D E B F C
     # Recipe credited to George Sakkis
     pending = len(iterables)
     nexts = cycle(iter(it).next for it in iterables)
     while pending:
         try:
-            for next in nexts:
-                yield next()
+            for n in nexts:
+                yield n()
         except StopIteration:
             pending -= 1
-            nexts = cycle(islice(nexts, pending))    
+            nexts = cycle(islice(nexts, pending))
+
+

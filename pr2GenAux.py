@@ -1,7 +1,7 @@
 import numpy as np
 import math
 import random
-import util
+import hu
 from time import sleep
 import copy
 import windowManager3D as wm
@@ -24,7 +24,7 @@ from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
 from pr2RRT import planRobotGoalPath
 from traceFile import tr
 
-Ident = util.Transform(np.eye(4))            # identity transform
+Ident = hu.Transform(np.eye(4))            # identity transform
 tiny = 1.0e-6
 
 ################
@@ -44,7 +44,7 @@ def objectGraspFrame(pbs, objGrasp, objPlace, hand):
     objFrame = objPlace.objFrame()
     graspDesc = objGrasp.graspDesc[objGrasp.grasp.mode()]
     faceFrame = graspDesc.frame.compose(objGrasp.poseD.mode())
-    centerFrame = faceFrame.compose(util.Pose(0,0,graspDesc.dz,0))
+    centerFrame = faceFrame.compose(hu.Pose(0,0,graspDesc.dz,0))
     graspFrame = objFrame.compose(centerFrame)
     # !! Rotates wrist frame to grasp face frame - defined in pr2Robot
     gT = gripperFaceFrame[hand]
@@ -109,7 +109,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
             pbs1.draw(p, 'W')
             debugMsg('canPickPlaceTest', 'H->App, obj@pose (condition 1)')
         if quick:
-            violations = confViolations(preConf, pbs1, p, violations)
+            violations = pbs.getRoadMap().confViolations(preConf, pbs1, p, violations)
             path = [preConf]
         else:
             path, violations = canReachHome(pbs1, preConf, p, violations)
@@ -145,7 +145,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         pbs2.draw(p, 'W'); preConf.draw('W', attached = pbs2.getShadowWorld(p).attached)
         debugMsg('canPickPlaceTest', 'H->App, obj=held (condition 2)')
     if quick:
-        violations = confViolations(preConf, pbs2, p, violations)
+        violations = pbs.getRoadMap().confViolations(preConf, pbs2, p, violations)
         path = [preConf]
     else:
         path, violations = canReachHome(pbs2, preConf, p, violations)
@@ -190,7 +190,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         pbs3.draw(p, 'W')
         debugMsg('canPickPlaceTest', 'H->Target, obj placed (0 var) (condition 3)')
     if quick:
-        violations = confViolations(ppConf, pbs3, p, violations)
+        violations = pbs.getRoadMap().confViolations(ppConf, pbs3, p, violations)
         path = [ppConf]
     else:
         path, violations = canReachHome(pbs3, ppConf, p, violations)
@@ -208,7 +208,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         pbs4.draw(p, 'W'); ppConf.draw('W', attached = pbs4.getShadowWorld(p).attached)
         debugMsg('canPickPlaceTest', 'H->Target, holding obj (0 var) (condition 4)')
     if quick:
-        violations = confViolations(ppConf, pbs4, p, violations)
+        violations = pbs.getRoadMap().confViolations(ppConf, pbs4, p, violations)
         path = [ppConf]
     else:
         path, violations = canReachHome(pbs4, ppConf, p, violations)
@@ -298,9 +298,9 @@ def findApproachConf(pbs, obj, placeB, conf, hand, prob):
     cart = conf.cartConf()
     wristFrame = cart[robot.armChainNames[hand]]
     if abs(wristFrame.matrix[2,0]) < 0.1: # horizontal
-        offset = util.Pose(-glob.approachBackoff,0.,glob.approachPerpBackoff,0.)
+        offset = hu.Pose(-glob.approachBackoff,0.,glob.approachPerpBackoff,0.)
     else:                               # vertical
-        offset = util.Pose(-glob.approachBackoff,0.,0.,0.)
+        offset = hu.Pose(-glob.approachBackoff,0.,0.,0.)
     wristFrameBack = wristFrame.compose(offset)
     cartBack = cart.set(robot.armChainNames[hand], wristFrameBack)
     confBack = robot.inverseKin(cartBack, conf = conf)
@@ -325,7 +325,7 @@ def graspGen(pbs, obj, graspB, placeB=None, conf=None, hand=None, prob=None):
         # !! Should also sample a pose in the grasp face...
         gB = ObjGraspB(graspB.obj, graspB.graspDesc, grasp,
                        # !! Need to pick offset for grasp to be feasible
-                       PoseD(graspB.poseD.mode() or util.Pose(0.0, -0.025, 0.0, 0.0),
+                       PoseD(graspB.poseD.mode() or hu.Pose(0.0, -0.025, 0.0, 0.0),
                              graspB.poseD.var),
                        delta=graspB.delta)
         yield gB
@@ -399,7 +399,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
     if conf:
         ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
         if ca:
-            viol = rm.confViolations(ca, pbs, prob, ignoreAttached=True)
+            viol = pbs.getRoadMap().confViolations(ca, pbs, prob, ignoreAttached=True)
             if viol:
                 yield conf, ca, viol
         return
@@ -413,10 +413,10 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
     robot = pbs.getRobot()
     if base:
         (x,y,th) = base
-        nominalBasePose = util.Pose(x, y, 0.0, th)
+        nominalBasePose = hu.Pose(x, y, 0.0, th)
     else:
         (x,y,th) = pbs.getShadowWorld(prob).robotConf['pr2Base']
-        curBasePose = util.Pose(x, y, 0.0, th)
+        curBasePose = hu.Pose(x, y, 0.0, th)
 
     if debug('collectGraspConfs'):
         xAxisZ = wrist.matrix[2,0]
@@ -464,7 +464,7 @@ def potentialLookConfGen(pbs, prob, shape, maxDist):
         bb = shape.applyTrans(basePoseInv).bbox()
         return bb[0][0] > 0 and bb[1][0] > 0
 
-    centerPoint = util.Point(np.resize(np.hstack([shape.center(), [1]]), (4,1)))
+    centerPoint = hu.Point(np.resize(np.hstack([shape.center(), [1]]), (4,1)))
     tested = set([])
     rm = pbs.getRoadMap()
     for node in rm.nodes():             # !!
@@ -474,7 +474,7 @@ def potentialLookConfGen(pbs, prob, shape, maxDist):
         else:
             tested.add(nodeBase)
         x,y,th = nodeBase
-        basePose = util.Pose(x,y,0,th)
+        basePose = hu.Pose(x,y,0,th)
         dist = centerPoint.distance(basePose.point())
         if dist > maxDist:
             continue
@@ -483,7 +483,7 @@ def potentialLookConfGen(pbs, prob, shape, maxDist):
             # Rotate the base to face the center of the object
             center = inv.applyToPoint(centerPoint)
             angle = math.atan2(center.matrix[0,0], center.matrix[1,0])
-            rotBasePose = basePose.compose(util.Pose(0,0,0,-angle))
+            rotBasePose = basePose.compose(hu.Pose(0,0,0,-angle))
             par = rotBasePose.pose().xyztTuple()
             rotConf = node.conf.set('pr2Base', (par[0], par[1], par[3]))
             if debug('potentialLookConfs'):
@@ -506,18 +506,18 @@ def otherHand(hand):
     return 'left' if hand == 'right' else 'right'
 
 ang = -math.pi/2
-rotL = util.Transform(rotation_matrix(-math.pi/4, (1,0,0)))
+rotL = hu.Transform(rotation_matrix(-math.pi/4, (1,0,0)))
 def trL(p): return p.compose(rotL)
-rotR = util.Transform(rotation_matrix(math.pi/4, (1,0,0)))
+rotR = hu.Transform(rotation_matrix(math.pi/4, (1,0,0)))
 def trR(p): return p.compose(rotR)
-lookPoses = {'left': [trL(x) for x in [util.Pose(0.4, 0.35, 1.0, ang),
-                                       util.Pose(0.4, 0.25, 1.0, ang),
-                                       util.Pose(0.5, 0.08, 1.0, ang),
-                                       util.Pose(0.5, 0.18, 1.0, ang)]],
-             'right': [trR(x) for x in [util.Pose(0.4, -0.35, 0.9, -ang),
-                                        util.Pose(0.4, -0.25, 0.9, -ang),
-                                        util.Pose(0.5, -0.08, 1.0, -ang),
-                                        util.Pose(0.5, -0.18, 1.0, -ang)]]}
+lookPoses = {'left': [trL(x) for x in [hu.Pose(0.4, 0.35, 1.0, ang),
+                                       hu.Pose(0.4, 0.25, 1.0, ang),
+                                       hu.Pose(0.5, 0.08, 1.0, ang),
+                                       hu.Pose(0.5, 0.18, 1.0, ang)]],
+             'right': [trR(x) for x in [hu.Pose(0.4, -0.35, 0.9, -ang),
+                                        hu.Pose(0.4, -0.25, 0.9, -ang),
+                                        hu.Pose(0.5, -0.08, 1.0, -ang),
+                                        hu.Pose(0.5, -0.18, 1.0, -ang)]]}
 def potentialLookHandConfGen(pbs, prob, hand):
     shWorld = pbs.getShadowWorld(prob)
     robot = pbs.conf.robot
@@ -795,7 +795,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     def genPose(rs, angle, point):
         (x,y,z,_) = point
         # Support pose, we assume that sh is on support face
-        pose = util.Pose(x,y,z, 0.)     # shRotations is already rotated
+        pose = hu.Pose(x,y,z, 0.)     # shRotations is already rotated
         sh = shRotations[angle].applyTrans(pose)
         if debug('potentialRegionPoseGen'):
             sh.draw('W', 'brown')
@@ -830,17 +830,19 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     
     objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
     if placeB.poseD.mode():
-        print 'potentialRegionPoseGen pose specified', placeB.poseD.mode()
+        tr('potentialRegionPoseGen', 1, 'pose specified', placeB.poseD.mode(),
+           ol = True)
         sh = objShadow.applyLoc(placeB.objFrame()).prim()
         if any(np.all(np.all(np.dot(rs.planes(), sh.vertices()) <= tiny, axis=1)) \
                for rs in regShapes)  and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
-            print 'potentialRegionPoseGen pose specified and safely in region', placeB.poseD.mode()
+            tr('potentialRegionPoseGen', 'pose specified and safely in region',
+               placeB.poseD.mode(), ol = True)
             yield placeB.poseD.mode()
         else:
-            print 'potentialRegionPoseGen pose specified and not safely in region'
+            tr('potentialRegionPoseGen', 'pose specified and not safely in region')
 
-    shRotations = dict([(angle, objShadow.applyTrans(util.Pose(0,0,0,angle)).prim()) \
+    shRotations = dict([(angle, objShadow.applyTrans(hu.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
     obstCost = 10.
     hyps = []                         # (index, cost)
@@ -848,7 +850,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     count = 0
     world = pbs.getWorld()
     for rs in regShapes:
-        print 'potentialRegionPoseGen', obj, rs.name(), hand
+        tr('potentialRegionPoseGen', obj, rs.name(), hand, ol = True)
         if debug('potentialRegionPoseGen'):
             print 'Considering region', rs.name()
         for (angle, shRot) in shRotations.items():
@@ -917,6 +919,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     count = 0
     maxTries = min(2*maxPoses, len(pointDist))
     if False: # glob.inHeuristic:
+        tries = 0
         while count < maxPoses and tries < maxTries:
             tries += 1
             # Randomized
@@ -930,7 +933,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                 print '->', pose, 'cost=', cost
                 # shRotations is already rotated
                 (x,y,z,_) = pose.xyztTuple()
-                shRotations[angle].applyTrans(util.Pose(x,y,z, 0.)).draw('W', 'green')
+                shRotations[angle].applyTrans(hu.Pose(x,y,z, 0.)).draw('W', 'green')
             yield pose
     else:
         costHistory = []
@@ -967,7 +970,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                 print '->', pose, 'cost=', poseCost
                 # shRotations is already rotated
                 (x,y,z,_) = pose.xyztTuple()
-                shRotations[angle].applyTrans(util.Pose(x,y,z, 0.)).draw('W', 'green')
+                shRotations[angle].applyTrans(hu.Pose(x,y,z, 0.)).draw('W', 'green')
             yield pose
     if True: # debug('potentialRegionPoseGen'):
         print 'Tried', tries, 'returned', count, 'for regions', [r.name() for r in regShapes]

@@ -28,17 +28,17 @@ def makeCup(name, color, dims = cupDims):
 tableDX, tableDY, tableDZ = 0.3, 0.605, 0.67 # z of table is 0.65 but PR2 thinks not
 
 cupADelta = -0.2
-cupPose1 = util.Pose(cupADelta, 0, tableDZ+0.01, math.pi)
+cupPose1 = hu.Pose(cupADelta, 0, tableDZ+0.01, math.pi)
 errorDeltaX = -0.1  
 errorDeltaY = -0.2
-cupPose3 = util.Pose(errorDeltaX, errorDeltaY, tableDZ+0.01, math.pi)
+cupPose3 = hu.Pose(errorDeltaX, errorDeltaY, tableDZ+0.01, math.pi)
 
 errorDeltaX4 = -0.1
 errorDeltaY4 = .1
-cupPose4 = util.Pose(errorDeltaX4, errorDeltaY4, tableDZ+0.01, math.pi)
+cupPose4 = hu.Pose(errorDeltaX4, errorDeltaY4, tableDZ+0.01, math.pi)
 
 cupBDelta = 0
-cupPose2 = util.Pose(cupBDelta, 0, tableDZ+0.01, math.pi)
+cupPose2 = hu.Pose(cupBDelta, 0, tableDZ+0.01, math.pi)
 
 blockLDelta = -0.2
 blockLHalfZ = 0.057412
@@ -46,7 +46,7 @@ LDims = offsetDims([[(0.00, 0.00, 0.00),(0.06, 0.06, 0.13)],
                     [(0.06, 0.00, 0.00), (0.096, 0.06, 0.04)]],
                    (0.039328, 0.030000, 0))
 blockLBoxes = [Ba(lDims, color = 'gold') for lDims in LDims]
-blockLPose = util.Pose(blockLDelta, 0, tableDZ+0.01, 1.57)
+blockLPose = hu.Pose(blockLDelta, 0, tableDZ+0.01, 1.57)
 blockL = Sh(blockLBoxes, name = 'blockL')
 
 def cupboard(dx, dy, dz, width, name = 'cupboard', color='brown',
@@ -118,7 +118,7 @@ def makeShelves(dx, dy, dz,
 def makeTableOnlyMap():
     tableOnlyMap = bm.ObjMap()
     table1 = makeTable(tableDX, tableDY, tableDZ, 'table')
-    tableOnlyMap.addObj(table1, util.Pose(1, 0, 0, 0), None)
+    tableOnlyMap.addObj(table1, hu.Pose(1, 0, 0, 0), None)
     return tableOnlyMap
 
 def makeTwistTableOnlyMap():
@@ -143,7 +143,7 @@ def makeCupMap(addCupboard = useCupboard):
     cupMap.addObj(makeCup('cupB', 'blue'), cupPose2, 'table')
     if addCupboard:
         cupMap.addObj(cupboard(0.25, 0.2, 0.5, 0.02),
-                      util.Pose(0,0,tableDZ+0.001,0), 'table')
+                      hu.Pose(0,0,tableDZ+0.001,0), 'table')
     return cupMap
 
 def makeCupMapMovedAll(addCupboard = useCupboard):
@@ -152,11 +152,11 @@ def makeCupMapMovedAll(addCupboard = useCupboard):
                           originPose, None)
     table1 = makeTable(tableDX, tableDY, tableDZ, 'table')
     tlf = tableLocFar
-    tlf2 = util.Pose(tlf.x+0.2, tlf.y+0.1, tlf.z, tlf.theta + 0.1)
+    tlf2 = hu.Pose(tlf.x+0.2, tlf.y+0.1, tlf.z, tlf.theta + 0.1)
     cp1 = cupPose1
-    cp1m = util.Pose(cp1.x+0.1, cp1.y-0.03, cp1.z, cp1.theta-0.05)
+    cp1m = hu.Pose(cp1.x+0.1, cp1.y-0.03, cp1.z, cp1.theta-0.05)
     cp2 = cupPose2
-    cp2m = util.Pose(cp2.x+0.1, cp2.y+0.04, cp2.z, cp2.theta+0.1)
+    cp2m = hu.Pose(cp2.x+0.1, cp2.y+0.04, cp2.z, cp2.theta+0.1)
     cupMap.addObj(table1, tlf2, None, variance = landmarkVariance)
     cupMap.addFixedRelObj(easyARegion, easyARegionPose, 'table')
     cupMap.addFixedRelObj(hardARegion, easyARegionPose, 'table')
@@ -167,7 +167,7 @@ def makeCupMapMovedAll(addCupboard = useCupboard):
     cupMap.addObj(makeCup('cupB', 'blue'), cp2m, 'table', variance = cupBVariance)
     if addCupboard:
         cupMap.addObj(cupboard(0.25, 0.2, 0.5, 0.02),
-                      util.Pose(0,0,tableDZ+0.001,0), 'table')
+                      hu.Pose(0,0,tableDZ+0.001,0), 'table')
     return cupMap
 
 def makeEmptyMap():
@@ -191,7 +191,7 @@ def makeBigCupMap(addCupboard = useCupboard):
     cupMap.addObj(makeCup('cupB', 'blue'), cupPose2, 'table', variance = cupBVariance)
     if addCupboard:
         cupMap.addObj(cupboard(0.25, 0.2, 0.5, 0.02),
-                      util.Pose(0,0,tableDZ+0.001,0), 'table')
+                      hu.Pose(0,0,tableDZ+0.001,0), 'table')
     return cupMap
 
 def makeBigCupMapTurnedTable(addCupboard = useCupboard, tableVar = landmarkVariance):
@@ -208,7 +208,7 @@ def makeBigCupMapTurnedTable(addCupboard = useCupboard, tableVar = landmarkVaria
     cupMap.addObj(makeCup('cupB', 'blue'), cupPose2, 'table', variance=cupBVariance)
     if addCupboard:
         cupMap.addObj(cupboard(0.25, 0.2, 0.5, 0.02),
-                      util.Pose(0,0,tableDZ+0.001,0), 'table')
+                      hu.Pose(0,0,tableDZ+0.001,0), 'table')
     return cupMap
 
 
@@ -226,7 +226,7 @@ def makeCupMapTurnedTable(addCupboard = useCupboard):
     cupMap.addObj(makeCup('cupB', 'blue'), cupPose2, 'table')
     if addCupboard:
         cupMap.addObj(cupboard(0.25, 0.2, 0.5, 0.02),
-                      util.Pose(0,0,tableDZ+0.001,0), 'table')
+                      hu.Pose(0,0,tableDZ+0.001,0), 'table')
     return cupMap
 
 def makeCupMapTurnedTableNoA(addCupboard = useCupboard):
@@ -242,7 +242,7 @@ def makeCupMapTurnedTableNoA(addCupboard = useCupboard):
     cupMap.addObj(makeCup('cupB', 'blue'), cupPose2, 'table')
     if addCupboard:
         cupMap.addObj(cupboard(0.25, 0.2, 0.5, 0.02),
-                      util.Pose(0,0,tableDZ+0.001,0), 'table')
+                      hu.Pose(0,0,tableDZ+0.001,0), 'table')
     return cupMap
 
 def makeThreeCupboardMap():
@@ -254,7 +254,7 @@ def makeThreeCupboardMap():
     workspace.solid = False
 
     tableDX, tableDY, tableDZ = 0.3, 1.0, 0.66
-    tableLoc = util.Pose(2.1, 0, 0, 0.0)
+    tableLoc = hu.Pose(2.1, 0, 0, 0.0)
 
     cbDX, cbDY, cbDZ = 0.25, 0.2, 0.5
     wX, wY = 2.1, 0.6
@@ -263,8 +263,8 @@ def makeThreeCupboardMap():
                                            (wX + 0.3, wY + 0.4, tableDZ+0.5)])],
                            name='warehouseT', color = 'gray')
     warehouse = om.ParkingRegion(tableAbove,
-                                 util.Point(1,0,0,0),
-                                 util.Point(0,-1,0,0),
+                                 hu.Point(1,0,0,0),
+                                 hu.Point(0,-1,0,0),
                                  name='warehouseT')
 
     m = bm.ObjMap()
@@ -274,19 +274,19 @@ def makeThreeCupboardMap():
     m.addObj(table1, tableLoc, None, variance = landmarkVariance)
     m.addFixedRelObj(warehouse, originPose, 'table')
     m.addObj(cupboard(cbDX, cbDY, cbDZ, 0.02, 'cupboard1'),
-             util.Pose(0,0,tableDZ+0.001,0), 'table')
+             hu.Pose(0,0,tableDZ+0.001,0), 'table')
     m.addObj(cupboard(cbDX, cbDY, cbDZ, 0.02, 'cupboard2'),
-             util.Pose(0,-0.4,tableDZ+0.001,0), 'table')
+             hu.Pose(0,-0.4,tableDZ+0.001,0), 'table')
     m.addObj(cupboard(cbDX, cbDY, cbDZ, 0.02, 'cupboard3'),
-             util.Pose(0,-0.8,tableDZ+0.001,0), 'table')
+             hu.Pose(0,-0.8,tableDZ+0.001,0), 'table')
 
-    m.addFixedRelObj(easyARegion, util.Pose(0, 0.6, tableDZ+0.01,0), 'table')
+    m.addFixedRelObj(easyARegion, hu.Pose(0, 0.6, tableDZ+0.01,0), 'table')
 
-    m.addObj(makeCup('cupA', 'red'), util.Pose(-0.1, 0, 0, math.pi),
+    m.addObj(makeCup('cupA', 'red'), hu.Pose(-0.1, 0, 0, math.pi),
              'cupboard1')
-    m.addObj(makeCup('cupB', 'blue'),  util.Pose(-0.1, 0, 0, math.pi),
+    m.addObj(makeCup('cupB', 'blue'),  hu.Pose(-0.1, 0, 0, math.pi),
              'cupboard2', variance=cupBVariance)
-    m.addObj(makeCup('cupC', 'orange'), util.Pose(-0.1, 0, 0, math.pi),
+    m.addObj(makeCup('cupC', 'orange'), hu.Pose(-0.1, 0, 0, math.pi),
              'cupboard3')
 
     # m.addFixedRelObj(goal1Region, cupPose1, 'table')
@@ -304,7 +304,7 @@ def makeConstraintTestMap():
     workspace.solid = False
 
     tableDX, tableDY, tableDZ = 0.3, 1.0, 0.66
-    tableLoc = util.Pose(2.1, 0, 0, 0.0)
+    tableLoc = hu.Pose(2.1, 0, 0, 0.0)
 
     cbDX, cbDY, cbDZ = 0.25, 0.2, 0.5
     m = bm.ObjMap()
@@ -312,14 +312,14 @@ def makeConstraintTestMap():
                           originPose, None)
     table1 = makeTable(tableDX, tableDY, tableDZ, 'table')
     m.addObj(table1, tableLoc, None, variance = landmarkVariance)
-    m.addObj(makeSodaBox('b1'), util.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b2'), util.Pose(.12, 0, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b3'), util.Pose(.24, 0, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b4'), util.Pose(-.12, 0, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b5'), util.Pose(0, -.08, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b6'), util.Pose(0, -.16, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b7'), util.Pose(0, .08, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b8'), util.Pose(0, .16, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b1'), hu.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b2'), hu.Pose(.12, 0, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b3'), hu.Pose(.24, 0, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b4'), hu.Pose(-.12, 0, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b5'), hu.Pose(0, -.08, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b6'), hu.Pose(0, -.16, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b7'), hu.Pose(0, .08, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b8'), hu.Pose(0, .16, tableDZ+0.01, 0.4), 'table')
 
     return m, workspace
 
@@ -332,7 +332,7 @@ def makeConstraintTestMapAllCentered():
     workspace.solid = False
 
     tableDX, tableDY, tableDZ = 0.3, 1.0, 0.66
-    tableLoc = util.Pose(2.1, 0, 0, 0.0)
+    tableLoc = hu.Pose(2.1, 0, 0, 0.0)
 
     cbDX, cbDY, cbDZ = 0.25, 0.2, 0.5
     m = bm.ObjMap()
@@ -340,15 +340,15 @@ def makeConstraintTestMapAllCentered():
                           originPose, None)
     table1 = makeTable(tableDX, tableDY, tableDZ, 'table')
     m.addObj(table1, tableLoc, None, variance = landmarkVariance)
-    m.addObj(makeSodaBox('b1'), util.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b2'), util.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b3'), util.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b4'), util.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b1'), hu.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b2'), hu.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b3'), hu.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b4'), hu.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
 
-    m.addObj(makeSodaBox('b5'), util.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b6'), util.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b7'), util.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
-    m.addObj(makeSodaBox('b8'), util.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b5'), hu.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b6'), hu.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b7'), hu.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
+    m.addObj(makeSodaBox('b8'), hu.Pose(0, 0, tableDZ+0.01, 0.4), 'table')
 
     return m, workspace
 
@@ -363,7 +363,7 @@ def makeSimpleCupMap():
     cupMap.addObj(makeCup('cupA', 'red'), cupPose1, 'table')
     #cupMap.addObj(makeCup('cupB', 'blue'), cupPose2, 'table')
     #cupMap.addObj(cupboard(0.25, 0.2, 0.25, 0.02),
-    #              util.Pose(0,0,tableDZ+0.001,0), 'table')
+    #              hu.Pose(0,0,tableDZ+0.001,0), 'table')
     return cupMap
 
 ######################################################################
@@ -376,20 +376,20 @@ def makeSodaBox(name = 'soda'):
     return om.Object([om.BoxAligned(sodaBoxDims, color = 'blue')], name=name,
                      typeName = 'soda')
 
-sodaBoxPose = util.Pose(0, 0, tableDZ+0.01, 0.4)
-sodaBoxPose2 = util.Pose(-0.1, 0.1, tableDZ+0.01, 0)
-sodaBoxPoseStraight = util.Pose(0, 0, tableDZ+0.01, 0.0)
+sodaBoxPose = hu.Pose(0, 0, tableDZ+0.01, 0.4)
+sodaBoxPose2 = hu.Pose(-0.1, 0.1, tableDZ+0.01, 0)
+sodaBoxPoseStraight = hu.Pose(0, 0, tableDZ+0.01, 0.0)
 
 soupCanHalfZ = 0.05
 soupCan = om.Object([om.Ngon(0.0675/2, (0, 2*soupCanHalfZ), 6, color = 'red')],
                     name='soup')
-soupCanPose = util.Pose(-0.2, 0, tableDZ+0.01, math.pi/16)
-soupCanOverPose = util.Pose(0.2, 0, tableDZ+0.01, math.pi/16)
-soupCanPose2 = util.Pose(-0.1, -0.15, tableDZ+0.01, math.pi/16)
+soupCanPose = hu.Pose(-0.2, 0, tableDZ+0.01, math.pi/16)
+soupCanOverPose = hu.Pose(0.2, 0, tableDZ+0.01, math.pi/16)
+soupCanPose2 = hu.Pose(-0.1, -0.15, tableDZ+0.01, math.pi/16)
 
 def makeSSMapTwoTable(tableVar = landmarkVariance, includeSS = True):
-    tableLocClose = util.Pose(1.25, tableYOffset, 0, 0.1)    
-    tableLoc2 = util.Pose(2.0, -1.45, 0, 1.57)
+    tableLocClose = hu.Pose(1.25, tableYOffset, 0, 0.1)
+    tableLoc2 = hu.Pose(2.0, -1.45, 0, 1.57)
     ## remember, half widths in x and y
     tableDX2, tableDY2, tableDZ2 = [x*0.0254 for x in (12, 21, 28.75)]
     map = bm.ObjMap()
@@ -402,7 +402,7 @@ def makeSSMapTwoTable(tableVar = landmarkVariance, includeSS = True):
     easyARegion = om.Region(om.BoxAligned(om.bboxGrow(sodaBoxDims, 0.1, 0.005),
                                           opacity=0.5, color='purple'),
                             name='easyARegion')
-    easyARegionPose = util.Pose(0.2, 0.4, tableDZ2+0.01, 0)
+    easyARegionPose = hu.Pose(0.2, 0.4, tableDZ2+0.01, 0)
     map.addFixedRelObj(easyARegion, easyARegionPose, 'table2')
     map.addFixedRelObj(warehouse, originPose, 'table')
 
@@ -412,15 +412,15 @@ def makeSSMapTwoTable(tableVar = landmarkVariance, includeSS = True):
                       name='workspace', color='cyan',
                       perm=False, solid = False)], name = 'workspace')
     aboveTable.solid = False
-    map.addFixedRelObj(aboveTable, util.Pose(0, 0, tableDZ, 0), 'table')
+    map.addFixedRelObj(aboveTable, hu.Pose(0, 0, tableDZ, 0), 'table')
     if includeSS: 
         map.addObj(soupCan('red', 'chicken'), soupCanPose, 'table')
         map.addObj(makeSodaBox(), sodaBoxPoseStraight, 'table')
     return map
 
 def makeSSMap(tableVar = landmarkVariance, includeSS = True):
-    tableLocClose = util.Pose(1.25, tableYOffset, 0, 0.1)    
-    tableLocFar = util.Pose(2.0, tableYOffset, 0, 0.1)    
+    tableLocClose = hu.Pose(1.25, tableYOffset, 0, 0.1)
+    tableLocFar = hu.Pose(2.0, tableYOffset, 0, 0.1)
     map = bm.ObjMap()
     map.addFixedRelObj(room(roomDX0, roomDX1, roomDY0, roomDY1, roomDZ),
                           originPose, None)
@@ -431,14 +431,14 @@ def makeSSMap(tableVar = landmarkVariance, includeSS = True):
                                             -0.2, tableDZ+0.5)])],
                            name='warehouseT', color = 'gray')
     warehouseT = om.ParkingRegion(tableAbove,
-                                 util.Point(1,0,0,0),
-                                 util.Point(0,-1,0,0),
+                                 hu.Point(1,0,0,0),
+                                 hu.Point(0,-1,0,0),
                                  name='warehouseT')
     easyARegion = om.Region(om.BoxAligned([(-tableDX+0.05, 0.3, 0),
                                        (tableDX-0.05, tableDY, 0.5)],
                                           opacity=0.5, color='purple'),
                         name='easyARegion')
-    easyARegionPose = util.Pose(0, 0, tableDZ+0.01, 0)
+    easyARegionPose = hu.Pose(0, 0, tableDZ+0.01, 0)
     if includeSS: 
         map.addObj(table1, tableLocFar, None, variance = tableVar)
         map.addObj(soupCan('red', 'chicken'), soupCanPose, 'table')
@@ -460,25 +460,25 @@ def makeSSMap(tableVar = landmarkVariance, includeSS = True):
                       name='aboveTable', color='cyan',
                       perm=False, solid = False)], name = 'aboveTable')
     aboveTable.solid = False
-    map.addFixedRelObj(aboveTable, util.Pose(0, 0, tableDZ, 0), 'table')
+    map.addFixedRelObj(aboveTable, hu.Pose(0, 0, tableDZ, 0), 'table')
     workspaceObj = om.Object([workspace], name = 'workspace')
     workspaceObj.solid = False
-    map.addFixedRelObj(workspaceObj, util.Pose(0, 0, 0, 0), None)
+    map.addFixedRelObj(workspaceObj, hu.Pose(0, 0, 0, 0), None)
     
     workspaceBackObj = om.Object([workspaceBack], name = 'workspaceBack')
     workspaceBackObj.solid = False
-    map.addFixedRelObj(workspaceBackObj, util.Pose(0, 0, 0, 0), None)
+    map.addFixedRelObj(workspaceBackObj, hu.Pose(0, 0, 0, 0), None)
 
     workspaceFrontObj = om.Object([workspaceFront], name = 'workspaceFront')
     workspaceFrontObj.solid = False
-    map.addFixedRelObj(workspaceFrontObj, util.Pose(0, 0, 0, 0), None)
+    map.addFixedRelObj(workspaceFrontObj, hu.Pose(0, 0, 0, 0), None)
 
     return map
 
 
 def makeSodaMap(tableVar = landmarkVariance):
-    tableLocClose = util.Pose(1.25, tableYOffset, 0, 0.1)    
-    tableLocFar = util.Pose(2.0, tableYOffset, 0, 0.1)    
+    tableLocClose = hu.Pose(1.25, tableYOffset, 0, 0.1)
+    tableLocFar = hu.Pose(2.0, tableYOffset, 0, 0.1)
     map = bm.ObjMap()
     map.addFixedRelObj(room(roomDX0, roomDX1, roomDY0, roomDY1, roomDZ),
                           originPose, None)
@@ -486,11 +486,11 @@ def makeSodaMap(tableVar = landmarkVariance):
     easyARegion = om.Region(om.BoxAligned(om.bboxGrow(sodaBoxDims, 0.1, 0.1),
                                           opacity=0.5, color='purple'),
                             name='easyARegion')
-    easyARegionPose = util.Pose(-0.2, 0.2, tableDZ+0.11, 0)
+    easyARegionPose = hu.Pose(-0.2, 0.2, tableDZ+0.11, 0)
     easyBRegion = om.Region(om.BoxAligned(om.bboxGrow(sodaBoxDims, 0.1, 0.1),
                                           opacity=0.5, color='orange'),
                             name='easyBRegion')
-    easyBRegionPose = util.Pose(-0.2, -0.2, tableDZ+0.11, 0)
+    easyBRegionPose = hu.Pose(-0.2, -0.2, tableDZ+0.11, 0)
     map.addObj(table1, tableLocFar, None, variance = tableVar)
     map.addObj(makeSodaBox(), sodaBoxPoseStraight, 'table')
     map.addFixedRelObj(easyARegion, easyARegionPose, 'table') 
@@ -503,21 +503,21 @@ def makeSodaMap(tableVar = landmarkVariance):
                       name='aboveTable', color='cyan',
                       perm=False, solid = False)], name = 'aboveTable')
     aboveTable.solid = False
-    map.addFixedRelObj(aboveTable, util.Pose(0, 0, 0, 0), 'table')
+    map.addFixedRelObj(aboveTable, hu.Pose(0, 0, 0, 0), 'table')
     workspaceObj = om.Object([workspace], name = 'workspace')
     workspaceObj.solid = False
-    map.addFixedRelObj(workspaceObj, util.Pose(0, 0, 0, 0), None)
+    map.addFixedRelObj(workspaceObj, hu.Pose(0, 0, 0, 0), None)
     return map
 
 tableDX2, tableDY2, tableDZ2 = [x*0.0254 for x in (12, 21, 28.75)]
-tableLoc2 = util.Pose(-0.2, -1.3, 0, 1.0)
+tableLoc2 = hu.Pose(-0.2, -1.3, 0, 1.0)
 
 
 # New means that it has shelves
 # Declare that there is a single 'soda'
 def makeSSMapNew(tableVar = landmarkVariance, chickOff = 0.1, includeSS = True,
                  twoTables = True):
-    tableLocClose = util.Pose(2.0, tableYOffset, 0, 0.1)    
+    tableLocClose = hu.Pose(2.0, tableYOffset, 0, 0.1)
     offZ = 0.19                         # was 0.22
     map = bm.ObjMap()
     map.addFixedRelObj(room(roomDX0, roomDX1, roomDY0, roomDY1, roomDZ),
@@ -538,27 +538,27 @@ def makeSSMapNew(tableVar = landmarkVariance, chickOff = 0.1, includeSS = True,
     cooler = om.Object([Ba([(-0.12, -0.165, 0), (0.12, 0.165, offZ)])],
                        name='cooler')
     cooler.permanent = True
-    soupCanPose = util.Pose(-0.1, 0 + chickOff, 0.04, math.pi/16)
-    sodaBoxPoseStraight = util.Pose(-0.1, 0.0, 0.26, 0.0)
+    soupCanPose = hu.Pose(-0.1, 0 + chickOff, 0.04, math.pi/16)
+    sodaBoxPoseStraight = hu.Pose(-0.1, 0.0, 0.26, 0.0)
 
     workspaceObj = om.Object([workspace], name = 'workspace')
     workspaceObj.solid = False
-    map.addFixedRelObj(workspaceObj, util.Pose(0, 0, 0, 0), None)    
+    map.addFixedRelObj(workspaceObj, hu.Pose(0, 0, 0, 0), None)
 
     workspaceBackObj = om.Object([workspaceBack], name = 'workspaceBack')
     workspaceBackObj.solid = False
-    map.addFixedRelObj(workspaceBackObj, util.Pose(0, 0, 0, 0), None)
+    map.addFixedRelObj(workspaceBackObj, hu.Pose(0, 0, 0, 0), None)
 
     workspaceFrontObj = om.Object([workspaceFront], name = 'workspaceFront')
     workspaceFrontObj.solid = False
-    map.addFixedRelObj(workspaceFrontObj, util.Pose(0, 0, 0, 0), None)
+    map.addFixedRelObj(workspaceFrontObj, hu.Pose(0, 0, 0, 0), None)
 
     if twoTables:
         table2 = makeTable(tableDX2, tableDY2, tableDZ2, 'table2',
                            typeName = 'table2')
-        tableLoc2 = util.Pose(-0.8, -1.1, 0, 0)
+        tableLoc2 = hu.Pose(-0.8, -1.1, 0, 0)
         # Doesn't work
-        # tableLoc2 = util.Pose(-0.3, -1.1, 0, 1.0)
+        # tableLoc2 = hu.Pose(-0.3, -1.1, 0, 1.0)
     
     
     if includeSS: 
@@ -566,7 +566,7 @@ def makeSSMapNew(tableVar = landmarkVariance, chickOff = 0.1, includeSS = True,
         if twoTables:
             map.addObj(table2, tableLoc2, None, variance = tableVar)    
         map.addFixedRelObj(shelves,
-                       util.Pose(0,0,tableDZ+0.001+offZ,0), 'table1')
+                       hu.Pose(0,0,tableDZ+0.001+offZ,0), 'table1')
         map.addObj(soupCan('red', 'chicken'), soupCanPose, 'shelves')
         map.addObj(makeSodaBox(), sodaBoxPoseStraight, 'shelves')
     else:
@@ -578,7 +578,7 @@ def makeSSMapNew(tableVar = landmarkVariance, chickOff = 0.1, includeSS = True,
             map.addUnlocalizedObj(table2, dist.DDist({'workspaceBack': 1.0}),
                                   'table2')
         map.addFixedRelObj(shelves,
-                       util.Pose(0,0,tableDZ+0.001+offZ,0), 'table1')
+                       hu.Pose(0,0,tableDZ+0.001+offZ,0), 'table1')
         map.addFixedRelObj(aboveShelves[0][0], aboveShelves[0][1], 'shelves')
         map.addFixedRelObj(aboveShelves[1][0], aboveShelves[1][1], 'shelves')
         map.addUnlocalizedObj(makeSodaBox(),
@@ -586,20 +586,20 @@ def makeSSMapNew(tableVar = landmarkVariance, chickOff = 0.1, includeSS = True,
                                           aboveShelves[1][0].getBaseName() : 0.45,
                                           'workspace': 0.1}),
                               'soda')        
-    map.addFixedRelObj(cooler, util.Pose(0,0,tableDZ+0.001,0), 'table1')
+    map.addFixedRelObj(cooler, hu.Pose(0,0,tableDZ+0.001,0), 'table1')
     if twoTables:
-        easyARegionPose = util.Pose(0, 0.3, 0.01+tableDZ2, 0) # 0.04
+        easyARegionPose = hu.Pose(0, 0.3, 0.01+tableDZ2, 0) # 0.04
         map.addFixedRelObj(easyARegion, easyARegionPose, 'table2')
     else:
-        easyARegionPose = util.Pose(0, 0.4, 0.01+tableDZ, 0) # 0.04
+        easyARegionPose = hu.Pose(0, 0.4, 0.01+tableDZ, 0) # 0.04
         map.addFixedRelObj(easyARegion, easyARegionPose, 'table1')
 
     wh = om.Object([om.BoxAligned([(-tableDX+0.05,-tableDY, tableDZ+0.01),
                                    (tableDX-0.05, -0.35, tableDZ+0.5)])],
                    name='warehouseT', color = 'gray')
     warehouseT = om.ParkingRegion(wh,
-                                 util.Point(1,0,0,0),
-                                 util.Point(0,-1,0,0),
+                                 hu.Point(1,0,0,0),
+                                 hu.Point(0,-1,0,0),
                                  name='warehouseT')
     map.addFixedRelObj(warehouseT, originPose, 'table1')
     map.addImplicitObj(['warehouseT'], [], 'warehouse')
@@ -619,7 +619,7 @@ def makeSSMapSmallRoom():
     #map.addObj(soupCan, soupCanPose, 'table')
     map.addObj(makeSodaBox(), sodaBoxPoseStraight, 'table')
     #map.addObj(cupboard(0.25, 0.2, 0.25, 0.02),
-                   #util.Pose(0,0,tableDZ+0.001,0), 'table')
+                   #hu.Pose(0,0,tableDZ+0.001,0), 'table')
     return map
 
 
@@ -637,7 +637,7 @@ def makeSSMapMovedTable():
     #map.addObj(soupCan, soupCanPose, 'table')
     map.addObj(makeSodaBox(), sodaBoxPoseStraight, 'table')
     #map.addObj(cupboard(0.25, 0.2, 0.25, 0.02),
-                   #util.Pose(0,0,tableDZ+0.001,0), 'table')
+                   #hu.Pose(0,0,tableDZ+0.001,0), 'table')
     return map
 
 if glob.observable:
@@ -699,8 +699,8 @@ def makeTwoTableMap(deltaX=0.02, deltaY=0.02, deltaTheta=0.05, tableVar = 0.0001
     workspace.solid = False
 
     tableDX, tableDY, tableDZ = 0.3, 0.8, 0.68
-    tableLoc = util.Pose(2.1+rnx(), 0+rny(), 0, 0.0+rnt())
-    tableLoc2 = util.Pose(0.5+rnx(), 1.6+rny(), 0, 1.57+rnt())
+    tableLoc = hu.Pose(2.1+rnx(), 0+rny(), 0, 0.0+rnt())
+    tableLoc2 = hu.Pose(0.5+rnx(), 1.6+rny(), 0, 1.57+rnt())
     cbDX, cbDY, cbDZ = 0.25, 0.2, 0.5
     warehouseDims = [(-tableDX+0.05, -tableDY, tableDZ+0.01),
                      ( tableDX-0.05, -0.2, tableDZ+0.5)]
@@ -708,12 +708,12 @@ def makeTwoTableMap(deltaX=0.02, deltaY=0.02, deltaTheta=0.05, tableVar = 0.0001
     tableAbove1 = om.Object([om.BoxAligned(warehouseDims)],
                             name='warehouse1', color = 'gray')
     warehouse1 = om.ParkingRegion(tableAbove1,
-                                 util.Point(1,0,0,0), util.Point(0,-1,0,0),
+                                 hu.Point(1,0,0,0), hu.Point(0,-1,0,0),
                                  name='warehouse1')
     tableAbove2 = om.Object([om.BoxAligned(warehouseDims)],
                             name='warehouse2', color = 'green')
     warehouse2 = om.ParkingRegion(tableAbove2,
-                                 util.Point(1,0,0,0), util.Point(0,-1,0,0),
+                                 hu.Point(1,0,0,0), hu.Point(0,-1,0,0),
                                  name='warehouse2')
     m = bm.ObjMap()
     m.addFixedRelObj(room(roomDX0, roomDX1, roomDY0, roomDY1, roomDZ),
@@ -726,30 +726,30 @@ def makeTwoTableMap(deltaX=0.02, deltaY=0.02, deltaTheta=0.05, tableVar = 0.0001
     m.addFixedRelObj(warehouse2, originPose, 'table2')
 
     m.addObj(cupboard(cbDX, cbDY, cbDZ, 0.02, 'cupboard1'),
-             util.Pose(0+rnx(),0+rny(),tableDZ+0.001,0+rnt()), 'table')
+             hu.Pose(0+rnx(),0+rny(),tableDZ+0.001,0+rnt()), 'table')
     m.addObj(cupboard(cbDX, cbDY, cbDZ, 0.02, 'cupboard2', shelf=0.5),
-             util.Pose(0+rnx(),0+rny(),tableDZ+0.001,0+rnt()), 'table2')
+             hu.Pose(0+rnx(),0+rny(),tableDZ+0.001,0+rnt()), 'table2')
 
     targetBox = om.bboxGrow(cupDims[0], 0.1, 0.02) # was 0.05
     cupboard2TargetRegion = om.Region(om.BoxAligned(targetBox,
                                                     opacity=0.5, color='purple'),
                                       name='cupboard2TargetRegion')
-    m.addFixedRelObj(cupboard2TargetRegion, util.Pose(0, 0, 0.5*cbDZ+0.05,0), 'cupboard2') # added to z
+    m.addFixedRelObj(cupboard2TargetRegion, hu.Pose(0, 0, 0.5*cbDZ+0.05,0), 'cupboard2') # added to z
     table2TargetRegion = om.Region(om.BoxAligned(targetBox,
                                                  opacity=0.5, color='purple'),
                                    name='table2TargetRegion')
-    m.addFixedRelObj(table2TargetRegion, util.Pose(0, 0, tableDZ+0.03,0), 'table2') # added to z
+    m.addFixedRelObj(table2TargetRegion, hu.Pose(0, 0, tableDZ+0.03,0), 'table2') # added to z
 
     cupSep = 0.01
-    m.addObj(makeCup('cupA', 'red'), util.Pose(-0.1+rnx(), 0+rny(), cupSep,
+    m.addObj(makeCup('cupA', 'red'), hu.Pose(-0.1+rnx(), 0+rny(), cupSep,
                                                math.pi+rnt()),
              'cupboard1', variance = 0.001)
-    m.addObj(makeCup('cupB', 'blue'),  util.Pose(0.1+rnx(), 0+rny(), cupSep,
+    m.addObj(makeCup('cupB', 'blue'),  hu.Pose(0.1+rnx(), 0+rny(), cupSep,
                                                  math.pi+rnt()),
              'cupboard1', variance = 0.001)
 
     rot = 0.5 if diff else 0.0
-    cupPoseC = util.Pose(-0.2+rnx(), 0+rny(), tableDZ+0.01, math.pi-rot+rnt())
+    cupPoseC = hu.Pose(-0.2+rnx(), 0+rny(), tableDZ+0.01, math.pi-rot+rnt())
     m.addObj(makeCup('cupC', 'green'), cupPoseC, 'table2')
     return m, workspace
     
@@ -771,8 +771,8 @@ def makeTwoTableMap(deltaX=0.02, deltaY=0.02, deltaTheta=0.05, tableVar = 0.0001
 #     workspace.solid = False
 
 #     tableDX, tableDY, tableDZ = 0.3, 1.0, 0.68
-#     tableLoc = util.Pose(2.1+rnx(), 0+rny(), 0, 0.0+rnt())
-#     tableLoc2 = util.Pose(0.5+rnx(), 1.25+rny(), 0, 1.57+rnt())
+#     tableLoc = hu.Pose(2.1+rnx(), 0+rny(), 0, 0.0+rnt())
+#     tableLoc2 = hu.Pose(0.5+rnx(), 1.25+rny(), 0, 1.57+rnt())
 #     cbDX, cbDY, cbDZ = 0.25, 0.2, 0.5
 #     warehouseDims = [(-tableDX+0.05, -tableDY, tableDZ+0.01),
 #                      ( tableDX-0.05, -0.2, roomDZ+0.01)]
@@ -780,12 +780,12 @@ def makeTwoTableMap(deltaX=0.02, deltaY=0.02, deltaTheta=0.05, tableVar = 0.0001
 #     tableAbove1 = om.Object([om.BoxAligned(warehouseDims)],
 #                             name='warehouse1', color = 'gray')
 #     warehouse1 = om.ParkingRegion(tableAbove1,
-#                                  util.Point(1,0,0,0), util.Point(0,-1,0,0),
+#                                  hu.Point(1,0,0,0), hu.Point(0,-1,0,0),
 #                                  name='warehouse1')
 #     tableAbove2 = om.Object([om.BoxAligned(warehouseDims)],
 #                             name='warehouse2', color = 'green')
 #     warehouse2 = om.ParkingRegion(tableAbove2,
-#                                  util.Point(1,0,0,0), util.Point(0,-1,0,0),
+#                                  hu.Point(1,0,0,0), hu.Point(0,-1,0,0),
 #                                  name='warehouse2')
 #     m = bm.ObjMap()
 #     m.addFixedRelObj(room(roomDX0, roomDX1, roomDY0, roomDY1, roomDZ),
@@ -801,29 +801,29 @@ def makeTwoTableMap(deltaX=0.02, deltaY=0.02, deltaTheta=0.05, tableVar = 0.0001
 
 #     cDims = [(-cbDX-0.05, -cbDY, 0), (cbDX, cbDY, 0.145)]
 #     m.addObj(cupboard(cbDX, cbDY, cbDZ, 0.02, 'cupboard1A'),
-#              util.Pose(0+rnx(),0+rny(),tableDZ+0.001,0+rnt()), 'table',
+#              hu.Pose(0+rnx(),0+rny(),tableDZ+0.001,0+rnt()), 'table',
 #              variance = smallVariance)
 #     inC1A = om.Region(om.BoxAligned(cDims, opacity=0.5, color='purple'),
 #                       name='inC1A')
-#     m.addFixedRelObj(inC1A, util.Pose(0, 0, 0, 0), 'cupboard1A')
+#     m.addFixedRelObj(inC1A, hu.Pose(0, 0, 0, 0), 'cupboard1A')
 #     m.addObj(cupboard(cbDX, cbDY, cbDZ, 0.02, 'cupboard1B'),
-#              util.Pose(0+rnx(),2*cbDY+rny(),tableDZ+0.001,0+rnt()), 'table',
+#              hu.Pose(0+rnx(),2*cbDY+rny(),tableDZ+0.001,0+rnt()), 'table',
 #              variance = smallVariance)
 #     inC1B = om.Region(om.BoxAligned(cDims, opacity=0.5, color='purple'),
 #                       name='inC1B')
-#     m.addFixedRelObj(inC1B, util.Pose(0, 0, 0, 0), 'cupboard1B')
+#     m.addFixedRelObj(inC1B, hu.Pose(0, 0, 0, 0), 'cupboard1B')
 #     m.addObj(cupboard(cbDX, cbDY, cbDZ, 0.02, 'cupboard2A'),
-#              util.Pose(0+rnx(),0+rny(),tableDZ+0.001,0+rnt()), 'table2',
+#              hu.Pose(0+rnx(),0+rny(),tableDZ+0.001,0+rnt()), 'table2',
 #              variance = smallVariance)
 #     inC2A = om.Region(om.BoxAligned(cDims, opacity=0.5, color='purple'),
 #                       name='inC2A')
-#     m.addFixedRelObj(inC2A, util.Pose(0, 0, 0, 0), 'cupboard2A')
+#     m.addFixedRelObj(inC2A, hu.Pose(0, 0, 0, 0), 'cupboard2A')
 #     m.addObj(cupboard(cbDX, cbDY, cbDZ, 0.02, 'cupboard2B'),
-#              util.Pose(0+rnx(),2*cbDY+rny(),tableDZ+0.001,0+rnt()), 'table2',
+#              hu.Pose(0+rnx(),2*cbDY+rny(),tableDZ+0.001,0+rnt()), 'table2',
 #              variance = smallVariance)
 #     inC2B = om.Region(om.BoxAligned(cDims, opacity=0.5, color='purple'),
 #                       name='inC2B')
-#     m.addFixedRelObj(inC2B, util.Pose(0, 0, 0, 0), 'cupboard2B')
+#     m.addFixedRelObj(inC2B, hu.Pose(0, 0, 0, 0), 'cupboard2B')
 
 #     belowTables = om.BoxAligned([(-roomDX0,-roomDY0, 0),
 #                                  (roomDX1, roomDY1, tableDZ-0.05)])
@@ -851,7 +851,7 @@ def makeTwoTableMap(deltaX=0.02, deltaY=0.02, deltaTheta=0.05, tableVar = 0.0001
 #             for j, (obj, color) in enumerate(col):
 #                 if obj:
 #                     m.addObj(obj('c%s_%d_%d'%(c,i+1,j+1), color),
-#                              util.Pose(-cbDX+0.02+i*dx+rnx(),
+#                              hu.Pose(-cbDX+0.02+i*dx+rnx(),
 #                                        -cbDY+(j+1)*dy+rny(),
 #                                        cupSep, math.pi+rnt()),
 #                              'cupboard%s'%c, variance = 0.001)
@@ -873,9 +873,9 @@ def makeMultiCupboardMap2(withObjects = True,
     roomDZ = 1.25
 
     tableDX, tableDY, tableDZ = 0.3, 1.25, 0.68
-    tableLoc = util.Pose(2.1, -0.25, 0, 0.0)
-    #tableLoc2 = util.Pose(0.5, 1.25, 0, 1.57)
-    tableLoc2 = util.Pose(0.1, 1.4, 0, 1.57)
+    tableLoc = hu.Pose(2.1, -0.25, 0, 0.0)
+    #tableLoc2 = hu.Pose(0.5, 1.25, 0, 1.57)
+    tableLoc2 = hu.Pose(0.1, 1.4, 0, 1.57)
     cbDX, cbDY, cbDZ = 0.2, 0.24, 0.4
     
     workspace = om.BoxAligned([(-roomDX0,-roomDY0, 0),
@@ -902,12 +902,12 @@ def makeMultiCupboardMap2(withObjects = True,
     tableAbove1 = om.Object([om.BoxAligned(warehouseDims)],
                             name='warehouse1', color = 'gray')
     warehouse1 = om.ParkingRegion(tableAbove1,
-                                 util.Point(-1,0,0.01,0), util.Point(0,-1,0,0),
+                                 hu.Point(-1,0,0.01,0), hu.Point(0,-1,0,0),
                                  name='warehouse1')
     tableAbove2 = om.Object([om.BoxAligned(warehouseDims)],
                             name='warehouse2', color = 'green')
     warehouse2 = om.ParkingRegion(tableAbove2,
-                                 util.Point(-1,0,0.01,0), util.Point(0,-1,0,0),
+                                 hu.Point(-1,0,0.01,0), hu.Point(0,-1,0,0),
                                  name='warehouse2')
 
     cDims = [(-cbDX+0.01, -cbDY+0.01, 0.0), (cbDX-0.01, cbDY-0.01, 0.33)]
@@ -920,8 +920,8 @@ def makeMultiCupboardMap2(withObjects = True,
     inC2B = om.Region(om.BoxAligned(cDims, opacity=0.5, color='purple'),
                       name='inC2B')
     m = bm.ObjMap()
-    m.addFixedRelObj(workspaceObj, util.Pose(0, 0, 0, 0), None)    
-    m.addFixedRelObj(knownspaceObj, util.Pose(0, 0, 0, 0), None)    
+    m.addFixedRelObj(workspaceObj, hu.Pose(0, 0, 0, 0), None)
+    m.addFixedRelObj(knownspaceObj, hu.Pose(0, 0, 0, 0), None)
     m.addFixedRelObj(room(roomDX0, roomDX1, roomDY0, roomDY1, roomDZ),
                           originPose, None)
     table1 = makeTable(tableDX, tableDY, tableDZ, 'table')
@@ -933,21 +933,21 @@ def makeMultiCupboardMap2(withObjects = True,
     m.addImplicitObj(['warehouse1', 'warehouse2'], [], 'warehouse')
 
     m.addObj(cupboard2(cbDX, cbDY, cbDZ, 0.02, 'cupboard1A', shelf=1.0),
-             util.Pose(0,0,tableDZ+0.001,0), 'table',
+             hu.Pose(0,0,tableDZ+0.001,0), 'table',
              variance = smallVariance)
-    m.addFixedRelObj(inC1A, util.Pose(0, 0, 0, 0), 'cupboard1A')
+    m.addFixedRelObj(inC1A, hu.Pose(0, 0, 0, 0), 'cupboard1A')
     m.addObj(cupboard2(cbDX, cbDY, cbDZ, 0.02, 'cupboard1B', shelf=1.0),
-             util.Pose(0,2*cbDY+0.35,tableDZ+0.001,0), 'table',
+             hu.Pose(0,2*cbDY+0.35,tableDZ+0.001,0), 'table',
              variance = smallVariance)
-    m.addFixedRelObj(inC1B, util.Pose(0, 0, 0, 0), 'cupboard1B')
+    m.addFixedRelObj(inC1B, hu.Pose(0, 0, 0, 0), 'cupboard1B')
     m.addObj(cupboard2(cbDX, cbDY, cbDZ, 0.02, 'cupboard2A', shelf=1.0),
-             util.Pose(0,0,tableDZ+0.001,0), 'table2',
+             hu.Pose(0,0,tableDZ+0.001,0), 'table2',
              variance = smallVariance)
-    m.addFixedRelObj(inC2A, util.Pose(0, 0, 0, 0), 'cupboard2A')
+    m.addFixedRelObj(inC2A, hu.Pose(0, 0, 0, 0), 'cupboard2A')
     m.addObj(cupboard2(cbDX, cbDY, cbDZ, 0.02, 'cupboard2B', shelf = 1.0),
-             util.Pose(0,2*cbDY+0.35,tableDZ+0.001,0), 'table2',
+             hu.Pose(0,2*cbDY+0.35,tableDZ+0.001,0), 'table2',
              variance = smallVariance)
-    m.addFixedRelObj(inC2B, util.Pose(0, 0, 0, 0), 'cupboard2B')
+    m.addFixedRelObj(inC2B, hu.Pose(0, 0, 0, 0), 'cupboard2B')
 
     belowTables = om.BoxAligned([(-roomDX0,-roomDY0, 0),
                                  (roomDX1, roomDY1, tableDZ-0.05)])
@@ -1057,7 +1057,7 @@ def makeMultiCupboardMap2(withObjects = True,
             for j, (obj, color) in enumerate(col):
                 if obj:
                     m.addObj(obj(color),
-                             util.Pose(-cbDX+0.05+i*dx+rnx(),
+                             hu.Pose(-cbDX+0.05+i*dx+rnx(),
                                        -cbDY+(j+1)*dy,
                                        cupSep, math.pi+rnt()),
                              'cupboard%s'%c, variance = 0.001)
@@ -1079,10 +1079,10 @@ def makeMultiCupboardMap3(withObjects = True,
     roomDZ = 1.25
 
     tableDX, tableDY, tableDZ = 0.3, 0.75, 0.75 # 0.68
-    tableLoc = util.Pose(2.1, 0, 0, 0.0)
-    tableLoc2 = util.Pose(0.1, 1.4, 0, 1.57)
-    tableLoc3 = util.Pose(-2.1, 0, 0, 0.0)
-    tableLoc4 = util.Pose(0.1, -1.4, 0, 1.57)
+    tableLoc = hu.Pose(2.1, 0, 0, 0.0)
+    tableLoc2 = hu.Pose(0.1, 1.4, 0, 1.57)
+    tableLoc3 = hu.Pose(-2.1, 0, 0, 0.0)
+    tableLoc4 = hu.Pose(0.1, -1.4, 0, 1.57)
 
     cbDX, cbDY, cbDZ = 0.2, 0.24, 0.4
     
@@ -1111,23 +1111,23 @@ def makeMultiCupboardMap3(withObjects = True,
     tableAbove1 = om.Object([om.BoxAligned(warehouseDims)],
                             name='warehouse1', color = 'gray')
     warehouse1 = om.ParkingRegion(tableAbove1,
-                                 util.Point(-1,0,0.01,0), util.Point(0,-1,0,0),
+                                 hu.Point(-1,0,0.01,0), hu.Point(0,-1,0,0),
                                  name='warehouse1')
     tableAbove2 = om.Object([om.BoxAligned(warehouseDims)],
                             name='warehouse2', color = 'green')
     warehouse2 = om.ParkingRegion(tableAbove2,
-                                 util.Point(-1,0,0.01,0), util.Point(0,-1,0,0),
+                                 hu.Point(-1,0,0.01,0), hu.Point(0,-1,0,0),
                                  name='warehouse2')
 
     tableAbove3 = om.Object([om.BoxAligned(warehouseDims)],
                             name='warehouse3', color = 'gray')
     warehouse3 = om.ParkingRegion(tableAbove3,
-                                 util.Point(-1,0,0.01,0), util.Point(0,-1,0,0),
+                                 hu.Point(-1,0,0.01,0), hu.Point(0,-1,0,0),
                                  name='warehouse3')
     tableAbove4 = om.Object([om.BoxAligned(warehouseDims)],
                             name='warehouse4', color = 'green')
     warehouse4 = om.ParkingRegion(tableAbove4,
-                                 util.Point(-1,0,0.01,0), util.Point(0,-1,0,0),
+                                 hu.Point(-1,0,0.01,0), hu.Point(0,-1,0,0),
                                  name='warehouse4')
 
     cDims = [(-cbDX+0.01, -cbDY+0.01, 0.0), (cbDX-0.01, cbDY-0.01, 0.33)]
@@ -1140,8 +1140,8 @@ def makeMultiCupboardMap3(withObjects = True,
     inC2B = om.Region(om.BoxAligned(cDims, opacity=0.5, color='purple'),
                       name='inS')
     m = bm.ObjMap()
-    m.addFixedRelObj(workspaceObj, util.Pose(0, 0, 0, 0), None)    
-    m.addFixedRelObj(knownspaceObj, util.Pose(0, 0, 0, 0), None)    
+    m.addFixedRelObj(workspaceObj, hu.Pose(0, 0, 0, 0), None)
+    m.addFixedRelObj(knownspaceObj, hu.Pose(0, 0, 0, 0), None)
     m.addFixedRelObj(room(roomDX0, roomDX1, roomDY0, roomDY1, roomDZ),
                           originPose, None)
 
@@ -1163,21 +1163,21 @@ def makeMultiCupboardMap3(withObjects = True,
                       'warehouse3', 'warehouse4'], [], 'warehouse')
 
     m.addObj(cupboard2(cbDX, cbDY, cbDZ, 0.02, 'cupboardE', shelf=1.0),
-             util.Pose(0,2*cbDY,tableDZ+0.001,0), 'table',
+             hu.Pose(0,2*cbDY,tableDZ+0.001,0), 'table',
              variance = smallVariance)
-    m.addFixedRelObj(inC1A, util.Pose(0, 0, 0, 0), 'cupboardE')
+    m.addFixedRelObj(inC1A, hu.Pose(0, 0, 0, 0), 'cupboardE')
     m.addObj(cupboard2(cbDX, cbDY, cbDZ, 0.02, 'cupboardW', shelf=1.0),
-             util.Pose(0,2*cbDY,tableDZ+0.001,math.pi), 'table3',
+             hu.Pose(0,2*cbDY,tableDZ+0.001,math.pi), 'table3',
              variance = smallVariance)
-    m.addFixedRelObj(inC1B, util.Pose(0, 0, 0, 0), 'cupboardW')
+    m.addFixedRelObj(inC1B, hu.Pose(0, 0, 0, 0), 'cupboardW')
     m.addObj(cupboard2(cbDX, cbDY, cbDZ, 0.02, 'cupboardN', shelf=1.0),
-             util.Pose(0,2*cbDY,tableDZ+0.001,0), 'table2',
+             hu.Pose(0,2*cbDY,tableDZ+0.001,0), 'table2',
              variance = smallVariance)
-    m.addFixedRelObj(inC2A, util.Pose(0, 0, 0, 0), 'cupboardN')
+    m.addFixedRelObj(inC2A, hu.Pose(0, 0, 0, 0), 'cupboardN')
     m.addObj(cupboard2(cbDX, cbDY, cbDZ, 0.02, 'cupboardS', shelf = 1.0),
-             util.Pose(0,2*cbDY,tableDZ+0.001,math.pi), 'table4',
+             hu.Pose(0,2*cbDY,tableDZ+0.001,math.pi), 'table4',
              variance = smallVariance)
-    m.addFixedRelObj(inC2B, util.Pose(0, 0, 0, 0), 'cupboardS')
+    m.addFixedRelObj(inC2B, hu.Pose(0, 0, 0, 0), 'cupboardS')
 
     belowTables = om.BoxAligned([(-roomDX0,-roomDY0, 0),
                                  (roomDX1, roomDY1, tableDZ-0.05)])
@@ -1299,7 +1299,7 @@ def makeMultiCupboardMap3(withObjects = True,
             for j, (obj, color) in enumerate(col):
                 if obj:
                     m.addObj(obj(color),
-                             util.Pose(-cbDX+0.05+i*dx+rnx(),
+                             hu.Pose(-cbDX+0.05+i*dx+rnx(),
                                        -cbDY+(j+1)*dy,
                                        cupSep, math.pi+rnt()),
                              'cupboard%s'%c, variance = 0.001)        
@@ -1320,21 +1320,21 @@ def makeMultiCupboardMap3(withObjects = True,
     return m, workspace
 
 def smallCup(color):
-    c = makeCup(util.gensym('smallCup'), color, dims = cupDims)
+    c = makeCup(hu.gensym('smallCup'), color, dims = cupDims)
     c.typeName = 'smallCup_'+color
     return c
 def bigCup(color):
-    c = makeCup(util.gensym('bigCup'), color, dims = bigCupDims)
+    c = makeCup(hu.gensym('bigCup'), color, dims = bigCupDims)
     c.typeName = 'bigCup_'+color
     return c
 def sodaBox(color):
     s = om.Object([om.BoxAligned(sodaBoxDims, color=color)],
-                     name=util.gensym('soda'))
+                     name=hu.gensym('soda'))
     s.typeName = 'soda'
     return s
 def soupCan(color, name = None):
     s = om.Object([om.Ngon(0.0675/2, (0, 2*soupCanHalfZ), 8, color=color)],
-                     name=name+'_soup' if name else util.gensym('soup'))
+                     name=name+'_soup' if name else hu.gensym('soup'))
     s.typeName = 'soup16'
     return s
     
@@ -1345,8 +1345,8 @@ def soupCan(color, name = None):
 
 # old
 def makeSmallMap2(): 
-    #cupPose1 = util.Pose(-2.5, 0, tableDZ+0.01, math.pi) #Set the cup behind the robot
-    #tablePose = util.Pose(-0.2 - 100, 0.4 + 100 , tableDZ+100, 0) #Set the cup behind the robot
+    #cupPose1 = hu.Pose(-2.5, 0, tableDZ+0.01, math.pi) #Set the cup behind the robot
+    #tablePose = hu.Pose(-0.2 - 100, 0.4 + 100 , tableDZ+100, 0) #Set the cup behind the robot
     cupMap = bm.ObjMap()
     cupMap.addFixedRelObj(room(roomDX0, roomDX1, roomDY0, roomDY1, roomDZ),
                           originPose, None)
@@ -1362,8 +1362,8 @@ def makeSmallMap2():
 ######################################################################
 
 def makeSSSMap(tableVar = landmarkVariance, includeSS = True):
-    tableLocClose = util.Pose(1.25, tableYOffset, 0, 0.1)    
-    tableLocFar = util.Pose(2.0, tableYOffset, 0, 0.1)    
+    tableLocClose = hu.Pose(1.25, tableYOffset, 0, 0.1)
+    tableLocFar = hu.Pose(2.0, tableYOffset, 0, 0.1)
     map = bm.ObjMap()
     map.addFixedRelObj(room(roomDX0, roomDX1, roomDY0, roomDY1, roomDZ),
                           originPose, None)
@@ -1372,7 +1372,7 @@ def makeSSSMap(tableVar = landmarkVariance, includeSS = True):
     easyARegion = om.Region(om.BoxAligned(om.bboxGrow(sodaBoxDims, 0.1, 0.1),
                                           opacity=0.5, color='purple'),
                             name='easyARegion')
-    easyARegionPose = util.Pose(-0.2, 0.4, tableDZ+0.11, 0)
+    easyARegionPose = hu.Pose(-0.2, 0.4, tableDZ+0.11, 0)
     if includeSS: 
         map.addObj(table1, tableLocFar, None, variance = tableVar)
         map.addObj(soupCan('red', 'tomato'), sodaBoxPoseStraight, 'table1')
@@ -1395,16 +1395,16 @@ def makeSSSMap(tableVar = landmarkVariance, includeSS = True):
                       name='aboveTable', color='cyan',
                       perm=False, solid = False)], name = 'aboveTable')
     aboveTable.solid = False
-    map.addFixedRelObj(aboveTable, util.Pose(0, 0, tableDZ, 0), 'table1')
+    map.addFixedRelObj(aboveTable, hu.Pose(0, 0, tableDZ, 0), 'table1')
     workspaceObj = om.Object([workspace], name = 'workspace')
     workspaceObj.solid = False
-    map.addFixedRelObj(workspaceObj, util.Pose(0, 0, 0, 0), None)
+    map.addFixedRelObj(workspaceObj, hu.Pose(0, 0, 0, 0), None)
     return map
 
 
 def makeSSSMap2(tableVar = landmarkVariance, includeSS = True):
-    tableLocClose = util.Pose(1.25, tableYOffset, 0, 0.1)    
-    tableLocFar = util.Pose(2.0, tableYOffset, 0, 0.1)    
+    tableLocClose = hu.Pose(1.25, tableYOffset, 0, 0.1)
+    tableLocFar = hu.Pose(2.0, tableYOffset, 0, 0.1)
     map = bm.ObjMap()
     map.addFixedRelObj(room(roomDX0, roomDX1, roomDY0, roomDY1, roomDZ),
                           originPose, None)
@@ -1413,17 +1413,17 @@ def makeSSSMap2(tableVar = landmarkVariance, includeSS = True):
     easyARegion = om.Region(om.BoxAligned(om.bboxGrow(sodaBoxDims, 0.1, 0.1),
                                           opacity=0.5, color='purple'),
                             name='easyARegion')
-    easyARegionPose = util.Pose(-0.2, 0.4, tableDZ+0.11, 0)
+    easyARegionPose = hu.Pose(-0.2, 0.4, tableDZ+0.11, 0)
     if includeSS:
-        p1 = util.Pose(-0.2, 0.1, tableDZ+0.01, math.pi/16)
-        p2 = util.Pose(-0.2, 0.3, tableDZ+0.01, math.pi/16)
-        p3 = util.Pose(-0.2, 0.5, tableDZ+0.01, math.pi/16)
-        p4 = util.Pose(-0.2, -0.1, tableDZ+0.01, math.pi/16)
-        p5 = util.Pose(-0.2, -0.3, tableDZ+0.01, math.pi/16)
-        p6 = util.Pose(0.2, -0.3, tableDZ+0.01, math.pi/16)
-        p7 = util.Pose(0.2, -0.1, tableDZ+0.01, math.pi/16)
-        p8 = util.Pose(0.2, 0.1, tableDZ+0.01, math.pi/16)
-        p9 = util.Pose(0.2, 0.3, tableDZ+0.01, math.pi/16)
+        p1 = hu.Pose(-0.2, 0.1, tableDZ+0.01, math.pi/16)
+        p2 = hu.Pose(-0.2, 0.3, tableDZ+0.01, math.pi/16)
+        p3 = hu.Pose(-0.2, 0.5, tableDZ+0.01, math.pi/16)
+        p4 = hu.Pose(-0.2, -0.1, tableDZ+0.01, math.pi/16)
+        p5 = hu.Pose(-0.2, -0.3, tableDZ+0.01, math.pi/16)
+        p6 = hu.Pose(0.2, -0.3, tableDZ+0.01, math.pi/16)
+        p7 = hu.Pose(0.2, -0.1, tableDZ+0.01, math.pi/16)
+        p8 = hu.Pose(0.2, 0.1, tableDZ+0.01, math.pi/16)
+        p9 = hu.Pose(0.2, 0.3, tableDZ+0.01, math.pi/16)
 
         map.addObj(table1, tableLocFar, None, variance = tableVar)
         map.addObj(soupCan('red', 'tomato'), sodaBoxPoseStraight, 'table1')
@@ -1454,10 +1454,10 @@ def makeSSSMap2(tableVar = landmarkVariance, includeSS = True):
                       name='aboveTable', color='cyan',
                       perm=False, solid = False)], name = 'aboveTable')
     aboveTable.solid = False
-    map.addFixedRelObj(aboveTable, util.Pose(0, 0, 0, 0), 'table1')
+    map.addFixedRelObj(aboveTable, hu.Pose(0, 0, 0, 0), 'table1')
     workspaceObj = om.Object([workspace], name = 'workspace')
     workspaceObj.solid = False
-    map.addFixedRelObj(workspaceObj, util.Pose(0, 0, 0, 0), None)
+    map.addFixedRelObj(workspaceObj, hu.Pose(0, 0, 0, 0), None)
     return map
 
 ######################################################################

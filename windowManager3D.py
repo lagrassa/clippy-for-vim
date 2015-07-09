@@ -1,6 +1,7 @@
 import DrawingWindowStandalonePIL as dw
 reload(dw)
 from graphics3D import Window3D
+from traceFile import tr
 
 ######################################################################
 ##  Window management
@@ -14,14 +15,14 @@ def addWindow(w, title):
 
 def makeWindow(title, viewPort = [-1.,1., -1.,1., 0.,1.], windowWidth = 500):
     if not title in windows:
-        print 'Could not find', title, 'in', windows
-        print 'Creating new window:', title
+        tr('wm', 0, 'Could not find', title, 'in', windows, 'creating new',
+           ol = True)
         if use3D:
             # windows[title] = om.VisualWindow(title = title,
             #                      windowDims = (windowWidth, windowWidth))
             pass
         else:
-            print viewPort
+            #print viewPort
             windows[title] = Window3D(title = title,
                                       windowWidth = windowWidth,
                                       viewport = viewPort)

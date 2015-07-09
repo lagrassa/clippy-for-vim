@@ -1,10 +1,10 @@
-import pdb
-import math
-import numpy as np
+#import pdb
+#import math
+#import numpy as np
 import time
 import string
 
-import util
+import hu
 import windowManager3D as wm
 import transformations as transf
 from geom import bboxGrow
@@ -19,7 +19,7 @@ from planGlobals import debug, debugMsg, useROS
 
 import traceFile
 reload(traceFile)
-from traceFile import traceStart, traceEnd
+from traceFile import traceStart, traceEnd, tr, trAlways
 
 import fbch
 reload(fbch)
@@ -37,7 +37,7 @@ from planUtil import Violations, PoseD, ObjGraspB, ObjPlaceB
 
 import dist
 reload(dist)
-from dist import DDist, DeltaDist, MultivariateGaussianDistribution, makeDiag
+from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 
 import pr2Robot
@@ -131,21 +131,19 @@ def habbs(s, g, ops, ancestors):
         # the goal is not yet satisfied.
         isSat = s.satisfies(g)
         if not isSat:
-            if debug('heuristic0'):
-                print '*** habbs is 0 but goal not sat ***'
-                for thing in g.fluents:
-                    if not thing.isGround() or \
-                      thing.valueInDetails(s.details) == False:
-                        print thing
-                raw_input('Unsat fluents')
-                raw_input('Try resetting cache?')
-                fbch.hCacheReset()
-                newVal = hAddBackBSetID(s, g, hops, ancestors,
+            tr('heuristic0', 0,
+               '*** habbs is 0 but goal not sat ***',
+               [thing for thing in g.fluents if \
+                   not thing.isGround() or s.fluentValue(thing)==False])
+            #raw_input('Try resetting cache?')
+            fbch.hCacheReset()
+            newVal = hAddBackBSetID(s, g, hops, ancestors,
                                         ddPartitionFn = partition,
                                         maxK = 20)
-                if newVal >= 0: return newVal
+            if newVal >= 0: return newVal
             easyVal = hEasy(s, g, ops, ancestors)
-            print '*** returning easyVal', easyVal, '***'
+            tr('heuristic0', 0, '*** returning easyVal', easyVal,
+               ol = True)
             return easyVal
     heuristicTime += (time.time() - startTime)
     return val
@@ -162,7 +160,7 @@ def testRepeat(n, repeat=3, **args):
         try:
             testFunc(n, **args)
         except TimeoutError:
-            print '************** Timed out **************'
+            trAlways( '************** Timed out **************')
 
 testResults = {}
 
@@ -200,7 +198,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
         return Ba([(x0, y0, z0), (x1, y1, z1)])
 
     def placeSc((x0, x1), (y0, y1), (z0, z1)):
-        return shapes.BoxScale(x1 - x0, y1 - y0, z1 - z0, util.Pose(0,0,-0.5*(z1-z0),0), 0.5)
+        return shapes.BoxScale(x1 - x0, y1 - y0, z1 - z0, hu.Pose(0,0,-0.5*(z1-z0),0), 0.5)
     
     world = World()
     # The room
@@ -227,21 +225,21 @@ def testWorld(include = ['objA', 'objB', 'objC'],
         if name in include:
             bbox = world.getObjectShapeAtOrigin(name).bbox()
             regName = name+'Top'
-            print 'Region', regName, '\n', bbox
+            tr('rig', 0, ('Region', regName), bbox)
             world.addObjectRegion(name, regName, Sh([Ba(bbox)], name=regName),
-                                  util.Pose(0,0,2*bbox[1,2],0))
+                                  hu.Pose(0,0,2*bbox[1,2],0))
             bboxLeft = np.empty_like(bbox); bboxLeft[:] = bbox
             bboxLeft[0][0] = 0.5*(bbox[0][0] + bbox[1][0]) + 0.2
             regName = name+'Left'
-            print 'Region', regName, '\n', bboxLeft
+            tr('rig', 0, ('Region', regName), bboxLeft)
             world.addObjectRegion(name, regName, Sh([Ba(bboxLeft)], name=regName),
-                                  util.Pose(0,0,2*bbox[1,2],0))
+                                  hu.Pose(0,0,2*bbox[1,2],0))
             bboxRight = np.empty_like(bbox); bboxRight = bbox
             bboxRight[1][0] = 0.5*(bbox[0][0] + bbox[1][0]) - 0.2
             regName = name+'Right'
-            print 'Region', regName, '\n', bbox
+            tr('rig', 0, ('Region', regName), bboxRight)
             world.addObjectRegion(name, regName, Sh([Ba(bboxRight)], name=regName),
-                                  util.Pose(0,0,2*bbox[1,2],0))
+                                  hu.Pose(0,0,2*bbox[1,2],0))
 
     # Some handy regions on table 1
     if 'table1' in include:
@@ -252,14 +250,14 @@ def testWorld(include = ['objA', 'objB', 'objC'],
         mfbbox[1][1] = 0.5*(bbox[0][1] + bbox[1][1])
         world.addObjectRegion('table1', 'table1MidRear', 
                                Sh([Ba(mfbbox)], name='table1MidRear'),
-                                      util.Pose(0,0,2*bbox[1,2],0))
+                                      hu.Pose(0,0,2*bbox[1,2],0))
         mrbbox = np.empty_like(bbox); mrbbox[:] = bbox
         mrbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
         mrbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
         mrbbox[0][1] = 0.5*(bbox[0][1] + bbox[1][1])
         world.addObjectRegion('table1', 'table1MidFront', 
                                Sh([Ba(mrbbox)], name='table1MidFront'),
-                                      util.Pose(0,0,2*bbox[1,2],0))
+                                      hu.Pose(0,0,2*bbox[1,2],0))
     # Other permanent objects
     cupboard1 = Sh([place((-0.25, 0.25), (-0.05, 0.05), (0.0, 0.4))],
                      name = 'cupboardSide1', color='brown')
@@ -284,9 +282,9 @@ def testWorld(include = ['objA', 'objB', 'objC'],
         extraHeight = 1.5*height+0.01
         bbox = bboxGrow(thing.bbox(), np.array([0.075, 0.075, extraHeight]))
         regName = objName+'Top'
-        print 'Region', regName, '\n', bbox
+        tr('rig', 0, ('Region', regName), bbox)
         world.addObjectRegion(objName, regName, Sh([Ba(bbox)], name=regName),
-                              util.Pose(0,0,2*(height)+extraHeight,0))
+                              hu.Pose(0,0,2*(height)+extraHeight,0))
 
     world.graspDesc = {}
     gMat0 = np.array([(0.,1.,0.,0.),
@@ -309,14 +307,14 @@ def testWorld(include = ['objA', 'objB', 'objC'],
     for obj in manipulanda:
         world.graspDesc[obj] = []
         if useHorizontal:             # horizontal
-            world.graspDesc[obj].extend([GDesc(obj, util.Transform(gMat0),
+            world.graspDesc[obj].extend([GDesc(obj, hu.Transform(gMat0),
                                                0.05, 0.05, 0.025),
-                                         GDesc(obj, util.Transform(gMat1),
+                                         GDesc(obj, hu.Transform(gMat1),
                                                0.05, 0.05, 0.025)])
         if useVertical:    # vertical
-            world.graspDesc[obj].extend([GDesc(obj, util.Transform(gMat3),
+            world.graspDesc[obj].extend([GDesc(obj, hu.Transform(gMat3),
                                                0.05, 0.05, 0.025),
-                                         GDesc(obj, util.Transform(gMat2),
+                                         GDesc(obj, hu.Transform(gMat2),
                                                0.05, 0.05, 0.025)])
 
     def t(o):
@@ -327,12 +325,12 @@ def testWorld(include = ['objA', 'objB', 'objC'],
         return 'unknown'
 
     world.objectTypes = dict([(o, t(o)) for o in include])
-    world.symmetries = {'soda' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.),
-                                                 util.Pose(0.,0.,0.,math.pi)]}),
-                        'table' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.),
-                                                 util.Pose(0.,0.,0.,math.pi)]}),
-                        'shelves' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.)]}),
-                        'coolShelves' : ({4 : 4}, {4 : [util.Pose(0.,0.,0.,0.)]})}
+    world.symmetries = {'soda' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.),
+                                                 hu.Pose(0.,0.,0.,math.pi)]}),
+                        'table' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.),
+                                                 hu.Pose(0.,0.,0.,math.pi)]}),
+                        'shelves' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.)]}),
+                        'coolShelves' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.)]})}
 
     world.typePointClouds = {t:shapes.readOff('meshes/%s_points.off'%t, name=t) \
                              for t in set(world.objectTypes.values())}
@@ -384,16 +382,16 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False):
         base = cart['pr2Base']
         if vertical:
             q = np.array([0.0, 0.7071067811865475, 0.0, 0.7071067811865475])
-            h = util.Transform(p=np.array([[a] for a in [ 0.4+dx, 0.3+dy,  1.1+dt, 1.]]), q=q)
+            h = hu.Transform(p=np.array([[a] for a in [ 0.4+dx, 0.3+dy,  1.1+dt, 1.]]), q=q)
             cart = cart.set('pr2LeftArm', base.compose(h))
             if useRight:
-                hr = util.Transform(p=np.array([[a] for a in [ 0.4+dx, -(0.3+dy),  1.1+dt, 1.]]), q=q)
+                hr = hu.Transform(p=np.array([[a] for a in [ 0.4+dx, -(0.3+dy),  1.1+dt, 1.]]), q=q)
                 cart = cart.set('pr2RightArm', base.compose(hr))
         else:
-            h = util.Pose(0.3+dx,0.33+dy,0.9+dz+dt,0.)
+            h = hu.Pose(0.3+dx,0.33+dy,0.9+dz+dt,0.)
             cart = cart.set('pr2LeftArm', base.compose(h))
             if useRight:
-                hr = util.Pose(0.3+dx,-(0.33+dy),0.9+dz+dt,0.)
+                hr = hu.Pose(0.3+dx,-(0.33+dy),0.9+dz+dt,0.)
                 cart = cart.set('pr2RightArm', base.compose(hr))
         c = robot.inverseKin(cart, conf=c)
         c.conf['pr2Head'] = [0., 0.]
@@ -451,22 +449,22 @@ def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                     (dx-eps, dy+width-eps, (dz/nshelf) - width - eps)],
                    color='green', name=spaceName)
         space = Sh([space], name=spaceName, color='green')
-        shelfSpaces.append((space, util.Pose(0,0,bot+eps-(dz/2),0)))
+        shelfSpaces.append((space, hu.Pose(0,0,bot+eps-(dz/2),0)))
     shelves = Sh(sidePrims + shelfRungs, name = name+'Body', color=color)
     return (shelves, shelfSpaces)
 
 def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                 width = shelfWidth, nshelf = 2,
                 name='tableShelves', color='brown'):
-    coolerPose = util.Pose(0.0, 0.0, tZ, -math.pi/2)
-    shelvesPose = util.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
+    coolerPose = hu.Pose(0.0, 0.0, tZ, -math.pi/2)
+    shelvesPose = hu.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
     tH = 0.67                           # table height
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
                     name='cooler', color=color)],
                 name='cooler', color=color)
     table = makeTable(0.603, 0.298, tH, name = 'table1', color=color)
     shelves, shelfSpaces = makeShelves(dx, dy, dz, width, nshelf, name='tableShelves', color=color)
-    offset = shelvesPose.compose(util.Pose(0.,0.,-(tH/2+coolerZ/2),0.))
+    offset = shelvesPose.compose(hu.Pose(0.,0.,-(tH/2+coolerZ/2),0.))
     shelfSpaces = [(s,pose.compose(offset)) for (s, pose) in shelfSpaces]
     obj = Sh( shelves.applyTrans(shelvesPose).parts() \
               + cooler.applyTrans(coolerPose).parts() \
@@ -477,13 +475,13 @@ def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
 def makeCoolShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                       width = shelfWidth, nshelf = 2,
                       name='coolShelves', color='brown'):
-    coolerPose = util.Pose(0.0, 0.0, 0.0, -math.pi/2)
-    shelvesPose = util.Pose(0.0, 0.0, coolerZ, -math.pi/2)
+    coolerPose = hu.Pose(0.0, 0.0, 0.0, -math.pi/2)
+    shelvesPose = hu.Pose(0.0, 0.0, coolerZ, -math.pi/2)
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
                     name='cooler', color=color)],
                 name='cooler', color=color)
     shelves, shelfSpaces = makeShelves(dx, dy, dz, width, nshelf, name='coolShelves', color=color)
-    offset = shelvesPose.compose(util.Pose(0.,0.,-(coolerZ/2),0.))
+    offset = shelvesPose.compose(hu.Pose(0.,0.,-(coolerZ/2),0.))
     shelfSpaces = [(s,pose.compose(offset)) for (s, pose) in shelfSpaces]
     obj = Sh( shelves.applyTrans(shelvesPose).parts() \
               + cooler.applyTrans(coolerPose).parts(),
@@ -504,7 +502,7 @@ class PlanTest:
         self.world, self.thinRobot = testWorld(include=self.objects)
         if not initConfs:
             startTime = time.time()
-            print 'Creating initial confs ...',
+            #print 'Creating initial confs ...',
             ((x0, y0, _), (x1, y1, dz)) = workspace
             dx = x1 - x0; dy = y1 - y0
             count = 2*multiplier
@@ -522,9 +520,10 @@ class PlanTest:
                              makeConf(self.world.robot,
                                       x0+x*dx/float(count),
                                       y0+y*dy/float(count), angle, vertical=True))
-            print 'done in', time.time() - startTime
         self.initConfs = initConfs
-        print 'Using', len(self.initConfs), 'initial confs'
+        trAlways('initial confs done in', time.time() - startTime,
+                     ('num initial confs', len(self.initConfs)),
+                     pause = False)
         var4 = (var, var, 1e-10, var)
         del0 = (0.0, 0.0, 0.0, 0.0)
         del02 = (0.02, 0.02, 0.2, 0.04)
@@ -534,34 +533,34 @@ class PlanTest:
 
         ff = lambda o: self.world.getFaceFrames(o) if o in objects else []
         # The poses of the supporting face frames (the placement)
-        fixObjPoses = {'table1':util.Pose(1.1, 0.0, 0.0, math.pi/2),
-                       'tableShelves':util.Pose(1.1, 0.0, 0.0, math.pi/2),
-                       'coolShelves':util.Pose(1.1, 0.0, tZ, math.pi/2),
-                       'table2': util.Pose(1.0, -0.75, 0.0, 0.0),
-                       'table3': util.Pose(1.6,0.0,0.0,math.pi/2),
-                       'cupboardSide1': util.Pose(1.1, -0.2, 0.6, 0.0),
-                       'cupboardSide2': util.Pose(1.1, 0.2, 0.6, 0.0),
-                       'cooler': util.Pose(1.1, 0.0, tZ, 0.)}
-        moveObjPoses = {'objA': util.Pose(1.1, 0.0, tZ, 0.0),
-                        'objB': util.Pose(0.95, -0.4, tZ, 0.0),
-                        'objC': util.Pose(0.45, -1.2, tZ, 0.0),
-                        'objD': util.Pose(0.95, -0.2, tZ, 0.0),
-                        'objE': util.Pose(0.95, 0.0, tZ, 0.0),
-                        'objF': util.Pose(0.95, 0.2, tZ, 0.0),
-                        'objG': util.Pose(0.95, 0.4, tZ, 0.0),
-                        'objH': util.Pose(0.95, 0.6, tZ, 0.0),
-                        'objI': util.Pose(0.95, 0.8, tZ, 0.0)}
+        fixObjPoses = {'table1':hu.Pose(1.1, 0.0, 0.0, math.pi/2),
+                       'tableShelves':hu.Pose(1.1, 0.0, 0.0, math.pi/2),
+                       'coolShelves':hu.Pose(1.1, 0.0, tZ, math.pi/2),
+                       'table2': hu.Pose(1.0, -0.75, 0.0, 0.0),
+                       'table3': hu.Pose(1.6,0.0,0.0,math.pi/2),
+                       'cupboardSide1': hu.Pose(1.1, -0.2, 0.6, 0.0),
+                       'cupboardSide2': hu.Pose(1.1, 0.2, 0.6, 0.0),
+                       'cooler': hu.Pose(1.1, 0.0, tZ, 0.)}
+        moveObjPoses = {'objA': hu.Pose(1.1, 0.0, tZ, 0.0),
+                        'objB': hu.Pose(0.95, -0.4, tZ, 0.0),
+                        'objC': hu.Pose(0.45, -1.2, tZ, 0.0),
+                        'objD': hu.Pose(0.95, -0.2, tZ, 0.0),
+                        'objE': hu.Pose(0.95, 0.0, tZ, 0.0),
+                        'objF': hu.Pose(0.95, 0.2, tZ, 0.0),
+                        'objG': hu.Pose(0.95, 0.4, tZ, 0.0),
+                        'objH': hu.Pose(0.95, 0.6, tZ, 0.0),
+                        'objI': hu.Pose(0.95, 0.8, tZ, 0.0)}
                    
         moveObjPoses.update(movePoses)           # input poses
-        print 'updated', moveObjPoses
+        #print 'updated', moveObjPoses
         fixObjPoses.update(fixPoses)           # input poses
-        print 'updated', fixObjPoses
+        #print 'updated', fixObjPoses
         self.fix = {}
         for name in fixObjPoses:
             if name in self.objects:
                 oShape = self.world.getObjectShapeAtOrigin(name).applyLoc(fixObjPoses[name])
                 supFace = supportFaceIndex(oShape)
-                print 'supportFace', name, supFace
+                #print 'supportFace', name, supFace
                 oVar = varDict[name] if (varDict and name in varDict) else var4
                 self.fix[name] = ObjPlaceB(name, ff(name), DeltaDist(supFace),
                                   fixObjPoses[name], oVar, del05)
@@ -570,7 +569,7 @@ class PlanTest:
             if name in self.objects:
                 oShape = self.world.getObjectShapeAtOrigin(name).applyLoc(moveObjPoses[name])
                 supFace = supportFaceIndex(oShape)
-                print 'supportFace', name, supFace
+                #print 'supportFace', name, supFace
                 oVar = varDict[name] if (varDict and name in varDict) else var4
                 self.move[name] = ObjPlaceB(name, ff(name), DeltaDist(supFace),
                                   moveObjPoses[name], oVar, del0)
@@ -755,11 +754,11 @@ typicalErrProbs = DomainProbs(\
             placeVar = (0.001**2, 0.001**2, 1e-11, 0.002**2),
             # pickTolerance
             pickTolerance = (0.025, 0.025, 0.025, 0.1),
-            maxGraspVar = (0.005**2, .005**2, .005**2, .015**2),
+            maxGraspVar = (0.0051**2, .0051**2, .005**2, .015**2),
             moveConfDelta = (0.001, 0.001, 1e-8, 0.002),
             #shadowDelta = (0.01, 0.01, 1.0e-8, 0.05),
             #shadowDelta = (0.001, 0.001, 1e-11, 0.002),
-            shadowDelta = (0.004, 0.004, 1e-10, 0.008),
+            shadowDelta = (0.004, 0.004, 1e-6, 0.008),
             # Use this for placing objects
             # placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             # graspDelta = (0.001, 0.001, 1.0e-4, 0.002))

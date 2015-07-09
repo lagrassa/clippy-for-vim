@@ -1,18 +1,20 @@
-import pdb
+#import pdb
 import math
-import util
-from ranges import realRange, angleRange
+import hu
+#from ranges import realRange, angleRange
 import transformations as transf
 import windowManager3D as wm
 import numpy as np
 import shapes
-import objects
+#import objects
 from objects import WorldState, World
 import pr2Robot
 reload(pr2Robot)
 from pr2Robot import makePr2Chains, PR2, JointConf, CartConf, pr2Init, \
      gripperToolOffset
 import planGlobals as glob
+
+raw_input('Currently out of date')
 
 
 ############################################################
@@ -45,10 +47,10 @@ xyz_incr = 0.1                          # too big
 theta_divisor = 3                        # too big
 theta_incr = math.pi/theta_divisor
 PI2 = 2*math.pi
-Ident = util.Transform(np.eye(4))            # identity transform
+Ident = hu.Transform(np.eye(4))            # identity transform
 
 def displacement(index):
-    return util.Pose(index[0]*xyz_incr, index[1]*xyz_incr, index[2]*xyz_incr,
+    return hu.Pose(index[0]*xyz_incr, index[1]*xyz_incr, index[2]*xyz_incr,
                      index[3]*theta_incr)
 
 indexOffsets = [(-1,0,0,0),(1,0,0,0),
@@ -64,7 +66,7 @@ def scanCartesianKin(robot, wstate, initWrist, chainName,
                      rotations = [Ident],
                      display = False):
     def angleCost(aL, bL):
-        return sum([abs(util.angleDiff(a,b)) for (a,b) in zip(aL, bL)])
+        return sum([abs(hu.angleDiff(a,b)) for (a,b) in zip(aL, bL)])
 
     def scanAngles(i):
         if display:
@@ -110,7 +112,7 @@ def scanCartesianKin(robot, wstate, initWrist, chainName,
     done = {}
     p = shapes.BoxAligned(np.array([(-0.02,-0.01,-0.01),(0.02,0.01,0.01)]), None)
     toolOffsetInv = gripperToolOffset.inverse()
-    handTrans = util.Transform(transf.translation_matrix(initHand.point().xyzTuple()))
+    handTrans = hu.Transform(transf.translation_matrix(initHand.point().xyzTuple()))
     handRot = handTrans.inverse().compose(initHand)
     nrots = len(rotations)
     while agenda:
@@ -155,13 +157,13 @@ def handRotations(downRange, roundRange, stepSize):
             roundAngle = roundLo + r * stepSize
             rot = np.dot(transf.rotation_matrix(downAngle, (0,1,0)),
                          transf.rotation_matrix(roundAngle, (0,0,1)))
-            rots.append(util.Transform(rot))
+            rots.append(hu.Transform(rot))
     return rots
 
 # handRotations((0, math.pi/2),(-math.pi, 0), math.pi/8)
 
 def zRotations(n=8):
-    return [util.Pose(0,0,0,PI2*k/n) for k in range(n)]
+    return [hu.Pose(0,0,0,PI2*k/n) for k in range(n)]
 
 def scanNodeDistances(sn, chainName, world):
     robot = world.robot
@@ -225,13 +227,13 @@ def testScan(chainName, rotations=[Ident], indices=indexOffsets, display=False):
     basePose = Ident
     window = 'Lab' if world else 'W'
     # To get a vertical hand (pointing down)
-    off = util.Transform(transf.rotation_matrix(math.pi/2, (0, 1, 0)))
+    off = hu.Transform(transf.rotation_matrix(math.pi/2, (0, 1, 0)))
     # To get a horizontal hand
     # off = Ident
     ltarget = 0.5, 0.501, glob.torsoZ+0.550, 0.000
     rtarget = 0.5, -0.501, glob.torsoZ+0.550, 0.000
-    poseL = util.Pose(*ltarget).compose(off)
-    poseR = util.Pose(*rtarget).compose(off)
+    poseL = hu.Pose(*ltarget).compose(off)
+    poseR = hu.Pose(*rtarget).compose(off)
     print poseL.compose(gripperToolOffset)
     cart = CartConf({'pr2BaseFrame': basePose,
                      'pr2LeftArmFrame': basePose.compose(poseL),

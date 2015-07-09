@@ -1,8 +1,8 @@
 import math
 import numpy as np
 cimport numpy as np
-import util
-cimport util
+import hu
+cimport hu
 from cpython cimport bool
 
 cdef class Thing:
@@ -10,14 +10,14 @@ cdef class Thing:
     cdef public np.ndarray thingVerts, thingBBox, thingCenter, thingPlanes, thingEdges
     cdef public list thingFaceFrames
     cdef public Prim thingPrim
-    cdef public util.Transform thingOrigin
+    cdef public hu.Transform thingOrigin
     cdef public str thingString
     cdef public int index
 
     cpdef np.ndarray[np.float64_t, ndim=2] bbox(self)
     cpdef str name(self)
     cpdef list faceFrames(self)
-    cpdef util.Transform origin(self)
+    cpdef hu.Transform origin(self)
     cpdef list parts(self)
     cpdef tuple zRange(self)
     cpdef np.ndarray[np.float64_t, ndim=1] center(self)
@@ -25,10 +25,10 @@ cdef class Thing:
     cpdef np.ndarray[np.float64_t, ndim=2] planes(self)
     cpdef np.ndarray[np.int_t, ndim=2] edges(self)
     cpdef Prim prim(self)
-    cpdef Thing applyTransMod(self, util.Transform trans, Thing shape, str frame=*)
-    cpdef Thing applyLocMod(self, util.Transform trans, Thing shape, str frame=*)
-    cpdef Thing applyTrans(self, util.Transform trans, str frame=*)
-    cpdef Thing applyLoc(self, util.Transform trans, str frame=*)
+    cpdef Thing applyTransMod(self, hu.Transform trans, Thing shape, str frame=*)
+    cpdef Thing applyLocMod(self, hu.Transform trans, Thing shape, str frame=*)
+    cpdef Thing applyTrans(self, hu.Transform trans, str frame=*)
+    cpdef Thing applyLoc(self, hu.Transform trans, str frame=*)
     cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt)
     cpdef bool collides(self, Thing obj)
     cpdef Shape cut(self, Thing obj, bool isect = *)
@@ -46,8 +46,8 @@ cdef class Prim(Thing):
     cpdef list faces(self)
     cpdef np.ndarray[np.float64_t, ndim=2] planes(self)
     cpdef np.ndarray[np.int_t, ndim=2] edges(self)
-    cpdef Thing applyTrans(self, util.Transform trans, str frame=*)
-    cpdef Thing applyTransMod(self, util.Transform trans, Thing shape, str frame=*)
+    cpdef Thing applyTrans(self, hu.Transform trans, str frame=*)
+    cpdef Thing applyTransMod(self, hu.Transform trans, Thing shape, str frame=*)
     cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt)
     cpdef Shape cut(self, Thing obj, bool isect = *)
     cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts)
@@ -62,8 +62,8 @@ cdef class Shape(Thing):
     cpdef list parts(self)
     cpdef emptyP(self)
     cpdef np.ndarray[np.float64_t, ndim=2] vertices(self)
-    cpdef Thing applyTrans(self, util.Transform, str frame=*)
-    cpdef Thing applyTransMod(self, util.Transform, Thing shape, str frame=*)
+    cpdef Thing applyTrans(self, hu.Transform, str frame=*)
+    cpdef Thing applyTransMod(self, hu.Transform, Thing shape, str frame=*)
     cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt)
     cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts)
     cpdef bool collides(self, Thing obj)
