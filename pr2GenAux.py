@@ -294,8 +294,8 @@ def canView(pbs, prob, conf, hand, shape, maxIter = 50):
 # This needs generalization
 
 def findApproachConf(pbs, obj, placeB, conf, hand, prob):
-    # cached = pbs.getRoadMap().approachConfs.get(conf, False)
-    # if cached is not False: return cached
+    cached = pbs.getRoadMap().approachConfs.get(conf, False)
+    if cached is not False: return cached
     robot = pbs.getRobot()
     cart = conf.cartConf()
     wristFrame = cart[robot.armChainNames[hand]]

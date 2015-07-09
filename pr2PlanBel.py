@@ -24,6 +24,9 @@ Ident = hu.Transform(np.eye(4))            # identity transform
 
 ########   Make fake belief update have lower variance on pick
 
+# total count, current, cache hits, cache misses, new
+shadowWorldStats = [0, 0, 0, 0, 0]
+
 ################################################################
 ## Beliefs about the world
 ## This should be independent of how confs and poses are represented
@@ -404,18 +407,29 @@ class PBS:
         return shadowMin, shadow
     
     def getShadowWorld(self, prob):
+        # total count, current, cache hits, cache misses, new
+        shadowWorldStats[0] += 1
         if self.shadowWorld and self.shadowProb == prob:
+            shadowWorldStats[1] += 1
             return self.shadowWorld
         else:
             cache = self.beliefContext.genCaches['getShadowWorld']
-            key = (self.items(), prob)
+            # key = (self.items(), prob)
+            key = self                  # just the pbs
             if key in cache:
                 ans = cache.get(key, None)
                 if ans != None:
-                    self.shadowWorld = ans
-                    self.shadowProb = prob
-                    # print 'cached shadowWorld'
-                    return self.shadowWorld
+                    shadowWorldStats[2] += 1 # cache hit
+                    if prob in ans:
+                        self.shadowWorld = ans[prob]
+                        self.shadowProb = prob
+                        return self.shadowWorld
+                else:
+                    print 'shadowWorld cache inconsistent'
+            else:
+                shadowWorldStats[3] += 1 # cache miss
+                cache[key] = {}     # dict of prob->sw
+        shadowWorldStats[4] += 1    # new world...
         # The world holds objects, but not poses or shapes
         w = self.getWorld().copy()
         # the shadow world is a WorldState.  Cache it.
@@ -481,7 +495,8 @@ class PBS:
         sw.setRobotConf(self.conf)
         if debug('getShadowWorldGrasp') and not glob.inHeuristic:
             sw.draw('W')
-        cache[key] = sw
+        # cache[key] = sw
+        cache[key][prob] = sw
         return sw
 
     # Shadow over POSE variation.  Should only do finite number of poseVar/poseDelta values.

@@ -394,7 +394,7 @@ class RealWorld(WorldState):
                 self.setObjectPose(self.held[hand], actualObjPose)
                 self.grasp[hand] = None
                 self.held[hand] = None
-                print 'placed', obj, actualObjPose
+                # print 'placed', obj, actualObjPose
             self.setRobotConf(approachConf)
             self.robotPlace.draw('World', 'orchid')
             #print 'retracted'
