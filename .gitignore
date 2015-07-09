@@ -9,8 +9,6 @@ __pycache__/
 !gjkHPN.c
 *.o
 *.dylib
-Makefile
-IK/Makefile
 
 # Distribution / packaging
 .Python
