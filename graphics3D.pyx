@@ -6,7 +6,7 @@ cimport shapes
 import shapes
 import DrawingWindowStandalonePIL as dw
 import colorNames
-import util
+import hu
 
 noWindow = False
 use3D = False
@@ -88,7 +88,7 @@ cdef class Window3D:
                                  opacity,
                                  time.clock()])
         (dx, dy) = self.xzOffset
-        if isinstance(thing, util.Point):
+        if isinstance(thing, hu.Point):
             matrix = thing.matrix
             self.window.Point(matrix[0,0], matrix[1,0], color = color or 'black')
             self.window.drawPoint(matrix[0,0]+dx, matrix[2,0]+dy, color = color or 'black')

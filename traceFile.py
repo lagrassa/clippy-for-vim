@@ -1,4 +1,4 @@
-from planGlobals import debug, debugMsg
+from planGlobals import debug, debugMsg, pause
 import windowManager3D as wm
 from miscUtil import timeString
 import local
@@ -64,7 +64,8 @@ def tr(genTag, level, *msg, **keys):
         targetFile = htmlFile
     else:
         targetFile = None
-    if (not glob.inHeuristic) or debug('debugInHeuristic'):
+    if ((not glob.inHeuristic) or debug('debugInHeuristic')) and \
+        not keys.get('noLog', False):
         if msg and targetFile:
             targetFile.write('<pre>'+level*'  '+' '+'(%d)%s'%(glob.planNum, genTag)+': '+str(msg[0])+'</pre>\n')
             for m in msg[1:]:
@@ -83,18 +84,21 @@ def tr(genTag, level, *msg, **keys):
     if msg:
         if keys.get('ol', True):
             # Print on one line
-            print level*'  ',
+            print level*'  ', genTag+':',
             for m in msg: print m,
             print '\n'
         else:
             print level*'  ', genTag+':', msg[0]
-            for m in msg:
+            for m in msg[1:]:
                 print level*'  ', m
-    debugMsg(genTag)
-    if level >= 0:
-        debugMsg(genTag+str(level))         # more specific pause tag
-    if keys.get('pause', False):
-        raw_input(genTag+':pause')
+    #debugMsg(genTag)
+    #if level >= 0:
+    #    debugMsg(genTag+str(level))         # more specific pause tag
+    if keys.get('pause', False) or pause(genTag):
+        windows = keys.get('snap', [])
+        for w in windows:
+            wm.getWindow(w).update()
+        raw_input(genTag+' go?')
 
 pngFileId = 0
 htmlFile = None

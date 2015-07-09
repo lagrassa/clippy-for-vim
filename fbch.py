@@ -911,7 +911,8 @@ class Operator(object):
                 tr('regression:fail:immut', 2, 'immutable precond is false',
                          [p for p in self.preconditionSet() if \
                           (p.immutable and p.isGround() and \
-                            not startState.fluentValue(p) == p.getValue())])
+                            not startState.fluentValue(p) == p.getValue())],
+                   noLog = True)
                 return []
 
         results = squashSets([r for (r, c) in self.results])
@@ -924,7 +925,7 @@ class Operator(object):
             for rf in results:
                 bTemp = rf.entails(gf, startState.details)
                 tr('regression:entails', 3,
-                         'entails', rf, gf, bTemp, bTemp != False)
+                         'entails', rf, gf, bTemp, bTemp != False, noLog = True)
                 if bTemp != False:
                     entailed = True
                     break
@@ -940,11 +941,11 @@ class Operator(object):
                                     avoid = goal.bindingsAlreadyTried)
         # Debugging stuff
         tr('regression:bind', 3, 'getting new bindings',
-                 self.functions, goal.fluents, ('result', newBindings))
+                 self.functions, goal.fluents, ('result', newBindings), noLog = True)
         if newBindings == None:
             if not glob.inHeuristic or debug('debugInHeuristic'):
                 tr('regression:fail', 3, self, 'could not get bindings',
-                     'h = '+str(glob.inHeuristic))
+                     'h = '+str(glob.inHeuristic), noLog = True)
             if debug('regression:fail') and \
                     (not glob.inHeuristic or debug('debugInHeuristic')):
                 glob.debugOn = glob.debugOn + ['btbind']
@@ -952,7 +953,7 @@ class Operator(object):
                                             goal.fluents,
                                             startState.details,
                                             avoid = goal.bindingsAlreadyTried)
-                tr('regression:fail', 3, 'hope that was helpful')
+                tr('regression:fail', 3, 'hope that was helpful', noLog = True)
                 glob.debugOn = glob.debugOn[:-1]
             return []
         br = set()
@@ -972,7 +973,7 @@ class Operator(object):
         if not goal.isConsistent(boundResults, startState.details):
             if not glob.inHeuristic or debug('debugInHeuristic'):
                 tr('regression:fail', 3, self,
-                         'results inconsistent with goal')
+                         'results inconsistent with goal', noLog = True)
             # This is not a fatal flaw;  just a problem with these bindings
             return []
 
@@ -989,7 +990,7 @@ class Operator(object):
             for rf in boundResults:
                 bTemp = rf.entails(gf, startState.details)
                 tr('regression:entails', 3,
-                         'entails', rf, gf, bTemp, bTemp != False)
+                         'entails', rf, gf, bTemp, bTemp != False, noLog = True)
                 if bTemp != False:
                     entailed = True
                     newBindings.update(bTemp)
@@ -1008,7 +1009,7 @@ class Operator(object):
                     if not glob.inHeuristic or debug('debugInHeuristic'):
                         tr('*', 3, 'special regression fail; h =',
                            glob.inHeuristic)
-                        tr('regression:fail', 3, 'special regress failure')
+                        tr('regression:fail', 3, 'special regress failure', noLog = True)
                     return []
                 newFluents.append(nf)
 
@@ -1055,7 +1056,7 @@ class Operator(object):
                 f.update()
                 if not f.feasible(startState.details):
                     tr('regression:fail', 3, 'conditional fluent infeasible',
-                            f)
+                            f, noLog = True)
                     bindingsNoGood = True
                     break
                 valueAfter = startState.fluentValue(f)
@@ -1082,7 +1083,8 @@ class Operator(object):
                                 print '    contradiction\n', f1, '\n', f2
                     tr('regression:fail', 3, self,
                              'preconds inconsistent with goal',
-                             ('newGoal', newGoal), ('preconds', boundPreconds))
+                             ('newGoal', newGoal), ('preconds', boundPreconds),
+                       noLog = True)
             bindingsNoGood = True
             
         elif newGoal.couldBeClobbered(boundSE, startState.details):
@@ -1094,9 +1096,11 @@ class Operator(object):
                                 print '    might clobber\n', f1, '\n', f2
                     tr('regression:fail', 3, self,
                              'side effects may be inconsistent with goal',
-                             ('newGoal', newGoal), ('sideEffects', boundSE))
+                             ('newGoal', newGoal), ('sideEffects', boundSE),
+                       noLog = True)
 
-            tr('regression', 3, 'Trying less abstract version of op', self)
+            tr('regression', 3, 'Trying less abstract version of op', self,
+               noLog = True)
             primOp = self.copy()
             # LPK: This is maybe nicer, but too expensive
             # primOp.abstractionLevel += 1
@@ -1120,8 +1124,7 @@ class Operator(object):
             for f in newGoal.fluents:
                 if f.isConditional(): 
                     if not f.feasible(startState.details):
-                        # Maybe make this higher priority
-                        tr('regression:fail', 3,
+                        tr('regression:fail', 1,
                                  'conditional fluent is infeasible',
                                  f)
                         bindingsNoGood = True
@@ -1152,7 +1155,8 @@ class Operator(object):
             hNew = hh(newGoal)
             if hNew == float('inf'):
                 # This is hopeless.  Give up now.
-                tr('regression:fail', 3, 'New goal is infeasible', newGoal)
+                tr('regression:fail', 3, 'New goal is infeasible', newGoal,
+                   noLog = True)
                 cost = float('inf')
             elif debug('simpleAbstractCostEstimates'):
                 hOrig = hh(goal)
@@ -1515,7 +1519,7 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
                 writeSubtasks(f, planObj, subgoal)
             else:
                 trAlways('Planning failed;  popping plan stack.  Depth',
-                         ps.depth(), pause = True)
+                         ps.depth(), pause = True, ol = True)
                 ps.pop()
         elif op.prim != None:
             # Execute
