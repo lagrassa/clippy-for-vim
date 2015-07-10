@@ -1262,7 +1262,7 @@ def simplifyCond(oldFs, newFs, details = None):
         if result.isConsistent([f], details):
             result.fluents = addFluentToSetIfNew(result.fluents, f)
     tr('simplifyCond', 2, ('oldFs', oldFs),
-             ('newFs', newFs), ('result', result.fluents), pause = True)
+             ('newFs', newFs), ('result', result.fluents), noLog = True)
     resultList = list(result.fluents)
     resultList.sort(key = str)
     return tuple(resultList)
@@ -1274,10 +1274,10 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
     def gnb(funs, sofar):
         if funs == []:
             if not tuplify(sofar) in avoid:
-                tr('btbind', 2, 'returning', sofar)
+                tr('btbind', 2, 'returning', sofar, noLog = True)
                 return sofar
             else:
-                tr('btbind', 2, 'hit duplicate', sofar)
+                tr('btbind', 2, 'hit duplicate', sofar, noLog = True)
                 return None
         else:
             f = funs[0]
@@ -1287,7 +1287,7 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
                             [lookup(v, sofar) for v in f.outVars])
             if values == None or values == []:
                 tr('btbind', 2, 'fun failed', f,
-                         [lookup(v, sofar) for v in f.inVars], sofar)
+                         [lookup(v, sofar) for v in f.inVars], sofar, noLog = True)
                 return None
             for val in values:
                 assert len(f.outVars) == len(val)
@@ -1299,7 +1299,7 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
                 result = gnb(funs[1:], sf)
                 if result != None:
                     return result
-            tr('btbind', 2, 'ran out of values', f, sofar)
+            tr('btbind', 2, 'ran out of values', f, sofar, noLog = True)
             return None
 
     funsInOrder = [f for f in functions if \

@@ -119,6 +119,8 @@ tableBadWeight = 5
 debugOn = []
 pauseOn = []
 
+PDB = True
+
 import local
 reload(local)
 from local import *

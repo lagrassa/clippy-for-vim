@@ -57,6 +57,8 @@ def trAlways(*msg, **keys):
 #    pause: pauses
 #    ol: write onto single line, if true
 
+# LPK: make ol work for log as well as terminal
+
 def tr(genTag, level, *msg, **keys):
     if glob.inHeuristic and htmlFileH:
         targetFile = htmlFileH
@@ -67,7 +69,8 @@ def tr(genTag, level, *msg, **keys):
     if ((not glob.inHeuristic) or debug('debugInHeuristic')) and \
         not keys.get('noLog', False):
         if msg and targetFile:
-            targetFile.write('<pre>'+level*'  '+' '+'(%d)%s'%(glob.planNum, genTag)+': '+str(msg[0])+'</pre>\n')
+            targetFile.write('<pre>'+level*'  '+' '+'(%d)%s'%(glob.planNum, genTag)+\
+                             ': '+str(msg[0])+'</pre>\n')
             for m in msg[1:]:
                 targetFile.write('<pre>'+level*'  '+str(m)+'</pre>\n')
         draw = keys.get('draw', [])
@@ -82,13 +85,14 @@ def tr(genTag, level, *msg, **keys):
     # Printing to the console
     if not traced(genTag, level): return
     if msg:
+        prTag = (genTag+':') if (genTag != '*') else ''
         if keys.get('ol', True):
             # Print on one line
-            print level*'  ', genTag+':',
+            print level*'  ', prTag,
             for m in msg: print m,
-            print '\n'
+            print '\n',
         else:
-            print level*'  ', genTag+':', msg[0]
+            print level*'  ', prTag, msg[0]
             for m in msg[1:]:
                 print level*'  ', m
     #debugMsg(genTag)
@@ -98,7 +102,8 @@ def tr(genTag, level, *msg, **keys):
         windows = keys.get('snap', [])
         for w in windows:
             wm.getWindow(w).update()
-        raw_input(genTag+' go?')
+        if glob.PDB:
+            raw_input(genTag+' go?')
 
 pngFileId = 0
 htmlFile = None

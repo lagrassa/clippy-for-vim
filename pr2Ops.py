@@ -2,23 +2,23 @@ import numpy as np
 import hu
 from traceFile import tr, trAlways
 from itertools import product, permutations, chain, imap
-from dist import DeltaDist, varBeforeObs, DDist, probModeMoved, MixtureDist,\
+from dist import DeltaDist, varBeforeObs, probModeMoved, MixtureDist,\
      UniformDist, chiSqFromP, MultivariateGaussianDistribution
 import fbch
-from fbch import Function, getMatchingFluents, Operator, simplifyCond
+from fbch import Function, Operator, simplifyCond
 from miscUtil import isVar, prettyString, makeDiag, isGround, argmax
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
-from pr2Util import shadowName, shadowWidths
+from pr2Util import shadowWidths
 from pr2Gen import pickGen, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen, placeInRegionGen, placeGen
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
      findRegionParent, CanReachNB, BaseConf, BLoc, canReachHome, canReachNB
-import planGlobals as glob
+#import planGlobals as glob
 from planGlobals import debugMsg, debug, useROS
 import pr2RRT as rrt
 from pr2Visible import visible
-import windowManager3D as wm
+#import windowManager3D as wm
 
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
@@ -126,7 +126,6 @@ def verifyPath(pbs, prob, path, msg):
     print 'Verifying', msg, 'path'
     shWorld = pbs.getShadowWorld(prob)
     attached = shWorld.attached
-    pbsDrawn = False
     for conf in path:
         viol = pbs.getRoadMap().confViolations(conf, pbs, prob)
         pbs.draw(prob, 'W')
@@ -910,7 +909,7 @@ def greedyBestAssignment(aList, bList, scores):
         result.append((obj, tobs, face))
         # Better not to copy so much
         scoresLeft = [((oj, os), stuff) for ((oj, os), stuff) in scoresLeft \
-                      if oj != obj and (os != obs or obs == None)]
+                      if oj != obj and (os != obs or obs is None)]
     return result
 
 def obsDist(details, obj):
@@ -947,7 +946,7 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
     oldPlaceB = details.pbs.getPlaceB(objName)
     w = details.pbs.beliefContext.world
 
-    if obsPose == None:
+    if obsPose is None:
         # Update modeprob if we don't get a good score
         oldP = details.poseModeProbs[objName]
         obsGivenH = details.domainProbs.obsTypeErrProb
@@ -1001,7 +1000,7 @@ missedObsLikelihoodPenalty = llMatchThreshold
 # of the class of symmetries for this object)
 # face is a canonical face
 def scoreObsObj(details, obs, object):
-    if obs == None:
+    if obs is None:
         return (missedObsLikelihoodPenalty, None, None)
     
     (oType, obsFace, obsPose) = obs
@@ -1252,7 +1251,7 @@ poseAchIn = Operator(\
             argsToPrint = [0, 1],
             ignorableArgs = range(1,11))
 
-place = Operator(\
+place = Operator(
         'Place',
         ['Obj', 'Hand',
          'PoseFace', 'Pose', 'PoseVar', 'RealPoseVar', 'PoseDelta',
@@ -1278,7 +1277,7 @@ place = Operator(\
                  True)},{}),
          ({Bd([Holding(['Hand']), 'none', 'PR3'], True)}, {})],
         # Functions
-        functions = [\
+        functions = [
             # Not appropriate when we're just trying to decrease variance
             Function([], ['Pose'], notStar, 'notStar', True),
             Function([], ['PoseFace'], notStar, 'notStar', True),
@@ -1340,7 +1339,7 @@ place = Operator(\
 # Put the condition to know the pose precisely down at the bottom to
 # try to decrease replanning.
 
-pick = Operator(\
+pick = Operator(
         'Pick',
         ['Obj', 'Hand', 'PoseFace', 'Pose', 'PoseDelta',
          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
@@ -1369,7 +1368,7 @@ pick = Operator(\
            B([Grasp(['Obj', 'Hand', 'GraspFace']),
              'GraspMu', 'GraspVar', 'GraspDelta', 'PR3'], True)}, {})],
         # Functions
-        functions = [\
+        functions = [
             # Be sure obj is not none -- don't use this to empty the hand
             Function([], ['Obj'], notNone, 'notNone', True),
             

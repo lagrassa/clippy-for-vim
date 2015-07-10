@@ -25,6 +25,8 @@ libkinDir = './IK/'
 
 LINUX = False if path[:6] == '/Users' else True
 
+PDB = True
+
 ########################################
 # ROS: Controlling robot 
 ########################################
