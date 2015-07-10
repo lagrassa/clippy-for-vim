@@ -1,30 +1,17 @@
 import numpy as np
-#import math
-#import random
 import hu
 import copy
 import time
-#import windowManager3D as wm
 import planGlobals as glob
 from planGlobals import debugMsg, debugMsgSkip, debugDraw, debug, pause, torsoZ
-#from traceFile import tr
 from miscUtil import roundrobin
 from dist import DeltaDist
-#from pr2Robot import CartConf
-#from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowName, objectName, NextColor, supportFaceIndex, Memoizer, shadowWidths
-#import fbch
-#from belief import Bd
-#from pr2Fluents import CanReachHome, canReachHome, inTest
-#from pr2Visible import visible, lookAtConf
 from pr2PlanBel import getConf, getGoalPoseBels
-
 from shapes import Box
+from pr2GenAux import *
 
 Ident = hu.Transform(np.eye(4))            # identity transform
-
-#import pr2GenAux
-from pr2GenAux import *
 
 #  How many candidates to generate at a time...  Larger numbers will
 #  generally lead to better solutions.
