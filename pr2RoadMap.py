@@ -479,7 +479,7 @@ class RoadMap:
         cv1 = self.confViolations(targetConf, pbs, prob)
         cv2 = self.confViolations(initConf, pbs, prob)
         endPtViol = combineViols(cv1, cv2)
-        if endPtViol == None:
+        if endPtViol is None:
             if debug('endPoint:collision'):
                 pbs.draw(prob, 'W')
                 initConf.draw('W', 'blue')
@@ -513,7 +513,7 @@ class RoadMap:
                                      useStartH = True)
         ans = next(ansGen, None)
         
-        if ans == None:
+        if ans is None:
             # (ans[0] and not ans[0].empty() and ans[0].names() != initViol.names()):
             tr('CRH', 1, 'trying RRT')
             path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
@@ -524,7 +524,7 @@ class RoadMap:
                 tr('CRH', 1, 'RRT failed')
             if not viol:
                 pass
-            elif ans == None or \
+            elif ans is None or \
                  (set(viol.allObstacles()) < set(ans[0].allObstacles()) and \
                   set(viol.allShadows()) < set(ans[0].allShadows())):
                 # print 'original viol', ans if ans==None else ans[0]
@@ -1074,7 +1074,7 @@ class RoadMap:
 
                 if debug('verifyPath'):
                     vi = all(self.confViolations(n.conf, pbs, prob) for n in edge.getNodes())
-                    if (nviol == None and vi) or (nviol != None and not vi):
+                    if (nviol is None and vi) or (nviol is not None and not vi):
                         raw_input('successors: bad edge')
 
                 if nviol is None:
@@ -1116,14 +1116,14 @@ class RoadMap:
             # Static tests at init and target.  Ignore attached as a weakening.
             cv = self.confViolations(startNode.conf, pbs, prob,
                                      initViol=initViol, ignoreAttached=True)
-            if cv == None: return
+            if cv is None: return
             for (c, targetNode) in targets:
                 if not moveBase:
                     if startNode.baseConf() != targetNode.baseConf():
                         return
                 cvt = self.confViolations(targetNode.conf, pbs, prob,
                                           initViol=cv, ignoreAttached=True)
-                if cvt == None or not testFn(targetNode): continue
+                if cvt is None or not testFn(targetNode): continue
                 edge = Edge(startNode, targetNode, self.jointLineSteps)
                 ans = (cvt, cvt.weight(violationCosts),
                        [(edge, 0), (edge, 1)])

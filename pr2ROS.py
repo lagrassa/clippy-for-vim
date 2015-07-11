@@ -1,20 +1,16 @@
 import numpy as np
-import random
 import math
-import pdb
-import copy
 import time
 import transformations as transf
 
-import pointClouds as pc
+import pointClouds as pcspr2robot
 import planGlobals as glob
 from planGlobals import debug, debugMsg
-import windowManager3D as wm
 from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn, objectName
 from pr2Visible import lookAtConf, findSupportTable, visible
-import pr2Robot
-reload(pr2Robot)
-from pr2Robot import cartInterpolators, JointConf, CartConf
+# import pr2Robot
+# reload(pr2Robot)
+from pr2Robot import cartInterpolators, JointConf
 from pr2Ops import lookAtBProgress
 
 import hu
@@ -60,7 +56,7 @@ def pr2GoToConf(cnfIn,                  # could be partial...
                 operation,              # a string
                 arm = 'both',
                 speedFactor = glob.speedFactor,
-                args = []):
+                args = tuple()):
     if not glob.useROS: return None, None
     rospy.wait_for_service('pr2_goto_configuration')
     try:
@@ -134,12 +130,11 @@ def pr2GetConf():
 def gazeCoords(cnfIn):
     cnfInCart = cnfIn.cartConf()
     head = cnfInCart['pr2Head']
-    headTurned = cnfInCart['pr2Head'].compose(headTurn)
     # Transform relative to robot base
     headTrans = cnfInCart['pr2Base'].inverse().compose(head)
-    gaze = headTrans.applyToPoint(hu.Point(np.array([0.,0.,1.,1.]).reshape(4,1)))
+    gaze = headTrans.applyToPoint(hu.Point(np.array([0.,0.,1.,1.]).reshape((4,1))))
     confHead = gaze.matrix.reshape(4).tolist()[:3]
-    confHead[2] = confHead[2] - 0.2     # brute force correction
+    confHead[2] -= 0.2     # brute force correction
     # if confHead[0] < 0:
     #     if debug('pr2GoToConf'):  print 'Dont look back!'
     #     confHead[0] = -conf.head[0]
@@ -340,7 +335,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                 placeB = placeBs[shelvesName]
                 (score, trans, obsShape) =\
                         locate.getObjectDetections(lookConf, placeB, self.bs.pbs, scan)
-                if score != None:
+                if score is not None:
                     print 'Object', shelvesName, 'is visible'
                     obsPose = trans.pose()
                     obsShape.draw('MAP', 'cyan')
@@ -420,8 +415,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 
         debugMsg('robotEnv', 'executePick - close')
         result, outConf, _ = pr2GoToConf(pickConf, 'close', arm=hand[0]) # 'l' or 'r'
-        g = confGrip(outConf, hand)
-        gripConf = gripOpen(outConf, hand, g-0.03)
+        # g = confGrip(outConf, hand)
+        # gripConf = gripOpen(outConf, hand, g-0.03)
         # close then grab
         # result, outConf, _ = pr2GoToConf(gripConf, 'open')
         # result, outConf, _ = pr2GoToConf(gripConf, 'grab', arm=hand[0])
@@ -518,7 +513,6 @@ def getPointCloud(basePose, resolution = glob.cloudPointsResolution):
         reqC = PointCloudRequest(resolution = resolution/5)
         reqC.header.frame_id = '/base_footprint'
         reqC.header.stamp = rospy.Time.now()
-        response = None
         response = getCloudPts(reqC)
         print 'Got cloud points:', len(response.cloud.points)
         trans = response.cloud.eye.transform
@@ -576,15 +570,15 @@ def TransformFromROSMsg(pos, quat):
 def transformPoly(poly, x, y, z, theta):
     def pt(coords):
         return gm.Point(coords[0], coords[1], coords[2])
-    tr = numpy.dot(transf.translation_matrix([x, y, z]),
+    tr = np.dot(transf.translation_matrix([x, y, z]),
                    transf.rotation_matrix(theta, (0,0,1)))
-    points = [pt(numpy.dot(tr, [p.x, p.y, p.z, 1.0])) for p in poly.points]
+    points = [pt(np.dot(tr, [p.x, p.y, p.z, 1.0])) for p in poly.points]
     return gm.Polygon(points)
 
 def wellLocalized(pB):
     widths = shadowWidths(pB.poseD.var, pB.delta, 0.95)
     print pB.obj, 'well localized?', widths, '<', 4*(0.03,)
-    return(all(x<=y for (x,y) in zip(widths, 4*(0.03,))))
+    return all(x<=y for (x,y) in zip(widths, 4*(0.03,)))
 
 def getSupportPose(shape, supportFace):
     pose = shape.origin().compose(shape.faceFrames()[supportFace])
@@ -632,7 +626,7 @@ def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
     # Try to grab
     target = displaceHand(curConf, hand, dx=xoffset+fingerLength, zFrom=targetConf, nearTo=startConf)
     return reactiveApproachLoop(backConf, target, gripDes, hand,
-                                maxTarget=target)
+                                maxTarget=target, tries=tries)
 
 def reactiveApproachLoop(startConf, targetConf, gripDes, hand, maxTarget,
                          ystep = 0.04, tries = 10):
@@ -851,7 +845,6 @@ def closeFirmly(conf, hand, delta = 0.005):
     result, out, fs = pr2GoToConfNB(conf, 'open', hand)
     grip = confGrip(out, hand)
     vals = (elts(fs[hand].l_readings, ind[0]), elts(fs[hand].r_readings, ind[1]))
-    init = vals
     lmax0 = max(vals[0])
     rmax0 = max(vals[1])
     n = int((grip-0.01)/delta)

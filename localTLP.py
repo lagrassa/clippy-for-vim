@@ -69,7 +69,7 @@ drawRebindNodes = True
 '''
 
 debugOn = ['traceGen', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon',
-           'useGJK',
+           'useGJK', 'h'
            # 'traceCRH'
            ]
 
@@ -77,4 +77,6 @@ if platform.system() == 'Linux':
     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:
         if not x in debugOn: debugOn.append(x)
 
-pauseOn = debugOn
+pauseOn = debugOn[:]
+pauseOn.remove('h')
+

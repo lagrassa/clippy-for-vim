@@ -12,7 +12,7 @@ from miscUtil import argmax, isGround, isVar, argmax, squashOne
 from dist import UniformDist, DDist
 from geom import bboxCenter
 from pr2Robot import CartConf, gripperFaceFrame
-from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
+from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations, Response
 from pr2Util import shadowName, objectName, Memoizer
 import fbch
 from fbch import getMatchingFluents
@@ -614,7 +614,7 @@ def sameBase(goalConds):
     for (f, b) in fbs:
         base = b['B']
         if not isVar(base):
-            assert result == None, 'More than one Base fluent'
+            assert result is None, 'More than one Base fluent'
             result = base
     return result
 
@@ -670,17 +670,17 @@ def getReachObsts(goalConds, pbs):
     for (f, b) in fbs:
         crhObsts = getCRHObsts([Bd([fc, True, b['P']], True) \
                                 for fc in f.args[0].getConds()], pbs)
-        if crhObsts == None:
+        if crhObsts is None:
             return None
         obstacles.extend(crhObsts)
 
     # Now look for standalone CRH and CRNB
     basicCRH = getCRHObsts(goalConds, pbs)
-    if basicCRH == None: return None
+    if basicCRH is None: return None
     obstacles.extend(basicCRH)
 
     basicCRNB = getCRNBObsts(goalConds, pbs) 
-    if basicCRNB == None: return None
+    if basicCRNB is None: return None
     obstacles.extend(basicCRNB)
         
     return obstacles
@@ -859,7 +859,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             print 'Considering region', rs.name()
         for (angle, shRot) in shRotations.items():
             bI = CI(shRot, rs.prim())
-            if bI == None:
+            if bI is None:
                 if debug('potentialRegionPoseGen'):
                     print 'bI is None for angle', angle
                     raw_input('bI')

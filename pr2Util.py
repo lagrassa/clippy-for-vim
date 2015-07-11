@@ -17,7 +17,7 @@ class Hashable:
     def __neq__(self, other):
         return not self == other
     def __hash__(self):
-        if self.hashValue == None:
+        if self.hashValue is None:
             self.hashValue = hash(self.desc())
         return self.hashValue
     def __str__(self):
