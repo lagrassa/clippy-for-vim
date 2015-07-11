@@ -714,7 +714,7 @@ def placeInRegionGenGen(args, goalConds, bState, outBindings, away = False, upda
             gen = placeGenGen(args, goalConds, bState, outBindings)
             for ans in gen:
                 regions = [x.name() for x in regShapes]
-                tr(tag, 1, str(ans), 'regions=%s'%sregions,
+                tr(tag, 1, str(ans), 'regions=%s'%regions,
                    draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
                    snap=['W'])
                 yield ans
@@ -1006,7 +1006,7 @@ def lookGenTop(args, goalConds, pbs, outBindings):
                snap=['W'])
             yield (lookConf,), viol
 
-def lookAtConfCanView(pbs, prob, conf, shape, hands=['left', 'right']):
+def lookAtConfCanView(pbs, prob, conf, shape, hands=('left', 'right')):
     lookConf = lookAtConf(conf, shape)
     if not glob.inHeuristic:
         for hand in hands:

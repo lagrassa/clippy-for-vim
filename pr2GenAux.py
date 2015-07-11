@@ -1031,4 +1031,4 @@ def confDelta(c1, c2):
 def findGraspConfEntries(conf):
     return [(c, ca, pbs, prob, viol) \
             for (c, ca, pbs, prob, viol) in graspConfs \
-            if confDelta(c, conf) < 0.001 or confDelta(c1, conf) < 0.001]
+            if confDelta(c, conf) < 0.001 or confDelta(ca, conf) < 0.001]
