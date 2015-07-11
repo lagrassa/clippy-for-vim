@@ -8,17 +8,17 @@ import fbch
 from fbch import Function, Operator, simplifyCond
 from miscUtil import isVar, prettyString, makeDiag, isGround, argmax
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
-from pr2Util import shadowWidths
-from pr2Gen import pickGen, lookGen, canReachGen,canSeeGen,lookHandGen, easyGraspGen, canPickPlaceGen, placeInRegionGen, placeGen
+from pr2Util import shadowWidths, objectName
+from pr2Gen import pickGen, lookGen, canReachGen,canSeeGen,lookHandGen, \
+    easyGraspGen, canPickPlaceGen, placeInRegionGen, placeGen, moveOut
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
      findRegionParent, CanReachNB, BaseConf, BLoc, canReachHome, canReachNB
-#import planGlobals as glob
-from planGlobals import debugMsg, debug, useROS
+from planGlobals import debugMsg, debug
 import pr2RRT as rrt
 from pr2Visible import visible
-#import windowManager3D as wm
+import itertools
 
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
@@ -59,10 +59,11 @@ tryDirectPath = False
 # canReachHome(conf) returns a path from conf to home!
 def primPath(bs, cs, ce, p):
     home = bs.getRoadMap().homeConf
-    path = None
     if tryDirectPath:
         path, viols = canReachHome(bs, cs, p, Violations(),
                                    homeConf=ce, optimize=True)
+    else:
+        path, viols = None, None
     if (not path) or viols.weight() > 0:
         path1, v1 = canReachHome(bs, cs, p, Violations(), optimize=True)
         if (not path1) or v1.weight() > 0:
@@ -86,6 +87,8 @@ def primPath(bs, cs, ce, p):
                 path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
                                                    maxIter=50, failIter=10)            
                 assert path and viols.weight == 0
+        else:
+            path2, v2 = None, None
         if (not path) and path1 and path2:
             path = path1 + path2[::-1]
     else:
@@ -187,8 +190,6 @@ def printConf(conf):
     print confStr(conf)
 
 def pickPrim(args, details):
-    (o,h,pf,p,pd,gf,gm,gv,gd,prc,cd,pc,rgv,pv,p1,pr1,pr2,pr3) = args
-    bs = details.pbs.copy()
     # !! Should close the fingers as well?
     tr('prim', 0, '*** pickPrim', args)
     return details.pbs.getPlacedObjBs()
@@ -208,12 +209,6 @@ def lookHandPrim(args, details):
     return details.pbs.graspB
     
 def placePrim(args, details):
-    (o, h, pf, p, pv, rpv, pd,
-     gf, gm, gv, gd,
-     prc, cd, pc, ar,
-     pr1, pr2, pr3, p1) = args
-
-    bs = details.pbs.copy()
     # !! Should open the fingers as well
     tr('prim', 0, '*** placePrim', args)
     return details.pbs.getPlacedObjBs()
@@ -231,11 +226,12 @@ smallDelta = (10e-4,)*4
 def oh(h):
     return 'left' if h == 'right' else 'right'
 
+
+# noinspection PyUnusedLocal
 def getObj(args, goal, start, stuff):
     (h,) = args
     heldLeft = start.pbs.getHeld('left').mode()        
     heldRight = start.pbs.getHeld('right').mode()        
-    result = []
     hh = heldLeft if h == 'left' else heldRight
     if hh == 'none' or h == 'right' and not start.pbs.useRight:
         # If there is nothing in the hand right now, then we
@@ -258,9 +254,10 @@ def graspStuffFromStart(start, hand):
     face = gd.grasp.mode()
     mu = gd.poseD.mu.xyztTuple()
     var = gd.poseD.var
-    return (obj, face, mu, var, smallDelta)
+    return obj, face, mu, var, smallDelta
 
 # See if would be useful to look at obj in order to reduce its variance
+# noinspection PyUnusedLocal
 def graspVarCanPickPlaceGen(args, goal, start, vals):
     (obj, variance) = args
     if obj != 'none' and variance[0] > start.domainProbs.obsVarTuple[0]:
@@ -269,6 +266,7 @@ def graspVarCanPickPlaceGen(args, goal, start, vals):
         return []
 
 # Just return the base pose
+# noinspection PyUnusedLocal
 def getBase(args, goal, start, vals):
     (conf,) = args
     if isVar(conf):
@@ -277,6 +275,7 @@ def getBase(args, goal, start, vals):
         return [[conf['pr2Base']]]
 
 # LPK: make this more efficient by storing the inverse mapping
+# noinspection PyUnusedLocal
 def regionParent(args, goal, start, vals):
     [region] = args
     if isVar(region):
@@ -284,6 +283,7 @@ def regionParent(args, goal, start, vals):
         return [['none']]
     return [[findRegionParent(start, region)]]
 
+# noinspection PyUnusedLocal
 def poseInStart(args, goal, start, vals):
     [obj] = args
     pbs = start.pbs
@@ -296,27 +296,32 @@ def poseInStart(args, goal, start, vals):
 # Use this when we don't want to generate an argument (expecting to
 # get it from goal bindings.)  Guaranteed to fail if that var isn't
 # already bound.
+# noinspection PyUnusedLocal
 def genNone(args, goal, start, vals):
     return None
 
+# noinspection PyUnusedLocal
 def assign(args, goal, start, vals):
     return args
 
 # Be sure the argument is not 'none'
+# noinspection PyUnusedLocal
 def notNone(args, goal, start, vals):
-    assert args[0] != None
+    assert args[0] is not None
     if args[0] == 'none':
         return None
     else:
         return [[]]
 
 # Be sure the argument is not '*'
+# noinspection PyUnusedLocal
 def notStar(args, goal, start, vals):
     if args[0] == '*':
         return None
     else:
         return [[]]
 
+# noinspection PyUnusedLocal
 def notEqual(args, goal, start, vals):
     if args[0] == args[1]:
         result = None
@@ -326,6 +331,7 @@ def notEqual(args, goal, start, vals):
 
 # It pains me that this has to exist; but the args needs to be a list
 # not a structure of variables.
+# noinspection PyUnusedLocal
 def notEqual2(args, goal, start, vals):
     if (args[0], args[1]) == (args[2], args[3]):
         result = None
@@ -335,6 +341,7 @@ def notEqual2(args, goal, start, vals):
 
 # It pains me that this has to exist; but the args needs to be a list
 # not a structure of variables.
+# noinspection PyUnusedLocal
 def notEqual3(args, goal, start, vals):
     if (args[0], args[1], args[2]) == (args[3], args[4], args[5]):
         result = None
@@ -343,6 +350,7 @@ def notEqual3(args, goal, start, vals):
     return result
     
 # Isbound
+# noinspection PyUnusedLocal
 def isBound(args, goal, start, vals):
     if isVar(args[0]):
         return None
@@ -350,6 +358,7 @@ def isBound(args, goal, start, vals):
         return [[]]
 
 # Subtract
+# noinspection PyUnusedLocal
 def subtract((a, b), goal, start, vals):
     if a == '*' or b == '*':
         return [['*']]
@@ -361,12 +370,14 @@ def subtract((a, b), goal, start, vals):
         
 # Return as many values as there are args; overwrite any that are
 # variables with the minimum value
+# noinspection PyUnusedLocal
 def minP(args, goal, start, vals):
     minVal = min([a for a in args if not isVar(a)])
     return [[minVal if isVar(a) else a for a in args]]
 
 # Regression:  what does the mode need to be beforehand, assuming a good
 # outcome.  Don't let it go down too fast...
+# noinspection PyUnusedLocal
 def obsModeProb(args, goal, start, vals):
     p = max([a for a in args if not isVar(a)])
     pFalsePos = pFalseNeg = start.domainProbs.obsTypeErrProb
@@ -376,6 +387,7 @@ def obsModeProb(args, goal, start, vals):
 # Compute the nth root of the maximum defined prob value
 
 def regressProb(n, probName = None):
+    # noinspection PyUnusedLocal
     def regressProbAux(args, goal, start, vals):
         failProb = getattr(start.domainProbs, probName) if probName else 0.0
         pr = max([a for a in args if not isVar(a)]) / (1 - failProb)
@@ -386,6 +398,7 @@ def regressProb(n, probName = None):
             return []
     return regressProbAux
 
+# noinspection PyUnusedLocal
 def maxGraspVarFun((var,), goal, start, vals):
     assert not(isVar(var))
     maxGraspVar = start.domainProbs.maxGraspVar
@@ -402,19 +415,25 @@ def maxGraspVarFun((var,), goal, start, vals):
         result.append([tuple([min(x,y) for (x,y) in zip(var, rgs[3])])])
     return result
 
+# noinspection PyUnusedLocal
 def moveConfDelta(args, goal, start, vals):
     return [[start.domainProbs.moveConfDelta]]
+# noinspection PyUnusedLocal
 def defaultPlaceDelta(args, goal, start, vals):
     return [[start.domainProbs.placeDelta]]
+# noinspection PyUnusedLocal
 def defaultGraspDelta(args, goal, start, vals):
     return [[start.domainProbs.graspDelta]]
+# noinspection PyUnusedLocal
 def obsVar(args, goal, start, vals):
     return [[start.domainProbs.obsVar]]
 
+# noinspection PyUnusedLocal
 def realPoseVar((graspVar,), goal, start, vals):
     placeVar = start.domainProbs.placeVar
     return [[tuple([gv+pv for (gv, pv) in zip(graspVar, placeVar)])]]
 
+# noinspection PyUnusedLocal
 def placeInPoseVar(args, goal, start, vals):
     pv = [v * 2 for v in start.domainProbs.obsVarTuple]
     pv[2] = pv[0]
@@ -422,14 +441,17 @@ def placeInPoseVar(args, goal, start, vals):
 
 # Thing is a variance; compute a variance that corresponds to doubling
 # the stdev.    (sqrt(v) * 2)^2 = v * 4
+# noinspection PyUnusedLocal
 def stdevTimes2((thing,), goal, start, vals):
     return [[tuple([v*4 for v in thing])]]
 
+# noinspection PyUnusedLocal
 def times2((thing,), goal, start, vals):
     return [[tuple([v*2 for v in thing])]]
 
 # For place, grasp var is desired poseVar minus fixed placeVar
 # Don't let it be bigger than maxGraspVar 
+# noinspection PyUnusedLocal
 def placeGraspVar((poseVar,), goal, start, vals):
     maxGraspVar = start.domainProbs.maxGraspVar
     placeVar = start.domainProbs.placeVar
@@ -448,6 +470,7 @@ def placeGraspVar((poseVar,), goal, start, vals):
 # ((tol - d) / n)**2 > var
 
 # For pick, pose var is desired graspVar minus fixed pickVar
+# noinspection PyUnusedLocal
 def pickPoseVar((graspVar, graspDelta, prob), goal, start, vals):
     if graspDelta == '*':
         return [[graspVar]]
@@ -477,6 +500,7 @@ def pickPoseVar((graspVar, graspDelta, prob), goal, start, vals):
 
 # starting var if it's legal, plus regression of the result var.
 # Need to try several, so that looking doesn't put the robot into the shadow!
+# noinspection PyUnusedLocal
 def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
     lookVar = start.domainProbs.obsVarTuple
     vs = list(start.poseModeDist(obj, face).mld().sigma.diagonal().tolist()[0])
@@ -524,12 +548,14 @@ def genLookObjPrevVariance((ve, obj, face), goal, start, vals):
            [prettyString(sqrts(xx)[0]) for xx in result]))
     return result
 
+# noinspection PyUnusedLocal
 def realPoseVarAfterObs((varAfter,), goal, start, vals):
     obsVar = start.domainProbs.obsVarTuple
     thing = tuple([min(x, y) for (x, y) in zip(varAfter, obsVar)])
     return [[thing]]
 
 # starting var if it's legal, plus regression of the result var
+# noinspection PyUnusedLocal
 def genLookObjHandPrevVariance((ve, hand, obj, face), goal, start, vals):
     epsilon = 10e-5
     lookVar = start.domainProbs.obsVarTuple
@@ -558,6 +584,7 @@ def genLookObjHandPrevVariance((ve, hand, obj, face), goal, start, vals):
     return result
 
 # Add a condition on the pose and face of an object
+# noinspection PyUnusedLocal
 def addPosePreCond((postCond, obj, poseFace, pose, poseVar, poseDelta, p),
                    goal, start, vals):
     newFluents = [Bd([SupportFace([obj]), poseFace, p], True),
@@ -567,6 +594,7 @@ def addPosePreCond((postCond, obj, poseFace, pose, poseVar, poseDelta, p),
     return [[fluentList]]
 
 # Add a condition on the pose and face of an object
+# noinspection PyUnusedLocal
 def addGraspPreCond((postCond, hand, obj, graspFace, grasp,
                      graspVar, graspDelta, p),
                    goal, start, vals):
@@ -578,18 +606,21 @@ def addGraspPreCond((postCond, hand, obj, graspFace, grasp,
     return [[fluentList]]
 
 # Add a condition on the pose and face of an object
+# noinspection PyUnusedLocal
 def addDropPreCond((postCond, hand, p),
                    goal, start, vals):
     newFluents = [Bd([Holding([hand]), 'none', p], True)]
     fluentList = simplifyCond(postCond, newFluents)
     return [[fluentList]]
 
+# noinspection PyUnusedLocal
 def awayRegion(args, goal, start, vals):
     return [[start.pbs.awayRegions()]]
 
 # Really just return true if reducing variance on the object in the
 # hand will reduce the violations.
 #####    Fix this!!!
+# noinspection PyUnusedLocal
 def canReachHandGen(args, goal, start, vals):
     (conf, fcp, p, cond, hand) = args
     f = CanReachHome([conf, fcp, cond], True)
@@ -601,6 +632,7 @@ def canReachHandGen(args, goal, start, vals):
 
 # Really just return true if putting down the object in the
 # hand will reduce the violations.
+# noinspection PyUnusedLocal
 def canReachDropGen(args, goal, start, vals):
     (conf, fcp, p, cond) = args
     f = CanReachHome([conf, fcp, cond], True)
@@ -623,6 +655,7 @@ def canReachDropGen(args, goal, start, vals):
         
 # Really just return true if putting down the object in the
 # hand will reduce the violations.
+# noinspection PyUnusedLocal
 def canPickPlaceDropGen(args, goal, start, vals):
     (preConf, placeConf, hand, obj, pose, poseVar, poseDelta, poseFace,
      graspFace, graspMu, graspVar, graspDelta, op, cond, p) = args
@@ -652,6 +685,7 @@ def canPickPlaceDropGen(args, goal, start, vals):
 
 attenuation = 0.5
 # During regression, apply to all fluents in goal;  returns f or a new fluent.
+# noinspection PyUnusedLocal
 def moveSpecialRegress(f, details, abstractionLevel):
 
     # Only model these effects at the lower level of abstraction.
@@ -692,16 +726,19 @@ def costFun(primCost, prob):
 # Cost depends on likelihood of success: canReach, plus objects in each hand
 # Add in a real distance from cs to ce
 
+# noinspection PyUnusedLocal
 def moveCostFun(al, args, details):
     rawCost = 5
     result = costFun(rawCost, movePreProb)
     return result
 
+# noinspection PyUnusedLocal
 def moveNBCostFun(al, args, details):
     rawCost = 1 
     result = costFun(rawCost, movePreProb)
     return result
 
+# noinspection PyUnusedLocal
 def placeCostFun(al, args, details):
     rawCost = 3
     abstractCost = 5
@@ -711,6 +748,7 @@ def placeCostFun(al, args, details):
                (abstractCost if al == 0 else 0)
     return result
 
+# noinspection PyUnusedLocal
 def pickCostFun(al, args, details):
     (o,h,pf,p,pd,gf,gm,gv,gd,prc,cd,pc,rgv,pv,p1,pr1,pr2,pr3) = args
     rawCost = 3
@@ -724,6 +762,7 @@ def pickCostFun(al, args, details):
 # mean out of the delta bounds
 # When we go to non-diagonal covariance, this will be fun...
 # For now, just use the first term!
+# noinspection PyUnusedLocal
 def lookAtCostFun(al, args, details):
     (_,_,_,_,vb,d,va,rva,cd,ov,p,pb,pPoseR,pFaceR) = args
     placeProb = min(pPoseR,pFaceR) if (not isVar(pPoseR) and not isVar(pFaceR))\
@@ -739,6 +778,7 @@ def lookAtCostFun(al, args, details):
                      (1 - details.domainProbs.obsTypeErrProb))
     return result
 
+# noinspection PyUnusedLocal
 def lookAtHandCostFun(al, args, details):
     # Two parts:  the probability and the variance
     (_,_,_,_,_,vb,d,va,pb,pGraspR,pFaceR,pHoldingR) = args
@@ -1037,20 +1077,20 @@ def scoreObsObj(details, obs, object):
     return bestLL, bestObs, canonicalFace
 
 # Temporary;  assumes diagonal cov; should use dist.MultivariateGaussian
-def gaussObsUpdate(oldMu, obs, oldSigma, obsVar, noZ = True):
+def gaussObsUpdate(oldMu, obs, oldSigma, obsVariance, noZ = True):
     # All tuples
     newMu = [(m * obsV + op * muV) / (obsV + muV) \
                        for (m, muV, op, obsV) in \
-                       zip(oldMu, oldSigma, obs, obsVar)]
+                       zip(oldMu, oldSigma, obs, obsVariance)]
     # That was not the right way to do the angle update!  Quick and dirty here.
-    oldTh, obsTh, muV, obsV = oldMu[3], obs[3], oldSigma[3], obsVar[3]
+    oldTh, obsTh, muV, obsV = oldMu[3], obs[3], oldSigma[3], obsVariance[3]
     oldX, oldY = np.cos(oldTh), np.sin(oldTh)
     obsX, obsY = np.cos(obsTh), np.sin(obsTh)
     newX = (oldX * obsV + obsX * muV) / (obsV + muV)
     newY = (oldY * obsV + obsY * muV) / (obsV + muV)
     newTh = np.arctan2(newY, newX)
     newMu[3] = newTh
-    newSigma = tuple([(a * b) / (a + b) for (a, b) in zip(oldSigma,obsVar)])
+    newSigma = tuple([(a * b) / (a + b) for (a, b) in zip(oldSigma,obsVariance)])
     if noZ:
         newMu[2] = oldMu[2]
     return (tuple(newMu), newSigma)
@@ -1066,8 +1106,8 @@ def lookAtHandBProgress(details, args, obs):
 
     oldMlo = heldDist.mode()
     # Update dist on what we're holding if we got an observation
-    if obs != None:
-        obsObj = 'none' if obs == 'none' else obs[0]
+    if obs is not None:
+        obsObj = 'none' if obs is 'none' else obs[0]
         # Observation model
         def om(trueObj):
             return MixtureDist(DeltaDist(trueObj),
@@ -1078,15 +1118,26 @@ def lookAtHandBProgress(details, args, obs):
         # If we are fairly sure of the object, update the mode object's dist
         mlo = heldDist.mode()
         bigSigma = (0.01, 0.01, 0.01, 0.04)
+        faceDist = details.pbs.graspB[h].grasp
+        gd = details.pbs.graspB[h].graspDesc
         if mlo == 'none':
+            # We think we are not holding anything
             newOGB = None
         # If we now have a new mode, we have to reinitialize the grasp dist!
         elif mlo != oldMlo:
-            details.graspModeProb[h] = 1 - details.domainProbs.obsTypeErrProb
-            gd = details.pbs.graspB[h].graspDesc
-            newOGB = ObjGraspB(mlo, gd, PoseD(hu.Pose(0, 0, 0, 0),
-                                                  bigSigma))
-        elif mlo != 'none' and obsObj != 'none':
+            raw_input('Fix observation update to handle new mlo')
+            #details.graspModeProb[h] = 1 - details.domainProbs.obsTypeErrProb
+            #gd = details.pbs.graspB[h].graspDesc
+            newOGB = ObjGraspB(mlo, gd, faceDist,
+                               PoseD(hu.Pose(0.0, 0.0, 0.0, 0.0), bigSigma))
+        elif obsObj == 'none':
+            # obj, graspDesc, graspD, poseD
+            poseDist = details.pbs.graspB[h].poseD
+            oldPose = poseDist.mode().xyztTuple()
+            newOGB = ObjGraspB(mlo, gd, faceDist, PoseD(oldPose, bigSigma))
+        else:
+            # we observed the same object as the current mode; do a
+            # belief update on the grasp
             (_, ogf, ograsp) = obs            
             # Bayes update on mode prob
             oldP = details.graspModeProb[h]
@@ -1095,14 +1146,10 @@ def lookAtHandBProgress(details, args, obs):
             newP = obsGivenH * oldP / \
                         (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
             details.graspModeProb[h] = newP
-
-            gd = details.pbs.graspB[h].graspDesc
             # Update the rest of the distributional info.
             # Consider only doing this if the mode prob is high
-            mlop = heldDist.prob(mlo)
-            faceDist = details.pbs.graspB[h].grasp
+            #mlop = heldDist.prob(mlo)
             oldMlf = faceDist.mode()
-
             # Should do an update, but since we only have one grasp for now it
             # doesn't make sense
             # faceDist.obsUpdate(fom, ogf)
@@ -1118,15 +1165,15 @@ def lookAtHandBProgress(details, args, obs):
                 # Keep the pose for lack of a better idea, but
                 # increase sigma a lot!
                 newPoseDist = PoseD(poseDist.mode(), bigSigma)
-                raw_input('Grasp changed')
+                trAlways('Grasp face changed.  Probably not okay')
             else:
                 # Cheapo obs update
-                obsVar = details.domainProbs.obsVarTuple
+                obsVariance = details.domainProbs.obsVarTuple
                 newMu = tuple([(m * obsV + op * muV) / (obsV + muV) \
                        for (m, muV, op, obsV) in \
-                       zip(oldMu, oldSigma, ograsp, obsVar)])
+                       zip(oldMu, oldSigma, ograsp, obsVariance)])
                 newSigma = tuple([(a * b) / (a + b) for (a, b) in \
-                                  zip(oldSigma,obsVar)])
+                                  zip(oldSigma,obsVariance)])
                 newPoseDist = PoseD(hu.Pose(*newMu), newSigma)
             newOGB = ObjGraspB(mlo, gd, faceDist, newPoseDist)
         details.pbs.updateHeldBel(newOGB, h)
@@ -1143,7 +1190,7 @@ def lookAtHandBProgress(details, args, obs):
 # Parameter PCR is the probability that its path is not blocked.
 
 # Allowed to move base
-move = Operator(\
+move = Operator(
     'Move',
     ['CStart', 'CEnd', 'DEnd'],
     # Pre
@@ -1151,7 +1198,7 @@ move = Operator(\
      1 : {Conf(['CStart', 'DEnd'], True)}},
     # Results:  list of pairs: (fluent set, private preconds)
     [({Conf(['CEnd', 'DEnd'], True)}, {})],
-    functions = [\
+    functions = [
         Function(['CEnd'], [], genNone, 'genNone'),
                  ],
     cost = moveCostFun,
@@ -1166,7 +1213,7 @@ move = Operator(\
     # Would like really to just pay attention to the base!!
 
 # Not allowed to move base
-moveNB = Operator(\
+moveNB = Operator(
     'MoveNB',
     ['Base', 'CStart', 'CEnd', 'DEnd'],
     # Pre
@@ -1176,7 +1223,7 @@ moveNB = Operator(\
              }},
     # Results:  list of pairs: (fluent set, private preconds)
     [({Conf(['CEnd', 'DEnd'], True)}, {})],
-    functions = [\
+    functions = [
         Function(['CEnd'], [], genNone, 'genNone'),
         Function(['Base'], ['CEnd'], getBase, 'getBase')
                  ],
@@ -1188,13 +1235,13 @@ moveNB = Operator(\
 
 # All this work to say you can know the location of something by knowing its
 # pose or its grasp
-bLoc1 = Operator(\
+bLoc1 = Operator(
          'BLoc1', ['Obj', 'Var', 'P'],
          {0 : {B([Pose(['Obj', '*']), '*', 'Var', '*', 'P'], True),
                Bd([SupportFace(['Obj']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})])
 
-bLoc2 = Operator(\
+bLoc2 = Operator(
          'BLoc2', ['Obj', 'Var', 'P'],
          {0 : {Graspable(['Obj'], True),
                B([Grasp(['Obj', 'left', '*']), '*', 'Var', '*', 'P'], True),
@@ -1202,7 +1249,7 @@ bLoc2 = Operator(\
                Bd([GraspFace(['Obj', 'left']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})])
 
-bLoc3 = Operator(\
+bLoc3 = Operator(
          'BLoc3', ['Obj', 'Var', 'P'],
          {0 : {Graspable(['Obj'], True),
                B([Grasp(['Obj', 'right', '*']), '*', 'Var', '*', 'P'], True),
@@ -1210,7 +1257,7 @@ bLoc3 = Operator(\
                Bd([GraspFace(['Obj', 'right']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})])
 
-poseAchIn = Operator(\
+poseAchIn = Operator(
              'PosesAchIn', ['Obj1', 'Region',
                             'ObjPose1', 'PoseFace1',
                             'Obj2', 'ObjPose2', 'PoseFace2',
@@ -1230,7 +1277,7 @@ poseAchIn = Operator(\
                   Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)}},
             # Results
             [({Bd([In(['Obj1', 'Region']), True, 'PR'], True)},{})],
-            functions = [\
+            functions = [
               Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2'),
               # Object region is defined wrto
               Function(['Obj2'], ['Region'], regionParent, 'regionParent'),
@@ -1251,14 +1298,18 @@ poseAchIn = Operator(\
             argsToPrint = [0, 1],
             ignorableArgs = range(1,11))
 
-place = Operator(
-        'Place',
-        ['Obj', 'Hand',
+placeArgs = ['Obj', 'Hand',
          'PoseFace', 'Pose', 'PoseVar', 'RealPoseVar', 'PoseDelta',
          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
          'PreConf', 'ConfDelta', 'PlaceConf', 'AwayRegion',
          'PR1', 'PR2', 'PR3', 'P1'],
-        # Pre
+
+# make an instance of the lookAt operation with given arguments
+def placeOp(*args):
+    assert len(args) == len(placeArgs)
+    return lookAt.applyBindings(dict(zip(placeArgs, args)))
+
+place = Operator('Place', placeArgs,
         {0 : {Graspable(['Obj'], True)},
          1 : {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                                'RealPoseVar', 'PoseDelta', 'PoseFace',
@@ -1414,13 +1465,18 @@ pick = Operator(
 # results...unfortunate increase in branching factor unless
 # applicableOps handles them well.
 
-lookAt = Operator(\
-    'LookAt',
-    ['Obj', 'LookConf', 'PoseFace', 'Pose',
+lookAtArgs = ['Obj', 'LookConf', 'PoseFace', 'Pose',
      'PoseVarBefore', 'PoseDelta', 'PoseVarAfter', 'RealPoseVarAfter',
-     'ConfDelta', 'ObsVar', 
-     'P1', 'PR0', 'PR1', 'PR2'],
-    # Pre
+     'ConfDelta', 'ObsVar',
+     'P1', 'PR0', 'PR1', 'PR2']
+
+# make an instance of the lookAt operation with given arguments
+def lookAtOp(*args):
+    assert len(args) == len(lookAtArgs)
+    return lookAt.applyBindings(dict(zip(lookAtArgs, args)))
+
+lookAt = Operator(
+    'LookAt', lookAtArgs,
     {0: {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
          B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVarBefore', 'PoseDelta',
                  'P1'], True)},
@@ -1434,7 +1490,7 @@ lookAt = Operator(\
        Bd([SupportFace(['Obj']), 'PoseFace', 'PR2'], True)}, {})
        ],
     # Functions
-    functions = [\
+    functions = [
         # In case these aren't bound
         Function(['PoseFace'], [['*']], assign, 'assign'),
         Function(['Pose'], [['*']], assign, 'assign'),
@@ -1498,260 +1554,191 @@ lookAtHand = Operator(\
     prim = lookHandPrim,
     argsToPrint = [0, 1],
     ignorableArgs = range(1, 11))
-'''    
-
-# This is an inference step that is true for all pairs of a
-# conditional fluent and a primitive one.
-# FC(. | p) and p -> FC(.)
-# If p is well chosen, then we think FC(. |p) will have lower heuristic value,
-# than p
-
-# We have to do this because FC is an implicit predicate and we
-# haven't asserted all of the ways in which it can be made true by
-# primitive actions.
+'''
+######################################################################
 #
-# We are asserting that making p true is a kind of primitive action
-# that can make this fluent become true.  And, now, because there are
-# infinitely many such p's, we need generators to cause us to consider
-# reasonable ones in a reasonable order.
+# Meta generators:  make implicit fluents true
+#
+######################################################################
 
-# In these particular cases, there is inductive reasoning going on:
-# moving this object won't make the region clear, but (we assert) it
-# will make it closer to being clear.
+# The idea here is that there are infinitely many actions we could possibly
+# take.  Of those, only some subset can make a canXX fluent true or reduce
+# the number of violations it has.
 
-# Would it be possible to write this completely generically?  In some
-# sense, we need a generator that, given an FC will give us a P.  In
-# principle possible, but kind of a big change to rule syntax.  For
-# now, make one for each pair of conditional fluent FC and primitive
-# fluent P.  Note that the action is irrelevant.  So, moveObjToAchReachable
-# and lookObjToAchReachable have the some FC and P, so they can be
-# folded into a single ChangePoseToMakeReachable, which might ask to
-# change the mean or the variance of a pose dist.
+# Our original strategy was to suggest conditions which, when added to the
+# fluent would reduce the nubmer of viols.  It's relatively easy to generate
+# such conditions, but more difficult to ensure that they are feasible.  To show
+# that they are feasible we must construct a (fragment of a) plan for making
+# them true.   Given that we already construct such a plan, we decide, here
+# to directly suggest the final operation of that plan.  One might imagine,
+# for longer plans, generating more than a single operation.
 
-poseAchCanReach = Operator(\
-    'PoseAchCanReach',
-    ['CEnd', 'FCP', 'PreCond', 'PostCond',
-     'Occ', 'PoseFace', 'Pose', 'PoseVar', 'PoseDelta', 'P1', 'PR'],
+# Returns an operator and the new condition that should be added to the
+# conditional operator by this fluent.
 
+def achCanReachGen(args, goal, start):
+    tag = 'canReachGen'
+    # Different ways to do this:
+    # - place an object that is not in the hand
+    # - look at an object that is not in the hand
+    # - place an object that is in the hand
+    # - look at the object in the hand
+    (conf, fcp, prob, cond) = args
+    newBS = start.pbs.conditioned(goal, cond)
+    shWorld = newBS.getShadowWorld(prob)
+    def violFn(pbs):
+        p, v = canReachHome(pbs, conf, prob, Violations())
+        return v
+    viol = violFn(newBS)
+    tr(tag, 1, ('viol', viol), draw=[(newBS, prob, 'W')], snap=['W'])
+    if viol is None:                  # hopeless
+        trAlways('Impossible dream', pause = True)
+        return
+    if viol.empty():
+        tr(tag, 1, '=> No obstacles or shadows; returning')
+        return
+
+    lookG = lookAchCanXGen(newBS, shWorld, viol, violFn, prob)
+    placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob, goal)
+    # prefer looking
+    return itertools.chain(lookG, placeG)
+
+def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
+    tag = 'lookAchGen'
+    shadows = [sh.name() for sh in initViol.allShadows() \
+               if not sh.name() in shWorld.fixedObjects]
+    if not shadows:
+        tr(tag, 1, '=> No shadows to fix')
+        return       # nothing available
+
+    objBMinVarGrasp = tuple([x/2 for x in newBS.domainProbs.obsVarTuple])
+    objBMinVarStatic = tuple([x**2 for x in newBS.domainProbs.odoError])
+    lookDelta = newBS.domainProbs.shadowDelta
+    for shadowName in shadows:
+        obst = objectName(shadowName)
+        graspable = obst in newBS.getWorld().graspDesc
+        objBMinVar = objBMinVarGrasp if graspable else objBMinVarStatic
+        placeB = newBS.getPlaceB(obst)
+        tr(tag, 1, '=> reduce shadow %s (in red):'%obst,
+           draw=[(newBS, prob, 'W'),
+           (placeB.shadow(newBS.getShadowWorld(prob)), 'W', 'red')],
+           snap=['W'])
+        face = placeB.support.mode()
+        poseMean = placeB.PoseD.mode().xyztTuple()
+        conds = {Bd([SupportFace([obst]), face, prob], True),
+                 B([Pose([obst, face]), poseMean, objBMinVar, lookDelta, prob],
+                  True)}
+        resultBS = newBS.conditioned(conds)
+        resultViol = violFn(resultBS)
+        if shadowName not in resultViol.allShadows():
+            op = lookAtOp(obst, 'LookConf', face, poseMean, 'PoseVarBefore',
+                          lookDelta, objBMinVar, objBMinVar, 'ConfDelta', obsVar,
+                          'P1', prob, prob, prob)
+            tr(tag, 1, '=> returning', op)
+            yield op, conds
+        else:
+            trAlways('Error? Looking could not dispel shadow')
+    tr(tag, 1, '=> Out of remedies')
+
+def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
+    tag = 'placeAchGen'
+    obstacles = [o.name() for o in initViol.allObstacles() \
+                  if not o.name() in shWorld.fixedObjects]
+    if not obstacles:
+        tr(tag, 1, '=> No movable obstacles to fix')
+        return       # nothing available
+
+    moveDelta = newBS.domainProbs.placeDelta
+    objBMinVar = tuple([x/2 for x in newBS.domainProbs.obsVarTuple])
+    # LPK: If this fails, it could be that we really want to try a
+    # different obstacle (so we can do the obstacles in a different order)
+    # than a different placement of the first obst;  not really sure how to
+    # arrange that.
+    for obst in obstacles:
+        for (_, poseMean, face, variance, delta) in \
+                         moveOut(newBS, prob, obst, moveDelta, cond):
+            newConds = {Bd([SupportFace([obst]), face, prob], True),
+                        B([Pose([obst, face]), poseMean, objBMinVar, lookDelta, prob],
+                          True)}
+            op = placeOp(obst, 'Hand', face, poseMean, variance, 'RealPoseVar',
+                         moveDelta,
+         'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
+         'PreConf', 'ConfDelta', 'PlaceConf', 'AwayRegion',
+         'PR1', 'PR2', 'PR3', 'P1')
+
+
+            tr(tag, 1, '=> returning', op)
+            yield op, newConds
+    tr(tag, 1, '=> Out of remedies')
+
+
+######################################################################
+#
+# Meta operators:  make implicit fluents true
+#
+######################################################################
+
+# Calls a generator that returns an instance of a base operator, and the
+# conditions it achieves.  Could look at obj, move an obj, look at hand,
+# drop obj in hand, push, etc.
+
+achCanReach = Operator('AchCanReach',
+    ['CEnd', 'FCP', 'PreCond', 'PostCond', 'NewCond', 'Op', 'PR'],
     {0: {},
-     1: {Bd([CanReachHome(['CEnd', 'FCP', 'PreCond']),  True, 'PR'], True),
-         Bd([SupportFace(['Occ']), 'PoseFace', 'P1'], True),
-         B([Pose(['Occ', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta', 'P1'],
-            True)}},
+     1: {Bd([CanReachHome(['CEnd', 'FCP', 'PreCond']),  True, 'PR'], True)}},
     # Result
     [({Bd([CanReachHome(['CEnd', 'FCP','PostCond']),  True, 'PR'], True)}, {})],
+    functions = [
+        Function(['Op', 'NewCond'],['CEnd', 'FCP', 'PR', 'PostCond'],
+                 achCanReachGen,'achCanReachGen'),
+        Function(['PreCond'],['PostCond', 'NewConds'], addPreConds, 'addPreconds')],
+    metaGenerator = True
+    )
 
-    # Functions
-    functions = [\
-        # Compute precond probs
-        Function(['P1'], ['PR'], regressProb(1), 'regressProb1', True),
-        # Call generator
-        Function(['Occ', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta'],
-                  ['CEnd', 'FCP', 'PR', 'PostCond'], canReachGen,'canReachGen'),
-         # Add the appropriate condition
-         Function(['PreCond'],
-                  ['PostCond',
-                   'Occ', 'PoseFace', 'Pose', 'PoseVar', 'PoseDelta', 'PR'],
-                  addPosePreCond, 'addPosePreCond')],
-    cost = lambda al, args, details: 0.1,
-    argsToPrint = [0, 4, 6],
-    ignorableArgs = range(1, 11))
-
-poseAchCanPickPlace = Operator(\
-    'PoseAchCanPickPlace',
+achCanPickPlace = Operator('AchCanPickPlace',
     ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
      'RealPoseVar', 'PoseDelta', 'PoseFace',
-     'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-     'PreCond', 'PostCond',
-     'Occ', 'OccPose', 'OccPoseFace', 'OccPoseVar', 'OccPoseDelta', 'Op',
-     'P1', 'PR'],
+     'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta','PPOp'
+     'PreCond', 'PostCond', 'NewCond', 'Op', 'PR'],
     {0: {},
      1: {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'Op', 'PreCond']), True, 'PR'],True),
-         Bd([SupportFace(['Occ']), 'OccPoseFace', 'P1'], True),
-         B([Pose(['Occ', 'OccPoseFace']), 'OccPose', 'OccPoseVar',
-                  'OccPoseDelta', 'P1'],
-            True)}},
+                          'PPOp', 'PreCond']), True, 'PR'],True)}},
     # Result
     [({Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'Op', 'PostCond']), True, 'PR'],True)},
+                          'PPOp', 'PostCond']), True, 'PR'],True)},
                           {})],
-    # Functions
-    functions = [\
-        # Compute precond probs
-        Function(['P1'], ['PR'], regressProb(1), 'regressProb1', True),
+    functions = [
         # Call generator
-        Function(['Occ', 'OccPose', 'OccPoseFace', 'OccPoseVar','OccPoseDelta'],
+        Function(['Op', 'NewCond'],
                   ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                           'RealPoseVar', 'PoseDelta', 'PoseFace',
                           'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'PR', 'PostCond', 'Op'],
+                          'PPOp', 'PR', 'PostCond'],
                           canPickPlaceGen, 'canPickPlaceGen'),
          # Add the appropriate condition
-         Function(['PreCond'],
-                  ['PostCond',
-                   'Occ', 'OccPoseFace', 'OccPose', 'OccPoseVar',
-                   'OccPoseDelta', 'PR'],
-                  addPosePreCond, 'addPosePreCond')],
-    cost = lambda al, args, details: 0.1,
-    argsToPrint = [3, 4, 14, 15],
-    ignorableArgs = range(0, 2) + range(5, 22))
-
-# Only useful if we can look at hand. 
-graspAchCanReach = Operator(\
-    'GraspAchCanReach',
-    ['CEnd', 'FCP', 'PreCond', 'PostCond',
-     'Obj', 'Hand', 'GraspFace', 'GraspMu', 'PreGraspVar', 'GraspDelta',
-      'P1', 'PR'],
-    {0: {},
-     1: {Bd([CanReachHome(['CEnd', 'FCP', 'PreCond']),  True, 'PR'], True),
-         Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'P1'], True),
-         Bd([Holding(['Hand']), 'Obj', 'P1'], True),
-         B([Grasp(['Obj', 'Hand', 'GraspFace']),
-             'GraspMu', 'PreGraspVar', 'GraspDelta', 'P1'], True)}},
-    # Result
-    [({Bd([CanReachHome(['CEnd', 'FCP','PostCond']),  True, 'PR'], True)}, {})],
-
-    # Functions
-    functions = [\
-        # Compute precond probs
-        Function(['P1'], ['PR'], regressProb(1), 'regressProb1', True),
-        # Call generator
-        Function([], ['CEnd', 'FCP', 'PR', 'PostCond', 'Hand'],
-                 canReachHandGen,'canReachHandGen', True),
-         # Add the appropriate condition
-         Function(['PreCond'],
-                  ['PostCond', 'Hand',
-                   'Obj', 'GraspFace', 'GraspMu', 'PreGraspVar',
-                   'GraspDelta', 'PR'],
-                  addGraspPreCond, 'addGraspPreCond')],
-    cost = lambda al, args, details: 0.1,
-    argsToPrint = [0, 4],
-    ignorableArgs = range(1, 12))
-
-dropAchCanReach = Operator(\
-    'DropAchCanReach',
-    ['CEnd', 'FCP', 'PreCond', 'PostCond', 'Hand', 'P1', 'PR'],
-    {0: {Bd([CanReachHome(['CEnd', 'FCP', 'PreCond']),  True, 'PR'], True)},
-     1: {Bd([Holding(['Hand']), 'none', 'P1'], True)}},
-    # Result
-    [({Bd([CanReachHome(['CEnd', 'FCP','PostCond']),  True, 'PR'], True)}, {})],
-
-    # Functions
-    functions = [\
-        # Compute precond probs
-        Function(['P1'], ['PR'], regressProb(1), 'regressProb1', True),
-        # Call generator
-        Function(['Hand'], ['CEnd', 'FCP', 'PR', 'PostCond'],
-                 canReachDropGen,'canReachHandGen', True),
-         # Add the appropriate condition
-         Function(['PreCond'],
-                  ['PostCond', 'Hand', 'PR'],
-                  addDropPreCond, 'addDropPreCond')],
-    cost = lambda al, args, details: 0.1,
-    argsToPrint = [0, 4],
-    ignorableArgs = range(1, 7))
-
-dropAchCanPickPlace = Operator(\
-    'dropAchCanPickPlace',
-    ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
-                          'RealPoseVar', 'PoseDelta', 'PoseFace',
-                          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'Op', 'DropHand', 'PreCond', 'PostCond', 'P1', 'PR'],
-    {0: {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
-                          'RealPoseVar', 'PoseDelta', 'PoseFace',
-                          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'Op', 'PreCond']), True, 'PR'],True)},
-     1: {Bd([Holding(['DropHand']), 'none', 'P1'], True)}},
-    # Result
-    [({Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
-                          'RealPoseVar', 'PoseDelta', 'PoseFace',
-                          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'Op', 'PostCond']), True, 'PR'],True)}, {})],
-    # Functions
-    functions = [\
-        # Compute precond probs
-        Function(['P1'], ['PR'], regressProb(1), 'regressProb1', True),
-        # Call generator
-        Function(['DropHand'],
-                 ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
-                          'RealPoseVar', 'PoseDelta', 'PoseFace',
-                          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'Op', 'PostCond', 'PR'],
-                 canPickPlaceDropGen,'canPickPlaceDropGen', True),
-         # Add the appropriate condition
-         Function(['PreCond'],
-                  ['PostCond', 'DropHand', 'PR'],
-                  addDropPreCond, 'addDropPreCond')],
-    cost = lambda al, args, details: 0.1,
-    argsToPrint = [0, 4],
-    ignorableArgs = [0, 1, 2] + range(4, 7))
-
-
-'''
-More generally:  have the generators return the relevant conditions.
-So, one generator per conditional fluent.
-
-We would need to add some mechanism to the rule definition so we can
-programatically compute some extra preconditions.  That's a bit of 
-
-
-                           
-Additional connective operators:
-dropAchCanPickPlace
-graspAchCanPickPlace
-graspAchCanReachNB
-dropAchCanReachNB
-poseAchCanReachNB
-graspAchCanSee
-dropAchCanSee
-                            
-
-'''    
+         Function(['PreCond'], ['PostCond', 'NewConds'], addPreConds, 'addPreconds')],
+    metaGenerator = True)
 
 # Never been tested
 
-poseAchCanSee = Operator(\
-    'PoseAchCanSee',
-    ['Obj', 'TargetPose', 'TargetPoseFace', 'TargetPoseVar', 'TargetPoseDelta',
-     'Occ', 'OccPoseFace', 'OccPose', 'OccPoseVar', 'OccPoseDelta',
-     'LookConf', 'ConfDelta', 'PreCond', 'PostCond',
-      'P1', 'P2', 'PR'],
-
+achCanSee = Operator('AchCanSee',
+    ['Obj', 'TargetPose', 'TargetPoseFace', 'TargetPoseVar',
+     'LookConf', 'PreCond', 'PostCond', 'NewCond', 'Op', 'PR'],
     {0: {Bd([CanSeeFrom(['Obj', 'TargetPose', 'TargetPoseFace', 'LookConf',
-                         'PreCond']),
-             True, 'PR'], True)},
-     1: {Bd([SupportFace(['Occ']), 'OccPoseFace', 'PR'], True),
-         B([Pose(['Occ', 'OccPoseFace']), 'OccPose', 'OccPoseVar',
-            'OccPoseDelta', 'PR'], True)}},
+                         'PreCond']), True, 'PR'], True)}},
     # Result
     [({Bd([CanSeeFrom(['Obj', 'TargetPose', 'TargetPoseFace', 'LookConf', 
                            'PostCond']),  True, 'PR'], True)}, {})],
-    # Functions
-    functions = [\
-        # Compute precond probs
-        Function(['P1', 'P2'], ['PR'], regressProb(2), 'regressProb2', True),
-        # Only want to see the mean, assume robot at conf
-        Function(['TargetPoseVar', 'TargetPoseDelta', 'ConfDelta'], [],
-                 lambda a, c, b, o: [[(0.0,)*4, (0.0,)*4, (0.0,)*4]], 'zeros'),
-        # Call generator
-        Function(['Occ', 'OccPose', 'OccPoseFace', 'OccPoseVar','OccPoseDelta'],
+    functions = [
+        Function(['Op', 'NewCond'],
                   ['Obj', 'TargetPose', 'TargetPoseFace', 'TargetPoseVar',
-                   'TargetPoseDelta', 'LookConf', 'ConfDelta', 'PR'],
-                    canSeeGen, 'canSeeGen'),
-         # Add the appropriate condition
-         Function(['PreCond'],
-                  ['PostCond',
-                   'Occ', 'OccPoseFace', 'OccPose', 'OccPoseVar',
-                   'OccPoseDelta', 'P1'],
-                  addPosePreCond, 'addPosePreCond')],
-    argsToPrint = [0, 1, 5],
-    cost = lambda al, args, details: 0.1)
-
+                   'LookConf', 'PR', 'PostCond'], canSeeGen, 'canSeeGen'),
+         Function(['PreCond'], ['PostCond', 'NewConds'], addPreConds, 'addPreConds')],
+    metaGenerator = True)
 
 ######################################################################
 #
@@ -1765,7 +1752,7 @@ magicRegraspCost = 10
 # "Holding" goal.  Hopefully the easyGrasp cache works well.  Will try
 # attenuating the probabilities.
 
-hRegrasp = Operator(\
+hRegrasp = Operator(
         'HeuristicRegrasp',
         ['Obj', 'Hand', 'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
          'PrevGraspFace', 'PrevGraspMu', 'PrevGraspVar', 'PrevGraspDelta',
@@ -1785,7 +1772,7 @@ hRegrasp = Operator(\
             'GraspMu', 'GraspVar', 'GraspDelta', 'PR3'], True)}, {})],
 
         # Functions
-        functions = [\
+        functions = [
             # Be sure obj is not none
             Function([], ['Obj'], notNone, 'notNone', True),
             Function(['P1'], ['PR1'], 
