@@ -1108,9 +1108,10 @@ def moveOut(pbs, prob, obst, delta, goalConds):
                             for x in pbs.domainProbs.obsVarTuple])
     if not isinstance(obst, str):
         obst = obst.name()
-    for ans, v in placeInGenAway((obst, delta, prob), goalConds, pbs, None):
-        (pB, gB, cf, ca) = ans
-        yield (obst, pB.poseD.mode().xyztTuple(), pB.support.mode(), domainPlaceVar, delta)
+    for ans in placeInGenAway((obst, delta, prob), goalConds, pbs, None):
+        ans = ans.copy()
+        ans.var = domainPlaceVar; ans.delta = delta
+        yield ans
 
 # Preconditions (for R1):
 
@@ -1149,7 +1150,7 @@ def canReachGen(args, goalConds, bState, outBindings):
     for ans in canXGenTop(violFn, (cond, prob, lookVar),
                           goalConds, newBS, outBindings, 'canReachGen'):
         tr('canReachGen', 1, ('->', ans))
-        yield ans
+        yield ans.canXGenTuple()
     tr('canReachGen', 1, 'exhausted')
 
 # Preconditions (for R1):
@@ -1206,7 +1207,7 @@ def canPickPlaceGen(args, goalConds, bState, outBindings):
     for ans in canXGenTop(violFn, (cond, prob, lookVar),
                           goalConds, newBS, outBindings, 'canPickPlaceGen'):
         tr('canPickPlaceGen', 1, ('->', ans))
-        yield ans
+        yield ans.canXGenTuple()
     tr('canPickPlaceGen', 1, 'exhausted')
 
 def canXGenTop(violFn, args, goalConds, newBS, outBindings, tag):
@@ -1264,8 +1265,8 @@ def canXGenTop(violFn, args, goalConds, newBS, outBindings, tag):
            draw=[(newBS, prob, 'W'),
                  (placeB.shadow(newBS.getShadowWorld(prob)), 'W', 'red')],
            snap=['W'])
-        yield (obst, placeB.poseD.mode().xyztTuple(),
-                placeB.support.mode(), objBMinVar, lookDelta)
+        ans = Response(placeB, None, None, None, None, objBMinVar, lookDelta)
+        yield ans
         # Either reducing the shadow is not enough or we failed and
         # need to move the object (if it's movable).
         if obst not in fixed:

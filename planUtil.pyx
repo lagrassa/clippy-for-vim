@@ -235,13 +235,15 @@ cpdef list upd(curShapes, newShapes):
     return curDict.values()
 
 class Response:
-    def __init__(self, pB, gB, c, ca, viol, hand):
+    def __init__(self, pB, gB, c, ca, viol, hand, var=None, delta=None):
         self.pB = pB
         self.gB = gB
         self.c = c
         self.ca = ca
         self.viol = viol
         self.hand = hand
+        self.var = var
+        self.delta = delta
     def easyGraspTuple(self):
         return (self.gB.grasp.mode(), self.gB.poseD.mode().xyztTuple(),
                 self.gB.poseD.var, self.gB.delta)
@@ -253,6 +255,9 @@ class Response:
                 self.pB.poseD.mode().xyztTuple(), self.pB.support.mode())
     def placeInTuple(self):
         return (self.pB.poseD.mode().xyztTuple(), self.pB.support.mode())
+    def canXGenTuple(self):
+        return (self.pB.obj, self.pB.poseD.mode().xyztTuple(), self.pB.support.mode(),
+                self.var, self.delta)
     def copy(self):
         return Response(self.pB, self.gB, self.c, self.ca, self.viol, self.hand)
     def __str__(self):
