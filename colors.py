@@ -101,7 +101,7 @@ def probToPyColor(p, uniformP = 0.5, upperVal = None):
     @returns: A Python color
     """
 
-    if upperVal == None:
+    if upperVal is None:
         upperVal = uniformP * 2
     if p > uniformP:
         return RGBToPyColor(HSVtoRGB(blueHue, 1.0,
@@ -111,7 +111,7 @@ def probToPyColor(p, uniformP = 0.5, upperVal = None):
                                      min(1.0, ((uniformP - p)/uniformP)**2)))
 
 def probToRGBColor(p, uniformP = 0.5, upperVal = None):
-    if upperVal == None:
+    if upperVal is None:
         upperVal = uniformP * 2
     if p > uniformP:
         return HSVtoRGB(blueHue, 1.0,

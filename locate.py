@@ -38,7 +38,7 @@ def getObjectDetections(lookConf, placeB, pbs, pointCloud):
     tr('detect', 1, 'Running time for obj detections =',  time.time() - startTime,
        ol = True)
     tr('locate', 0, 'Detection for obj=%s'%objName)
-    if score == None:
+    if score is None:
         return (None, None, None)
     else:
         return (score, trans.compose(placeB.poseD.mode()), detection)
@@ -112,7 +112,7 @@ def locateByFmin(model_verts, data_verts, variance, shape=None):
         tr('locate', 3, 'score', score, 'final', final, ol = True)
         tr('locate', 3,  'best_score', best_score, 'best_trans', best_trans,
            ol = True)
-        if best_score == None or score < best_score:
+        if best_score is None or score < best_score:
             no_improvement = 0
             best_score = score
             best_trans = hu.Pose(*final)

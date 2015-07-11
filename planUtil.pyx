@@ -233,3 +233,35 @@ cpdef list upd(curShapes, newShapes):
     newDict = dict([(o.name(), o) for o in newShapes])
     curDict.update(newDict)
     return curDict.values()
+
+class Response:
+    def __init__(self, pB, gB, c, ca, viol, hand):
+        self.pB = pB
+        self.gB = gB
+        self.c = c
+        self.ca = ca
+        self.viol = viol
+        self.hand = hand
+    def easyGraspTuple(self):
+        return (self.gB.grasp.mode(), self.gB.poseD.mode().xyztTuple(),
+                self.gB.poseD.var, self.gB.delta)
+    def pickTuple(self):
+        return (self.pB.poseD.mode().xyztTuple(), self.pB.support.mode(), self.c, self.ca)
+    def placeTuple(self):
+        return (self.hand, self.gB.poseD.mode().xyztTuple(), self.gB.grasp.mode(),
+                self.c, self.ca,
+                self.pB.poseD.mode().xyztTuple(), self.pB.support.mode())
+    def placeInTuple(self):
+        return (self.pB.poseD.mode().xyztTuple(), self.pB.support.mode())
+    def copy(self):
+        return Response(self.pB, self.gB, self.c, self.ca, self.viol, self.hand)
+    def __str__(self):
+        obj = (self.pB or self.gB).obj
+        pose = self.pB.poseD.mode().xyztTuple() if self.pB else None
+        grasp = self.gB.grasp.mode() if self.gB else None
+        pg = (self.pB.support.mode(), grasp)
+        w = self.viol.weight() if self.viol else None
+        return '%s %s v=%s (p,g)=%s, pose=%s'%(obj, self.hand, w, pg, pose)
+    def __repr__(self):
+        return str(self)
+    

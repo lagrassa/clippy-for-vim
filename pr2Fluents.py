@@ -593,7 +593,7 @@ class CanPickPlace(Fluent):
 
         tinyDelta = zeroDelta
 
-        if not hasattr(self, 'conds') or self.conds == None:
+        if not hasattr(self, 'conds') or self.conds is None:
             objInPlace = [B([Pose([obj, poseFace]), pose, poseVar, poseDelta,
                             1.0], True),
                           Bd([SupportFace([obj]), poseFace, 1.0], True)]
@@ -650,7 +650,7 @@ class CanPickPlace(Fluent):
                 print '    cond', cond
                 print '    viol', viol
 
-        pathNone = any([p == None for (p, v) in condViols])
+        pathNone = any([p is None for (p, v) in condViols])
         if pathNone:
             return (None, None)
         allViols = [v for (p, v) in condViols]
@@ -1116,7 +1116,7 @@ def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False
         assert path[0] == conf, 'Start of path'
         assert path[-1] == homeConf, 'End of path'
 
-    if viol == None or viol.weight() > 0:
+    if viol is None or viol.weight() > 0:
         # Don't log the "trivial" ones...
         tr('CRH', 0, '%s h=%s'%(tag, glob.inHeuristic) + \
            ' viol=%s'%(viol.weight() if viol else None))

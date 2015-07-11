@@ -757,7 +757,7 @@ class PR2:
         assert conf or wstate or self.nominalConf
         if collisionAware:
             assert wstate
-        if conf == None:
+        if conf is None:
             conf = wstate.robotConf if wstate else self.nominalConf
         torsoChain = self.chains.chainsByName['pr2Torso']
         baseChain = self.chains.chainsByName['pr2Base']

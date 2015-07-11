@@ -87,7 +87,7 @@ class PBS:
         count = 0
         confViols = self.beliefContext.roadMap.confViolations(self.conf,
                                                               self, 0.)
-        while count < 100 and (confViols == None or confViols.obstacles or \
+        while count < 100 and (confViols is None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]):
             count += 1
             self.draw(0.0, 'W')
@@ -108,7 +108,7 @@ class PBS:
         # First check the robot for hard collisions
         confViols = self.beliefContext.roadMap.confViolations(self.conf,
                                                               self, 0.)
-        if confViols == None or confViols.obstacles or \
+        if confViols is None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]:
             trAlways('Robot in collision.  Will try to fix.',
                      draw=[(self, 0.0, 'W')], snap=['W'])

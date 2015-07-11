@@ -52,13 +52,13 @@ class SearchNode:
         the root"""
         if s == self.state:
             return True
-        elif self.parent == None:
+        elif self.parent is None:
             return False
         else:
             return self.parent.inPath(s)
 
     def __repr__(self):
-        if self.parent == None:
+        if self.parent is None:
             return str(self.state)
         else:
             return repr(self.parent) + \
