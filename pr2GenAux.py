@@ -840,11 +840,13 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                    for r in rs.parts()) \
                for rs in regShapes)  and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
-            tr('potentialRegionPoseGen', 'pose specified and safely in region',
+            tr('potentialRegionPoseGen', 1,
+               'pose specified and safely in region',
                placeB.poseD.mode(), ol = True)
             yield placeB.poseD.mode()
         else:
-            tr('potentialRegionPoseGen', 'pose specified and not safely in region')
+            tr('potentialRegionPoseGen', 1,
+               'pose specified and not safely in region')
 
     shRotations = dict([(angle, objShadow.applyTrans(hu.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])

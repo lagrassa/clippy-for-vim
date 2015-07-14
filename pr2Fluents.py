@@ -226,7 +226,7 @@ class BaseConf(Fluent):
             obase = oval['pr2Base']
             if isVar(sval):
                 return other, {sval : obase}
-            if obase == sval:
+            if baseConfWithin(obase, sval, sdelta):
                 return other, {}
             else:
                 # Contradiction

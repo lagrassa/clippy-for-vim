@@ -322,7 +322,8 @@ class State:
 
     def goalName(self):
         # Only defined for states that have been used as goals in the planner
-        return str(self) + str(self.planNum)
+        #return str(self) + str(self.planNum)
+        return str(self.planNum)
 
     __repr__ = __str__
     signature = __str__
@@ -661,13 +662,18 @@ class Operator(object):
                  cost = lambda al, args, details: 1,
                  prim = None,
                  sideEffects = None,
-                 ignorableArgs = [],
+                 ignorableArgs = None,
                  argsToPrint = None,
-                 specialRegress = None):
+                 specialRegress = None,
+                 metaGenerator = False):
         self.name = name # string
         self.args = args # list of vars or constants
         self.preconditions = preconditions
-        self.functions = functions if functions != None else []
+        self.functions = functions if functions is not None else []
+        self.metaGenerator = metaGenerator
+
+        if self.name == 'AchCanPickPlace':
+            assert self.metaGenerator
 
         assert type(results) == list
         if len(results) > 0:
@@ -691,7 +697,7 @@ class Operator(object):
         # Unique ID for drawing graphs
         self.incrementNum()
         self.argsToPrint = argsToPrint
-        self.ignorableArgs = ignorableArgs
+        self.ignorableArgs = [] if ignorableArgs is None else ignorableArgs
         self.instanceCost = 'none'
         self.specialRegress = specialRegress
         self.subPlans = []
@@ -856,7 +862,9 @@ class Operator(object):
                             for (v, preConds) in self.sideEffects.items()]),
                       self.ignorableArgs,
                       self.argsToPrint,
-                      self.specialRegress)
+                      self.specialRegress,
+                      self.metaGenerator)
+
         op.abstractionLevel = self.abstractionLevel
         op.instanceCost = self.instanceCost
         return op
@@ -902,7 +910,7 @@ class Operator(object):
     # - compute the cost
     
     def regress(self, goal, startState = None, heuristic = None,
-                operators = []):
+                operators = (), ancestors = ()):
         tag = 'regression'
         # Stop right away if an immutable precond is false
         if any([(p.immutable and p.isGround() and\
@@ -956,6 +964,30 @@ class Operator(object):
                 tr('regression:fail', 3, 'hope that was helpful', noLog = True)
                 glob.debugOn = glob.debugOn[:-1]
             return []
+
+        mop = None
+        if self.metaGenerator:
+            for k in newBindings.keys():
+                if k[:2] == 'Op': mop = newBindings[k]
+
+        if self.metaGenerator and mop is not None:
+            # We have made a commitment to achieving these conditions as a
+            # way of achieving the goal.  We need to remember them for
+            # planning at the next level down.  It feels like we need to
+            # side-effect this goal.  Is that okay?  Will it work?
+            preCond = None
+            for k in newBindings.keys():
+                if k[:7] == 'PreCond': preCond = newBindings[k]
+            #mop.preconditions[0].extend(preCond)
+            goal.addSet(preCond)
+
+            # Set abstraction level for mop
+            mop.setAbstractionLevel(ancestors)
+            tr('regression', 0, 'Applied metagenerator, got', mop, ol = True)
+            res = mop.regress(goal, startState, heuristic, operators,
+                              ancestors)
+            return res
+
         br = set()
         # Get rid of entailments *within* the results.  Kind of ugly.
         for f in results:
@@ -1065,14 +1097,6 @@ class Operator(object):
                              ('before', fBefore), ('after', f))
             newGoal.add(f, startState.details)
 
-        # # Stop right away if an immutable precond is false
-        # if any([(p.immutable and p.isGround() and \
-        #          not startState.fluentValue(p) == p.getValue()) \
-        #         for p in boundPreconds]):
-        #     if not inHeuristic or debug('debugInHeuristic'):
-        #         debugMsg('regression:fail', 'immutable precond is false')
-        #     return []
-
         # Could fold the boundPrecond part of this in to addSet later
         if not newGoal.isConsistent(boundPreconds, startState.details):
             if not glob.inHeuristic or debug('debugInHeuristic'):
@@ -1125,8 +1149,8 @@ class Operator(object):
                 if f.isConditional(): 
                     if not f.feasible(startState.details):
                         tr('regression:fail', 1,
-                                 'conditional fluent is infeasible',
-                                 f)
+                                 'conditional fluent is infeasible', f)
+                        trAlways('This could be bad', pause = True)
                         bindingsNoGood = True
 
         if bindingsNoGood:
@@ -1139,7 +1163,6 @@ class Operator(object):
 
         newGoal.depth = goal.depth + 1
         newGoal.operator = self.applyBindings(newBindings)
-
         newGoal.bindings = copy.copy(goal.bindings)
         newGoal.bindings.update(newBindings)
 
@@ -1283,8 +1306,7 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
             f = funs[0]
             values  = f.fun([lookup(v, sofar) for v in f.inVars],
                             [z.applyBindings(sofar) for z in goalFluents],
-                            start,
-                            [lookup(v, sofar) for v in f.outVars])
+                            start)
             if values == None or values == []:
                 tr('btbind', 2, 'fun failed', f,
                          [lookup(v, sofar) for v in f.inVars], sofar, noLog = True)
@@ -1309,14 +1331,15 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
 
 class RebindOp:
     name = 'Rebind'
-    def regress(self, goal, startState, heuristic = None, operators = []):
+    def regress(self, goal, startState, heuristic = None, operators = (),
+                ancestors = ()):
         g = goal.copy()
         op = goal.suspendedOperator
         tr('rebind', 1, 'about to try local rebinding', op, g.bindings)
             
         g.suspendedOperator = None
         g.rebind = False
-        results = op.regress(g, startState, heuristic, operators)
+        results = op.regress(g, startState, heuristic, operators, ancestors)
 
         if len(results) > 0 and debug('rebind'):
             tr('rebind', 1, 'successfully rebound local vars',
@@ -1332,27 +1355,25 @@ class RebindOp:
     def prettyString(self, eq):
         return str(self)
 
-class Function:
-    def __init__(self, outVars, inVars, fun, funName, isNecessary = False):
+class Function(object):
+    # True if we should always evaluate this function, no matter the
+    # abstraction level
+    isNecessary = False
+    def __init__(self, outVars, inVars, isNecessary = None):
         assert isStruct(outVars)
         self.outVars = outVars
         self.inVars = inVars
-        self.fun = fun
-        self.funName = funName
-        # True if we should always evaluate this function, no matter the
-        # abstraction level
-        self.isNecessary = isNecessary
+        if isNecessary is not None:
+            self.isNecessary = isNecessary
 
     def applyBindings(self, bindings):
-        return Function([lookup(v, bindings) for v in self.outVars],
-                        [lookup(v, bindings) for v in self.inVars],
-                        self.fun,
-                        self.funName,
-                        self.isNecessary)
+        return self.__class__([lookup(v, bindings) for v in self.outVars],
+                              [lookup(v, bindings) for v in self.inVars],
+                              self.isNecessary)
 
     def prettyString(self, eq = True):
-        return 'Fun:'+str(self.outVars)+' = '+self.funName+\
-               prettyString(self.inVars, eq)
+        name = self.__class__.__name__
+        return 'Fun:'+str(self.outVars)+' = '+name+prettyString(self.inVars, eq)
     __str__ = prettyString
     __repr__ = __str__
 
@@ -1764,23 +1785,18 @@ def makePlanObj(regressionPlanUnbound, start):
     plan = applyBindings(regressionPlanUnbound, b)
     n = len(plan)
     regressionPlan = [plan[i] for i in xrange(n) \
-                      if i == n-1 or plan[i+1][0].name not in ['RebindVars', 'Rebind']]
+                      if i == n-1 or \
+                      plan[i+1][0].name not in ['RebindVars', 'Rebind']]
     planPreImage = applyBindings(planPreImage, b)
     result = [(None, planPreImage)]
+    extraOps = []
 
     for i in range(len(regressionPlan)-1, 0, -1):
         subgoal = regressionPlan[i-1][1]
-        operator = regressionPlan[i][0]
+        nominalOperator = regressionPlan[i][0]
+        extraOps.append(nominalOperator)
         preImage = regressionPlan[i][1]
         operator = preImage.operator
-        # assert operator.isGround() or \
-        #   operator.abstractionLevel < operator.concreteAbstractionLevel
-
-        # There are really two different kinds of variables: ones that
-        # are critical for defining the operation and ones that are
-        # used for bookkeeping.  We really only need for the first
-        # ones to be bound; other ones might not be.
-
         pi = preImage.fluents
         pc = operator.preconditionSet()
         assert preImage == regressionPlan[i][1]
@@ -1796,14 +1812,16 @@ def makePlanObj(regressionPlanUnbound, start):
                  subgoal.fluents)
         result.append((operator, subgoal))
 
-    return Plan(result)
+    return Plan(result, extraOps)
 
 class Plan:
-    def __init__(self, opGoalList):
-        # List of (o, g) pairs
+    def __init__(self, opGoalList, extraOps = None):
+        # Steps is a list of (o, g) pairs
+        # Extra ops is used in case we used a metaGenerator
         self.steps = opGoalList
         self.length = len(opGoalList)
         self.lastStepExecuted = 0
+        self.extraOps = [] if extraOps is None else extraOps
 
     # Return (None, None) if not applicable Only used in the HPNCommit
     # version, which commits to a layer until the envelope is exited
@@ -1837,7 +1855,7 @@ class Plan:
         return None
 
     def getOps(self):
-        return [o for (o, g) in self.steps[1:]]
+        return [o for (o, g) in self.steps[1:]] + self.extraOps
 
     def printIt(self, verbose = True):
         totalCost = 0
@@ -1947,7 +1965,8 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                              o.sideEffects,
                              o.ignorableArgs,
                              o.argsToPrint,
-                             o.specialRegress)
+                             o.specialRegress,
+                             o.metaGenerator)
             bigBindingSet = getBindingsBetween(list(results), list(g.fluents),
                                                startState)
             bindingSet = []
@@ -2061,7 +2080,7 @@ def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
                                                    nonMonOps = nonMonOps),
                            lambda s, o: o.regress(s, startState, 
                                                   heuristic if h else h,
-                                                  ops),
+                                                  ops, ancestors),
                            heuristic = heuristic, 
                            visitF = visitF,
                            expandF = expandF,
@@ -2273,8 +2292,9 @@ def getStyle(s, default = visitStyle):
         return default
 
 def writeSearchArc(f, s1, s2, a):
-    # use s2.operator instead of a, if it is not None,
-    # because it has the bindings in it
+    # Use s2.operator instead of a, if it is not None,
+    # because it has the bindings in it.  It's not there for rebind nodes
+
     op = s2.operator or a
     
     f.write('    "'+s1.uniqueStr()+'" -> "'+s2.uniqueStr()+'"[label="'+\

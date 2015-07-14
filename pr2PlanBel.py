@@ -242,8 +242,16 @@ class PBS:
             if s not in self.avoidShadow:
                 self.avoidShadow = self.avoidShadow + [s]
         return self
+
+    def conditioned(self, goalConds, cond = None, permShadows = False):
+        newBS = self.copy()
+        newBS = newBS.updateFromGoalPoses(goalConds)
+        if cond is not None:
+            newBS = newBS.updateFromGoalPoses(cond, permShadows=permShadows)
+        return newBS
     
-    # Makes objects mentioned in the goal permanent
+    # Makes objects mentioned in the goal permanent,
+    # Side-effects self
     def updateFromGoalPoses(self, goalConds,
                             updateHeld=True, updateConf=True, permShadows=False):
         world = self.getWorld()
@@ -323,6 +331,7 @@ class PBS:
         self.reset()
         return self
 
+    # Side effects the belief about this object in this world
     def updateObjB(self, objPlace):
         obj = objPlace.obj
         if obj in self.moveObjBs:
