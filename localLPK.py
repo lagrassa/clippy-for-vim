@@ -86,7 +86,6 @@ visibleEx (show visibility stuff during execution even if visible is false)
 
 #PDB = False
 
-debugOn = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates' ,'h']
-
+debugOn = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates' ,'h',]
 pauseOn = ['nonmon', 'skeleton']
 

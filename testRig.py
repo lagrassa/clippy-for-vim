@@ -1,21 +1,13 @@
-#import pdb
-#import math
-#import numpy as np
 import time
 import string
 
-import hu
 import windowManager3D as wm
-import transformations as transf
 from geom import bboxGrow
-import shapes
-
-import objects
-from objects import WorldState, World
+from objects import World
 
 import planGlobals as glob
 reload(glob)
-from planGlobals import debug, debugMsg, useROS
+from planGlobals import useROS
 
 import traceFile
 reload(traceFile)
@@ -33,16 +25,16 @@ import pr2Util
 reload(pr2Util)
 from pr2Util import *
 
-from planUtil import Violations, PoseD, ObjGraspB, ObjPlaceB
+from planUtil import ObjPlaceB
 
 import dist
 reload(dist)
-from dist import DDist, DeltaDist, MultivariateGaussianDistribution
+from dist import DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 
 import pr2Robot
 reload(pr2Robot)
-from pr2Robot import makePr2Chains, makePr2ChainsShadow, PR2, JointConf, CartConf, pr2Init
+from pr2Robot import makePr2Chains, makePr2ChainsShadow, PR2, JointConf, pr2Init
 
 import pr2RoadMap
 reload(pr2RoadMap)
@@ -54,8 +46,7 @@ from pr2BeliefState import BeliefState
 
 import pr2Fluents
 reload(pr2Fluents)
-from pr2Fluents import Conf, SupportFace, Pose, Holding, GraspFace, Grasp,\
-     partition, In, CanPickPlace
+from pr2Fluents import partition, In, Holding, Grasp, GraspFace, Pose, SupportFace
 
 import pr2PlanBel
 reload(pr2PlanBel)
@@ -74,10 +65,8 @@ reload(pr2Gen)
 import pr2Ops
 reload(pr2Ops)
 # lookAtHand
-from pr2Ops import move, pick, place, lookAt, poseAchCanReach, poseAchCanSee,\
-      hRegrasp, poseAchCanPickPlace, \
-      poseAchIn, moveNB, bLoc1, bLoc2, bLoc3, \
-      dropAchCanReach, dropAchCanPickPlace
+from pr2Ops import move, pick, place, lookAt, achCanReach, achCanPickPlace,\
+      hRegrasp, poseAchIn, moveNB, bLoc1, bLoc2, bLoc3
 
 import pr2Sim
 reload(pr2Sim)
@@ -85,7 +74,7 @@ from pr2Sim import RealWorld
 
 import pr2ROS
 reload(pr2ROS)
-from pr2ROS import RobotEnv, pr2GoToConf, reactiveApproach, testReactive
+from pr2ROS import RobotEnv, pr2GoToConf
 
 import testObjects
 reload(testObjects)
@@ -115,6 +104,7 @@ if useROS:
 ######################################################################
 
 # Counts unsatisfied fluent groups
+# noinspection PyUnusedLocal
 def hEasy(s, g, ops, ancestors):
     return g.easyH(s, defaultFluentCost = 1.5)
 
@@ -150,6 +140,7 @@ def habbs(s, g, ops, ancestors):
 from timeout import timeout, TimeoutError
 
 # 5 min timeout for all tests
+# noinspection PyUnusedLocal
 @timeout(600)
 def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=True, easy=False, rip=True):
     eval('test%s(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical, easy=easy, rip=rip)'%str(n))
@@ -178,26 +169,33 @@ def cl(window='W'):
     wm.getWindow(window).clear()
 
 workspace = ((-1.0, -2.5, 0.0), (3.0, 2.5, 2.0))
-((x0, y0, _), (x1, y1, dz)) = workspace
-viewPort = [x0, x1, y0, y1, 0, dz]
+((wx0, wy0, _), (wx1, wy1, wdz)) = workspace
+viewPort = [wx0, wx1, wy0, wy1, 0.0, wdz]
 
-def testWorld(include = ['objA', 'objB', 'objC'],
-              draw = True):
+
+def testWorld(include = ('objA', 'objB', 'objC')):
     ((x0, y0, _), (x1, y1, dz)) = workspace
     w = 0.1
     wm.makeWindow('W', viewPort, 600)   # was 800
     if useROS: wm.makeWindow('MAP', viewPort)
+    # noinspection PyShadowingNames
     def hor((x0, x1), y, w):
         return Ba([(x0, y-w/2, 0), (x1, y+w/2.0, dz)])
+
+    # noinspection PyShadowingNames
     def ver(x, (y0, y1), w, extendSingleSide=False):
         if not extendSingleSide:
             return Ba([(x-w/2., y0, 0), (x+w/2.0, y1, dz)])
         return Ba([(x-w, y0, 0.), (x, y1, dz)])
+
+    # noinspection PyShadowingNames
     def place((x0, x1), (y0, y1), (z0, z1)):
         return Ba([(x0, y0, z0), (x1, y1, z1)])
 
+    # noinspection PyShadowingNames,PyUnusedLocal
     def placeSc((x0, x1), (y0, y1), (z0, z1)):
-        return shapes.BoxScale(x1 - x0, y1 - y0, z1 - z0, hu.Pose(0,0,-0.5*(z1-z0),0), 0.5)
+        return shapes.BoxScale(x1 - x0, y1 - y0, z1 - z0,
+                               hu.Pose(0.0, 00.0,-0.5*(z1-z0), 0.0), 0.5)
     
     world = World()
     # The room
@@ -226,19 +224,21 @@ def testWorld(include = ['objA', 'objB', 'objC'],
             regName = name+'Top'
             tr('rig', 0, ('Region', regName), bbox)
             world.addObjectRegion(name, regName, Sh([Ba(bbox)], name=regName),
-                                  hu.Pose(0,0,2*bbox[1,2],0))
+                                  hu.Pose(0.0,0.0,2.0*bbox[1,2],0.0))
             bboxLeft = np.empty_like(bbox); bboxLeft[:] = bbox
             bboxLeft[0][0] = 0.5*(bbox[0][0] + bbox[1][0]) + 0.2
             regName = name+'Left'
             tr('rig', 0, ('Region', regName), bboxLeft)
             world.addObjectRegion(name, regName, Sh([Ba(bboxLeft)], name=regName),
-                                  hu.Pose(0,0,2*bbox[1,2],0))
-            bboxRight = np.empty_like(bbox); bboxRight = bbox
+                                  hu.Pose(0.0,0.0,2.0*bbox[1,2],0.0))
+            #bboxRight = np.empty_like(bbox)
+            # TODO: This is what was here.  Could it be right?  Aliasing?
+            bboxRight = bbox
             bboxRight[1][0] = 0.5*(bbox[0][0] + bbox[1][0]) - 0.2
             regName = name+'Right'
             tr('rig', 0, ('Region', regName), bboxRight)
             world.addObjectRegion(name, regName, Sh([Ba(bboxRight)], name=regName),
-                                  hu.Pose(0,0,2*bbox[1,2],0))
+                                  hu.Pose(0.0,0.0,2.0*bbox[1,2],0.0))
 
     # Some handy regions on table 1
     if 'table1' in include:
@@ -249,14 +249,14 @@ def testWorld(include = ['objA', 'objB', 'objC'],
         mfbbox[1][1] = 0.5*(bbox[0][1] + bbox[1][1])
         world.addObjectRegion('table1', 'table1MidRear', 
                                Sh([Ba(mfbbox)], name='table1MidRear'),
-                                      hu.Pose(0,0,2*bbox[1,2],0))
+                                      hu.Pose(0.0,0.0,2.0*bbox[1,2],0.0))
         mrbbox = np.empty_like(bbox); mrbbox[:] = bbox
         mrbbox[0][0] = 0.4 * bbox[0][0] + 0.6 * bbox[1][0]
         mrbbox[1][0] = 0.6 * bbox[0][0] + 0.4 * bbox[1][0]
         mrbbox[0][1] = 0.5*(bbox[0][1] + bbox[1][1])
         world.addObjectRegion('table1', 'table1MidFront', 
                                Sh([Ba(mrbbox)], name='table1MidFront'),
-                                      hu.Pose(0,0,2*bbox[1,2],0))
+                                      hu.Pose(0.0,0.0,2.0*bbox[1,2],0.0))
     # Other permanent objects
     cupboard1 = Sh([place((-0.25, 0.25), (-0.05, 0.05), (0.0, 0.4))],
                      name = 'cupboardSide1', color='brown')
@@ -283,7 +283,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
         regName = objName+'Top'
         tr('rig', 0, ('Region', regName), bbox)
         world.addObjectRegion(objName, regName, Sh([Ba(bbox)], name=regName),
-                              hu.Pose(0,0,2*(height)+extraHeight,0))
+                              hu.Pose(0.0,0.0,2.0* height +extraHeight,0.0))
 
     world.graspDesc = {}
     gMat0 = np.array([(0.,1.,0.,0.),
@@ -316,6 +316,7 @@ def testWorld(include = ['objA', 'objB', 'objC'],
                                          GDesc(obj, hu.Transform(gMat2),
                                                0.05, 0.05, 0.025)])
 
+    # noinspection PyShadowingNames
     def t(o):
         if o[0:3] == 'obj': return 'soda'
         if o[0:5] == 'table': return 'table'
@@ -402,9 +403,9 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False):
         return c
 
 def makeTable(dx, dy, dz, name, width = 0.1, color = 'orange'):
-    legInset = 0.02
-    legOver = 0.02
-    return Sh([\
+    #legInset = 0.02
+    #legOver = 0.02
+    return Sh([
         Ba([(-dx, -dy, dz-width), (dx, dy, dz)],
            name=name+ 'top', color=color),
         Ba([(-dx,      -dy, 0.0),
@@ -424,7 +425,7 @@ shelfWidth = 0.02
 def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                 width = shelfWidth, nshelf = 2,
                 name='shelves', color='brown'):
-    sidePrims = [\
+    sidePrims = [
         Ba([(-dx, -dy-width, 0), (dx, -dy, dz)],
            name=name+'_side_A', color=color),
         Ba([(-dx, dy, 0), (dx, dy+width, dz)],
@@ -437,7 +438,7 @@ def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
     for i in xrange(nshelf+1):
         frac = i/float(nshelf)
         bot = dz*frac
-        top = dz*frac+width
+        #top = dz*frac+width
         shelf = Ba([(-dx, -dy-width, bot),
                     (dx, dy+width, bot+width)],
                    color=color,
@@ -448,15 +449,15 @@ def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                     (dx-eps, dy+width-eps, (dz/nshelf) - width - eps)],
                    color='green', name=spaceName)
         space = Sh([space], name=spaceName, color='green')
-        shelfSpaces.append((space, hu.Pose(0,0,bot+eps-(dz/2),0)))
+        shelfSpaces.append((space, hu.Pose(0.0,0.0,bot+eps-(dz/2.0),0.0)))
     shelves = Sh(sidePrims + shelfRungs, name = name+'Body', color=color)
-    return (shelves, shelfSpaces)
+    return shelves, shelfSpaces
 
 def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                 width = shelfWidth, nshelf = 2,
                 name='tableShelves', color='brown'):
-    coolerPose = hu.Pose(0.0, 0.0, tZ, -math.pi/2)
-    shelvesPose = hu.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
+    coolerPose = hu.Pose(0.0, 0.0, tZ, -math.pi/2.0)
+    shelvesPose = hu.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2.0)
     tH = 0.67                           # table height
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
                     name='cooler', color=color)],
@@ -469,13 +470,13 @@ def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
               + cooler.applyTrans(coolerPose).parts() \
               + table.parts(),
               name=name, color=color)
-    return (obj, shelfSpaces)
+    return obj, shelfSpaces
 
 def makeCoolShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                       width = shelfWidth, nshelf = 2,
                       name='coolShelves', color='brown'):
-    coolerPose = hu.Pose(0.0, 0.0, 0.0, -math.pi/2)
-    shelvesPose = hu.Pose(0.0, 0.0, coolerZ, -math.pi/2)
+    coolerPose = hu.Pose(0.0, 0.0, 0.0, -math.pi/2.0)
+    shelvesPose = hu.Pose(0.0, 0.0, coolerZ, -math.pi/2.0)
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
                     name='cooler', color=color)],
                 name='cooler', color=color)
@@ -485,15 +486,17 @@ def makeCoolShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
     obj = Sh( shelves.applyTrans(shelvesPose).parts() \
               + cooler.applyTrans(coolerPose).parts(),
               name=name, color=color)
-    return (obj, shelfSpaces)
+    return obj, shelfSpaces
 
 initConfs = []
 
 class PlanTest:
     def __init__(self, name, domainProbs, operators,
-                 objects = ['table1','objA'], fixPoses = {},
-                 movePoses = {}, held = None, grasp = None,
+                 objects = ('table1','objA'), fixPoses = None,
+                 movePoses = None, held = None, grasp = None,
                  multiplier = 6, var = 1.0e-5, varDict = None):   # var was 10e-10
+        self.grasp = grasp
+        self.held = held
         self.name = name
         self.multiplier = multiplier
         self.objects = objects          # list of objects to consider
@@ -508,30 +511,30 @@ class PlanTest:
                     # print (x0+x*dx/float(count), y0+y*dy/float(count))
                     for angle in [0, math.pi/2, -math.pi/2, math.pi]:
                         if useHorizontal:
-                            initConfs.append(\
+                            initConfs.append(
                             makeConf(self.world.robot,
                                      x0 + x*dx/float(count),
                                      y0 + y*dy/float(count), angle)),
                         if useVertical:
-                            initConfs.append(\
+                            initConfs.append(
                              makeConf(self.world.robot,
                                       x0+x*dx/float(count),
                                       y0+y*dy/float(count), angle, vertical=True))
         self.initConfs = initConfs
         var4 = (var, var, 1e-10, var)
         del0 = (0.0, 0.0, 0.0, 0.0)
-        del02 = (0.02, 0.02, 0.2, 0.04)
+        #del02 = (0.02, 0.02, 0.2, 0.04)
         del05 = (0.05, 0.05, 0.5, 0.05)
         # Make this bigger to keep the robot from coming right up
         # against obstacles
 
         ff = lambda o: self.world.getFaceFrames(o) if o in objects else []
         # The poses of the supporting face frames (the placement)
-        fixObjPoses = {'table1':hu.Pose(1.1, 0.0, 0.0, math.pi/2),
-                       'tableShelves':hu.Pose(1.1, 0.0, 0.0, math.pi/2),
-                       'coolShelves':hu.Pose(1.1, 0.0, tZ, math.pi/2),
+        fixObjPoses = {'table1':hu.Pose(1.1, 0.0, 0.0, math.pi/2.0),
+                       'tableShelves':hu.Pose(1.1, 0.0, 0.0, math.pi/2.0),
+                       'coolShelves':hu.Pose(1.1, 0.0, tZ, math.pi/2.0),
                        'table2': hu.Pose(1.0, -0.75, 0.0, 0.0),
-                       'table3': hu.Pose(1.6,0.0,0.0,math.pi/2),
+                       'table3': hu.Pose(1.6,0.0,0.0,math.pi/2.0),
                        'cupboardSide1': hu.Pose(1.1, -0.2, 0.6, 0.0),
                        'cupboardSide2': hu.Pose(1.1, 0.2, 0.6, 0.0),
                        'cooler': hu.Pose(1.1, 0.0, tZ, 0.)}
@@ -544,10 +547,11 @@ class PlanTest:
                         'objG': hu.Pose(0.95, 0.4, tZ, 0.0),
                         'objH': hu.Pose(0.95, 0.6, tZ, 0.0),
                         'objI': hu.Pose(0.95, 0.8, tZ, 0.0)}
-                   
-        moveObjPoses.update(movePoses)           # input poses
+        if movePoses is not None:
+            moveObjPoses.update(movePoses)           # input poses
         #print 'updated', moveObjPoses
-        fixObjPoses.update(fixPoses)           # input poses
+        if fixPoses is not None:
+            fixObjPoses.update(fixPoses)           # input poses
         #print 'updated', fixObjPoses
         self.fix = {}
         for name in fixObjPoses:
@@ -588,8 +592,9 @@ class PlanTest:
         regions = frozenset(regions), domainProbs=self.domainProbs, useRight=useRight) 
         pbs.draw(0.95, 'Belief')
         bs = BeliefState(pbs, self.domainProbs, 'table2Top')
-        ### !!!!  LPK Awful modularity
+        # TODO:  LPK Awful modularity
         bs.partitionFn = partition
+        # noinspection PyAttributeOutsideInit
         self.bs = bs
 
     def run(self, goal, skeleton = None, hpn = True,
@@ -607,7 +612,7 @@ class PlanTest:
         pr2Sim.simulateError = simulateError
         for win in wm.windows:
             wm.getWindow(win).clear()
-        self.buildBelief(home=home, regions = set(regions))
+        self.buildBelief(home=home, regions = frozenset(regions))
 
         ###   Initialize the world
         world = self.bs.pbs.getWorld()
@@ -622,11 +627,12 @@ class PlanTest:
             result, cnfOut, _ = pr2GoToConf(cnfOut, 'reset')
             debugMsg('robotEnv', result, cnfOut)
         else:
+            # noinspection PyAttributeOutsideInit
             self.realWorld = RealWorld(world, self.bs,
                                        self.domainProbs,
                                        robot = self.thinRobot) # simulator
 
-            # !! Gross hack for debugging
+            # TODO: !! Gross hack for debugging
             glob.realWorld = self.realWorld
 
             self.realWorld.setRobotConf(self.bs.pbs.conf)
@@ -638,9 +644,8 @@ class PlanTest:
                     pb = self.bs.pbs.getPlaceB(obj)
                     meanObjPose = pb.objFrame().pose()
                     if randomizedInitialPoses:
-                        for i in range(1):   # increas for debugging
-                            stDev = tuple([np.sqrt(v) for v in pb.poseD.variance()])
-                            objPose = meanObjPose.corruptGauss(0.0, stDev, noZ =True)
+                        stDev = tuple([math.sqrt(v) for v in pb.poseD.variance()])
+                        objPose = meanObjPose.corruptGauss(0.0, stDev, noZ =True)
                             # Check log likelihood
                         #     d = MVG(np.mat(meanObjPose.xyztTuple()).T,
                         #             makeDiag(pb.poseD.variance()))
@@ -730,11 +735,11 @@ class PlanTest:
 
 # Made odo error smaller...
 
-typicalErrProbs = DomainProbs(\
+typicalErrProbs = DomainProbs(
             # stdev, constant, assuming we control it by tracking while moving
             odoError = (0.008, 0.008, 1e-5, 0.015),
             # variance in observations; diagonal for now
-            obsVar = (0.005**2, 0.005**2, (1e-5)**2, 0.01**2),
+            obsVar = (0.005**2, 0.005**2, 1e-5 **2, 0.01**2),
             # big angle var from robot experience
             # obsVar = (0.005**2, 0.005**2,0.005**2, 0.15**2),
             # get type of object wrong
@@ -759,7 +764,7 @@ typicalErrProbs = DomainProbs(\
             placeDelta = (0.01, 0.01, 1.0e-4, 0.05),
             graspDelta = (0.005, 0.005, 1.0e-4, 0.008))
 
-tinyErrProbs = DomainProbs(\
+tinyErrProbs = DomainProbs(
             # stdev, constant, assuming we control it by tracking while moving
             odoError = (0.0001, 0.0001, 1e-11, 0.0001),
             # variance in observations; diagonal for now
@@ -780,8 +785,7 @@ tinyErrProbs = DomainProbs(\
             placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
 
-allOperators = [move, pick, place, lookAt, poseAchCanReach,
-                poseAchCanSee, poseAchCanPickPlace, poseAchIn, moveNB,
-                bLoc1, bLoc2, bLoc3, dropAchCanReach, dropAchCanPickPlace]
-              #lookAtHand    #graspAchCanPickPlace #dropAchCanPickPlace
-
+allOperators = [move, pick, place, lookAt, moveNB,
+                achCanReach, achCanPickPlace, poseAchIn, moveNB,
+                bLoc1, bLoc2, bLoc3]
+              #lookAtHand    #graspAchCanPickPlace #dropAchCanPickPlace achCanSee
