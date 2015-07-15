@@ -211,6 +211,10 @@ def placePrim(args, details):
     return details.pbs.getPlacedObjBs()
 
 def pushPrim(args, details):
+    args = (obj, hand, pose, poseVar, poseDelta, prePose, prePoseVar,
+            preConf, postConf, resultProb, preProb1, preProb2) = args
+
+
     tr('prim', 0, '*** pushPrim', args)
     return details.pbs.getPlacedObjBs()
 
