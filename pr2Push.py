@@ -155,7 +155,7 @@ def pushGenAux(pbs, placeB, hand, base, prob):
             pp = sorted[i]              # path is reversed (post...pre)
             cpost, vpost, ppost = pp[0]
             cpre, vpre, ppre = pp[-1]
-            yield (hand, ppre, cpre, cpost)
+            yield (hand, ppre.pose().xyztTuple(), cpre, cpost)
     return
 
 def sortedPushPaths(pushPaths):
