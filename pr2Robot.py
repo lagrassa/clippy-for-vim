@@ -491,7 +491,7 @@ class PR2:
         self.confCacheKeys = deque([])  # in order of arrival
 
     # The base transforms take into account any twist in the tool offset
-    def potentialBasePosesGen(self, wrist, hand, n=None):
+    def potentialBasePosesGen(self, wrist, hand, n=None, complain=True):
         gripper = wrist*(left_gripperToolOffsetX if hand=='left' else right_gripperToolOffsetX)
         xAxisZ = gripper.matrix[2,0]
         if abs(xAxisZ) < 0.01:
@@ -499,16 +499,18 @@ class PR2:
         elif abs(xAxisZ + 1.0) < 0.01:
             trs = self.verticalTrans[hand]
         else:
-            print 'gripper=\n', gripper.matrix
-            raw_input('Illegal gripper trans for base pose')
+            if complain:
+                print 'gripper=\n', gripper.matrix
+                raw_input('Illegal gripper trans for base pose')
             return
         for i, tr in enumerate(trs):
             if n and i > n: return
             # use largish zthr to compensate for twist in force sensor
             ans = wrist.compose(tr).pose(zthr = 0.1, fail=False) 
             if ans is None:
-                print 'gripper=\n', gripper.matrix
-                raw_input('Illegal gripper trans for base pose')
+                if complain:
+                    print 'gripper=\n', gripper.matrix
+                    raw_input('Illegal gripper trans for base pose')
                 return
             yield ground(ans)
 

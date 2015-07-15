@@ -28,7 +28,7 @@ considerReUsingPaths = True
 
 violationCosts = (10.0, 2.0, 10.0, 5.0)
 
-minGripperDistance = 0.5
+minGripperDistance = 0.25
 
 # Don't try too hard, fall back to the RRT when we can't find a path quickly
 maxSearchNodes = 1000                   # 5000
@@ -794,6 +794,7 @@ class RoadMap:
             c1 = hu.Point(np.resize(np.hstack([bboxCenter(p1.bbox()), [1]]), (4,1)))
             c2 = hu.Point(np.resize(np.hstack([bboxCenter(p2.bbox()), [1]]), (4,1)))
             return c1.distance(c2)
+        tag = 'robotSelfCollide'
         if glob.inHeuristic: return False
         # Very sparse checks...
         checkParts = {'pr2LeftArm': ['pr2RightArm', 'pr2RightGripper', 'right'],
@@ -802,6 +803,7 @@ class RoadMap:
                       'pr2RightGripper': ['left']}
         parts = dict([(part.name(), part) for part in shape.parts()])
         if partDistance(parts['pr2RightGripper'], parts['pr2LeftGripper']) < minGripperDistance:
+            if debug(tag): print tag, 'grippers are too close'
             return True
         for h in handName:
             if h in heldDict and heldDict[h]:
@@ -813,6 +815,7 @@ class RoadMap:
                 if not check in parts: continue
                 checkShape = parts[check]
                 if pShape.collides(checkShape):
+                    print tag, p, 'collides with', check
                     return True
         if heldDict:
             heldParts = [x for x in heldDict.values() if x]
@@ -821,12 +824,16 @@ class RoadMap:
         return self.heldSelfCollide(heldParts)
 
     def heldSelfCollide(self, shape):
+        tag = 'robotSelfCollide'
         if not shape: return False
         shapeParts = shape if isinstance(shape, (list, tuple)) else shape.parts()
         if len(shapeParts) < 2:
             return False
         elif len(shapeParts) == 2:
-            return shapeParts[0].collides(shapeParts[1])
+            coll = shapeParts[0].collides(shapeParts[1])
+            if debug(tag) and coll:
+                print tag, 'held parts collide'
+            return coll
         else:
             assert None, 'There should be at most two parts in attached'
         return False
@@ -894,7 +901,8 @@ class RoadMap:
             for part in attachedParts: part.draw('W', 'purple')
         # The self collision can depend on grasps - how to handle caching?
         if self.robotSelfCollide(robShape, attachedPartsDict):
-            if draw:
+            if debug('robotSelfCollide'):
+                conf.draw('W', 'red')
                 raw_input('selfCollision')
             return None
         for obst in shWorld.getObjectShapes():

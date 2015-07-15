@@ -8,6 +8,9 @@ def Sh(args, **prop): return shapes.Shape(list(args), None, **prop)
 def makeSoda(dx=0.0445, dy=0.027, dz=0.1175, name='objA', color='blue'):
     return Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)])], name=name, color=color)
 
+def makeBig(dx=0.0445, dy=0.0445, dz=0.1175, name='bigA', color='blue'):
+    return Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)])], name=name, color=color)
+
 soupZ = 0.1
 def makeSoup(radius=0.0675/2, height=0.1, name='soup', color='red'):
     return Sh([shapes.Ngon(radius, height, 6)], name=name, color=color)

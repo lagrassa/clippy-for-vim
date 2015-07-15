@@ -12,11 +12,14 @@ from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowWidths, objectName
 from pr2Gen import PickGen, LookGen,\
     EasyGraspGen, canPickPlaceTest, PlaceInRegionGen, PlaceGen, moveOut
+from pr2Push import canPush
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
-     findRegionParent, CanReachNB, BaseConf, BLoc, canReachHome, canReachNB
+     findRegionParent, CanReachNB, BaseConf, BLoc, canReachHome, canReachNB,\
+     Pushable, CanPush
 from planGlobals import debugMsg, debug
+from pr2Push import PushGen
 import pr2RRT as rrt
 from pr2Visible import visible
 import itertools
@@ -91,7 +94,8 @@ def primPath(bs, cs, ce, p):
         else:
             path2, v2 = None, None
         if (not path) and path1 and path2:
-            path = path1 + path2[::-1]
+            # make sure to interpolate paths in their original directions.
+            path = interpolate(path1) + interpolate(path2)[::-1]
     else:
         print 'Direct path succeeded'
 
@@ -122,7 +126,7 @@ def interpolate(path):
         qf = path[i]
         qi = path[i-1]
         confs = rrt.interpolate(qf, qi, stepSize=0.25)
-        tr('path', 1, i, 'path segment has', len(confs), 'confs')
+        tr('path', 1, '%d path segment has %d confs'%(i,len(confs)))
         interpolated.extend(confs)
     return interpolated
 
@@ -137,7 +141,7 @@ def verifyPath(pbs, prob, path, msg):
             print msg, 'path', viol
             conf.draw('W', 'red', attached=attached)
         else:
-            conf.draw('W')            
+            conf.draw('W', 'blue', attached=attached)            
         raw_input('Ok?')
 
 def verifyPaths(bs, p, path, smoothed, interpolated):
@@ -211,13 +215,14 @@ def placePrim(args, details):
     return details.pbs.getPlacedObjBs()
 
 def pushPrim(args, details):
-    args = (obj, hand, pose, poseVar, poseDelta, prePose, prePoseVar,
-            preConf, postConf, resultProb, preProb1, preProb2) = args
-
-
-    tr('prim', 0, '*** pushPrim', args)
-    return details.pbs.getPlacedObjBs()
-
+    (obj, hand, pose, poseFace, poseVar, poseDelta, prePose, prePoseVar,
+            preConf, postConf, confDelta, resultProb, preProb1, preProb2) = args
+    path, viol = canPush(details.pbs, obj, hand, prePose, pose,
+                         preConf, postConf, prePoseVar, poseVar,
+                         poseDelta, prob, Violations())
+    assert path
+    tr('prim', 0, '*** pushPrim', args, ('path length', len(path)))
+    return path, details.pbs.getPlacedObjBs()    
 
 ################################################################
 ## Simple generators
@@ -749,7 +754,7 @@ def placeCostFun(al, args, details):
 def pushCostFun(al, args, details):
     rawCost = 3
     abstractCost = 5
-    (_, _, _, _, _, _, _, _, _, p, _, _)  = args
+    (_, _, _, _, _, _, _, _, _, _, _, p, _, _)  = args
     result = costFun(rawCost,
                      p*canPPProb*(1-details.domainProbs.placeFailProb)) + \
                (abstractCost if al == 0 else 0)
@@ -889,7 +894,7 @@ def placeBProgress(details, args, obs=None):
 # noinspection PyUnusedLocal
 def pushBProgress(details, args, obs=None):
     # Conf of robot and pose of object change
-    (o, h, p, pv, pd, pp, ppv, prec, postc, p, pr1, pr2) = args
+    (o, h, p, pf, pv, pd, pp, ppv, prec, postc, cd, p, pr1, pr2) = args
 
     # Say it multiplies stdev by 4
     # Use place fail prob for now
@@ -1410,8 +1415,8 @@ place = Operator('Place', placeArgs,
         ignorableArgs = range(1, 19))
 
 
-pushArgs = ['Obj', 'Hand', 'Pose', 'PoseVar', 'PoseDelta', 'PrePose',
-            'PrePoseVar', 'PreConf', 'PoseConf', 'P', 'PR1', 'PR2']
+pushArgs = ['Obj', 'Hand', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta', 'PrePose',
+            'PrePoseVar', 'PreConf', 'PostConf', 'ConfDelta', 'P', 'PR1', 'PR2']
 
 # make an instance of the lookAt operation with given arguments
 def pushOp(*args):
@@ -1420,10 +1425,10 @@ def pushOp(*args):
     return push.applyBindings(newB)
 
 # TODO : LPK think through the deltas more carefully
-push = Operator('Push', placeArgs,
+push = Operator('Push', pushArgs,
         {0 : {Pushable(['Obj'], True)},
          1 : {Bd([CanPush(['Obj', 'Hand', 'PrePose', 'Pose', 'PreConf',
-                            'PoseConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',
+                            'PostConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',
                   []]), True, canPPProb],True)},
          2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
               B([Pose(['Obj', 'PoseFace']), 'PrePose',
@@ -1441,8 +1446,8 @@ push = Operator('Push', placeArgs,
             NotStar([], ['Pose']),
             NotStar([], ['PoseFace']),
 
-            RegressProb(['P1'], ['PR1', 'PR2'], pn = 'placeFailProb'),
-            PushPreVar(['PrePoseVar'], ['PoseVar']),
+            RegressProb(['P'], ['PR1', 'PR2'], pn = 'placeFailProb'),
+            PushPrevVar(['PrePoseVar'], ['PoseVar']),
             MoveConfDelta(['ConfDelta'], []),
             PushGen(['Hand','PrePose', 'PreConf', 'PostConf'],
                      ['Obj', 'Pose', 'PoseVar', 'PoseDelta','ConfDelta',

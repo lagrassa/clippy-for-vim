@@ -74,11 +74,13 @@ class RealWorld(WorldState):
             return endExec(self.executePick(op, params))
         elif op.name == 'Place':
             return endExec(self.executePlace(op, params))
+        elif op.name == 'Push':
+            return endExec(self.executePush(op, params))
         else:
             raise Exception, 'Unknown operator: '+str(op)
 
     # Be sure there are no collisions.  If so, stop early.
-    def doPath(self, path, interpolated=None):
+    def doPath(self, path, interpolated=None, action=None):
         def getObjShapes():
             held = self.held.values()
             return [self.objectShapes[obj] \
@@ -91,6 +93,7 @@ class RealWorld(WorldState):
         prevXYT = self.robotConf.conf['pr2Base']
         for (i, conf) in enumerate(path):
             # !! Add noise to conf
+            if action: action(path, i) # do optional action
             self.setRobotConf(conf)
             if debug('animate'):
                 self.draw('World')
@@ -399,6 +402,36 @@ class RealWorld(WorldState):
             self.robotPlace.draw('World', 'orchid')
             #print 'retracted'
         return None
+
+    def executePush(self, op, params, noBase = True):
+        def moveObj(path, i):
+            if i > 0:
+                if path[i].placement().collides(self.objectShapes[obj]):
+                    print 'Touching', obj, 'in push'
+                    w1 = path[i-1].cartConf()[robot.armChainNames[hand]]
+                    w2 = path[i].cartConf()[robot.armChainNames[hand]]
+                    delta = w2.compose(w1.inverse())
+                    self.setObjectPose(obj, self.getObjectPose(obj).compose(delta))
+        failProb = self.domainProbs.pushFailProb
+        success = DDist({True : 1 - failProb, False : failProb}).draw()
+        if success:
+            # Execute the push prim
+            if params:
+                path, interpolated, _  = params
+                tr('sim', 0, 'path len = %d'%(len(path)))
+                if not path:
+                    raw_input('No path!!')
+
+                raw_input('**** check args for push prim ****')
+
+                obj = args[0]
+                hand = args[1]
+                obs = self.doPath(path, interpolated, moveObj)
+            else:
+                print op
+                raw_input('No path given')
+                obs = None
+            return obs
 
     def copy(self):
         return copy.copy(self)

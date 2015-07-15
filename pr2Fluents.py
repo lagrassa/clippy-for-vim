@@ -493,7 +493,7 @@ class CanReachNB(Fluent):
             tr('canReachNB', 2, 'BTest canReachNB returning False because startconf unbound',
                      self)
             return False
-        elif startConf['pr2Base'] != endConf['pr2Base']:
+        elif max(abs(a-b) for (a,b) in zip(startConf['pr2Base'], endConf['pr2Base'])) > 1.0e-4:
             # Bases have to be equal!
             debugMsg('canReachNB', 'Base not belong to us', startConf, endConf)
             return False

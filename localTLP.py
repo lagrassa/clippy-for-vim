@@ -69,8 +69,10 @@ drawRebindNodes = True
 '''
 
 debugOn = ['traceGen', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon',
-           'useGJK', 'h'
+           'useGJK', 'h', 'traceCRH',
            # 'traceCRH'
+           # 'pushGen', 'handContactFrames', 'graspBForContactFrame',
+           'pushPath', 'pushGen', 'canPush', 'debugInHeuristic'
            ]
 
 if platform.system() == 'Linux':
@@ -78,5 +80,6 @@ if platform.system() == 'Linux':
         if not x in debugOn: debugOn.append(x)
 
 pauseOn = debugOn[:]
-pauseOn.remove('h')
+if 'h' in pauseOn:
+    pauseOn.remove('h')
 

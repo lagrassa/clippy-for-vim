@@ -78,3 +78,6 @@ prof
 .#pr2Fluents.py
 
 .idea/*
+*.lprof
+*.m
+*Old.py

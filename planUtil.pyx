@@ -92,7 +92,8 @@ cdef class ObjGraspB(Hash):
         return gB
     cpdef tuple desc(self):
         if not self.descValue:
-            self.descValue = (self.obj, self.grasp, self.poseD, self.delta) # .mode() for grasp?
+            self.descValue = (self.obj, self.grasp, tuple(self.graspDesc),
+                              self.poseD, self.delta) # .mode() for grasp?
         return self.descValue
     def __richcmp__(self, other, int op):
         if op == 2:
@@ -142,8 +143,8 @@ cdef class ObjPlaceB(Hash):
         if not self.descValue:
             self.descValue = (self.obj, self.support, self.poseD, self.delta) # .mode() for support
         return self.descValue
-    cpdef shape(self, ws):                # in WorldState, e.g. shadow world
-        return ws.world.getObjectShapeAtOrigin(self.obj).applyLoc(self.objFrame())
+    cpdef shape(self, ws):                # in WorldState, e.g. shadow world, or world
+        return ws.getObjectShapeAtOrigin(self.obj).applyLoc(self.objFrame())
     cpdef shadow(self, ws):
         if shadowName(self.obj) in ws.objectShapes:
             return ws.objectShapes[shadowName(self.obj)].applyLoc(self.objFrame())

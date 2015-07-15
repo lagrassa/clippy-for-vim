@@ -324,7 +324,7 @@ def graspGen(pbs, obj, graspB, placeB=None, conf=None, hand=None, prob=None):
     for grasp in grasps:
         if debug('graspGen'):
             print 'graspGen: Generating grasp=', grasp
-        # !! Should also sample a pose in the grasp face...
+        # TODO: Should also sample a pose in the grasp face...
         gB = ObjGraspB(graspB.obj, graspB.graspDesc, grasp,
                        # !! Need to pick offset for grasp to be feasible
                        PoseD(graspB.poseD.mode() or hu.Pose(0.0, -0.025, 0.0, 0.0),
@@ -342,6 +342,7 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None
     cache = graspConfGenCache
     val = cache.get(key, None)
     graspConfGenCacheStats[0] += 1
+
     if val != None:
         graspConfGenCacheStats[1] += 1
         memo = val.copy()
@@ -395,7 +396,8 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
                 graspConfs.add((conf, ca, pbs, prob, viol))
             return conf, ca, viol
     else:
-        if debug('potentialGraspConfs'): conf.draw('W','red')
+        if debug('potentialGraspConfs'):
+            pbs.draw(prob, 'W'); conf.draw('W','red')
 
 def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=10):
     if conf:
@@ -1014,12 +1016,12 @@ def bboxGridCoords(bb, n=5, z=None, res=None):
             points.append(np.array([x, y, z, 1.]))
     return points
 
-def inside(obj, reg):
-    return any(insideAux(obj, r) for r in reg.parts())
+def inside(shape, reg):
+    return any(insideAux(shape, r) for r in reg.parts())
 
-def insideAux(obj, reg):
-    # all([np.all(np.dot(reg.planes(), p) <= 1.0e-6) for p in obj.vertices().T])
-    verts = obj.vertices()
+def insideAux(shape, reg):
+    # all([np.all(np.dot(reg.planes(), p) <= 1.0e-6) for p in shape.vertices().T])
+    verts = shape.vertices()
     for i in xrange(verts.shape[1]):
         # reg.containsPt() completely fails to work here.
         if not np.all(np.dot(reg.planes(), verts[:,i]) <= tiny):

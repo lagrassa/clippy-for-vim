@@ -186,9 +186,11 @@ cdef class BasePrim:
         self.basePlanes = primPlanes(self.baseVerts, faces)
         self.baseEdges = primEdges(self.baseVerts, faces)
         self.baseRings = None # primRings(self.baseEdges)
+        # TODO: Should use (large) convex hull faces -- how to refer to them?
         bbPlanes = np.array([[-1.,0.,0., bb[0,0]], [1.,0.,0., -bb[1,0]],
                              [0.,-1,0., bb[0,1]], [0.,1.,0., -bb[1,1]],
                              [0.,0.,-1., bb[0,2]], [0.,0.,1., -bb[1,2]]])
+        # We're using the Ident as the origin, by construction.
         self.baseFaceFrames = thingFaceFrames(bbPlanes, hu.Ident)
         self.baseString = self.properties['name']+':'+str(self.baseBBox.tolist())
     def __str__(self):
@@ -323,12 +325,12 @@ cdef class Prim:
 
     cpdef draw(self, str window, str color = 'black', double opacity = 1.0):
         """Ask the window to draw this object."""
-        win.getWindow(window).draw(self, color, opacity)
+        win.getWindow(window).draw(self, color, self.properties.get('opacity', opacity))
 
     cpdef tuple desc(self):
         if not self.tupleBBox:
             self.bbox()                 # sets it
-        return self.properties['name']+':'+str(self.tupleBBox)
+        return self.tupleBBox
     def __str__(self):
         return self.properties['name']+':'+str(self.desc())
     def __repr__(self):
@@ -473,7 +475,7 @@ cdef class Shape:
 
     cpdef draw(self, str window, str color = 'black', double opacity = 1.0):
         """Ask the window to draw this object."""
-        win.getWindow(window).draw(self, color, opacity)
+        win.getWindow(window).draw(self, color, self.properties.get('opacity', opacity))
     
     def __str__(self):
         return self.properties['name']+':'+str(self.desc())
@@ -821,3 +823,10 @@ def readOff(filename, name='offObj', scale=1.0):
         faces.append(np.array([int(x) for x in fl.readline().split()][1:]))
     return shapes.Prim(verts, faces, hu.Pose(0,0,0,0), None, name=name)
 
+def drawFrame(tr, window = 'W', r = 0.01, length=0.25):
+    rayx = BoxAligned(np.array([(-r, -r, -r), (length/3., r, r)]), None)
+    rayx.applyTrans(tr).draw(window, 'red')
+    rayy = BoxAligned(np.array([(-r, -r, -r), (r, length/3., r)]), None)
+    rayy.applyTrans(tr).draw(window, 'green')
+    rayz = BoxAligned(np.array([(-r, -r, -r), (r, r, length/3.)]), None)
+    rayz.applyTrans(tr).draw(window, 'blue')

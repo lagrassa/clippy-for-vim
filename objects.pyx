@@ -125,6 +125,8 @@ class WorldState:
         self.grasp = {'left':None, 'right':None}  # transforms
         self.attached = {'left':None, 'right':None} # object shapes
 
+    def getObjectShapeAtOrigin(self, objName):
+        return self.world.getObjectShapeAtOrigin(objName)
     def getObjectShapes(self):
         return self.objectShapes.values()
     def getShadowShapes(self):

@@ -14,7 +14,7 @@ from planGlobals import debugMsg, debugDraw, debug, pause
 import planGlobals as glob
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
 from planUtil import ObjGraspB, ObjPlaceB
-from pr2Util import shadowName, shadowWidths, objectName
+from pr2Util import shadowName, shadowWidths, objectName, supportFaceIndex, PoseD
 #import fbch
 from fbch import getMatchingFluents
 from belief import B, Bd
@@ -477,13 +477,30 @@ class PBS:
                 # The graspDesc frame is relative to object origin
                 # The graspB pose encodes finger tip relative to graspDesc frame
                 faceFrame = graspDesc.frame.compose(self.graspB[hand].poseD.mode())
-                # Create shadow pair and attach both to robot
-                shadowMin, shadow = self.shadowPair(self.graspB[hand], faceFrame, prob)     
-                # graspShadow is expressed relative to wrist and attached to arm
-                # fingerFrame should map shodow (supported at graspDesc) into wrist frame
-                fingerFrame = robot.fingerSupportFrame(hand, graspDesc.dz*2)
-                graspShadow = shadow.applyTrans(fingerFrame)
-                graspShadowMin = shadowMin.applyTrans(fingerFrame)
+                if False:
+                    cart = self.conf.cartConf()
+                    handPose = cart[robot.armChainNames[hand]].\
+                               compose(robot.toolOffsetX[hand])
+                    heldPose = graspDesc.frame.compose(self.graspB[hand].poseD.mode())
+                    objPose = handPose.compose(heldPose.inverse())
+                    shape = w.getObjectShapeAtOrigin(heldObj).applyTrans(objPose)
+                    support = supportFaceIndex(shape)
+                    faceFrames = w.getFaceFrames(heldObj)
+                    objV = self.graspB[hand].poseD.var
+                    objDelta = self.graspB[hand].delta
+                    objB = ObjPlaceB(heldObj, faceFrames, support,
+                                     PoseD(objPose.pose(), objV), delta=objDelta)
+                    graspShadowMin, graspShadow = self.shadowPair(objB, supportFrame, prob)
+                    shape.draw('W', 'magenta')
+                    raw_input('shadow grasp')
+                else:  # normal grasp
+                    # fingerFrame should map shadow (supported at graspDesc) into wrist frame
+                    fingerFrame = robot.fingerSupportFrame(hand, graspDesc.dz*2)
+                    # Create shadow pair and attach both to robot
+                    shadowMin, shadow = self.shadowPair(self.graspB[hand], faceFrame, prob)     
+                    # graspShadow is expressed relative to wrist and attached to arm
+                    graspShadow = shadow.applyTrans(fingerFrame)
+                    graspShadowMin = shadowMin.applyTrans(fingerFrame)
                 # shadowMin will stand in for object
                 heldShape = shapes.Shape([graspShadowMin, graspShadow],
                                          graspShadowMin.origin(),
@@ -581,6 +598,7 @@ def sigmaPoses(prob, poseD, poseDelta):
         poses.append(hu.Pose(*offPoseTuple))
     return poses
 
+shadowOpacity = 0.2
 def makeShadow(shape, prob, bel, name=None, color='gray'):
     shParts = []
     poses = sigmaPoses(prob, bel.poseD, bel.delta)
@@ -597,7 +615,10 @@ def makeShadow(shape, prob, bel, name=None, color='gray'):
                 shp[-1].draw('W', 'cyan')
         # Note xyPrim !!
         shParts.append(shapes.Shape(shp, shape.origin(),
-                                    name=part.name(), color=shColor).xyPrim())
+                                    name=part.name(),
+                                    color=shColor,
+                                    opacity=shadowOpacity).xyPrim())
+        shParts[-1].properties['opacity']=shadowOpacity
         if debug('getShadowWorld'):
             shParts[-1].draw('W', 'brown')
             raw_input('Next part?')
@@ -605,7 +626,7 @@ def makeShadow(shape, prob, bel, name=None, color='gray'):
         raw_input('multiple part shadow, Ok?')
     final = shapes.Shape(shParts, shape.origin(),
                          name=name or shape.name(),
-                         color=shColor)
+                         color=shColor, opacity=shadowOpacity)
     if debug('getShadowWorld'):
         shape.draw('W', 'blue')
         final.draw('W', 'pink')

@@ -65,7 +65,7 @@ reload(pr2Gen)
 import pr2Ops
 reload(pr2Ops)
 # lookAtHand
-from pr2Ops import move, pick, place, lookAt, achCanReach, achCanPickPlace,\
+from pr2Ops import move, push, pick, place, lookAt, achCanReach, achCanPickPlace,\
       hRegrasp, poseAchIn, moveNB, bLoc1, bLoc2, bLoc3
 
 import pr2Sim
@@ -79,6 +79,8 @@ from pr2ROS import RobotEnv, pr2GoToConf
 import testObjects
 reload(testObjects)
 from testObjects import *
+
+import mathematica
 
 writeSearch = True
 
@@ -168,6 +170,15 @@ testResults = {}
 def cl(window='W'):
     wm.getWindow(window).clear()
 
+def capture(testFns, winName = 'W'):
+    for testFn in testFns: 
+        cl()
+        wm.getWindow(winName).startCapture()
+        testFn()
+        wm.getWindow(winName).stopCapture()
+        mathematica.mathFile(win.getWindow(winName).capture)
+        raw_input('Next?')
+
 workspace = ((-1.0, -2.5, 0.0), (3.0, 2.5, 2.0))
 ((wx0, wy0, _), (wx1, wy1, wdz)) = workspace
 viewPort = [wx0, wx1, wy0, wy1, 0.0, wdz]
@@ -231,6 +242,13 @@ def testWorld(include = ('objA', 'objB', 'objC')):
             tr('rig', 0, ('Region', regName), bboxLeft)
             world.addObjectRegion(name, regName, Sh([Ba(bboxLeft)], name=regName),
                                   hu.Pose(0.0,0.0,2.0*bbox[1,2],0.0))
+            bboxLeftFront = np.empty_like(bbox); bboxLeftFront[:] = bbox
+            bboxLeftFront[0][0] = 0.5*(bbox[0][0] + bbox[1][0]) + 0.2
+            bboxLeftFront[0][1] = bboxLeftFront[1][1] - 0.2
+            regName = name+'LeftFront'
+            tr('rig', 0, ('Region', regName), bboxLeftFront)
+            world.addObjectRegion(name, regName, Sh([Ba(bboxLeftFront)], name=regName),
+                                  hu.Pose(0.0,0.0,2.0*bbox[1,2],0.0))
             #bboxRight = np.empty_like(bbox)
             # TODO: This is what was here.  Could it be right?  Aliasing?
             bboxRight = bbox
@@ -270,11 +288,14 @@ def testWorld(include = ('objA', 'objB', 'objC')):
         world.addObjectRegion('coolShelves', reg.name(), reg, pose)
 
     # Some objects to grasp
-    manipulanda = [oname for oname in include if oname[0:3] == 'obj']
+    manipulanda = [oname for oname in include if oname[0:3] in ('obj', 'big')]
 
     colors = ['red', 'green', 'blue', 'cyan', 'purple', 'pink', 'orange']
     for i, objName in enumerate(manipulanda):
-        thing = makeSoda(name = objName, color=colors[i%len(colors)])
+        if objName[0:3] == 'obj':
+            thing = makeSoda(name = objName, color=colors[i%len(colors)])
+        else:
+            thing = makeBig(name = objName, color=colors[i%len(colors)])
         height = thing.bbox()[1,2]
         world.addObjectShape(thing)
         # The bbox has been centered
@@ -305,6 +326,7 @@ def testWorld(include = ('objA', 'objB', 'objC')):
                      (0.,0.,0.,1.)])
     for obj in manipulanda:
         world.graspDesc[obj] = []
+        # TODO: derive these grasps from the shape of the object(s)
         if useHorizontal:             # horizontal
             world.graspDesc[obj].extend([GDesc(obj, hu.Transform(gMat0),
                                                0.05, 0.05, 0.025),
@@ -319,6 +341,7 @@ def testWorld(include = ('objA', 'objB', 'objC')):
     # noinspection PyShadowingNames
     def t(o):
         if o[0:3] == 'obj': return 'soda'
+        if o[0:3] == 'big': return 'big'
         if o[0:5] == 'table': return 'table'
         if o[0:7] == 'shelves': return 'shelves'
         if o[0:4] == 'cool': return 'coolShelves'
@@ -327,13 +350,17 @@ def testWorld(include = ('objA', 'objB', 'objC')):
     world.objectTypes = dict([(o, t(o)) for o in include])
     world.symmetries = {'soda' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.),
                                                  hu.Pose(0.,0.,0.,math.pi)]}),
+                        'big' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.),
+                                                 hu.Pose(0.,0.,0.,math.pi)]}),
                         'table' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.),
                                                  hu.Pose(0.,0.,0.,math.pi)]}),
                         'shelves' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.)]}),
                         'coolShelves' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.)]})}
 
-    world.typePointClouds = {t:shapes.readOff('meshes/%s_points.off'%t, name=t) \
-                             for t in set(world.objectTypes.values())}
+    # Used by ICP - not in use now.
+    # world.typePointClouds = {t:shapes.readOff('meshes/%s_points.off'%t, name=t) \
+    #                          for t in set(world.objectTypes.values())}
+
     # The planning robot is a bit fatter, except in the hands...  This
     # is to provide some added tolerance for modeling and execution
     # uncertainty.
@@ -388,10 +415,12 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False):
                 hr = hu.Transform(p=np.array([[a] for a in [ 0.4+dx, -(0.3+dy),  1.1+dt, 1.]]), q=q)
                 cart = cart.set('pr2RightArm', base.compose(hr))
         else:
-            h = hu.Pose(0.3+dx,0.33+dy,0.9+dz+dt,0.)
+            # h = hu.Pose(0.3+dx,0.33+dy,0.9+dz+dt,math.pi/4)
+            h = hu.Pose(0.3+dx,0.5+dy,0.9+dz+dt,math.pi/4)
             cart = cart.set('pr2LeftArm', base.compose(h))
             if useRight:
-                hr = hu.Pose(0.3+dx,-(0.33+dy),0.9+dz+dt,0.)
+                # hr = hu.Pose(0.3+dx,-(0.33+dy),0.9+dz+dt,-math.pi/4)
+                hr = hu.Pose(0.3+dx,-(0.5+dy),0.9+dz+dt,-math.pi/4)
                 cart = cart.set('pr2RightArm', base.compose(hr))
         c = robot.inverseKin(cart, conf=c)
         c.conf['pr2Head'] = [0., 0.]
@@ -785,7 +814,7 @@ tinyErrProbs = DomainProbs(
             placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
 
-allOperators = [move, pick, place, lookAt, moveNB,
-                achCanReach, achCanPickPlace, poseAchIn, moveNB,
+allOperators = [move, pick, place, push, lookAt, moveNB,
+                achCanReach, achCanPickPlace, poseAchIn,
                 bLoc1, bLoc2, bLoc3]
               #lookAtHand    #graspAchCanPickPlace #dropAchCanPickPlace achCanSee
