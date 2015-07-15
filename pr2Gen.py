@@ -1,6 +1,5 @@
 import time
 from fbch import Function
-from miscUtil import roundrobin
 from dist import DeltaDist
 from pr2Util import supportFaceIndex, shadowWidths
 #from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations, Response
@@ -407,41 +406,6 @@ def placeGenGen(args, goalConds, bState):
     
     for ans in chooseHandGen(pbs, goalConds, obj, hand, leftGen, rightGen):
         yield ans
-
-def chooseHandGen(pbs, goalConds, obj, hand, leftGen, rightGen):
-    tag = 'chooseHandGen'
-    assert not (pbs.useRight == False and hand == 'right')
-    mustUseLeft = (hand == 'left' or not pbs.useRight)
-    mustUseRight = (hand == 'right')
-    holding = dict(getHolding(goalConds))   # values might be 'none'
-    # What are we required to be holding
-    leftHeldInGoal = 'left' in holding
-    rightHeldInGoal = 'right' in holding
-    # What are we currently holding (heuristic value)
-    leftHeldNow = pbs.held['left'].mode() != 'none'
-    rightHeldNow = pbs.held['right'].mode() != 'none'
-    # Are we already holding the desired object
-    leftHeldTargetObjNow = pbs.held['left'].mode() == obj
-    rightHeldTargetObjNow = pbs.held['right'].mode() == obj
-
-    if mustUseLeft or rightHeldInGoal:
-        if leftHeldInGoal:
-            tr(tag, 0, '=> Left held already in goal, fail')
-            return
-        else:
-            gen = leftGen
-    elif mustUseRight or leftHeldInGoal:
-        if rightHeldInGoal:
-            tr(tag, 0, '=> Right held already in goal, fail')
-            return
-        else:
-            gen = rightGen
-    elif rightHeldTargetObjNow or (leftHeldNow and not leftHeldTargetObjNow):
-        # Try right hand first if we're holding something in the left
-        gen = roundrobin(rightGen, leftGen)
-    else:
-        gen = roundrobin(leftGen, rightGen)
-    return gen
 
 # returns values for (?graspPose, ?graspFace, ?conf, ?confAppr)
 def placeGenTop(args, goalConds, pbs, regrasp=False, away=False, update=True):

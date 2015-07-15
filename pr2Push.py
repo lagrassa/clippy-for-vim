@@ -8,12 +8,13 @@ from shapes import thingFaceFrames, drawFrame
 import hu
 from planUtil import ObjGraspB, PoseD, Response
 from pr2Util import GDesc
-from pr2GenAux import potentialGraspConfGen, objectGraspFrame, robotGraspFrame
+from pr2GenAux import *
 from pr2Robot import gripperFaceFrame
 import mathematica
 reload(mathematica)
 import windowManager3D as wm
 from subprocess import call
+import time
 
 # Pick poses and confs for push, either source or destination.
 
@@ -30,7 +31,8 @@ from subprocess import call
 directionFrom = 1                       # along faceFrame z
 directionTo = -1                        # opposite faceFrame z
 
-maxPushPaths = 10
+# TODO: Pick a reasonable value
+maxPushPaths = 2
 
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
@@ -39,7 +41,7 @@ class PushGen(Function):
             yield ans
 
 def pushGenGen(args, goalConds, bState):
-    (obj, pose, posevar, posedelta,confdelta) = args
+    (obj, pose, posevar, posedelta, confdelta, prob) = args
     tag = 'pushGen'
     base = sameBase(goalConds)
     tr(tag, 0, 'obj=%s, base=%s'%(obj, base))
@@ -51,14 +53,14 @@ def pushGenGen(args, goalConds, bState):
     world = pbs.getWorld()
     support = pbs.getPlaceB(obj).support.mode()
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
-                       PoseD(pose, objV), delta=objDelta)
+                       PoseD(pose, posevar), delta=posedelta)
     # Figure out whether one hand or the other is required;  if not, do round robin
     leftGen = pushGenTop((obj, placeB, 'left', base, prob),
                          goalConds, pbs)
     rightGen = pushGenTop((obj, placeB, 'right', base, prob),
                           goalConds, pbs)
 
-    for ans in chooseHandGen(pbs, goalConds, obj, hand, leftGen, rightGen):
+    for ans in chooseHandGen(pbs, goalConds, obj, None, leftGen, rightGen):
         yield ans
 
 def pushGenTop(args, goalConds, pbs):
@@ -90,7 +92,7 @@ def pushGenTop(args, goalConds, pbs):
     # Set up pbs
     newBS = pbs.copy()
     # Just placements specified in goal
-    newBS = newBS.updateFromGoalPoses(goalConds, updateConf=not away)
+    newBS = newBS.updateFromGoalPoses(goalConds)
     tr(tag, 2, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
     gen = pushGenAux(newBS, placeB, hand, base, prob)
     for ans in gen:
@@ -325,7 +327,7 @@ def pushPath(pbs, prob, resp, contactFrame, dist, shape, regShape, hand):
     reason = 'done'
     dist = dist or 1.0
     for step in np.arange(0., dist + 0.001, pushStepSize):
-        offsetPose = hu.Pose((step*direction).tolist()+[0.0])
+        offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
         nshape = shape.applyTrans(offsetPose)
         if not inside(nshape, regShape):
             reason = 'outside'
