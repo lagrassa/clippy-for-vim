@@ -186,10 +186,6 @@ def confStr(conf):
         hand = '\n'+str(cart['pr2LeftArm'].matrix)
     return 'base: '+str(conf['pr2Base'])+'   hand: '+hand
 
-# probably don't need this
-def printConf(conf):
-    print confStr(conf)
-
 def pickPrim(args, details):
     # !! Should close the fingers as well?
     tr('prim', 0, '*** pickPrim', args)
@@ -212,6 +208,10 @@ def lookHandPrim(args, details):
 def placePrim(args, details):
     # !! Should open the fingers as well
     tr('prim', 0, '*** placePrim', args)
+    return details.pbs.getPlacedObjBs()
+
+def pushPrim(args, details):
+    tr('prim', 0, '*** pushPrim', args)
     return details.pbs.getPlacedObjBs()
 
 
@@ -429,6 +429,14 @@ class RealPoseVar(Function):
         placeVar = start.domainProbs.placeVar
         return [[tuple([gv+pv for (gv, pv) in zip(graspVar, placeVar)])]]
 
+# Realistically, push increases variance quite a bit.  For now, we'll just
+# assume stdev needs to be halved
+class PushPrevVar(Function):
+    # noinspection PyUnusedLocal
+    @staticmethod
+    def fun((pushVar,), goal, start):
+        return [[tuple([pv/4.0 for pv in pushVar])]]
+    
 class PlaceInPoseVar(Function):
     # TODO: LPK: be sure this is consistent with moveOut
     # noinspection PyUnusedLocal
@@ -734,6 +742,16 @@ def placeCostFun(al, args, details):
     return result
 
 # noinspection PyUnusedLocal
+def pushCostFun(al, args, details):
+    rawCost = 3
+    abstractCost = 5
+    (_, _, _, _, _, _, _, _, _, p, _, _)  = args
+    result = costFun(rawCost,
+                     p*canPPProb*(1-details.domainProbs.placeFailProb)) + \
+               (abstractCost if al == 0 else 0)
+    return result
+
+# noinspection PyUnusedLocal
 def pickCostFun(al, args, details):
     (o,h,pf,p,pd,gf,gm,gv,gd,prc,cd,pc,rgv,pv,p1,pr1,pr2,pr3) = args
     rawCost = 3
@@ -863,6 +881,32 @@ def placeBProgress(details, args, obs=None):
     details.pbs.getShadowWorld(0)
     details.pbs.internalCollisionCheck()
     debugMsg('beliefUpdate', 'placeBel')
+
+# noinspection PyUnusedLocal
+def pushBProgress(details, args, obs=None):
+    # Conf of robot and pose of object change
+    (o, h, p, pv, pd, pp, ppv, prec, postc, p, pr1, pr2) = args
+
+    # Say it multiplies stdev by 4
+    # Use place fail prob for now
+    failProb = details.domainProbs.placeFailProb
+
+    v = [x*16 for x in details.pbs.getPlaceB(o).poseD.varTuple()]
+    v[2] = 1e-20
+    gv = tuple(v)
+    details.poseModeProbs[o] = (1 - failProb) * details.graspModeProb[h]
+    details.pbs.updateHeld('none', None, None, h, None)
+    ff = details.pbs.getWorld().getFaceFrames(o)
+    if isinstance(pf, int):
+        pf = DeltaDist(pf)
+    else:
+        raw_input('place face is DDist, should be int')
+        pf = pf.mode()
+    details.pbs.moveObjBs[o] = ObjPlaceB(o, ff, pf, PoseD(p, gv))
+    details.pbs.reset()
+    details.pbs.getShadowWorld(0)
+    details.pbs.internalCollisionCheck()
+    debugMsg('beliefUpdate', 'pushBel')
     
 # obs has the form (obj-type, face, relative pose)
 def lookAtBProgress(details, args, obs):
@@ -1358,6 +1402,50 @@ place = Operator('Place', placeArgs,
         cost = placeCostFun,
         f = placeBProgress,
         prim = placePrim,
+        argsToPrint = range(4),
+        ignorableArgs = range(1, 19))
+
+
+pushArgs = ['Obj', 'Hand', 'Pose', 'PoseVar', 'PoseDelta', 'PrePose',
+            'PrePoseVar', 'PreConf', 'PoseConf', 'P', 'PR1', 'PR2']
+
+# make an instance of the lookAt operation with given arguments
+def pushOp(*args):
+    assert len(args) == len(placeArgs)
+    newB = dict([(a, v) for (a, v) in zip(pushArgs, args) if a != v]) 
+    return push.applyBindings(newB)
+
+# TODO : LPK think through the deltas more carefully
+push = Operator('Push', placeArgs,
+        {0 : {Pushable(['Obj'], True)},
+         1 : {Bd([CanPush(['Obj', 'Hand', 'PrePose', 'Pose', 'PreConf',
+                            'PoseConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',
+                  []]), True, canPPProb],True)},
+         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
+              B([Pose(['Obj', 'PoseFace']), 'PrePose',
+                 'PrePoseVar', 'PoseDelta', 'P'], True)},
+         3 : {Conf(['PreConf', 'ConfDelta'], True)}
+        },
+        # Results
+        [({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
+           B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta','PR2'],
+                 True)},{})],
+        sideEffects = {3 : {Conf(['PostConf', 'ConfDelta'], True)}},
+        functions = [
+            # Not appropriate when we're just trying to decrease variance,
+            # at least, for now.
+            NotStar([], ['Pose']),
+            NotStar([], ['PoseFace']),
+
+            RegressProb(['P1'], ['PR1', 'PR2'], pn = 'placeFailProb'),
+            PushPreVar(['PrePoseVar'], ['PoseVar']),
+            MoveConfDelta(['ConfDelta'], []),
+            PushGen(['Hand','PrePose', 'PreConf', 'PostConf'],
+                     ['Obj', 'Pose', 'PoseVar', 'PoseDelta','ConfDelta',
+                      probForGenerators])],
+        cost = pushCostFun,
+        f = pushBProgress,
+        prim = pushPrim,
         argsToPrint = range(4),
         ignorableArgs = range(1, 19))
 

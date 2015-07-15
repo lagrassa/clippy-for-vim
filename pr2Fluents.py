@@ -29,6 +29,14 @@ class Graspable(Fluent):
         (objName,) = self.args
         return objName[0:3] == 'obj'
 
+class Pushable(Fluent):
+    predicate = 'Pushable'
+    immutable = True
+    # noinspection PyUnusedLocal
+    def test(self, details):
+        (objName,) = self.args
+        return objName[0:3] == 'obj' or objName[0:3] == 'big'
+    
 # Assumption is that the robot is holding at most one object, but it
 # could be in either hand.
 
@@ -299,6 +307,7 @@ class CanReachHome(Fluent):
         self.viols = {}
         self.hviols = {}
 
+    # TODO : LPK: Try to share this code across CanX fluents
     def getViols(self, bState, v, p):
         assert v == True
         (conf, fcp, cond) = self.args
@@ -309,12 +318,9 @@ class CanReachHome(Fluent):
         if key in self.viols: return self.viols[key]
         if glob.inHeuristic and key in self.hviols: return self.hviols[key]
 
-        newPBS = bState.pbs.copy()
-        newPBS.updateFromGoalPoses(cond, permShadows=True)
-
-        avoidShadow = [cond[0].args[0].args[0]] if fcp else []
-        newPBS.addAvoidShadow(avoidShadow)
-        # trLog('Testing '+ self.prettyString())
+        newPBS = bState.pbs.conditioned(cond, permShadows = True)
+        # TODO: LPK: Make this an optional arg to conditioned?
+        newPBS.addAvoidShadow([cond[0].args[0].args[0]] if fcp else [])
         path, violations = canReachHome(newPBS, conf, p, Violations())
         debugMsg('CanReachHome',
                  ('conf', conf),
@@ -780,6 +786,86 @@ class Holding(Fluent):
         # Nothing special
         return {self, other}, {}
 
+
+class CanPush(Fluent):
+    predicate = 'CanPush'
+    implicit = True
+    conditional = True
+
+    def conditionOn(self, f):
+        return f.predicate in \
+                  ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
+          and not ('*' in f.args)
+
+    def feasible(self, bState, v, p):
+        path, violations = self.getViols(bState, v, p)
+        return violations is not None
+
+    def update(self):
+        super(CanPush, self).update()
+        self.viols = {}
+        self.hviols = {}
+
+    def getViols(self, bState, v, p):
+        assert v == True
+        (obj, hand, prePose, pose, preConf, postConf, poseVar, prePoseVar,
+         poseDelta, cond) = self.args
+
+        key = (hash(bState.pbs), p)
+        if not hasattr(self, 'viols'): self.viols = {}
+        if not hasattr(self, 'hviols'): self.hviols = {}
+        if key in self.viols: return self.viols[key]
+        if glob.inHeuristic and key in self.hviols: return self.hviols[key]
+
+        newPBS = bState.pbs.conditioned(cond, permShadows = True)
+        path, violations = canPush(newPBS, obj, hand, prePose, pose,
+                                   preConf, postConf, prePoseVar, poseVar,
+                                   poseDelta, p, Violations())
+        debugMsg('CanPush',
+                 ('conf', conf),
+                 ('->', violations))
+        if glob.inHeuristic:
+            self.hviols[key] = path, violations
+        else:
+            self.viols[key] = path, violations
+        return path, violations
+
+    def bTest(self, bState, v, p):
+        path, violations = self.getViols(bState, v, p)
+        return bool(violations and violations.empty())
+
+    def heuristicVal(self, details, v, p):
+        # Return cost estimate and a set of dummy operations
+        if not self.isGround():
+            # assume an obstacle, if we're asking.  May need to decrease this
+            dummyOp = Operator('RemoveObst', ['dummy'],{},[])
+            dummyOp.instanceCost = obstCost
+            return obstCost, {dummyOp}
+
+        path, violations = self.getViols(details, v, p)
+        (ops, totalCost) = hCost(violations, obstCost, details)
+
+        tr('hAddBack', 0, ('Heuristic val', self.predicate),
+           ('ops', ops), 'cost', totalCost)
+        return ops, totalCost
+
+
+    # TODO : LPK Can this be shared among CanX fluents?
+    def prettyString(self, eq = True, state = None, heuristic = None,
+                     includeValue = True):
+        (obj, hand, prePose, pose, preConf, postConf, poseVar, prePoseVar,
+         poseDelta, cond) = self.args
+        assert obj != 'none'
+
+        condStr = self.args[-1] if isVar(self.args[-1]) else \
+          str([innerPred(c) for c in self.args[-1]]) 
+
+        argStr = prettyString(self.args) if eq else \
+                  prettyString([obj, hand, pose, condStr], eq)
+        valueStr = ' = ' + prettyString(self.value) if includeValue else ''
+        return self.predicate + ' ' + argStr + valueStr
+
+        
 class GraspFace(Fluent):
     predicate = 'GraspFace'
     def dist(self, bState):
