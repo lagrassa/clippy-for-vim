@@ -562,7 +562,8 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     goalProb, errProbs = (0.5,tinyErrProbs) if easy else (0.95,typicalErrProbs)
 
     varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'bigA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
+                               'bigA': (0.1**2, 0.1**2, 1e-10, 0.3**2)}
+    varDict = {}
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
