@@ -1,7 +1,7 @@
 import hu
 import numpy as np
-from planUtil import Violations
-from pr2Util import shadowName, drawPath, objectName
+from planUtil import Violations, ObjPlaceB, ObjGraspB
+from pr2Util import shadowName, drawPath, objectName, PoseD, supportFaceIndex, GDesc
 from dist import DeltaDist, probModeMoved
 from planGlobals import debugMsg, debug
 import planGlobals as glob
@@ -11,8 +11,10 @@ from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from pr2RoadMap import validEdgeTest
+from pr2Robot import gripperFaceFrame
 from traceFile import tr, trAlways
-from pr2Push import canPush
+import mathematica
+import windowManager3D as wm
 
 tiny = 1.0e-6
 obstCost = 10  # Heuristic cost of moving an object
@@ -823,7 +825,7 @@ class CanPush(Fluent):
                                    preConf, postConf, prePoseVar, poseVar,
                                    poseDelta, p, Violations())
         debugMsg('CanPush',
-                 ('conf', conf),
+                 ('pose', pose),
                  ('->', violations))
         if glob.inHeuristic:
             self.hviols[key] = path, violations
@@ -1275,4 +1277,88 @@ def inTest(bState, obj, regName, prob, pB=None):
                                       (region, 'W', 'purple')], snap=['W'])
     return ans
 
-                
+# Pushing                
+
+# returns path, violations
+pushStepSize = 0.02
+def canPush(pbs, obj, hand, prePose, pose,
+            preConf, postConf, prePoseVar, poseVar,
+            poseDelta, prob, initViol):
+    tag = 'canpPush'
+    # direction from post to pre 
+    direction = (np.array(prePose[:3]) - np.array(pose[:3])).reshape(3)
+    direction[2] = 0.0
+    dist = (direction[0]**2 + direction[1]**2)**0.5
+    if dist != 0:
+        direction /= dist
+    # placeB
+    objPose = hu.Pose(*pose)
+    support = supportFaceIndex(pbs.getWorld().getObjectShapeAtOrigin(obj).\
+                               applyTrans(objPose))
+    placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), support,
+                       PoseD(objPose, poseVar), poseDelta)
+    objFrame = placeB.objFrame()
+    # graspB - from hand and objFrame
+    # TODO: what should these values be?
+    graspVar = 4*(0.0,)
+    graspDelta = 4*(0.0,)
+    wrist = robotGraspFrame(pbs, postConf, hand)
+    faceFrame = objFrame.inverse().compose(wrist.compose(gripperFaceFrame[hand]))
+    graspDescList = [GDesc(obj, faceFrame, 0.0, 0.0, 0.0)]
+    graspDescFrame = objFrame.compose(graspDescList[-1].frame)
+    graspB =  ObjGraspB(obj, graspDescList, -1,
+                        PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
+    newBS = pbs.copy()
+    newBS = newBS.updateHeldBel(graspB, hand)
+    newBS = newBS.excludeObjs([obj])
+    shWorld = newBS.getShadowWorld(prob)
+    attached = shWorld.attached
+    if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
+    rm = pbs.getRoadMap()
+    conf = postConf
+    path = []
+    viol = initViol
+    if dist == 0.0:
+        viol = rm.confViolations(postConf, newBS, prob, initViol=viol)
+        return [postConf], viol
+    for step in np.arange(0., dist+pushStepSize-0.001, pushStepSize):
+        offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
+        nconf = displaceHand(conf, hand, offsetPose)
+        if not nconf:
+            return None, None
+        viol = rm.confViolations(nconf, newBS, prob, initViol=viol)
+        if debug('canPush'):
+            print viol
+            wm.getWindow('W').startCapture()
+            newBS.draw(prob, 'W')
+            nconf.draw('W', 'cyan', attached)
+            mathematica.mathFile(wm.getWindow('W').stopCapture(),
+                                 view = "ViewPoint -> {2, 0, 2}",
+                                 filenameOut='./canPush.m')
+            raw_input('Next?')
+        if viol is None:
+            return None, None
+        path.append(nconf)
+    tr(tag, 1, 'path=%s, viol=%s'%(path, viol))
+    return path, viol
+
+# TODO: Straighten out the mess with the imports
+# Duplicated from pr2GenAux - we can't import it since that imports this.
+def robotGraspFrame(pbs, conf, hand):
+    robot = pbs.getRobot()
+    _, frames = robot.placement(conf, getShapes=[])
+    wristFrame = frames[robot.wristFrameNames[hand]]
+    if debug('robotGraspFrame'):
+        print 'robot wristFrame\n', wristFrame
+    return wristFrame
+
+# Duplicated from pr2Push
+def displaceHand(conf, hand, offsetPose, nearTo=None):
+    cart = conf.cartConf()
+    handFrameName = conf.robot.armChainNames[hand]
+    trans = cart[handFrameName]
+    nTrans = offsetPose.compose(trans)
+    nCart = cart.set(handFrameName, nTrans)
+    nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
+    if all(nConf.values()):
+        return nConf

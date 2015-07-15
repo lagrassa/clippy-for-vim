@@ -16,6 +16,8 @@ import windowManager3D as wm
 from subprocess import call
 import time
 
+useMathematica = False
+
 # Pick poses and confs for push, either source or destination.
 
 # For now, consider only a small set of stable push directions.
@@ -132,8 +134,9 @@ def pushGenAux(pbs, placeB, hand, base, prob):
                                        0.0,  placeB, hand, vertical)
         pbs.draw(prob, 'W')
         gf = placeB.objFrame().compose(graspB.graspDesc[-1].frame)
-        drawFrame(gf)
-        raw_input('graspDesc frame')
+        if debug(tag):
+            drawFrame(gf)
+            raw_input('graspDesc frame')
         count = 0
         pushPaths = []                  # for different base positions
         for ans in potentialGraspConfGen(pbs, placeB, graspB,
@@ -162,7 +165,7 @@ def sortedPushPaths(pushPaths):
     scored = []
     for (pathAndViols, reason) in pushPaths:
         if reason == 'done':
-            scored.append((0., [pv for pv in pathAndViols]))
+            scored.append((0., pathAndViols))
         else:
             vmin = min(v.weight() for (c,v,p) in pathAndViols)
             trim = []
@@ -170,7 +173,7 @@ def sortedPushPaths(pushPaths):
                 (c,v,p) = pv
                 trim.append(pv)
                 if v.weight() == vmin:
-                    scored.append(trim)
+                    scored.append((vmin, trim))
                     break
     scored.sort()
     return [pv for (s, pv) in scored]
@@ -337,7 +340,7 @@ def pushPath(pbs, prob, resp, contactFrame, dist, shape, regShape, hand):
             reason = 'invkin'
             break
         viol = rm.confViolations(nconf, newBS, prob)
-        if debug('pushPath'):
+        if debug('pushPath') and useMathematica:
             print viol
             wm.getWindow('W').startCapture()
             newBS.draw(prob, 'W')
@@ -379,55 +382,3 @@ def sortPushContacts(contacts, pose):
             good.append((-ntrz, vertical, contact))
     good.sort()                         # smallest z distance first
     return good + bad
-
-# returns path, violations
-def canPush(pbs, obj, hand, prePose, pose,
-            preConf, postConf, prePoseVar, poseVar,
-            poseDelta, prob, initViol):
-    tag = 'canpPush'
-    # direction from post to pre 
-    direction = (prePose.point().matrix - postPose.point.matrix).reshape(4)[:3]
-    direction[2] = 0.0
-    # placeB - ignore support
-    placeB = ObjPlaceB(obj, pbs.getWorld().faceFrames, None, PoseD(pose, poseVar), poseDelta)
-    objFrame = placeB.objFrame()
-    # graspB - from hand and objFrame
-    # TODO: what should these values be?
-    graspVar = 4*(0.0,)
-    graspDelta = 4*(0.0,)
-    wrist = robotGraspFrame(pbs, postConf, hand)
-    faceFrame = objFrame.inverse.compose(wrist.compose(gripperFaceFrame[hand]))
-    graspDescList = [GDesc(obj, faceFrame, 0.0, 0.0, 0.0)]
-    graspDescFrame = objFrame.compose(graspDescList[-1].frame)
-    graspB =  ObjGraspB(obj, graspDescList, -1,
-                        PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
-    newBS = pbs.copy()
-    newBS = newBS.updateHeldBel(graspB, hand)
-    newBS = newBS.excludeObjs([obj])
-    shWorld = newBS.getShadowWorld(prob)
-    attached = shWorld.attached
-    if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
-    rm = pbs.getRoadMap()
-    conf = postConf
-    path = []
-    viol = initViol
-    for step in np.arange(0., dist+pushStepSize-0.001, pushStepSize):
-        offsetPose = hu.Pose((step*direction).tolist()+[0.0])
-        nconf = displaceHand(conf, hand, offset)
-        if not nconf:
-            return None, None
-        viol = rm.confViolations(nconf, newBS, prob, initViol=viol)
-        if debug('canPush'):
-            print viol
-            wm.getWindow('W').startCapture()
-            newBS.draw(prob, 'W')
-            nconf.draw('W', 'cyan', attached)
-            mathematica.mathFile(wm.getWindow('W').stopCapture(),
-                                 view = "ViewPoint -> {2, 0, 2}",
-                                 filenameOut='./canPush.m')
-            raw_input('Next?')
-        if viol is None:
-            return None, None
-        path.append(nconf)
-    tr(tag, 1, 'path=%s, viol=%s'%(path, viol))
-    return path, viol

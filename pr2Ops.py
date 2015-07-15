@@ -12,12 +12,11 @@ from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowWidths, objectName
 from pr2Gen import PickGen, LookGen,\
     EasyGraspGen, canPickPlaceTest, PlaceInRegionGen, PlaceGen, moveOut
-from pr2Push import canPush
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
      findRegionParent, CanReachNB, BaseConf, BLoc, canReachHome, canReachNB,\
-     Pushable, CanPush
+     Pushable, CanPush, canPush
 from planGlobals import debugMsg, debug
 from pr2Push import PushGen
 import pr2RRT as rrt
@@ -222,7 +221,8 @@ def pushPrim(args, details):
                          poseDelta, prob, Violations())
     assert path
     tr('prim', 0, '*** pushPrim', args, ('path length', len(path)))
-    return path, details.pbs.getPlacedObjBs()    
+    # reverse the path...
+    return path[::-1], details.pbs.getPlacedObjBs()    
 
 ################################################################
 ## Simple generators
