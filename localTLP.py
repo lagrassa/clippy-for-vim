@@ -73,7 +73,7 @@ debugOn = ['traceGen', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon',
            # 'traceCRH'
            # 'pushGen', 'handContactFrames', 'graspBForContactFrame',
            # 'pushPath', 'pushGen', 'canPush',
-           'debugInHeuristic'
+           'debugInHeuristic', 'lookGen', 'visible', 'canView', 'lookAtConfCanView'
            ]
 
 if platform.system() == 'Linux':

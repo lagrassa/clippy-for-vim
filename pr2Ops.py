@@ -1562,7 +1562,7 @@ lookAt = Operator(
         GenLookObjPrevVariance(['PoseVarBefore'],
                                ['RealPoseVarAfter', 'Obj', 'PoseFace']),
         LookGen(['LookConf'],
-                 ['Obj', 'Pose', 'PoseFace', 'PoseVarBefore', 'PoseDelta',
+                 ['Obj', 'Pose', 'PoseFace', 'PoseVarBefore', 'PoseVarAfter', 'PoseDelta',
                          'ConfDelta', probForGenerators])],
     cost = lookAtCostFun,
     f = lookAtBProgress,

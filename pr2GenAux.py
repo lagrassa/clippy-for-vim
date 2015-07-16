@@ -232,6 +232,8 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
 
     return violations, None
 
+# Find a path to a conf such that the arm (specified) by hand does not
+# collide with the view cone to the target shape.
 def canView(pbs, prob, conf, hand, shape, maxIter = 50):
     def armShape(c, h):
         parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])

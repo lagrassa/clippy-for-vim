@@ -20,10 +20,21 @@ minVisiblePoints = 5
 
 colors = ['red', 'green', 'blue', 'orange', 'cyan', 'purple']
 
+# This is a cache for visibility computations, the key is formed from
+# the args to visible.
 cache = {}
 cacheStats = [0, 0, 0, 0, 0, 0]                   # h tries, h hits, h easy, real tries, real hits, easy
 
-# !! cache visibility computations
+# ws - shadow world
+# conf - robot conf, head direction can be moved (if moveHead is True)
+# shape - target shape
+# obstacles - a list of "movable" obstacles
+# prob - used (loosely) to determine how much partial occlusion is allowed
+# moveHead - if True, allows the head orientation to change
+# fixed - list of (additional) fixed objects, besides those marked as fixed in ws
+# Returns (bool, list of occluders).  The bool indicates whether the
+# target shape is potentially visible if the occluding obsts are removed.
+
 def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     global laserScanGlobal, laserScanSparseGlobal
     key = (ws, conf, shape, tuple(obstacles), prob, moveHead, tuple(fixed), glob.inHeuristic)

@@ -19,22 +19,17 @@ import time
 
 useMathematica = False
 
-# Pick poses and confs for push, either source or destination.
+# Pick poses and confs for pushing an object
 
 # For now, consider only a small set of stable push directions.
 # Pretend that centroid of xyPrim is the center of friction.  The push
 # path needs to stay inside the regions and the robot needs to be able
 # to follow it without colliding with permanent obstacles.
 
-# Direction is +1, -1 relative to face frame, which opposes face
-# normal.  That is, direction = -1 is away from the face, so this
-# would return places that the object could be pushed FROM.  The +1
-# direction is towards the face and returns places that the object
-# could be pushed TO.
-directionFrom = 1                       # along faceFrame z
-directionTo = -1                        # opposite faceFrame z
-
 # TODO: Pick a reasonable value
+
+# How many paths to generate for a particular hand contact with the
+# object, these will differ by the base placement.
 maxPushPaths = 2
 
 class PushGen(Function):
@@ -205,7 +200,7 @@ def findSupportRegionInPbs(pbs, prob, shape):
 # Potential contacts
 fingerTipThick = 0.02
 fingerTipWidth = 0.05
-fingerLength = 0.05                     # it's really 0.06
+fingerLength = 0.045                    # it's supposed to be 0.06
 
 def handContactFrames(shape, center, vertical):
     tag = 'handContactFrames'
@@ -275,6 +270,7 @@ vertGM = np.array([(0.,-1.,0.,0.),
                     (0.,0.,-1.,0.),
                     (1.,0.,0.,0.),
                     (0.,0.,0.,1.)], dtype=np.float64)
+pushBuffer = 0.02
 def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
     tag = 'graspBForContactFrame'
     # TODO: what should these values be?
@@ -283,7 +279,9 @@ def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
     obj = placeB.obj
     objFrame = placeB.objFrame()
     if debug(tag): print 'objFrame\n', objFrame.matrix
-    zOff = zOffset + (-fingerTipWidth if vertical else 0.)
+
+    print 'Using pushBuffer', pushBuffer
+    zOff = zOffset + (-fingerTipWidth if vertical else 0.) - pushBuffer
     displacedContactFrame = contactFrame.compose(hu.Pose(0.,0.,zOff,0.))
     if debug(tag):
         print 'displacedContactFrame\n', displacedContactFrame.matrix
@@ -312,7 +310,7 @@ def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
     assert graspB
     return graspB
 
-pushStepSize = 0.02
+pushStepSize = 0.05
 
 def pushPath(pbs, prob, resp, contactFrame, dist, shape, regShape, hand):
     tag = 'pushPath'
