@@ -2,8 +2,7 @@ from fbch import Function
 from geom import bboxInside, bboxVolume, vertsBBox, bboxContains
 from pr2GenAux import inside
 import numpy as np
-from planGlobals import debug, debugMsg, useROS
-from traceFile import tr
+from traceFile import debug, debugMsg, tr
 from shapes import thingFaceFrames, drawFrame
 import hu
 from planUtil import ObjGraspB, PoseD, Response
@@ -35,7 +34,7 @@ maxPushPaths = 2
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
         for ans in pushGenGen(args, goalConds, bState):
-            tr('pushGen', 1, str(ans))
+            tr('pushGen', str(ans))
             yield ans
 
 def pushGenGen(args, goalConds, bState):

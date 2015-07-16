@@ -2,7 +2,7 @@ import math
 import time
 import planGlobals as glob
 reload(glob)
-from planGlobals import debugMsg, debug
+from traceFile import debugMsg, debug
 
 # Can be cimports
 cimport numpy as np

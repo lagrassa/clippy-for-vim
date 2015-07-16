@@ -12,7 +12,7 @@ from cut cimport *
 
 import windowManager3D as win
 #import transformations as transf
-from planGlobals import debug
+from traceFile import debug
 
 cimport collision
 import collision

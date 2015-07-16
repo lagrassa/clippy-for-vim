@@ -510,7 +510,7 @@ def ikTrans():
     horizontal = setupNuggets(n=1)
     scored = sorted([(poseScore(tr.pose()), tr) for tr in horizontal])
     horizontal = [tr for (sc, tr) in scored]
-    traceFile.tr('ik', 0, 'Num Horizontal =', len(horizontal))
+    traceFile.tr('ik', 'Num Horizontal =', len(horizontal))
     wrist = hu.Transform(np.array([[0.0, 0.0, 1.0, 1.10],
                                      [0.0, 1.0, 0.0, 0.0],
                                      [-1.0, 0.0, 0.0, 1.0],
@@ -521,7 +521,7 @@ def ikTrans():
     poses = [p for p in poses if p[0]]
     scored = sorted([(poseScore(pose), tr) for (pose, tr) in poses])
     vertical = [tr for (sc, tr) in scored]
-    traceFile.tr('ik', 0, 'Num Vertical=', len(vertical))
+    traceFile.tr('ik', 'Num Vertical=', len(vertical))
     return horizontal, vertical
 
 def ikTransSimple():

@@ -4,7 +4,7 @@ import numpy as np
 from traceFile import tr, trAlways
 
 import planGlobals as glob
-from planGlobals import debug, debugMsg
+from traceFile import debug, debugMsg
 
 import fbch
 from fbch import Fluent, applyBindings, hCache, State, applicableOps,\
@@ -243,7 +243,7 @@ class B(BFluent):
         dv = rFluent.dist(b)
         (dc, dp) = dv.mlc()  # most likely mixture component
 
-        tr('testVerbose', 2,
+        tr('testVerbose',
            ('B fluent test', rFluent),
            ('    ModeProb', dp),
            ('    Actual mode', dc),
@@ -649,7 +649,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
 
         assert totalCost >= 0
         if totalCost == float('inf'):
-            tr('hAddBackInf', 1,
+            tr('hAddBackInf',
                          'Warning: storing infinite value in hCache',
                      [f.shortName() for f in fUp])
             addToCachesSet(fUp, totalCost, set(), idk)
@@ -682,7 +682,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
         def n(f):
             return f.args[0].predicate if f.predicate in ('B', 'Bd') \
                       else f.predicate
-        tr('h', 0, prettyString(totalCost), ol = True)
+        tr('h', prettyString(totalCost), ol = True)
     return totalCost
 
 def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,

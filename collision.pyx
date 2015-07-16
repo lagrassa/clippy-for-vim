@@ -3,7 +3,7 @@ import numpy as np
 cimport numpy as np
 from cpython cimport bool
 cimport shapes
-from planGlobals import debug
+from traceFile import debug
 import gjk
 
 #################################

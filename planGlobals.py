@@ -118,38 +118,10 @@ tableBadWeight = 5
 ########################################
 debugOn = []
 pauseOn = []
-
-PDB = True
+logOn = []
+planNum = 0
 
 import local
 reload(local)
 from local import *
 
-def debug(tag, skip=False):
-    return (not skip) and tag in debugOn
-def pause(tag, skip=False):
-    return (not skip) and tag in pauseOn
-
-def debugMsg(tag, *msgs):
-    if debug(tag):
-        print tag, ':'
-        for m in msgs:
-            print '    ', m
-    if pause(tag):
-        raw_input(tag+'-Go?')
-
-def debugMsgSkip(tag, skip, *msgs):
-    if skip: return
-    if debug(tag):
-        print tag, ':'
-        for m in msgs:
-            print '    ', m
-    if pause(tag):
-        raw_input(tag+'-Go?')
-
-def debugDraw(tag, obj, window, color = None, skip=False):
-    if skip: return
-    if debug(tag):
-        obj.draw(window, color = color)
-    if pause(tag):
-        raw_input(tag+'-Go?')

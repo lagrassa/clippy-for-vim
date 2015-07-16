@@ -2,7 +2,7 @@ import copy
 import os
 
 import planGlobals as glob
-from planGlobals import debugMsg, debug
+from traceFile import debugMsg, debug
 
 import ucSearchPQ as ucSearch
 reload(ucSearch)
@@ -916,7 +916,7 @@ class Operator(object):
         if any([(p.immutable and p.isGround() and\
                  not startState.fluentValue(p) == p.getValue()) \
                 for p in self.preconditionSet()]):
-                tr('regression:fail:immut', 2, 'immutable precond is false',
+                tr('regression:fail', 'immutable precond is false',
                          [p for p in self.preconditionSet() if \
                           (p.immutable and p.isGround() and \
                             not startState.fluentValue(p) == p.getValue())],
@@ -932,7 +932,7 @@ class Operator(object):
             entailed = False
             for rf in results:
                 bTemp = rf.entails(gf, startState.details)
-                tr('regression:entails', 3,
+                tr('regression:entails',
                          'entails', rf, gf, bTemp, bTemp != False, noLog = True)
                 if bTemp != False:
                     entailed = True
@@ -948,11 +948,11 @@ class Operator(object):
                                     startState.details,
                                     avoid = goal.bindingsAlreadyTried)
         # Debugging stuff
-        tr('regression:bind', 3, 'getting new bindings',
+        tr('regression:bind', 'getting new bindings',
                  self.functions, goal.fluents, ('result', newBindings), noLog = True)
         if newBindings == None:
             if not glob.inHeuristic or debug('debugInHeuristic'):
-                tr('regression:fail', 3, self, 'could not get bindings',
+                tr('regression:fail', self, 'could not get bindings',
                      'h = '+str(glob.inHeuristic), noLog = True)
             if debug('regression:fail') and \
                     (not glob.inHeuristic or debug('debugInHeuristic')):
@@ -961,7 +961,7 @@ class Operator(object):
                                             goal.fluents,
                                             startState.details,
                                             avoid = goal.bindingsAlreadyTried)
-                tr('regression:fail', 3, 'hope that was helpful', noLog = True)
+                tr('regression:fail', 'hope that was helpful', noLog = True)
                 glob.debugOn = glob.debugOn[:-1]
             return []
 
@@ -983,7 +983,7 @@ class Operator(object):
 
             # Set abstraction level for mop
             mop.setAbstractionLevel(ancestors)
-            tr('regression', 0, 'Applied metagenerator, got', mop, ol = True)
+            tr('regression', 'Applied metagenerator, got', mop, ol = True)
             res = mop.regress(goal, startState, heuristic, operators,
                               ancestors)
             return res
@@ -1004,7 +1004,7 @@ class Operator(object):
         # Be sure the result is consistent
         if not goal.isConsistent(boundResults, startState.details):
             if not glob.inHeuristic or debug('debugInHeuristic'):
-                tr('regression:fail', 3, self,
+                tr('regression:fail', self,
                          'results inconsistent with goal', noLog = True)
             # This is not a fatal flaw;  just a problem with these bindings
             return []
@@ -1021,7 +1021,7 @@ class Operator(object):
             entailed = False
             for rf in boundResults:
                 bTemp = rf.entails(gf, startState.details)
-                tr('regression:entails', 3,
+                tr('regression:entails',
                          'entails', rf, gf, bTemp, bTemp != False, noLog = True)
                 if bTemp != False:
                     entailed = True
@@ -1039,9 +1039,9 @@ class Operator(object):
                     nf = gf.copy()
                 if nf == None:
                     if not glob.inHeuristic or debug('debugInHeuristic'):
-                        tr('*', 3, 'special regression fail; h =',
+                        tr('*', 'special regression fail; h =',
                            glob.inHeuristic)
-                        tr('regression:fail', 3, 'special regress failure', noLog = True)
+                        tr('regression:fail', 'special regress failure', noLog = True)
                     return []
                 newFluents.append(nf)
 
@@ -1087,7 +1087,7 @@ class Operator(object):
                 f.addConditions(explicitSE, startState.details)
                 f.update()
                 if not f.feasible(startState.details):
-                    tr('regression:fail', 3, 'conditional fluent infeasible',
+                    tr('regression:fail', 'conditional fluent infeasible',
                             f, noLog = True)
                     bindingsNoGood = True
                     break
@@ -1105,7 +1105,7 @@ class Operator(object):
                         for f2 in newGoal.fluents:
                             if f1.contradicts(f2, startState.details):
                                 print '    contradiction\n', f1, '\n', f2
-                    tr('regression:fail', 3, self,
+                    tr('regression:fail', self,
                              'preconds inconsistent with goal',
                              ('newGoal', newGoal), ('preconds', boundPreconds),
                        noLog = True)
@@ -1118,12 +1118,12 @@ class Operator(object):
                         for f2 in newGoal.fluents:
                             if f1.couldClobber(f2, startState.details):
                                 print '    might clobber\n', f1, '\n', f2
-                    tr('regression:fail', 3, self,
+                    tr('regression:fail', self,
                              'side effects may be inconsistent with goal',
                              ('newGoal', newGoal), ('sideEffects', boundSE),
                        noLog = True)
 
-            tr('regression', 3, 'Trying less abstract version of op', self,
+            tr('regression', 'Trying less abstract version of op', self,
                noLog = True)
             primOp = self.copy()
             # LPK: This is maybe nicer, but too expensive
@@ -1148,7 +1148,7 @@ class Operator(object):
             for f in newGoal.fluents:
                 if f.isConditional(): 
                     if not f.feasible(startState.details):
-                        tr('regression:fail', 1,
+                        tr('regression:fail',
                                  'conditional fluent is infeasible', f)
                         trAlways('This could be bad', pause = True)
                         bindingsNoGood = True
@@ -1178,7 +1178,7 @@ class Operator(object):
             hNew = hh(newGoal)
             if hNew == float('inf'):
                 # This is hopeless.  Give up now.
-                tr('regression:fail', 3, 'New goal is infeasible', newGoal,
+                tr('regression:fail','New goal is infeasible', newGoal,
                    noLog = True)
                 cost = float('inf')
             elif debug('simpleAbstractCostEstimates'):
@@ -1201,14 +1201,14 @@ class Operator(object):
                     # Looks good abstractly, but can't apply concrete op
                     # Try other ops!
                     if not glob.inHeuristic or debug('debugInHeuristic'):
-                        tr('infeasible', 3, 'Concrete op not applicable',
+                        tr('infeasible', 'Concrete op not applicable',
                                  primOp, goal)
                     cost = float('inf')
                 else:
                     (sp, cp) = primOpRegr[0]
                     primPrecondCost = hh(sp)
                     if primPrecondCost == float('inf'):
-                        tr('infeasible', 3, 'Prim preconds infeasible', sp)
+                        tr('infeasible','Prim preconds infeasible', sp)
     
                     hOld = primPrecondCost + cp
                     # Difference between that cost, and the cost of
@@ -1251,7 +1251,7 @@ class Operator(object):
                         if cost < float('inf'): break
 
         if not glob.inHeuristic or debug('debugInHeuristic') and debug(tag):
-            tr(tag, 3, 'Final regression result', ('Op', self),
+            tr(tag, 'Final regression result', ('Op', self),
                      ('cost', cost),
                      ('goal',  goal.prettyString(False, startState)),
                      ('newGoal', newGoal.prettyString(False, startState)))
@@ -1259,7 +1259,7 @@ class Operator(object):
         rebindLater.suspendedOperator.instanceCost = rebindCost
         if cost == float('inf'):
             if not glob.inHeuristic or debug('debugInHeuristic'):
-                tr('regression:fail', 3, 'infinite cost', self)
+                tr('regression:fail', 'infinite cost', self)
             return [[rebindLater, rebindCost]]
         newGoal.operator.instanceCost = cost
 
@@ -1284,7 +1284,7 @@ def simplifyCond(oldFs, newFs, details = None):
             continue
         if result.isConsistent([f], details):
             result.fluents = addFluentToSetIfNew(result.fluents, f)
-    tr('simplifyCond', 2, ('oldFs', oldFs),
+    tr('simplifyCond', ('oldFs', oldFs),
              ('newFs', newFs), ('result', result.fluents), noLog = True)
     resultList = list(result.fluents)
     resultList.sort(key = str)
@@ -1297,10 +1297,10 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
     def gnb(funs, sofar):
         if funs == []:
             if not tuplify(sofar) in avoid:
-                tr('btbind', 2, 'returning', sofar, noLog = True)
+                tr('btbind', 'returning', sofar, noLog = True)
                 return sofar
             else:
-                tr('btbind', 2, 'hit duplicate', sofar, noLog = True)
+                tr('btbind', 'hit duplicate', sofar, noLog = True)
                 return None
         else:
             f = funs[0]
@@ -1308,7 +1308,7 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
                             [z.applyBindings(sofar) for z in goalFluents],
                             start)
             if values == None or values == []:
-                tr('btbind', 2, 'fun failed', f,
+                tr('btbind', 'fun failed', f,
                          [lookup(v, sofar) for v in f.inVars], sofar, noLog = True)
                 return None
             for val in values:
@@ -1321,7 +1321,7 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
                 result = gnb(funs[1:], sf)
                 if result != None:
                     return result
-            tr('btbind', 2, 'ran out of values', f, sofar, noLog = True)
+            tr('btbind', 'ran out of values', f, sofar, noLog = True)
             return None
 
     funsInOrder = [f for f in functions if \
@@ -1335,19 +1335,19 @@ class RebindOp:
                 ancestors = ()):
         g = goal.copy()
         op = goal.suspendedOperator
-        tr('rebind', 1, 'about to try local rebinding', op, g.bindings)
+        tr('rebind', 'about to try local rebinding', op, g.bindings)
             
         g.suspendedOperator = None
         g.rebind = False
         results = op.regress(g, startState, heuristic, operators, ancestors)
 
         if len(results) > 0 and debug('rebind'):
-            tr('rebind', 1, 'successfully rebound local vars',
+            tr('rebind', 'successfully rebound local vars',
                      'costs', [c for (s, c) in results], 'minus',
                      glob.rebindPenalty)
             results[0][1] -= op.instanceCost
         else:
-            tr('rebind', 1, 'failed to rebind local vars')
+            tr('rebind', 'failed to rebind local vars')
         return results
 
     def __str__(self):
@@ -1572,7 +1572,7 @@ def executePrim(op, s, env, f = None):
     params = op.evalPrim(s.details)
     # Print compactly unless we are debugging
     trAlways('PRIM:', op.prettyString(eq = debug('prim')), pause = False)
-    tr('prim', 1, 'params', params)
+    tr('prim', 'params', params)
     writePrimRefinement(f, op)
     obs = env.executePrim(op, params)
     s.updateStateEstimate(op, obs)
@@ -1604,7 +1604,7 @@ class PlanStack(Stack):
             if not op or upperSubgoal != lowerGoal:
                 # Layer i doesn't have an action to execute OR
                 # subgoal at i-1 doesn't equal actual goal at i
-                tr('nextStep', 1, ('op', op), ('upperSG', upperSubgoal),
+                tr('nextStep', ('op', op), ('upperSG', upperSubgoal),
                          ('lowerGoal', lowerGoal))
                 # This is a surprise if previous is not current - 1
                 # Could actually check this condition going down farther in
@@ -1617,7 +1617,7 @@ class PlanStack(Stack):
                     if previousUpperIndex != currentUpperIndex -1 :
                         writeSurprise(f, layers[i-1], previousUpperIndex,
                                       currentUpperIndex)
-                        tr('executionSurprise', 0, ('layer', i-1),
+                        tr('executionSurprise', ('layer', i-1),
                              ('prevIndex', previousUpperIndex),
                              ('currIndex', currentUpperIndex),
                              ('popping layers', i, 'through', len(layers)-1))
@@ -1635,7 +1635,7 @@ class PlanStack(Stack):
                 return (upperOp, upperSubgoal, oldSkel)
             elif i == len(layers)-1:
                 # bottom layer, return subgoal at level i
-                tr('nextStep', 2, 'bottomLayer', op, subgoal)
+                tr('nextStep', 'bottomLayer', op, subgoal)
                 assert op.isAbstract() or op.prim != None, \
                              'Selected inferential op for execution'
                 return (op, subgoal, None)
@@ -1699,9 +1699,9 @@ class PlanStack(Stack):
         for fl in layer.steps[layer.lastStepExecuted][1].fluents:
             if fl.value != s.fluentValue(fl):
                 fooFluents.append(fl)
-        tr('executionFail', 0, 'Failure: expected to satisfy subgoal', layer.lastStepExecuted, \
+        tr('executionFail', 'Failure: expected to satisfy subgoal', layer.lastStepExecuted, \
           'at layer', layer.level, ol = True, pause = False)
-        tr('executionFail', 0, 'Unsatisfied fluents:', * fooFluents)
+        tr('executionFail', 'Unsatisfied fluents:', * fooFluents)
         writeFailure(f, layer, fooFluents)
 
         if debug('executionFail') and not quiet:
@@ -1836,7 +1836,7 @@ class Plan:
                 self.lastStepExecuted = i+1
                 return self.steps[i+1]
         # No subgoals are satisfied, not even the first pre-image
-        tr('executionFail', 0,  'failed to satisfy any pre-image',
+        tr('executionFail',  'failed to satisfy any pre-image',
            'Was expecting to satisfy preimage', self.lastStepExecuted)
         if debug('executionFail'):
             for f in self.steps[self.lastStepExecuted][1].fluents:
@@ -1865,9 +1865,9 @@ class Plan:
               self.steps[0][1].prettyString().replace('\\n','\n'), ol = True)
         for i in range(1, self.length):
             trAlways('    step', i, ':',
-                  self.steps[i][0].prettyString(eq = verbose), ol = True)
-            trAlways('        cost = ',
-                     prettyString(self.steps[i][0].instanceCost), ol = True)
+                    self.steps[i][0].prettyString(eq = verbose), 
+                    'cost = ',
+                    prettyString(self.steps[i][0].instanceCost), ol = True)
             totalCost += self.steps[i][0].instanceCost
             if verbose:
                 trAlways('    result', i, ':',
@@ -2143,7 +2143,7 @@ def planBackward(startState, goal, ops, ancestors = [],
                 if f1: writeSuccess(f1, f2, p)
                 return p
             if f1:  writeSearchCoda(f1, f2)
-            tr('nonmon', 0, 'Monotonic failed')
+            tr('nonmon', 'Monotonic failed')
         # Now try non-monotonic
         if fileTag:
             (f1, f2) = writeSearchPreamble(goal.planNum, fileTag+'NonMon')

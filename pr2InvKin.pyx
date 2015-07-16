@@ -5,7 +5,7 @@ import numpy
 # noinspection PyUnresolvedReferences
 cimport numpy as np
 import planGlobals as glob
-from planGlobals import debug
+from traceFile import debug
 from miscUtil import prettyString
 from transformations import rotation_matrix
 

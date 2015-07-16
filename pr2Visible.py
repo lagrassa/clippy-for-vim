@@ -7,7 +7,7 @@ from geom import bboxCenter
 from shapes import toPrims, pointBox, BoxScale
 import transformations as transf
 from pr2Util import shadowName
-from planGlobals import debugMsg, debugDraw, debug, pause
+from traceFile import debugMsg, debug
 import windowManager3D as wm
 from miscUtil import argmax
 

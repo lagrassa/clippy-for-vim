@@ -4,8 +4,7 @@ import copy
 from colors import RGBToPyColor, HSVtoRGB
 from dist import chiSqFromP
 import numpy as np
-import dist
-from planGlobals import debug, debugMsg
+from traceFile import debug, debugMsg
 from planUtil import PoseD, Violations
 
 class Hashable:

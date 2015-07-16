@@ -10,7 +10,7 @@ from miscUtil import isGround
 from dist import UniformDist,  DeltaDist
 from objects import World, WorldState
 #from pr2Robot import PR2, pr2Init, makePr2Chains
-from planGlobals import debugMsg, debugDraw, debug, pause
+from traceFile import debugMsg, debug
 import planGlobals as glob
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
 from planUtil import ObjGraspB, ObjPlaceB
@@ -119,7 +119,7 @@ class PBS:
         shadows = confViols.allShadows()
         while shadows:
             if shadows:
-                tr('beliefUpdate', 0,
+                tr('beliefUpdate',
                    'Robot collides with shadows.  Will try to fix', shadows,
                     draw = [(self, 0.98, 'W')], snap = ['W'])
                     # Divide variance in half.  Very crude.  Should find the
@@ -286,7 +286,7 @@ class PBS:
         self.reset()
         finalObjects = self.objectsInPBS()
         if initialObjects != finalObjects:
-            tr('conservation', 0,
+            tr('conservation',
                ('    initial', sorted(list(initialObjects))),
                ('    final', sorted(list(finalObjects))))
         return self

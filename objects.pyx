@@ -7,7 +7,8 @@ import xml.etree.ElementTree as ET
 
 from hu cimport Ident, Transform, angleDiff, fixAnglePlusMinusPi
 from shapes cimport Shape
-from planGlobals import debug, debugMsg, mergeShadows
+from planGlobals import  mergeShadows
+from traceFile import debug, debugMsg
 from geom import bboxUnion
 
 PI2 = 2*math.pi

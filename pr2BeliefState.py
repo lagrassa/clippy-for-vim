@@ -116,8 +116,8 @@ class BeliefState:
             s += '   pose: %s\n'%prettyString(stuff.poseD.meanTuple())
             s += '  stdev: %s\n'%prettyStdev(stuff.poseD.varTuple())
         s += '------------  Belief -------------\n'
-        tr('B', 0, s)
-        tr('B', 0, draw=[(self.pbs, 0.9, w)], snap=[w])
+        tr('B', s)
+        tr('B', draw=[(self.pbs, 0.9, w)], snap=[w])
         wm.getWindow(w).update()
 
 def diagToSq(d):

@@ -10,7 +10,8 @@ from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 import hu
 import copy
-from planGlobals import debug, debugOn, debugMsg
+from traceFile import debug, debugMsg
+import planGlobals as glob
 from pr2Robot import gripperFaceFrame
 from pr2Visible import visible, lookAtConf
 from time import sleep
@@ -59,7 +60,7 @@ class RealWorld(WorldState):
     def executePrim(self, op, params = None):
         def endExec(obs):
             self.draw('World')
-            tr('sim', 0, 'Executed %s got obs= %s'%(op.name, obs),
+            tr('sim', 'Executed %s got obs= %s'%(op.name, obs),
                snap=['World'])
             return obs
         if op.name == 'Move':
@@ -103,12 +104,12 @@ class RealWorld(WorldState):
             cart = conf.cartConf()
             leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3]).tolist()[0][:-1]
             rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3]).tolist()[0][:-1]
-            tr('sim', 2,
+            tr('sim',
                ('base', conf['pr2Base'], 'left', leftPos, 'right', rightPos))
             for obst in objShapes:
                 if self.robotPlace.collides(obst):
                     obs ='crash'
-                    tr('sim', 0, 'Crash! with '+obst.name())
+                    tr('sim', 'Crash! with '+obst.name())
                     raw_input('Crash! with '+obst.name())
                     if crashIsError:
                         raise Exception, 'Crash'
@@ -124,7 +125,7 @@ class RealWorld(WorldState):
                 cart = conf.cartConf()
                 leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
                 rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
-                tr('sim', 2,
+                tr('sim',
                    ('base', conf['pr2Base'], 'left', leftPos, 'right', rightPos))
                 break
             newXYT = self.robotConf.conf['pr2Base']
@@ -148,11 +149,11 @@ class RealWorld(WorldState):
                             args[1] = lookConf
                             lookAtBProgress(self.bs, args, obs)
                         else:
-                            tr('sim', 0, 'No observation')
+                            tr('sim', 'No observation')
                     else:
-                        tr('sim', 0, 'No lookConf for %s'%obj.name())
+                        tr('sim', 'No lookConf for %s'%obj.name())
                 else:
-                    tr('sim', 0, 'No visible object')
+                    tr('sim', 'No visible object')
             noisyXYT = [c + 2 * (random.random() - 0.5) * c * simOdoErrorRate \
                                  for c in newXYT]
             #prevXYT = newXYT
@@ -163,7 +164,7 @@ class RealWorld(WorldState):
                 print prev, '->', next
             raw_input('Backwards')
         wm.getWindow('World').update()
-        tr('sim', 1, 'Admire the path', snap=['World'])
+        tr('sim', 'Admire the path', snap=['World'])
         return obs
 
     def visibleObj(self, objShapes):
@@ -194,7 +195,7 @@ class RealWorld(WorldState):
 
         if params:
             path, interpolated, _  = params
-            tr('sim', 0, 'path len = %d'%(len(path)))
+            tr('sim', 'path len = %d'%(len(path)))
             if not path:
                 raw_input('No path!!')
             obs = self.doPath(path, interpolated)
@@ -211,7 +212,7 @@ class RealWorld(WorldState):
         nominalGD = op.args[3]
         nominalGPoseTuple = op.args[4]
         self.setRobotConf(lookConf)
-        tr('sim', 0, 'LookAtHand configuration', draw=[(self.robotPlace, 'World', 'orchid')])
+        tr('sim', 'LookAtHand configuration', draw=[(self.robotPlace, 'World', 'orchid')])
         _, attachedParts = self.robotConf.placementAux(self.attached,
                                                        getShapes=[])
         shapeInHand = attachedParts[hand]
@@ -225,10 +226,10 @@ class RealWorld(WorldState):
             vis, _ = visible(self, self.robotConf, shapeInHand,
                              obstacles, 0.75, moveHead=False, fixed=[self.robotPlace.name()])
             if not vis:
-                tr('sim', 0, 'Object %s is not visible'%targetObj)
+                tr('sim', 'Object %s is not visible'%targetObj)
                 return 'none'
             else:
-                tr('sim', 0, 'Object %s is visible'%targetObj)
+                tr('sim', 'Object %s is visible'%targetObj)
             return (targetObj, gdIndex, graspTuple)
         else:
             # TLP! Please fix.  Should check that the hand is actually
@@ -237,7 +238,7 @@ class RealWorld(WorldState):
 
     def doLook(self, lookConf):
         self.setRobotConf(lookConf)
-        tr('sim', 0, 'LookAt configuration', draw=[(self.robotPlace, 'World', 'orchid')])
+        tr('sim', 'LookAt configuration', draw=[(self.robotPlace, 'World', 'orchid')])
         obs = []
 
         if debug('locate'):
@@ -253,7 +254,7 @@ class RealWorld(WorldState):
                         locate.getObjectDetections(lookConf, placeB, self.bs.pbs, scan)
                 if score != None:
                     obsPose = trans.pose()
-                    tr('sim', 0, 'Object %s is visible at %s'%(curObj, obsPose.xyztTuple()))
+                    tr('sim', 'Object %s is visible at %s'%(curObj, obsPose.xyztTuple()))
                     print 'placeB.poseD.mode()', placeB.poseD.mode()
                     print 'truePose', self.getObjectPose(curObj)
                     print ' obsPose', obsPose
@@ -261,38 +262,38 @@ class RealWorld(WorldState):
                     raw_input('Go?')
                     obs.append((objType, supportFaceIndex(obsShape), obsPose))
                 else:
-                    tr('sim', 0, 'Object %s is not visible'%curObj)
+                    tr('sim', 'Object %s is not visible'%curObj)
             else:
                 obstacles = [s for s in self.getObjectShapes() if \
                              s.name() != curObj ]  + [self.robotPlace]
-                deb = 'visible' in debugOn
-                if (not deb) and debug('visibleEx'): debugOn.append('visible')
+                deb = 'visible' in glob.debugOn
+                if (not deb) and debug('visibleEx'): glob.debugOn.append('visible')
                 vis, _ = visible(self, self.robotConf,
                                  self.objectShapes[curObj],
                                  obstacles, 0.75, moveHead=False,
                                  fixed=[self.robotPlace.name()])
-                if not deb and debug('visibleEx'): debugOn.remove('visible')
+                if not deb and debug('visibleEx'): glob.debugOn.remove('visible')
                 if not vis:
-                    tr('sim', 0, 'Object %s is not visible'%curObj)
+                    tr('sim', 'Object %s is not visible'%curObj)
                     continue
                 else:
-                    tr('sim', 0, 'Object %s is visible'%curObj)
+                    tr('sim', 'Object %s is visible'%curObj)
                 truePose = self.getObjectPose(curObj)
                 # Have to get the resting face.  And add noise.
                 trueFace = supportFaceIndex(self.objectShapes[curObj])
-                tr('sim', 0, 'Observed face=%s, pose=%s'%(trueFace, truePose.xyztTuple()))
+                tr('sim', 'Observed face=%s, pose=%s'%(trueFace, truePose.xyztTuple()))
                 ff = self.objectShapes[curObj].faceFrames()[trueFace]
                 obsMissProb = self.domainProbs.obsTypeErrProb
                 miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
                 if miss:
-                    tr('sim', 0, 'Missed observation')
+                    tr('sim', 'Missed observation')
                     continue
                 else:
                     obsVar = self.domainProbs.obsVar
                     obsPose = hu.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
                     obsPlace = obsPose.compose(ff).pose().xyztTuple()
                     obs.append((objType, trueFace, hu.Pose(*obsPlace)))
-        tr('sim', 0, 'Observation', obs)
+        tr('sim', 'Observation', obs)
         if not obs:
             debugMsg('sim', 'Null observation')
         return obs
@@ -347,7 +348,7 @@ class RealWorld(WorldState):
                 # !! Add noise to grasp
                 robot.attach(self.objectShapes[o], self, hand)
                 self.delObjectState(o)
-                tr('sim', 0, ('picked', self.held[hand], self.grasp[hand]))
+                tr('sim', ('picked', self.held[hand], self.grasp[hand]))
                 self.setRobotConf(self.robotConf)
                 self.robotPlace.draw('World', 'black')
                 self.setRobotConf(approachConf)
@@ -359,7 +360,7 @@ class RealWorld(WorldState):
                                            self.domainProbs.placeStdev)
                 self.setObjectPose(o, newObjPose)
         else:
-            tr('sim', 0, ('Tried to pick but missed', o, oDist, pickSuccessDist))
+            tr('sim', ('Tried to pick but missed', o, oDist, pickSuccessDist))
         return None
 
     def executePlace(self, op, params):
@@ -376,14 +377,14 @@ class RealWorld(WorldState):
             self.robotPlace.draw('World', 'orchid')            
             if not self.attached[hand]:
                 raw_input('No object is attached')
-                tr('sim', 0, 'No object is attached')
+                tr('sim', 'No object is attached')
             else:
-                tr('sim', 0, 'Object is attached')
+                tr('sim', 'Object is attached')
             robot = self.robot
             detached = robot.detach(self, hand)
             self.setRobotConf(self.robotConf)
             obj = self.held[hand]
-            #assert detached and obj == detached.name()
+            # assert detached and obj == detached.name()
             if detached:
                 cart = self.robotConf.cartConf()
                 handPose = cart[robot.armChainNames[hand]].\
@@ -400,7 +401,7 @@ class RealWorld(WorldState):
                 # print 'placed', obj, actualObjPose
             self.setRobotConf(approachConf)
             self.robotPlace.draw('World', 'orchid')
-            #print 'retracted'
+            # print 'retracted'
         return None
 
     def executePush(self, op, params, noBase = True):
@@ -418,7 +419,7 @@ class RealWorld(WorldState):
             # Execute the push prim
             if params:
                 path, interpolated, _  = params
-                tr('sim', 0, 'path len = %d'%(len(path)))
+                tr('sim', 'path len = %d'%(len(path)))
                 if not path:
                     raw_input('No path!!')
 

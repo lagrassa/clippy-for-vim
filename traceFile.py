@@ -1,55 +1,60 @@
-from planGlobals import debug, debugMsg, pause
 import windowManager3D as wm
 from miscUtil import timeString
 import local
 import planGlobals as glob
 import os
 
-# Tracing interface, one level up from debug...
-# targetFile
-# level
-# - writes to log at every level
-# - draws at every level
-# - levels 0 and 1 always printed to console
-# - determines whether to pause
+# debugOn  : print to tty
+# pauseOn : pause tty
+# logOn : print to log
 
-'''
-def trace(genTag, *msg):
-    if debug('traceGen'):
-        print genTag+':',
-        for m in msg: print m,
-        print ' '
+# tag lists contain: *, symbol, (symbol, *), or (symbol, symbol)
+# tag in a tr statement can be: symbol or (symbol, symbol)
 
-def tracep(pause, *msg):
-    if debug('traceGen'):
-        print pause+':',
-        for m in msg: print m,
-        print ' '
-    if pause:
-        debugMsg(pause)
-'''
+# Return true if this tag should be traced, given a particular list of tags
+def traced(genTag, tags, skip = False):
+    return (not skip) and \
+      ((not glob.inHeuristic) or ('debugInHeuristic' in tags)) and \
+      (genTag == '*'  or  ('*' in tags) or
+            (genTag in tags) or ((genTag[0], '*') in tags))
 
-# Decides whether to print to console.
-# - traceGen is debugged *and*
-# - (level is <= 1 or (we are not in the heuristic or debugging in heuristic)) *and*
-# - (level is <= minTraceLevel or we are debugging on this tag)
-
-# LPK simplified this
-
-# Lower traceLevel is more urgent
-
-minTraceLevel = 1
-def traced(genTag, level):
-    return level <= minTraceLevel and (debug(genTag) or genTag == '*')
-    # if not debug('traceGen') \
-    #    or (level > 1 and (glob.inHeuristic and not debug('debugInHeuristic'))) \
-    #    or (level > minTraceLevel and not debug(genTag)):
-    #     return False
-    # return True
-
-# Always print and log this
+# Always print and log this.  
 def trAlways(*msg, **keys):
-    tr('*', 0, *msg, **keys)
+    tr('*', *msg, **keys)
+
+# Decide whether to write into log
+def log(tag, skip = False):
+    return traced(tag, glob.logOn, skip)
+
+# Decide whether to write to tty
+def debug(tag, skip = False):
+    return traced(tag, glob.debugOn, skip)
+
+# Decide whether to pause tty.  Default to no, even if '*'
+def pause(tag, skip=False):
+    return (tag != '*') and traced(tag, glob.pauseOn, skip)
+
+def debugMsg(tag, *msgs):
+    if debug(tag):
+        print tag, ':'
+        for m in msgs:
+            print '    ', m
+    if pause(tag):
+        raw_input(tag+'-Go?')
+
+def debugMsgSkip(tag, skip = False, *msgs):
+    if debug(tag, skip):
+        print tag, ':'
+        for m in msgs:
+            print '    ', m
+    if pause(tag, skip):
+        raw_input(tag+'-Go?')
+
+def debugDraw(tag, obj, window, color = None, skip=False):
+    if debug(tag, skip):
+        obj.draw(window, color = color)
+    if pause(tag, skip):
+        raw_input(tag+'-Go?')
 
 # keys is a dictionary
 # Possible keywords:  draw, snap, pause
@@ -57,54 +62,63 @@ def trAlways(*msg, **keys):
 #    snap: puts image of listed windows into the log
 #    pause: pauses
 #    ol: write onto single line, if true
+#    skip: skip this whole thing
 
-# LPK: make ol work for log as well as terminal
 
-def tr(genTag, level, *msg, **keys):
+def tr(genTag, *msg, **keys):
+    if keys.get('skip', False):  return
+        
     if glob.inHeuristic and htmlFileH:
         targetFile = htmlFileH
     elif (not glob.inHeuristic) and htmlFile:
         targetFile = htmlFile
     else:
         targetFile = None
-    if ((not glob.inHeuristic) or debug('debugInHeuristic')) and \
-        not keys.get('noLog', False):
-        if msg and targetFile:
-            targetFile.write('<pre>'+level*'  '+' '+'(%d)%s'%(glob.planNum, genTag)+\
-                             ': '+str(msg[0])+'</pre>\n')
-            for m in msg[1:]:
-                targetFile.write('<pre>'+level*'  '+str(m)+'</pre>\n')
+
+    doLog = log(genTag)
+    doDebug = debug(genTag)
+    doPause = keys['pause'] if ('pause' in keys) else pause(genTag)
+    ol = keys.get('ol', True)
+
+    # Logging text
+    if doLog and msg and targetFile:
+        targetFile.write('<pre>'+' '+\
+                         '(%d)%s'%(glob.planNum, genTag)+\
+                          ': '+str(msg[0])+'</pre>\n')
+        terminator = ' ' if ol else '\n    '
+        targetFile.write('<pre>')
+        for m in msg[1:]:
+            targetFile.write(str(m)+terminator)
+        targetFile.write('</pre>\n')
+
+    # Drawing
+    if doLog or doDebug:
         draw = keys.get('draw', [])
         for obj in draw:
-            if not obj[0]: continue
             if isinstance(obj, (list, tuple)):
                 obj[0].draw(*obj[1:])
             else:
                 obj.draw('W')
-        if keys.get('snap', []):
-            snap(*keys['snap'])
-    # Printing to the console
-    if not traced(genTag, level): return
-    if msg:
-        prTag = (genTag+':') if (genTag != '*') else ''
-        if keys.get('ol', True):
-            # Print on one line
-            print level*'  ', prTag,
+        if doLog and keys.get('snap', []):
+            snap(targetFile, *keys['snap'])
+
+    # Printing to console
+    if doDebug and msg:
+        prTag = (genTag+':') if (genTag != '*') else 'Debug:'
+        print prTag,
+        if ol:
             for m in msg: print m,
             print '\n',
         else:
-            print level*'  ', prTag, msg[0]
-            for m in msg[1:]:
-                print level*'  ', m
-    #debugMsg(genTag)
-    #if level >= 0:
-    #    debugMsg(genTag+str(level))         # more specific pause tag
-    if keys.get('pause', False) or pause(genTag):
+            for m in msg:
+                print '    ', m
+
+    # Pausing
+    if doPause:
         windows = keys.get('snap', [])
         for w in windows:
             wm.getWindow(w).update()
-        if glob.PDB:
-            raw_input(genTag+' go?')
+        raw_input(genTag+' go?')
 
 pngFileId = 0
 htmlFile = None
@@ -142,16 +156,10 @@ def traceEnd():
         htmlFileH.close()
         htmlFileH = None
 
-def snap(*windows):
+def snap(targetFile, *windows):
     global pngFileId
     for win in windows:
         pngFileName = local.pngGen%(dirName, str(pngFileId))
-        if glob.inHeuristic and htmlFileH:
-            targetFile = htmlFileH
-        elif (not glob.inHeuristic) and htmlFile:
-            targetFile = htmlFile
-        else:
-            return
         if wm.getWindow(win).window.modified:
             wm.getWindow(win).window.saveImage(pngFileName)
             pngFileId += 1
