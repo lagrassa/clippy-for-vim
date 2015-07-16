@@ -9,9 +9,9 @@ else:
     genDir = '/Users/tlp/Documents/gen/'
 dotSearch = outDir + 's%s%s.dot'
 dotSearchX = outDir + 'sX%s%s.dot'
-pngGen = genDir + 'g%s_%s.png'
-htmlGen = genDir + 'a%s_%s.html'
-htmlGenH = genDir + 'aH%s_%s.html'
+pngGen = '%s/g%s.png'
+htmlGen = '%s/a%s.html'
+htmlGenH = '%s/aH%s.html'
 
 rebindPenalty = 100
 

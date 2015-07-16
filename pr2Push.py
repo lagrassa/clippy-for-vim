@@ -10,6 +10,7 @@ from planUtil import ObjGraspB, PoseD, Response
 from pr2Util import GDesc
 from pr2GenAux import *
 from pr2Robot import gripperFaceFrame
+from pr2PlanBel import getConf
 import mathematica
 reload(mathematica)
 import windowManager3D as wm

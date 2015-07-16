@@ -814,7 +814,7 @@ maxLookDist = 1.5
 # factor, visibility should still hold.
 class LookGen(Function):
     def fun(self, args, goalConds, bState):
-        (obj, pose, support, objV, objDelta, lookDelta, prob) = args
+        (obj, pose, support, objV_before, objV_after, objDelta, lookDelta, prob) = args
         pbs = bState.pbs.copy()
         world = pbs.getWorld()
         base = sameBase(goalConds)
@@ -822,61 +822,57 @@ class LookGen(Function):
             # This could produce a mode of None
             pB = pbs.getPlaceB(obj, default=False)
             if pB is None:
-                print 'Trying to reduce variance on object pose but obj is in hand'
+                tr(tag, 1, '=> Trying to reduce variance on object pose but obj is in hand')
                 return
-            poseD = pB.poseD if pB else PoseD(None, 4*(0.,))
-        else:
-            poseD = PoseD(pose, objV)
+            pose = pB.poseD.mode()
+        poseD_before = PoseD(pose, objV_before)
+        poseD_after = PoseD(pose, objV_after)
         if isVar(support) or support == '*':
             support = pbs.getPlaceB(obj).support.mode()
         if objDelta == '*':
             objDelta = lookDelta
-        placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support, poseD,
-                       delta = objDelta)
-        # Pretend that the object has bigger delta
-        # delta=tuple([o+l for (o,l) in zip(objDelta, lookDelta)]))
-        # Be careful here!  There is a shadow for the purposes of looking
-        # and a shadow for the purposes of moving, and I guess they might
-        # be different.
-        # Don't try to look at the whole shadow
-        # We'll do this later.
-        # placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
-        for ans, viol in lookGenTop((obj, placeB, lookDelta, base, prob),
+        placeB_before = ObjPlaceB(obj, world.getFaceFrames(obj), support, poseD_before,
+                                  delta = objDelta)
+        placeB_after = ObjPlaceB(obj, world.getFaceFrames(obj), support, poseD_after,
+                                delta = objDelta)
+        for ans, viol in lookGenTop((obj, placeB_before, placeB_after, lookDelta, base, prob),
                                 goalConds, pbs):
             yield ans
 
 def lookGenTop(args, goalConds, pbs):
 
-    def testFn(c):
+    def testFn(c, sh, shWorld, obst, prob):
         tr(tag, 2, 'Trying base conf', c['pr2Base'], ol = True)
         obst_rob = obst + [c.placement(shWorld.attached)]
         return visible(shWorld, c, sh, obst_rob, prob, moveHead=True)[0]
 
-    (obj, placeB, lookDelta, base, prob) = args
+    (obj, placeB_before, placeB_after, lookDelta, base, prob) = args
     tag = 'lookGen'
     tr(tag, 0, '(%s) h=%s'%(obj, glob.inHeuristic))
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(goalConds)
     newBS.addAvoidShadow([obj])
-    if placeB.poseD.mode() is None:
+    if placeB_before.poseD.mode() is None:
         tr(tag, 1, '=> object is in the hand, failing')
         return
-    newBS.updatePermObjPose(placeB)
-    rm = newBS.getRoadMap()
-    shWorld = newBS.getShadowWorld(prob)
-    if any(shWorld.attached.values()):
-        tr(tag, 1, 'attached=%s'%shWorld.attached)
+    newBS_before.updatePermObjPose(placeB_before)
+    newBS_after.updatePermObjPose(placeB_after)
+    rm = newBSbefore.getRoadMap()
+    shWorld_before = newBS_before.getShadowWorld(prob)
+    shWorld_after = newBS_after.getShadowWorld(prob)
+    attached = shWorld_before.attached
+    if any(attached.values()):
+        tr(tag, 1, 'attached=%s'%attached)
     shName = shadowName(obj)
-    # Uses original placeB
-    sh = shWorld.objectShapes[shName]
-    obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
+    sh_before = shWorld_before.objectShapes[shName]
+    obst_before = [s for s in shWorld_before.getNonShadowShapes() if s.name() != obj ]
 
     goalConf = getConf(goalConds, None)
     if goalConds and goalConf:
         # if conf is specified, just fail
         tr(tag, 1, '=> Conf is specified, failing: ' + str(goalConf))
         return
-    if obj in [newBS.held[hand].mode() for hand in ['left', 'right']]:
+    if obj in [newBS_before.held[hand].mode() for hand in ['left', 'right']]:
         tr(tag, 1, '=> object is in the hand, failing')
         return
     if base:
@@ -885,38 +881,40 @@ def lookGenTop(args, goalConds, pbs):
             print 'No conf found for lookConf with specified base'
             raw_input('This might be an error in regression')
             return
-        path, viol = canReachHome(newBS, conf, prob, Violations(), moveBase=False)
+        # We must be able to reach conf after the look
+        path, viol = canReachHome(newBS_after, conf, prob, Violations(), moveBase=False)
         tr(tag, 1, '(%s) specified base viol=%s'%(obj, viol.weight() if viol else None))
         if not path:
             tr(tag, 2, 'Failed to find a path to look conf (cyan) with specified base.',
-               draw=[(newBS, prob, 'W'), (conf, 'W', 'cyan', shWorld.attached)], snap=['W'])
+               draw=[(newBS_after, prob, 'W'), (conf, 'W', 'cyan', attached)], snap=['W'])
             return
-        if testFn(conf):
-            lookConf = lookAtConfCanView(newBS, prob, conf, sh)
+        if testFn(conf, sh_before, shWorld_before, obst):
+            lookConf = lookAtConfCanView(newBS_before, prob, conf, sh)
             if lookConf:
                 tr(tag, 1, '=> Found a path to look conf with specified base.',
                    ('-> cyan', lookConf.conf),
-                   draw=[(newBS, prob, 'W'), (lookConf, 'W', 'cyan', shWorld.attached)],
+                   draw=[(newBS_before, prob, 'W'), (lookConf, 'W', 'cyan', attached)],
                    snap=['W'])
                 yield (lookConf,), viol
         return
 
     # A shape for the purposes of viewing.  Make the shadow very small
-    placeB = placeB.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
+    placeB = placeB_before.modifyPoseD(var = (0.0001, 0.0001, 0.0001, 0.0005))
     # be smarter about this?  LPK took this out
     # tempPlaceB.delta = (.01, .01, .01, .01)
     shape = placeB.shadow(newBS.getShadowWorld(prob))
 
     # Check current conf
-    curr = newBS.conf
-    lookConf = lookAtConfCanView(newBS, prob, curr, shape)
-    if lookConf and testFn(lookConf):
+    curr = newBS_before.conf
+    lookConf = lookAtConfCanView(newBS_before, prob, curr, shape)
+    if lookConf \
+       and testFn(lookConf, shape, shWorld_before, obst_before, prob):
         tr(tag, 1, '=> Using current conf.',
-           draw=[(pbs, prob, 'W'),
-                 (lookConf, 'W', 'cyan', shWorld.attached)])
-        yield (lookConf,), rm.confViolations(curr, newBS, prob)
+           draw=[(newBS_before, prob, 'W'),
+                 (lookConf, 'W', 'cyan', attached)])
+        yield (lookConf,), rm.confViolations(curr, newBS_before, prob)
         
-    world = newBS.getWorld()
+    world = newBS_before.getWorld()
     if obj in world.graspDesc and not glob.inHeuristic:
         graspVar = 4*(0.001,)
         graspDelta = 4*(0.001,)   # put back to prev value
@@ -940,9 +938,11 @@ def lookGenTop(args, goalConds, pbs):
                         vw = viol.weight() if viol else None
                         tr(tag, 2, '(%s) canView cleared viol=%s'%(obj, vw))
                         yield (lookConf,), viol
-    lookConfGen = potentialLookConfGen(newBS, prob, sh, maxLookDist) # look unconstrained by base
-    for ans in rm.confReachViolGen(lookConfGen, newBS, prob,
-                                   testFn = testFn):
+    # look unconstrained by base
+    lookConfGen = potentialLookConfGen(newBS_before, prob, sh_before, maxLookDist)
+    for ans in rm.confReachViolGen(lookConfGen, newBS_before, prob,
+                                   testFn = lambda c: testFn(c, sh_before,
+                                                             shWorld_before, obst_before, prob)):
         viol, cost, path = ans
         tr(tag, 2, '(%s) viol=%s'%(obj, viol.weight() if viol else None))
         if not path:
@@ -950,11 +950,11 @@ def lookGenTop(args, goalConds, pbs):
             raw_input('Failed to find a path to look conf.')
             continue
         conf = path[-1]
-        lookConf = lookAtConfCanView(newBS, prob, conf, sh)
+        lookConf = lookAtConfCanView(newBS_before, prob, conf, sh)
         if lookConf:
             tr(tag, 2, '(%s) general conf viol=%s'%(obj, viol.weight() if viol else None),
                ('-> cyan', lookConf.conf),
-               draw=[(pbs, prob, 'W'),
+               draw=[(newBS_before, prob, 'W'),
                      (lookConf, 'W', 'cyan', shWorld.attached)],
                snap=['W'])
             yield (lookConf,), viol

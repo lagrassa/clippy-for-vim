@@ -3,6 +3,7 @@ import windowManager3D as wm
 from miscUtil import timeString
 import local
 import planGlobals as glob
+import os
 
 # Tracing interface, one level up from debug...
 # targetFile
@@ -109,11 +110,15 @@ pngFileId = 0
 htmlFile = None
 htmlFileH = None
 htmlFileId = 0
+dirName = None
 
 def traceStart():
-    global htmlFile, htmlFileH, htmlFileId
-    htmlFile = open(local.htmlGen%(str(htmlFileId), timeString()), 'w')
-    htmlFileH = open(local.htmlGenH%(str(htmlFileId), timeString()), 'w')
+    global htmlFile, htmlFileH, htmlFileId, dirName
+    dirName = local.genDir + 'log_'+timeString()
+    if not os.path.exists(dirName):
+        os.makedirs(dirName)
+    htmlFile = open(local.htmlGen%(dirName, str(htmlFileId)), 'w')
+    htmlFileH = open(local.htmlGenH%(dirName, str(htmlFileId)), 'w')
     htmlFileId += 1
     # Could use this for css styles
     header = '''
@@ -140,7 +145,7 @@ def traceEnd():
 def snap(*windows):
     global pngFileId
     for win in windows:
-        pngFileName = local.pngGen%(str(pngFileId), timeString())
+        pngFileName = local.pngGen%(dirName, str(pngFileId))
         if glob.inHeuristic and htmlFileH:
             targetFile = htmlFileH
         elif (not glob.inHeuristic) and htmlFile:
