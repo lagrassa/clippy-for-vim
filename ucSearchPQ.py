@@ -11,7 +11,7 @@ from heapq import heappush, heappop
 
 import planGlobals as glob
 reload(glob)
-from planGlobals import debugMsg, debug
+from traceFile import debugMsg, debug
 
 
 somewhatVerbose = False

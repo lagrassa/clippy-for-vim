@@ -6,7 +6,7 @@ from transformations import euler_matrix
 from shapes import toPrims, pointBox, readOff
 import pointClouds as pc
 import time
-from planGlobals import debug, debugMsg
+from tracefile import debug, debugMsg
 import windowManager3D as wm
 import hu
 from dist import MultivariateGaussianDistribution

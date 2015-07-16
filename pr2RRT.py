@@ -4,7 +4,7 @@
 import time
 from time import sleep
 import planGlobals as glob
-from planGlobals import debug, debugMsg
+from traceFile import debug, debugMsg
 import hu
 import windowManager3D as wm
 #from miscUtil import within

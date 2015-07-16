@@ -2,7 +2,7 @@ import copy
 import os
 
 import planGlobals as glob
-from planGlobals import debugMsg, debug
+from traceFile import debugMsg, debug
 
 import ucSearchPQ as ucSearch
 reload(ucSearch)

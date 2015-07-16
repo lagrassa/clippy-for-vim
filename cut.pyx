@@ -5,8 +5,8 @@ cimport shapes
 import shapes
 cimport geom
 cimport hu
-from planGlobals import debug
-from traceFile import trAlways
+from traceFile import debug, trAlways
+
 
 ######################################################################
 # Cutting one polyhedron with another

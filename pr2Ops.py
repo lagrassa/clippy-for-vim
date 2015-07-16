@@ -17,7 +17,7 @@ from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
      findRegionParent, CanReachNB, BaseConf, BLoc, canReachHome, canReachNB,\
      Pushable, CanPush, canPush
-from planGlobals import debugMsg, debug
+from traceFile import debugMsg, debug
 from pr2Push import PushGen
 import pr2RRT as rrt
 from pr2Visible import visible

@@ -4,7 +4,7 @@ import numpy as np
 from traceFile import tr, trAlways
 
 import planGlobals as glob
-from planGlobals import debug, debugMsg
+from traceFile import debug, debugMsg
 
 import fbch
 from fbch import Fluent, applyBindings, hCache, State, applicableOps,\

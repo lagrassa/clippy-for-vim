@@ -10,7 +10,7 @@ from miscUtil import isGround
 from dist import UniformDist,  DeltaDist
 from objects import World, WorldState
 #from pr2Robot import PR2, pr2Init, makePr2Chains
-from planGlobals import debugMsg, debugDraw, debug, pause
+from traceFile import debugMsg, debug
 import planGlobals as glob
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
 from planUtil import ObjGraspB, ObjPlaceB

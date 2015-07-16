@@ -19,7 +19,7 @@ from miscUtil import prettyString
 import fbch
 
 import planGlobals as glob
-from planGlobals import debugMsg, debugDraw, debug, pause
+from traceFile import debugMsg, debug
 
 from pr2IkPoses import ikTrans          # base poses for IK
 

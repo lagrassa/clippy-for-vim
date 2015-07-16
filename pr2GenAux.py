@@ -7,7 +7,8 @@ import copy
 import windowManager3D as wm
 import shapes
 import planGlobals as glob
-from planGlobals import debugMsg, debugDraw, debug, pause, torsoZ
+from planGlobals import torsoZ
+from traceFile import debugMsg, debug
 from miscUtil import argmax, isGround, isVar, argmax, squashOne
 from dist import UniformDist, DDist
 from geom import bboxCenter

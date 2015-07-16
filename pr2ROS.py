@@ -5,7 +5,7 @@ import transformations as transf
 
 import pointClouds as pcspr2robot
 import planGlobals as glob
-from planGlobals import debug, debugMsg
+from traceFile import debug, debugMsg
 from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn, objectName
 from pr2Visible import lookAtConf, findSupportTable, visible
 # import pr2Robot

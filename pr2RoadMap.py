@@ -17,7 +17,7 @@ reload(search)
 import pr2RRT as rrt
 reload(rrt)
 import planGlobals as glob
-from planGlobals import debugMsg, debug, debugDraw, debugOn
+from traceFile import debugMsg, debug
 from miscUtil import prettyString
 from heapq import heappush, heappop
 from planUtil import Violations

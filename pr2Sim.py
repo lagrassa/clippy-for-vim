@@ -10,7 +10,8 @@ from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 import hu
 import copy
-from planGlobals import debug, debugOn, debugMsg
+from traceFile import debug, debugMsg
+import planGlobals as glob
 from pr2Robot import gripperFaceFrame
 from pr2Visible import visible, lookAtConf
 from time import sleep
@@ -265,13 +266,13 @@ class RealWorld(WorldState):
             else:
                 obstacles = [s for s in self.getObjectShapes() if \
                              s.name() != curObj ]  + [self.robotPlace]
-                deb = 'visible' in debugOn
-                if (not deb) and debug('visibleEx'): debugOn.append('visible')
+                deb = 'visible' in glob.debugOn
+                if (not deb) and debug('visibleEx'): glob.debugOn.append('visible')
                 vis, _ = visible(self, self.robotConf,
                                  self.objectShapes[curObj],
                                  obstacles, 0.75, moveHead=False,
                                  fixed=[self.robotPlace.name()])
-                if not deb and debug('visibleEx'): debugOn.remove('visible')
+                if not deb and debug('visibleEx'): glob.debugOn.remove('visible')
                 if not vis:
                     tr('sim', 'Object %s is not visible'%curObj)
                     continue

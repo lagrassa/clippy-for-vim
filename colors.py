@@ -5,8 +5,6 @@ Utility procedures for manipulating colors
 from math import log, floor
 import miscUtil
 import colorNames
-import planGlobals as glob
-reload(glob)
 
 # h in [0, 360]
 # s in [0, 1]

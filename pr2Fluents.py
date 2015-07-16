@@ -3,7 +3,7 @@ import numpy as np
 from planUtil import Violations, ObjPlaceB, ObjGraspB
 from pr2Util import shadowName, drawPath, objectName, PoseD, supportFaceIndex, GDesc
 from dist import DeltaDist, probModeMoved
-from planGlobals import debugMsg, debug
+from traceFile import debugMsg, debug
 import planGlobals as glob
 from miscUtil import isGround, isVar, prettyString, applyBindings
 from fbch import Fluent, getMatchingFluents, Operator
