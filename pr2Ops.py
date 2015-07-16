@@ -216,13 +216,15 @@ def placePrim(args, details):
 def pushPrim(args, details):
     (obj, hand, pose, poseFace, poseVar, poseDelta, prePose, prePoseVar,
             preConf, postConf, confDelta, resultProb, preProb1, preProb2) = args
+    # TODO: Does it matter which prob we use?
     path, viol = canPush(details.pbs, obj, hand, prePose, pose,
                          preConf, postConf, prePoseVar, poseVar,
-                         poseDelta, prob, Violations())
+                         poseDelta, resultProb, Violations())
     assert path
     tr('prim', '*** pushPrim', args, ('path length', len(path)))
     # reverse the path...
-    return path[::-1], details.pbs.getPlacedObjBs()    
+    rpath = path[::-1] 
+    return rpath, interpolate(rpath), details.pbs.getPlacedObjBs()    
 
 ################################################################
 ## Simple generators
@@ -894,7 +896,7 @@ def placeBProgress(details, args, obs=None):
 # noinspection PyUnusedLocal
 def pushBProgress(details, args, obs=None):
     # Conf of robot and pose of object change
-    (o, h, p, pf, pv, pd, pp, ppv, prec, postc, cd, p, pr1, pr2) = args
+    (o, h, pose, pf, pv, pd, pp, ppv, prec, postc, cd, p, pr1, pr2) = args
 
     # Say it multiplies stdev by 4
     # Use place fail prob for now
@@ -906,12 +908,7 @@ def pushBProgress(details, args, obs=None):
     details.poseModeProbs[o] = (1 - failProb) * details.graspModeProb[h]
     details.pbs.updateHeld('none', None, None, h, None)
     ff = details.pbs.getWorld().getFaceFrames(o)
-    if isinstance(pf, int):
-        pf = DeltaDist(pf)
-    else:
-        raw_input('place face is DDist, should be int')
-        pf = pf.mode()
-    details.pbs.moveObjBs[o] = ObjPlaceB(o, ff, pf, PoseD(p, gv))
+    details.pbs.moveObjBs[o] = ObjPlaceB(o, ff, pf, PoseD(pose, gv))
     details.pbs.reset()
     details.pbs.getShadowWorld(0)
     details.pbs.internalCollisionCheck()

@@ -69,11 +69,11 @@ drawRebindNodes = True
 '''
 
 debugOn = ['traceGen', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon',
-           'useGJK', 'h', 'traceCRH',
+           'useGJK', 'h', 'traceCRH', 'debugInHeuristic',
            # 'traceCRH'
-           # 'pushGen', 'handContactFrames', 'graspBForContactFrame',
-           # 'pushPath', 'pushGen', 'canPush',
-           'debugInHeuristic', 'lookGen', 'visible', 'canView', 'lookAtConfCanView'
+           #'pushGen', 'handContactFrames', 'graspBForContactFrame',
+           #'pushPath', 'canPush',
+           #'lookGen', 'visible', 'canView', 'lookAtConfCanView'
            ]
 
 if platform.system() == 'Linux':

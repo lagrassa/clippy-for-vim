@@ -81,7 +81,7 @@ class RealWorld(WorldState):
             raise Exception, 'Unknown operator: '+str(op)
 
     # Be sure there are no collisions.  If so, stop early.
-    def doPath(self, path, interpolated=None, action=None):
+    def doPath(self, path, interpolated=None, action=None, ignoreCrash=False):
         def getObjShapes():
             held = self.held.values()
             return [self.objectShapes[obj] \
@@ -106,17 +106,20 @@ class RealWorld(WorldState):
             rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3]).tolist()[0][:-1]
             tr('sim',
                ('base', conf['pr2Base'], 'left', leftPos, 'right', rightPos))
-            for obst in objShapes:
-                if self.robotPlace.collides(obst):
-                    obs ='crash'
-                    tr('sim', 'Crash! with '+obst.name())
-                    raw_input('Crash! with '+obst.name())
-                    if crashIsError:
-                        raise Exception, 'Crash'
-                    break
-                else:
-                    # Add noise here and make relative motions
-                    pass
+            if ignoreCrash:
+                pass
+            else:
+                for obst in objShapes:
+                    if self.robotPlace.collides(obst):
+                        obs ='crash'
+                        tr('sim', 'Crash! with '+obst.name())
+                        raw_input('Crash! with '+obst.name())
+                        if crashIsError:
+                            raise Exception, 'Crash'
+                        break
+                    else:
+                        # Add noise here and make relative motions
+                        pass
             if obs == 'crash':
                 # Back up to previous conf
                 c = path[i-1]
@@ -188,10 +191,10 @@ class RealWorld(WorldState):
             'RObj', 'RFace', 'RGraspMu', 'RGraspVar', 'RGraspDelta',
             'P1', 'P2', 'PCR']
         if noBase:
-        # !! This should not move the base...use a better test  LPK
             startConf = op.args[0]
             targetConf = op.args[1]
-            assert targetConf.conf['pr2Base'] == self.robotConf.conf['pr2Base']
+            assert max([abs(a-b) for (a,b) \
+                        in zip(self.robotConf.conf['pr2Base'], targetConf.conf['pr2Base'])]) < 1.0e-6
 
         if params:
             path, interpolated, _  = params
@@ -278,7 +281,7 @@ class RealWorld(WorldState):
                     continue
                 else:
                     tr('sim', 'Object %s is visible'%curObj)
-                truePose = self.getObjectPose(curObj)
+                truePose = self.getObjectPose(curObj).pose()
                 # Have to get the resting face.  And add noise.
                 trueFace = supportFaceIndex(self.objectShapes[curObj])
                 tr('sim', 'Observed face=%s, pose=%s'%(trueFace, truePose.xyztTuple()))
@@ -422,12 +425,10 @@ class RealWorld(WorldState):
                 tr('sim', 'path len = %d'%(len(path)))
                 if not path:
                     raw_input('No path!!')
-
-                raw_input('**** check args for push prim ****')
-
-                obj = args[0]
-                hand = args[1]
-                obs = self.doPath(path, interpolated, moveObj)
+                obj = op.args[0]
+                hand = op.args[1]
+                robot = path[0].robot
+                obs = self.doPath(path, interpolated, action=moveObj, ignoreCrash=True)
             else:
                 print op
                 raw_input('No path given')

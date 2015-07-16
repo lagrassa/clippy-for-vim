@@ -776,6 +776,7 @@ typicalErrProbs = DomainProbs(
             # fail to pick or place in the way characterized by the Gaussian
             pickFailProb = 0.02,
             placeFailProb = 0.02,
+            pushFailProb = 0.02,
             # variance in grasp after picking
             pickVar = (0.001**2, 0.001**2, 1e-11, 0.002**2),
             # variance in pose after placing
@@ -803,6 +804,7 @@ tinyErrProbs = DomainProbs(
             # fail to pick or place in the way characterized by the Gaussian
             pickFailProb = 0.0,
             placeFailProb = 0.0,
+            pushFailProb = 0.0,
             # variance in grasp after picking
             pickVar = (0.0001**2, 0.0001**2, 1e-11, 0.0001**2),
             # variance in pose after placing

@@ -291,7 +291,7 @@ class DomainProbs:
     # obsVar, pickVar, and placeVar are diagonal cov 4-tuples (fix this!)
     # pickTolerance is a distance error in x, y, z, theta
     def __init__(self, odoError, obsVar, obsTypeErrProb,
-                 pickFailProb, placeFailProb,
+                 pickFailProb, placeFailProb, pushFailProb,
                  pickVar, placeVar, pickTolerance,
                  maxGraspVar = (0.015**2, .015**2, .015**2, .03**2),
                  placeDelta = (0.005, 0.005, 1.0e-6, 0.005),
@@ -314,6 +314,7 @@ class DomainProbs:
         # Bad failures, like dropping
         self.pickFailProb = pickFailProb
         self.placeFailProb = placeFailProb
+        self.pushFailProb = pushFailProb
         self.placeDelta = placeDelta
         self.graspDelta = graspDelta
         self.shadowDelta = shadowDelta
