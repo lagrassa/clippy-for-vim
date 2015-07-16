@@ -567,10 +567,12 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
+    skel = [[push, moveNB, lookAt, move]]
+
     # region = 'table1LeftFront'
     # goal = State([Bd([In(['bigA', region]), True, goalProb], True)])
     targetPose = (1.1, 0.2, tZ, 0.0)
-    targetVar = (0.01, 0.01, 0.01, 0.05)
+    targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
     goal = State([\
                   Bd([SupportFace(['bigA']), 4, goalProb], True),
                   B([Pose(['bigA', 4]),
@@ -589,7 +591,7 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
 
     t.run(goal,
           hpn = hpn,
-          skeleton = actualSkel if skeleton else None,
+          skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           # regions=[region],
           heuristic = heuristic,

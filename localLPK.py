@@ -12,9 +12,10 @@ else:
    genDir = '/Users/lpk/Desktop/genFiles/'
 dotSearch = outDir + 's%s%s.dot'
 dotSearchX = outDir + 'sX%s%s.dot'
-pngGen = genDir + 'g%s_%s.png'
-htmlGen = genDir + 'g%s_%s.html'
-htmlGenH = genDir + 'h%s_%s.html'
+
+pngGen = '%s/g%s.png'
+htmlGen = '%s/a%s.html'
+htmlGenH = '%s/aH%s.html'
 
 rebindPenalty = 100
 
@@ -84,9 +85,11 @@ visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
 
-#PDB = False
+debugOn = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates']
+           #'regression:fail', 'appOp:number', 'regression', 'lookGen',
+           #'canReachHome']
 
-debugOn = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates' ,'h',
-           'placeGen']
-pauseOn = ['nonmon', 'skeleton', 'placeGen']
+pauseOn = debugOn[:]
+logOn = debugOn + ['traceGen', 'traceCRH']
+debugOn.append('h')
 

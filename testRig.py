@@ -128,12 +128,12 @@ def habbs(s, g, ops, ancestors):
                                         ddPartitionFn = partition,
                                         maxK = 20)
             if newVal >= 0:
-                tr('heuristic0', 0, 'Heuristic cache inconsistent.  Leslie should fix this!', pause = False)
+                tr('heuristic0', 'Heuristic cache inconsistent.  Leslie should fix this!', pause = False)
                 return newVal
-            tr('heuristic0', 0, 'habbs is 0 but goal not sat',
+            tr('heuristic0', 'habbs is 0 but goal not sat',
                [thing for thing in g.fluents if not thing.isGround() or s.fluentValue(thing)==False])
             easyVal = hEasy(s, g, ops, ancestors)
-            tr('heuristic0', 0, '*** returning easyVal', easyVal,
+            tr('heuristic0', '*** returning easyVal', easyVal,
                ol = True)
             return easyVal
     heuristicTime += (time.time() - startTime)
@@ -233,20 +233,20 @@ def testWorld(include = ('objA', 'objB', 'objC')):
         if name in include:
             bbox = world.getObjectShapeAtOrigin(name).bbox()
             regName = name+'Top'
-            tr('rig', 0, ('Region', regName), bbox)
+            tr('rig', ('Region', regName), bbox)
             world.addObjectRegion(name, regName, Sh([Ba(bbox)], name=regName),
                                   hu.Pose(0.0,0.0,2.0*bbox[1,2],0.0))
             bboxLeft = np.empty_like(bbox); bboxLeft[:] = bbox
             bboxLeft[0][0] = 0.5*(bbox[0][0] + bbox[1][0]) + 0.2
             regName = name+'Left'
-            tr('rig', 0, ('Region', regName), bboxLeft)
+            tr('rig', ('Region', regName), bboxLeft)
             world.addObjectRegion(name, regName, Sh([Ba(bboxLeft)], name=regName),
                                   hu.Pose(0.0,0.0,2.0*bbox[1,2],0.0))
             bboxLeftFront = np.empty_like(bbox); bboxLeftFront[:] = bbox
             bboxLeftFront[0][0] = 0.5*(bbox[0][0] + bbox[1][0]) + 0.2
             bboxLeftFront[0][1] = bboxLeftFront[1][1] - 0.2
             regName = name+'LeftFront'
-            tr('rig', 0, ('Region', regName), bboxLeftFront)
+            tr('rig', ('Region', regName), bboxLeftFront)
             world.addObjectRegion(name, regName, Sh([Ba(bboxLeftFront)], name=regName),
                                   hu.Pose(0.0,0.0,2.0*bbox[1,2],0.0))
             #bboxRight = np.empty_like(bbox)
@@ -254,7 +254,7 @@ def testWorld(include = ('objA', 'objB', 'objC')):
             bboxRight = bbox
             bboxRight[1][0] = 0.5*(bbox[0][0] + bbox[1][0]) - 0.2
             regName = name+'Right'
-            tr('rig', 0, ('Region', regName), bboxRight)
+            tr('rig', ('Region', regName), bboxRight)
             world.addObjectRegion(name, regName, Sh([Ba(bboxRight)], name=regName),
                                   hu.Pose(0.0,0.0,2.0*bbox[1,2],0.0))
 
@@ -302,7 +302,7 @@ def testWorld(include = ('objA', 'objB', 'objC')):
         extraHeight = 1.5*height+0.01
         bbox = bboxGrow(thing.bbox(), np.array([0.075, 0.075, extraHeight]))
         regName = objName+'Top'
-        tr('rig', 0, ('Region', regName), bbox)
+        tr('rig', ('Region', regName), bbox)
         world.addObjectRegion(objName, regName, Sh([Ba(bbox)], name=regName),
                               hu.Pose(0.0,0.0,2.0* height +extraHeight,0.0))
 

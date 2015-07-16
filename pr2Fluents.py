@@ -357,7 +357,7 @@ class CanReachHome(Fluent):
         path, violations = self.getViols(details, v, p)
 
         (ops, totalCost) = hCost(violations, obstCost, details)
-        tr('hAddBack', 0, ('Heuristic val', self.predicate),
+        tr('hAddBack', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
         return ops, totalCost
 
@@ -373,7 +373,7 @@ class CanReachHome(Fluent):
 
 def hCost(violations, obstCost, details):
     if violations is None:
-        tr('hAddBackInf', 0, 'computed hv infinite')
+        tr('hAddBackInf', 'computed hv infinite')
         return float('inf'), {}
     obstacles = violations.obstacles
     shadows = violations.shadows
@@ -493,7 +493,7 @@ class CanReachNB(Fluent):
         if isVar(endConf):
             assert 'need to have end conf bound to test'
         elif isVar(startConf):
-            tr('canReachNB', 2, 'BTest canReachNB returning False because startconf unbound',
+            tr('canReachNB', 'BTest canReachNB returning False because startconf unbound',
                      self)
             return False
         elif max(abs(a-b) for (a,b) in zip(startConf['pr2Base'], endConf['pr2Base'])) > 1.0e-4:
@@ -504,7 +504,7 @@ class CanReachNB(Fluent):
         path, violations = self.getViols(bState, v, p)
 
         if violations is None:
-            tr('canReachNB', 0, 'impossible',
+            tr('canReachNB', 'impossible',
                ('conditions', self.args[-1]),
                ('violations', violations),
                draw = [(startConf, 'W', 'black'),(endConf, 'W', 'blue')],
@@ -541,7 +541,7 @@ class CanReachNB(Fluent):
         path, violations = self.getViols(details, v, p)
 
         (ops, totalCost) = hCost(violations, obstCost, details)
-        tr('hAddBack', 0, ('Heuristic val', self.predicate),
+        tr('hAddBack', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
         return ops, totalCost
 
@@ -736,7 +736,7 @@ class CanPickPlace(Fluent):
         path, violations = self.getViols(details, v, p)
         (ops, totalCost) = hCost(violations, obstCost, details)
 
-        tr('hAddBack', 0, ('Heuristic val', self.predicate),
+        tr('hAddBack', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
         return ops, totalCost
 
@@ -848,7 +848,7 @@ class CanPush(Fluent):
         path, violations = self.getViols(details, v, p)
         (ops, totalCost) = hCost(violations, obstCost, details)
 
-        tr('hAddBack', 0, ('Heuristic val', self.predicate),
+        tr('hAddBack', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
         return ops, totalCost
 
@@ -1061,7 +1061,7 @@ class CanSeeFrom(Fluent):
         
         vis, occluders = self.getViols(details, v, p)
         (ops, totalCost) = hCostSee(vis, occluders, obstCost, details)
-        tr('hAddBack', 0, ('Heuristic val', self.predicate),
+        tr('hAddBack', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
         return (ops, totalCost)
 
@@ -1207,7 +1207,7 @@ def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False
 
     if viol is None or viol.weight() > 0:
         # Don't log the "trivial" ones...
-        tr('CRH', 0, '%s h=%s'%(tag, glob.inHeuristic) + \
+        tr('CRH', '%s h=%s'%(tag, glob.inHeuristic) + \
            ' viol=%s'%(viol.weight() if viol else None))
 
     if path and debug('backwards'):
@@ -1230,7 +1230,7 @@ def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False
             if path:
                 drawPath(path, viol=viol,
                          attached=pbs.getShadowWorld(prob).attached)
-        tr('canReachHome', 0, ('viol', viol), ('cost', cost), ('path', path),
+        tr('canReachHome', ('viol', viol), ('cost', cost), ('path', path),
                snap = ['W'])
 
     if not viol and debug('canReachHome'):
@@ -1271,7 +1271,7 @@ def inTest(bState, obj, regName, prob, pB=None):
     ans = any([np.all(np.all(np.dot(r.planes(), shadow.prim().vertices()) <= tiny, axis=1)) \
                for r in region.parts()])
 
-    tr('testVerbose', 0, 'In test, shadow in brown, region in purple',
+    tr('testVerbose', 'In test, shadow in brown, region in purple',
        (shadow, region, ans), draw = [(bState.pbs, prob, 'W'),
                                       (shadow, 'W', 'brown'),
                                       (region, 'W', 'purple')], snap=['W'])

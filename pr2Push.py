@@ -40,7 +40,7 @@ maxPushPaths = 2
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
         for ans in pushGenGen(args, goalConds, bState):
-            tr('pushGen', 1, str(ans))
+            tr('pushGen', str(ans))
             yield ans
 
 def pushGenGen(args, goalConds, bState):

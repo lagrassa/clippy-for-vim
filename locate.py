@@ -34,10 +34,10 @@ def getObjectDetections(lookConf, placeB, pbs, pointCloud):
     # trans is a Pose displacement from the nominal one
     score, trans, detection = \
            bestObjDetection(placeB, objShape, objShadow, objCloud, pointCloud, var)
-    tr('detect', 1, 'Obj detection', detection, 'with score', score, ol = True)
-    tr('detect', 1, 'Running time for obj detections =',  time.time() - startTime,
+    tr('detect', 'Obj detection', detection, 'with score', score, ol = True)
+    tr('detect', 'Running time for obj detections =',  time.time() - startTime,
        ol = True)
-    tr('locate', 0, 'Detection for obj=%s'%objName)
+    tr('locate', 'Detection for obj=%s'%objName)
     if score is None:
         return (None, None, None)
     else:
@@ -66,10 +66,10 @@ def bestObjDetection(placeB, objShape, objShadow, objCloud, pointCloud, variance
     # Try to align the model to the relevant data
     # score, trans = locate(placeB, objCloud, goodCloud[:,1:], variance, thr, objShape)
     score, trans = locateByFmin(objCloud, goodCloud[:,1:], variance, shape=objShape)
-    tr('locate', 2, 'best score', score, 'best trans', trans, ol = True)
+    tr('locate', 'best score', score, 'best trans', trans, ol = True)
     transShape = objShape.applyTrans(trans)
     transShape.draw('W', 'purple')
-    tr('locate', 0, 'transShape (in purple)', snap = ['W'])
+    tr('locate', 'transShape (in purple)', snap = ['W'])
 
     # Evaluate the result by comparing the depth map from the point
     # cloud to the simulated depth map for the detection.
@@ -109,8 +109,8 @@ def locateByFmin(model_verts, data_verts, variance, shape=None):
         final = fmin_powell(poseScore, initial,
                             xtol = 0.001, ftol = 0.001)
         score = poseScore(final)
-        tr('locate', 3, 'score', score, 'final', final, ol = True)
-        tr('locate', 3,  'best_score', best_score, 'best_trans', best_trans,
+        tr('locate', 'score', score, 'final', final, ol = True)
+        tr('locate', 'best_score', best_score, 'best_trans', best_trans,
            ol = True)
         if best_score is None or score < best_score:
             no_improvement = 0

@@ -119,7 +119,7 @@ class PBS:
         shadows = confViols.allShadows()
         while shadows:
             if shadows:
-                tr('beliefUpdate', 0,
+                tr('beliefUpdate',
                    'Robot collides with shadows.  Will try to fix', shadows,
                     draw = [(self, 0.98, 'W')], snap = ['W'])
                     # Divide variance in half.  Very crude.  Should find the
@@ -286,7 +286,7 @@ class PBS:
         self.reset()
         finalObjects = self.objectsInPBS()
         if initialObjects != finalObjects:
-            tr('conservation', 0,
+            tr('conservation',
                ('    initial', sorted(list(initialObjects))),
                ('    final', sorted(list(finalObjects))))
         return self

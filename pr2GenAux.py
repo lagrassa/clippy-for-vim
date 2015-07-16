@@ -835,7 +835,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     
     objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
     if placeB.poseD.mode():
-        tr('potentialRegionPoseGen', 1, 'pose specified', placeB.poseD.mode(),
+        tr('potentialRegionPoseGen', 'pose specified', placeB.poseD.mode(),
            ol = True)
         sh = objShadow.applyLoc(placeB.objFrame()).prim()
         verts = sh.vertices()
@@ -843,12 +843,12 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                    for r in rs.parts()) \
                for rs in regShapes)  and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
-            tr('potentialRegionPoseGen', 1,
+            tr('potentialRegionPoseGen',
                'pose specified and safely in region',
                placeB.poseD.mode(), ol = True)
             yield placeB.poseD.mode()
         else:
-            tr('potentialRegionPoseGen', 1,
+            tr('potentialRegionPoseGen',
                'pose specified and not safely in region')
 
     shRotations = dict([(angle, objShadow.applyTrans(hu.Pose(0,0,0,angle)).prim()) \
@@ -859,7 +859,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     count = 0
     world = pbs.getWorld()
     for rs in regShapes:
-        tr('potentialRegionPoseGen', 0, obj, rs.name(), hand, ol = True)
+        tr('potentialRegionPoseGen', obj, rs.name(), hand, ol = True)
         if debug('potentialRegionPoseGen'):
             print 'Considering region', rs.name()
         for (angle, shRot) in shRotations.items():
