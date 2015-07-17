@@ -907,6 +907,9 @@ def pushBProgress(details, args, obs=None):
     # Use place fail prob for now
     failProb = details.domainProbs.placeFailProb
 
+    # Change robot conf
+    details.pbs.updateConf(postc)
+
     v = [x*16 for x in details.pbs.getPlaceB(o).poseD.varTuple()]
     v[2] = 1e-20
     gv = tuple(v)
