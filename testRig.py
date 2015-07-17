@@ -117,7 +117,7 @@ def habbs(s, g, ops, ancestors):
     startTime = time.time()
     hops = ops + [hRegrasp]
     val = hAddBackBSetID(s, g, hops, ancestors, ddPartitionFn = partition,
-                         maxK = 20)
+                         maxK = 5)
     if val == 0:
         # Just in case the addBack heuristic thinks we're at 0 when
         # the goal is not yet satisfied.
