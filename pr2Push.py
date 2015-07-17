@@ -161,12 +161,18 @@ def pushGenAux(pbs, placeB, hand, base, prob):
         sorted = sortedPushPaths(pushPaths)
         for i in range(min(len(sorted), 2)):
             pp = sorted[i]              # path is reversed (post...pre)
-            ctarget, _, ptarget = pp[0]
-            cpost = ctarget
-            for cpost,_,ppost in pp[1:]:
-                if ptarget.point().distance(ppost.point()) > pushBuffer:
-                    break
+            ptarget = placeB.poseD.mode()
+            cpost = pp[0][0]
             cpre, vpre, ppre = pp[-1]
+            # postWrist = robotGraspFrame(pbs, cpost, hand)
+            # preWrist = robotGraspFrame(pbs, cpre, hand)
+            # direction = (preWrist.point().matrix.reshape(4) - postWrist.point().matrix.reshape(4))[:3]
+            # direction[2] = 0.0
+            # dist = (direction[0]**2 + direction[1]**2)**0.5
+            # if dist != 0:
+            #     direction /= dist
+            # off = pushBuffer*direction
+            # cpost = displaceHand(cpost, hand, hu.Pose(off[0], off[1], 0.0, 0.0))
             if debug(tag):
                 robot = cpre.robot
                 print 'pre pose\n', ppre.matrix
@@ -178,7 +184,7 @@ def pushGenAux(pbs, placeB, hand, base, prob):
             tr(tag, 'pre conf (blue), post conf (pink)',
                draw=[(pbs, prob, 'W'),
                      (cpre, 'W', 'blue'), (cpost, 'W', 'pink')], snap=['W'])
-            yield (hand, ppre.pose().xyztTuple(), cpre, cpost)
+            yield (hand, ppre.pose().xyztTuple(), cpre, cpost, cpre)
     return
 
 def sortedPushPaths(pushPaths):
@@ -187,14 +193,8 @@ def sortedPushPaths(pushPaths):
         if reason == 'done':
             scored.append((0., pathAndViols))
         else:
-            vmin = min(v.weight() for (c,v,p) in pathAndViols)
-            trim = []
-            for pv in pathAndViols:
-                (c,v,p) = pv
-                trim.append(pv)
-                if v.weight() == vmin:
-                    scored.append((vmin, trim))
-                    break
+            vmax = max(v.weight() for (c,v,p) in pathAndViols)
+            scored.append((max(1, vmax), pathAndViols))
     scored.sort()
     return [pv for (s, pv) in scored]
                 

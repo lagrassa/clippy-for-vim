@@ -429,6 +429,7 @@ class RealWorld(WorldState):
                 hand = op.args[1]
                 robot = path[0].robot
                 obs = self.doPath(path, interpolated, action=moveObj, ignoreCrash=True)
+                obs = self.doPath(path[::-1], interpolated[::-1], ignoreCrash=True)
             else:
                 print op
                 raw_input('No path given')

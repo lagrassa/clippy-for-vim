@@ -84,8 +84,8 @@ drawRebindNodes = True
 # if 'h' in pauseOn:
 #     pauseOn.remove('h')
 
-debugOn = ['nonmon', 'skeleton']
-#           'regression:fail', 'appOp:number', 'lookGen']
+debugOn = ['nonmon', 'skeleton', 'assign', 
+           'regression:fail', 'appOp:number']
 
            # 'pushPath', 'graspBForContactFrame'
            #'regression:fail', 'appOp:number', 'regression', 'lookGen',

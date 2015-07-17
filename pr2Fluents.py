@@ -1,3 +1,4 @@
+import pdb
 import hu
 import numpy as np
 from planUtil import Violations, ObjPlaceB, ObjGraspB
@@ -1282,18 +1283,26 @@ def inTest(bState, obj, regName, prob, pB=None):
 
 # returns path, violations
 pushStepSize = 0.02
+pushBuffer = 0.05
 def canPush(pbs, obj, hand, prePose, pose,
-            preConf, postConf, prePoseVar, poseVar,
+            preConf, pushConf, postConf, prePoseVar, poseVar,
             poseDelta, prob, initViol):
-    tag = 'canpPush'
-    # direction from post to pre 
-    direction = (np.array(prePose[:3]) - np.array(pose[:3])).reshape(3)
+    tag = 'canPush'
+    # direction from post to pre
+
+    # post = robotGraspFrame(pbs, postConf, hand)
+    # pre = robotGraspFrame(pbs, preConf, hand)
+    post = hu.Pose(*pose)
+    pushWrist = robotGraspFrame(pbs, pushConf, hand)
+    pre = hu.Pose(*prePose)
+
+    direction = (pre.point().matrix.reshape(4) - post.point().matrix.reshape(4))[:3]
     direction[2] = 0.0
     dist = (direction[0]**2 + direction[1]**2)**0.5
     if dist != 0:
         direction /= dist
     # placeB
-    objPose = hu.Pose(*pose)
+    objPose = post
     support = supportFaceIndex(pbs.getWorld().getObjectShapeAtOrigin(obj).\
                                applyTrans(objPose))
     placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), support,
@@ -1303,8 +1312,7 @@ def canPush(pbs, obj, hand, prePose, pose,
     # TODO: what should these values be?
     graspVar = 4*(0.0,)
     graspDelta = 4*(0.0,)
-    wrist = robotGraspFrame(pbs, postConf, hand)
-    faceFrame = objFrame.inverse().compose(wrist.compose(gripperFaceFrame[hand]))
+    faceFrame = objFrame.inverse().compose(pushWrist.compose(gripperFaceFrame[hand]))
     graspDescList = [GDesc(obj, faceFrame, 0.0, 0.0, 0.0)]
     graspDescFrame = objFrame.compose(graspDescList[-1].frame)
     graspB =  ObjGraspB(obj, graspDescList, -1,
@@ -1316,7 +1324,7 @@ def canPush(pbs, obj, hand, prePose, pose,
     attached = shWorld.attached
     if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
     rm = pbs.getRoadMap()
-    conf = postConf
+    conf = pushConf
     path = []
     viol = initViol
     if dist == 0.0:
@@ -1326,9 +1334,11 @@ def canPush(pbs, obj, hand, prePose, pose,
         offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
         nconf = displaceHand(conf, hand, offsetPose)
         if not nconf:
+            if debug(tag):
+                print tag, 'Kin failure for step =', step
             return None, None
         viol = rm.confViolations(nconf, newBS, prob, initViol=viol)
-        if debug('canPush'):
+        if debug(tag):
             print viol
             wm.getWindow('W').startCapture()
             newBS.draw(prob, 'W')
@@ -1338,6 +1348,8 @@ def canPush(pbs, obj, hand, prePose, pose,
                                  filenameOut='./canPush.m')
             raw_input('Next?')
         if viol is None:
+            if debug(tag):
+                print tag, 'Permanent collision failure for step =', step
             return None, None
         path.append(nconf)
     tr(tag, 1, 'path=%s, viol=%s'%(path, viol))
