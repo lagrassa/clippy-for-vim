@@ -79,16 +79,15 @@ def tr(genTag, *msg, **keys):
     doDebug = debug(genTag)
     doPause = keys['pause'] if ('pause' in keys) else pause(genTag)
     ol = keys.get('ol', True)
-    tagStr = '' if genTag == '*' else genTag
+    tagStr = '' if genTag == '*' else genTag+': '
 
     # Logging text
     if doLog and msg and targetFile:
-        targetFile.write('<pre>'+' '+\
-                         '(%d)%s'%(glob.planNum, tagStr)+\
-                          ': '+str(msg[0])+'</pre>\n')
+        # targetFile.write('<pre>'+' '+\
+        #                  '(%d)%s'%(glob.planNum, tagStr)+ ': ')
+        targetFile.write('<pre>'+tagStr)
         terminator = ' ' if ol else '\n    '
-        targetFile.write('<pre>')
-        for m in msg[1:]:
+        for m in msg:
             targetFile.write(str(m)+terminator)
         targetFile.write('</pre>\n')
 
@@ -126,6 +125,11 @@ htmlFileH = None
 htmlFileId = 0
 dirName = None
 
+def traceHeader(h):
+    for targetFile in (htmlFile, htmlFileH):
+        if targetFile:
+            targetFile.write('<h1>'+h+'</h1>')
+
 def traceStart():
     global htmlFile, htmlFileH, htmlFileId, dirName
     dirName = local.genDir + 'log_'+timeString()
@@ -140,8 +144,10 @@ def traceStart():
 <html>
 <body>
 '''
-    htmlFile.write(header)
-    htmlFileH.write(header)
+    if htmlFile:
+        htmlFile.write(header)
+    if htmlFileH:
+        htmlFileH.write(header)
 
 def traceEnd():
     global htmlFile, htmlFileH
@@ -163,9 +169,12 @@ def snap(targetFile, *windows):
         if wm.getWindow(win).window.modified:
             wm.getWindow(win).window.saveImage(pngFileName)
             pngFileId += 1
-            targetFile.write('<br><img src="%s" border=1 alt="%s"><br>\n'%(pngFileName,win))
+            if targetFile:
+                targetFile.write('<br><img src="%s" border=1 alt="%s"><br>\n'\
+                                 %(pngFileName,win))
         else:
-            targetFile.write('<br><b>No change to window %s</b><br>\n'%win)
+            if targetFile:
+                targetFile.write('<br><b>No change to window %s</b><br>\n'%win)
 
 def trLog(string):
     print string

@@ -215,10 +215,11 @@ def placePrim(args, details):
 
 def pushPrim(args, details):
     (obj, hand, pose, poseFace, poseVar, poseDelta, prePose, prePoseVar,
-            preConf, postConf, confDelta, resultProb, preProb1, preProb2) = args
+            preConf, pushConf, postConf, confDelta, resultProb, preProb1,
+            preProb2) = args
     # TODO: Does it matter which prob we use?
     path, viol = canPush(details.pbs, obj, hand, prePose, pose,
-                         preConf, postConf, prePoseVar, poseVar,
+                         preConf, pushConf, postConf, prePoseVar, poseVar,
                          poseDelta, resultProb, Violations())
     assert path
     tr('prim', '*** pushPrim', args, ('path length', len(path)))
@@ -759,7 +760,7 @@ def pushCostFun(al, args, details):
     # should always be like this.
     rawCost = 5
     abstractCost = 10
-    (_, _, _, _, _, _, _, _, _, _, _, p, _, _)  = args
+    (_, _, _, _, _, _, _, _, _, _, _, _, p, _, _)  = args
     result = costFun(rawCost,
                      p*canPPProb*(1-details.domainProbs.placeFailProb)) + \
                (abstractCost if al == 0 else 0)
@@ -899,11 +900,10 @@ def placeBProgress(details, args, obs=None):
 # noinspection PyUnusedLocal
 def pushBProgress(details, args, obs=None):
     # Conf of robot and pose of object change
-    (o, h, pose, pf, pv, pd, pp, ppv, prec, postc, cd, p, pr1, pr2) = args
+    (o, h, pose, pf, pv, pd, pp, ppv, prec, pushc, postc, cd, p, pr1,pr2) = args
 
     # Say it multiplies stdev by 4
-    # Use place fail prob for now
-    failProb = details.domainProbs.placeFailProb
+    failProb = details.domainProbs.pushFailProb
 
     # Change robot conf
     details.pbs.updateConf(postc)
@@ -1418,8 +1418,9 @@ place = Operator('Place', placeArgs,
         ignorableArgs = range(1, 19))
 
 
-pushArgs = ['Obj', 'Hand', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta', 'PrePose',
-            'PrePoseVar', 'PreConf', 'PostConf', 'ConfDelta', 'P', 'PR1', 'PR2']
+pushArgs = ['Obj', 'Hand', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta',
+            'PrePose', 'PrePoseVar', 'PreConf', 'PushConf', 'PostConf',
+            'ConfDelta', 'P', 'PR1', 'PR2']
 
 # make an instance of the lookAt operation with given arguments
 def pushOp(*args):
@@ -1431,8 +1432,8 @@ def pushOp(*args):
 push = Operator('Push', pushArgs,
         {0 : {Pushable(['Obj'], True)},
          1 : {Bd([CanPush(['Obj', 'Hand', 'PrePose', 'Pose', 'PreConf',
-                            'PostConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',
-                  []]), True, canPPProb],True)},
+                            'PushConf', 'PostConf', 'PoseVar', 'PrePoseVar',
+                            'PoseDelta', []]), True, canPPProb],True)},
          2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
               B([Pose(['Obj', 'PoseFace']), 'PrePose',
                  'PrePoseVar', 'PoseDelta', 'P'], True)},
@@ -1449,10 +1450,10 @@ push = Operator('Push', pushArgs,
             NotStar([], ['Pose']),
             NotStar([], ['PoseFace']),
 
-            RegressProb(['P'], ['PR1', 'PR2'], pn = 'placeFailProb'),
+            RegressProb(['P'], ['PR1', 'PR2'], pn = 'pushFailProb'),
             PushPrevVar(['PrePoseVar'], ['PoseVar']),
             MoveConfDelta(['ConfDelta'], []),
-            PushGen(['Hand','PrePose', 'PreConf', 'PostConf'],
+            PushGen(['Hand','PrePose', 'PreConf', 'PushConf', 'PostConf'],
                      ['Obj', 'Pose', 'PoseVar', 'PoseDelta','ConfDelta',
                       probForGenerators])],
         cost = pushCostFun,

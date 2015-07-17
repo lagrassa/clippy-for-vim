@@ -7,7 +7,7 @@ from traceFile import debugMsg, debug
 import ucSearchPQ as ucSearch
 reload(ucSearch)
 
-from traceFile import tr, trAlways
+from traceFile import tr, trAlways, traceHeader
 
 import miscUtil
 reload(miscUtil)
@@ -2357,7 +2357,8 @@ def writeGoalNode(f, goal):
     global dotSearchId 
     goal.planNum = dotSearchId
     glob.planNum = goal.planNum
-    dotSearchId += 1    
+    dotSearchId += 1
+    traceHeader('Goal '+str(goal.planNum))
     trAlways('Planning for goal', goal.planNum,
              '\n'.join([fl.prettyString() for fl in goal.fluents]))
     goalNodeName =  name(goal.goalName())

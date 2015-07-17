@@ -103,7 +103,7 @@ def search(initialState, goalTest, actions, successor,
         if goalTest(initialState):
             return startNode.path(), [0]
         if startNode.heuristicCost >= hmax:
-            trAlways('Root has infinite heuristic value')
+            trAlways('Root has infinite heuristic value', pause = True)
             return None, None
             
         agenda = []
