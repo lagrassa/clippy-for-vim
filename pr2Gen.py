@@ -968,7 +968,7 @@ def lookGenTop(args, goalConds, pbs):
     # Find a lookConf unconstrained by base
     lookConfGen = potentialLookConfGen(newBS_before, prob, shapeForLook, maxLookDist)
     for ans in rm.confReachViolGen(lookConfGen, newBS_before, prob,
-                                   testFn = lambda c: testFn(c, sh_before, shWorld_before)):
+                                   testFn = lambda c: testFn(c, shapeForLook, shWorld_before)):
         viol, cost, path = ans
         tr(tag, 2, '(%s) viol=%s'%(obj, viol.weight() if viol else None))
         if not path:
@@ -977,12 +977,12 @@ def lookGenTop(args, goalConds, pbs):
             continue
         conf = path[-1]                 # lookConf is at the end of the path
         # Modify the look conf so that robot does not block
-        lookConf = lookAtConfCanView(newBS_before, prob, conf, sh)
+        lookConf = lookAtConfCanView(newBS_before, prob, conf, shapeForLook)
         if lookConf:
             tr(tag, 2, '(%s) general conf viol=%s'%(obj, viol.weight() if viol else None),
                ('-> cyan', lookConf.conf),
                draw=[(newBS_before, prob, 'W'),
-                     (lookConf, 'W', 'cyan', shWorld.attached)],
+                     (lookConf, 'W', 'cyan', attached)],
                snap=['W'])
             yield (lookConf,), viol
 
