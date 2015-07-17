@@ -11,7 +11,7 @@ from heapq import heappush, heappop
 
 import planGlobals as glob
 reload(glob)
-from traceFile import debugMsg, debug
+from traceFile import debugMsg, debug, trAlways
 
 
 somewhatVerbose = False
@@ -103,7 +103,7 @@ def search(initialState, goalTest, actions, successor,
         if goalTest(initialState):
             return startNode.path(), [0]
         if startNode.heuristicCost >= hmax:
-            print 'Root has infinite heuristic value'
+            trAlways('Root has infinite heuristic value')
             return None, None
             
         agenda = []

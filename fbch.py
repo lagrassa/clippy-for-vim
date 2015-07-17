@@ -1150,7 +1150,6 @@ class Operator(object):
                     if not f.feasible(startState.details):
                         tr('regression:fail',
                                  'conditional fluent is infeasible', f)
-                        trAlways('This could be bad', pause = True)
                         bindingsNoGood = True
 
         if bindingsNoGood:

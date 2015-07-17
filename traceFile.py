@@ -79,11 +79,12 @@ def tr(genTag, *msg, **keys):
     doDebug = debug(genTag)
     doPause = keys['pause'] if ('pause' in keys) else pause(genTag)
     ol = keys.get('ol', True)
+    tagStr = '' if genTag == '*' else genTag
 
     # Logging text
     if doLog and msg and targetFile:
         targetFile.write('<pre>'+' '+\
-                         '(%d)%s'%(glob.planNum, genTag)+\
+                         '(%d)%s'%(glob.planNum, tagStr)+\
                           ': '+str(msg[0])+'</pre>\n')
         terminator = ' ' if ol else '\n    '
         targetFile.write('<pre>')
@@ -104,8 +105,7 @@ def tr(genTag, *msg, **keys):
 
     # Printing to console
     if doDebug and msg:
-        prTag = (genTag+':') if (genTag != '*') else ''
-        print prTag,
+        print tagStr,
         if ol:
             for m in msg: print m,
             print '\n',
@@ -118,7 +118,7 @@ def tr(genTag, *msg, **keys):
         windows = keys.get('snap', [])
         for w in windows:
             wm.getWindow(w).update()
-        raw_input(genTag+' go?')
+        raw_input(tagStr+' go?')
 
 pngFileId = 0
 htmlFile = None

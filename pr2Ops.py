@@ -763,8 +763,6 @@ def pushCostFun(al, args, details):
     result = costFun(rawCost,
                      p*canPPProb*(1-details.domainProbs.placeFailProb)) + \
                (abstractCost if al == 0 else 0)
-    print 'push cost', al, result
-    raw_input('okay?')
     return result
 
 # noinspection PyUnusedLocal
