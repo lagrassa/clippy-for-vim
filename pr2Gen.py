@@ -946,7 +946,7 @@ def lookGenTop(args, goalConds, pbs):
         # with shadow of obj.
         for gB in graspGen(newBS, obj, graspB):
             for hand in ['left', 'right']:
-                for ans, viol in pickGenTop((obj, gB, placeB, hand, base,
+                for ans, viol in pickGenTop((obj, gB, placeB_after, hand, base,
                                              prob),
                                             goalConds, newBS, onlyCurrent=True):
                     (pB, c, ca) = ans   # pB should be placeB

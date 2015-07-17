@@ -41,7 +41,7 @@ def pushGenGen(args, goalConds, bState):
     (obj, pose, posevar, posedelta, confdelta, prob) = args
     tag = 'pushGen'
     base = sameBase(goalConds)
-    tr(tag, 'obj=%s, base=%s'%(obj, base))
+    tr(tag, 'obj=%s, pose=%s, base=%s'%(obj, pose, base))
     if goalConds:
         if getConf(goalConds, None):
             tr(tag, '=> conf is already specified, failing')
@@ -90,6 +90,7 @@ def pushGenTop(args, goalConds, pbs):
     newBS = pbs.copy()
     # Just placements specified in goal
     newBS = newBS.updateFromGoalPoses(goalConds)
+    tr(tag, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
     if newBS.held[hand].mode() != 'none':
         tr(tag, '=> Hand=%s is holding in pbs, failing'%hand)
         return
@@ -155,7 +156,7 @@ def pushGenAux(pbs, placeB, hand, base, prob):
             pathAndViols, reason = pushPath(pbs, prob, ans, contactFrame, dist,
                                             xyPrim, supportRegion, hand)
             pushPaths.append((pathAndViols, reason))
-            print 'pushPath reason =', reason, len(pathAndViols)
+            tr(tag, 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
             if count > maxPushPaths: break
         sorted = sortedPushPaths(pushPaths)
         for i in range(min(len(sorted), 2)):
@@ -170,6 +171,8 @@ def pushGenAux(pbs, placeB, hand, base, prob):
                 print 'post conf tool'
                 print cpost.cartConf()[robot.armChainNames[hand]].compose(robot.toolOffsetX[hand]).matrix
                 raw_input('Yield this?')
+            tr(tag, 'pre conf (blue), post conf (pink)',
+               draw=[(cpre, 'W', 'blue'), (cpost, 'W', 'pink')], snap=['W'])
             yield (hand, ppre.pose().xyztTuple(), cpre, cpost)
     return
 
