@@ -2,7 +2,7 @@ import math
 import windowManager3D as wm
 from dist import GMU, MultivariateGaussianDistribution
 from miscUtil import prettyString
-from traceFile import tr
+from traceFile import tr, trAlways
 MVG = MultivariateGaussianDistribution
 
 zeroObjectVarianceArray = [[0]*4]*4
@@ -116,9 +116,7 @@ class BeliefState:
             s += '   pose: %s\n'%prettyString(stuff.poseD.meanTuple())
             s += '  stdev: %s\n'%prettyStdev(stuff.poseD.varTuple())
         s += '------------  Belief -------------\n'
-        tr('B', s)
-        tr('B', draw=[(self.pbs, 0.9, w)], snap=[w])
-        wm.getWindow(w).update()
+        trAlways(s, pause = False, draw=[(self.pbs, 0.9, w)], snap=[w])
 
 def diagToSq(d):
     return [[(d[i] if i==j else 0.0) \

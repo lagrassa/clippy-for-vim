@@ -85,7 +85,8 @@ visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
 
-debugOn = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates']
+debugOn = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates',
+           'pushGen']
            #'regression:fail', 'appOp:number', 'regression', 'lookGen',
            #'canReachHome']
 

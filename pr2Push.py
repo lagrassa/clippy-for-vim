@@ -41,10 +41,10 @@ def pushGenGen(args, goalConds, bState):
     (obj, pose, posevar, posedelta, confdelta, prob) = args
     tag = 'pushGen'
     base = sameBase(goalConds)
-    tr(tag, 0, 'obj=%s, base=%s'%(obj, base))
+    tr(tag, 'obj=%s, base=%s'%(obj, base))
     if goalConds:
         if getConf(goalConds, None):
-            tr(tag, 1, '=> conf is already specified, failing')
+            tr(tag, '=> conf is already specified, failing')
             return
     pbs = bState.pbs.copy()
     world = pbs.getWorld()
@@ -64,8 +64,8 @@ def pushGenTop(args, goalConds, pbs):
     (obj, placeB, hand, base, prob) = args
     startTime = time.clock()
     tag = 'pushGen'
-    tr(tag, 0, '(%s,%s) h=%s'%(obj,hand, glob.inHeuristic))
-    tr(tag, 2, 
+    tr(tag, '(%s,%s) h=%s'%(obj,hand, glob.inHeuristic))
+    tr(tag, 
        zip(('obj', 'placeB', 'hand', 'prob'), args),
        ('goalConds', goalConds),
        ('moveObjBs', pbs.moveObjBs),
@@ -75,25 +75,28 @@ def pushGenTop(args, goalConds, pbs):
                  pbs.graspB['left'],
                  pbs.graspB['right'])))
     if obj == 'none' or not placeB:
-        tr(tag, 1, '=> obj is none or no placeB, failing')
+        tr(tag, '=> obj is none or no placeB, failing')
         return
     if goalConds:
         if getConf(goalConds, None):
-            tr(tag, 1, '=> goal conf specified, failing')
+            tr(tag, '=> goal conf specified, failing')
             return
         for (h, o) in getHolding(goalConds):
             if h == hand:
                 # TODO: we could push with the held object
-                tr(tag, 1, '=> Hand=%s is Holding, failing'%hand)
+                tr(tag, '=> Hand=%s is holding in goal, failing'%hand)
                 return
     # Set up pbs
     newBS = pbs.copy()
     # Just placements specified in goal
     newBS = newBS.updateFromGoalPoses(goalConds)
-    tr(tag, 2, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
+    if newBS.held[hand].mode() != 'none':
+        tr(tag, '=> Hand=%s is holding in pbs, failing'%hand)
+        return
+    tr(tag, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
     gen = pushGenAux(newBS, placeB, hand, base, prob)
     for ans in gen:
-        tr(tag, 1, str(ans) +' (t=%s)'%(time.clock()-startTime))
+        tr(tag, str(ans) +' (t=%s)'%(time.clock()-startTime))
         yield ans
 
 def pushGenAux(pbs, placeB, hand, base, prob):
@@ -238,7 +241,7 @@ def handContactFrames(shape, center, vertical):
             print 'consider face', f, 'face frame:\n', frame.matrix
         if  abs(frame.matrix[2,1]) > 0.01:
             print frame.matrix
-            raw_input('The y axis of face frame should be parallel to support')
+            trAlways('The y axis of face frame should be parallel to support')
         c = np.dot(frameInv.matrix, pushCenter.reshape((4,1)))
         c[2] = 0.0                      # project to face plane
         faceVerts = np.dot(frameInv.matrix, verts)

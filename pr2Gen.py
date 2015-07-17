@@ -977,7 +977,7 @@ def lookGenTop(args, goalConds, pbs):
             continue
         conf = path[-1]                 # lookConf is at the end of the path
         # Modify the look conf so that robot does not block
-        lookconf = lookAtConfCanView(newBS_before, prob, conf, sh)
+        lookConf = lookAtConfCanView(newBS_before, prob, conf, sh)
         if lookConf:
             tr(tag, 2, '(%s) general conf viol=%s'%(obj, viol.weight() if viol else None),
                ('-> cyan', lookConf.conf),
@@ -1205,7 +1205,7 @@ class CanPickPlaceGen(Function):
 '''        
 
 def canXGenTop(violFn, args, goalConds, newBS, tag):
-    (cond, prob, lookVar) = args1
+    (cond, prob, lookVar) = args
     tr(tag, 0, 'h=%s'%glob.inHeuristic)
     # Initial test
     viol = violFn(newBS)

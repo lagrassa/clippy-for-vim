@@ -312,9 +312,10 @@ class Assign(Function):
 
 # Be sure the argument is not 'none'
 class NotNone(Function):
+    isNecessary = True
     # noinspection PyUnusedLocal
     @staticmethod
-    def notNone(args, goal, start):
+    def fun(args, goal, start):
         assert args[0] is not None
         if args[0] == 'none':
             return None
@@ -754,12 +755,16 @@ def placeCostFun(al, args, details):
 
 # noinspection PyUnusedLocal
 def pushCostFun(al, args, details):
-    rawCost = 3
-    abstractCost = 5
+    # Make it cost more than pick/place for now, though not clear it
+    # should always be like this.
+    rawCost = 5
+    abstractCost = 10
     (_, _, _, _, _, _, _, _, _, _, _, p, _, _)  = args
     result = costFun(rawCost,
                      p*canPPProb*(1-details.domainProbs.placeFailProb)) + \
                (abstractCost if al == 0 else 0)
+    print 'push cost', al, result
+    raw_input('okay?')
     return result
 
 # noinspection PyUnusedLocal
@@ -1490,6 +1495,9 @@ pick = Operator(
         functions = [
             # Be sure obj is not none -- don't use this to empty the hand
             NotNone([], ['Obj']),
+            # Be sure grasp is not *, we don't know what to do
+            NotStar([], ['GraspMu']),
+
             # Be sure all result probs are bound.  At least one will be.
             MinP(['PR1', 'PR2', 'PR3'], ['PR1', 'PR2', 'PR3']),
             # Compute precond probs.  Only regress object placecement P1.

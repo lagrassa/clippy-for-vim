@@ -104,7 +104,7 @@ def tr(genTag, *msg, **keys):
 
     # Printing to console
     if doDebug and msg:
-        prTag = (genTag+':') if (genTag != '*') else 'Debug:'
+        prTag = (genTag+':') if (genTag != '*') else ''
         print prTag,
         if ol:
             for m in msg: print m,
