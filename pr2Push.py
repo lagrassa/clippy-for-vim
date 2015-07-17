@@ -172,7 +172,8 @@ def pushGenAux(pbs, placeB, hand, base, prob):
                 print cpost.cartConf()[robot.armChainNames[hand]].compose(robot.toolOffsetX[hand]).matrix
                 raw_input('Yield this?')
             tr(tag, 'pre conf (blue), post conf (pink)',
-               draw=[(cpre, 'W', 'blue'), (cpost, 'W', 'pink')], snap=['W'])
+               draw=[(pbs, prob, 'W'),
+                     (cpre, 'W', 'blue'), (cpost, 'W', 'pink')], snap=['W'])
             yield (hand, ppre.pose().xyztTuple(), cpre, cpost)
     return
 
@@ -218,7 +219,7 @@ def findSupportRegionInPbs(pbs, prob, shape):
 
 # Potential contacts
 fingerTipThick = 0.02
-fingerTipWidth = 0.05
+fingerTipWidth = 0.025
 fingerLength = 0.045                    # it's supposed to be 0.06
 
 def handContactFrames(shape, center, vertical):
@@ -289,7 +290,7 @@ vertGM = np.array([(0.,-1.,0.,0.),
                     (0.,0.,-1.,0.),
                     (1.,0.,0.,0.),
                     (0.,0.,0.,1.)], dtype=np.float64)
-pushBuffer = 0.02
+pushBuffer = 0.05
 def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
     tag = 'graspBForContactFrame'
     # TODO: what should these values be?
@@ -347,7 +348,7 @@ def pushPath(pbs, prob, resp, contactFrame, dist, shape, regShape, hand):
     pathViols = []
     reason = 'done'
     dist = dist or 1.0
-    for step in np.arange(0., dist, pushStepSize).tolist()+[dist]:
+    for step in np.arange(-pushBuffer, dist, pushStepSize).tolist()+[dist]:
         offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
         nshape = shape.applyTrans(offsetPose)
         if not inside(nshape, regShape):

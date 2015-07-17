@@ -112,12 +112,14 @@ def hEasy(s, g, ops, ancestors):
 
 heuristicTime = 0.0
 
+hDepth = 5
+
 def habbs(s, g, ops, ancestors):
     global heuristicTime
     startTime = time.time()
     hops = ops + [hRegrasp]
     val = hAddBackBSetID(s, g, hops, ancestors, ddPartitionFn = partition,
-                         maxK = 5)
+                         maxK = hDepth)
     if val == 0:
         # Just in case the addBack heuristic thinks we're at 0 when
         # the goal is not yet satisfied.
@@ -126,7 +128,7 @@ def habbs(s, g, ops, ancestors):
             fbch.hCacheReset()
             newVal = hAddBackBSetID(s, g, hops, ancestors,
                                         ddPartitionFn = partition,
-                                        maxK = 20)
+                                        maxK = hDepth)
             if newVal >= 0:
                 tr('heuristic0', 'Heuristic cache inconsistent.  Leslie should fix this!', pause = False)
                 return newVal

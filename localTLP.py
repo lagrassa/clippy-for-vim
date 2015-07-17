@@ -84,13 +84,17 @@ drawRebindNodes = True
 # if 'h' in pauseOn:
 #     pauseOn.remove('h')
 
-debugOn = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates']
+debugOn = ['nonmon', 'skeleton']
+#           'regression:fail', 'appOp:number', 'lookGen']
+
+           # 'pushPath', 'graspBForContactFrame'
            #'regression:fail', 'appOp:number', 'regression', 'lookGen',
-           #'canReachHome']
+           #'canReachHome'
 
 pauseOn = debugOn[:]
 logOn = debugOn + ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen', 'pushGen',
                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen']
+                   
 debugOn.append('h')
 
 if platform.system() == 'Linux':
