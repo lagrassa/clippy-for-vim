@@ -966,7 +966,7 @@ def lookGenTop(args, goalConds, pbs):
                     else:
                         assert None, 'shape should be visible, but it is not'
     # Find a lookConf unconstrained by base
-    lookConfGen = potentialLookConfGen(newBS_before, prob, sh_before, maxLookDist)
+    lookConfGen = potentialLookConfGen(newBS_before, prob, shapeForLook, maxLookDist)
     for ans in rm.confReachViolGen(lookConfGen, newBS_before, prob,
                                    testFn = lambda c: testFn(c, sh_before, shWorld_before)):
         viol, cost, path = ans

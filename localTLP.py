@@ -89,7 +89,7 @@ debugOn = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates']
            #'canReachHome']
 
 pauseOn = debugOn[:]
-logOn = debugOn + ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
+logOn = debugOn + ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen', 'pushGen',
                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen']
 debugOn.append('h')
 
