@@ -23,15 +23,9 @@ tiny = 1.0e-6
 # np.any seems to be really slow... so it's been re-written...
 
 cpdef bool primPrimCollides(shapes.Prim t1, shapes.Prim t2):
-    if debug('useGJK'):
-        # ans1 = primPrimCollidesReal(t1, t2)
-        ans2 = gjk.gjkDist(t1, t2)
-        # if (ans2 < 1.0e-6) != ans1:
-        #     print ans1, ans2
-        #     raw_input('Inconsistent collision')
-        return ans2 < 1.0e-6
-    else:
-        return primPrimCollidesReal(t1, t2)
+    return primPrimCollidesReal(t1, t2)
+    # ans2 = gjk.gjkDist(t1, t2)
+    # return ans2 < 1.0e-6
 
 cpdef bool primPrimCollidesReal(shapes.Prim t1, shapes.Prim t2):
     cdef:

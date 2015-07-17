@@ -49,6 +49,7 @@ cdef class Prim:
 
     cpdef Prim prim(self)
     cpdef list parts(self)
+    cpdef list toPrims(self)	
     cpdef str name(self)
     cpdef hu.Transform origin(self)
     cpdef np.ndarray[np.float64_t, ndim=2] vertices(self)
@@ -77,6 +78,7 @@ cdef class Shape:
     cdef tuple tupleBBox
     
     cpdef list parts(self)
+    cpdef list toPrims(self)	
     cpdef str name(self)
     cpdef hu.Transform origin(self)
     cpdef np.ndarray[np.float64_t, ndim=2] vertices(self)

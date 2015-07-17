@@ -68,19 +68,32 @@ drawRebindNodes = True
 'visible'
 '''
 
-debugOn = ['traceGen', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon',
-           'useGJK', 'h', 'traceCRH', 'debugInHeuristic',
-           # 'traceCRH'
-           #'pushGen', 'handContactFrames', 'graspBForContactFrame',
-           #'pushPath', 'canPush',
-           #'lookGen', 'visible', 'canView', 'lookAtConfCanView'
-           ]
+# debugOn = ['traceGen', 'skeleton', 'simpleAbstractCostEstimates', 'nonmon',
+#            'useGJK', 'h', 'traceCRH', 'debugInHeuristic',
+#            # 'traceCRH'
+#            #'pushGen', 'handContactFrames', 'graspBForContactFrame',
+#            #'pushPath', 'canPush',
+#            #'lookGen', 'visible', 'canView', 'lookAtConfCanView'
+#            ]
+
+# if platform.system() == 'Linux':
+#     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:
+#         if not x in debugOn: debugOn.append(x)
+
+# pauseOn = debugOn[:]
+# if 'h' in pauseOn:
+#     pauseOn.remove('h')
+
+debugOn = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates']
+           #'regression:fail', 'appOp:number', 'regression', 'lookGen',
+           #'canReachHome']
+
+pauseOn = debugOn[:]
+logOn = debugOn + ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
+                   'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen']
+debugOn.append('h')
 
 if platform.system() == 'Linux':
     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:
         if not x in debugOn: debugOn.append(x)
-
-pauseOn = debugOn[:]
-if 'h' in pauseOn:
-    pauseOn.remove('h')
-
+        if not x in logOn: debugOn.append(x)

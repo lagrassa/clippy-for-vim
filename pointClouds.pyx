@@ -142,7 +142,7 @@ def simulatedScan(conf, scanParams, objects, name='scan', color=None):
     dm = np.zeros(n); dm.fill(10.0)
     contacts = n*[None]
     for i, shape in enumerate(objects):
-        for objPrim in shapes.toPrims(shape):
+        for objPrim in shape.toPrims():
             updateDepthMap(scan, objPrim, dm, contacts, i)
     verts = np.zeros((4, n))
     for i in range(n):
@@ -158,7 +158,7 @@ def simulatedDepthMap(scan, objects):
     dm = np.zeros(n); dm.fill(10.0)
     contacts = n*[None]
     for i, shape in enumerate(objects):
-        for objPrim in shapes.toPrims(shape):
+        for objPrim in shape.toPrims():
             updateDepthMap(scan, objPrim, dm, contacts, i)
     return dm, contacts
 

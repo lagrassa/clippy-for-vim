@@ -4,7 +4,7 @@ from pointClouds import Scan, updateDepthMap
 import hu
 import planGlobals as glob
 from geom import bboxCenter
-from shapes import toPrims, pointBox, BoxScale
+from shapes import pointBox, BoxScale
 import transformations as transf
 from pr2Util import shadowName
 from traceFile import debugMsg, debug
@@ -76,7 +76,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     n = scan.edges.shape[0]
     dm = np.zeros(n); dm.fill(10.0)
     contacts = n*[None]
-    for objPrim in toPrims(shape):
+    for objPrim in shape.toPrims():
         updateDepthMap(scan, objPrim, dm, contacts, 0)
     total = n - contacts.count(None)
     if total < minVisiblePoints:
@@ -95,7 +95,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         if objShape not in potentialOccluders: continue
         if debug('visible'):
             print 'updating depth with', objShape.name()
-        for objPrim in toPrims(objShape):
+        for objPrim in objShape.toPrims():
             updateDepthMap(scan, objPrim, dm, contacts, i+1, onlyUpdate=range(i+2))
         count = countContacts(contacts, i+1)
         if count > 0:                   #  should these be included?
@@ -110,7 +110,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         i = len(fix) + j
         if debug('visible'):
             print 'updating depth with', objShape.name()
-        for objPrim in toPrims(objShape):
+        for objPrim in objShape.toPrims():
             updateDepthMap(scan, objPrim, dm, contacts, i+1, onlyUpdate=range(i+2))
         count = countContacts(contacts, i+1)
         if count > 0:

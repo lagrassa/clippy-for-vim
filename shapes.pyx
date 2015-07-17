@@ -219,6 +219,9 @@ cdef class Prim:
     cpdef Prim prim(self):
         return self
 
+    cpdef list toPrims(self):
+        return [self]
+
     cpdef list parts(self):
         return [self]
 
@@ -366,6 +369,12 @@ cdef class Shape:
     cpdef list parts(self):
         return self.shapeParts
 
+    cpdef list toPrims(self):
+        prims = []
+        for p in self.parts():
+            prims.extend(p.toPrims())
+        return prims
+
     cpdef str name(self):
         return self.properties.get('name', 'noName')
 
@@ -414,8 +423,8 @@ cdef class Shape:
         if not bboxGrownOverlap(self.bbox(), obj.bbox()):
             return False
         # Is there any pairwise collision
-        for p1 in toPrims(self):
-            for p2 in toPrims(obj):
+        for p1 in self.toPrims():
+            for p2 in obj.toPrims():
                 if p1.collides(p2): return True
         return False
 
@@ -448,7 +457,7 @@ cdef class Shape:
 
     # Compute 3d convex hull
     cpdef Prim prim(self):
-        verts = np.hstack([p.vertices() for p in toPrims(self) \
+        verts = np.hstack([p.vertices() for p in self.toPrims() \
                            if not p.vertices() is None])
         return convexHullPrim(verts, self.shapeOrigin) \
                if self.parts() else None
@@ -456,7 +465,7 @@ cdef class Shape:
     # Compute XY convex hull
     cpdef Prim xyPrim(self):
         cdef np.ndarray[np.float64_t, ndim=2] bb
-        verts = np.hstack([p.vertices() for p in toPrims(self) \
+        verts = np.hstack([p.vertices() for p in self.toPrims() \
                            if not p.vertices() is None])
         bb = vertsBBox(verts, None)
         zr = (bb[0,2], bb[1,2])
@@ -742,17 +751,6 @@ cdef mergeProps(dict d1, dict d2):
     else:
         return d2.copy()
 
-def toPrims(obj):
-    if isinstance(obj, Shape):
-        prims = []
-        for p in obj.parts():
-            prims.extend(toPrims(p))
-        return prims
-    elif isinstance(obj, Prim):
-        return [obj]
-    else:
-        return [obj.prim()]
-
 # Returns a list of transforms for the faces.
 cpdef list thingFaceFrames(np.ndarray[np.float64_t, ndim=2] planes,
                          hu.Transform origin):
@@ -783,7 +781,7 @@ cpdef list thingFaceFrames(np.ndarray[np.float64_t, ndim=2] planes,
 
 # Writing OFF files for a union of convex prims
 def writeOff(obj, filename, scale = 1):
-    prims = toPrims(obj)
+    prims = obj.toPrims()
     nv = sum([o.vertices().shape[1] for o in prims])
     nf = sum([len(o.faces()) for o in prims])
     ne = 0       # nv + nf - 2                    # Euler's formula...

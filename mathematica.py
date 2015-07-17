@@ -45,7 +45,7 @@ def toMath(p):
     obj, color, opacity, time = p
     expr = ''
     if isinstance(obj, (shapes.Thing, shapes.Prim, shapes.Shape)):
-        for o in shapes.toPrims(obj):
+        for o in obj.toPrims():
             expr += '{EdgeForm[],'+toMathColor(color)+','+toMathOpacity(opacity)+','+ \
                     toMathPoly3D(o)+'},'
     return expr
