@@ -12,7 +12,7 @@ windows = {}
 def addWindow(w, title):
     windows[title] = w
 
-def makeWindow(title, viewPort = [-1.,1., -1.,1., 0.,1.], windowWidth = 500):
+def makeWindow(title, viewPort = (-1.,1., -1.,1., 0.,1.), windowWidth = 500):
     if not title in windows:
         if use3D:
             # windows[title] = om.VisualWindow(title = title,

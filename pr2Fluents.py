@@ -811,8 +811,8 @@ class CanPush(Fluent):
 
     def getViols(self, bState, v, p):
         assert v == True
-        (obj, hand, prePose, pose, preConf, postConf, poseVar, prePoseVar,
-         poseDelta, cond) = self.args
+        (obj, hand, prePose, pose, preConf, pushConf, postConf, poseVar,
+         prePoseVar,  poseDelta, cond) = self.args
 
         key = (hash(bState.pbs), p)
         if not hasattr(self, 'viols'): self.viols = {}
@@ -822,7 +822,8 @@ class CanPush(Fluent):
 
         newPBS = bState.pbs.conditioned(cond, permShadows = True)
         path, violations = canPush(newPBS, obj, hand, prePose, pose,
-                                   preConf, postConf, prePoseVar, poseVar,
+                                   preConf, pushConf, postConf, prePoseVar,
+                                   poseVar,
                                    poseDelta, p, Violations())
         debugMsg('CanPush',
                  ('pose', pose),
@@ -856,8 +857,8 @@ class CanPush(Fluent):
     # TODO : LPK Can this be shared among CanX fluents?
     def prettyString(self, eq = True, state = None, heuristic = None,
                      includeValue = True):
-        (obj, hand, prePose, pose, preConf, postConf, poseVar, prePoseVar,
-         poseDelta, cond) = self.args
+        (obj, hand, prePose, pose, preConf, pushConf, postConf, poseVar,
+         prePoseVar, poseDelta, cond) = self.args
         assert obj != 'none'
 
         condStr = self.args[-1] if isVar(self.args[-1]) else \
