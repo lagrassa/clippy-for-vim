@@ -592,7 +592,7 @@ class PlanTest:
                 #print 'supportFace', name, supFace
                 oVar = varDict[name] if (varDict and name in varDict) else var4
                 self.fix[name] = ObjPlaceB(name, ff(name), DeltaDist(supFace),
-                                  fixObjPoses[name], oVar, del05)
+                                  fixObjPoses[name], oVar, del0)
         self.move = {}
         for name in moveObjPoses.keys():
             if name in self.objects:

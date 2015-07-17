@@ -1067,16 +1067,16 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
                                    oldPlaceB.poseD.variance(), obsVar)
         ff = w.getFaceFrames(objName)[obsFace]
 
-        if debug('obsUpdate'):
-            ## LPK!!  Should really draw the detected object but I don't have
-            ## an immediate way to get the shape of a type.  Should fix that.
-            objShape = details.pbs.getObjectShapeAtOrigin(objName)
-            objShape.applyLoc(obsPose.pose().compose(ff.inverse())).\
-                            draw('Belief', 'cyan')
-            objShape = details.pbs.getObjectShapeAtOrigin(objName)
-            objShape.applyLoc(hu.Pose(*newMu).compose(ff.inverse())).\
-              draw('Belief', 'magenta')
-            tr('obsUpdate', 'obs is Cyan; newMu is magenta',
+        ## LPK!!  Should really draw the detected object but I don't have
+        ## an immediate way to get the shape of a type.  Should fix that.
+        tr('obsUpdate', (objName, obsPose, obsFace),
+            'obs is Cyan; newMu is magenta',
+            draw = [(details.pbs.getObjectShapeAtOrigin(objName).\
+                        applyLoc(obsPose.pose().compose(ff.inverse())), 
+                        'Belief', 'cyan'),
+                    (details.pbs.getObjectShapeAtOrigin(objName).\
+                         applyLoc(hu.Pose(*newMu).compose(ff.inverse())),
+                         'Belief', 'magenta')],
                snap = ['Belief'])
 
     details.pbs.updateObjB(ObjPlaceB(objName, w.getFaceFrames(objName),

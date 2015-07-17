@@ -30,6 +30,7 @@ applicableOps
 appOp:detail
 appOp:number
 appOp:result
+assign  : data association
 btbind
 canPickPlaceGen
 canReachGen
@@ -61,7 +62,7 @@ lookGen
 lookHandGen
 nextStep
 nonmon
-obsUpdate
+obsUpdate : draw detection, update
 pickPlaceTest
 pickTol (be sure we're not giving pick too big a variance)
 placeGen
@@ -85,13 +86,11 @@ visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
 
-debugOn = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates',
-           'pushGen']
-           #'regression:fail', 'appOp:number', 'regression', 'lookGen',
-           #'canReachHome']
+debugOn = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates']
 
 pauseOn = debugOn[:]
 logOn = debugOn + ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
-                   'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen']
+                   'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
+                   'pushGen', 'assign']
 debugOn.append('h')
 

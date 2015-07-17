@@ -300,7 +300,7 @@ def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
     objFrame = placeB.objFrame()
     if debug(tag): print 'objFrame\n', objFrame.matrix
 
-    print 'Using pushBuffer', pushBuffer
+    (tr, 'pushGen', 'Using pushBuffer', pushBuffer)
     zOff = zOffset + (-fingerTipWidth if vertical else 0.) - pushBuffer
     displacedContactFrame = contactFrame.compose(hu.Pose(0.,0.,zOff,0.))
     if debug(tag):
