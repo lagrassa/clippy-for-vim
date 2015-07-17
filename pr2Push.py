@@ -161,7 +161,11 @@ def pushGenAux(pbs, placeB, hand, base, prob):
         sorted = sortedPushPaths(pushPaths)
         for i in range(min(len(sorted), 2)):
             pp = sorted[i]              # path is reversed (post...pre)
-            cpost, vpost, ppost = pp[0]
+            ctarget, _, ptarget = pp[0]
+            cpost = ctarget
+            for cpost,_,ppost in pp[1:]:
+                if ptarget.point().distance(ppost.point()) > pushBuffer:
+                    break
             cpre, vpre, ppre = pp[-1]
             if debug(tag):
                 robot = cpre.robot
@@ -348,6 +352,7 @@ def pushPath(pbs, prob, resp, contactFrame, dist, shape, regShape, hand):
     pathViols = []
     reason = 'done'
     dist = dist or 1.0
+    # Move extra dist (pushBuffer) to make up for the displacement from object
     for step in np.arange(-pushBuffer, dist, pushStepSize).tolist()+[dist]:
         offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
         nshape = shape.applyTrans(offsetPose)
