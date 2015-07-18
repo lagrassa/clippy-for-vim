@@ -1121,15 +1121,20 @@ class Operator(object):
                     tr('regression:fail', self,
                              'side effects may be inconsistent with goal',
                              ('newGoal', newGoal), ('sideEffects', boundSE),
-                       noLog = True)
+                                noLog = True)
 
-            tr('regression', 'Trying less abstract version of op', self,
-               noLog = True)
-            primOp = self.copy()
-            # LPK: This is maybe nicer, but too expensive
-            # primOp.abstractionLevel += 1
-            primOp.abstractionLevel = primOp.concreteAbstractionLevel
-            return primOp.regress(goal, startState)
+            if self.abstractionLevel < self.concreteAbstractionLevel:
+                tr('regression', 'Trying less abstract version of op', self,
+                               noLog = True)
+                primOp = self.copy()
+                # LPK: This is maybe nicer, but too expensive
+                # primOp.abstractionLevel += 1
+                primOp.abstractionLevel = primOp.concreteAbstractionLevel
+                return primOp.regress(goal, startState)
+            else:
+                trAlways('Clobbering at primitive level???',
+                         pause = True)
+                bindingsNoGood = True
 
         # Make another result, which is a place-holder for rebinding
         rebindLater = goal.copy()

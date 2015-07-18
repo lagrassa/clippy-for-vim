@@ -504,12 +504,16 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
     # cache entries will be frozen sets of fluents
     # Return a set of actions.
     def aux(fUp, k, minSoFar):
-        spaces = '\n'+' '*(idk - k)
+        #spaces = '\n'+' '*(idk - k)
         spaces = ' '*(idk - k)
         # See if it's in the main cache
         if inCache(fUp, idk):
-            if debug('hAddBackV'): print 'c',
-            return hCacheLookup(fUp, idk)
+            cval = hCacheLookup(fUp, idk)
+            if debug('hAddBackV'): print 'c', cval,
+
+            assert hCacheLookup(fUp, idk) != float('inf')
+                
+            return cval
 
         # If this group has only 1 fluent and a special way to
         # compute the value, then use that.
@@ -544,7 +548,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
 
         if k == 0:
             if debug('hAddBackV'): print 'l',
-            if idk == maxK:
+            if idk == maxK - 1:
                 # Last round of iterative deepening
                 # Get a final value. At a leaf.  Use static eval
                 v = staticEval(fUp)
@@ -553,6 +557,7 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                 addToCachesSet(fUp, v, set([dummyO]), idk)
                 if v == 0:
                     assert start.satisfies(g)
+                raw_input('hit true bottom, using static eval: '+str(v))
             else:
                 addToCachesSet(fUp, float('inf'), set(), idk)
             return hCacheLookup(fUp, idk)
@@ -599,15 +604,18 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
 
                     children.append(ff)
                     if debug('hAddBack'):
-                        print spaces+'C Aux:', k-1,\
+                        spaces = ' '*(idk - k)
+                        print spaces+'C Aux:', k-1, o.name, \
                              prettyString(totalCost - partialCost),\
                                   [f.shortName() for f in ff]
-                        for f in ff: print spaces+'--'+f.prettyString()
+                        #for f in ff: print spaces+'--'+f.prettyString()
                                        
                     subCost, subActSet = aux(ff, k-1,
                                                  totalCost - partialCost)
                     if debug('hAddBack'):
-                        print spaces+'R Aux:', k-1, prettyString(subCost),\
+                        nspaces = '\n'+' '*(idk - k)
+                        print nspaces+'R Aux:', k-1, o.name, \
+                          prettyString(subCost),\
                                [f.shortName() for f in ff]
                     # make this side effect
                     if subCost == float('inf'):
@@ -617,15 +625,15 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                         partialCost = sum([op.instanceCost \
                                                for op in newActSet])
                 newTotalCost = partialCost
-                if debug('hAddBack'):
-                    childCosts = [aux(c, k-1, float('inf'))[0] \
-                                  for c in children]
-                    print spaces+'goal', k, prettyString(minSoFar),\
-                                    [f.shortName() for f in fUp]
-                    print spaces+'op', o.name
-                    print spaces+'Children:'
-                    for (x,y) in zip(childCosts, children):
-                        print spaces+'    ', x, [f.shortName() for f in y]
+                # if False: #debug('hAddBack'):
+                #     childCosts = [aux(c, k-1, float('inf'))[0] \
+                #                   for c in children]
+                #     print spaces+'goal', k, prettyString(minSoFar),\
+                #                     [f.shortName() for f in fUp]
+                #     print spaces+'op', o.name
+                #     print spaces+'Children:'
+                #     for (x,y) in zip(childCosts, children):
+                #         print spaces+'    ', x, [f.shortName() for f in y]
 
                 if store and newTotalCost < totalCost:
                     addToCachesSet(fUp, newTotalCost, newActSet, idk)
@@ -648,9 +656,9 @@ def hAddBackBSet(start, goal, operators, ancestors, idk, maxK = 30,
                           'not better than', totalCost
 
         assert totalCost >= 0
-        if totalCost == float('inf'):
+        if totalCost == float('inf') and k == idk:
             tr('hAddBackInf',
-                         'Warning: storing infinite value in hCache',
+                'Warning: storing infinite value in hCache at level',k,
                      [f.shortName() for f in fUp])
             addToCachesSet(fUp, totalCost, set(), idk)
             if totalCost == 0:
@@ -689,11 +697,12 @@ def hAddBackBSetID(start, goal, operators, ancestors, maxK = 30,
                    staticEval = lambda f: 500,
                    ddPartitionFn = lambda fs: [frozenset([f]) for f in fs]):
     glob.inHeuristic = True
-    startDepth = maxK-1
-    for k in range(startDepth, maxK):
+    startDepth = maxK
+    for k in range(startDepth, maxK+1):
         hCacheID[k] = set()
         vk = hAddBackBSet(start, goal, operators, ancestors, k,
-                          ddPartitionFn = ddPartitionFn)
+                          ddPartitionFn = ddPartitionFn,
+                          maxK = maxK)
         if vk < float('inf'):
             break
     result = min(vk, maxHeuristicValue)

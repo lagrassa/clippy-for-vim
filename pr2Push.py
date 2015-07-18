@@ -192,6 +192,9 @@ def sortedPushPaths(pushPaths):
     for (pathAndViols, reason) in pushPaths:
         if reason == 'done':
             scored.append((0., pathAndViols))
+        elif len(pathAndViols) == 0:
+            # TODO: 'LPK hit this condition but does not know what to do'
+            print 'LPK hit this condition but does not know what to do'
         else:
             vmax = max(v.weight() for (c,v,p) in pathAndViols)
             scored.append((max(1, vmax), pathAndViols))

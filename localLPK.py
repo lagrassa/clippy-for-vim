@@ -86,7 +86,13 @@ visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
 
-debugOn = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates']
+usualTags = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates']
+heuristicTags = ['hAddBack', 'hAddBackV', 'heuristic', 'hAddBackInf',
+                 'debugInHeuristic']
+skeletonTags = ['regression:fail', 'appOp:number']
+
+debugOn = usualTags 
+        
 
 pauseOn = debugOn[:]
 logOn = debugOn + ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',

@@ -13,11 +13,6 @@ import planGlobals as glob
 reload(glob)
 from traceFile import debugMsg, debug, trAlways
 
-
-somewhatVerbose = False
-"""If C{True}, prints a trace of the search"""
-verbose = False
-
 class SearchNode:
     """A node in a search tree"""
     def __init__(self, action, state, parent, actionCost, heuristicCost = 0):
@@ -35,14 +30,14 @@ class SearchNode:
         
     def path(self):
         """@returns: list of C{(action, state)} pairs from root to this node"""
-        if self.parent == None:
+        if self.parent is None:
             return [(self.action, self.state)]
         else:
             return self.parent.path() + [(self.action, self.state)]
 
     def costs(self):
         """@returns: list of C{(action, state)} pairs from root to this node"""
-        if self.parent == None:
+        if self.parent is None:
             return [self.cost]
         else:
             return self.parent.costs() + [self.cost]
@@ -111,7 +106,7 @@ def search(initialState, goalTest, actions, successor,
         countExpanded = 0
         heappush(agenda, (0, count, startNode))
         expanded = set([])
-        while (not agenda == [] and maxNodes > count):
+        while not agenda == [] and maxNodes > count:
             if verbose:
                 print "agenda: ", agenda
             (hc, _, n) = heappop(agenda)
@@ -137,7 +132,7 @@ def search(initialState, goalTest, actions, successor,
                 if getH(n.state) > 0:
                     debugMsg('heuristic', 'positive value at goal state',
                              n.state, getH(n.state))
-                return (n.path(), n.costs())
+                return n.path(), n.costs()
             if n.cost > maxCost:
                 if somewhatVerbose or verbose:
                     print "Search failed reaching cost", n.cost
@@ -219,6 +214,10 @@ def searchGen(initialState, goalStates, actions, successor,
               goalKey = lambda x: x,
               goalCostFn = lambda x: 0,
               verbose = False, printFinal = True, maxHDelta = None):
+
+    somewhatVerbose = verbose
+    verbose = False
+
     goalStates = goalStates[:]          # we will be modifying this.
     hVals = {}
     def getH(state):
@@ -241,7 +240,7 @@ def searchGen(initialState, goalStates, actions, successor,
     countExpanded = 0
     heappush(agenda, (0, count, startNode))
     expanded = set([])
-    while (not agenda == [] and goalStates and maxNodes > count and maxExpanded > countExpanded):
+    while not agenda == [] and goalStates and maxNodes > count and maxExpanded > countExpanded:
         if verbose:
             print "agenda: ",
             for (h, _, n) in agenda: print '    ', h, n.state
