@@ -90,13 +90,16 @@ usualTags = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates']
 heuristicTags = ['hAddBack', 'hAddBackV', 'heuristic', 'hAddBackInf',
                  'debugInHeuristic']
 skeletonTags = ['regression:fail', 'appOp:number']
-
-debugOn = usualTags 
-        
-
-pauseOn = debugOn[:]
-logOn = debugOn + ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
+traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
                    'pushGen', 'assign']
-debugOn.append('h')
+debugOnly = ['h', 'assign']  # don't pause
+
+
+debugOn = usualTags
+
+
+pauseOn = debugOn[:]
+logOn = debugOn + traceOnly
+debugOn.extend(debugOnly)
 

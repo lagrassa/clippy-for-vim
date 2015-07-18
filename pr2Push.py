@@ -2,7 +2,7 @@ from fbch import Function
 from geom import bboxInside, bboxVolume, vertsBBox, bboxContains
 from pr2GenAux import inside
 import numpy as np
-from traceFile import debug, debugMsg, tr
+from traceFile import debug, debugMsg, tr, trAlways
 from shapes import thingFaceFrames, drawFrame
 import hu
 from planUtil import ObjGraspB, PoseD, Response
