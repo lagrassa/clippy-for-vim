@@ -29,7 +29,7 @@ useMathematica = False
 
 # How many paths to generate for a particular hand contact with the
 # object, these will differ by the base placement.
-maxPushPaths = 2
+maxPushPaths = 50
 
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
@@ -94,7 +94,6 @@ def pushGenTop(args, goalConds, pbs):
     if newBS.held[hand].mode() != 'none':
         tr(tag, '=> Hand=%s is holding in pbs, failing'%hand)
         return
-    tr(tag, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
     gen = pushGenAux(newBS, placeB, hand, base, prob)
     for ans in gen:
         tr(tag, str(ans) +' (t=%s)'%(time.clock()-startTime))
@@ -143,6 +142,7 @@ def pushGenAux(pbs, placeB, hand, base, prob):
             drawFrame(gf)
             raw_input('graspDesc frame')
         count = 0
+        doneCount = 0
         pushPaths = []                  # for different base positions
         for ans in potentialGraspConfGen(pbs, placeB, graspB,
                                          None, hand, base, prob):
@@ -155,8 +155,10 @@ def pushGenAux(pbs, placeB, hand, base, prob):
             count += 1
             pathAndViols, reason = pushPath(pbs, prob, ans, contactFrame, dist,
                                             xyPrim, supportRegion, hand)
+            if reason == 'done': doneCount +=1 
             pushPaths.append((pathAndViols, reason))
-            tr(tag, 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
+            tr(tag+'Path', 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
+            if doneCount >= 2: break
             if count > maxPushPaths: break
         sorted = sortedPushPaths(pushPaths)
         for i in range(min(len(sorted), 2)):
@@ -192,10 +194,7 @@ def sortedPushPaths(pushPaths):
     for (pathAndViols, reason) in pushPaths:
         if reason == 'done':
             scored.append((0., pathAndViols))
-        elif len(pathAndViols) == 0:
-            # TODO: 'LPK hit this condition but does not know what to do'
-            print 'LPK hit this condition but does not know what to do'
-        else:
+        elif pathAndViols:
             vmax = max(v.weight() for (c,v,p) in pathAndViols)
             scored.append((max(1, vmax), pathAndViols))
     scored.sort()
