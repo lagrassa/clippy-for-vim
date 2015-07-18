@@ -15,6 +15,7 @@ reload(mathematica)
 import windowManager3D as wm
 from subprocess import call
 import time
+import pdb
 
 useMathematica = False
 
@@ -51,6 +52,11 @@ def pushGenGen(args, goalConds, bState):
     support = pbs.getPlaceB(obj).support.mode()
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
                        PoseD(pose, posevar), delta=posedelta)
+
+    if pbs.getPlaceB(placeB.obj).poseD.mode().distance(placeB.poseD.mode()) < 0.01:
+        tr(tag, 'Target pose is too close to current pose, failing')
+        return
+
     # Figure out whether one hand or the other is required;  if not, do round robin
     leftGen = pushGenTop((obj, placeB, 'left', base, prob),
                          goalConds, pbs)
@@ -93,6 +99,9 @@ def pushGenTop(args, goalConds, pbs):
     tr(tag, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
     if newBS.held[hand].mode() != 'none':
         tr(tag, '=> Hand=%s is holding in pbs, failing'%hand)
+        return
+    if obj in [h.mode() for h in newBS.held.values()]:
+        tr(tag, '=> obj is in the hand, failing')
         return
     gen = pushGenAux(newBS, placeB, hand, base, prob)
     for ans in gen:
@@ -353,7 +362,7 @@ def pushPath(pbs, prob, resp, contactFrame, dist, shape, regShape, hand):
     conf = resp.c
     pathViols = []
     reason = 'done'
-    dist = dist or 1.0
+    dist = dist or 0.25                 # default push size
     # Move extra dist (pushBuffer) to make up for the displacement from object
     for step in np.arange(-pushBuffer, dist, pushStepSize).tolist()+[dist]:
         offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])

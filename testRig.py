@@ -717,7 +717,7 @@ class PlanTest:
 
         s = State([], details = self.bs)
         try:
-            traceStart()
+            traceStart(self.name)
             print '**************', self.name,\
                      'Hierarchical' if hierarchical else '', '***************'
             if hpn:
@@ -818,7 +818,9 @@ tinyErrProbs = DomainProbs(
             placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
 
-allOperators = [move, pick, place, push, lookAt, moveNB,
+allOperators = [move, pick, place,
+                # push,
+                lookAt, moveNB,
                 achCanReach, achCanPickPlace, poseAchIn,
                 bLoc1, bLoc2, bLoc3]
               #lookAtHand    #graspAchCanPickPlace #dropAchCanPickPlace achCanSee

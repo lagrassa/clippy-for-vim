@@ -59,7 +59,9 @@ cdef class Prim:
     cpdef np.ndarray[np.float64_t, ndim=2] bbox(self)
     cpdef tuple zRange(self)
     cpdef Prim applyTrans(self, hu.Transform trans, str frame=*)
+    cpdef Prim applyTransMod(self, hu.Transform trans, Prim prim, str frame=*)
     cpdef Prim applyLoc(self, hu.Transform trans, str frame=*)
+    cpdef Prim applyLocMod(self, hu.Transform trans, Prim prim, str frame=*)
     cpdef Shape cut(self, obj, bool isect = *)
     # cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt)
     # cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts)
@@ -71,11 +73,11 @@ cdef class Prim:
     cpdef draw(self, str window, str color = *, double opacity = *)	
 
 cdef class Shape:
-    cdef public dict properties
     cdef list shapeParts
-    cdef hu.Transform shapeOrigin
-    cdef np.ndarray shapeBBox
-    cdef tuple tupleBBox
+    cdef public dict properties
+    cdef public hu.Transform shapeOrigin
+    cdef public np.ndarray shapeBBox
+    cdef public tuple tupleBBox
     
     cpdef list parts(self)
     cpdef list toPrims(self)	
@@ -83,7 +85,9 @@ cdef class Shape:
     cpdef hu.Transform origin(self)
     cpdef np.ndarray[np.float64_t, ndim=2] vertices(self)
     cpdef Shape applyTrans(self, hu.Transform, str frame=*)
+    cpdef Shape applyTransMod(self, hu.Transform, Shape shape, str frame=*)
     cpdef Shape applyLoc(self, hu.Transform trans, str frame=*)
+    cpdef Shape applyLocMod(self, hu.Transform trans, Shape shape, str frame=*)
     # cpdef bool containsPt(self, np.ndarray[np.float64_t, ndim=1] pt)
     # cpdef np.ndarray containsPts(self, np.ndarray[np.float64_t, ndim=2] pts)
     cpdef bool collides(self, obj)

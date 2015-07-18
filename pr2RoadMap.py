@@ -2,6 +2,7 @@ import math
 import random
 import copy
 import time
+import pdb
 import hu
 from scipy.spatial import cKDTree
 import windowManager3D as wm
@@ -858,16 +859,23 @@ class RoadMap:
                 graph.incidence[node] = set([edge])
         return edge
 
+    # Checks individual collision: returns True if remediable
+    # collision, False if no collision and None if irremediable.
     def confCollidersAux(self, rob, obst, sumColl, edgeColl, perm, draw):
-        if obst in sumColl: return True # known collision
+        if obst in sumColl:
+            # already encountered this, can't have been perm or we
+            # would have stopped, so return True.
+            return True
+        # coll is True or False if already know, None if not known.
+        # Yes, this is confusing...
         if edgeColl:
             if edgeColl.get('heldSelfCollision', False):
                 if draw: raw_input('selfCollision')
-                return None
+                return None                 # known irremediable
             coll = edgeColl.get(obst, None) # check outcome in cache
         else:
             coll = None                 # not known
-        if coll is None:
+        if coll is None:                # not known, so check
             coll = rob.collides(obst)   # outcome
         if coll:                        # collision
             sumColl.append(obst)        # record in summary
@@ -877,11 +885,15 @@ class RoadMap:
                 if draw:
                     obst.draw('W', 'magenta')
                     raw_input('Collision with perm = %s'%obst.name())
-                return None # irremediable
+                return None             # irremediable collision
             return True                 # collision
         else:
             return False                # no collision
 
+    # This updates the collisions in aColl, hColl and hsColl
+    # (collisions with robot, held and heldShadow).  It returns None,
+    # if an irremediable collision is found, otherwise return value is
+    # not significant.
     def confColliders(self, pbs, prob, conf, aColl, hColl, hsColl, 
                       edge=None, ignoreAttached=False, draw=False):
         def heldParts(obj):
@@ -894,6 +906,7 @@ class RoadMap:
         shWorld = pbs.getShadowWorld(prob)
         attached = None if ignoreAttached else shWorld.attached
         robShape, attachedPartsDict = conf.placementAux(attached=attached)
+        # robShape, attachedPartsDict = conf.placementModAux(self.robotPlace, attached=attached)
         attachedParts = [x for x in attachedPartsDict.values() if x]
         permanentNames = set(shWorld.fixedObjects) # set of names
         if draw:
@@ -904,14 +917,15 @@ class RoadMap:
             if debug('robotSelfCollide'):
                 conf.draw('W', 'red')
                 raw_input('selfCollision')
-            return None
+            return None                 # irremediable collision
         for obst in shWorld.getObjectShapes():
             perm = obst.name() in permanentNames
             eColl = edge.aColl if edge else None
             res = self.confCollidersAux(robShape, obst, aColl, eColl,
                                         perm, draw)
-            if res is None: return None
-            elif res: continue          # collision
+            if res is None: return None # irremediable
+            elif res: continue          # collision with robot, go to next obj
+            # Check for held collisions if not collision so far
             if not attached or not any(attached.values()): continue
             for h in hands:
                 hand = handName[h]
@@ -924,15 +938,15 @@ class RoadMap:
                 eColl = edge.hColl[hand][pbs.graspB[hand]] if edge else None
                 res = self.confCollidersAux(held, obst, hColl[h], eColl,
                                             (perm and shWorld.fixedHeld[hand]), draw)
-                if res is None: return None
-                elif res: continue          # collision
+                if res is None: return None # irremediable
+                elif res: continue          # collision, move to next obj
                 # Check hsColl
                 if edge and pbs.graspB[hand] not in edge.hsColl[hand]:
                     edge.hsColl[hand][pbs.graspB[hand]] = {}
                 eColl = edge.hsColl[hand][pbs.graspB[hand]] if edge else None
                 res = self.confCollidersAux(heldSh, obst, hsColl[h], eColl,
                                             (perm and shWorld.fixedGrasp[hand]), draw)
-                if res is None: return None
+                if res is None: return None # irremediable
         return True
 
     # We want edge to depend only on endpoints so we can cache the

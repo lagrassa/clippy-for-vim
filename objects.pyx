@@ -9,7 +9,7 @@ from hu cimport Ident, Transform, angleDiff, fixAnglePlusMinusPi
 from shapes cimport Shape
 from planGlobals import  mergeShadows
 from traceFile import debug, debugMsg
-from geom import bboxUnion
+from geom import bboxUnion, bboxOrigin
 
 PI2 = 2*math.pi
 
@@ -311,7 +311,10 @@ cdef class MultiChain:
                 print ' **Placement**', chain.name, cfg[chain.name]
             for joint, tr in zip(chain.joints, trs):
                 frames[joint.name] = tr
-        place.thingBBox = bboxUnion([x.bbox() for x in place.parts()])
+        # Unfortunately, this is slow...
+        place.shapeOrigin = hu.Transform(bboxOrigin(bboxUnion([p.bbox() for p in place.parts()])))
+        place.shapeBBox = None
+        place.tupleBBox = None
         return place, frames
 
     def __str__(self):
@@ -427,7 +430,10 @@ cdef class Chain:
                     p.applyLocMod(tr, pM)
                     if debug('mod'):
                         print p.name(), '\n', pM.vertices()
-            place.thingBBox = bboxUnion([x.bbox() for x in place.parts()])
+            # Unfortunately, this is slow...
+            place.shapeOrigin = hu.Transform(bboxOrigin(bboxUnion([p.bbox() for p in place.parts()])))
+            place.shapeBBox = None
+            place.tupleBBox = None
             return None, trs
         else:
             print 'Placement failed for', self, jointValues

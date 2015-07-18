@@ -266,9 +266,21 @@ cdef class Prim:
                     self.basePrim,
                     **mergeProps(self.properties, {'frame':frame}))
 
+    cpdef Prim applyTransMod(self, hu.Transform trans, Prim prim, str frame='unspecified',):
+        prim.primOrigin = trans.compose(self.primOrigin)
+        prim.basePrim = self.basePrim
+        prim.primVerts = None
+        prim.primPlanes = None
+        prim.primBBox = None
+        prim.tupleBBox = None
+
     cpdef Prim applyLoc(self, hu.Transform trans, str frame='unspecified'):
         """Displace the Thing to a location; returns a Prim."""
         return self.applyTrans(trans.compose(self.origin().inverse()), frame)
+
+    cpdef Prim applyLocMod(self, hu.Transform trans, Prim prim, str frame='unspecified'):
+        """Displace the Thing to a location; returns a Prim."""
+        return self.applyTransMod(trans.compose(self.origin().inverse()), prim, frame)
 
     cpdef list faceFrames(self):
         return [self.primOrigin.compose(fr) for fr in self.basePrim.baseFaceFrames]
@@ -390,9 +402,22 @@ cdef class Shape:
                      trans.compose(self.shapeOrigin),
                      **mergeProps(self.properties, {'frame':frame}))
 
+    cpdef Shape applyTransMod(self, hu.Transform trans, Shape shape, str frame='unspecified'):
+        tr = trans.compose(self.shapeOrigin)
+        for p,sh in zip(self.parts(), shape.parts()):
+            p.applyTransMod(tr, sh, frame)
+        shape.shapeOrigin = tr
+        shape.shapeBBox = None
+        shape.tupleBBox = None
+        return shape
+
     cpdef Shape applyLoc(self, hu.Transform trans, str frame='unspecified'):
         """Displace the Thing to a location; returns a Prim."""
         return self.applyTrans(trans.compose(self.origin().inverse()), frame)
+
+    cpdef Shape applyLocMod(self, hu.Transform trans, Shape shape, str frame='unspecified'):
+        """Displace the Thing to a location; returns a Prim."""
+        return self.applyTransMod(trans.compose(self.origin().inverse()), shape, frame)
 
     cpdef np.ndarray[np.float64_t, ndim=2] bbox(self):
         if self.shapeBBox is None:

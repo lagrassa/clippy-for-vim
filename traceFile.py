@@ -130,9 +130,9 @@ def traceHeader(h):
         if targetFile:
             targetFile.write('<h1>'+h+'</h1>')
 
-def traceStart():
+def traceStart(name='log'):
     global htmlFile, htmlFileH, htmlFileId, dirName
-    dirName = local.genDir + 'log_'+timeString()
+    dirName = local.genDir + name + '_'+timeString()
     if not os.path.exists(dirName):
         os.makedirs(dirName)
     htmlFile = open(local.htmlGen%(dirName, str(htmlFileId)), 'w')
