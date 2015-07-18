@@ -447,8 +447,16 @@ class RealPoseVar(Function):
 class PushPrevVar(Function):
     # noinspection PyUnusedLocal
     @staticmethod
-    def fun((pushVar,), goal, start):
-        return [[tuple([pv/4.0 for pv in pushVar])]]
+    def fun((resultVar,), goal, start):
+        pushVar = start.domainProbs.pushVar
+        # pretend it's lower
+        res = tuple([x - y for (x, y) in zip(resultVar, pushVar)])
+        res = tuple([x/4.0 for x in resultVar])
+        if any([v <= 0.0 for v in res]):
+            tr('traceGen', 'Push previous var would be negative', res)
+            return []
+        else:
+            return [[res]]
     
 class PlaceInPoseVar(Function):
     # TODO: LPK: be sure this is consistent with moveOut
@@ -902,17 +910,23 @@ def pushBProgress(details, args, obs=None):
     # Conf of robot and pose of object change
     (o, h, pose, pf, pv, pd, pp, ppv, prec, pushc, postc, cd, p, pr1,pr2) = args
 
-    # Say it multiplies stdev by 4
     failProb = details.domainProbs.pushFailProb
+    pushVar = details.domainProbs.pushVar
 
     # Change robot conf
     details.pbs.updateConf(postc)
 
-    v = [x*16 for x in details.pbs.getPlaceB(o).poseD.varTuple()]
+    v = [x + y for x,y in \
+         zip(details.pbs.getPlaceB(o).poseD.varTuple(), pushVar)]
     v[2] = 1e-20
     gv = tuple(v)
-    details.poseModeProbs[o] = (1 - failProb) * details.graspModeProb[h]
-    details.pbs.updateHeld('none', None, None, h, None)
+
+    print 'Push:  old variance', details.pbs.getPlaceB(o).poseD.varTuple()
+    print 'Push:  new variance', gv
+    raw_input('okay?')
+    
+    # Failure here would be to knock the object over
+    details.poseModeProbs[o] = (1 - failProb) * details.poseModeProbs[o]
     ff = details.pbs.getWorld().getFaceFrames(o)
     details.pbs.moveObjBs[o] = ObjPlaceB(o, ff, pf, PoseD(pose, gv))
     details.pbs.reset()
@@ -992,8 +1006,7 @@ def greedyBestAssignment(scores):
         if val < llMatchThreshold:
             result.append((obj, None, None))
             return result
-        tr('assign', prettyString(val), obj.name(), tobs, old = True,
-           pause = False)
+        tr('assign', prettyString(val), obj.name(), tobs, old = True)
         result.append((obj, tobs, face))
         # Better not to copy so much
         scoresLeft = [((oj, os), stuff) for ((oj, os), stuff) in scoresLeft \
@@ -1042,7 +1055,7 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
         details.poseModeProbs[objName] = newP
         tr('assign',  'No match above threshold', objName, oldP, newP,
-           ol = True, pause = False)
+           ol = True)
         newMu = oldPlaceB.poseD.mode().pose().xyztTuple()
         newSigma = [v + .001 for v in oldPlaceB.poseD.varTuple()]
         newSigma[2] = 1e-10
@@ -1054,8 +1067,7 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
         obsGivenNotH = details.domainProbs.obsTypeErrProb
         newP = obsGivenH * oldP / (obsGivenH * oldP + obsGivenNotH * (1 - oldP))
         details.poseModeProbs[objName] = newP
-        tr('assign', 'Obs match for', objName, oldP, newP, ol = True,
-           pause = False)
+        tr('assign', 'Obs match for', objName, oldP, newP, ol = True)
         # Should update face!!
         # Update mean and sigma
         ## Be sure handling angle right.

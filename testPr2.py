@@ -578,7 +578,7 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     goal = State([\
                   Bd([SupportFace(['bigA']), 4, goalProb], True),
                   B([Pose(['bigA', 4]),
-                     targetPose, targetVar, (0.02,)*4,
+                     targetPose, targetVar, (0.02, .02, .02, .05),
                      goalProb], True)])
 
     t = PlanTest('testPush0',  errProbs, allOperators,

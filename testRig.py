@@ -783,6 +783,7 @@ typicalErrProbs = DomainProbs(
             pickVar = (0.001**2, 0.001**2, 1e-11, 0.002**2),
             # variance in pose after placing
             placeVar = (0.001**2, 0.001**2, 1e-11, 0.002**2),
+            pushVar = (0.01**2, 0.01**2, 1e-11, 0.02**2),
             # pickTolerance
             pickTolerance = (0.025, 0.025, 0.025, 0.1),
             maxGraspVar = (0.0051**2, .0051**2, .005**2, .015**2),
@@ -811,6 +812,7 @@ tinyErrProbs = DomainProbs(
             pickVar = (0.0001**2, 0.0001**2, 1e-11, 0.0001**2),
             # variance in pose after placing
             placeVar = (0.0001**2, 0.0001**2, 1e-11, 0.0001**2),
+            pushVar = (0.0001**2, 0.0001**2, 1e-11, 0.0001**2),
             # pickTolerance
             pickTolerance = (0.025, 0.025, 0.025, 0.05),
             maxGraspVar = (0.005**2, .005**2, .005**2, .015**2),
