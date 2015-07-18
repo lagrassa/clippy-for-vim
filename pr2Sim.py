@@ -1,3 +1,4 @@
+import pdb
 import math
 import numpy as np
 import objects
@@ -408,14 +409,18 @@ class RealWorld(WorldState):
         return None
 
     def executePush(self, op, params, noBase = True):
+        # TODO: compute the cartConfs once.
         def moveObj(path, i):
+            w1 = path[0].cartConf()[robot.armChainNames[hand]]
+            w2 = path[-1].cartConf()[robot.armChainNames[hand]]
+            delta = w2.compose(w1.inverse()).pose(0.1)
+            mag = (delta.x**2 + delta.y**2)**0.5
+            deltaPose = hu.Pose(0.01*(delta.x/mag), 0.01*(delta.y/mag), 0.0, 0.0)
             if i > 0:
-                if path[i].placement().collides(self.objectShapes[obj]):
-                    print 'Touching', obj, 'in push'
-                    w1 = path[i-1].cartConf()[robot.armChainNames[hand]]
-                    w2 = path[i].cartConf()[robot.armChainNames[hand]]
-                    delta = w2.compose(w1.inverse())
-                    self.setObjectPose(obj, self.getObjectPose(obj).compose(delta))
+                place = path[i].placement()
+                while place.collides(self.objectShapes[obj]):
+                    self.setObjectPose(obj, deltaPose.compose(self.getObjectPose(obj)))
+                    print i, 'Touching', obj, 'in push, moved it to', self.getObjectPose(obj).pose()
         failProb = self.domainProbs.pushFailProb
         success = DDist({True : 1 - failProb, False : failProb}).draw()
         if success:

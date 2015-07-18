@@ -65,8 +65,9 @@ solnsKin = createCtypesArr('float', 7*nsolnsKin)
 jtKin = createCtypesArr('float', 7)
 
 cpdef pr2KinIKfast(arm, T, current, chain, safeTest, returnAll = False):
-    cdef float bestDist = float('inf')
-    cdef float dist
+    cdef double bestDist = float('inf')
+    cdef double dist
+    cdef list sols
     sols = pr2KinIKfastAll(arm, T, current, chain, safeTest)
     if not sols: return None
     if returnAll:
@@ -87,18 +88,26 @@ cpdef pr2KinIKfast(arm, T, current, chain, safeTest, returnAll = False):
             print 'best', prettyString(bestSol)
         return bestSol
 
-cpdef float solnDist(sol1, sol2):
+cpdef double solnDist(sol1, sol2):
     return max([abs(hu.angleDiff(th1, th2)) for (th1, th2) in zip(sol1, sol2)])
 
-def pr2KinIKfastAll(arm, T, current, chain, safeTest):
-    def collectSafe(n):
-        sols = []
-        for i in range(n):
-            sol = solnsKin[i*7 : (i+1)*7]
-            if sol and chain.valid(sol):  # inside joint limits
-                if (not safeTest) or safeTest(sol): # doesn't collide
-                    sols.append(sol)
-        return sols
+cdef list collectSafe(int n, chain, safeTest):
+    cdef int i
+    cdef list sols
+    sols = []
+    for i in range(n):
+        sol = solnsKin[i*7 : (i+1)*7]
+        if sol and chain.valid(sol):  # inside joint limits
+            if (not safeTest) or safeTest(sol): # doesn't collide
+                sols.append(sol)
+    return sols
+
+cdef pr2KinIKfastAll(arm, T, current, chain, safeTest):
+    cdef int i, j, nsols, n
+    cdef double upper, lower, th0, stepSize, step
+    cdef list sols
+
+    nsols = nsolnsKin
     for i in range(3):
         for j in range(3):
             rotKin[i*3+j] = T[i, j]
@@ -111,24 +120,24 @@ def pr2KinIKfastAll(arm, T, current, chain, safeTest):
     lower, upper = chain.limits()[2]
     th0 = current[2]
     if not lower <= th0 <= upper: return []
-    nsteps = max((upper-th0)/step, (th0-lower)/step)
+    nsteps = int(max((upper-th0)/step, (th0-lower)/step))
     solver = ik.ikRight if arm=='r' else ik.ikLeft
     sols = []
-    for i in range(int(nsteps)):
+    for i in range(nsteps):
         stepsize = i*step
         freeKin[0] = th0 + stepsize
         if freeKin[0] <= upper:
-            n = solver(transKin, rotKin, freeKin, nsolnsKin, solnsKin)
+            n = solver(transKin, rotKin, freeKin, nsols, solnsKin)
             # print 'th', th0 + stepsize, 'n', n
             if n > 0:
-                sols.extend(collectSafe(n))
+                sols.extend(collectSafe(n, chain, safeTest))
                 # if sols: break
         freeKin[0] = th0 - stepsize
         if freeKin[0] >= lower:
-            n = solver(transKin, rotKin, freeKin, nsolnsKin, solnsKin)
+            n = solver(transKin, rotKin, freeKin, nsols, solnsKin)
             # print 'th', th0 - stepsize, 'n', n
             if n > 0:
-                sols.extend(collectSafe(n))
+                sols.extend(collectSafe(n, chain, safeTest))
                 # if sols: break
     # print 'IKFast sols', sols
     return sols
