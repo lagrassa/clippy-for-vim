@@ -453,9 +453,9 @@ class PushPrevVar(Function):
         pushVar = start.domainProbs.pushVar
         # pretend it's lower
         res = tuple([x - y for (x, y) in zip(resultVar, pushVar)])
-        res = tuple([x/4.0 for x in resultVar])
+        #res = tuple([x/4.0 for x in resultVar])
         if any([v <= 0.0 for v in res]):
-            tr('traceGen', 'Push previous var would be negative', res)
+            tr('pushGenVar', 'Push previous var would be negative', res)
             return []
         else:
             return [[res]]
