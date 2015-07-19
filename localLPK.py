@@ -96,7 +96,11 @@ traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
 debugOnly = ['h', 'assign']  # don't pause
 
 
-debugOn = usualTags + ['assign', 'pushGenVar'] + heuristicTags
+debugOn = usualTags + ['lookAchGen']
+  # heuristicTags + \
+  # ['easyGraspGen', 'applicableOps', 'pickGen', 'regression:fail',
+  #          'regression']
+
 
 
 pauseOn = debugOn[:]

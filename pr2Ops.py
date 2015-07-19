@@ -6,7 +6,7 @@ from traceFile import tr, trAlways
 from itertools import product, permutations, chain, imap
 from dist import DeltaDist, varBeforeObs, probModeMoved, MixtureDist,\
      UniformDist, chiSqFromP, MultivariateGaussianDistribution
-from fbch import Function, Operator, simplifyCond
+from fbch import Function, Operator, simplifyCond, State
 from miscUtil import isVar, prettyString, makeDiag, argmax
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowWidths, objectName
@@ -1661,7 +1661,14 @@ class AchCanReachGen(Function):
         def violFn(pbs):
             p, v = canReachHome(pbs, conf, prob, Violations())
             return v
-        return achCanXGen(start.pbs, goal, cond, [crhFluent], violFn, prob, tag)
+        for (op, newCond) in \
+              achCanXGen(start.pbs, goal, cond, [crhFluent], violFn, prob, tag):
+            if not State(goal).isConsistent(newCond):
+                print 'AchCanReach suggestion inconsistent with goal'
+                for c in newCond: print c
+                raw_input('go?')
+            else:
+                yield op, newCond
 
 class AchCanPickPlaceGen(Function):
     @staticmethod

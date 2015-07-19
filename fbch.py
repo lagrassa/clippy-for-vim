@@ -786,13 +786,19 @@ class Operator(object):
             result.extend(self.preconditions[i])
         return result
 
-    def sideEffectSet(self, allLevels = False):
+    def guaranteedSideEffects(self, allLevels = False):
         maxRange = (self.concreteAbstractionLevel + 1) if allLevels \
                    else (self.abstractionLevel + 1)
         result = []
         # Side effects up to level i
         for i in range(maxRange):
             result.extend(self.sideEffects.get(i, set({})))
+        return result
+
+    def sideEffectSet(self, allLevels = False):
+        maxRange = (self.concreteAbstractionLevel + 1) if allLevels \
+                   else (self.abstractionLevel + 1)
+        result = []
         # Preconditions from level i+1 to max
         for i in range(self.abstractionLevel + 1, maxRange):
             result.extend(self.preconditions[i])
@@ -976,7 +982,6 @@ class Operator(object):
             preCond = None
             for k in newBindings.keys():
                 if k[:7] == 'PreCond': preCond = newBindings[k]
-            #mop.preconditions[0].extend(preCond)
             goal.addSet(preCond)
 
             # Set abstraction level for mop
@@ -986,17 +991,21 @@ class Operator(object):
                               ancestors)
             return res
 
+        resultSE = [f.applyBindings(newBindings) \
+                    for f in self.guaranteedSideEffects(allLevels = True)]
+        groundResultSE = [f for f in resultSE if f.isGround()]
+
+        nonGroundSE = [f for f in resultSE if not f.isGround()]
         boundSE = [f.applyBindings(newBindings) \
-                   for f in self.sideEffectSet(allLevels = True)]
-        groundSE = [f for f in boundSE if f.isGround()]
-        nonGroundSE = [f for f in boundSE if not f.isGround()]
+                   for f in self.sideEffectSet(allLevels = True)] + \
+                   nonGroundSE
 
         # TODO: LPK should check to be sure that groundSE and results are
         # consistent;  but that would be a stupid rule to write!
 
         br = set()
         # Get rid of entailments *within* the results.  Kind of ugly.
-        for f in results.union(set(groundSE)):
+        for f in results.union(set(groundResultSE)):
             bf = f.applyBindings(newBindings)
             addF = True
             for f2 in br.copy():
@@ -1017,15 +1026,25 @@ class Operator(object):
 
         # Be sure not clobbered by non-ground side effects
         clobbered = False
-        for f1 in nonGroundSE:
+        for f1 in boundSE:
             for f2 in goal.fluents:
                 if f1.couldClobber(f2, startState.details):
-                    clobbered = True
-                    if debug('regression:fail'):
+                    # see if f1 is really just a result
+                    okay = False
+                    for f3 in boundResults:
+                        if f3.contradicts(f1) or f3.entails(f1):
+                            # Seems weird, but the idea is that the result
+                            # will override whatever the precond-side effects do
+                            okay = True
+                            break
+                    if not okay:
+                        clobbered = True
+                        if debug('regression:fail'):
                                 print '    might clobber\n', f1, '\n', f2
         if clobbered:
             if self.abstractionLevel < self.concreteAbstractionLevel:
                 tr('regression', 'Trying less abstract version of op', self)
+                raw_input('clobber')
                 primOp = self.copy()
                 # LPK: Nicer to increase by 1, but expensive
                 # primOp.abstractionLevel += 1
@@ -1037,7 +1056,7 @@ class Operator(object):
                 return []
 
         # Treat ground side effects as results
-        boundResults = boundResults + [se for se in  boundSE if se.isGround()]
+        boundResults = boundResults + groundResultSE
 
         # Some bindings that we make after this might apply to previous steps
         # in the plan, so we have to accumulate and store then
