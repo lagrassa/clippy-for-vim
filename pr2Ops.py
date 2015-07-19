@@ -30,6 +30,7 @@ maxVarianceTuple = (.1,)*4
 # If it's bigger than this, we can't just plan to look and see it
 # Should be more subtle than this...
 maxPoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
+maxPoseVar = (0.03**2, 0.03**2, 0.03**2, 0.05**2)
 
 # Fixed accuracy to use for some standard preconditions
 canPPProb = 0.9

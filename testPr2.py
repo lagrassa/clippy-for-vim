@@ -601,8 +601,8 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
           )
     return t
 
-def testPush1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-                easy = False, rip = False, multiplier=1):
+def testPush1(hpn = True, skeleton = False, hierarchical = False,
+              heuristic=habbs, easy = False, rip = False, multiplier=1):
 
     glob.rebindPenalty = 700
     glob.monotonicFirst = True
@@ -619,7 +619,8 @@ def testPush1(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     skel = [[push, moveNB, lookAt, move,
-             push, moveNB, lookAt, move],
+             push, move],
+             #push, moveNB, lookAt, move],
             [lookAt, moveNB]]
 
     startPose = (1.05, 0.0, tZ, 0.0)
@@ -699,6 +700,7 @@ def firstAid(details, fluent = None):
     belief.hCacheReset()
     
     if fluent:
+        fluent.args[0].viols = {}
         return fluent.valueInDetails(details)
 
 def canPPDebug(details, fluent):
