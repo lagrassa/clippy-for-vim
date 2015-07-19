@@ -1044,7 +1044,7 @@ class Operator(object):
         if clobbered:
             if self.abstractionLevel < self.concreteAbstractionLevel:
                 tr('regression', 'Trying less abstract version of op', self)
-                raw_input('clobber')
+                tr('clobber')
                 primOp = self.copy()
                 # LPK: Nicer to increase by 1, but expensive
                 # primOp.abstractionLevel += 1
