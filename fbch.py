@@ -623,12 +623,11 @@ class Fluent(object):
 
     def couldClobber(self, other, details = None):
         # contradicts or fluents match but self has var where other has value
-        if self.contradicts(other, details):
-            return True
-        if self.matches(other, noValue = True) and isVar(self.value) and \
-          not isVar(other.value):
-            return True
-        return False
+        return self.contradicts(other, details) or \
+             (self.matches(other) != None and \
+                   any([isVar(x) and not isVar(y) for (x, y) in
+                        zip(self.args + [self.value],
+                             other.args + [other.value])]))
 
     def contradicts(self, other, details = None):
         glb, b = self.glb(other, details)
@@ -919,8 +918,7 @@ class Operator(object):
                 tr('regression:fail', 'immutable precond is false',
                          [p for p in self.preconditionSet() if \
                           (p.immutable and p.isGround() and \
-                            not startState.fluentValue(p) == p.getValue())],
-                   noLog = True)
+                            not startState.fluentValue(p) == p.getValue())])
                 return []
 
         results = squashSets([r for (r, c) in self.results])
@@ -933,7 +931,7 @@ class Operator(object):
             for rf in results:
                 bTemp = rf.entails(gf, startState.details)
                 tr('regression:entails',
-                         'entails', rf, gf, bTemp, bTemp != False, noLog = True)
+                         'entails', rf, gf, bTemp, bTemp != False)
                 if bTemp != False:
                     entailed = True
                     break
@@ -949,11 +947,11 @@ class Operator(object):
                                     avoid = goal.bindingsAlreadyTried)
         # Debugging stuff
         tr('regression:bind', 'getting new bindings',
-                 self.functions, goal.fluents, ('result', newBindings), noLog = True)
+                 self.functions, goal.fluents, ('result', newBindings))
         if newBindings == None:
             if not glob.inHeuristic or debug('debugInHeuristic'):
                 tr('regression:fail', self, 'could not get bindings',
-                     'h = '+str(glob.inHeuristic), noLog = True)
+                     'h = '+str(glob.inHeuristic))
             if debug('regression:fail') and \
                     (not glob.inHeuristic or debug('debugInHeuristic')):
                 glob.debugOn = glob.debugOn + ['btbind']
@@ -961,7 +959,7 @@ class Operator(object):
                                             goal.fluents,
                                             startState.details,
                                             avoid = goal.bindingsAlreadyTried)
-                tr('regression:fail', 'hope that was helpful', noLog = True)
+                tr('regression:fail', 'hope that was helpful')
                 glob.debugOn = glob.debugOn[:-1]
             return []
 
@@ -988,9 +986,17 @@ class Operator(object):
                               ancestors)
             return res
 
+        boundSE = [f.applyBindings(newBindings) \
+                   for f in self.sideEffectSet(allLevels = True)]
+        groundSE = [f for f in boundSE if f.isGround()]
+        nonGroundSE = [f for f in boundSE if not f.isGround()]
+
+        # TODO: LPK should check to be sure that groundSE and results are
+        # consistent;  but that would be a stupid rule to write!
+
         br = set()
         # Get rid of entailments *within* the results.  Kind of ugly.
-        for f in results:
+        for f in results.union(set(groundSE)):
             bf = f.applyBindings(newBindings)
             addF = True
             for f2 in br.copy():
@@ -1005,9 +1011,33 @@ class Operator(object):
         if not goal.isConsistent(boundResults, startState.details):
             if not glob.inHeuristic or debug('debugInHeuristic'):
                 tr('regression:fail', self,
-                         'results inconsistent with goal', noLog = True)
+                         'results inconsistent with goal')
             # This is not a fatal flaw;  just a problem with these bindings
             return []
+
+        # Be sure not clobbered by non-ground side effects
+        clobbered = False
+        for f1 in nonGroundSE:
+            for f2 in goal.fluents:
+                if f1.couldClobber(f2, startState.details):
+                    clobbered = True
+                    if debug('regression:fail'):
+                                print '    might clobber\n', f1, '\n', f2
+        if clobbered:
+            if self.abstractionLevel < self.concreteAbstractionLevel:
+                tr('regression', 'Trying less abstract version of op', self)
+                primOp = self.copy()
+                # LPK: Nicer to increase by 1, but expensive
+                # primOp.abstractionLevel += 1
+                primOp.abstractionLevel = primOp.concreteAbstractionLevel
+                return primOp.regress(goal, startState)
+            else:
+                trAlways('Clobbering at primitive level???', pause = True)
+                tr('regression:fail', 'clobber', goal, self)
+                return []
+
+        # Treat ground side effects as results
+        boundResults = boundResults + [se for se in  boundSE if se.isGround()]
 
         # Some bindings that we make after this might apply to previous steps
         # in the plan, so we have to accumulate and store then
@@ -1022,7 +1052,7 @@ class Operator(object):
             for rf in boundResults:
                 bTemp = rf.entails(gf, startState.details)
                 tr('regression:entails',
-                         'entails', rf, gf, bTemp, bTemp != False, noLog = True)
+                         'entails', rf, gf, bTemp, bTemp != False)
                 if bTemp != False:
                     entailed = True
                     newBindings.update(bTemp)
@@ -1041,7 +1071,7 @@ class Operator(object):
                     if not glob.inHeuristic or debug('debugInHeuristic'):
                         tr('*', 'special regression fail; h =',
                            glob.inHeuristic)
-                        tr('regression:fail', 'special regress failure', noLog = True)
+                        tr('regression:fail', 'special regress failure')
                     return []
                 newFluents.append(nf)
 
@@ -1055,9 +1085,6 @@ class Operator(object):
 
         boundPreconds = [f.applyBindings(newBindings) \
                          for f in self.preconditionSet()]
-
-        boundSE = [f.applyBindings(newBindings) \
-                   for f in self.sideEffectSet(allLevels = True)]
 
         explicitResults = [r for r in \
                             boundResults + resultsFromSpecialRegression \
@@ -1088,13 +1115,14 @@ class Operator(object):
                 f.update()
                 if not f.feasible(startState.details):
                     tr('regression:fail', 'conditional fluent infeasible',
-                            f, noLog = True)
+                            f)
                     bindingsNoGood = True
                     break
                 valueAfter = startState.fluentValue(f)
                 if valueBefore and not valueAfter:
                     trAlways('suspicious: conditioning made fluent false',
-                             ('before', fBefore), ('after', f))
+                             ('before', fBefore), ('after', f),
+                             pause = True)
             newGoal.add(f, startState.details)
 
         # Could fold the boundPrecond part of this in to addSet later
@@ -1107,35 +1135,9 @@ class Operator(object):
                                 print '    contradiction\n', f1, '\n', f2
                     tr('regression:fail', self,
                              'preconds inconsistent with goal',
-                             ('newGoal', newGoal), ('preconds', boundPreconds),
-                       noLog = True)
+                             ('newGoal', newGoal), ('preconds', boundPreconds))
             bindingsNoGood = True
             
-        elif newGoal.couldBeClobbered(boundSE, startState.details):
-            if not glob.inHeuristic or debug('debugInHeuristic'):
-                if debug('regression:fail'):
-                    for f1 in boundSE:
-                        for f2 in newGoal.fluents:
-                            if f1.couldClobber(f2, startState.details):
-                                print '    might clobber\n', f1, '\n', f2
-                    tr('regression:fail', self,
-                             'side effects may be inconsistent with goal',
-                             ('newGoal', newGoal), ('sideEffects', boundSE),
-                                noLog = True)
-
-            if self.abstractionLevel < self.concreteAbstractionLevel:
-                tr('regression', 'Trying less abstract version of op', self,
-                               noLog = True)
-                primOp = self.copy()
-                # LPK: This is maybe nicer, but too expensive
-                # primOp.abstractionLevel += 1
-                primOp.abstractionLevel = primOp.concreteAbstractionLevel
-                return primOp.regress(goal, startState)
-            else:
-                trAlways('Clobbering at primitive level???',
-                         pause = True)
-                bindingsNoGood = True
-
         # Make another result, which is a place-holder for rebinding
         rebindLater = goal.copy()
         rebindLater.suspendedOperator = self.copy()
@@ -1144,6 +1146,8 @@ class Operator(object):
         rebindCost = glob.rebindPenalty
 
         if not bindingsNoGood:
+            # Add side-effects into result
+            
 
             # Add in the preconditions.  We can make new bindings between
             # new and old preconds, but not between new ones!
@@ -1182,8 +1186,7 @@ class Operator(object):
             hNew = hh(newGoal)
             if hNew == float('inf'):
                 # This is hopeless.  Give up now.
-                tr('regression:fail','New goal is infeasible', newGoal,
-                   noLog = True)
+                tr('regression:fail','New goal is infeasible', newGoal)
                 cost = float('inf')
             elif debug('simpleAbstractCostEstimates'):
                 hOrig = hh(goal)
@@ -1289,7 +1292,7 @@ def simplifyCond(oldFs, newFs, details = None):
         if result.isConsistent([f], details):
             result.fluents = addFluentToSetIfNew(result.fluents, f)
     tr('simplifyCond', ('oldFs', oldFs),
-             ('newFs', newFs), ('result', result.fluents), noLog = True)
+             ('newFs', newFs), ('result', result.fluents))
     resultList = list(result.fluents)
     resultList.sort(key = str)
     return tuple(resultList)
@@ -1301,10 +1304,10 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
     def gnb(funs, sofar):
         if funs == []:
             if not tuplify(sofar) in avoid:
-                tr('btbind', 'returning', sofar, noLog = True)
+                tr('btbind', 'returning', sofar)
                 return sofar
             else:
-                tr('btbind', 'hit duplicate', sofar, noLog = True)
+                tr('btbind', 'hit duplicate', sofar)
                 return None
         else:
             f = funs[0]
@@ -1313,7 +1316,7 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
                             start)
             if values == None or values == []:
                 tr('btbind', 'fun failed', f,
-                         [lookup(v, sofar) for v in f.inVars], sofar, noLog = True)
+                         [lookup(v, sofar) for v in f.inVars], sofar)
                 return None
             for val in values:
                 assert len(f.outVars) == len(val)
@@ -1325,7 +1328,7 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
                 result = gnb(funs[1:], sf)
                 if result != None:
                     return result
-            tr('btbind', 'ran out of values', f, sofar, noLog = True)
+            tr('btbind', 'ran out of values', f, sofar)
             return None
 
     funsInOrder = [f for f in functions if \

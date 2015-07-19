@@ -924,9 +924,17 @@ def lookGenTop(args, goalConds, pbs):
             if lookConf:
                 tr(tag, '=> Found a path to look conf with specified base.',
                    ('-> cyan', lookConf.conf),
-                   draw=[(newBS_after, prob, 'W'), (lookConf, 'W', 'cyan', attached)],
+                   draw=[(newBS_after, prob, 'W'),
+                         (lookConf, 'W', 'cyan', attached)],
                    snap=['W'])
-                yield (lookConf,), rm.confViolations(lookConf, newBS_after, prob)
+                yield (lookConf,), rm.confViolations(lookConf, newBS_after,prob)
+            else:
+                tr(tag,
+                   '=> Failed to find path to look conf with specified base.',
+                   ('target conf after look is magenta', confAtTarget.conf),
+                   draw=[(newBS_after, prob, 'W'),
+                         (confAtTarget, 'W', 'magenta', attached)],
+                   snap=['W'])
         return
 
     # Check if the current conf will work for the look
