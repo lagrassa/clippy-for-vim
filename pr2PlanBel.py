@@ -27,6 +27,8 @@ Ident = hu.Transform(np.eye(4))            # identity transform
 # total count, current, cache hits, cache misses, new
 shadowWorldStats = [0, 0, 0, 0, 0]
 
+objShadowStats = [0, 0]
+
 ################################################################
 ## Beliefs about the world
 ## This should be independent of how confs and poses are represented
@@ -533,9 +535,11 @@ class PBS:
                 'gray'
         if shName == True or 'shadow' in shName:
             color = 'gray'
+        objShadowStats[0] += 1
         key = (shape, shName, prob, poseBel, faceFrame)
         shadow = self.beliefContext.objectShadowCache.get(key, None)
         if shadow:
+            objShadowStats[1] += 1
             return shadow
         # Origin * Support = Pose => Origin = Pose * Support^-1
         frame = faceFrame.inverse()     # pose is indentity

@@ -788,8 +788,7 @@ cpdef list thingFaceFrames(np.ndarray[np.float64_t, ndim=2] planes,
     vo = [origin.matrix[:, i][:3] for i in range(4)]
     frames = []
     for f in range(planes.shape[0]):
-        tr = hu.Transform(np.eye(4))
-        mat = tr.matrix
+        mat = np.eye(4)
         z = -planes[f, :3]
         d = -planes[f,3]
         for i in (1, 0, 2):
@@ -801,7 +800,7 @@ cpdef list thingFaceFrames(np.ndarray[np.float64_t, ndim=2] planes,
         p = vo[3] - (np.dot(z,vo[3])+d)*z
         for i, v in enumerate((x, y, z, p)):
             mat[:3,i] = v
-        frames.append(origin.inverse().compose(tr))
+        frames.append(origin.inverse().compose(hu.Transform(mat)))
     return frames
 
 # Writing OFF files for a union of convex prims

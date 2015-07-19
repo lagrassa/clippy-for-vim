@@ -60,6 +60,7 @@ handI = {'left' : 0, 'right' : 1}
 
 tryDirectPath = False
 # canReachHome(conf) returns a path from conf to home!
+
 def primPath(bs, cs, ce, p):
     home = bs.getRoadMap().homeConf
     if tryDirectPath:
@@ -1107,7 +1108,7 @@ def scoreObsObj(details, obs, objct):
     heldLeft = details.pbs.held['left'].mode()
     heldRight = details.pbs.held['right'].mode()
     if objct in (heldLeft, heldRight):
-        return -float(inf), None, None
+        return -float('inf'), None, None
     
     (oType, obsFace, obsPose) = obs
     (obsPoseD, poseFace) = obsDist(details, objct)
@@ -1127,12 +1128,12 @@ def scoreObsObj(details, obs, objct):
     # Type
     if w.getObjType(objct) != oType:
         # noinspection PyUnresolvedReferences
-        return -float(inf), None, None
+        return -float('inf'), None, None
     # Face
     assert symFacesType[poseFace] == poseFace, 'non canonical face in bel'
     if poseFace != canonicalFace:
         # noinspection PyUnresolvedReferences
-        return -float(inf), None, None
+        return -float('inf'), None, None
     # Iterate over symmetries for this object
     # noinspection PyUnresolvedReferences
     bestObs, bestLL = None, -float('inf')

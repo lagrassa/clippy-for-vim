@@ -792,8 +792,8 @@ class RoadMap:
 
     def robotSelfCollide(self, shape, heldDict={}):
         def partDistance(p1, p2):
-            c1 = hu.Point(np.resize(np.hstack([bboxCenter(p1.bbox()), [1]]), (4,1)))
-            c2 = hu.Point(np.resize(np.hstack([bboxCenter(p2.bbox()), [1]]), (4,1)))
+            c1 = p1.origin().point()
+            c2 = p2.origin().point()
             return c1.distance(c2)
         tag = 'robotSelfCollide'
         if glob.inHeuristic: return False
@@ -816,7 +816,7 @@ class RoadMap:
                 if not check in parts: continue
                 checkShape = parts[check]
                 if pShape.collides(checkShape):
-                    print tag, p, 'collides with', check
+                    if debug(tag): print tag, p, 'collides with', check
                     return True
         if heldDict:
             heldParts = [x for x in heldDict.values() if x]

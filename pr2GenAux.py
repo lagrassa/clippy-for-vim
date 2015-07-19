@@ -235,7 +235,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
 
 # Find a path to a conf such that the arm (specified) by hand does not
 # collide with the view cone to the target shape.
-def canView(pbs, prob, conf, hand, shape, maxIter = 50):
+def canView(pbs, prob, conf, hand, shape, shapeShadow = None, maxIter = 50):
     def armShape(c, h):
         parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])
         armShapes = [parts[pbs.getRobot().armChainNames[h]],
@@ -258,7 +258,10 @@ def canView(pbs, prob, conf, hand, shape, maxIter = 50):
             vc.draw('W', 'red')
             conf.draw('W', attached=attached)
             raw_input('ViewCone collision')
-        avoid = shapes.Shape([vc, shape], None)
+        if shapeShadow:
+            avoid = shapes.Shape([vc, shape, shapeShadow], None)
+        else:
+            avoid = shapes.Shape([vc, shape], None)
         pathFull = []
         for h in ['left', 'right']:     # try both hands
             if not vc.collides(armShape(conf, h)): continue
@@ -359,6 +362,7 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None
         yield x
 
 graspConfs = set([])
+
 def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
     robot = pbs.getRobot()
     rm = pbs.getRoadMap()

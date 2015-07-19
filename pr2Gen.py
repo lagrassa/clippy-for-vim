@@ -886,6 +886,12 @@ def lookGenTop(args, goalConds, pbs):
     world = newBS_before.getWorld()
     # mode shape, ignoring variance and delta, use as target shape.
     shapeForLook = placeB_before.shape(shWorld_before)
+    shapeShadow = shWorld_before.objectShapes[shName]
+
+    # newBS.draw(prob, 'W')
+    # shapeForLook.draw('W', 'brown')
+    # shapeShadow.draw('W', 'gray')
+    # raw_input('Me and my shadow')
 
     # Check if conf is specified in goalConds
     goalConf = getConf(goalConds, None)
@@ -913,7 +919,8 @@ def lookGenTop(args, goalConds, pbs):
         if testFn(confAtTarget, shapeForLook, shWorld_before):
             # Modify the lookConf (if needed) by moving arm out of the
             # way of the viewCone.  Use the after shadow.
-            lookConf = lookAtConfCanView(newBS_after, prob, confAtTarget, shapeForLook)
+            lookConf = lookAtConfCanView(newBS_after, prob, confAtTarget,
+                                         shapeForLook, shapeShadow=shapeShadow)
             if lookConf:
                 tr(tag, '=> Found a path to look conf with specified base.',
                    ('-> cyan', lookConf.conf),
@@ -926,7 +933,8 @@ def lookGenTop(args, goalConds, pbs):
     curr = newBS_before.conf
     if testFn(curr, shapeForLook, shWorld_before): # visible?
         # move arm out of the way if necessary, use after shadow
-        lookConf = lookAtConfCanView(newBS_after, prob, curr, shapeForLook)
+        lookConf = lookAtConfCanView(newBS_after, prob, curr,
+                                     shapeForLook, shapeShadow=shapeShadow)
         if lookConf:
             tr(tag, '=> Using current conf.',
                draw=[(newBS_before, prob, 'W'),
@@ -954,7 +962,8 @@ def lookGenTop(args, goalConds, pbs):
                                             goalConds, newBS, onlyCurrent=True):
                     (pB, c, ca) = ans   # pB should be placeB
                     # Modify the approach conf so that robot avoids view cone.
-                    lookConf = lookAtConfCanView(newBS, prob, ca, shape)
+                    lookConf = lookAtConfCanView(newBS, prob, ca,
+                                                 shapeForLook, shapeShadow=shapeShadow)
                     if not lookConf:
                         tr(tag, 'canView failed')
                         continue
@@ -980,7 +989,8 @@ def lookGenTop(args, goalConds, pbs):
             continue
         conf = path[-1]                 # lookConf is at the end of the path
         # Modify the look conf so that robot does not block
-        lookConf = lookAtConfCanView(newBS_before, prob, conf, shapeForLook)
+        lookConf = lookAtConfCanView(newBS_before, prob, conf,
+                                     shapeForLook, shapeShadow=shapeShadow)
         if lookConf:
             tr(tag, '(%s) general conf viol=%s'%(obj, viol.weight() if viol else None),
                ('-> cyan', lookConf.conf),
@@ -993,7 +1003,7 @@ def lookGenTop(args, goalConds, pbs):
 # block the view cone.  It will construct a path from the input conf
 # to the returned lookConf if necessary - the path is not returned,
 # only the final conf.
-def lookAtConfCanView(pbs, prob, conf, shape, hands=('left', 'right')):
+def lookAtConfCanView(pbs, prob, conf, shape, hands=('left', 'right'), shapeShadow=None):
     lookConf = lookAtConf(conf, shape)  # conf with head looking at shape
     if not glob.inHeuristic:            # if heuristic we'll ignore robot
         for hand in hands:              # consider each hand in turn
@@ -1003,7 +1013,7 @@ def lookAtConfCanView(pbs, prob, conf, shape, hands=('left', 'right')):
             # Find path from lookConf to some conf that does not
             # collide with viewCone.  The last conf in the path will
             # be the new lookConf.
-            path = canView(pbs, prob, lookConf, hand, shape)
+            path = canView(pbs, prob, lookConf, hand, shape, shapeShadow=shapeShadow)
             if not path:
                 tr('lookAtConfCanView', 'lookAtConfCanView failed path')
                 return None

@@ -554,7 +554,7 @@ def testHold(hpn = True, skeleton = False, hierarchical = False,
           )
 
 def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-              easy = False, rip = False):
+              easy = False, rip = False, multiplier=6):
 
     glob.rebindPenalty = 100
     glob.monotonicFirst = True
@@ -586,7 +586,7 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
                  fixPoses={'table1': table1Pose},
                  movePoses={'bigA': front},
                  varDict = varDict,
-                 multiplier=1
+                 multiplier=multiplier
                  )
 
     actualSkel = None
@@ -602,7 +602,7 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     return t
 
 def testPush1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-                easy = False, rip = False, multiplier=1):
+                easy = False, rip = False, multiplier=6):
 
     glob.rebindPenalty = 700
     glob.monotonicFirst = True
@@ -615,7 +615,7 @@ def testPush1(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     right2 = hu.Pose(1.5, -0.5, tZ, 0.0)
     left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
     left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
-    coolShelvesPose = hu.Pose(1.5, 0.0, tZ, math.pi/2)
+    coolShelvesPose = hu.Pose(1.4, 0.0, tZ, math.pi/2)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     skel = [[push, moveNB, lookAt, move,

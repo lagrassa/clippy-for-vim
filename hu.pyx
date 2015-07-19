@@ -39,6 +39,7 @@ cdef class Transform:
         else:
             self.q = None
             self.pt = None
+        self.matrix.flags.writeable = False # so we can hash it
 
     cpdef Transform inverse(self):
         """
@@ -169,7 +170,7 @@ cdef class Transform:
         ans = self.near(other, self.eqDistEps, self.eqAngleEps) if op == 2 else False
         return ans
     def __hash__(self):
-        return id(self)
+        return hash(self.matrix.data)
     def __deepcopy__(self):
         return self.__copy__(self)
     def copy(self):

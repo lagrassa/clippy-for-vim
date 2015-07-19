@@ -23,29 +23,35 @@ gripperTip = hu.Pose(0.18,0.0,0.0,0.0)
 gripperToolOffset = numpy.dot(gripperTip.matrix,
                            rotation_matrix(math.pi/2,(0,1,0)))
 
+cdef dict cache = {}
+
+invKinStats = [0, 0]
+
 def armInvKin(chains, arm, torso, target, conf, robot,
               collisionAware = False, returnAll = False):
     name = 'ArmInvKin'
-    armName = 'pr2LeftArm' if arm=='l' else 'pr2RightArm'
-    cfg = conf.copy()             # this will be modified by safeTest
-    def safeTest(armAngles):
-        #if collisionAware:
-        #    cfg[armName] = armAngles
-        #    return wstate.robot.safeConf(cfg, wstate)
-        #else:
-        return True
     # The tool pose relative to the torso frame 
     newHandPoseRel = reduce(numpy.dot, [torso.inverse().matrix,
-                                     target.matrix,
-                                     gripperToolOffset])
-    newArmAngles = pr2KinIKfast(arm, newHandPoseRel, conf[armName],
+                                        target.matrix,
+                                        gripperToolOffset])
+    invKinStats[0] += 1
+    newHandPoseRel.flags.writeable = False
+    armName = 'pr2LeftArm' if arm=='l' else 'pr2RightArm'
+    current = conf[armName]
+    key = (arm, newHandPoseRel.data, current[2], returnAll)
+    if cache.get(key, None) is not None:
+        invKinStats[1] += 1
+        return cache[key]
+    newArmAngles = pr2KinIKfast(arm, newHandPoseRel, current,
                                 chain=chains.chainsByName[armName],
-                                safeTest=safeTest, returnAll=returnAll)
+                                returnAll=returnAll)
     if False:                            # debug
         print 'arm', arm
         print 'newHandPoseRel\n', newHandPoseRel
         print 'current angles', conf[armName]
         print 'IKfast angles:', newArmAngles
+
+    cache[key] = newArmAngles
     return newArmAngles
 
 # This should be in Cython...
@@ -64,11 +70,14 @@ freeKin = createCtypesArr('float', 1)
 solnsKin = createCtypesArr('float', 7*nsolnsKin)
 jtKin = createCtypesArr('float', 7)
 
-cpdef pr2KinIKfast(arm, T, current, chain, safeTest, returnAll = False):
+cdef inline double solnDist(sol1, sol2):
+    return max([abs(hu.angleDiff(th1, th2)) for (th1, th2) in zip(sol1, sol2)])
+
+cdef pr2KinIKfast(arm, T, current, chain, returnAll = False):
     cdef double bestDist = float('inf')
     cdef double dist
     cdef list sols
-    sols = pr2KinIKfastAll(arm, T, current, chain, safeTest)
+    sols = pr2KinIKfastAll(arm, T, current, chain)
     if not sols: return None
     if returnAll:
         return sols
@@ -88,21 +97,17 @@ cpdef pr2KinIKfast(arm, T, current, chain, safeTest, returnAll = False):
             print 'best', prettyString(bestSol)
         return bestSol
 
-cpdef double solnDist(sol1, sol2):
-    return max([abs(hu.angleDiff(th1, th2)) for (th1, th2) in zip(sol1, sol2)])
-
-cdef list collectSafe(int n, chain, safeTest):
+cdef list collectSols(int n, chain):
     cdef int i
     cdef list sols
     sols = []
     for i in range(n):
         sol = solnsKin[i*7 : (i+1)*7]
         if sol and chain.valid(sol):  # inside joint limits
-            if (not safeTest) or safeTest(sol): # doesn't collide
-                sols.append(sol)
+            sols.append(sol)
     return sols
 
-cdef pr2KinIKfastAll(arm, T, current, chain, safeTest):
+cdef pr2KinIKfastAll(arm, T, current, chain):
     cdef int i, j, nsols, n
     cdef double upper, lower, th0, stepSize, step
     cdef list sols
@@ -128,16 +133,11 @@ cdef pr2KinIKfastAll(arm, T, current, chain, safeTest):
         freeKin[0] = th0 + stepsize
         if freeKin[0] <= upper:
             n = solver(transKin, rotKin, freeKin, nsols, solnsKin)
-            # print 'th', th0 + stepsize, 'n', n
             if n > 0:
-                sols.extend(collectSafe(n, chain, safeTest))
-                # if sols: break
+                sols.extend(collectSols(n, chain))
         freeKin[0] = th0 - stepsize
         if freeKin[0] >= lower:
             n = solver(transKin, rotKin, freeKin, nsols, solnsKin)
-            # print 'th', th0 - stepsize, 'n', n
             if n > 0:
-                sols.extend(collectSafe(n, chain, safeTest))
-                # if sols: break
-    # print 'IKFast sols', sols
+                sols.extend(collectSols(n, chain))
     return sols

@@ -411,6 +411,8 @@ class RealWorld(WorldState):
     def executePush(self, op, params, noBase = True):
         # TODO: compute the cartConfs once.
         def moveObj(path, i):
+            # There's a lot of noise in the interpolation, so use the
+            # whole path to get displacement.  Could do it once.
             w1 = path[0].cartConf()[robot.armChainNames[hand]]
             w2 = path[-1].cartConf()[robot.armChainNames[hand]]
             delta = w2.compose(w1.inverse()).pose(0.1)
