@@ -662,19 +662,16 @@ def testPush2(hpn = True, skeleton = False, hierarchical = False,
     right2 = hu.Pose(1.4, -0.5, tZ, 0.0)
     left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
     left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
-    coolShelvesPose = hu.Pose(1.35, 0.0, tZ, math.pi/2)
+    coolShelvesPose = hu.Pose(1.45, 0.0, tZ, math.pi/2)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
-    skel = [[push, moveNB, lookAt, move,
-             push, move],
-             #push, moveNB, lookAt, move],
-            [lookAt, moveNB]]
-
-    skel = [[pick, moveNB, lookAt, move],
+    skel = [[pick, # moveNB, lookAt, push,
+             moveNB, lookAt, move],
             [lookAt, moveNB]]
 
     startPoseA = (1.05, 0.0, tZ, 0.0)
-    startPoseB = (1.1, 0.0, tZ, 0.0)
+    # Have to raise objB so that the forearm does not crash into the table
+    startPoseB = (1.2, 0.0, tZ+0.02, 0.0)
     targetPose = left2.xyztTuple()
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
     goal = State([\
@@ -696,10 +693,10 @@ def testPush2(hpn = True, skeleton = False, hierarchical = False,
                  objects=['table1', 'coolShelves',
                           # 'bigA',
                           'objB'],
-                 fixPoses={'table1' : table1Pose, 'coolShelves': coolShelvesPose},
                  movePoses={'objB': hu.Pose(*startPoseB),
-                            # 'bigA': hu.Pose(*startPoseA),
+                           # 'bigA': hu.Pose(*startPoseA),
                             },
+                 fixPoses={'table1' : table1Pose, 'coolShelves': coolShelvesPose},
                  varDict = varDict,
                  multiplier = multiplier)
 
@@ -709,9 +706,61 @@ def testPush2(hpn = True, skeleton = False, hierarchical = False,
           hierarchical = hierarchical,
           heuristic = heuristic,
           rip = rip,
+          regions=['table1Top']
           )
     return t
 
+def testPush3(hpn = True, skeleton = False, hierarchical = False,
+              heuristic=habbs, easy = False, rip = False, multiplier=6):
+    glob.rebindPenalty = 700
+    glob.monotonicFirst = True
+
+    goalProb, errProbs = (0.5, tinyErrProbs) if easy else (0.95,typicalErrProbs)
+    varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
+               'coolShelves': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
+               'bigA': (0.0001**2, 0.0001**2, 1e-10, 0.001**2),
+               'objB': (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
+    right1 = hu.Pose(1.1, -0.5, tZ, 0.0)
+    right2 = hu.Pose(1.4, -0.5, tZ, 0.0)
+    left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
+    left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
+    coolShelvesPose = hu.Pose(1.3, 0.0, tZ, math.pi/2)
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
+
+    skel = [[pick, # moveNB, lookAt, push,
+             moveNB, lookAt, move],
+            [lookAt, moveNB]]
+
+    startPoseA = (1.05, 0.0, tZ, 0.0)
+    startPoseB = (1.1, 0.15, tZ, 0.0)
+    targetPose = left2.xyztTuple()
+    targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
+    goal = State([\
+                  Bd([SupportFace(['bigA']), 4, goalProb], True),
+                  B([Pose(['bigA', 4]),
+                     targetPose, targetVar, (0.02,)*4,
+                     goalProb], True)])
+
+    t = PlanTest('testPush2',  errProbs, allOperators,
+                 objects=['table1', 'coolShelves',
+                          'bigA',
+                          'objB'],
+                 movePoses={'objB': hu.Pose(*startPoseB),
+                            'bigA': hu.Pose(*startPoseA),
+                            },
+                 fixPoses={'table1' : table1Pose, 'coolShelves': coolShelvesPose},
+                 varDict = varDict,
+                 multiplier = multiplier)
+
+    t.run(goal,
+          hpn = hpn,
+          skeleton = skel if skeleton else None,
+          hierarchical = hierarchical,
+          heuristic = heuristic,
+          rip = rip,
+          regions=['table1Top']
+          )
+    return t
 
 def testSim():
     varDict =  {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),

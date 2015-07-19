@@ -611,7 +611,8 @@ def makeShadow(shape, prob, bel, name=None, color='gray'):
     shColor = shape.properties.get('color', color)
 
     for part in shape.parts():
-        wm.getWindow('W').clear()
+        if debug('getShadowWorld'):
+            wm.getWindow('W').clear()
         shp = []
         for pose in poses:
             shp.append(part.applyTrans(pose))

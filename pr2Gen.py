@@ -1,4 +1,5 @@
 import time
+import pdb
 from fbch import Function
 from dist import DeltaDist
 from pr2Util import supportFaceIndex, shadowWidths
@@ -53,10 +54,12 @@ class EasyGraspGen(Function):
         easyGraspGenCacheStats[0] += 1
         val = cache.get(key, None)
         if val != None:
+            if debug(tag): print tag, 'cached'
             easyGraspGenCacheStats[1] += 1
             cached = 'Cached'
             memo = val.copy()
         else:
+            if debug(tag): print tag, 'new gen'
             memo = Memoizer(tag,
                             easyGraspGenAux(newBS, placeB, graspB, hand, prob))
             cache[key] = memo
@@ -81,6 +84,7 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob):
         viol, reason = canPickPlaceTest(newBS, ca, c, hand, gB, pB, prob, op='pick')
         return viol
 
+    if debug(tag): print 'easyGraspGenAux'
     obj = placeB.obj
     approached = {}
     for gB in graspGen(newBS, obj, graspB):

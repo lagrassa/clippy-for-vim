@@ -1017,3 +1017,34 @@ def cartInterpolatorsAux(c_f, c_i, conf_i, minLength, depth=0):
                 final.append(conf)
                 final.extend(init)
     return final
+
+###################
+# Chain Frames
+##################
+
+# mc is a Multi-Chain, like PR2
+def compileChainFrames(mc):
+    frames = {'root' : (None, None, Ident)}
+    framesList = []
+    for chain in mc.chainsInOrder:
+        base = chain.baseFname
+        assert len(chain.joints) == len(chain.links)
+        qi = 0
+        for joint, link in zip(chain.joints, chain.links):
+            if isinstance(joint, Rigid):
+                framesList.append((joint.name, None))
+            else:
+                framesList.append((joint.name, qi)) # the index into q
+                qi += 1
+            if link and link.parts():
+                frames[joint.name] = (base, joint, link, None)
+            else:
+                frames[joint.name] = (base, joint, None, None)
+    return frames, framesList
+
+def compiledPlacement(conf, frames, frameslist):
+    q = []
+    parts = []
+    for frame, qi in framesList:
+        pass
+        

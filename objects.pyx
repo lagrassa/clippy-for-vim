@@ -273,11 +273,12 @@ cdef class MultiChain:
 
     cpdef placement(self, base, conf, getShapes = True):
         """Returns a shape object given a dictionary of name:jointValues"""
+        if debug('placement'):
+            print ' *Placement*', self.name, 'base=', self.baseFname
         cfg = conf.copy()
         chainShapes = []
         frames = {self.baseFname : base}
         # pr = True if (getShapes and getShapes != True) else False
-        pr = False
         for chain in self.chainsInOrder:
             if getShapes is True:
                 chainShape = getShapes
@@ -285,8 +286,8 @@ cdef class MultiChain:
                 chainShape = chain.name in getShapes
             (sha, trs) = chain.placement(frames[chain.baseFname], cfg[chain.name],
                                          getShapes=chainShape)
-            if pr:
-                print ' **Placement**', chain.name, cfg[chain.name], bool(sha)
+            if debug('placement'):
+                print ' **Placement**', chain.name, cfg[chain.name], bool(sha), 'base=', chain.baseFname
             if sha:
                 chainShapes.append(sha)
             for joint, tr in zip(chain.joints, trs):
@@ -307,7 +308,7 @@ cdef class MultiChain:
             else:
                 chainShape = chain.name in getShapes
             (_, trs) = chain.placementMod(frames[chain.baseFname], cfg[chain.name], part)
-            if pr:
+            if debug('placement'):
                 print ' **Placement**', chain.name, cfg[chain.name]
             for joint, tr in zip(chain.joints, trs):
                 frames[joint.name] = tr
@@ -362,9 +363,11 @@ cdef class Chain:
         frames = [base]                 # list of Transforms
         for joint in self.joints:
             if isinstance(joint, Rigid):
+                if debug('placement'): print 'Rigid', joint
                 frames.append(frames[-1].compose(joint.transform()))
             else:
                 val = jointValues[j]; j += 1
+                if debug('placement'): print 'Joint', joint, 'val=', val
                 if joint.valid(val):
                     frames.append(frames[-1].compose(joint.transform(val)))
                 else:
@@ -634,9 +637,17 @@ cdef class Joint:
         self.normalized = None
 
 cdef class Prismatic(Joint):
-    cpdef transform(self, val):
-        return Transform(np.dot(self.trans.matrix,
-                                     transf.translation_matrix([q*val for q in self.axis])))
+    cpdef np.ndarray matrix(self, val):
+        cdef double v = val
+        cdef list vec = [q*v for q in self.axis]
+        cdef np.ndarray tr = np.array([[1., 0., 0., vec[0]],
+                                       [0., 1., 0., vec[1]],
+                                       [0., 0., 1., vec[2]],
+                                       [0., 0., 0., 1.]],
+                                      dtype=np.float64)
+        return np.dot(self.trans.matrix, tr)
+    cpdef Transform transform(self, val):
+        return Transform(self.matrix(val))
     cpdef bool valid(self, double val):
         cdef double lo, hi
         (lo, hi) = self.limits
@@ -652,29 +663,34 @@ cdef class Revolute(Joint):
     # cpdef transform(self, val):
     #     return Transform(np.dot(self.trans.matrix,
     #                                      transf.rotation_matrix(val, self.axis)))
-    cpdef transform(self, val):
-        cv = math.cos(val); sv = math.sin(val)
-        if self.axis == [0.0, 0.0, 1.0]:
+    cpdef np.ndarray matrix (self, val):
+        cdef double v = val
+        cv = math.cos(v); sv = math.sin(v)
+        if self.axis[2] == 1.0:
             rot = np.array([[cv, -sv, 0., 0.],
                             [sv,  cv, 0., 0.],
                             [0.,  0., 1., 0.],
                             [0.,  0., 0., 1.]],
                            dtype=np.float64)
-        elif self.axis == [0.0, 1.0, 0.0]:
+        elif self.axis[1] == 1.0:
             rot = np.array([[cv,  0., sv, 0.],
                             [0.,  1., 0., 0.],
                             [-sv,  0., cv, 0.],
                             [0.,  0., 0., 1.]],
                            dtype=np.float64)
-        elif self.axis == [1.0, 0.0, 0.0]:
+        elif self.axis[0] == 1.0:
             rot = np.array([[1.,  0., 0., 0.],
                             [0., cv, -sv, 0.],
                             [0., sv,  cv, 0.],
                             [0.,  0., 0., 1.]],
                            dtype=np.float64)
         else:
+            if debug('placement'): print 'general axis', self.axis
             rot = transf.rotation_matrix(val, self.axis)
-        return Transform(np.dot(self.trans.matrix, rot))
+        return np.dot(self.trans.matrix, rot)
+
+    cpdef Transform transform(self, val):
+        return Transform(self.matrix(val))
                                  
     cpdef bool valid(self, double val):
         cdef double lo, hi, vw
@@ -716,7 +732,9 @@ cdef list normalizedAngleLimits(tuple limits):
         raise Exception, 'Bad angle range'
 
 cdef class General(Joint):
-    cpdef transform(self, val):
+    cpdef np.ndarray matrix(self, val):
+        return val.matrix
+    cpdef Transform transform(self, val):
         return Transform(val.matrix)
     cpdef bool valid(self, val):
         return True
@@ -728,7 +746,9 @@ cdef class General(Joint):
 Joint.subClasses['general'] = General
 
 cdef class Rigid(Joint):
-    cpdef transform(self, val=None):
+    cpdef np.ndarray matrix(self, val=None):
+        return self.trans
+    cpdef Transform transform(self, val=None):
         return self.trans
     cpdef bool valid(self, val=None):
         return True

@@ -9,6 +9,8 @@ import xml.etree.ElementTree as ET
 import shapes
 import windowManager as win
 from cpython cimport bool
+from hu cimport Transform
+from hu import Transform
 
 cdef class MultiChain:
      cdef public type, chainsInOrder, chainsByName, fnames, baseFname, name
@@ -65,23 +67,27 @@ cdef class Joint:
      cdef public name, trans, limits, axis, normalized, subclasses, rotMat
 
 cdef class Prismatic(Joint):
-     cpdef transform(self, val)
+     cpdef np.ndarray matrix(self, val)
+     cpdef Transform transform(self, val)
      cpdef bool valid(self, double val)
      cpdef diff(self, a, b)
 
 cdef class Revolute(Joint):
-     cpdef transform(self, val)
+     cpdef np.ndarray matrix(self, val)
+     cpdef Transform transform(self, val)
      cpdef bool valid(self, double val)
      cpdef diff(self, a, b)
 
 cdef list normalizedAngleLimits(tuple limits)
 
 cdef class General(Joint):
-     cpdef transform(self, val)
+     cpdef np.ndarray matrix(self, val)
+     cpdef Transform transform(self, val)
      cpdef bool valid(self, val)
      cpdef diff(self, a, b)
 
 cdef class Rigid(Joint):
-     cpdef transform(self, val=*)
+     cpdef np.ndarray matrix(self, val=*)
+     cpdef Transform transform(self, val=*)
      cpdef bool valid(self, val=*)
      cpdef diff(self, a, b)

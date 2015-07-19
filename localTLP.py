@@ -84,20 +84,40 @@ drawRebindNodes = True
 # if 'h' in pauseOn:
 #     pauseOn.remove('h')
 
-debugOn = ['nonmon', 'skeleton']
-           # 'regression:fail',
-           #'appOp:number'
-           # 'pushPath', 'graspBForContactFrame'
-           #'regression:fail', 'appOp:number', 'regression', 'lookGen',
-           #'canReachHome'
+# debugOn = ['nonmon', 'skeleton', 'easyGraspGen', 'pickGen', 'debugInHeuristic']
+#            # 'regression:fail',
+#            #'appOp:number'
+#            # 'pushPath', 'graspBForContactFrame'
+#            #'regression:fail', 'appOp:number', 'regression', 'lookGen',
+#            #'canReachHome'
+
+# pauseOn = debugOn[:]
+# logOn = debugOn + ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen', 'pushGen',
+#                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen', 'sim']
+                   
+# debugOn.append('h')
+
+# if platform.system() == 'Linux':
+#     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:
+#         if not x in debugOn: debugOn.append(x)
+#         if not x in logOn: debugOn.append(x)
+
+usualTags = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates']
+heuristicTags = ['hAddBack', 'hAddBackV', 'heuristic', 'hAddBackInf',
+                 'debugInHeuristic']
+skeletonTags = ['regression:fail', 'appOp:number']
+traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
+                   'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
+                   'pushGen', 'assign']
+debugOnly = ['h', 'assign']  # don't pause
+
+
+debugOn = usualTags
+# + ['assign', 'pushGenVar'] + heuristicTags
+# ['easyGraspGen', 'applicableOps', 'pickGen', 'regressionFail']
+
 
 pauseOn = debugOn[:]
-logOn = debugOn + ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen', 'pushGen',
-                   'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen', 'sim']
-                   
-debugOn.append('h')
+logOn = debugOn + traceOnly
+debugOn.extend(debugOnly)
 
-if platform.system() == 'Linux':
-    for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:
-        if not x in debugOn: debugOn.append(x)
-        if not x in logOn: debugOn.append(x)
