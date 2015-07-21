@@ -25,13 +25,19 @@ obstCost = 10  # Heuristic cost of moving an object
 ## Fluent definitions
 ################################################################
 
+def graspable(thingName):
+    return thingName[0:3] == 'obj'
+
+def pushable(thingName):
+    return thingName[0:3] == 'obj' or thingName[0:3] == 'big'
+
 class Graspable(Fluent):
     predicate = 'Graspable'
     immutable = True
     # noinspection PyUnusedLocal
     def test(self, details):
         (objName,) = self.args
-        return objName[0:3] == 'obj'
+        return graspable(objName)
 
 class Pushable(Fluent):
     predicate = 'Pushable'
@@ -39,7 +45,7 @@ class Pushable(Fluent):
     # noinspection PyUnusedLocal
     def test(self, details):
         (objName,) = self.args
-        return objName[0:3] == 'obj' or objName[0:3] == 'big'
+        return pushable(objName)
     
 # Assumption is that the robot is holding at most one object, but it
 # could be in either hand.

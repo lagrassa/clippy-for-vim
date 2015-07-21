@@ -16,7 +16,7 @@ from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
      findRegionParent, CanReachNB, BaseConf, BLoc, canReachHome, canReachNB,\
-     Pushable, CanPush, canPush
+     Pushable, CanPush, canPush, graspable, pushable
 from traceFile import debugMsg, debug
 from pr2Push import PushGen
 import pr2RRT as rrt
@@ -958,10 +958,15 @@ def objectObsUpdate(details, lookConf, obsList):
     fixed = [s.name() for s in shWorld.getNonShadowShapes()] + [rob.name()]
     obstacles = shWorld.getNonShadowShapes()
     # Objects that we expect to be visible
+    heldLeft = details.pbs.held['left'].mode()
+    heldRight = details.pbs.held['left'].mode()
+
     objList = [s for s in obstacles \
                if visible(shWorld, lookConf, s, rem(obstacles,s)+[rob], 0.5,
-                          moveHead=False, fixed=fixed)[0]]
-    assert objList, 'Do not expect to see any objects!'
+                          moveHead=False, fixed=fixed)[0] and \
+                  s.name() not in (heldLeft, heldRight)]
+    if len(objList) == 0:
+        trAlways('Do not expect to see any objects!')
     scores = {}
     for obj in objList:
         scores[(obj, None)] = (llMatchThreshold, None, None)
@@ -1696,6 +1701,35 @@ class AchCanPickPlaceGen(Function):
         return achCanXGen(start.pbs, goal, cond, [cppFluent, poseFluent],
                           violFn, prob, tag)
 
+class AchCanPushGen(Function):
+    @staticmethod
+    def fun(args, goal, start):
+        tag = 'canPickPlaceGen'
+        (obj, hand, poseFace, prePose, pose, preConf, pushConf, postConf,
+         poseVar, prePoseVar, poseDelta, prob, cond) = args
+        # Preconditions
+        cpFluent = Bd([CanPush([obj, hand, prePose, pose, preConf,
+                                pushConf, postConf, poseVar, prePoseVar,
+                                poseDelta, cond]), True, prob], True)
+        poseFluent = B([Pose([obj, poseFace]), prePose, prePoseVar,
+                        poseDelta, prob], True)
+
+        # world = start.pbs.getWorld()
+        # graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
+        #                    PoseD(graspMu, graspVar), delta= graspDelta)
+        # placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
+        #                    PoseD(pose, realPoseVar), delta=poseDelta)
+        
+        def violFn(pbs):
+            path, v = canPush(pbs, obj, hand, prePose, pose,
+                                   preConf, pushConf, postConf, prePoseVar,
+                                   poseVar,
+                                   poseDelta, prob, Violations())
+            return v
+        return achCanXGen(start.pbs, goal, cond, [cpFluent, poseFluent],
+                          violFn, prob, tag)
+
+    
 # violFn specifies what we are trying to achieve tries all the ways we
 # know how to achieve it targetFluents are the declarative version of
 # the same condition; would be better if we didn't have to specify it
@@ -1714,6 +1748,7 @@ def achCanXGen(pbs, goal, cond, targetFluents, violFn, prob, tag):
 
         lookG = lookAchCanXGen(newBS, shWorld, viol, violFn, prob)
         placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob, allConds)
+        #pushG = pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
         # prefer looking
         return itertools.chain(lookG, placeG)
     
@@ -1763,12 +1798,14 @@ def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
 def ignore(thing):
     pass
 
+
 def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
     tag = 'placeAchGen'
     obstacles = [o.name() for o in initViol.allObstacles() \
-                  if not o.name() in shWorld.fixedObjects]
+                  if not o.name() in shWorld.fixedObjects and \
+                     graspable(o.name())]
     if not obstacles:
-        tr(tag, 1, '=> No movable obstacles to fix')
+        tr(tag, 1, '=> No pickable obstacles to fix')
         return       # nothing available
 
     moveDelta = newBS.domainProbs.placeDelta
@@ -1806,6 +1843,40 @@ def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
             yield op, newConds
     tr(tag, 1, '=> Out of remedies')
 
+def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
+    tag = 'pushAchGen'
+    obstacles = [o.name() for o in initViol.allObstacles() \
+                  if not o.name() in shWorld.fixedObjects]
+    if not obstacles:
+        tr(tag, 1, '=> No movable obstacles to fix')
+        return       # nothing available
+
+    moveDelta = newBS.domainProbs.placeDelta
+    for obst in obstacles:
+        for r in pushOut(newBS, prob, obst, moveDelta, cond):
+            # TODO for tlp:  need a generator that will return parameters
+            # for a push action that will move obst out of the way.
+            # For now, suggest a pose;  eventually, think about more general
+            # operator that could just clear stuff out of the way.
+
+
+            newConds = frozenset(
+                {Bd([SupportFace([obst]), supportFace, prob], True),
+                 B([Pose([obst, supportFace]), poseMean, poseVar,
+                           moveDelta, prob], True)})
+
+            # Verify that this is helpful
+            resultBS = newBS.conditioned(newConds)
+            resultViol = violFn(resultBS)
+            assert resultViol is not None, 'impossible proposal'
+
+            op = pushOp(obst, r.hand, postPose, supportFace, postPoseVar,
+                         moveDelta, prePose, prePoseVar, preConf, pushConf,
+                         postConf,  'ConfDelta', prob, 'PR1', 'PR2')
+            tr(tag, 1, '=> returning', op)
+            yield op, newConds
+    tr(tag, 1, '=> Out of remedies')
+    
 
 ######################################################################
 #
