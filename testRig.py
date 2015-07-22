@@ -19,7 +19,7 @@ from fbch import State, planBackward, makePlanObj, HPN
 
 import belief
 reload(belief)
-from belief import hAddBackBSetID, B, Bd
+from belief import hAddBackBSet, B, Bd
 
 import pr2Util
 reload(pr2Util)
@@ -118,7 +118,7 @@ def habbs(s, g, ops, ancestors):
     global heuristicTime
     startTime = time.time()
     hops = ops + [hRegrasp]
-    val = hAddBackBSetID(s, g, hops, ancestors, ddPartitionFn = partition,
+    val = hAddBackBSet(s, g, hops, ancestors, ddPartitionFn = partition,
                          maxK = hDepth)
     if val == 0:
         # Just in case the addBack heuristic thinks we're at 0 when
@@ -130,13 +130,14 @@ def habbs(s, g, ops, ancestors):
                                         ddPartitionFn = partition,
                                         maxK = hDepth)
             if newVal >= 0:
-                tr('heuristic0', 'Heuristic cache inconsistent.  Leslie should fix this!', pause = False)
+                tr('heuristic0', 'Heuristic cache inconsistent.'
+                   'Leslie should fix this!')
                 return newVal
             tr('heuristic0', 'habbs is 0 but goal not sat',
-               [thing for thing in g.fluents if not thing.isGround() or s.fluentValue(thing)==False])
+               [thing for thing in g.fluents if not thing.isGround() or \
+                                            s.fluentValue(thing)==False])
             easyVal = hEasy(s, g, ops, ancestors)
-            tr('heuristic0', '*** returning easyVal', easyVal,
-               ol = True)
+            tr('heuristic0', '*** returning easyVal', easyVal)
             return easyVal
     heuristicTime += (time.time() - startTime)
     return val

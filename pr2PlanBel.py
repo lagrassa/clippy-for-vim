@@ -115,24 +115,44 @@ class PBS:
             trAlways('Robot in collision.  Will try to fix.',
                      draw=[(self, 0.0, 'W')], snap=['W'])
             self.ditherRobotOutOfCollision()
+
+
+        # Now, see if the shadow of the object in the hand is colliding.
+        # If so, reduce it.
+        for hand in (0, 1):
+            colls = confViols.heldShadows[hand]
+            while colls:
+                tr('beliefUpdate',
+                   'Shadow of obj in hand.  Will try to fix', hand, colls,
+                    draw = [(self, 0.98, 'W')], snap = ['W'])
+                    # Divide variance in half.  Very crude.  Should find the
+                    # max variance that does not result in a shadow colliion.
+                gB = self.getGraspB(hand)
+                var = gB.poseD.variance()
+                newVar = tuple(v/2.0 for v in var)
+                self.resetGraspB(obj, pB.modifyPoseD(var=newVar))
+                self.reset()
+                confViols = self.beliefContext.roadMap.confViolations(self.conf,
+                                                          self, .98)
+                colls = confViols.heldShadows[h]
+            
         # Now for shadow collisions;  reduce the shadow if necessary
         confViols = self.beliefContext.roadMap.confViolations(self.conf,
                                                           self, .98)
         shadows = confViols.allShadows()
         while shadows:
-            if shadows:
-                tr('beliefUpdate',
+            tr('beliefUpdate',
                    'Robot collides with shadows.  Will try to fix', shadows,
                     draw = [(self, 0.98, 'W')], snap = ['W'])
                     # Divide variance in half.  Very crude.  Should find the
                     # max variance that does not result in a shadow colliion.
-                for sh in shadows:
-                    obj = objectName(sh)
-                    pB = self.getPlaceB(obj)
-                    var = pB.poseD.variance()
-                    newVar = tuple(v/2.0 for v in var)
-                    self.resetPlaceB(obj, pB.modifyPoseD(var=newVar))
-                self.reset()
+            for sh in shadows:
+                obj = objectName(sh)
+                pB = self.getPlaceB(obj)
+                var = pB.poseD.variance()
+                newVar = tuple(v/2.0 for v in var)
+                self.resetPlaceB(obj, pB.modifyPoseD(var=newVar))
+            self.reset()
             confViols = self.beliefContext.roadMap.confViolations(self.conf,
                                                           self, .98)
             shadows = confViols.allShadows()

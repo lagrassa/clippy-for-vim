@@ -86,8 +86,8 @@ visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
 
-usualTags = ['nonmon', 'simpleAbstractCostEstimates',
-             'primitiveHeuristicAlways']
+usualTags = ['nonmon', 'simpleAbstractCostEstimates']
+             #'primitiveHeuristicAlways']
 heuristicTags = ['hAddBack', 'hAddBackV', 'heuristic', 'hAddBackInf',
                  'debugInHeuristic', 'h']
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number']
