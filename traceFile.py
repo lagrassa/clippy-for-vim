@@ -12,27 +12,29 @@ import os
 # tag in a tr statement can be: symbol or (symbol, symbol)
 
 # Return true if this tag should be traced, given a particular list of tags
-def traced(genTag, tags, skip = False):
+def traced(genTag, tags, skip = False, keys = {}):
     return (not skip) and \
-      ((not glob.inHeuristic) or ('debugInHeuristic' in tags)) and \
+      ((not glob.inHeuristic) or ('debugInHeuristic' in tags) or
+       keys.get('h', False)) and \
       (genTag == '*'  or  ('*' in tags) or
-            (genTag in tags) or ((genTag[0], '*') in tags))
+                         (genTag in tags) or ((genTag[0], '*') in tags))
 
 # Always print and log this.  
 def trAlways(*msg, **keys):
     tr('*', *msg, **keys)
 
 # Decide whether to write into log
-def log(tag, skip = False):
-    return traced(tag, glob.logOn, skip)
+def log(tag, **keys):
+    return traced(tag, glob.logOn, False, keys)
 
 # Decide whether to write to tty
-def debug(tag, skip = False):
-    return traced(tag, glob.debugOn, skip)
+def debug(tag, **keys):
+    return traced(tag, glob.debugOn, False, keys)
 
 # Decide whether to pause tty.  Default to no, even if '*'
-def pause(tag, skip=False):
-    return (tag != '*') and traced(tag, glob.pauseOn, skip)
+def pause(tag, **keys):
+    return keys.get('pause', False) or \
+      ((tag != '*') and traced(tag, glob.pauseOn, False, keys))
 
 def debugMsg(tag, *msgs):
     if debug(tag):
@@ -63,6 +65,7 @@ def debugDraw(tag, obj, window, color = None, skip=False):
 #    pause: pauses
 #    ol: write onto single line, if true
 #    skip: skip this whole thing
+#    h: do it in the heuristic 
 
 
 def tr(genTag, *msg, **keys):
@@ -75,16 +78,14 @@ def tr(genTag, *msg, **keys):
     else:
         targetFile = None
 
-    doLog = log(genTag)
-    doDebug = debug(genTag)
-    doPause = keys['pause'] if ('pause' in keys) else pause(genTag)
+    doLog = log(genTag, **keys)
+    doDebug = debug(genTag, **keys)
+    doPause = pause(genTag, **keys)
     ol = keys.get('ol', True)
     tagStr = '' if genTag == '*' else genTag+': '
 
     # Logging text
     if doLog and msg and targetFile:
-        # targetFile.write('<pre>'+' '+\
-        #                  '(%d)%s'%(glob.planNum, tagStr)+ ': ')
         targetFile.write('<pre>'+tagStr)
         terminator = ' ' if ol else '\n    '
         for m in msg:

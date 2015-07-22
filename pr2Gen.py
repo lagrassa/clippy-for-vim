@@ -25,7 +25,7 @@ class EasyGraspGen(Function):
         graspDelta = 4*(0.001,)            # put back to prev value
 
         pbs = bState.pbs.copy()
-        (obj, hand) = args
+        (obj, hand, face, grasp) = args
         assert obj != None and obj != 'none'
         tr(tag, '(%s,%s) h=%s'%(obj,hand,glob.inHeuristic))
         if obj == 'none' or (goalConds and getConf(goalConds, None)):
@@ -50,7 +50,7 @@ class EasyGraspGen(Function):
         graspB = ObjGraspB(obj, pbs.getWorld().getGraspDesc(obj), None,
                            PoseD(None, graspVar), delta=graspDelta)
         cache = pbs.beliefContext.genCaches[tag]
-        key = (newBS, placeB, graspB, hand, prob)
+        key = (newBS, placeB, graspB, hand, prob, face, grasp)
         easyGraspGenCacheStats[0] += 1
         val = cache.get(key, None)
         if val != None:
@@ -61,7 +61,8 @@ class EasyGraspGen(Function):
         else:
             if debug(tag): print tag, 'new gen'
             memo = Memoizer(tag,
-                            easyGraspGenAux(newBS, placeB, graspB, hand, prob))
+                            easyGraspGenAux(newBS, placeB, graspB, hand, prob,
+                                            face, grasp))
             cache[key] = memo
             cached = ''
         for ans in memo:
@@ -70,7 +71,7 @@ class EasyGraspGen(Function):
         tr(tag, '(%s,%s)='%(obj, hand)+'=> out of values')
         return
 
-def easyGraspGenAux(newBS, placeB, graspB, hand, prob):
+def easyGraspGenAux(newBS, placeB, graspB, hand, prob, oldFace, oldGrasp):
     tag = 'easyGraspGen'
 
     def graspApproachConfGen(firstConf):
@@ -99,8 +100,13 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob):
             viol = pickable(ca, approached[ca], placeB, gB)
             if viol:
                 tr(tag, 'pickable')
-                yield Response(placeB, gB, approached[ca], ca, viol, hand)
-                break
+                ans = Response(placeB, gB, approached[ca], ca, viol, hand)
+                (newFace, newMode, newVar, newDelta) = ans.easyGraspTuple()
+                if newFace != oldFace or newMode != oldGrasp:
+                    yield ans
+                    break
+                else:
+                    tr(tag, 'Rejected because same', str(ans))
             else:
                 tr(tag, 'not pickable')
 

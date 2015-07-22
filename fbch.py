@@ -138,7 +138,6 @@ class State:
             self.details.propagate()
         self.details.draw() # show new belief
         self.flushCache() # get rid of memorized fluent values
-        hCacheReset() # flush heuristic values
 
     def addSet(self, newFs, moreDetails = None, noBindings = False):
         details = self.details or moreDetails
@@ -955,11 +954,9 @@ class Operator(object):
         tr('regression:bind', 'getting new bindings',
                  self.functions, goal.fluents, ('result', newBindings))
         if newBindings == None:
-            if not glob.inHeuristic or debug('debugInHeuristic'):
-                tr('regression:fail', self, 'could not get bindings',
+            tr('regression:fail', self, 'could not get bindings',
                      'h = '+str(glob.inHeuristic))
-            if debug('regression:fail') and \
-                    (not glob.inHeuristic or debug('debugInHeuristic')):
+            if debug('regression:fail'):
                 glob.debugOn = glob.debugOn + ['btbind']
                 newBindings = btGetBindings(necessaryFunctions,
                                             goal.fluents,
@@ -981,8 +978,8 @@ class Operator(object):
             # side-effect this goal.  Is that okay?  Will it work?
             preCond = None
             for k in newBindings.keys():
-                if k[:7] == 'PreCond': preCond = newBindings[k]
-            goal.addSet(preCond)
+                if k[:7] == 'NewCond': newCond = newBindings[k]
+            goal.addSet(newCond)
 
             # Set abstraction level for mop
             mop.setAbstractionLevel(ancestors)
@@ -1018,9 +1015,7 @@ class Operator(object):
 
         # Be sure the result is consistent
         if not goal.isConsistent(boundResults, startState.details):
-            if not glob.inHeuristic or debug('debugInHeuristic'):
-                tr('regression:fail', self,
-                         'results inconsistent with goal')
+            tr('regression:fail', self, 'results inconsistent with goal')
             # This is not a fatal flaw;  just a problem with these bindings
             return []
 
@@ -1087,10 +1082,7 @@ class Operator(object):
                 else:
                     nf = gf.copy()
                 if nf == None:
-                    if not glob.inHeuristic or debug('debugInHeuristic'):
-                        tr('*', 'special regression fail; h =',
-                           glob.inHeuristic)
-                        tr('regression:fail', 'special regress failure')
+                    tr('regression:fail', 'special regress failure')
                     return []
                 newFluents.append(nf)
 
@@ -1207,7 +1199,7 @@ class Operator(object):
                 # This is hopeless.  Give up now.
                 tr('regression:fail','New goal is infeasible', newGoal)
                 cost = float('inf')
-            elif debug('simpleAbstractCostEstimates'):
+            elif debug('simpleAbstractCostEstimates', h = True):
                 hOrig = hh(goal)
                 cost = hOrig - hNew
                 if cost <= 0:
@@ -1226,8 +1218,7 @@ class Operator(object):
                 if len(primOpRegr) < 2:
                     # Looks good abstractly, but can't apply concrete op
                     # Try other ops!
-                    if not glob.inHeuristic or debug('debugInHeuristic'):
-                        tr('infeasible', 'Concrete op not applicable',
+                    tr('infeasible', 'Concrete op not applicable',
                                  primOp, goal)
                     cost = float('inf')
                 else:
@@ -1276,16 +1267,14 @@ class Operator(object):
                             if cost < float('inf'): break
                         if cost < float('inf'): break
 
-        if not glob.inHeuristic or debug('debugInHeuristic') and debug(tag):
-            tr(tag, 'Final regression result', ('Op', self),
+        tr(tag, 'Final regression result', ('Op', self),
                      ('cost', cost),
                      ('goal',  goal.prettyString(False, startState)),
                      ('newGoal', newGoal.prettyString(False, startState)))
 
         rebindLater.suspendedOperator.instanceCost = rebindCost
         if cost == float('inf'):
-            if not glob.inHeuristic or debug('debugInHeuristic'):
-                tr('regression:fail', 'infinite cost', self)
+            tr('regression:fail', 'infinite cost', self)
             return [[rebindLater, rebindCost]]
         newGoal.operator.instanceCost = cost
 
@@ -1597,7 +1586,7 @@ def executePrim(op, s, env, f = None):
     # necessary from belief.details and store it in the prim.
     params = op.evalPrim(s.details)
     # Print compactly unless we are debugging
-    trAlways('PRIM:', op.prettyString(eq = debug('prim')), pause = False)
+    trAlways('PRIM:', op.prettyString(eq = debug('prim')))
     tr('prim', 'params', params)
     writePrimRefinement(f, op)
     obs = env.executePrim(op, params)
@@ -2096,6 +2085,7 @@ def getGrounding(fluents, details):
 def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
                     lastOp, nonMonOps, heuristic, h, visitF, expandF,
                     prevExpandF, maxCost, maxNodes = 500):
+    hCacheReset()   # flush heuristic values
     p, c =  ucSearch.search(goal,
                            lambda subgoal: startState.satisfies(subgoal),
                            lambda g: applicableOps(g, ops,
@@ -2138,8 +2128,6 @@ def planBackward(startState, goal, ops, ancestors = [],
     else:
         heuristic = lambda g: 0
 
-    hCacheReset() # flush heuristic values
-
     if fileTag:
         visitF = lambda s1, c1, h1, a, s2, c2, h2: \
                            visitTrace(f1, s1, c1, h1, a,
@@ -2173,7 +2161,6 @@ def planBackward(startState, goal, ops, ancestors = [],
         # Now try non-monotonic
         if fileTag:
             (f1, f2) = writeSearchPreamble(goal.planNum, fileTag+'NonMon')
-        hCacheReset() # flush heuristic values
         (p, c) = planBackwardAux(goal, startState, ops, ancestors, skeleton,
                                  False, lastOp, nonMonOps, heuristic, h,
                                  visitF, expandF, prevExpandF, float('inf'),

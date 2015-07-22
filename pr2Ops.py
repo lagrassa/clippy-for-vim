@@ -756,8 +756,8 @@ def moveNBCostFun(al, args, details):
 
 # noinspection PyUnusedLocal
 def placeCostFun(al, args, details):
-    rawCost = 3
-    abstractCost = 5
+    rawCost = 10
+    abstractCost = 20
     (_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,p1) = args
     result = costFun(rawCost,
                      p1*canPPProb*(1-details.domainProbs.placeFailProb)) + \
@@ -1988,7 +1988,8 @@ hRegrasp = Operator(
             RegressProb(['P2'], ['PR2'],pn = 'pickFailProb'),
             RegressProb(['P3'], ['PR3'], pn = 'pickFailProb'),
             EasyGraspGen(['PrevGraspFace', 'PrevGraspMu', 'PrevGraspVar',
-                          'PrevGraspDelta'],['Obj', 'Hand']),
+                          'PrevGraspDelta'],['Obj', 'Hand', 'GraspFace',
+                                             'GraspMu']),
             # Only use to change grasp.
             NotEqual([], ['GraspMu', 'GraspFace', 'GraspVar',
                           'PrevGraspMu', 'PrevGraspFace', 'PrevGraspVar'])],

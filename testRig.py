@@ -112,7 +112,7 @@ def hEasy(s, g, ops, ancestors):
 
 heuristicTime = 0.0
 
-hDepth = 5
+hDepth = 10
 
 def habbs(s, g, ops, ancestors):
     global heuristicTime
@@ -716,6 +716,7 @@ class PlanTest:
         if not goal: return
 
         s = State([], details = self.bs)
+        
         try:
             traceStart(self.name)
             print '**************', self.name,\
