@@ -194,8 +194,9 @@ class RealWorld(WorldState):
         if noBase:
             startConf = op.args[0]
             targetConf = op.args[1]
-            assert max([abs(a-b) for (a,b) \
-                        in zip(self.robotConf.conf['pr2Base'], targetConf.conf['pr2Base'])]) < 1.0e-6
+            if max([abs(a-b) for (a,b) \
+                    in zip(self.robotConf.conf['pr2Base'], targetConf.conf['pr2Base'])]) > 1.0e-6:
+                print '****** The base moved in MoveNB, probably to an earlier collision fix'
 
         if params:
             path, interpolated, _  = params

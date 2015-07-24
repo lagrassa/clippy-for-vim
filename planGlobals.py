@@ -46,6 +46,10 @@ approachPerpBackoff = 0.025
 
 inHeuristic = False
 
+useCC = True                            # Use compiled chains collision checks
+skipSearch = False                       # Don't plan paths except for prims
+
+
 ########################################
 # Robot Parameters
 ########################################

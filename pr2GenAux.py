@@ -96,6 +96,7 @@ ppConfs = {}
 def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
                      op='pick', quick = False):
     obj = objGrasp.obj
+    collides = pbs.getRoadMap().checkRobotCollision
     if debug('canPickPlaceTest'):
         print zip(('preConf', 'ppConf', 'hand', 'objGrasp', 'objPlace', 'p', 'pbs'),
                   (preConf, ppConf, hand, objGrasp, objPlace, p, pbs))
@@ -123,7 +124,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
             for c in path: c.draw('W', attached = pbs1.getShadowWorld(p).attached)
             debugMsg('canPickPlaceTest', 'path 1')
 
-    preConfShape = preConf.placement(attached = pbs1.getShadowWorld(p).attached)
+    # preConfShape = preConf.placement(attached = pbs1.getShadowWorld(p).attached)
     objShadow = objPlace.shadow(pbs1.getShadowWorld(p))
     # Check visibility at preConf (for pick)
     if op=='pick' and not (glob.inHeuristic or quick):
@@ -164,19 +165,19 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         tableB = findSupportTableInPbs(pbs1, objPlace.obj) # use pbs1 so obj is there
         assert tableB
         if debug('canPickPlaceTest'): print 'Looking at support for', obj, '->', tableB.obj
-        preConfShape = preConf.placement(attached = pbs2.getShadowWorld(p).attached)
-        ppConfShape = ppConf.placement() # no attached
         lookDelta = pbs2.domainProbs.minDelta
         lookVar = pbs2.domainProbs.obsVarTuple
         tableB2 = tableB.modifyPoseD(var = lookVar)
         tableB2.delta = lookDelta
         prob = 0.95
         shadow = tableB2.shadow(pbs2.updatePermObjPose(tableB2).getShadowWorld(prob))
-        if preConfShape.collides(shadow):
+        if collides(preConf, shadow, attached = pbs2.getShadowWorld(p).attached):
+            preConfShape = preConf.placement(attached = pbs2.getShadowWorld(p).attached)
             pbs2.draw(p, 'W'); preConfShape.draw('W', 'cyan'); shadow.draw('W', 'cyan')
             raw_input('Preconf collides for place in canPickPlaceTest')
             return None, 'Support shadow collision'
-        if ppConfShape.collides(shadow):
+        if collides(ppConf, shadow): # ppConfShape.collides(shadow):
+            ppConfShape = ppConf.placement() # no attached
             pbs2.draw(p, 'W'); ppConfShape.draw('W', 'magenta'); shadow.draw('W', 'magenta')
             raw_input('PPconf collides for place in canPickPlaceTest')
             return None, 'Support shadow collision'
@@ -243,12 +244,14 @@ def canView(pbs, prob, conf, hand, shape, shapeShadow = None, maxIter = 50):
         if attached[h]:
             armShapes.append(parts[attached[h].name()])
         return shapes.Shape(armShapes, None)
+    collides = pbs.getRoadMap().checkRobotCollision
+    robot = pbs.getRobot()
     vc = viewCone(conf, shape)
     if not vc: return None
     shWorld = pbs.getShadowWorld(prob)
     attached = shWorld.attached
-    confPlace = conf.placement(attached=attached)
-    if not vc.collides(confPlace):
+    # confPlace = conf.placement(attached=attached)
+    if not collides(conf, vc, attached=attached): # vc.collides(confPlace):
         if debug('canView'):
             print 'canView - no view cone collision'
         return [conf]
@@ -264,13 +267,16 @@ def canView(pbs, prob, conf, hand, shape, shapeShadow = None, maxIter = 50):
             avoid = shapes.Shape([vc, shape], None)
         pathFull = []
         for h in ['left', 'right']:     # try both hands
-            if not vc.collides(armShape(conf, h)): continue
+            chainName = robot.armChainNames[h]
+            armChains = [chainName, robot.gripperChainNames[h]]
+            if not collides(conf, vc, attached, armChains):  # vc.collides(armShape(conf, h)):
+                continue
             if debug('canView'):
                 print 'canView collision with', h, 'arm', conf['pr2Base']
-            chainName = pbs.getRobot().armChainNames[h]
             path, viol = planRobotGoalPath(pbs, prob, conf,
-                                           lambda c: not avoid.collides(armShape(c,h)), None,
-                                           [chainName], maxIter = maxIter)
+                                           lambda c: not (collides(c, avoid, attached, armChains) \
+                                                          if glob.useCC else avoid.collides(armShape(c,h))),
+                                           None, [chainName], maxIter = maxIter)
             if debug('canView'):
                 pbs.draw(prob, 'W')
                 if path:
@@ -840,7 +846,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     ff = placeB.faceFrames[placeB.support.mode()]
     shWorld = pbs.getShadowWorld(prob)
     
-    objShadow = pbs.objShadow(obj, True, prob, placeB, ff)
+    objShadow = pbs.objShadow(obj, shadowName(obj), prob, placeB, ff)
     if placeB.poseD.mode():
         tr('potentialRegionPoseGen', 'pose specified', placeB.poseD.mode(),
            ol = True)

@@ -1,3 +1,5 @@
+import pdb
+
 """
 Procedures and classes for doing uniform cost search, always with
 dynamic programming.  Becomes A* if a heuristic is specified.
@@ -193,6 +195,7 @@ def search(initialState, goalTest, actions, successor,
 
         if somewhatVerbose or verbose or count >= maxNodes:
             print "Search failed after visiting ", count, " states."
+            pdb.set_trace()
 
         return None, None
 
@@ -329,6 +332,7 @@ def searchGen(initialState, goalStates, actions, successor,
     if somewhatVerbose or verbose or count >= maxNodes or countExpanded >= maxExpanded:
         print "Search failed after visiting ", count, " states."
         # raw_input('Too many nodes')
+        pdb.set_trace()
 
     yield None, None
 

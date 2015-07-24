@@ -8,6 +8,7 @@ import transformations as transf
 from transformations import quaternion_slerp
 import numpy as np
 from collections import deque
+from collections import OrderedDict
 
 import shapes
 import cspace
@@ -23,7 +24,10 @@ from traceFile import debugMsg, debug
 
 from pr2IkPoses import ikTrans          # base poses for IK
 
+from gjk import frameBBoxRad, chainBBoxes
 from pr2InvKin import armInvKin
+from geom import vertsBBox
+import windowManager3D as wm
 
 # # We need this for inverse kinematics
 # from ctypes import *
@@ -455,6 +459,7 @@ def printStats():
 
 # This basically implements a Chain type interface, execpt for the wstate
 # arguments to the methods.
+robotIdCount = 0
 class PR2:
     def __init__(self, name, chains, color = pr2Color):
         self.chains = chains
@@ -483,8 +488,11 @@ class PR2:
                                 'right': [flipv(p).inverse() for p in verticalTrans]}
         self.confCache = {}
         self.confCacheKeys = deque([])  # in order of arrival
+        self.compiledChains = compileChainFrames(self)
         if debug('PR2'): print 'New PR2!'
-        return
+        global robotIdCount
+        self.robotId = robotIdCount
+        robotIdCount += 1
 
     def cacheReset(self):
         self.confCache = {}
@@ -713,8 +721,8 @@ class PR2:
         for chainName in self.chainNames if forward else self.chainNames[::-1]:
             if not chainName in moveChains or \
                q_f[chainName] == q_i[chainName]: continue
-            jv = self.chains.chainsByName[chainName].stepAlongLine(q_f[chainName],
-                                                                   q_i[chainName],
+            jv = self.chains.chainsByName[chainName].stepAlongLine(list(q_f[chainName]),
+                                                                   list(q_i[chainName]),
                                                                    stepSize)
             return q.set(chainName, jv) # only move one chain at a time...
         return q_i
@@ -773,7 +781,7 @@ class PR2:
             if fail: raise Exception, 'Failed invkin for base'
             conf = conf.set('pr2Base', None)
         else:
-            conf = conf.set('pr2Base', baseAngles)
+            conf = conf.set('pr2Base', list(baseAngles))
         # First, pick a torso value, since that affects hands and head.
         if 'pr2Torso' in cart.conf:
             torsoZ = cart['pr2Torso'][0]
@@ -1021,30 +1029,139 @@ def cartInterpolatorsAux(c_f, c_i, conf_i, minLength, depth=0):
 ###################
 # Chain Frames
 ##################
+inf = float('inf')
+class ChainFrame:
+    def __init__(self, base=None, joint=None, qi=None, link=None,
+                 linkVerts=None, frame=None, bbox = None):
+        self.base = base
+        self.joint = joint
+        self.qi = qi
+        self.link = link
+        self.linkVerts = linkVerts
+        self.frame = frame
+        # Radius squared for the link
+        self.radius = vertsRadius(linkVerts) if linkVerts else None
+        self.bbox = bbox
 
-# mc is a Multi-Chain, like PR2
-def compileChainFrames(mc):
-    frames = {'root' : (None, None, Ident)}
+    def draw(self, win='W', color='magenta'):
+        window = wm.getWindow(win)
+        for v in self.linkVerts:
+            verts = np.vstack([v.T, np.ones(v.shape[0])])
+            window.draw(np.dot(self.frame, verts), color=color)
+    def __str__(self):
+        if self.joint: name=joint.name
+        elif self.link: name=link.name()
+        else: name=self.base
+        return 'ChainFrame(%s)'%name
+
+def vertsRadius(linkVerts):
+    radSq = 0.0
+    for verts in linkVerts:
+        for i in xrange(verts.shape[0]):
+            radSq = max(radSq, verts[i,0]*verts[i,0] + verts[i,1]*verts[i,1] +  verts[i,2]*verts[i,2] )
+    return math.sqrt(radSq)
+
+def linkVerts(link, rel=False):
+    verts = []
+    # print 'link origin\n', link.origin().matrix
+    for prim in link.toPrims():
+        if rel:
+            # Attached objects are already relative to link frame
+            off = prim.origin()
+            verts.append(np.ascontiguousarray(np.dot(off.matrix,
+                                                     prim.basePrim.baseVerts)[:3,:].T,
+                                              dtype=np.double))
+        else:
+            off = link.origin().inverse().compose(prim.origin())
+            verts.append(np.ascontiguousarray(np.dot(off.matrix,
+                                                     prim.basePrim.baseVerts)[:3,:].T,
+                                              dtype=np.double))
+    return verts
+
+# Compiles a Multi-Chain, like PR2
+# frames is a dictionary of frameName : [base, joint...]
+# framesList is a sequential list of frameNames, order matters
+# chainNames is dictionary chainName : list of frame names in chain
+# frameChain is dictionary frameName : chainName it belongs to
+# chain
+def compileChainFrames(robot):
+    allChains = OrderedDict()
+    frameChain = {}
+    frames = {'root' : ChainFrame(frame=Ident.matrix)}
     framesList = []
-    for chain in mc.chainsInOrder:
+    qi = 0
+    for chain in robot.chains.chainsInOrder:
         base = chain.baseFname
         assert len(chain.joints) == len(chain.links)
-        qi = 0
+        chainFrames = []
         for joint, link in zip(chain.joints, chain.links):
+            framesList.append(joint.name)
+            chainFrames.append(joint.name)
+            frameChain[joint.name] = chain.name # reverse index
             if isinstance(joint, Rigid):
-                framesList.append((joint.name, None))
+                index = None
             else:
-                framesList.append((joint.name, qi)) # the index into q
+                index = qi
                 qi += 1
             if link and link.parts():
-                frames[joint.name] = (base, joint, link, None)
+                frames[joint.name] = ChainFrame(base, joint, index, link, linkVerts(link),
+                                                bbox=maxBBox)
             else:
-                frames[joint.name] = (base, joint, None, None)
-    return frames, framesList
+                frames[joint.name] = ChainFrame(base, joint, index)
+            base = joint.name
+        allChains[chain.name] = chainFrames
 
-def compiledPlacement(conf, frames, frameslist):
-    q = []
-    parts = []
-    for frame, qi in framesList:
-        pass
-        
+    return frames, framesList, allChains, frameChain
+
+inf = float('inf')
+maxBBox = np.array(((-inf,-inf,-inf),(inf,inf,inf)))
+
+att_framesList = ['attached']
+att_allChains = {'left': OrderedDict([('pr2LeftArm', ['attached'])]),
+                 'right': OrderedDict([('pr2RightArm', ['attached'])])}
+att_frameChain = {'left': {'attached': 'pr2LeftArm'},
+                 'right': {'attached': 'pr2RightArm'}}
+ 
+attachedFramesCache = {}
+attachedFramesCacheStats = [0,0]
+def compileAttachedFrames(robot, attached, hand, robotFrames, pred=None):
+    if (not attached) or (not attached[hand]): return None
+    attachedFramesCacheStats[0] += 1
+    wristFrame = robot.wristFrameNames[hand]
+    attFrame = robotFrames[wristFrame].frame
+    attFrame.flags.writeable = False
+    key = (frozenset(attached.items()), hand, attFrame.data)
+    if key in attachedFramesCache:
+        attachedFramesCacheStats[1] += 1
+        return attachedFramesCache[key]
+    contents = attached[hand]
+    if pred:
+        contents = pred(contents)
+    entry = ChainFrame(base=wristFrame, link=contents,
+                       linkVerts=linkVerts(contents, rel=True),
+                       frame=attFrame)
+    entry.bbox = frameBBoxRad(entry)
+    frames = {'attached': entry}
+    ans = frames, att_framesList, att_allChains[hand], att_frameChain[hand]
+    attachedFramesCache[key] = ans
+    return ans
+
+objectFramesCache = {}
+objectFramesCacheStats = [0,0]
+def compileObjectFrames(objShape):
+    objectFramesCacheStats[0] += 1
+    if objShape in objectFramesCache:
+        objectFramesCacheStats[1] += 1
+        return objectFramesCache[objShape]
+    allChains = OrderedDict()
+    frameChain = {}
+    obj = objShape.name()
+    origin = np.ascontiguousarray(objShape.origin().matrix, dtype=np.double)
+    frames = {obj : ChainFrame(link=objShape, linkVerts=linkVerts(objShape),
+                               frame=origin, bbox=objShape.bbox())}
+    framesList = [obj]
+    allChains[obj] = [obj]
+    frameChain[obj] = obj
+    ans = frames, framesList, allChains, frameChain
+    objectFramesCache[objShape] = ans
+    return ans

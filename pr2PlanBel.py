@@ -1,4 +1,4 @@
-#import pdb
+import pdb
 import numpy as np
 import math
 import windowManager3D as wm
@@ -87,65 +87,72 @@ class PBS:
 
     def ditherRobotOutOfCollision(self):
         count = 0
-        confViols = self.beliefContext.roadMap.confViolations(self.conf,
-                                                              self, 0.)
+        rm = self.beliefContext.roadMap
+        confViols = rm.confViolations(self.conf, self, 0.)
         while count < 100 and (confViols is None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]):
             count += 1
-            self.draw(0.0, 'W')
-            raw_input('go?')
+            if debug('dither'):
+                self.draw(0.0, 'W')
+                raw_input('go?')
             base = self.conf['pr2Base']
             # Should consider motions in both positive and negative directions
             # It won't wonder away too far... TLP
             newBase = tuple([b + (random.random() - 0.5) * 0.05 for b in base])
             newConf = self.conf.set('pr2Base', newBase)
             self.updateConf(newConf)
-            confViols = self.beliefContext.roadMap.confViolations(self.conf,
-                                                              self, 0.)
+            confViols = rm.confViolations(self.conf, self, 0.)
         if count == 100:
             raise Exception, 'Failed to move robot out of collision'
 
     def internalCollisionCheck(self):
         ws = self.getShadowWorld(0.0)   # minimal shadow
+        rm = self.beliefContext.roadMap
         # First check the robot for hard collisions
-        confViols = self.beliefContext.roadMap.confViolations(self.conf,
-                                                              self, 0.)
+        confViols = rm.confViolations(self.conf, self, 0.)
         if confViols is None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]:
-            trAlways('Robot in collision.  Will try to fix.',
+            tr('dither', 'Robot in collision.  Will try to fix.',
                      draw=[(self, 0.0, 'W')], snap=['W'])
             self.ditherRobotOutOfCollision()
-
+            confViols = rm.confViolations(self.conf, self, 0.)
 
         # Now, see if the shadow of the object in the hand is colliding.
         # If so, reduce it.
-        for hand in (0, 1):
-            colls = confViols.heldShadows[hand]
+        for h in (0, 1):
+            colls = confViols.heldShadows[h]
+            hand = ('left', 'right')[h]
+            count = 0
             while colls:
+                count += 1
                 tr('beliefUpdate',
                    'Shadow of obj in hand.  Will try to fix', hand, colls,
                     draw = [(self, 0.98, 'W')], snap = ['W'])
-                    # Divide variance in half.  Very crude.  Should find the
-                    # max variance that does not result in a shadow colliion.
+                # Divide variance in half.  Very crude.  Should find the
+                # max variance that does not result in a shadow colliion.
+                if count > 10:
+                    assert None, 'Could not reduce grasp shadow after 10 attempts'
                 gB = self.getGraspB(hand)
                 var = gB.poseD.variance()
                 newVar = tuple(v/2.0 for v in var)
-                self.resetGraspB(obj, pB.modifyPoseD(var=newVar))
+                self.resetGraspB(obj, hand, gB.modifyPoseD(var=newVar))
                 self.reset()
-                confViols = self.beliefContext.roadMap.confViolations(self.conf,
-                                                          self, .98)
+                confViols = rm.confViolations(self.conf, self, .98)
                 colls = confViols.heldShadows[h]
             
         # Now for shadow collisions;  reduce the shadow if necessary
-        confViols = self.beliefContext.roadMap.confViolations(self.conf,
-                                                          self, .98)
+        confViols = rm.confViolations(self.conf, self, .98)
         shadows = confViols.allShadows()
+        count = 0
         while shadows:
+            count += 1
             tr('beliefUpdate',
                    'Robot collides with shadows.  Will try to fix', shadows,
                     draw = [(self, 0.98, 'W')], snap = ['W'])
-                    # Divide variance in half.  Very crude.  Should find the
-                    # max variance that does not result in a shadow colliion.
+            # Divide variance in half.  Very crude.  Should find the
+            # max variance that does not result in a shadow colliion.
+            if count > 10:
+                assert None, 'Could not reduce shadow after 10 attempts'
             for sh in shadows:
                 obj = objectName(sh)
                 pB = self.getPlaceB(obj)
@@ -153,8 +160,7 @@ class PBS:
                 newVar = tuple(v/2.0 for v in var)
                 self.resetPlaceB(obj, pB.modifyPoseD(var=newVar))
             self.reset()
-            confViols = self.beliefContext.roadMap.confViolations(self.conf,
-                                                          self, .98)
+            confViols = rm.confViolations(self.conf, self, .98)
             shadows = confViols.allShadows()
 
         # Finally, look for object-object collisions
@@ -223,6 +229,11 @@ class PBS:
             return self.defaultGraspB(obj)
         else:
             return None
+    def resetGraspB(self, obj, hand, gB):
+        if obj == self.held[hand].mode():
+            self.graspB[hand] = gB
+        else:
+            assert None, 'Object does not match grasp in resetGraspB'
     def defaultGraspB(self, obj):
         desc = self.getWorld().getGraspDesc(obj)
         return ObjGraspB(obj, desc, UniformDist(range(len(desc))), Ident, 4*(100.0,))
@@ -361,7 +372,8 @@ class PBS:
         elif obj in self.fixObjBs:
             self.fixObjBs[obj] = objPlace
         else:
-            assert None
+            # Must be in the hand...
+            pass
         self.reset()
 
     def excludeObjs(self, objs):
@@ -446,7 +458,7 @@ class PBS:
         else:
             cache = self.beliefContext.genCaches['getShadowWorld']
             # key = (self.items(), prob)
-            key = self                  # just the pbs
+            key = self.items()
             if key in cache:
                 ans = cache.get(key, None)
                 if ans != None:
@@ -553,10 +565,13 @@ class PBS:
         color = shape.properties.get('color', None) or \
                 (shape.parts() and [s.properties.get('color', None) for s in shape.parts()][0]) or \
                 'gray'
-        if shName == True or 'shadow' in shName:
+        assert isinstance(shName, str)
+        if 'shadow' in shName:
             color = 'gray'
+        poseVar = poseBel.poseD.variance()
+        poseDelta = poseBel.delta
         objShadowStats[0] += 1
-        key = (shape, shName, prob, poseBel, faceFrame)
+        key = (shape, shName, prob, poseVar, poseDelta, faceFrame)
         shadow = self.beliefContext.objectShadowCache.get(key, None)
         if shadow:
             objShadowStats[1] += 1
@@ -564,10 +579,11 @@ class PBS:
         # Origin * Support = Pose => Origin = Pose * Support^-1
         frame = faceFrame.inverse()     # pose is indentity
         sh = shape.applyLoc(frame)      # the shape with the specified support
-        shadow = makeShadow(sh, prob, poseBel, name=shName, color=color)
+        shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName, color=color)
         self.beliefContext.objectShadowCache[key] = shadow
-        if debug('objShadow'):
-            debugMsg('objShadow', key, ('->', shadow.bbox()))
+        if debug('getShadowWorld'):
+            debugMsg('objShadow', key, ('->', shtr.bbox()))
+            shadow.draw('W', 'red')
         return shadow
 
     def draw(self, p = 0.9, win = 'W', clear=True):
@@ -626,6 +642,67 @@ shadowOpacity = 0.2
 def makeShadow(shape, prob, bel, name=None, color='gray'):
     shParts = []
     poses = sigmaPoses(prob, bel.poseD, bel.delta)
+    if debug('getShadowWorld'):
+        print 'sigma poses for', shape.name()
+    shColor = shape.properties.get('color', color)
+
+    for part in shape.parts():
+        if debug('getShadowWorld'):
+            wm.getWindow('W').clear()
+        shp = []
+        for pose in poses:
+            shp.append(part.applyTrans(pose))
+            if debug('getShadowWorld'):
+                shp[-1].draw('W', 'cyan')
+        # Note xyPrim !!
+        shParts.append(shapes.Shape(shp, shape.origin(),
+                                    name=part.name(),
+                                    color=shColor,
+                                    opacity=shadowOpacity).xyPrim())
+        shParts[-1].properties['opacity']=shadowOpacity
+        if debug('getShadowWorld'):
+            shParts[-1].draw('W', 'brown')
+            raw_input('Next part?')
+    if debug('getShadowWorld'):
+        raw_input('multiple part shadow, Ok?')
+    final = shapes.Shape(shParts, shape.origin(),
+                         name=name or shape.name(),
+                         color=shColor, opacity=shadowOpacity)
+    if debug('getShadowWorld'):
+        shape.draw('W', 'blue')
+        final.draw('W', 'pink')
+        raw_input('input shape (blue), final shadow (pink), Ok?')
+    return final
+
+def sigmaPosesOrigin(prob, poseVar, poseDelta):
+    interpStep = math.pi/4
+    def interpAngle(lo, hi):
+        if hi - lo <= interpStep:
+            return [lo, hi]
+        else:
+            return interpAngle(lo, 0.5*(lo+hi))[:-1] + \
+                   interpAngle(0.5*(lo+hi), hi)
+    widths = shadowWidths(poseVar, poseDelta, prob)
+    n = len(widths)
+    offsets = []
+    (wx, wy, _, wt) = widths
+    angles = interpAngle(-wt, wt)
+    if debug('getShadowWorld'):
+        print 'shadowWidths', widths
+        print 'angles', angles
+    for a in angles: offsets.append([-wx, 0, 0, a])
+    for a in angles: offsets.append([wx, 0, 0, a])
+    for a in angles: offsets.append([0, -wy, 0, a])
+    for a in angles: offsets.append([0, wy, 0, a])
+    poses = []
+    for offset in offsets:
+        offPoseTuple = offset
+        poses.append(hu.Pose(*offPoseTuple))
+    return poses
+
+def makeShadowOrigin(shape, prob, var, delta, name=None, color='gray'):
+    shParts = []
+    poses = sigmaPosesOrigin(prob, var, delta)
     if debug('getShadowWorld'):
         print 'sigma poses for', shape.name()
     shColor = shape.properties.get('color', color)

@@ -747,7 +747,7 @@ Joint.subClasses['general'] = General
 
 cdef class Rigid(Joint):
     cpdef np.ndarray matrix(self, val=None):
-        return self.trans
+        return self.trans.matrix
     cpdef Transform transform(self, val=None):
         return self.trans
     cpdef bool valid(self, val=None):

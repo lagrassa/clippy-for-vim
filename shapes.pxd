@@ -43,7 +43,7 @@ cdef class BasePrim:
 cdef class Prim:
     cdef public BasePrim basePrim
     cdef public dict properties
-    cdef hu.Transform primOrigin
+    cdef public hu.Transform primOrigin
     cdef np.ndarray primVerts, primPlanes, primBBox
     cdef tuple tupleBBox
 

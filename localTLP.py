@@ -102,11 +102,13 @@ drawRebindNodes = True
 #         if not x in debugOn: debugOn.append(x)
 #         if not x in logOn: debugOn.append(x)
 
+# 'primitiveHeuristicAlways' for more accurate (but slower) heuristic.
+# 'simpleAbstractCostEstimates' for cheaper heuristc
 usualTags = ['nonmon', 'skeleton', 'simpleAbstractCostEstimates']
 heuristicTags = ['hAddBack', 'hAddBackV', 'heuristic', 'hAddBackInf',
                  'debugInHeuristic']
 skeletonTags = ['regression:fail', 'appOp:number']
-traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
+traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen', 'sim',
                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
                    'pushGen', 'assign']
 debugOnly = ['h', 'assign']  # don't pause

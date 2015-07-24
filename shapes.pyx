@@ -170,6 +170,13 @@ cdef class Thing:
 # Prim class: convex "chunk", has 3D description and we can get 2.5D
 # approx via convex hull of projection.
 
+cdef vertsRadius(np.ndarray[np.float64_t, ndim=2] verts):
+    cdef double rad = 0.0
+    cdef int i
+    for i in verts.shape[1]:
+        rad = max(rad, verts[0,i]*verts[0,i] + verts[1,i]*verts[1,i] +  verts[2,i]*verts[2,i] )
+    return math.sqrt(rad)
+
 # This is the base (unchanging) description of a convex chunk.
 cdef class BasePrim:
     def __init__(self,

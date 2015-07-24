@@ -7,7 +7,7 @@ from testRig import *
 from timeout import timeout, TimeoutError
 
 # 10 min timeout for all tests
-@timeout(600)
+@timeout(1000)
 def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=True, easy=False, rip=True):
     eval('test%s(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical, easy=easy, rip=rip)'%str(n))
 
@@ -787,7 +787,7 @@ def prof(test, n=100):
     cProfile.run(test, 'prof')
     p = pstats.Stats('prof')
     p.sort_stats('cumulative').print_stats(n)
-    p.sort_stats('cumulative').print_callers(n)
+    # p.sort_stats('cumulative').print_callers(n)
 
 def profPrint(n=100):
     import pstats
@@ -946,3 +946,6 @@ def debugPush():
     raw_input('target')
     ans = list(pushConfsGen(pbs, 0.9, targetB, 'left', None))
     return t, ans
+
+def testHardSwap(**keys):
+    return testSwap(hardSwap = True, **keys)

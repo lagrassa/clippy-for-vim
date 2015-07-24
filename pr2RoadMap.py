@@ -9,7 +9,6 @@ import windowManager3D as wm
 import numpy as np
 import shapes
 from ranges import *
-from pr2Robot import CartConf
 from objects import WorldState
 from geom import bboxOverlap, bboxUnion, bboxCenter
 from transformations import quaternion_slerp
@@ -24,6 +23,8 @@ from heapq import heappush, heappop
 from planUtil import Violations
 from pr2Util import NextColor, drawPath, shadowWidths, Hashable, combineViols, shadowp
 from traceFile import tr
+from pr2Robot import CartConf, compileObjectFrames, compileAttachedFrames
+from gjk import chainCollides, confPlaceChains, confSelfCollide, chainBBoxes
 
 considerReUsingPaths = True
 
@@ -32,8 +33,8 @@ violationCosts = (10.0, 2.0, 10.0, 5.0)
 minGripperDistance = 0.25
 
 # Don't try too hard, fall back to the RRT when we can't find a path quickly
-maxSearchNodes = 1000                   # 5000
-maxExpandedNodes = 400                  # 2000
+maxSearchNodes = 1000                   # 1000
+maxExpandedNodes = 400                  # 400
 
 searchGreedy = 0.75 # greedy, trust that the heuristic is good...
 searchOpt = 0.5     # should be 0.5 ideally, but it's slow...
@@ -156,7 +157,7 @@ class Cluster:
         cluster.kNearest = self.params['kNearest']
         cluster.nodeGraph= self.nodeGraph.copy()
         return cluster
-        
+
     def project(self, node):
         if tuple(node.conf['pr2Base']) != self.baseConf:
             newConf = node.conf.set('pr2Base', list(self.baseConf))
@@ -187,7 +188,7 @@ class Cluster:
         return 'Cluster:'+str(self.id)+prettyString(self.desc())
     __repr__ = __str__
 
-class KDTree:
+class KDTreeFull:
     def __init__(self, entries, kdLeafSize = 20):
         self.entries = entries
         points = [e.point for e in entries]
@@ -267,6 +268,41 @@ class KDTree:
         merge.sort()
         return [(d, self.newEntries[i]) if new else (d, self.entries[i]) \
                 for (d, i, new) in merge[:k]]
+
+class KDTree:                           # the trivial version
+    def __init__(self, entries, kdLeafSize = 20):
+        self.entries = entries
+        points = [e.point for e in entries]
+        self.points = np.array(points)  # array of point arrays
+        self.size = len(points)
+        self.entryTooClose = 0.001**2   # we compute dist^2 in nearest
+
+    def allEntries(self):
+        return self.entries + self.newEntries
+
+    def batchAddEntries(self, entries):
+        if not entries: return
+        self.entries.extend(entries)
+        self.points = np.vstack([self.points, \
+                                 np.array([entry.point for entry in entries])])
+        self.size += len(entries)
+
+    def addEntry(self, entry, merge=False):
+        if merge:
+            [(d,ne)] = self.nearest(entry, 1)
+            if d <= self.entryTooClose:
+                return ne
+        self.entries.append(entry)
+        self.points = np.vstack([self.points, np.array([entry.point])])
+        self.size += 1
+        return entry
+
+    def nearest(self, entry, k):
+        point = entry.point
+        dist_2 = np.sum((self.points - point)**2, axis=1)
+        ind = np.argsort(dist_2)[:k]
+        ans = [(dist_2[i], self.entries[i]) for i in ind]
+        return ans
 
 class NodeGraph:
     def __init__(self, edges, incidence):
@@ -389,15 +425,15 @@ class RoadMap:
                          ('held', (pbs.held['left'].mode(),
                                    pbs.held['right'].mode())),
                          ('initViol', initViol))
-            if not (optimize or glob.inHeuristic):
-                key = (targetConf, initConf, moveBase)
-                if not key in self.confReachCache:
-                    self.confReachCache[key] = []
-                self.confReachCache[key].append((pbs, prob,
-                                                 ans if ans else (None, None, None)))
+            if glob.inHeuristic: return 
+            key = (targetConf, initConf, moveBase)
+            if not key in self.confReachCache:
+                self.confReachCache[key] = []
+            self.confReachCache[key].append((pbs, prob,
+                                             ans if ans else (None, None, None)))
 
         def checkCache(key, type='full', loose=False):
-            if glob.inHeuristic or optimize: return 
+            if glob.inHeuristic or glob.skipSearch: return 
             if key in self.confReachCache:
                 if debug('traceCRH'): print '    cache?',
                 cacheValues = self.confReachCache[key]
@@ -515,7 +551,6 @@ class RoadMap:
         ans = next(ansGen, None)
         
         if ans is None:
-            # (ans[0] and not ans[0].empty() and ans[0].names() != initViol.names()):
             tr('CRH', 'trying RRT')
             path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
                                               maxIter=50, failIter=10)
@@ -533,7 +568,6 @@ class RoadMap:
                 tr('CRH', '    returning RRT ans')
                 if len(path) > 1 and not( path[0] == targetConf and path[-1] == initConf):
                     raw_input('Path inconsistency')
-                if finalConf: path = [finalConf] + path
                 ans = (viol, 0, ('confs', path))
         else:
             viol, cost, edgePath = ans
@@ -596,6 +630,7 @@ class RoadMap:
         startTime = time.time()
         tr('rm', 'Start batchAddClusters')
         clusters = [self.rootCluster]
+        rootNode = self.rootCluster.nodes[0] 
         for conf in initConfs:
             node = makeNode(conf)
             cluster = self.clustersByPoint.get(node.point, None)
@@ -606,6 +641,9 @@ class RoadMap:
             cluster.addRep(node)
         self.kdTree.batchAddEntries(clusters)
         for cluster in clusters:
+            if pointDist(cluster.point, rootNode.point) < 1.0:
+                for n in cluster.reps:      # connect to root.
+                    self.addEdge(self.clusterGraph, rootNode, n)
             near = self.kdTree.nearest(cluster, self.params['kNearest'])
             for d, cl in near:
                 if d == np.inf: break
@@ -838,7 +876,6 @@ class RoadMap:
         else:
             assert None, 'There should be at most two parts in attached'
         return False
-
     def addEdge(self, graph, node_f, node_i, strict=False):
         if node_f == node_i: return
         if graph.edges.get((node_f, node_i), None) or graph.edges.get((node_i, node_f), None): return
@@ -859,9 +896,34 @@ class RoadMap:
                 graph.incidence[node] = set([edge])
         return edge
 
+    def confColliders(self, pbs, prob, conf, aColl, hColl, hsColl, 
+                      edge=None, ignoreAttached=False, draw=False):
+
+        aColl1 = aColl[:]
+        hColl1 = (hColl[0][:], hColl[1][:])
+        hsColl1 = (hsColl[0][:], hsColl[1][:])
+        aColl2 = aColl[:]
+        hColl2 = (hColl[0][:], hColl[1][:])
+        hsColl2 = (hsColl[0][:], hsColl[1][:])
+        
+        if glob.useCC:
+            ansCC = self.confCollidersCC(pbs, prob, conf, aColl, hColl, hsColl,
+                                         edge, ignoreAttached, draw)
+            if debug('testCC'):
+                ans = self.confCollidersPlace(pbs, prob, conf, aColl1, hColl1, hsColl1,
+                                              edge, ignoreAttached, draw)
+                if ans != ansCC or (aColl, hColl, hsColl) != (aColl1, hColl1, hsColl1):
+                    pdb.set_trace()
+                    ansCC2 = self.confCollidersCC(pbs, prob, conf, aColl2, hColl2, hsColl2,
+                                                  edge, ignoreAttached, draw)
+            return ansCC
+        else:
+            return self.confCollidersPlace(pbs, prob, conf, aColl, hColl, hsColl,
+                                           edge, ignoreAttached, draw)
+
     # Checks individual collision: returns True if remediable
     # collision, False if no collision and None if irremediable.
-    def confCollidersAux(self, rob, obst, sumColl, edgeColl, perm, draw):
+    def confCollidersPlaceAux(self, rob, obst, sumColl, edgeColl, perm, draw):
         if obst in sumColl:
             # already encountered this, can't have been perm or we
             # would have stopped, so return True.
@@ -894,8 +956,8 @@ class RoadMap:
     # (collisions with robot, held and heldShadow).  It returns None,
     # if an irremediable collision is found, otherwise return value is
     # not significant.
-    def confColliders(self, pbs, prob, conf, aColl, hColl, hsColl, 
-                      edge=None, ignoreAttached=False, draw=False):
+    def confCollidersPlace(self, pbs, prob, conf, aColl, hColl, hsColl, 
+                           edge=None, ignoreAttached=False, draw=False):
         def heldParts(obj):
             parts = obj.parts()
             assert len(parts) == 2
@@ -921,7 +983,7 @@ class RoadMap:
         for obst in shWorld.getObjectShapes():
             perm = obst.name() in permanentNames
             eColl = edge.aColl if edge else None
-            res = self.confCollidersAux(robShape, obst, aColl, eColl,
+            res = self.confCollidersPlaceAux(robShape, obst, aColl, eColl,
                                         perm, draw)
             if res is None: return None # irremediable
             elif res: continue          # collision with robot, go to next obj
@@ -936,7 +998,7 @@ class RoadMap:
                 if edge and pbs.graspB[hand] not in edge.hColl[hand]:
                     edge.hColl[hand][pbs.graspB[hand]] = {}
                 eColl = edge.hColl[hand][pbs.graspB[hand]] if edge else None
-                res = self.confCollidersAux(held, obst, hColl[h], eColl,
+                res = self.confCollidersPlaceAux(held, obst, hColl[h], eColl,
                                             (perm and shWorld.fixedHeld[hand]), draw)
                 if res is None: return None # irremediable
                 elif res: continue          # collision, move to next obj
@@ -944,9 +1006,117 @@ class RoadMap:
                 if edge and pbs.graspB[hand] not in edge.hsColl[hand]:
                     edge.hsColl[hand][pbs.graspB[hand]] = {}
                 eColl = edge.hsColl[hand][pbs.graspB[hand]] if edge else None
-                res = self.confCollidersAux(heldSh, obst, hsColl[h], eColl,
-                                            (perm and shWorld.fixedGrasp[hand]), draw)
+                res = self.confCollidersPlaceAux(heldSh, obst, hsColl[h], eColl,
+                                                 (perm and shWorld.fixedGrasp[hand]), draw)
                 if res is None: return None # irremediable
+        return True
+
+    # Checks individual collision: returns True if remediable
+    # collision, False if no collision and None if irremediable.
+    def confCollidersAux(self, rob, rcc, obst, occ, sumColl, edgeColl, perm, draw):
+        if obst in sumColl:
+            # already encountered this, can't have been perm or we
+            # would have stopped, so return True.
+            return True
+        # coll is True or False if already know, None if not known.
+        # Yes, this is confusing...
+        if edgeColl:
+            if edgeColl.get('heldSelfCollision', False):
+                if draw: raw_input('selfCollision')
+                return None                 # known irremediable
+            coll = edgeColl.get(obst, None) # check outcome in cache
+        else:
+            coll = None                 # not known
+        if coll is None:                # not known, so check
+            coll = self.checkCollision(rob, rcc, obst, occ) # outcome
+        if coll:                        # collision
+            sumColl.append(obst)        # record in summary
+            if edgeColl:
+                edgeColl[obst] = True   # store in cache
+            if perm:                    # permanent
+                if draw:
+                    obst.draw('W', 'magenta')
+                    raw_input('Collision with perm = %s'%obst.name())
+                return None             # irremediable collision
+            return True                 # collision
+        else:
+            return False                # no collision
+
+    # This updates the collisions in aColl, hColl and hsColl
+    # (collisions with robot, held and heldShadow).  It returns None,
+    # if an irremediable collision is found, otherwise return value is
+    # not significant.
+    def confCollidersCC(self, pbs, prob, conf, aColl, hColl, hsColl, 
+                        edge=None, ignoreAttached=False, draw=False):
+        def heldSolidParts(obj):
+            parts = obj.parts()
+            assert len(parts) == 2
+            if shadowp(parts[0]):
+                return shapes.Shape([parts[1]], None)
+            else:
+                return shapes.Shape([parts[0]], None)
+        def heldShadowParts(obj):
+            parts = obj.parts()
+            assert len(parts) == 2
+            if shadowp(parts[0]):
+                return shapes.Shape([parts[0]], None)
+            else:
+                return shapes.Shape([parts[1]], None)
+        tag = 'confCollidersCC'
+        shWorld = pbs.getShadowWorld(prob)
+        attached = None if ignoreAttached else shWorld.attached
+        assert conf.robot.compiledChains
+        robCC = confPlaceChains(conf, conf.robot.compiledChains)
+        # Ignore big shadows when checking for self collision
+        attCCd = tuple([compileAttachedFrames(conf.robot, attached, h, robCC[0], heldSolidParts) \
+                        for h in handName])
+
+        permanentNames = set(shWorld.fixedObjects) # set of names
+        if debug(tag):
+            pbs.draw(prob, 'W')
+            conf.draw('W', 'purple', attached=attached)
+        # The self collision can depend on grasps - how to handle caching?
+        if confSelfCollide(robCC, attCCd):
+            if debug(tag):
+                conf.draw('W', 'red', attached=attached)
+                raw_input('selfCollision')
+            return None                 # irremediable collision
+
+        for obst in shWorld.getObjectShapes():
+            perm = obst.name() in permanentNames
+            eColl = edge.aColl if edge else None
+            oCC = compileObjectFrames(obst)
+            res = self.confCollidersAux(None, robCC, obst, oCC, aColl, eColl,
+                                        perm, draw)
+            if debug(tag): print 'Robot obst', obst.name(), 'res', res
+            if res is None: return None # irremediable
+            elif res: continue          # collision with robot, go to next obj
+            # Check for held collisions if not collision so far
+            if not attached or not any(attached.values()): continue
+            for h in hands:
+                hand = handName[h]
+                if not attached[hand] or obst in hColl[h] or obst in hsColl[h]:
+                    continue
+                # check hColl
+                if edge and pbs.graspB[hand] not in edge.hColl[hand]:
+                    edge.hColl[hand][pbs.graspB[hand]] = {}
+                eColl = edge.hColl[hand][pbs.graspB[hand]] if edge else None
+                attCC = compileAttachedFrames(conf.robot, attached, hand, robCC[0], heldSolidParts)
+                res = self.confCollidersAux(None, attCC, obst, oCC, hColl[h], eColl,
+                                            (perm and shWorld.fixedHeld[hand]), draw)
+                if debug(tag): print 'Held obst', obst.name(), 'res', res
+                if res is None: return None # irremediable
+                elif res: continue          # collision, move to next obj
+                # Check hsColl
+                if edge and pbs.graspB[hand] not in edge.hsColl[hand]:
+                    edge.hsColl[hand][pbs.graspB[hand]] = {}
+                eColl = edge.hsColl[hand][pbs.graspB[hand]] if edge else None
+                attCC = compileAttachedFrames(conf.robot, attached, hand, robCC[0], heldShadowParts)
+                res = self.confCollidersAux(None, attCC, obst, oCC, hsColl[h], eColl,
+                                            (perm and shWorld.fixedGrasp[hand]), draw)
+                if debug(tag): print 'HeldShadow obst', obst.name(), 'res', res
+                if res is None: return None # irremediable
+        if debug(tag): print 'returning True'
         return True
 
     # We want edge to depend only on endpoints so we can cache the
@@ -1074,15 +1244,15 @@ class RoadMap:
             for edge in graph.incidence.get(v, []):
                 (a, b)  = edge.ends
                 w = a if a != v else b
-                # Check for valid edge
-                ve = validEdge(w, v) if reverse else validEdge(v, w)
-                # ve = True
-                if debug('successors'):
-                    if reverse:
-                        print ve, edge, w.conf['pr2Base'], '->', v.conf['pr2Base']
-                    else:
-                        print ve, edge, v.conf['pr2Base'], '->', w.conf['pr2Base']
-                if not ve: continue
+                # # Check for valid edge
+                # ve = validEdge(w, v) if reverse else validEdge(v, w)
+                # # ve = True
+                # if debug('successors'):
+                #     if reverse:
+                #         print ve, edge, w.conf['pr2Base'], '->', v.conf['pr2Base']
+                #     else:
+                #         print ve, edge, v.conf['pr2Base'], '->', w.conf['pr2Base']
+                # if not ve: continue
                 if not moveBase:
                     if a.baseConf() != b.baseConf():
                         continue
@@ -1090,6 +1260,7 @@ class RoadMap:
                 # !! Wholly unjustified...
                 if useVisited:
                     if w in visited: continue
+                    elif w.conf == self.homeConf: pass
                     else: visited.add(w)
 
                 nviol = testConnection(edge, viol)
@@ -1118,7 +1289,7 @@ class RoadMap:
                     print '    ', n
                 wm.getWindow('W').update()
                 debugMsg('successors', 'Go?')
-                
+
             return succ
 
         visited = set([])
@@ -1134,24 +1305,24 @@ class RoadMap:
         targets = [(goalCostFn(tnode), tnode) for tnode in targetNodes]
         targets.sort()
 
-        if glob.inHeuristic:
-            # Static tests at init and target.  Ignore attached as a weakening.
+        if glob.inHeuristic or (glob.skipSearch and not optimize):
+            # Static tests at init and target.  
             cv = self.confViolations(startNode.conf, pbs, prob,
-                                     initViol=initViol, ignoreAttached=True)
+                                     initViol=initViol)
             if cv is None: return
             for (c, targetNode) in targets:
                 if not moveBase:
                     if startNode.baseConf() != targetNode.baseConf():
                         return
                 cvt = self.confViolations(targetNode.conf, pbs, prob,
-                                          initViol=cv, ignoreAttached=True)
+                                          initViol=cv)
                 if cvt is None or not testFn(targetNode): continue
                 edge = Edge(startNode, targetNode, self.jointLineSteps)
                 ans = (cvt, cvt.weight(violationCosts),
                        [(edge, 0), (edge, 1)])
                 yield ans
             return
-        
+        print '*** Planning path ***'
         if targets:                     # some targets remaining
             # Each node is (conf node, obj collisions, shadow collisions)
             if debug('expand'):
@@ -1334,6 +1505,47 @@ class RoadMap:
             else:
                 count += 1
         return smoothed
+
+    # does not use self... could be a static method
+    def checkRobotCollision(self, conf, obj, attached=None, selectedChains=None):
+        if glob.useCC:
+            assert conf.robot.compiledChains
+            rcc = confPlaceChains(conf, conf.robot.compiledChains)
+            occ = compileObjectFrames(obj)
+            ansCC = False
+            if chainCollides(rcc, selectedChains, occ, None):
+                ansCC = True
+            if (not ansCC) and attached:
+                for hand in ('left', 'right'):
+                    acc = compileAttachedFrames(conf.robot, attached, hand, rcc[0])
+                    if chainCollides(acc, None, occ, None):
+                        ansCC = True
+                        break
+            if debug('testCC'):
+                placement = conf.placement(attached=attached)
+                ans = placement.collides(obj)
+                if ans != ansCC:
+                    conf.draw('W'); obj.draw('W', 'blue')
+                    for fr in rcc[0].values():
+                        if fr.link: fr.draw('W', 'magenta')
+                    for fr in occ[0].values():
+                        if fr.link: fr.draw('W', 'cyan')
+                    pdb.set_trace()
+            return ansCC
+        else:
+            placement = conf.placement(attached=attached)
+            return placement.collides(obj)
+
+    def checkCollision(self, rob, rcc, obj, occ):
+        if glob.useCC and rcc and occ:
+            ansCC = chainCollides(rcc, None, occ, None)
+            if rob and debug('testCC'):
+                ans = rob.collides(obj)
+                if ans != ansCC:
+                    pdb.set_trace()
+            return ansCC
+        else:
+            return rob.collides(obj)
 
     def __str__(self):
         return 'RoadMap:['+str(self.size+self.newSize)+']'
@@ -1544,6 +1756,3 @@ def showPath(pbs, p, path):
         raw_input('Next?')
     raw_input('Path end')
 
-    
-
-            

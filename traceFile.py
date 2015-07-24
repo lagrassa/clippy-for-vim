@@ -21,6 +21,7 @@ def traced(genTag, tags, skip = False, keys = {}):
 
 # Always print and log this.  
 def trAlways(*msg, **keys):
+    keys['h']=True                        # do this in the heuristic as well
     tr('*', *msg, **keys)
 
 # Decide whether to write into log
