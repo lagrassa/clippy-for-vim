@@ -88,8 +88,10 @@ visibleEx (show visibility stuff during execution even if visible is false)
 '''
 
 
-usualTags = ['nonmon', 'primitiveHeuristicAlways', 'useBBinH']
-flags = ['simpleAbstractCostEstimates']
+usualTags = ['nonmon']
+flags = ['simpleAbstractCostEstimates',
+         # 'primitiveHeuristicAlways',
+          'useBBinH']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
                  'debugInHeuristic', 'h']  # 'hAddBack'
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number']
@@ -97,9 +99,12 @@ traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
                    'pushGen', 'assign']
 debugOnly = ['h', 'assign']  # don't pause
+#------------------------------------
+# Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['pushGen'] + heuristicTags
+debugOn = usualTags 
 
+#------------------------------------
 pauseOn = debugOn[:]
 
 logOn = debugOn + traceOnly
