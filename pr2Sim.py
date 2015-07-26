@@ -418,7 +418,7 @@ class RealWorld(WorldState):
             w2 = path[-1].cartConf()[robot.armChainNames[hand]]
             delta = w2.compose(w1.inverse()).pose(0.1)
             mag = (delta.x**2 + delta.y**2)**0.5
-            deltaPose = hu.Pose(0.01*(delta.x/mag), 0.01*(delta.y/mag), 0.0, 0.0)
+            deltaPose = hu.Pose(0.005*(delta.x/mag), 0.005*(delta.y/mag), 0.0, 0.0)
             if i > 0:
                 place = path[i].placement()
                 while place.collides(self.objectShapes[obj]):

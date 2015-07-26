@@ -10,7 +10,9 @@ def makeSoda(dx=0.0445, dy=0.027, dz=0.1175, name='objA', color='blue'):
 
 def makeBig(dx=0.0445, dy=0.0445, dz=0.1175, name='bigA', color='blue'):
     return Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)]),
-               Ba([(-dx/2, -dy/2, dz), (dx/2, dy/2, dz+dz/2)])], name=name, color=color)
+               # Ba([(-dx/2, -dy/2, dz), (dx/2, dy/2, dz+dz/2)])
+               ],
+              name=name, color=color)
 
 soupZ = 0.1
 def makeSoup(radius=0.0675/2, height=0.1, name='soup', color='red'):

@@ -517,6 +517,10 @@ class PBS:
                     supportFrame = w.getFaceFrames(heldObj)[support]
                     # Create shadow pair and attach both to robot
                     shadowMin, shadow = self.shadowPair(self.graspB[hand], supportFrame, prob)
+
+                    shadow = shadow.applyTrans(supportFrame)
+                    shadowMin = shadowMin.applyTrans(supportFrame)
+
                     if debug('getShadowWorldGrasp'):
                         shadow.draw('W', 'gray'); shadowMin.draw('W', 'red')
                     # graspShadow is expressed relative to wrist and attached to arm

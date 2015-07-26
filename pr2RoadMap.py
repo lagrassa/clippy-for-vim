@@ -17,7 +17,7 @@ reload(search)
 import pr2RRT as rrt
 reload(rrt)
 import planGlobals as glob
-from traceFile import debugMsg, debug
+from traceFile import debugMsg, debug, trAlways
 from miscUtil import prettyString
 from heapq import heappush, heappop
 from planUtil import Violations
@@ -556,13 +556,13 @@ class RoadMap:
         ans = next(ansGen, None)
         
         if ans is None:
-            tr('CRH', 'trying RRT')
+            trAlways('trying RRT')
             path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
                                               maxIter=50, failIter=10)
             if viol:
                 viol = viol.update(initViol)
             else:
-                tr('CRH', 'RRT failed')
+                trAlways('RRT failed')
             if not viol:
                 pass
             elif ans is None or \

@@ -1,6 +1,5 @@
 from fbch import Function
-from geom import bboxInside, bboxVolume, vertsBBox, bboxContains
-from pr2GenAux import inside
+from geom import bboxInside, bboxVolume, vertsBBox, bboxContains, bboxVolume
 import numpy as np
 from traceFile import debug, debugMsg, tr, trAlways
 from shapes import thingFaceFrames, drawFrame
@@ -8,16 +7,14 @@ import hu
 from planUtil import ObjGraspB, PoseD, Response
 from pr2Util import GDesc
 from pr2GenAux import *
-from pr2Robot import gripperFaceFrame
 from pr2PlanBel import getConf
+from pr2Fluents import pushPath
 import mathematica
 reload(mathematica)
 import windowManager3D as wm
 from subprocess import call
 import time
 import pdb
-
-useMathematica = False
 
 # Pick poses and confs for pushing an object
 
@@ -108,9 +105,13 @@ def pushGenTop(args, goalConds, pbs):
         tr(tag, str(ans) +' (t=%s)'%(time.clock()-startTime))
         yield ans
 
+def pickPrim(shape):
+    return sorted(shape.toPrims(), key = lambda p: bboxVolume(p.bbox()), reverse=True)[0]
+
 def pushGenAux(pbs, placeB, hand, base, prob):
     tag = 'pushGen'
     shape = placeB.shape(pbs.getWorld())
+    prim = pickPrim(shape)
     xyPrim = shape.xyPrim()
     # Location of center at placeB
     center =  np.average(xyPrim.vertices(), axis=1)
@@ -122,14 +123,14 @@ def pushGenAux(pbs, placeB, hand, base, prob):
     # span the centroid.
     potentialContacts = []
     for vertical in (True, False):
-        for contactFrame in handContactFrames(xyPrim, center, vertical):
+        for contactFrame in handContactFrames(prim, center, vertical):
             # construct a graspB corresponding to the push hand pose,
             # determined by the contact frame
             potentialContacts.append((vertical, contactFrame))
     # Sort contacts by nearness to current pose of object
     curPose = pbs.getPlaceB(placeB.obj).poseD.mode()
     # sort contacts and compute a distance when applicable, entries
-    # are: (vertical, distance, contactFrame)
+    # are: (distance, vertical, contactFrame)
     sortedContacts = sortPushContacts(potentialContacts, placeB.poseD.mode(), curPose)
     # Now we have frames and confs for contact with object, we have to
     # generate potential answers following the face normal in the
@@ -139,10 +140,14 @@ def pushGenAux(pbs, placeB, hand, base, prob):
         graspB = graspBForContactFrame(pbs, contactFrame,
                                        0.0,  placeB, hand, vertical)
         gf = placeB.objFrame().compose(graspB.graspDesc[-1].frame)
+        # This is negative z axis
+        direction = -contactFrame.matrix[:3,2].reshape(3)
+        direction[2] = 0.0
         if debug(tag):
             pbs.draw(prob, 'W')
+            shape.draw('W', 'blue'); prim.draw('W', 'green')
             print 'vertical', vertical, 'dist', dist
-            drawFrame(gf)
+            drawFrame(contactFrame)
             raw_input('graspDesc frame')
         count = 0
         doneCount = 0
@@ -154,10 +159,9 @@ def pushGenAux(pbs, placeB, hand, base, prob):
             # TODO: pick hand opening better
             c = gripSet(c, hand, 0.0)
             ca = gripSet(ca, hand, 0.0)
-            ans = Response(placeB, graspB, c, ca, viol, hand)
             count += 1
-            pathAndViols, reason = pushPath(pbs, prob, ans, contactFrame, dist,
-                                            xyPrim, supportRegion, hand)
+            pathAndViols, reason = pushPath(pbs, prob, graspB, placeB, c,
+                                            direction, dist, xyPrim, supportRegion, hand)
             if reason == 'done': doneCount +=1 
             pushPaths.append((pathAndViols, reason))
             tr(tag+'Path', 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
@@ -167,17 +171,10 @@ def pushGenAux(pbs, placeB, hand, base, prob):
         for i in range(min(len(sorted), 2)):
             pp = sorted[i]              # path is reversed (post...pre)
             ptarget = placeB.poseD.mode()
-            cpost = pp[0][0]
+            for i in range(len(pp)):
+                cpost, vpost, ppost = pp[i]
+                if ppost: break
             cpre, vpre, ppre = pp[-1]
-            # postWrist = robotGraspFrame(pbs, cpost, hand)
-            # preWrist = robotGraspFrame(pbs, cpre, hand)
-            # direction = (preWrist.point().matrix.reshape(4) - postWrist.point().matrix.reshape(4))[:3]
-            # direction[2] = 0.0
-            # dist = (direction[0]**2 + direction[1]**2)**0.5
-            # if dist != 0:
-            #     direction /= dist
-            # off = pushBuffer*direction
-            # cpost = displaceHand(cpost, hand, hu.Pose(off[0], off[1], 0.0, 0.0))
             if debug(tag):
                 robot = cpre.robot
                 print 'pre pose\n', ppre.matrix
@@ -228,7 +225,7 @@ def findSupportRegionInPbs(pbs, prob, shape):
 
 # Potential contacts
 fingerTipThick = 0.02
-fingerTipWidth = 0.025
+fingerTipWidth = 0.02
 fingerLength = 0.045                    # it's supposed to be 0.06
 
 def handContactFrames(shape, center, vertical):
@@ -259,6 +256,7 @@ def handContactFrames(shape, center, vertical):
         c[2] = 0.0                      # project to face plane
         faceVerts = np.dot(frameInv.matrix, verts)
         faceBB = vertsBBox(faceVerts, face)
+        faceBB[0,2] = faceBB[1,2] = 0.0
         if debug(tag):
             print 'center of face', c.tolist(), '\nfaceBB', faceBB.tolist()
         if not bboxContains(faceBB, c.reshape(4)):
@@ -303,10 +301,14 @@ pushBuffer = 0.05
 def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
     tag = 'graspBForContactFrame'
     # TODO: what should these values be?
-    graspVar = 4*(0.001,)
+    graspVar = 4*(0.01**2,)
     graspDelta = 4*(0.00,)
     obj = placeB.obj
+
+    # TODO: straighten this out...
     objFrame = placeB.objFrame()
+    # objFrame = placeB.poseD.mode()
+
     if debug(tag): print 'objFrame\n', objFrame.matrix
 
     (tr, 'pushGen', 'Using pushBuffer', pushBuffer)
@@ -331,13 +333,12 @@ def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
             pbs.draw(0.9); drawFrame(gM)
             raw_input('gM')
         gT = objFrame.inverse().compose(gM) # gM relative to objFrame
-        # TODO: find good values for dx, dy, dz
+        # TODO: find good values for dx, dy, dz must be 0.
         graspDescList = [GDesc(obj, gT, 0.0, 0.0, 0.0)]
         graspDescFrame = objFrame.compose(graspDescList[-1].frame)
         if debug(tag): print 'graspDescFrame\n', graspDescFrame.matrix
         # -1 grasp denotes a "virtual" grasp
         gB = ObjGraspB(obj, graspDescList, -1, placeB.support.mode(),
-                       # TODO: This should encode the support face ?
                        PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
         wrist = objectGraspFrame(pbs, gB, placeB, hand)
         if any(pbs.getWorld().robot.potentialBasePosesGen(wrist, hand, complain=False)):
@@ -349,71 +350,6 @@ def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
         raw_input('graspB')
     assert graspB
     return graspB
-
-pushStepSize = 0.05
-
-def pushPath(pbs, prob, resp, contactFrame, dist, shape, regShape, hand):
-    tag = 'pushPath'
-    # This is negative z axis
-    direction = -contactFrame.matrix[:3,2].reshape(3)
-    direction[2] = 0.0
-    newBS = pbs.copy()
-    newBS = newBS.updateHeldBel(resp.gB, hand)
-    newBS = newBS.excludeObjs([resp.pB.obj])
-    shWorld = newBS.getShadowWorld(prob)
-    attached = shWorld.attached
-    if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
-    rm = pbs.getRoadMap()
-    conf = resp.c
-    pathViols = []
-    reason = 'done'
-    dist = dist or 0.25                 # default push size
-    # Move extra dist (pushBuffer) to make up for the displacement from object
-    for step in np.arange(-pushBuffer, dist, pushStepSize).tolist()+[dist]:
-        offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
-        nshape = shape.applyTrans(offsetPose)
-        if not inside(nshape, regShape):
-            reason = 'outside'
-            break
-        nconf = displaceHand(conf, hand, offsetPose)
-        if not nconf:
-            reason = 'invkin'
-            break
-        viol = rm.confViolations(nconf, newBS, prob)
-        if debug('pushPath'):
-            print 'step=', step, viol
-            if useMathematica:
-                wm.getWindow('W').startCapture()
-            newBS.draw(prob, 'W')
-            nconf.draw('W', 'cyan', attached)
-            if useMathematica:
-                mathematica.mathFile(wm.getWindow('W').stopCapture(),
-                                     view = "ViewPoint -> {2, 0, 2}",
-                                     filenameOut='./pushPath.m')
-            raw_input('Next?')
-        if viol is None:
-            reason = 'collide'
-            break
-        if debug('pushPath'):
-            print 'obj mode:', resp.pB.poseD.mode()
-            print 'offset:', offsetPose
-        pathViols.append((nconf, viol, resp.pB.poseD.mode().compose(offsetPose)))
-    if debug('pushPath'):
-        raw_input('Path:'+reason)
-    return pathViols, reason
-        
-def displaceHand(conf, hand, offsetPose, nearTo=None):
-    cart = conf.cartConf()
-    handFrameName = conf.robot.armChainNames[hand]
-    trans = cart[handFrameName]
-    nTrans = offsetPose.compose(trans)
-    nCart = cart.set(handFrameName, nTrans)
-    nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
-    if all(nConf.values()):
-        return nConf
-
-def gripSet(conf, hand, width=0.08):
-    return conf.set(conf.robot.gripperChainNames[hand], [width])
 
 def sortPushContacts(contacts, targetPose, curPose):
     bad = []
@@ -433,9 +369,14 @@ def sortPushContacts(contacts, targetPose, curPose):
         if ntrz >= 0.:
             bad.append((None, vertical, contact))
         else:
-            good.append((ntrz, vertical, contact))
+            # distance negated...
+            good.append((-ntrz, vertical, contact))
     good.sort()                         # smallest z distance first
     if debug('pushGen'):
         print 'push contacts sorted by push distance'
-        for x in good: print x
+        for x in good:
+            print x
     return good                         # bad ones require "pulling"
+
+def gripSet(conf, hand, width=0.08):
+    return conf.set(conf.robot.gripperChainNames[hand], [width])

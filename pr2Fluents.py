@@ -2,7 +2,7 @@ import pdb
 import hu
 import numpy as np
 from planUtil import Violations, ObjPlaceB, ObjGraspB
-from pr2Util import shadowName, drawPath, objectName, PoseD, supportFaceIndex, GDesc
+from pr2Util import shadowName, drawPath, objectName, PoseD, supportFaceIndex, GDesc, inside
 from dist import DeltaDist, probModeMoved
 from traceFile import debugMsg, debug
 import planGlobals as glob
@@ -1290,7 +1290,6 @@ def inTest(bState, obj, regName, prob, pB=None):
 
 # returns path, violations
 pushStepSize = 0.02
-pushBuffer = 0.05
 def canPush(pbs, obj, hand, prePose, pose,
             preConf, pushConf, postConf, prePoseVar, poseVar,
             poseDelta, prob, initViol):
@@ -1302,10 +1301,10 @@ def canPush(pbs, obj, hand, prePose, pose,
     post = hu.Pose(*pose)
     pushWrist = robotGraspFrame(pbs, pushConf, hand)
     pre = hu.Pose(*prePose)
-
     direction = (pre.point().matrix.reshape(4) - post.point().matrix.reshape(4))[:3]
     direction[2] = 0.0
     dist = (direction[0]**2 + direction[1]**2)**0.5
+    print 'canPush, dist=', dist
     if dist != 0:
         direction /= dist
     # placeB
@@ -1317,49 +1316,28 @@ def canPush(pbs, obj, hand, prePose, pose,
     objFrame = placeB.objFrame()
     # graspB - from hand and objFrame
     # TODO: what should these values be?
-    graspVar = 4*(0.0,)
+    graspVar = 4*(0.01**2,)
     graspDelta = 4*(0.0,)
-    faceFrame = objFrame.inverse().compose(pushWrist.compose(gripperFaceFrame[hand]))
-    graspDescList = [GDesc(obj, faceFrame, 0.0, 0.0, 0.0)]
+
+    # TODO: straighten this out...
+    objFrame = placeB.objFrame()
+    # objFrame = placeB.poseD.mode()
+
+    graspFrame = objFrame.inverse().compose(pushWrist.compose(gripperFaceFrame[hand]))
+    graspDescList = [GDesc(obj, graspFrame, 0.0, 0.0, 0.0)]
     graspDescFrame = objFrame.compose(graspDescList[-1].frame)
     graspB =  ObjGraspB(obj, graspDescList, -1, support,
                         PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
-    newBS = pbs.copy()
-    newBS = newBS.updateHeldBel(graspB, hand)
-    newBS = newBS.excludeObjs([obj])
-    shWorld = newBS.getShadowWorld(prob)
-    attached = shWorld.attached
-    if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
-    rm = pbs.getRoadMap()
-    conf = pushConf
+    pathViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
+                                 direction, dist, None, None, hand)
+    viol = pathViols[0][1]
     path = []
-    viol = initViol
-    if dist == 0.0:
-        viol = rm.confViolations(postConf, newBS, prob, initViol=viol)
-        return [postConf], viol
-    for step in np.arange(0., dist+pushStepSize-0.001, pushStepSize):
-        offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
-        nconf = displaceHand(conf, hand, offsetPose)
-        if not nconf:
-            if debug(tag):
-                print tag, 'Kin failure for step =', step
-            return None, None
-        viol = rm.confViolations(nconf, newBS, prob, initViol=viol)
-        if debug(tag):
-            print viol
-            wm.getWindow('W').startCapture()
-            newBS.draw(prob, 'W')
-            nconf.draw('W', 'cyan', attached)
-            mathematica.mathFile(wm.getWindow('W').stopCapture(),
-                                 view = "ViewPoint -> {2, 0, 2}",
-                                 filenameOut='./canPush.m')
-            raw_input('Next?')
+    for (c, v, _) in pathViols:
+        viol = viol.update(v)
         if viol is None:
-            if debug(tag):
-                print tag, 'Permanent collision failure for step =', step
             return None, None
-        path.append(nconf)
-    tr(tag, 1, 'path=%s, viol=%s'%(path, viol))
+        path.append(c)
+    tr(tag, 'path=%s, viol=%s'%(path, viol))
     return path, viol
 
 # TODO: Straighten out the mess with the imports
@@ -1372,7 +1350,62 @@ def robotGraspFrame(pbs, conf, hand):
         print 'robot wristFrame\n', wristFrame
     return wristFrame
 
-# Duplicated from pr2Push
+def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
+             pushBuffer = 0.05):
+    tag = 'pushPath'
+    newBS = pbs.copy()
+    newBS = newBS.updateHeldBel(gB, hand)
+    newBS = newBS.excludeObjs([pB.obj])
+    shWorld = newBS.getShadowWorld(prob)
+    attached = shWorld.attached
+    if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
+    rm = pbs.getRoadMap()
+    pathViols = []
+    reason = 'done'
+    dist = dist or 0.25                 # default push size
+    # Move extra dist (pushBuffer) to make up for the displacement from object
+    nsteps = 10
+    while float(dist+pushBuffer)/nsteps > pushStepSize:
+        nsteps *= 2
+    delta = float(dist+pushBuffer)/nsteps
+    for step_i in xrange(nsteps+1):
+        step = (step_i * delta) - pushBuffer
+        offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
+        if shape:
+            nshape = shape.applyTrans(offsetPose)
+            if not inside(nshape, regShape):
+                reason = 'outside'
+                break
+        nconf = displaceHand(conf, hand, offsetPose)
+        if not nconf:
+            reason = 'invkin'
+            break
+        viol = rm.confViolations(nconf, newBS, prob)
+        if debug('pushPath'):
+            print 'step=', step, viol
+            if glob.useMathematica:
+                wm.getWindow('W').startCapture()
+            newBS.draw(prob, 'W')
+            nconf.draw('W', 'cyan', attached)
+            if glob.useMathematica:
+                mathematica.mathFile(wm.getWindow('W').stopCapture(),
+                                     view = "ViewPoint -> {2, 0, 2}",
+                                     filenameOut='./pushPath.m')
+            raw_input('Next?')
+        if viol is None:
+            reason = 'collide'
+            break
+        pathViols.append((nconf, viol,
+                          # record only during "nominal" part of motion
+                          pB.poseD.mode().compose(offsetPose) \
+                          if step >= 0 else None))
+        if debug('pushPath'):
+            print 'obj mode:', pB.poseD.mode()
+            print 'offset:', offsetPose
+    if debug('pushPath'):
+        raw_input('Path:'+reason)
+    return pathViols, reason
+        
 def displaceHand(conf, hand, offsetPose, nearTo=None):
     cart = conf.cartConf()
     handFrameName = conf.robot.armChainNames[hand]

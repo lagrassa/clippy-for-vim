@@ -48,7 +48,7 @@ inHeuristic = False
 
 useCC = True                            # Use compiled chains collision checks
 skipSearch = False                       # Don't plan paths except for prims
-
+useMathematica = False
 
 ########################################
 # Robot Parameters

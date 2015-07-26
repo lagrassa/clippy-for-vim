@@ -14,7 +14,7 @@ from dist import UniformDist, DDist
 from geom import bboxCenter
 from pr2Robot import CartConf, gripperFaceFrame
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations, Response
-from pr2Util import shadowName, objectName, Memoizer
+from pr2Util import shadowName, objectName, Memoizer, inside
 import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
@@ -1029,18 +1029,6 @@ def bboxGridCoords(bb, n=5, z=None, res=None):
             y = y0 + j*dy
             points.append(np.array([x, y, z, 1.]))
     return points
-
-def inside(shape, reg):
-    return any(insideAux(shape, r) for r in reg.parts())
-
-def insideAux(shape, reg):
-    # all([np.all(np.dot(reg.planes(), p) <= 1.0e-6) for p in shape.vertices().T])
-    verts = shape.vertices()
-    for i in xrange(verts.shape[1]):
-        # reg.containsPt() completely fails to work here.
-        if not np.all(np.dot(reg.planes(), verts[:,i]) <= tiny):
-            return False
-    return True
 
 def confDelta(c1, c2):
     return max([max([abs(x-y) for (x,y) in zip(c1.conf[k], c2.conf[k])]) \
