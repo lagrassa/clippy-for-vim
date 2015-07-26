@@ -114,7 +114,7 @@ traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen', 'sim',
 debugOnly = ['h', 'assign']  # don't pause
 
 
-debugOn = usualTags
+debugOn = usualTags + ['pushGen', 'debugInHeuristic']
 # + ['assign', 'pushGenVar'] + heuristicTags
 # ['easyGraspGen', 'applicableOps', 'pickGen', 'regressionFail']
 

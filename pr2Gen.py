@@ -48,6 +48,7 @@ class EasyGraspGen(Function):
             return
         rm = newBS.getRoadMap()
         graspB = ObjGraspB(obj, pbs.getWorld().getGraspDesc(obj), None,
+                           placeB.support.mode(),
                            PoseD(None, graspVar), delta=graspDelta)
         cache = pbs.beliefContext.genCaches[tag]
         key = (newBS, placeB, graspB, hand, prob, face, grasp)
@@ -142,7 +143,7 @@ class PickGen(Function):
 
         pbs = bState.pbs.copy()
         world = pbs.getWorld()
-        graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
+        graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace, None,
                        PoseD(hu.Pose(*graspPose), graspV), delta=graspDelta)
         placeB = ObjPlaceB(obj, world.getFaceFrames(obj), None,
                        PoseD(None,  objV), delta=objDelta)
@@ -400,7 +401,7 @@ def placeGenGen(args, goalConds, bState):
     if not isinstance(poses[0], (list, tuple, frozenset)):
         poses = frozenset([poses])
 
-    graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
+    graspB = ObjGraspB(obj, world.getGraspDesc(obj), None, None,
                        PoseD(None, graspV), delta=graspDelta)
     def placeBGen():
         for pose in poses:
@@ -668,7 +669,7 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
 
     graspV = bState.domainProbs.maxGraspVar
     graspDelta = bState.domainProbs.graspDelta
-    graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
+    graspB = ObjGraspB(obj, world.getGraspDesc(obj), None, None,
                        PoseD(None, graspV), delta=graspDelta)
 
     # Check if object pose is specified in goalConds
@@ -968,7 +969,7 @@ def lookGenTop(args, goalConds, pbs):
     if obj in world.graspDesc and not glob.inHeuristic:
         graspVar = 4*(0.001,)
         graspDelta = 4*(0.001,)
-        graspB = ObjGraspB(obj, world.getGraspDesc(obj), None,
+        graspB = ObjGraspB(obj, world.getGraspDesc(obj), None, None,
                            PoseD(None, graspVar), delta=graspDelta)
         # Use newBS (which doesn't declare shadow to be permanent) to
         # generate candidate confs, since they will need to collide
@@ -1059,7 +1060,7 @@ def lookHandGen(args, goalConds, bState, outBindings):
     if obj == 'none':
         graspB = None
     else:
-        graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
+        graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace, None,
                            PoseD(grasp, graspV), delta=graspDelta)
     for ans, viol in lookHandGenTop((obj, hand, graspB, prob),
                                     goalConds, pbs, outBindings):
@@ -1203,7 +1204,7 @@ class CanPickPlaceGen(Function):
         world = pbs.getWorld()
         lookVar = tuple([lookVarIncreaseFactor * x \
                                 for x in pbs.domainProbs.obsVarTuple])
-        graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
+        graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace, poseFace,
                            PoseD(graspMu, graspVar), delta= graspDelta)
         placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
                            PoseD(pose, realPoseVar), delta=poseDelta)

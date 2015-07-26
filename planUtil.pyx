@@ -63,7 +63,7 @@ cdef class PoseD(Hash):
 
 # This represent poses for the finger tip in the contact face.
 cdef class ObjGraspB(Hash):
-    def __init__(self, obj, graspDesc, grasp, poseD, var = None, delta = None):
+    def __init__(self, obj, graspDesc, grasp, support, poseD, var = None, delta = None):
         self.obj = obj
         self.graspDesc = graspDesc
         # grasp is an index into the graspDesc
@@ -82,9 +82,10 @@ cdef class ObjGraspB(Hash):
             print 'Unknown poseD type', poseD
             assert None
         self.delta = delta or 4*(0.0,)
+        self.support = support
         Hash.__init__(self)
     cpdef ObjGraspB copy(self):
-        return ObjGraspB(self.obj, self.graspDesc, self.grasp, self.poseD, delta=self.delta)
+        return ObjGraspB(self.obj, self.graspDesc, self.grasp, self.support,self.poseD, delta=self.delta)
     cpdef ObjGraspB modifyPoseD(self, mu=None, var=None):
         gB = self.copy()
         gB.poseD = PoseD(mu or self.poseD.mu,

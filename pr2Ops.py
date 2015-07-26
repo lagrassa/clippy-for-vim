@@ -1202,7 +1202,7 @@ def lookAtHandBProgress(details, args, obs):
             raw_input('Fix observation update to handle new mlo')
             #details.graspModeProb[h] = 1 - details.domainProbs.obsTypeErrProb
             #gd = details.pbs.graspB[h].graspDesc
-            newOGB = ObjGraspB(mlo, gd, faceDist,
+            newOGB = ObjGraspB(mlo, gd, faceDist, None, 
                                PoseD(hu.Pose(0.0, 0.0, 0.0, 0.0), bigSigma))
         elif obsObj == 'none':
             # obj, graspDesc, graspD, poseD
@@ -1249,7 +1249,7 @@ def lookAtHandBProgress(details, args, obs):
                 newSigma = tuple([(a * b) / (a + b) for (a, b) in \
                                   zip(oldSigma,obsVariance)])
                 newPoseDist = PoseD(hu.Pose(*newMu), newSigma)
-            newOGB = ObjGraspB(mlo, gd, faceDist, newPoseDist)
+            newOGB = ObjGraspB(mlo, gd, faceDist, None, newPoseDist)
         details.pbs.updateHeldBel(newOGB, h)
     details.pbs.reset()
     details.pbs.getShadowWorld(0)
@@ -1689,7 +1689,7 @@ class AchCanPickPlaceGen(Function):
                         poseDelta, prob], True)
 
         world = start.pbs.getWorld()
-        graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
+        graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace, poseFace,
                            PoseD(graspMu, graspVar), delta= graspDelta)
         placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
                            PoseD(pose, realPoseVar), delta=poseDelta)
@@ -1715,7 +1715,7 @@ class AchCanPushGen(Function):
                         poseDelta, prob], True)
 
         # world = start.pbs.getWorld()
-        # graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
+        # graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace, poseFace,
         #                    PoseD(graspMu, graspVar), delta= graspDelta)
         # placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
         #                    PoseD(pose, realPoseVar), delta=poseDelta)

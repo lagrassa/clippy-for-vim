@@ -280,14 +280,19 @@ class KDTree:                           # the trivial version
     def allEntries(self):
         return self.entries + self.newEntries
 
+    # def batchAddEntries(self, entries):
+    #     if not entries: return
+    #     self.entries.extend(entries)
+    #     self.points = np.vstack([self.points, \
+    #                              np.array([entry.point for entry in entries])])
+    #     self.size += len(entries)
+
     def batchAddEntries(self, entries):
         if not entries: return
-        self.entries.extend(entries)
-        self.points = np.vstack([self.points, \
-                                 np.array([entry.point for entry in entries])])
-        self.size += len(entries)
+        for i, entry in enumerate(entries):
+            self.addEntry(entry)
 
-    def addEntry(self, entry, merge=False):
+    def addEntry(self, entry, merge=True):
         if merge:
             [(d,ne)] = self.nearest(entry, 1)
             if d <= self.entryTooClose:

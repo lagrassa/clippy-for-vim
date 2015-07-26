@@ -19,6 +19,7 @@ from pr2Util import shadowName, shadowWidths, objectName, supportFaceIndex, Pose
 from fbch import getMatchingFluents
 from belief import B, Bd
 from traceFile import tr, trAlways
+from transformations import rotation_matrix
 
 Ident = hu.Transform(np.eye(4))            # identity transform
 
@@ -236,7 +237,7 @@ class PBS:
             assert None, 'Object does not match grasp in resetGraspB'
     def defaultGraspB(self, obj):
         desc = self.getWorld().getGraspDesc(obj)
-        return ObjGraspB(obj, desc, UniformDist(range(len(desc))), Ident, 4*(100.0,))
+        return ObjGraspB(obj, desc, UniformDist(range(len(desc))), None, Ident, 4*(100.0,))
 
     def getPlacedObjBs(self):
         objectBs = {}
@@ -327,7 +328,7 @@ class PBS:
     def updateHeld(self, obj, face, graspD, hand, delta = None):
         desc = self.getWorld().getGraspDesc(obj) \
           if obj != 'none' else []
-        og = ObjGraspB(obj, desc, DeltaDist(face), graspD, delta = delta)
+        og = ObjGraspB(obj, desc, DeltaDist(face), None, graspD, delta = delta)
         self.held[hand] = DeltaDist(obj) # !! Is this rigt??
         self.graspB[hand] = og
         self.excludeObjs([obj])
@@ -511,28 +512,32 @@ class PBS:
                 # The graspDesc frame is relative to object origin
                 # The graspB pose encodes finger tip relative to graspDesc frame
                 faceFrame = graspDesc.frame.compose(self.graspB[hand].poseD.mode())
-                if False:
-                    cart = self.conf.cartConf()
-                    handPose = cart[robot.armChainNames[hand]].\
-                               compose(robot.toolOffsetX[hand])
-                    heldPose = graspDesc.frame.compose(self.graspB[hand].poseD.mode())
-                    objPose = handPose.compose(heldPose.inverse())
-                    shape = w.getObjectShapeAtOrigin(heldObj).applyTrans(objPose)
-                    support = supportFaceIndex(shape)
-                    faceFrames = w.getFaceFrames(heldObj)
-                    objV = self.graspB[hand].poseD.var
-                    objDelta = self.graspB[hand].delta
-                    objB = ObjPlaceB(heldObj, faceFrames, support,
-                                     PoseD(objPose.pose(), objV), delta=objDelta)
-                    graspShadowMin, graspShadow = self.shadowPair(objB, supportFrame, prob)
-                    shape.draw('W', 'magenta')
-                    raw_input('shadow grasp')
-                else:  # normal grasp
-                    # fingerFrame should map shadow (supported at graspDesc) into wrist frame
-                    fingerFrame = robot.fingerSupportFrame(hand, graspDesc.dz*2)
+                if graspIndex < 0:      # push grasp
+                    support = self.graspB[hand].support
+                    supportFrame = w.getFaceFrames(heldObj)[support]
                     # Create shadow pair and attach both to robot
-                    shadowMin, shadow = self.shadowPair(self.graspB[hand], faceFrame, prob)     
+                    shadowMin, shadow = self.shadowPair(self.graspB[hand], supportFrame, prob)
+                    if debug('getShadowWorldGrasp'):
+                        shadow.draw('W', 'gray'); shadowMin.draw('W', 'red')
                     # graspShadow is expressed relative to wrist and attached to arm
+                    # fingerFrame maps from wrist to center of fingers (second arg is 0.)
+                    fingerFrame = robot.fingerSupportFrame(hand, 0.0)
+                    heldFrame = fingerFrame.compose(faceFrame.inverse())
+                    graspShadow = shadow.applyTrans(heldFrame)
+                    graspShadowMin = shadowMin.applyTrans(heldFrame)
+                    if debug('getShadowWorldGrasp'):
+                        cart = self.conf.cartConf()
+                        wrist = cart[robot.armChainNames[hand]]
+                        graspShadowMin.applyTrans(wrist).draw('W', 'red')
+                        graspShadow.applyTrans(wrist).draw('W', 'gray')
+                        raw_input('Grasped shadow')
+                else:  # normal grasp
+                    # Create shadow pair and attach both to robot
+                    shadowMin, shadow = self.shadowPair(self.graspB[hand], faceFrame, prob)
+                    # shadow is expressed in face frame, now we need
+                    # to express it relative to wrist.
+                    # fingerFrame maps from wrist to inner face of finger
+                    fingerFrame = robot.fingerSupportFrame(hand, graspDesc.dz*2)
                     graspShadow = shadow.applyTrans(fingerFrame)
                     graspShadowMin = shadowMin.applyTrans(fingerFrame)
                 # shadowMin will stand in for object
@@ -577,7 +582,7 @@ class PBS:
             objShadowStats[1] += 1
             return shadow
         # Origin * Support = Pose => Origin = Pose * Support^-1
-        frame = faceFrame.inverse()     # pose is indentity
+        frame = faceFrame.inverse()     # pose is identity
         sh = shape.applyLoc(frame)      # the shape with the specified support
         shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName, color=color)
         self.beliefContext.objectShadowCache[key] = shadow
@@ -811,7 +816,7 @@ def getHeldAndGraspBel(overrides, getGraspDesc):
             assert hand in ('left', 'right') and not hand in grasps
             if obj != 'none':
                 graspB[hand] = ObjGraspB(obj, getGraspDesc(obj),
-                                         DeltaDist(face), hu.Pose(*mu), var, delta)
+                                         DeltaDist(face), None, hu.Pose(*mu), var, delta)
 
     return (held, graspB)
 

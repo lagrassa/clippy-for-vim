@@ -338,7 +338,7 @@ def graspGen(pbs, obj, graspB, placeB=None, conf=None, hand=None, prob=None):
         if debug('graspGen'):
             print 'graspGen: Generating grasp=', grasp
         # TODO: Should also sample a pose in the grasp face...
-        gB = ObjGraspB(graspB.obj, graspB.graspDesc, grasp,
+        gB = ObjGraspB(graspB.obj, graspB.graspDesc, grasp, None,
                        # !! Need to pick offset for grasp to be feasible
                        PoseD(graspB.poseD.mode() or hu.Pose(0.0, -0.025, 0.0, 0.0),
                              graspB.poseD.var),

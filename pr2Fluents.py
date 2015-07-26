@@ -688,7 +688,7 @@ class CanPickPlace(Fluent):
 
         # newBS = bState.pbs.copy().updateFromGoalPoses(inconds, permShadows=True)
         # world = newBS.getWorld()
-        # graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace,
+        # graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace, poseFace,
         #                    PoseD(graspMu, graspVar), delta= graspDelta)
         # placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
         #                    PoseD(pose, poseVar), delta=poseDelta)
@@ -1321,7 +1321,7 @@ def canPush(pbs, obj, hand, prePose, pose,
     faceFrame = objFrame.inverse().compose(pushWrist.compose(gripperFaceFrame[hand]))
     graspDescList = [GDesc(obj, faceFrame, 0.0, 0.0, 0.0)]
     graspDescFrame = objFrame.compose(graspDescList[-1].frame)
-    graspB =  ObjGraspB(obj, graspDescList, -1,
+    graspB =  ObjGraspB(obj, graspDescList, -1, support,
                         PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
     newBS = pbs.copy()
     newBS = newBS.updateHeldBel(graspB, hand)

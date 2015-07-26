@@ -125,12 +125,6 @@ def pushGenAux(pbs, placeB, hand, base, prob):
         for contactFrame in handContactFrames(xyPrim, center, vertical):
             # construct a graspB corresponding to the push hand pose,
             # determined by the contact frame
-            if debug(tag):
-                pbs.draw(prob, 'W')
-                xyPrim.draw('W')
-                drawFrame(contactFrame)
-                print 'contactFrame\n', contactFrame.matrix
-                raw_input('contactframe')
             potentialContacts.append((vertical, contactFrame))
     # Sort contacts by nearness to current pose of object
     curPose = pbs.getPlaceB(placeB.obj).poseD.mode()
@@ -144,9 +138,9 @@ def pushGenAux(pbs, placeB, hand, base, prob):
     for (dist, vertical, contactFrame) in sortedContacts:
         graspB = graspBForContactFrame(pbs, contactFrame,
                                        0.0,  placeB, hand, vertical)
-        pbs.draw(prob, 'W')
         gf = placeB.objFrame().compose(graspB.graspDesc[-1].frame)
         if debug(tag):
+            pbs.draw(prob, 'W')
             print 'vertical', vertical, 'dist', dist
             drawFrame(gf)
             raw_input('graspDesc frame')
@@ -309,13 +303,14 @@ pushBuffer = 0.05
 def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
     tag = 'graspBForContactFrame'
     # TODO: what should these values be?
-    graspVar = 4*(0.0,)
-    graspDelta = 4*(0.0,)
+    graspVar = 4*(0.001,)
+    graspDelta = 4*(0.00,)
     obj = placeB.obj
     objFrame = placeB.objFrame()
     if debug(tag): print 'objFrame\n', objFrame.matrix
 
     (tr, 'pushGen', 'Using pushBuffer', pushBuffer)
+    # Displacement of finger tip from contact face (along Z of contact frame)
     zOff = zOffset + (-fingerTipWidth if vertical else 0.) - pushBuffer
     displacedContactFrame = contactFrame.compose(hu.Pose(0.,0.,zOff,0.))
     if debug(tag):
@@ -323,16 +318,26 @@ def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
         drawFrame(displacedContactFrame)
         raw_input('displacedContactFrame')
     graspB = None
+    # consider flips of the hand (mapping one finger to the other)
     for angle in (0, np.pi):
         displacedContactFrame = displacedContactFrame.compose(hu.Pose(0.,0.,0.,angle))
+        if debug(tag):
+            pbs.draw(0.9); drawFrame(displacedContactFrame)
+            raw_input('displacedContactFrame (rotated)')
         gM = displacedContactFrame.compose(hu.Transform(vertGM if vertical else horizGM))
-        gT = objFrame.inverse().compose(gM)
+        if debug(tag):
+            print gM.matrix
+            print 'vertical =', vertical
+            pbs.draw(0.9); drawFrame(gM)
+            raw_input('gM')
+        gT = objFrame.inverse().compose(gM) # gM relative to objFrame
         # TODO: find good values for dx, dy, dz
         graspDescList = [GDesc(obj, gT, 0.0, 0.0, 0.0)]
         graspDescFrame = objFrame.compose(graspDescList[-1].frame)
         if debug(tag): print 'graspDescFrame\n', graspDescFrame.matrix
         # -1 grasp denotes a "virtual" grasp
-        gB = ObjGraspB(obj, graspDescList, -1,
+        gB = ObjGraspB(obj, graspDescList, -1, placeB.support.mode(),
+                       # TODO: This should encode the support face ?
                        PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
         wrist = objectGraspFrame(pbs, gB, placeB, hand)
         if any(pbs.getWorld().robot.potentialBasePosesGen(wrist, hand, complain=False)):
@@ -413,14 +418,24 @@ def gripSet(conf, hand, width=0.08):
 def sortPushContacts(contacts, targetPose, curPose):
     bad = []
     good = []
+    offset = targetPose.inverse().compose(curPose).pose()
+    offsetPt = offset.matrix[:,3].reshape((4,1)).copy()
+    offsetPt[3,0] = 0.0                   # displacement
     for (vertical, contact) in contacts:
-        ntr = contact.inverse().compose(curPose)
-        ntrz = ntr.matrix[2,3]
-        if ntrz > 0.:
+        cinv = contact.inverse() 
+        ntr = np.dot(cinv.matrix, offsetPt)
+        ntrz = ntr[2,0]
+        if debug('pushGenDetail'):
+            print 'push contact, vertical=', vertical, '\n', contact.matrix
+            print 'offset', offset
+            print 'offset z in contact frame\n', ntr
+            raw_input('Next?')
+        if ntrz >= 0.:
             bad.append((None, vertical, contact))
         else:
-            ptr = contact.inverse().compose(targetPose)
-            ptrz = ptr.matrix[2,3]
-            good.append((ptrz-ntrz, vertical, contact))
+            good.append((ntrz, vertical, contact))
     good.sort()                         # smallest z distance first
-    return good + bad
+    if debug('pushGen'):
+        print 'push contacts sorted by push distance'
+        for x in good: print x
+    return good                         # bad ones require "pulling"

@@ -15,7 +15,7 @@ cdef class PoseD(Hash):
     cpdef tuple desc(self)
 
 cdef class ObjGraspB(Hash):
-    cdef public obj, graspDesc, grasp, poseD, delta
+    cdef public obj, graspDesc, grasp, poseD, delta, support
 
     cpdef ObjGraspB copy(self)
     cpdef ObjGraspB modifyPoseD(self, mu=*, var=*)

@@ -60,7 +60,8 @@ cdef inline bool bboxOverlap(np.ndarray[np.float64_t, ndim=2] bb1,
 gwp1 = np.zeros(3, dtype=np.double)
 gwp2 = np.zeros(3, dtype=np.double)
 
-cpdef bool chainCollides(tuple CC1, list chains1, tuple CC2, list chains2, double minDist = 1.0e-6):
+cpdef bool chainCollides(tuple CC1, list chains1, tuple CC2, list chains2,
+                         double minDist = 1.0e-6, bool ignoreBBox = False):
     cdef Object_structure obj1
     cdef Object_structure obj2
     cdef list framesList1, framesList2, verts
@@ -104,7 +105,7 @@ cpdef bool chainCollides(tuple CC1, list chains1, tuple CC2, list chains2, doubl
                 verts1 = entry1.linkVerts
                 if verts1 is None: continue
                 bb1 = entry1.bbox
-                if not bboxOverlap(bb2, bb1): continue
+                if not (ignoreBBox or bboxOverlap(bb2, bb1)): continue
                 tr1 = entry1.frame
                 for ov1 in verts1:
                     obj1.numpoints = ov1.shape[0]
@@ -116,20 +117,22 @@ cpdef bool chainCollides(tuple CC1, list chains1, tuple CC2, list chains2, doubl
     return False
 
 # Don't let the arms of the robot get too close
-minSelfDistance = 1.0e-6
+minSelfDistance = 0.1
 
 cdef list left_gripper = ['pr2LeftGripper']
-cdef list left_arm = ['pr2LeftGripper', 'pr2LeftArm']
+cdef list left_arm = ['pr2LeftArm']
 cdef list right_gripper = ['pr2RightGripper']
-cdef list right_arm = ['pr2RightGripper', 'pr2RightArm']
+cdef list right_arm = ['pr2RightArm']
 
 cpdef bool confSelfCollide(tuple compiledChains, tuple heldCC,
                            double minDist = minSelfDistance):
     minDist = minDist*minDist  # gjk_distance returns squared distance
-    return chainCollides(compiledChains, left_gripper, compiledChains, right_arm, minDist) \
-           or chainCollides(compiledChains, right_gripper, compiledChains, left_arm, minDist) \
-           or chainCollides(compiledChains, left_arm, heldCC[1], None, minDist) \
-           or chainCollides(compiledChains, right_arm, heldCC[0], None, minDist)
+    return chainCollides(compiledChains, left_gripper, compiledChains, right_gripper, minDist, ignoreBBox=True) \
+           or chainCollides(heldCC[1], None, heldCC[0], None, minDist, ignoreBBox=True) \
+           or chainCollides(compiledChains, left_gripper, compiledChains, right_arm) \
+           or chainCollides(compiledChains, right_gripper, compiledChains, left_arm) \
+           or chainCollides(compiledChains, left_arm, heldCC[1], None) \
+           or chainCollides(compiledChains, right_arm, heldCC[0], None)
 
 cdef dict confCache = {}
 
