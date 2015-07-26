@@ -658,11 +658,12 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     glob.inHeuristic = False
     tr('h', prettyString(totalCost))
 
-    totalCalls = cacheHits + easy + regress
-    print 'cache hits:', cacheHits, cacheHits / float(totalCalls)
-    print 'easy:', easy, easy / float(totalCalls)
-    print 'regress calls:', regress, regress / float(totalCalls)
-    raw_input('woo hoo?')
+    if debug('hAddBackCache'):
+        totalCalls = cacheHits + easy + regress
+        print 'cache hits:', cacheHits, cacheHits / float(totalCalls)
+        print 'easy:', easy, easy / float(totalCalls)
+        print 'regress calls:', regress, regress / float(totalCalls)
+        raw_input('woo hoo?')
 
     return totalCost
 
@@ -825,10 +826,11 @@ def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     glob.inHeuristic = False
     tr('h', prettyString(totalCost))
 
-    totalCalls = cacheHits + easy + regress
-    print 'cache hits:', cacheHits, cacheHits / float(totalCalls)
-    print 'easy:', easy, easy / float(totalCalls)
-    print 'regress calls:', regress, regress / float(totalCalls)
-    raw_input('woo hoo?')
+    if debug('hAddBackCache'):
+        totalCalls = cacheHits + easy + regress
+        print 'cache hits:', cacheHits, cacheHits / float(totalCalls)
+        print 'easy:', easy, easy / float(totalCalls)
+        print 'regress calls:', regress, regress / float(totalCalls)
+        raw_input('woo hoo?')
 
     return totalCost
