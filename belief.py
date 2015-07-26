@@ -1,17 +1,15 @@
 import copy
 import numpy as np
 
-from traceFile import tr, trAlways
+from traceFile import tr, trAlways, debug, debugMsg
 
 import planGlobals as glob
-from traceFile import debug, debugMsg
 
 import fbch
-from fbch import Fluent, applyBindings, hCache, State, applicableOps,\
-    Operator
+from fbch import Fluent, hCache, State, applicableOps, Operator
 
-from miscUtil import isVar, isAnyVar, floatify, isStruct, customCopy,\
-    lookup, squash, squashSets, prettyString, isGround, matchLists
+from miscUtil import isVar, isAnyVar, floatify, customCopy,\
+    lookup, prettyString, isGround
 
 
 ######################################################################
@@ -402,12 +400,13 @@ def getOverlap(vl1, vl2, dl1, dl2):
 ######################################################################
 
 hCache2 = {}
-hCacheID = {}
+hCacheInf = {}  # Maps fluent sets to the level at which they have
+                # generated infinite values
 
 def hCacheReset():
     fbch.hCache.clear()
     hCache2.clear()
-    hCacheID.clear()
+    hCacheInf.clear()
 
 fbch.hCacheReset = hCacheReset
 
@@ -415,9 +414,11 @@ def hCacheDel(f):
     if f in fbch.hCache:
         del fbch.hCache[f]
     for i in hCacheID.keys():
-        hCacheID[i].discard(f)
+        hCacheInf.discard(f)
 
 fbch.hCacheDel = hCacheDel
+
+hAddBackEntail = True
 
 
 # hCache maps each fluent to the set of actions needed to achieve it
@@ -434,7 +435,7 @@ fbch.hCacheDel = hCacheDel
 
 # Could do more to keep hCache2 minimal.
 
-# One more cache for iterative deepening:  hCacheID
+# One more cache for infinities:  hCacheInf
 # maps level k into the set of fluents that have infinite cost at that depth
 
 def removeProbs(f):
@@ -445,10 +446,11 @@ def removeProbs(f):
 
 def addToCachesSet(fs, cost, actSet):
     hCache[fs] = (cost, actSet)
-    fsStripped = frozenset([removeProbs(f) for f in fs])
-    if not fsStripped in hCache2:
-        hCache2[fsStripped] = {}
-    hCache2[fsStripped][fs] = (cost, actSet)
+    if hAddBackEntail: 
+        fsStripped = frozenset([removeProbs(f) for f in fs])
+        if not fsStripped in hCache2:
+            hCache2[fsStripped] = {}
+        hCache2[fsStripped][fs] = (cost, actSet)
 
 def inCache(fs):
     return fs in hCache
@@ -482,11 +484,18 @@ maxHeuristicValue = float('inf')
 # See if we can get some branch-and-bound action to work.  Advantage is
 # finishing early;  risk is not filling up cache effectively
 
-hAddBackEntail = True
+cacheHits = 0
+easy = 0
+regress = 0
 
-def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
+def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                  staticEval = lambda f: float('inf'),
-                 ddPartitionFn = lambda fs: [set([f]) for f in fs]):
+                 ddPartitionFn = lambda fs: [frozenset([f]) for f in fs]):
+
+    global cacheHits, easy, regress
+    cacheHits = 0
+    easy = 0
+    regress = 0
 
     # Always address immutable functions first.
     def partitionFn(fs):
@@ -499,10 +508,12 @@ def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     # cache entries will be frozen sets of fluents
     # Return a set of actions.
     def aux(fUp, k, minSoFar):
+        global cacheHits, easy, regress
         # See if it's in the main cache
         if inCache(fUp):
             cval = hCacheLookup(fUp)
-            if debug('hAddBackV'): print 'c', cval,
+            if debug('hAddBackV'): print 'c', cval[0]
+            cacheHits += 1
             return cval
 
         # Try to find a quick answer
@@ -512,19 +523,19 @@ def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         if len(fUp) == 1:
             f = list(fUp)[0]
             hv =  f.heuristicVal(start.details)
-            if hv != False:
+            if hv:
                 # We actually do have a special value
                 (cost, ops) = hv
                 if debug('hAddBackV'): print 'hv',
         # See if it's true in start state
         g = State(fUp)
-        if cost == None and start.satisfies(g):
+        if cost is None and start.satisfies(g):
             if debug('hAddBackV'): print 's',
             cost, ops = 0, set()
         # See if it's in level 2 cache.   This makes it inadmissible
         if cost == None and hAddBackEntail:
             result = hCacheEntailsSet(fUp)
-            if result != False:
+            if result:
                 (cost, ops) = result
                 if debug('hAddBackV'): print 'e',
         # At a leaf.  Use static eval.
@@ -533,7 +544,7 @@ def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             cost = staticEval(fUp)
             dummyO = Operator('dummy'+prettyString(cost), [], {}, [])
             dummyO.instanceCost = cost
-            ops = set([dummyO])
+            ops = {dummyO}
         if cost == None and all([not f.isGround() for f in fUp]):
             # None of these fluents are ground; assume they can be
             # made true by matching
@@ -542,14 +553,16 @@ def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
 
         if cost != None:
             # We found a cheap answer.  Put in cache and return
-            addToCachesSet(fUp, cost, ops)
+            if cost != float('inf'):
+                addToCachesSet(fUp, cost, ops)
+            easy += 1
             return cost, ops
 
         # Otherwise, do regression
         # If we find it has to be more expensive than this upper bound, quit
         # Set to true if we compute a reliable value for fUp that should be
         # put into the cache
-        store = False
+        bestActSet = None
 
         # OR loop over operators and ways of achieving them
         # Need to pass in ancestors to use the appropriate level of
@@ -562,18 +575,20 @@ def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             if debug('primitiveHeuristicAlways', h = True):
                 o.abstractionLevel = o.concreteAbstractionLevel
             pres = o.regress(g, start)
+            if debug('hAddBackV'): print 'R',
+            regress += 1
             if len(pres) == 1:
                 # Only got the rebind result
                 debugMsg('hAddBack', 'no preimage', g, o)
             for pre in pres[:-1]:
                 # Usually only one;  bindings of o
-                (preImage, newOpCost) = pre
-                newActSet = set([preImage.operator])
+                preImage, newOpCost = pre
+                newActSet = {preImage.operator}
                 partialCost = preImage.operator.instanceCost
                 # AND loop over preconditions.  See if we have a good value
                 # for this operator
                 goodValue = True
-                for ff in partitionFn(preImage.fluents):
+                for fff in partitionFn(preImage.fluents):
                     if partialCost >= minSoFar:
                         # This op can never be cheaper than the best we
                         # have found so far in this loop
@@ -584,42 +599,41 @@ def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                     if debug('hAddBack', h = True):
                         print ' '*(maxK - k)+'C Aux:', k-1, o.name, \
                              prettyString(minSoFar - partialCost),\
-                                  [f.shortName() for f in ff]
+                                  [f.shortName() for f in fff]
                                        
-                    subCost, subActSet = aux(ff, k-1, minSoFar - partialCost)
+                    subCost, subActSet = aux(fff, k-1, minSoFar - partialCost)
 
                     if debug('hAddBack', h = True):
                         print '\n'+' '*(maxK - k)+'R Aux:', k-1, o.name, \
-                          prettyString(subCost), [f.shortName() for f in ff]
+                          prettyString(subCost), [f.shortName() for f in fff]
 
                     if subCost == float('inf'):
                         partialCost, newActSet = (float('inf'), set())
                     else:
                         newActSet = newActSet.union(subActSet)
-                        partialCost = sum([op.instanceCost \
-                                               for op in newActSet])
+                        partialCost = sum([opr.instanceCost \
+                                               for opr in newActSet])
 
                 # At this point, partialCost is the total cost for this operator
                 if partialCost < minSoFar and goodValue:
                     # This is a better way of achieving fUp; a reliable value
                     minSoFar = partialCost
                     bestActSet = newActSet
-                    store = True
 
         # Done with all the ways of achieving fUp.  Store the result
-        if store:
+        if bestActSet is not None:
             addToCachesSet(fUp, minSoFar, bestActSet)
-            if debug('hAddBackV'):
+            if debug('hAddBack'):
                 print '\n'+' '*(maxK - k)+'H', prettyString(minSoFar), \
                                   [f.shortName() for f in fUp]
             tr('hAddBack', 'stored value', k, minSoFar,
                        [a.name for a in bestActSet], h = True)
         
         # Return the value in the cache
-        thing = hCacheLookup(fUp)
+        result = hCacheLookup(fUp)
         # If it's not in the cache, we bailed out before computing a good
         # value.  Just return inf
-        return thing if thing != False else (float('inf'), set())
+        return result if result != False else (float('inf'), set())
 
     glob.inHeuristic = True
     totalActSet = set()
@@ -627,11 +641,13 @@ def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     for ff in partitionFn(goal.fluents):
         (ic, actSet) = aux(ff, maxK, float('inf'))
         if ic == float('inf'):
+            glob.inHeuristic = False
             return ic
         totalActSet = totalActSet.union(actSet)
     totalCost = sum([op.instanceCost for op in totalActSet])
 
-    if totalCost < float('inf') and debug('hAddBack'):
+    if totalCost < float('inf') and \
+            (debug('hAddBack') or debug('hAddBackV')):
         print '** Final **', prettyString(totalCost)
         for thing in goal.fluents: print '   ', thing.shortName()
         print '     acts'
@@ -641,5 +657,178 @@ def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
 
     glob.inHeuristic = False
     tr('h', prettyString(totalCost))
+
+    totalCalls = cacheHits + easy + regress
+    print 'cache hits:', cacheHits, cacheHits / float(totalCalls)
+    print 'easy:', easy, easy / float(totalCalls)
+    print 'regress calls:', regress, regress / float(totalCalls)
+    raw_input('woo hoo?')
+
     return totalCost
 
+
+# Alternative version that doesn't do branch and bound.  Might be better because
+# it can cache infinite heuristic values
+def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
+                 staticEval = lambda f: float('inf'),
+                 ddPartitionFn = lambda fs: [frozenset([f]) for f in fs]):
+
+    global cacheHits, easy, regress
+    cacheHits = 0
+    easy = 0
+    regress = 0
+
+    # Always address immutable functions first.
+    def partitionFn(fs):
+        immu = frozenset([f for f in fs if f.immutable])
+        notImmu = [f for f in fs if not f.immutable]
+        return [frozenset([immuF]) for immuF in immu if immuF.isGround()] + \
+                     ddPartitionFn(notImmu)
+
+    # fUp is a set of fluents
+    # cache entries will be frozen sets of fluents
+    # Return a set of actions.
+    def aux(fUp, k):
+        global cacheHits, easy, regress
+        
+        # See if it's in the main cache
+        if inCache(fUp):
+            cval = hCacheLookup(fUp)
+            if debug('hAddBackV'): print 'c', cval[0]
+            cacheHits += 1
+            return cval
+
+        # Try to find a quick answer
+        cost, ops = None, None
+        # If this group has only 1 fluent and a special way to
+        # compute the value, then use that.
+        if len(fUp) == 1:
+            f = list(fUp)[0]
+            hv =  f.heuristicVal(start.details)
+            if hv:
+                # We actually do have a special value
+                (cost, ops) = hv
+                if debug('hAddBackV'): print 'hv',
+        # See if it's true in start state
+        g = State(fUp)
+        if cost is None and start.satisfies(g):
+            if debug('hAddBackV'): print 's',
+            cost, ops = 0, set()
+        # See if it's in level 2 cache.   This makes it inadmissible
+        if cost == None and hAddBackEntail:
+            result = hCacheEntailsSet(fUp)
+            if result:
+                (cost, ops) = result
+                if debug('hAddBackV'): print 'e',
+        # At a leaf.  Use static eval.
+        if cost == None and k == 0:
+            if debug('hAddBackV'): print 'l',
+            cost = staticEval(fUp)
+            dummyO = Operator('dummy'+prettyString(cost), [], {}, [])
+            dummyO.instanceCost = cost
+            ops = {dummyO}
+        if cost == None and all([not f.isGround() for f in fUp]):
+            # None of these fluents are ground; assume they can be
+            # made true by matching
+            if debug('hAddBackV'): print 'ng',
+            cost, ops = 0, set()
+
+        if cost != None:
+            # We found a cheap answer.  Put in cache and return
+            addToCachesSet(fUp, cost, ops)
+            easy += 1
+            return cost, ops
+
+        # Otherwise, do regression
+        # If we find it has to be more expensive than this upper bound, quit
+        # Set to true if we compute a reliable value for fUp that should be
+        # put into the cache
+        bestActSet = None
+        minSoFar = float('inf')
+
+        # OR loop over operators and ways of achieving them
+        # Need to pass in ancestors to use the appropriate level of
+        # abstraction in computing the heuristic
+        ops = applicableOps(g, operators, start, ancestors,
+                                monotonic = False)
+        if len(ops) == 0:
+            debugMsg('hAddBack', 'no applicable ops', g)
+        for o in ops:
+            if debug('primitiveHeuristicAlways', h = True):
+                o.abstractionLevel = o.concreteAbstractionLevel
+            pres = o.regress(g, start)
+            if debug('hAddBackV'): print 'R',
+            regress += 1
+            if len(pres) == 1:
+                # Only got the rebind result
+                debugMsg('hAddBack', 'no preimage', g, o)
+            for pre in pres[:-1]:
+                # Usually only one;  bindings of o
+                preImage, newOpCost = pre
+                newActSet = {preImage.operator}
+                partialCost = preImage.operator.instanceCost
+                # AND loop over preconditions.  See if we have a good value
+                # for this operator
+                for fff in partitionFn(preImage.fluents):
+                    if debug('hAddBack', h = True):
+                        print ' '*(maxK - k)+'C Aux:', k-1, o.name, \
+                                  [f.shortName() for f in fff]
+
+                    subCost, subActSet = aux(fff, k-1)
+
+                    if debug('hAddBack', h = True):
+                        print '\n'+' '*(maxK - k)+'R Aux:', k-1, o.name, \
+                          prettyString(subCost), [f.shortName() for f in fff]
+
+                    if subCost == float('inf'):
+                        partialCost, newActSet = (float('inf'), set())
+                    else:
+                        newActSet = newActSet.union(subActSet)
+                        partialCost = sum([opr.instanceCost \
+                                               for opr in newActSet])
+
+                # At this point, partialCost is the total cost for this operator
+                if partialCost < minSoFar:
+                    # This is a better way of achieving fUp; a reliable value
+                    minSoFar, bestActSet = partialCost, newActSet
+
+        # Done with all the ways of achieving fUp.  Store the result
+        addToCachesSet(fUp, minSoFar, bestActSet)
+        if debug('hAddBack', h = True):
+            print '\n'+' '*(maxK - k)+'Stored', k, minSoFar, \
+                      [a.name for a in bestActSet] if bestActSet else None
+
+        return minSoFar, bestActSet
+
+    glob.inHeuristic = True
+    totalActSet = set()
+    # AND loop over fluents
+    for ff in partitionFn(goal.fluents):
+        (ic, actSet) = aux(ff, maxK)
+        if ic == float('inf'):
+            glob.inHeuristic = False
+            return ic
+        totalActSet = totalActSet.union(actSet)
+    totalCost = sum([op.instanceCost for op in totalActSet])
+
+    addToCachesSet(frozenset(goal.fluents), totalCost, totalActSet)
+
+    if totalCost < float('inf') and \
+            (debug('hAddBack') or debug('hAddBackV')):
+        print '** Final **', prettyString(totalCost)
+        for thing in goal.fluents: print '   ', thing.shortName()
+        print '     acts'
+        for op in totalActSet: print '        ', \
+              prettyString(op.instanceCost), op.name, op.args[0]
+        debugMsg('hAddBack', 'final')
+
+    glob.inHeuristic = False
+    tr('h', prettyString(totalCost))
+
+    totalCalls = cacheHits + easy + regress
+    print 'cache hits:', cacheHits, cacheHits / float(totalCalls)
+    print 'easy:', easy, easy / float(totalCalls)
+    print 'regress calls:', regress, regress / float(totalCalls)
+    raw_input('woo hoo?')
+
+    return totalCost

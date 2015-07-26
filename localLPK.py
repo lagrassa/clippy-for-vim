@@ -81,26 +81,29 @@ skeleton
 testVerbose
 traceCRH
 traceGen  (compact summary of generators)
+useBBInH
 visible
 visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
 
-usualTags = ['nonmon', 'simpleAbstractCostEstimates']
-             #'primitiveHeuristicAlways']
-heuristicTags = ['hAddBack', 'hAddBackV', 'heuristic', 'hAddBackInf',
-                 'debugInHeuristic', 'h']
+
+usualTags = ['nonmon', 'primitiveHeuristicAlways', 'useBBinH']
+flags = ['simpleAbstractCostEstimates']
+heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
+                 'debugInHeuristic', 'h']  # 'hAddBack'
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number']
 traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
                    'pushGen', 'assign']
 debugOnly = ['h', 'assign']  # don't pause
 
-debugOn = usualTags + ['hAddBackInf']
+debugOn = usualTags + ['pushGen'] + heuristicTags
 
 pauseOn = debugOn[:]
 
 logOn = debugOn + traceOnly
 debugOn.extend(debugOnly)
+debugOn.extend(flags)
 
 

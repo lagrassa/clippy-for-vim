@@ -363,10 +363,10 @@ class CanReachHome(Fluent):
         
         path, violations = self.getViols(details, v, p)
 
-        (ops, totalCost) = hCost(violations, obstCost, details)
-        tr('hAddBack', ('Heuristic val', self.predicate),
+        totalCost, ops = hCost(violations, obstCost, details)
+        tr('hv', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
-        return ops, totalCost
+        return totalCost, ops
 
     def prettyString(self, eq = True, includeValue = True):
         (conf, fcp, cond) = self.args
@@ -378,6 +378,7 @@ class CanReachHome(Fluent):
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
 
+# Returns cost, ops
 def hCost(violations, obstCost, details):
     if violations is None:
         tr('hAddBackInf', 'computed hv infinite')
@@ -432,7 +433,7 @@ def hCost(violations, obstCost, details):
 
     totalCost = sum([o.instanceCost for o in ops])
 
-    return (totalCost, ops)
+    return totalCost, ops
 
 def hCostSee(vis, occluders, obstCost, details):
     # vis is whether enough is visible;   we're 0 cost if that's true
@@ -547,10 +548,10 @@ class CanReachNB(Fluent):
             
         path, violations = self.getViols(details, v, p)
 
-        (ops, totalCost) = hCost(violations, obstCost, details)
-        tr('hAddBack', ('Heuristic val', self.predicate),
+        totalCost, ops = hCost(violations, obstCost, details)
+        tr('hv', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
-        return ops, totalCost
+        return totalCost, ops
 
     def prettyString(self, eq = True, state = None, heuristic = None,
                      includeValue = True):
@@ -741,11 +742,11 @@ class CanPickPlace(Fluent):
             return obstCost, {dummyOp}
 
         path, violations = self.getViols(details, v, p)
-        (ops, totalCost) = hCost(violations, obstCost, details)
+        totalCost, ops = hCost(violations, obstCost, details)
 
-        tr('hAddBack', ('Heuristic val', self.predicate),
+        tr('hv', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
-        return ops, totalCost
+        return totalCost, ops
 
 
     def prettyString(self, eq = True, state = None, heuristic = None,
@@ -854,11 +855,11 @@ class CanPush(Fluent):
             return obstCost, {dummyOp}
 
         path, violations = self.getViols(details, v, p)
-        (ops, totalCost) = hCost(violations, obstCost, details)
+        totalCost, ops = hCost(violations, obstCost, details)
 
-        tr('hAddBack', ('Heuristic val', self.predicate),
-           ('ops', ops), 'cost', totalCost)
-        return ops, totalCost
+        tr('hv', ('Heuristic val', self.predicate),
+           ('ops', ops), ('cost', totalCost))
+        return totalCost, ops
 
 
     # TODO : LPK Can this be shared among CanX fluents?
@@ -1065,13 +1066,13 @@ class CanSeeFrom(Fluent):
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
             dummyOp.instanceCost = obstCost
-            return (obstCost, {dummyOp})
+            return obstCost, {dummyOp}
         
         vis, occluders = self.getViols(details, v, p)
-        (ops, totalCost) = hCostSee(vis, occluders, obstCost, details)
-        tr('hAddBack', ('Heuristic val', self.predicate),
+        totalCost, ops = hCostSee(vis, occluders, obstCost, details)
+        tr('hv', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
-        return (ops, totalCost)
+        return totalCost, ops
 
     def prettyString(self, eq = True, includeValue = True):
         (obj, pose, poseFace, conf, cond) = self.args

@@ -1957,10 +1957,6 @@ achCanSee = Operator('AchCanSee',
 
 magicRegraspCost = 10
 
-# Not sure how to make this be called less often; it's relevant to any
-# "Holding" goal.  Hopefully the easyGrasp cache works well.  Will try
-# attenuating the probabilities.
-
 hRegrasp = Operator(
         'HeuristicRegrasp',
         ['Obj', 'Hand', 'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',

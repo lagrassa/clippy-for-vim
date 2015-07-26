@@ -19,7 +19,7 @@ from fbch import State, planBackward, makePlanObj, HPN
 
 import belief
 reload(belief)
-from belief import hAddBackBSet, B, Bd
+from belief import hAddBackBSet, BBhAddBackBSet, B, Bd
 
 import pr2Util
 reload(pr2Util)
@@ -118,7 +118,8 @@ def habbs(s, g, ops, ancestors):
     global heuristicTime
     startTime = time.time()
     hops = ops + [hRegrasp]
-    val = hAddBackBSet(s, g, hops, ancestors, ddPartitionFn = partition,
+    h = BBhAddBackBSet if debug('useBBinH') else hAddBackBSet
+    val = h(s, g, hops, ancestors, ddPartitionFn = partition,
                          maxK = hDepth)
     if val == 0:
         # Just in case the addBack heuristic thinks we're at 0 when
@@ -126,7 +127,7 @@ def habbs(s, g, ops, ancestors):
         isSat = s.satisfies(g)
         if not isSat:
             fbch.hCacheReset()
-            newVal = hAddBackBSetID(s, g, hops, ancestors,
+            newVal = h(s, g, hops, ancestors,
                                         ddPartitionFn = partition,
                                         maxK = hDepth)
             if newVal >= 0:
@@ -823,7 +824,7 @@ tinyErrProbs = DomainProbs(
             graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
 
 allOperators = [move, pick, place,
-                push,
+                #push,
                 lookAt, moveNB,
                 achCanReach, achCanPickPlace, poseAchIn,
                 bLoc1, bLoc2, bLoc3]
