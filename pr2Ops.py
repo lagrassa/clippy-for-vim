@@ -220,7 +220,7 @@ def pushPrim(args, details):
             preConf, pushConf, postConf, confDelta, resultProb, preProb1,
             preProb2) = args
     # TODO: Does it matter which prob we use?
-    path, viol = canPush(details.pbs, obj, hand, prePose, pose,
+    path, viol = canPush(details.pbs, obj, hand, poseFace, prePose, pose,
                          preConf, pushConf, postConf, prePoseVar, poseVar,
                          poseDelta, resultProb, Violations())
     assert path
@@ -1450,7 +1450,8 @@ def pushOp(*args):
 # TODO : LPK think through the deltas more carefully
 push = Operator('Push', pushArgs,
         {0 : {Pushable(['Obj'], True)},
-         1 : {Bd([CanPush(['Obj', 'Hand', 'PrePose', 'Pose', 'PreConf',
+         1 : {Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
+                           'PreConf',
                             'PushConf', 'PostConf', 'PoseVar', 'PrePoseVar',
                             'PoseDelta', []]), True, canPPProb],True)},
          2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
@@ -1930,6 +1931,32 @@ achCanPickPlace = Operator('AchCanPickPlace',
     argsToPrint = [2, 3, 4],
     ignorableArgs = [0, 1] + range(5, 17),
     metaGenerator = True)
+
+achCanPush = Operator('AchCanPush',
+    ['Obj', 'Hand', 'PoseFace',
+     'PrePose', 'Pose', 'PreConf', 'PushConf', 'PostConf',
+     'PoseVar', 'PrePoseVar', 'PoseDelta', 'PreCond', 'PostCond',
+    'NewCond', 'Op', 'Prob'],
+    {0: {},
+     1: {Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
+                      'PreConf', 'PushConf',
+                    'PostConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',
+                    'PreCond']),  True, 'Prob'], True)}},
+    # Result
+    [({Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
+                    'PreConf', 'PushConf',
+                    'PostConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',
+                    'PostCond']),  True, 'Prob'], True)}, {})],
+    functions = [
+        AchCanPushGen(['Op', 'NewCond'],
+                      ['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
+                       'PreConf', 'PushConf', 'PostConf', 'PoseVar',
+                      'PrePoseVar', 'PoseDelta', 'Prob', 'PostCond']),
+        AddPreConds(['PreCond'],['PostCond', 'NewCond'])],
+    argsToPrint = [0, 1, 4],
+    ignorableArgs = range(1, 14),
+    metaGenerator = True
+    )
 
 # Never been tested
 '''

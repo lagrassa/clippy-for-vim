@@ -413,19 +413,21 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
         if debug('potentialGraspConfs'):
             pbs.draw(prob, 'W'); conf.draw('W','red')
 
-def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=10):
+def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
+                             nMax=10):
+    tag = 'potentialGraspConfs'
     if conf:
         ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
         if ca:
-            viol = pbs.getRoadMap().confViolations(ca, pbs, prob, ignoreAttached=True)
+            viol = pbs.getRoadMap().confViolations(ca, pbs, prob,
+                                                   ignoreAttached=True)
             if viol:
                 yield conf, ca, viol
+        tr(tag, 'Conf specified; viol is None or out of alternatives')
         return
     wrist = objectGraspFrame(pbs, graspB, placeB, hand)
-    if debug('potentialGraspConfs'):
-        print 'potentialGraspConfGen', hand, placeB.obj, graspB.grasp
-        print wrist
-        pbs.draw(prob, 'W')
+    tr(tag, hand, placeB.obj, graspB.grasp, '\n', wrist,
+       draw = [(pbs, prob, 'W')], snap = ['W'])
     count = 0
     tried = 0
     robot = pbs.getRobot()
@@ -457,9 +459,11 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob, nMax=1
             assert None
 
     if base:
-        for ans in [graspConfForBase(pbs, placeB, graspB, hand, nominalBasePose, prob, wrist)]:
+        for ans in [graspConfForBase(pbs, placeB, graspB, hand,
+                                     nominalBasePose, prob, wrist)]:
             if ans:
                 yield ans
+        tr(tag, 'Base specified; out of grasp confs for base')
         return
     # Try current pose first
     ans = graspConfForBase(pbs, placeB, graspB, hand, curBasePose, prob, wrist)

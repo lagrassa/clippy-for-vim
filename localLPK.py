@@ -90,7 +90,7 @@ visibleEx (show visibility stuff during execution even if visible is false)
 
 usualTags = ['nonmon']
 flags = ['simpleAbstractCostEstimates',
-         # 'primitiveHeuristicAlways',
+          'primitiveHeuristicAlways',
           'useBBinH']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
                  'debugInHeuristic', 'h']  # 'hAddBack'
@@ -102,7 +102,9 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags 
+debugOn = usualTags #+ skeletonTags + ['pushGen', 'pushGenPath',
+                     #                 'potentialGraspConfs']
+
 
 #------------------------------------
 pauseOn = debugOn[:]

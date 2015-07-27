@@ -62,6 +62,7 @@ def pushGenGen(args, goalConds, bState):
 
     for ans in chooseHandGen(pbs, goalConds, obj, None, leftGen, rightGen):
         yield ans
+    tr(tag, '=> Exhausted')
 
 def pushGenTop(args, goalConds, pbs):
     (obj, placeB, hand, base, prob) = args
@@ -104,9 +105,11 @@ def pushGenTop(args, goalConds, pbs):
     for ans in gen:
         tr(tag, str(ans) +' (t=%s)'%(time.clock()-startTime))
         yield ans
+    tr(tag, '=> pushGenTop exhausted')
 
 def pickPrim(shape):
-    return sorted(shape.toPrims(), key = lambda p: bboxVolume(p.bbox()), reverse=True)[0]
+    return sorted(shape.toPrims(),
+                  key = lambda p: bboxVolume(p.bbox()), reverse=True)[0]
 
 def pushGenAux(pbs, placeB, hand, base, prob):
     tag = 'pushGen'
@@ -154,14 +157,16 @@ def pushGenAux(pbs, placeB, hand, base, prob):
         pushPaths = []                  # for different base positions
         for ans in potentialGraspConfGen(pbs, placeB, graspB,
                                          None, hand, base, prob):
-            if not ans: continue
+            if not ans:
+                tr(tag+'Path', 'potential grasp conf is empy')
+                continue
             (c, ca, viol) = ans
             # TODO: pick hand opening better
             c = gripSet(c, hand, 0.0)
             ca = gripSet(ca, hand, 0.0)
             count += 1
             pathAndViols, reason = pushPath(pbs, prob, graspB, placeB, c,
-                                            direction, dist, xyPrim, supportRegion, hand)
+                                  direction, dist, xyPrim, supportRegion, hand)
             if reason == 'done': doneCount +=1 
             pushPaths.append((pathAndViols, reason))
             tr(tag+'Path', 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
@@ -187,7 +192,9 @@ def pushGenAux(pbs, placeB, hand, base, prob):
                draw=[(pbs, prob, 'W'),
                      (cpre, 'W', 'blue'), (cpost, 'W', 'pink')], snap=['W'])
             yield (hand, ppre.pose().xyztTuple(), cpre, cpost, cpre)
+    tr(tag, '=> pushGenAux exhausted')
     return
+
 
 def sortedPushPaths(pushPaths):
     scored = []

@@ -1591,6 +1591,7 @@ def executePrim(op, s, env, f = None):
     writePrimRefinement(f, op)
     obs = env.executePrim(op, params)
     s.updateStateEstimate(op, obs)
+    hCacheReset()
 
 class PlanStack(Stack):
     # Return op and subgoal to be addressed next by HPN.
@@ -2085,7 +2086,8 @@ def getGrounding(fluents, details):
 def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
                     lastOp, nonMonOps, heuristic, h, visitF, expandF,
                     prevExpandF, maxCost, maxNodes = 500):
-    hCacheReset()   # flush heuristic values
+    if not debug('primitiveHeuristicAlways'):
+        hCacheReset()   # flush heuristic values
     p, c =  ucSearch.search(goal,
                            lambda subgoal: startState.satisfies(subgoal),
                            lambda g: applicableOps(g, ops,

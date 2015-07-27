@@ -65,8 +65,9 @@ reload(pr2Gen)
 import pr2Ops
 reload(pr2Ops)
 # lookAtHand
-from pr2Ops import move, push, pick, place, lookAt, achCanReach, achCanPickPlace,\
-      hRegrasp, poseAchIn, moveNB, bLoc1, bLoc2, bLoc3
+from pr2Ops import move, push, pick, place, lookAt, achCanReach, \
+   achCanPickPlace, achCanPush, \
+   hRegrasp, poseAchIn, moveNB, bLoc1, bLoc2, bLoc3
 
 import pr2Sim
 reload(pr2Sim)
@@ -110,9 +111,9 @@ if useROS:
 def hEasy(s, g, ops, ancestors):
     return g.easyH(s, defaultFluentCost = 1.5)
 
-heuristicTime = 0.0
-
 hDepth = 10
+
+heuristicTime = 0.0
 
 def habbs(s, g, ops, ancestors):
     global heuristicTime
@@ -637,6 +638,7 @@ class PlanTest:
             initBelief = None, initWorld=None,
             rip = False):
         randomizedInitialPoses = rip
+        global heuristicTime
         glob.inHeuristic = False
         if skeleton: fbch.dotSearchId = 0
         startTime = time.clock()
@@ -757,7 +759,6 @@ class PlanTest:
                 'Hierarchical' if hierarchical else '', \
                 'Time =', runTime, '***************'
         print 'Heuristic time:', heuristicTime
-        global heuristicTime
         heuristicTime = 0.0
 
 ######################################################################

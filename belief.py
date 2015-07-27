@@ -577,8 +577,8 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             pres = o.regress(g, start)
             if debug('hAddBackV'): print 'R',
             regress += 1
-            if len(pres) == 1:
-                # Only got the rebind result
+            if len(pres) <= 1:
+                # Only got the rebind result, or nothing
                 debugMsg('hAddBack', 'no preimage', g, o)
             for pre in pres[:-1]:
                 # Usually only one;  bindings of o

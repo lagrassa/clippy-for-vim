@@ -819,7 +819,8 @@ class CanPush(Fluent):
 
     def getViols(self, bState, v, p):
         assert v == True
-        (obj, hand, prePose, pose, preConf, pushConf, postConf, poseVar,
+        (obj, hand, poseFace, prePose, pose, preConf, pushConf,
+         postConf, poseVar,
          prePoseVar,  poseDelta, cond) = self.args
 
         key = (hash(bState.pbs), p)
@@ -829,7 +830,7 @@ class CanPush(Fluent):
         if glob.inHeuristic and key in self.hviols: return self.hviols[key]
 
         newPBS = bState.pbs.conditioned(cond, permShadows = True)
-        path, violations = canPush(newPBS, obj, hand, prePose, pose,
+        path, violations = canPush(newPBS, obj, hand, poseFace, prePose, pose,
                                    preConf, pushConf, postConf, prePoseVar,
                                    poseVar,
                                    poseDelta, p, Violations())
@@ -865,7 +866,8 @@ class CanPush(Fluent):
     # TODO : LPK Can this be shared among CanX fluents?
     def prettyString(self, eq = True, state = None, heuristic = None,
                      includeValue = True):
-        (obj, hand, prePose, pose, preConf, pushConf, postConf, poseVar,
+        (obj, hand, poseFace, prePose, pose,
+         preConf, pushConf, postConf, poseVar,
          prePoseVar, poseDelta, cond) = self.args
         assert obj != 'none'
 
@@ -1290,7 +1292,7 @@ def inTest(bState, obj, regName, prob, pB=None):
 
 # returns path, violations
 pushStepSize = 0.02
-def canPush(pbs, obj, hand, prePose, pose,
+def canPush(pbs, obj, hand, poseFace, prePose, pose,
             preConf, pushConf, postConf, prePoseVar, poseVar,
             poseDelta, prob, initViol):
     tag = 'canPush'
@@ -1309,8 +1311,9 @@ def canPush(pbs, obj, hand, prePose, pose,
         direction /= dist
     # placeB
     objPose = post
-    support = supportFaceIndex(pbs.getWorld().getObjectShapeAtOrigin(obj).\
-                               applyTrans(objPose))
+    # support = supportFaceIndex(pbs.getWorld().getObjectShapeAtOrigin(obj).\
+    #                            applyTrans(objPose))
+    support = poseFace
     placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), support,
                        PoseD(objPose, poseVar), poseDelta)
     objFrame = placeB.objFrame()
