@@ -724,7 +724,7 @@ def testPush3(hpn = True, skeleton = False, hierarchical = False,
     right2 = hu.Pose(1.4, -0.5, tZ, 0.0)
     left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
     left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
-    coolShelvesPose = hu.Pose(1.3, 0.0, tZ, math.pi/2)
+    coolShelvesPose = hu.Pose(1.4, 0.0, tZ, math.pi/2)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     skel = [[lookAt, move, push, moveNB, 

@@ -378,7 +378,7 @@ def sortPushContacts(contacts, targetPose, curPose):
         else:
             # distance negated...
             good.append((-ntrz, vertical, contact))
-    good.sort()                         # smallest z distance first
+    good.sort(reverse=True)             # largest z distance first
     if debug('pushGen'):
         print 'push contacts sorted by push distance'
         for x in good:

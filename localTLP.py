@@ -82,7 +82,7 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['animate']
+debugOn = usualTags + ['animate', 'pushGen']
 
 if platform.system() == 'Linux':
     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:
