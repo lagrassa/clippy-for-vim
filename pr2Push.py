@@ -29,6 +29,9 @@ import pdb
 # object, these will differ by the base placement.
 maxPushPaths = 50
 
+pushGenCacheStats = [0, 0]
+pushGenCache = {}
+
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
         for ans in pushGenGen(args, goalConds, bState):
@@ -101,8 +104,18 @@ def pushGenTop(args, goalConds, pbs):
     if obj in [h.mode() for h in newBS.held.values()]:
         tr(tag, '=> obj is in the hand, failing')
         return
-    gen = pushGenAux(newBS, placeB, hand, base, prob)
-    for ans in gen:
+    pushGenCacheStats[0] += 1
+    key = (newBS, placeB, hand, base, prob)
+    val = pushGenCache.get(key, None)
+    if val != None:
+        if debug(tag): print tag, 'cached'
+        pushGenCacheStats[1] += 1
+        memo = val.copy()
+    else:
+        gen = pushGenAux(newBS, placeB, hand, base, prob)
+        memo = Memoizer(tag, gen)
+        pushGenCache[key] = memo
+    for ans in memo:
         tr(tag, str(ans) +' (t=%s)'%(time.clock()-startTime))
         yield ans
     tr(tag, '=> pushGenTop exhausted')
@@ -180,6 +193,7 @@ def pushGenAux(pbs, placeB, hand, base, prob):
                 cpost, vpost, ppost = pp[i]
                 if ppost: break
             cpre, vpre, ppre = pp[-1]
+            if not ppre: continue
             if debug(tag):
                 robot = cpre.robot
                 print 'pre pose\n', ppre.matrix

@@ -371,7 +371,6 @@ def placeGenGen(args, goalConds, bState):
     base = sameBase(goalConds)
     tr(tag, 'obj=%s, base=%s'%(obj, base))
     # tr(tag, ('args', args))
-
     if goalConds:
         if getConf(goalConds, None):
             tr(tag, '=> conf is already specified, failing')
@@ -398,32 +397,32 @@ def placeGenGen(args, goalConds, bState):
             yield ans
         return
 
-    if not isinstance(poses[0], (list, tuple, frozenset)):
-        poses = frozenset([poses])
+    if isinstance(poses, tuple):
+        placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
+                           PoseD(poses, objV), delta=objDelta)
+        placeBs = frozenset([placeB])
+    else:
+        raw_input('placeGenGen - poses is not a tuple')
 
     graspB = ObjGraspB(obj, world.getGraspDesc(obj), None, None,
                        PoseD(None, graspV), delta=graspDelta)
-    def placeBGen():
-        for pose in poses:
-            yield ObjPlaceB(obj, world.getFaceFrames(obj), support,
-                            PoseD(pose, objV), delta=objDelta)
-    placeBs = Memoizer('placeBGen_placeGen', placeBGen())
-
+        
     # Figure out whether one hand or the other is required;  if not, do round robin
     leftGen = placeGenTop((obj, graspB, placeBs, 'left', base, prob),
                                  goalConds, pbs)
     rightGen = placeGenTop((obj, graspB, placeBs, 'right', base, prob),
-                                 goalConds, pbs)
+                                 goalConds, placeBs)
     
     for ans in chooseHandGen(pbs, goalConds, obj, hand, leftGen, rightGen):
         yield ans
+
+placeGenCacheStats = [0, 0]
+placeGenCache = {}
 
 # returns values for (?graspPose, ?graspFace, ?conf, ?confAppr)
 def placeGenTop(args, goalConds, pbs, regrasp=False, away=False, update=True):
     (obj, graspB, placeBs, hand, base, prob) = args
 
-    # key = ((obj, graspB, placeBs, hand, tuple(base) if base else None, prob),
-    #        frozenset(goalConds), pbs, regrasp, away, update)
     startTime = time.clock()
     tag = 'placeGen'
     tr(tag, '(%s,%s) h=%s'%(obj,hand, glob.inHeuristic))
@@ -437,7 +436,7 @@ def placeGenTop(args, goalConds, pbs, regrasp=False, away=False, update=True):
                  pbs.graspB['left'],
                  pbs.graspB['right'])))
     if obj == 'none' or not placeBs:
-        tr(tag, '=> obj is none or no placeB, failing')
+        tr(tag, '=> obj is none or no poses, failing')
         return
     if goalConds:
         if getConf(goalConds, None) and not away:
@@ -456,12 +455,28 @@ def placeGenTop(args, goalConds, pbs, regrasp=False, away=False, update=True):
         newBS = newBS.updateFromGoalPoses(goalConds, updateConf=not away)
         newBS = newBS.excludeObjs([obj])
     tr(tag, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
-    gen = placeGenAux(newBS, obj, confAppr, conf, placeBs.copy(),
-                      graspB, hand, base, prob,
-                      regrasp=regrasp, pbsOrig = pbs)
 
-    # !! double check reachObst collision?
-    for ans in gen:
+    key = (newBS, pbs,
+           (obj, graspB, placeBs, hand, tuple(base) if base else None, prob),
+           regrasp, away, update)
+    val = placeGenCache.get(key, None)
+    placeGenCacheStats[0] += 1
+    if val is not None:
+        placeGenCacheStats[1] += 1
+        memo = val
+    else:
+        if isinstance(placeBs, frozenset):
+            def placeBGen():
+                for placeB in placeBs: yield placeB
+            placeBG = Memoizer('placeBGen_placeGen', placeBGen())
+        else:
+            placeBG = placeBs
+        memo = Memoizer(tag,
+                        placeGenAux(newBS, obj, confAppr, conf, placeBG.copy(),
+                                    graspB, hand, base, prob,
+                                    regrasp=regrasp, pbsOrig = pbs))
+        placeGenCache[key] = memo
+    for ans in memo:
         tr(tag, str(ans) +' (t=%s)'%(time.clock()-startTime))
         yield ans
 

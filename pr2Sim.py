@@ -249,6 +249,7 @@ class RealWorld(WorldState):
         if debug('locate'):
             scan = pc.simulatedScan(lookConf, laserScanParams,
                                     self.getNonShadowShapes()+ [self.robotPlace])
+            scan.draw('W', 'cyan')
 
         for shape in self.getObjectShapes():
             curObj = shape.name()

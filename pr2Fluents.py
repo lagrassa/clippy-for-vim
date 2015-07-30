@@ -1353,9 +1353,20 @@ def robotGraspFrame(pbs, conf, hand):
         print 'robot wristFrame\n', wristFrame
     return wristFrame
 
+pushPathCacheStats = [0, 0]
+pushPathCache = {}
+
 def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
              pushBuffer = 0.05):
     tag = 'pushPath'
+    key = (pbs, prob, gB, pB, conf, tuple(direction.tolist()),
+           dist, shape, regShape, hand, pushBuffer)
+    pushPathCacheStats[0] += 1
+    val = pushPathCache.get(key, None)
+    if val is not None:
+        pushPathCacheStats[1] += 1
+        return val
+    
     newBS = pbs.copy()
     newBS = newBS.updateHeldBel(gB, hand)
     newBS = newBS.excludeObjs([pB.obj])
@@ -1407,6 +1418,8 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
             print 'offset:', offsetPose
     if debug('pushPath'):
         raw_input('Path:'+reason)
+
+    pushPathCache[key] = (pathViols, reason)
     return pathViols, reason
         
 def displaceHand(conf, hand, offsetPose, nearTo=None):

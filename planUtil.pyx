@@ -28,9 +28,9 @@ cdef class Hash(object):
         return self.hashValue
     def __richcmp__(self, other, int op):
         if op == 2:
-            return hasattr(other, 'desc') and self.desc() == other.desc()
+            return isinstance(other, Hash) and self.desc() == other.desc()
         elif op == 3:
-            return not (hasattr(other, 'desc') and self.desc() == other.desc())
+            return not (isinstance(other, Hash) and self.desc() == other.desc())
         else:
             return False
 
@@ -99,9 +99,9 @@ cdef class ObjGraspB(Hash):
     def __richcmp__(self, other, int op):
         if op == 2:
             if other is None and self.obj == 'none': return True
-            return hasattr(other, 'desc') and self.desc() == other.desc()
+            return isinstance(other, ObjGraspB) and self.desc() == other.desc()
         elif op == 3:
-            return not (hasattr(other, 'desc') and self.desc() == other.desc())
+            return not (isinstance(other, ObjGraspB) and self.desc() == other.desc())
         else:
             return False
     def __hash__(self):
@@ -149,6 +149,13 @@ cdef class ObjPlaceB(Hash):
     cpdef shadow(self, ws):
         if shadowName(self.obj) in ws.objectShapes:
             return ws.objectShapes[shadowName(self.obj)].applyLoc(self.objFrame())
+    def __richcmp__(self, other, int op):
+        if op == 2:
+            return isinstance(other, ObjPlaceB) and self.desc() == other.desc()
+        elif op == 3:
+            return not (isinstance(other, ObjPlaceB) and self.desc() == other.desc())
+        else:
+            return False
     def __hash__(self):
         if self.hashValue == None:
             self.hashValue = self.desc().__hash__()

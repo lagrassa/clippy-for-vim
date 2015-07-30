@@ -1,7 +1,7 @@
 from cpython cimport bool
 
 cdef class Hash(object):
-    cdef hashValue, descValue
+    cdef public hashValue, descValue
 
 cdef class PoseD(Hash):
     cdef public mu, muTuple, var
