@@ -824,7 +824,7 @@ tinyErrProbs = DomainProbs(
             placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
 
-allOperators = [move, # pick, place,
+allOperators = [move, pick, place,
                 push,
                 lookAt, moveNB,
                 achCanReach, achCanPickPlace, poseAchIn,
