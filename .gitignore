@@ -81,3 +81,5 @@ prof
 *.lprof
 *.m
 *Old.py
+
+.#localLPK.py
