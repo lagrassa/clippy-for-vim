@@ -1449,7 +1449,8 @@ def pushOp(*args):
 
 # TODO : LPK think through the deltas more carefully
 push = Operator('Push', pushArgs,
-        {0 : {Pushable(['Obj'], True)},
+        {0 : {Pushable(['Obj'], True),
+              BLoc(['Obj', planVar, 'P'], True)},    # was planP
          1 : {Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
                            'PreConf',
                             'PushConf', 'PostConf', 'PoseVar', 'PrePoseVar',

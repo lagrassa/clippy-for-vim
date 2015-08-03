@@ -1226,6 +1226,8 @@ class RoadMap:
         if self.confColliders(pbs, prob, conf, aColl, hColl, hsColl,
                               ignoreAttached=ignoreAttached,
                               draw=debug('confViolations')) is None:
+            if debug('confViolations'):
+                conf.draw('W')
             return None
         return makeViolations(shWorld, (aColl, hColl, hsColl))
 
