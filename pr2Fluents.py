@@ -831,9 +831,8 @@ class CanPush(Fluent):
 
         newPBS = bState.pbs.conditioned(cond, permShadows = True)
         path, violations = canPush(newPBS, obj, hand, poseFace, prePose, pose,
-                                   preConf, pushConf, postConf, prePoseVar,
-                                   poseVar,
-                                   poseDelta, p, Violations())
+                                   preConf, pushConf, postConf, poseVar,
+                                   prePoseVar, poseDelta, p, Violations())
         debugMsg('CanPush',
                  ('pose', pose),
                  ('->', violations))
@@ -1293,7 +1292,7 @@ def inTest(bState, obj, regName, prob, pB=None):
 # returns path, violations
 pushStepSize = 0.02
 def canPush(pbs, obj, hand, poseFace, prePose, pose,
-            preConf, pushConf, postConf, prePoseVar, poseVar,
+            preConf, pushConf, postConf, poseVar, prePoseVar,
             poseDelta, prob, initViol):
     tag = 'canPush'
     # direction from post to pre
