@@ -320,7 +320,9 @@ cdef class Point:
     Represent a point with its x, y, z values
     """
     def __init__(self, np.ndarray[np.float64_t, ndim=2] p): # column matrix
+        self.eqDistEps = 0.001                 # for equality
         self.matrix = p
+        self.matrix.flags.writeable = False # so we can hash it
 
     cpdef bool isNear(self, Point point, double distEps):
         """
@@ -438,6 +440,13 @@ cdef class Point:
         """
         return np.dot(self.matrix[:3].T, p.matrix[:3])
 
+    def __richcmp__(self, other, int op):
+        if not (other and isinstance(other, Point)):
+            return True if op == 3 else False
+        ans = self.isNear(other, self.eqDistEps) if op == 2 else False
+        return ans
+    def __hash__(self):
+        return hash(self.matrix.data)
     def __copy__(self):
         cp = Point(self.matrix)
         cp.minAngle = self.minAngle

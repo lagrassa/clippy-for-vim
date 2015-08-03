@@ -39,6 +39,7 @@ cdef class Pose(Transform):
     cpdef Pose corruptGauss(self, double mu, tuple stdDev, bool noZ = *)
 
 cdef class Point:
+    cdef public double eqDistEps
     cdef public np.ndarray matrix
 
     cpdef bool isNear(self, Point point, double distEps)

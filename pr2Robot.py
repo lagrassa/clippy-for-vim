@@ -845,6 +845,9 @@ class PR2:
 # Inverse kinematics support functions
 ########################################
 
+headInvKinCacheStats = [0,0]
+headInvKinCache = {}
+
 def headInvKin(chains, torso, targetFrame, wstate,
                  collisionAware=False, allowedViewError = 1e-5):
     headChain = chains.chainsByName['pr2Head']
@@ -856,6 +859,12 @@ def headInvKin(chains, torso, targetFrame, wstate,
     headRotationFrameZ = np.dot(torso, headChain.joints[0].trans)
     # Target point relative to torso
     relFramePoint = torso.inverse().compose(targetFrame).point()
+
+    key = relFramePoint
+    headInvKinCacheStats[0] += 1
+    if key in headInvKinCache:
+        headInvKinCacheStats[1] += 1
+        return headInvKinCache[key]
 
     if debug('pr2Head'):
         print 'target frame to\n', targetFrame.point().matrix
@@ -900,7 +909,9 @@ def headInvKin(chains, torso, targetFrame, wstate,
     debugMsg('pr2Head',
              ('bestScore', bestScore, 'best', best), bestError)
         
-    return best if bestScore <= allowedViewError else None
+    ans = best if bestScore <= allowedViewError else None
+    headInvKinCache[key] = ans
+    return ans
 
 def tangentSolOld(x, y, x0, y0):
     # print 'X', (x,y), 'X0', (x0, y0)
