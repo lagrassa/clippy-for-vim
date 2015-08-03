@@ -727,8 +727,9 @@ def testPush3(hpn = True, skeleton = False, hierarchical = False,
     coolShelvesPose = hu.Pose(1.4, 0.0, tZ, math.pi/2)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
-    skel = [[lookAt, move, push, moveNB, lookAt, move, 
-             achCanPush, moveNB, lookAt, move, pick, moveNB, lookAt,
+    skel = [[lookAt, move, push, #moveNB, lookAt, 
+             move, achCanPush, #moveNB, lookAt,
+             move, pick, moveNB, lookAt,
               move]]
 
     startPoseA = (1.1, 0.0, tZ, 0.0)

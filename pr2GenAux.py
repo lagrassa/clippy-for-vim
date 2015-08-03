@@ -635,7 +635,7 @@ def sameBase(goalConds):
         base = b['B']
         if not isVar(base):
             assert result is None, 'More than one Base fluent'
-            result = base
+            result = tuple(base)
     return result
 
 def targetConf(goalConds):
