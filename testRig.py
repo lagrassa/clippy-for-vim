@@ -824,9 +824,11 @@ tinyErrProbs = DomainProbs(
             placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
 
-allOperators = [move, pick, place,
-                push,
-                lookAt, moveNB,
-                achCanReach, achCanPickPlace, poseAchIn,
+allOperators = [move, push, lookAt, moveNB,
+                achCanReach, achCanPickPlace, achCanPush, poseAchIn,
                 bLoc1, bLoc2, bLoc3]
+
+if not debug('disablePickPlace'):
+    allOperators.extend([pick, place])
+    
               #lookAtHand    #graspAchCanPickPlace #dropAchCanPickPlace achCanSee
