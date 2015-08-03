@@ -158,7 +158,7 @@ cdef class Transform:
 
     def __repr__(self):
         if not self.reprString:
-            self.reprString = 'util.Transform('+str(self.matrix.tolist())+')'
+            self.reprString = 'Transform('+str(self.matrix.tolist())+')'
         return self.reprString
     def __str__(self):
         return repr(self)
@@ -304,7 +304,7 @@ cdef class Pose(Transform):             # 2.5D transform
                 + ']'
     def __repr__(self):
         if not self.reprString:
-            self.reprString = 'util.Pose(' + \
+            self.reprString = 'Pose(' + \
                               repr(self.x) + ',' + \
                               repr(self.y) + ',' + \
                               repr(self.z) + ',' + \

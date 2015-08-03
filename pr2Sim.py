@@ -246,7 +246,7 @@ class RealWorld(WorldState):
         tr('sim', 'LookAt configuration', draw=[(self.robotPlace, 'World', 'orchid')])
         obs = []
 
-        if debug('locate'):
+        if debug('useLocate'):
             scan = pc.simulatedScan(lookConf, laserScanParams,
                                     self.getNonShadowShapes()+ [self.robotPlace])
             scan.draw('W', 'cyan')
@@ -254,7 +254,7 @@ class RealWorld(WorldState):
         for shape in self.getObjectShapes():
             curObj = shape.name()
             objType = self.world.getObjType(curObj)
-            if debug('locate'):
+            if debug('useLocate'):
                 placeB = self.bs.pbs.getPlaceB(curObj)
                 (score, trans, obsShape) =\
                         locate.getObjectDetections(lookConf, placeB, self.bs.pbs, scan)

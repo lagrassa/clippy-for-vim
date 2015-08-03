@@ -41,7 +41,10 @@ def getObjectDetections(lookConf, placeB, pbs, pointCloud):
     if score is None:
         return (None, None, None)
     else:
-        return (score, trans.compose(placeB.poseD.mode()), detection)
+        xyzt = list(trans.pose().xyztTuple())
+        xyzt[2] = 0.0                  # Don't adjust the Z coordinate
+        transNoZ = hu.Pose(*xyzt)
+        return (score, transNoZ.compose(placeB.poseD.mode()), detection)
 
 def bestObjDetection(placeB, objShape, objShadow, objCloud, pointCloud, variance,
                      thr = 0.02):
