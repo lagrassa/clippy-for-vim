@@ -635,7 +635,7 @@ def sameBase(goalConds):
         base = b['B']
         if not isVar(base):
             assert result is None, 'More than one Base fluent'
-            result = base
+            result = tuple(base)
     return result
 
 def targetConf(goalConds):
@@ -694,7 +694,7 @@ def getReachObsts(goalConds, pbs):
             return None
         obstacles.extend(crhObsts)
 
-    # Now look for standalone CRH and CRNB
+    # Now look for standalone CRH, CRNB and CP
     basicCRH = getCRHObsts(goalConds, pbs)
     if basicCRH is None: return None
     obstacles.extend(basicCRH)
@@ -702,8 +702,65 @@ def getReachObsts(goalConds, pbs):
     basicCRNB = getCRNBObsts(goalConds, pbs) 
     if basicCRNB is None: return None
     obstacles.extend(basicCRNB)
+
+    basicCP = getCPObsts(goalConds, pbs) 
+    if basicCP is None: return None
+    obstacles.extend(basicCP)
         
     return obstacles
+
+def pushPathObst(obj, hand, poseFace, prePose, pose, preConf, pushConf,
+                 postConf, posevar, prePoseVar, poseDelta, p, pbs, name):
+    newBS = pbs.copy()
+    newBS = newBS.updateFromGoalPoses(cd, permShadows=True)
+    path,  viol = canPush(newBS, obj, hand, poseFace, prePose, pose,
+                          preConf, pushConf, postConf, posevar,
+                          prePoseVar, poseDelta, p, Violations())
+    if debug('pathObst'):
+        newBS.draw(p, 'W')
+        cs.draw('W', 'red', attached=newBS.getShadowWorld(p).attached)
+        print 'condition', cd
+    if not path:
+        if debug('pathObst'):
+            print 'pathObst', 'failed to find path to conf in red', (cs, p, newBS)
+        ans = None
+    else:
+        ans = pathShape(path, p, newBS, name)
+    pbs.beliefContext.pathObstCache[key] = ans
+    return ans
+
+def getCPObsts(goalConds, pbs):
+    fbs = fbch.getMatchingFluents(goalConds,
+                                  Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
+                                               'PreConf', 'PushConf',
+                                               'PostConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',
+                                               'PreCond']),  True, 'Prob'], True))
+    world = pbs.getWorld()
+    obsts = []
+    index = 0
+    for (f, b) in fbs:
+        if not isGround(b.values()): continue
+        if debug('getReachObsts'):
+            print 'GRO', f
+        ignoreObjects = set([])
+        obst = pushPathObst(b['Obj'], b['Hand'], b['PoseFace'], b['PrePose'], b['Pose'],
+                            b['PreConf'], b['PushConf'],
+                            b['PostConf'], b['PoseVar'], b['PrePoseVar'], b['PoseDelta'],
+                            b['PreCond'], b['Prob'], pbs,
+                            name= 'reachObst%d'%index)
+        index += 1
+        if not obst:
+            debugMsg('getReachObsts', ('path fail', f, b.values()))
+            return None
+        # Look at Poses in conditions; they are exceptions
+        pfbs = fbch.getMatchingFluents(b['Cond'],
+                                       B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
+        for (pf, pb) in pfbs:
+            if isGround(pb.values()):
+                ignoreObjects.add(pb['Obj'])
+        obsts.append((ignoreObjects, obst))
+    debugMsg('getReachObsts', ('->', len(obsts), 'CRH NB obsts'))
+    return obsts
 
 def getCRNBObsts(goalConds, pbs):
     fbs = fbch.getMatchingFluents(goalConds,

@@ -1706,7 +1706,7 @@ class AchCanPickPlaceGen(Function):
 class AchCanPushGen(Function):
     @staticmethod
     def fun(args, goal, start):
-        tag = 'canPickPlaceGen'
+        tag = 'canPushGen'
         (obj, hand, poseFace, prePose, pose, preConf, pushConf, postConf,
          poseVar, prePoseVar, poseDelta, prob, cond) = args
         # Preconditions
@@ -1715,12 +1715,6 @@ class AchCanPushGen(Function):
                                 poseDelta, cond]), True, prob], True)
         poseFluent = B([Pose([obj, poseFace]), prePose, prePoseVar,
                         poseDelta, prob], True)
-
-        # world = start.pbs.getWorld()
-        # graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace, poseFace,
-        #                    PoseD(graspMu, graspVar), delta= graspDelta)
-        # placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
-        #                    PoseD(pose, realPoseVar), delta=poseDelta)
         
         def violFn(pbs):
             path, v = canPush(pbs, obj, hand, poseFace, prePose, pose,
