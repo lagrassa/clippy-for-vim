@@ -19,7 +19,7 @@ import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
 from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace, \
-    BaseConf, Holding, CanReachNB, Conf
+    BaseConf, Holding, CanReachNB, Conf, CanPush, canPush
 from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCOParts
 from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
@@ -710,9 +710,9 @@ def getReachObsts(goalConds, pbs):
     return obstacles
 
 def pushPathObst(obj, hand, poseFace, prePose, pose, preConf, pushConf,
-                 postConf, posevar, prePoseVar, poseDelta, p, pbs, name):
+                 postConf, posevar, prePoseVar, poseDelta, cond, p, pbs, name):
     newBS = pbs.copy()
-    newBS = newBS.updateFromGoalPoses(cd, permShadows=True)
+    newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
     path,  viol = canPush(newBS, obj, hand, poseFace, prePose, pose,
                           preConf, pushConf, postConf, posevar,
                           prePoseVar, poseDelta, p, Violations())
@@ -726,7 +726,7 @@ def pushPathObst(obj, hand, poseFace, prePose, pose, preConf, pushConf,
         ans = None
     else:
         ans = pathShape(path, p, newBS, name)
-    pbs.beliefContext.pathObstCache[key] = ans
+    #pbs.beliefContext.pathObstCache[key] = ans
     return ans
 
 def getCPObsts(goalConds, pbs):
@@ -753,7 +753,7 @@ def getCPObsts(goalConds, pbs):
             debugMsg('getReachObsts', ('path fail', f, b.values()))
             return None
         # Look at Poses in conditions; they are exceptions
-        pfbs = fbch.getMatchingFluents(b['Cond'],
+        pfbs = fbch.getMatchingFluents(b['PreCond'],
                                        B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
         for (pf, pb) in pfbs:
             if isGround(pb.values()):
