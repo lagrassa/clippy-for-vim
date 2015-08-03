@@ -1333,6 +1333,7 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
                         PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
     pathViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
                                  direction, dist, None, None, hand)
+    if not pathViols: return None, None
     viol = pathViols[0][1]
     path = []
     for (c, v, _) in pathViols:
