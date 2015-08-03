@@ -241,10 +241,13 @@ class WorldState:
         for place in objects:
             name = place.name()
             if name in excluded: continue
-            place.draw(window,
-                       color=objectColors.get(place.name(),
-                                              place.properties.get('color', None) \
-                                              or random.choice(colors)),
+            if name in self.fixedObjects:
+                c = 'darkgray'
+            else:
+                c = objectColors.get(name,
+                                 place.properties.get('color', None) \
+                                              or random.choice(colors))
+            place.draw(window, color = c,
                        opacity=objectOpacities.get(place.name(), 1.0))
         if drawRobot and self.robotPlace:
             self.robotPlace.draw(window,

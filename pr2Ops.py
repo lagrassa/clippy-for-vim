@@ -1589,7 +1589,8 @@ lookAt = Operator(
         GenLookObjPrevVariance(['PoseVarBefore'],
                                ['RealPoseVarAfter', 'Obj', 'PoseFace']),
         LookGen(['LookConf'],
-                 ['Obj', 'Pose', 'PoseFace', 'PoseVarBefore', 'PoseVarAfter', 'PoseDelta',
+                 ['Obj', 'Pose', 'PoseFace', 'PoseVarBefore',
+                  'RealPoseVarAfter', 'PoseDelta',
                   'ConfDelta', probForGenerators])],
     cost = lookAtCostFun,
     f = lookAtBProgress,
@@ -1709,7 +1710,7 @@ class AchCanPushGen(Function):
         (obj, hand, poseFace, prePose, pose, preConf, pushConf, postConf,
          poseVar, prePoseVar, poseDelta, prob, cond) = args
         # Preconditions
-        cpFluent = Bd([CanPush([obj, hand, prePose, pose, preConf,
+        cpFluent = Bd([CanPush([obj, hand, poseFace, prePose, pose, preConf,
                                 pushConf, postConf, poseVar, prePoseVar,
                                 poseDelta, cond]), True, prob], True)
         poseFluent = B([Pose([obj, poseFace]), prePose, prePoseVar,
@@ -1722,7 +1723,7 @@ class AchCanPushGen(Function):
         #                    PoseD(pose, realPoseVar), delta=poseDelta)
         
         def violFn(pbs):
-            path, v = canPush(pbs, obj, hand, prePose, pose,
+            path, v = canPush(pbs, obj, hand, poseFace, prePose, pose,
                                    preConf, pushConf, postConf, prePoseVar,
                                    poseVar,
                                    poseDelta, prob, Violations())
@@ -1746,6 +1747,8 @@ def achCanXGen(pbs, goal, cond, targetFluents, violFn, prob, tag):
             trAlways('Impossible dream', pause = True); return
         if viol.empty():
             tr(tag, 1, '=> No obstacles or shadows; returning'); return
+
+        print 'need to see if base pose is specified and pass it in'
 
         lookG = lookAchCanXGen(newBS, shWorld, viol, violFn, prob)
         placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob, allConds)
