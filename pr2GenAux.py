@@ -694,7 +694,7 @@ def getReachObsts(goalConds, pbs):
             return None
         obstacles.extend(crhObsts)
 
-    # Now look for standalone CRH and CRNB
+    # Now look for standalone CRH, CRNB and CP
     basicCRH = getCRHObsts(goalConds, pbs)
     if basicCRH is None: return None
     obstacles.extend(basicCRH)
@@ -702,6 +702,10 @@ def getReachObsts(goalConds, pbs):
     basicCRNB = getCRNBObsts(goalConds, pbs) 
     if basicCRNB is None: return None
     obstacles.extend(basicCRNB)
+
+    basicCP = getCPObsts(goalConds, pbs) 
+    if basicCP is None: return None
+    obstacles.extend(basicCP)
         
     return obstacles
 
