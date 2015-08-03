@@ -1296,7 +1296,12 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
             poseDelta, prob, initViol):
     tag = 'canPush'
     # direction from post to pre
-
+    if pbs.held[hand].mode() != 'none':
+        tr(tag, '=> Hand=%s is holding in pbs, failing'%hand)
+        return None, None
+    if obj in [h.mode() for h in pbs.held.values()]:
+        tr(tag, '=> obj is in the hand, failing')
+        return None, None
     # post = robotGraspFrame(pbs, postConf, hand)
     # pre = robotGraspFrame(pbs, preConf, hand)
     post = hu.Pose(*pose)
