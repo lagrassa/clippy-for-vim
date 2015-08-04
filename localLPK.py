@@ -43,6 +43,7 @@ confReachViol
 confViolations
 cost
 debugInHeuristic (turn on debugging inside heuristic in regression)
+disablePickPlace
 drawInHeuristic
 executionFail
 extraTests (test for rendundancy and contradiction within state fluent set;
