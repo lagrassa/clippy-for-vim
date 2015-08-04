@@ -580,10 +580,12 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     # goal = State([Bd([In([objName, region]), True, goalProb], True)])
     targetPose = (1.1, 0.2, tZ, 0.0)
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
+    delta = (0.02, .02, .02, .05)
+    #delta = (0.05, .05, .05, .1)
     goal = State([\
                   Bd([SupportFace([objName]), 4, goalProb], True),
                   B([Pose([objName, 4]),
-                     targetPose, targetVar, (0.02, .02, .02, .05),
+                     targetPose, targetVar, delta,
                      goalProb], True)])
 
     t = PlanTest('testPush0',  errProbs, allOperators,
@@ -801,24 +803,34 @@ def profPrint(n=100):
     p.sort_stats('cumulative').print_stats(n)
     p.sort_stats('cumulative').print_callers(n)
 
+def clearCachesS(s):
+    s.valueCache.clear()
+    s.relaxedValueCache.clear()
+    clearCaches(s.details)
 
-# Evaluate on details and a fluent to flush the caches and evaluate
-def firstAid(details, fluent = None):
-    glob.debugOn.extend(['confReachViol', 'confViolations'])
-
+def clearCaches(details):
     pbs = details.pbs
     bc = pbs.beliefContext
 
+    # invkin cache
+    # robot.confCache
+    
     pbs.getRoadMap().confReachCache.clear()
+    pbs.getRoadMap().approachConfs.clear()
+    for thing in bc.genCaches.values():
+        thing.clear()
+    pr2Visible.cache.clear()
     bc.pathObstCache.clear()
     bc.objectShadowCache.clear()
-    for c in bc.genCaches.values():
-        c.clear()
     pr2GenAux.graspConfGenCache.clear()
     bc.world.robot.cacheReset()
     pr2Visible.cache.clear()
-    belief.hCacheReset()
-    
+    fbch.hCacheReset()
+
+# Evaluate on details and a fluent to flush the caches and evaluate
+def firstAid(details, fluent = None):
+    clearCaches(details)
+    glob.debugOn.extend(['confReachViol', 'confViolations'])
     if fluent:
         fluent.args[0].viols = {}
         return fluent.valueInDetails(details)

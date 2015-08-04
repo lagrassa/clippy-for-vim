@@ -446,13 +446,18 @@ class RealPoseVar(Function):
 
 # Realistically, push increases variance quite a bit.  For now, we'll just
 # assume stdev needs to be halved
+# Also have a max stdev
 class PushPrevVar(Function):
     # noinspection PyUnusedLocal
     @staticmethod
     def fun((resultVar,), goal, start):
         pushVar = start.domainProbs.pushVar
+        maxPushVar = start.domainProbs.maxPushVar
+        maxPushVar = (1, 1, 1, 1)
+        
         # pretend it's lower
-        res = tuple([x - y for (x, y) in zip(resultVar, pushVar)])
+        res = tuple([min(x - y, m) for (x, y, m) \
+                     in zip(resultVar, pushVar, maxPushVar)])
         #res = tuple([x/4.0 for x in resultVar])
         if any([v <= 0.0 for v in res]):
             tr('pushGenVar', 'Push previous var would be negative', res)
@@ -1739,7 +1744,7 @@ def achCanXGen(pbs, goal, cond, targetFluents, violFn, prob, tag):
         viol = violFn(newBS)
         tr(tag, 1, ('viol', viol), draw=[(newBS, prob, 'W')], snap=['W'])
         if viol is None:                  # hopeless
-            trAlways('Impossible dream', pause = True); return
+            trAlways('Impossible dream', pause = True); return []
         if viol.empty():
             tr(tag, 1, '=> No obstacles or shadows; returning'); return
 

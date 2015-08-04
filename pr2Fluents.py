@@ -1374,14 +1374,18 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
     if val is not None:
         pushPathCacheStats[1] += 1
         return val
-    
+
+    rm = pbs.getRoadMap()
+    viol = rm.confViolations(conf, pbs, prob)
+    if not viol:
+        print 'Conf collides in pushPath'
+        return None, None
+        
     newBS = pbs.copy()
     newBS = newBS.updateHeldBel(gB, hand)
-    newBS = newBS.excludeObjs([pB.obj])
     shWorld = newBS.getShadowWorld(prob)
     attached = shWorld.attached
     if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
-    rm = pbs.getRoadMap()
     pathViols = []
     # startStep = - pushBuffer
     # startOff = hu.Pose(*(startStep*direction).tolist()+[0.0])
@@ -1462,6 +1466,7 @@ def displaceHandRot(conf, hand, offsetPose, nearTo=None, doRot=True):
     trans = cart[handFrameName]
     if doRot:
         rot = hu.Transform(rotation_matrix(-math.pi/12., (0,1,0)))
+        rot = hu.Transform(rotation_matrix(0.0, (0,1,0)))
         nTrans = offsetPose.compose(trans.compose(rot))
     else:
         nTrans = offsetPose.compose(trans)

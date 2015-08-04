@@ -294,6 +294,7 @@ class DomainProbs:
                  pickFailProb, placeFailProb, pushFailProb,
                  pickVar, placeVar, pushVar, pickTolerance,
                  maxGraspVar = (0.015**2, .015**2, .015**2, .03**2),
+                 maxPushVar = (0.01**2, .01**2, .01**2, .02**2),
                  placeDelta = (0.005, 0.005, 1.0e-6, 0.005),
                  graspDelta = (0.005, 0.005, 1.0e-6, 0.005),
                  shadowDelta = (0.005, 0.005, 1.0e-6, 0.005),
@@ -313,6 +314,7 @@ class DomainProbs:
         self.pickTolerance = pickTolerance
         # Don't allow a bigger grasp variance than this
         self.maxGraspVar = maxGraspVar
+        self.maxPushVar = maxPushVar
         # Bad failures, like dropping
         self.pickFailProb = pickFailProb
         self.placeFailProb = placeFailProb
@@ -415,7 +417,6 @@ def insideAux(shape, reg):
     # all([np.all(np.dot(reg.planes(), p) <= 1.0e-6) for p in shape.vertices().T])
     verts = shape.vertices()
     for i in xrange(verts.shape[1]):
-        # reg.containsPt() completely fails to work here.
-        if not np.all(np.dot(reg.planes(), verts[:,i]) <= tiny):
+        if not np.all(np.dot(reg.planes(), verts[:,i].reshape(4,1)) <= tiny):
             return False
     return True

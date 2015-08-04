@@ -1566,6 +1566,7 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
         # will pop levels we don't need any more, so that p is on the top
         # op will be None if we are done
         (op, subgoal, popSkel) = ps.nextStep(s, ops, f)
+        assert op != 'fail', 'HPN failed at top level'
         oldSkel = popSkel #or (oldSkel and oldSkel[-1:])
         # Possibly pop ancestors
         ancestors = ancestors[0:ps.size()]
@@ -1608,6 +1609,9 @@ class PlanStack(Stack):
     def nextStep(self, s, ops, f = None):
         layers = self.guts()
         numLayers = len(layers)
+        if numLayers == 0:
+            return ('fail', 'fail', 'fail')
+
         preImages = self.computePreimages()
         # Subgoal layer i-1 is executing
         (upperOp, upperSubgoal) = self.nextLayerStep(layers[0], preImages[0],
@@ -1746,6 +1750,8 @@ class PlanStack(Stack):
         #   - one list per level
         #   - one list per step in the level representing pre-image 
         preImages = []
+        if layers == []:
+            return preImages
         # handle bottom level separately.  no disjunction.
         preImages.append([[subgoal] for (op, subgoal) in layers[-1].steps])
         # print 'Started with layer', len(layers)-1

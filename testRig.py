@@ -791,6 +791,7 @@ typicalErrProbs = DomainProbs(
             # pickTolerance
             pickTolerance = (0.025, 0.025, 0.025, 0.1),
             maxGraspVar = (0.0051**2, .0051**2, .005**2, .015**2),
+            maxPushVar = (0.01**2, .01**2, .01**2, .02**2),
             moveConfDelta = (0.001, 0.001, 1e-6, 0.002),
             #shadowDelta = (0.01, 0.01, 1.0e-8, 0.05),
             #shadowDelta = (0.001, 0.001, 1e-11, 0.002),
@@ -820,6 +821,7 @@ tinyErrProbs = DomainProbs(
             # pickTolerance
             pickTolerance = (0.025, 0.025, 0.025, 0.05),
             maxGraspVar = (0.005**2, .005**2, .005**2, .015**2),
+            maxPushVar = (0.01**2, .01**2, .01**2, .02**2),
             # Use this for placing objects
             placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             graspDelta = (0.001, 0.001, 1.0e-4, 0.002))

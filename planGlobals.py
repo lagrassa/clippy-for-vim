@@ -47,7 +47,7 @@ approachPerpBackoff = 0.025
 inHeuristic = False
 
 useCC = True                            # Use compiled chains collision checks
-skipSearch = True                       # Don't plan paths except for prims
+skipSearch = False                       # Don't plan paths except for prims
 useMathematica = False
 
 ########################################
