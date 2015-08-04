@@ -1755,7 +1755,7 @@ def achCanXGen(pbs, goal, cond, targetFluents, violFn, prob, tag):
         if viol is None:                  # hopeless
             trAlways('Impossible dream', pause = True); return []
         if viol.empty():
-            tr(tag, 1, '=> No obstacles or shadows; returning'); return
+            tr(tag, 1, '=> No obstacles or shadows; returning'); return []
 
         print 'need to see if base pose is specified and pass it in'
 

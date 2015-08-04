@@ -1393,12 +1393,8 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
     dist = dist or 0.25                 # default push size
     # Move extra dist (pushBuffer) to make up for the displacement from object
     nsteps = 10
-
-    prim = False
-
     if prim:
         dist -= handTiltOffset
-        pdb.set_trace()
     while float(dist+pushBuffer)/nsteps > pushStepSize:
         nsteps *= 2
     delta = float(dist+pushBuffer)/nsteps
@@ -1430,6 +1426,7 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
             break
         viol = viol1.update(viol2)
         if prim:
+            print '*** prim rot'
             nconf = displaceHandRot(conf, hand, offsetPose)
         if debug('pushPath'):
             print 'step=', step, viol
@@ -1470,7 +1467,6 @@ def displaceHandRot(conf, hand, offsetPose, nearTo=None, doRot=True):
     trans = cart[handFrameName]
     if doRot:
         rot = hu.Transform(rotation_matrix(-math.pi/12., (0,1,0)))
-        rot = hu.Transform(rotation_matrix(0.0, (0,1,0)))
         nTrans = offsetPose.compose(trans.compose(rot))
     else:
         nTrans = offsetPose.compose(trans)

@@ -320,7 +320,7 @@ def handContactFrames(shape, center, vertical):
 # TODO: This should be a property of robot -- and we should extend to held objects
 def pushHeight(vertical):
     if vertical:
-        return 0.02                 # tool tip above the table
+        return 0.04                 # tool tip above the table
     else:                           
         return 0.06                 # wrist needs to clear the support
 
