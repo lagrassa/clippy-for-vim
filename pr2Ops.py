@@ -988,6 +988,9 @@ def objectObsUpdate(details, lookConf, obsList):
     for obj, obsPose, obsFace in bestAssignment:
         singleTargetUpdate(details, obj.name(), obsPose, obsFace)
 
+    print 'Just updated pbs', hash(details.pbs)
+    raw_input('Okay?')
+
 # Each object is assigned an observation or None
 # These are objects that we expected to be able to see.
 # Doesn't initialize new objects
@@ -1104,6 +1107,7 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
     details.pbs.updateObjB(ObjPlaceB(objName, w.getFaceFrames(objName),
                                      DeltaDist(oldPlaceB.support.mode()),
                                      PoseD(hu.Pose(*newMu), newSigma)))
+
     
 missedObsLikelihoodPenalty = llMatchThreshold
 
