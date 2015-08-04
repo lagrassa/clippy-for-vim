@@ -251,7 +251,13 @@ def findSupportRegionInPbs(pbs, prob, shape):
                     bestRegShape = regShape
                     bestVol = vol
                     if debug(tag): print 'bestRegShape', regShape
-    assert bestRegShape, 'Could not find supporting region for %s'%shape.name()
+    if not bestRegShape:
+        print 'Could not find supporting region for %s'%shape.name()
+        shape.draw('W', 'magenta')
+        for regShape in shWorld.regionShapes.values():
+            print regShape.draw('W', 'cyan')
+        print 'gonna fail!'
+        raise Exception
     return bestRegShape
 
 # Potential contacts

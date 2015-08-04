@@ -837,6 +837,7 @@ def lookAtHandCostFun(al, args, details):
 
 # noinspection PyUnusedLocal
 def moveBProgress(details, args, obs=None):
+    print 'pbs', id(details.pbs); raw_input('Okay?')
     (s, e, _) = args
     # Assume we've controlled the error during motion.  This is a stdev
     odoError = details.domainProbs.odoError
@@ -844,6 +845,7 @@ def moveBProgress(details, args, obs=None):
 
     # Change robot conf
     details.pbs.updateConf(e)
+    print 'pbs', id(details.pbs); raw_input('Okay?')
 
     # Make variance of all objects not in the hand equal to the max of
     # the previous variance and odoError
@@ -854,10 +856,12 @@ def moveBProgress(details, args, obs=None):
         # this is the additive version
         # ob.poseD.var = tuple([a + b*b for (a, b) in zip(oldVar, odoError)])
         ob.poseD.var = tuple([max(a, b) for (a, b) in zip(oldVar, odoVar)])
+    print 'pbs', id(details.pbs); raw_input('Okay?')
     details.pbs.reset()
     details.pbs.getShadowWorld(0)
     details.pbs.internalCollisionCheck()
     debugMsg('beliefUpdate', 'moveBel')    
+    print 'pbs', id(details.pbs); raw_input('Okay?')
 
 # noinspection PyUnusedLocal
 def moveNBBProgress(details, args, obs=None):
@@ -988,7 +992,7 @@ def objectObsUpdate(details, lookConf, obsList):
     for obj, obsPose, obsFace in bestAssignment:
         singleTargetUpdate(details, obj.name(), obsPose, obsFace)
 
-    print 'Just updated pbs', hash(details.pbs)
+    print 'Just updated pbs', id(details.pbs)
     raw_input('Okay?')
 
 # Each object is assigned an observation or None
