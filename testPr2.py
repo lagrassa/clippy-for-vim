@@ -563,17 +563,16 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
 
     goalProb, errProbs = (0.5,tinyErrProbs) if easy else (0.95,typicalErrProbs)
 
-    if easy:
-        varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-                   objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
-    else:
-        varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                   objName: (0.1**2, 0.1**2, 1e-10, 0.3**2)}
+    varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
+               objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
+    # varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+    #            objName: (0.1**2, 0.1**2, 1e-10, 0.3**2)}
 
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
-    skel = [[lookAt, move, push, moveNB, lookAt, move],
+    skel = [[lookAt, move, push, #moveNB, lookAt,
+             move],
             [lookAt, moveNB]]
 
     # region = 'table1LeftFront'

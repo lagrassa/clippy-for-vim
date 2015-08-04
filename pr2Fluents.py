@@ -1373,6 +1373,7 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
     val = pushPathCache.get(key, None)
     if val is not None:
         pushPathCacheStats[1] += 1
+        print tag, 'cached ->', val[-1]
         return val
 
     rm = pbs.getRoadMap()
@@ -1383,27 +1384,30 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
         
     newBS = pbs.copy()
     newBS = newBS.updateHeldBel(gB, hand)
+    oldBS = pbs.copy()
     shWorld = newBS.getShadowWorld(prob)
     attached = shWorld.attached
     if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
     pathViols = []
-    # startStep = - pushBuffer
-    # startOff = hu.Pose(*(startStep*direction).tolist()+[0.0])
-    # startConf = displaceHand(conf, hand, startOff)
-    # pathViols.append((startConf,
-    #                   rm.confViolations(startConf, newBS, prob),
-    #                   pB.poseD.mode().compose(startOff)))
     reason = 'done'
     dist = dist or 0.25                 # default push size
     # Move extra dist (pushBuffer) to make up for the displacement from object
     nsteps = 10
+
+    prim = False
+
     if prim:
-        pushBuffer -= handTiltOffset
+        dist -= handTiltOffset
+        pdb.set_trace()
     while float(dist+pushBuffer)/nsteps > pushStepSize:
         nsteps *= 2
     delta = float(dist+pushBuffer)/nsteps
+    last = False
     for step_i in xrange(nsteps+1):
         step = (step_i * delta) - pushBuffer
+        if step > dist and not last:
+            step = dist
+            last = True
         offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
         if shape:
             nshape = shape.applyTrans(offsetPose)
@@ -1414,7 +1418,17 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
         if not nconf:
             reason = 'invkin'
             break
-        viol = rm.confViolations(nconf, newBS, prob)
+        offsetPB = pB.modifyPoseD(pB.poseD.mode().compose(offsetPose).pose(),
+                                  var=4*(0.0,))
+        oldBS.updateObjB(offsetPB)      # side effect
+        viol1 = rm.confViolations(nconf, newBS, prob)
+        viol2 = rm.confViolations(nconf, oldBS, prob)
+        if not viol2 or viol2.weight() > 0:
+            print 'Collision with object along pushPath'
+        if viol1 is None or viol2 is None:
+            reason = 'collide'
+            break
+        viol = viol1.update(viol2)
         if prim:
             nconf = displaceHandRot(conf, hand, offsetPose)
         if debug('pushPath'):
@@ -1427,27 +1441,17 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
                 mathematica.mathFile(wm.getWindow('W').stopCapture(),
                                      view = "ViewPoint -> {2, 0, 2}",
                                      filenameOut='./pushPath.m')
-            raw_input('Next?')
-        if viol is None:
-            reason = 'collide'
-            break
+            if tag in glob.pauseOn: raw_input('Next?')
         pathViols.append((nconf, viol,
-                          # record only during "nominal" part of motion
-                          pB.poseD.mode().compose(offsetPose) \
-                          if step >= 0 else None))
+                          offsetPB.poseD.mode() if 0 <= step <= dist else None))
         if debug('pushPath'):
             print 'obj mode:', pB.poseD.mode()
             print 'offset:', offsetPose
     if debug('pushPath'):
         raw_input('Path:'+reason)
-    # if reason == 'done':
-    #     doneStep = (nsteps * delta) - pushBuffer
-    #     doneOff = hu.Pose(*(doneStep*direction).tolist()+[0.0])
-    #     doneConf = displaceHand(conf, hand, doneOff)
-    #     pathViols.append((doneConf,
-    #                       rm.confViolations(doneConf, newBS, prob),
-    #                       pB.poseD.mode().compose(doneOff)))
+
     pushPathCache[key] = (pathViols, reason)
+    print tag, '->', reason
     return pathViols, reason
         
 def displaceHand(conf, hand, offsetPose, nearTo=None):

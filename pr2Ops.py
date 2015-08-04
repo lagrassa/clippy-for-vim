@@ -1674,8 +1674,9 @@ class AchCanReachGen(Function):
         def violFn(pbs):
             p, v = canReachHome(pbs, conf, prob, Violations())
             return v
-        for (op, newCond) in \
+        for ans in \
               achCanXGen(start.pbs, goal, cond, [crhFluent], violFn, prob, tag):
+            (op, newCond) = ans
             if not State(goal).isConsistent(newCond):
                 print 'AchCanReach suggestion inconsistent with goal'
                 for c in newCond: print c
