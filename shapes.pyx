@@ -394,6 +394,12 @@ cdef class Shape:
             prims.extend(p.toPrims())
         return prims
 
+    cpdef tuple zRange(self):
+        """Summarizes z range of bbox by a tuple"""
+        cdef np.ndarray[np.float64_t, ndim=2] bb
+        bb = self.bbox()
+        return (bb[0,2], bb[1,2])
+
     cpdef str name(self):
         return self.properties.get('name', 'noName')
 

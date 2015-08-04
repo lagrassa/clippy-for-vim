@@ -3,7 +3,7 @@ import math
 import time
 import transformations as transf
 
-import pointClouds as pcspr2robot
+import pointClouds as pc
 import planGlobals as glob
 from traceFile import debug, debugMsg
 from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn, objectName
@@ -182,6 +182,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             return endExec(self.executePick(op, params))
         elif op.name == 'Place':
             return endExec(self.executePlace(op, params))
+        elif op.name == 'Push':
+            return endExec(self.executePush(op, params))
         else:
             raise Exception, 'Unknown operator: '+str(op)
 
@@ -213,7 +215,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             distSoFar += 0.33*abs(hu.angleDiff(prevXYT[2],newXYT[2]))
             print 'distSoFar', distSoFar
             # Check whether we should look
-            args = 12*[None]
+            args = 14*[None]
             if distSoFar >= maxOpenLoopDist:
                 distSoFar = 0           #  reset
                 obj = next(self.visibleShapes(conf, objShapes), None)
@@ -235,8 +237,6 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         return None
 
     def executeMove(self, op, params, noBase=False):
-        def baseNear(conf1, conf2, thr):
-            return all(abs(x-y)<=thr for (x,y) in zip(conf1['pr2Base'], conf2['pr2Base']))
         if noBase:
             startConf = op.args[0]
             targetConf = op.args[1]
@@ -377,11 +377,17 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                 trueFace = supportFaceIndex(objPlaceRobot)
                 objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
                 pose = getSupportPose(objPlace, trueFace)
+                tablez0, tablez1 = tableRob.zRange()
+                objz0, objz1 = objPlace.zRange()
+                print 'table z', (tablez0, tablez1), 'object z', (objz0, objz1)
+                offset = hu.Pose(0.0, 0.0, tablez1+0.01-objz0, 0.0)
+                npose = offset.compose(pose)
+                print 'npose\n', npose.matrix
                 obs.append((self.world.getObjType(objPlace.name()),
-                            trueFace, pose))
+                            trueFace, npose))
                 if debug('robotEnv'):
                     print 'Obs', objType, objPlace.name(), 'score=', score,
-                    print 'face=', trueFace, 'pose=', pose
+                    print 'face=', trueFace, 'pose=', npose
                     objPlace.draw('W', 'cyan')
                     raw_input(objType)
         if debug('robotEnv') and not obs:
@@ -447,6 +453,19 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         result, outConf, _ = pr2GoToConf(approachConf, 'move')
         
         return None
+
+    def executePush(self, op, params, noBase = True):
+        # Execute the push prim
+        if params:
+            path, interpolated, placeBs  = params
+            debugMsg('robotEnv', 'executePush: path len = ', len(path))
+            obs = self.executePath(path, placeBs)
+            obs = self.executePath(path[::-1], placeBs)
+        else:
+            print op
+            raw_input('No path given')
+            obs = None
+        return obs
 
 def getObjDetections(world, obsTargets, robotConf, surfacePolys, maxFitness = 3):
     targetPoses = dict([(placeB.obj, placeB.poseD.mode()) \
@@ -861,3 +880,6 @@ def closeFirmly(conf, hand, delta = 0.005):
         result, out, fs = pr2GoToConfNB(gripOpen(conf, hand, grip-delta), 'open', hand)
         vals = (elts(fs[hand].l_readings, ind[0]), elts(fs[hand].r_readings, ind[1]))
     return 'closed', out, fs
+
+def baseNear(conf1, conf2, thr):
+    return all(abs(x-y)<=thr for (x,y) in zip(conf1['pr2Base'], conf2['pr2Base']))

@@ -222,7 +222,7 @@ def pushPrim(args, details):
     # TODO: Does it matter which prob we use?
     path, viol = canPush(details.pbs, obj, hand, poseFace, prePose, pose,
                          preConf, pushConf, postConf, prePoseVar, poseVar,
-                         poseDelta, resultProb, Violations())
+                         poseDelta, resultProb, Violations(), prim=True)
     assert path
     tr('prim', '*** pushPrim', args, ('path length', len(path)))
     # reverse the path...

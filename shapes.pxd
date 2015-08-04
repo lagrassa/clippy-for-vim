@@ -82,6 +82,7 @@ cdef class Shape:
     cpdef list parts(self)
     cpdef list toPrims(self)	
     cpdef str name(self)
+    cpdef tuple zRange(self)
     cpdef hu.Transform origin(self)
     cpdef np.ndarray[np.float64_t, ndim=2] vertices(self)
     cpdef Shape applyTrans(self, hu.Transform, str frame=*)

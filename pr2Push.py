@@ -257,7 +257,8 @@ def handContactFrames(shape, center, vertical):
     pushCenter = center.copy().reshape(4)
     if vertical:
         minPushZ = shape.bbox()[1,2] - fingerLength
-        pushCenter[2] = max(minPushZ, shape.bbox()[0,2] + pushHeight(vertical))
+        # TODO : max(minPushZ...)?
+        pushCenter[2] = shape.bbox()[0,2] + pushHeight(vertical)
     else:
         pushCenter[2] = shape.bbox()[0,2] + pushHeight(vertical)
     if debug(tag):

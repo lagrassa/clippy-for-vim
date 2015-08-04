@@ -1,4 +1,5 @@
 import pdb
+import math
 import hu
 import numpy as np
 from planUtil import Violations, ObjPlaceB, ObjGraspB
@@ -16,6 +17,7 @@ from pr2Robot import gripperFaceFrame
 from traceFile import tr, trAlways
 import mathematica
 import windowManager3D as wm
+from transformations import rotation_matrix
 
 tiny = 1.0e-6
 obstCost = 10  # Heuristic cost of moving an object
@@ -1290,10 +1292,10 @@ def inTest(bState, obj, regName, prob, pB=None):
 # Pushing                
 
 # returns path, violations
-pushStepSize = 0.02
+pushStepSize = 0.01
 def canPush(pbs, obj, hand, poseFace, prePose, pose,
             preConf, pushConf, postConf, poseVar, prePoseVar,
-            poseDelta, prob, initViol):
+            poseDelta, prob, initViol, prim=False):
     tag = 'canPush'
     # direction from post to pre
     if pbs.held[hand].mode() != 'none':
@@ -1336,7 +1338,7 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
     graspB =  ObjGraspB(obj, graspDescList, -1, support,
                         PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
     pathViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
-                                 direction, dist, None, None, hand)
+                                 direction, dist, None, None, hand, prim=prim)
     if not pathViols: return None, None
     viol = pathViols[0][1]
     path = []
@@ -1362,7 +1364,7 @@ pushPathCacheStats = [0, 0]
 pushPathCache = {}
 
 def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
-             pushBuffer = 0.05):
+             pushBuffer = 0.05, prim=False):
     tag = 'pushPath'
     key = (pbs, prob, gB, pB, conf, tuple(direction.tolist()),
            dist, shape, regShape, hand, pushBuffer)
@@ -1380,6 +1382,12 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
     if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
     rm = pbs.getRoadMap()
     pathViols = []
+    # startStep = - pushBuffer
+    # startOff = hu.Pose(*(startStep*direction).tolist()+[0.0])
+    # startConf = displaceHand(conf, hand, startOff)
+    # pathViols.append((startConf,
+    #                   rm.confViolations(startConf, newBS, prob),
+    #                   pB.poseD.mode().compose(startOff)))
     reason = 'done'
     dist = dist or 0.25                 # default push size
     # Move extra dist (pushBuffer) to make up for the displacement from object
@@ -1398,8 +1406,11 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
         nconf = displaceHand(conf, hand, offsetPose)
         if not nconf:
             reason = 'invkin'
+            raw_input('invkin failure')
             break
         viol = rm.confViolations(nconf, newBS, prob)
+        if prim:
+            nconf = displaceHandRot(conf, hand, offsetPose)
         if debug('pushPath'):
             print 'step=', step, viol
             if glob.useMathematica:
@@ -1423,7 +1434,13 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
             print 'offset:', offsetPose
     if debug('pushPath'):
         raw_input('Path:'+reason)
-
+    # if reason == 'done':
+    #     doneStep = (nsteps * delta) - pushBuffer
+    #     doneOff = hu.Pose(*(doneStep*direction).tolist()+[0.0])
+    #     doneConf = displaceHand(conf, hand, doneOff)
+    #     pathViols.append((doneConf,
+    #                       rm.confViolations(doneConf, newBS, prob),
+    #                       pB.poseD.mode().compose(doneOff)))
     pushPathCache[key] = (pathViols, reason)
     return pathViols, reason
         
@@ -1432,6 +1449,20 @@ def displaceHand(conf, hand, offsetPose, nearTo=None):
     handFrameName = conf.robot.armChainNames[hand]
     trans = cart[handFrameName]
     nTrans = offsetPose.compose(trans)
+    nCart = cart.set(handFrameName, nTrans)
+    nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
+    if all(nConf.values()):
+        return nConf
+
+def displaceHandRot(conf, hand, offsetPose, nearTo=None, doRot=True):
+    cart = conf.cartConf()
+    handFrameName = conf.robot.armChainNames[hand]
+    trans = cart[handFrameName]
+    if doRot:
+        rot = hu.Transform(rotation_matrix(-math.pi/12., (0,1,0)))
+        nTrans = offsetPose.compose(trans.compose(rot))
+    else:
+        nTrans = offsetPose.compose(trans)
     nCart = cart.set(handFrameName, nTrans)
     nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
     if all(nConf.values()):

@@ -158,7 +158,7 @@ cdef tuple scoreTable(tuple summed, int i, int j, int dimI, int dimJ):
     return (scoreTable1(summed[0], i, j, dimI, dimJ),
             scoreTable1(summed[1], i, j, dimI, dimJ))
 
-cpdef tuple bestTablePose(shapes.Thing table, np.ndarray[np.float64_t, ndim=1 ]center,
+cpdef tuple bestTablePose(shapes.Shape table, np.ndarray[np.float64_t, ndim=1 ]center,
                           double angle,
                           np.ndarray[np.float64_t, ndim=2] good,
                           np.ndarray[np.float64_t, ndim=2] bad,
