@@ -580,7 +580,8 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     targetPose = (1.1, 0.2, tZ, 0.0)
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
     delta = (0.02, .02, .02, .05)
-    #delta = (0.05, .05, .05, .1)
+    delta = (0.05, .05, .05, .1)
+    delta = (0.05, .05, .05, .5)
     goal = State([\
                   Bd([SupportFace([objName]), 4, goalProb], True),
                   B([Pose([objName, 4]),
