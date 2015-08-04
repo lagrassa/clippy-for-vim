@@ -126,7 +126,7 @@ def pickPrim(shape):
 
 def pushGenAux(pbs, placeB, hand, base, prob):
     tag = 'pushGen'
-    shape = placeB.shape(pbs.getWorld())
+    shape = placeB.shadow(pbs.getWorld())
     prim = pickPrim(shape)
     xyPrim = shape.xyPrim()
     # Location of center at placeB
@@ -139,7 +139,7 @@ def pushGenAux(pbs, placeB, hand, base, prob):
     # span the centroid.
     potentialContacts = []
     for vertical in (True, False):
-        for contactFrame in handContactFrames(prim, center, vertical):
+        for (width, contactFrame) in handContactFrames(prim, center, vertical):
             # construct a graspB corresponding to the push hand pose,
             # determined by the contact frame
             potentialContacts.append((vertical, contactFrame))
@@ -174,12 +174,10 @@ def pushGenAux(pbs, placeB, hand, base, prob):
                 tr(tag+'Path', 'potential grasp conf is empy')
                 continue
             (c, ca, viol) = ans
-            # TODO: pick hand opening better
-            c = gripSet(c, hand, 0.0)
-            ca = gripSet(ca, hand, 0.0)
+            c = gripSet(c, hand, width)
             count += 1
             pathAndViols, reason = pushPath(pbs, prob, graspB, placeB, c,
-                                  direction, dist, xyPrim, supportRegion, hand)
+                                            direction, dist, xyPrim, supportRegion, hand)
             if reason == 'done': doneCount +=1 
             pushPaths.append((pathAndViols, reason))
             tr(tag+'Path', 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
@@ -286,12 +284,16 @@ def handContactFrames(shape, center, vertical):
             continue
         # fingers can contact the region while spanning the center
         # TODO: use this to open the fingers as wide as possible
-        if c[0] - faceBB[0,0] >= fingerTipThick and faceBB[1,0] - c[0] >= fingerTipThick \
-           and c[1] - faceBB[0,1] >= fingerTipThick and faceBB[1,1] - c[1] >= fingerTipThick:
+        wx = c[0] - faceBB[0,0], faceBB[1,0] - c[0]
+        wy = c[1] - faceBB[0,1], faceBB[1,1] - c[1]
+        if min(wx) >= 0.5 * fingerTipThick and \
+           min(wy) >= 0.5 * fingerTipThick:
             cf = frame.compose(hu.Pose(c[0], c[1], 0., 0.))
+            width = min(wx) - 0.5 * fingerTipThick
             if debug(tag):
-                print 'valid contact frame\n', cf.matrix
-            contactFrames.append(cf)
+                print 'width', width, 'valid contact frame\n', cf.matrix
+                raw_input('Target')
+            contactFrames.append((cf, width))
         else:
             if debug(tag): print 'face is too small'
     return contactFrames

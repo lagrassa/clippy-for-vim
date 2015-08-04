@@ -1362,6 +1362,7 @@ def robotGraspFrame(pbs, conf, hand):
 
 pushPathCacheStats = [0, 0]
 pushPathCache = {}
+handTiltOffset = 0.033
 
 def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
              pushBuffer = 0.05, prim=False):
@@ -1392,6 +1393,8 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
     dist = dist or 0.25                 # default push size
     # Move extra dist (pushBuffer) to make up for the displacement from object
     nsteps = 10
+    if prim:
+        pushBuffer -= handTiltOffset
     while float(dist+pushBuffer)/nsteps > pushStepSize:
         nsteps *= 2
     delta = float(dist+pushBuffer)/nsteps
@@ -1406,7 +1409,6 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
         nconf = displaceHand(conf, hand, offsetPose)
         if not nconf:
             reason = 'invkin'
-            raw_input('invkin failure')
             break
         viol = rm.confViolations(nconf, newBS, prob)
         if prim:
@@ -1467,3 +1469,4 @@ def displaceHandRot(conf, hand, offsetPose, nearTo=None, doRot=True):
     nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
     if all(nConf.values()):
         return nConf
+
