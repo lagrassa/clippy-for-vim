@@ -1041,7 +1041,8 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                 minIndex = costHistory.index(min(costHistory))
                 pose = poseHistory[minIndex]
                 poseCost = costHistory[minIndex]
-                if debug('potentialRegionPoseGen'): print 'pose cost', costHistory[minIndex]
+                if debug('potentialRegionPoseGen'):
+                    print 'pose cost', costHistory[minIndex]
                 costHistory[minIndex] = cost
                 poseHistory[minIndex] = p
             else:                           # cost <= min(costHistory)

@@ -586,10 +586,6 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
                      targetPose, targetVar, (0.02, .02, .02, .05),
                      goalProb], True)])
 
-    print 'Disabling pick and place'
-    glob.debugOn.append('disablePickPlace')
-
-
     t = PlanTest('testPush0',  errProbs, allOperators,
                  objects=['table1', objName],
                  fixPoses={'table1': table1Pose},

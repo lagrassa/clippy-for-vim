@@ -830,5 +830,5 @@ allOperators = [move, push, lookAt, moveNB,
 
 if not debug('disablePickPlace'):
     allOperators.extend([pick, place])
-    
-              #lookAtHand    #graspAchCanPickPlace #dropAchCanPickPlace achCanSee
+
+#lookAtHand  achCanSee

@@ -91,7 +91,7 @@ def primPath(bs, cs, ce, p):
                 print 'Path2 RRT failed, trying full RRT'
                 path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
                                                    maxIter=50, failIter=10)            
-                assert path and viols.weight == 0
+                assert path and viols.weight() == 0
         else:
             path2, v2 = None, None
         if (not path) and path1 and path2:
@@ -1454,8 +1454,8 @@ push = Operator('Push', pushArgs,
          1 : {Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
                            'PreConf',
                             'PushConf', 'PostConf', 'PoseVar', 'PrePoseVar',
-                            'PoseDelta', []]), True, canPPProb],True)},
-         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
+                            'PoseDelta', []]), True, canPPProb],True),
+              Bd([Holding(['Hand']), 'none', canPPProb], True)},                         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
               B([Pose(['Obj', 'PoseFace']), 'PrePose',
                  'PrePoseVar', 'PoseDelta', 'P'], True)},
          3 : {Conf(['PreConf', 'ConfDelta'], True)}
