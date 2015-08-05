@@ -235,15 +235,6 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
     return violations, None
 
 
-#### LPK!!!  I think this needs to be one step tricker.
-
-# The conf we are looking for has to be outside the shadow of the
-# object in the pbs that we are passing in (the "before" pbs).  But
-# the path from that conf to the one we are passing in (the "target
-# conf") only needs to be feasible in the "after" pbs (in which the
-# object will have a smaller variance.
-
-
 # Find a path to a conf such that the arm (specified) by hand does not
 # collide with the view cone to the target shape.
 def canView(pbs, prob, conf, hand, shape, shapeShadow = None, maxIter = 50):

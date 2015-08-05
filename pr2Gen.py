@@ -946,7 +946,7 @@ def lookGenTop(args, goalConds, pbs):
             # Modify the lookConf (if needed) by moving arm out of the
             # way of the viewCone.  Use the before shadow because this
             # conf needs to be safe before we look
-            lookConf = lookAtConfCanView(newBS_before, prob, confAtTarget,
+            lookConf = lookAtConfCanView(newBS_after, prob, confAtTarget,
                                          shapeForLook, shapeShadow=shapeShadow)
             if lookConf:
                 tr(tag, '=> Found a path to look conf with specified base.',
