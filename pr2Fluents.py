@@ -1365,7 +1365,7 @@ pushPathCache = {}
 handTiltOffset = 0.033
 
 def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
-             pushBuffer = 0.05, prim=False):
+             pushBuffer = 0.08, prim=False):
     tag = 'pushPath'
     key = (pbs, prob, gB, pB, conf, tuple(direction.tolist()),
            dist, shape, regShape, hand, pushBuffer)

@@ -143,7 +143,11 @@ class RealWorld(WorldState):
             # Check whether we should look
             args = 14*[None]
             if distSoFar >= maxOpenLoopDist:
+                # LPK !!! Just return
                 distSoFar = 0           #  reset
+                return obs
+
+
                 obj = self.visibleObj(objShapes)
                 if obj:
                     lookConf = lookAtConf(self.robotConf, obj)

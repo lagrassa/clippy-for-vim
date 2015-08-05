@@ -453,8 +453,6 @@ class PushPrevVar(Function):
     def fun((resultVar,), goal, start):
         pushVar = start.domainProbs.pushVar
         maxPushVar = start.domainProbs.maxPushVar
-        maxPushVar = (1, 1, 1, 1)
-        
         # pretend it's lower
         res = tuple([min(x - y, m) for (x, y, m) \
                      in zip(resultVar, pushVar, maxPushVar)])
@@ -463,6 +461,10 @@ class PushPrevVar(Function):
             tr('pushGenVar', 'Push previous var would be negative', res)
             return []
         else:
+            print 'Push var after', resultVar
+            print 'Max push var', maxPushVar
+            print 'Push prev var', res
+            
             return [[res]]
     
 class PlaceInPoseVar(Function):
@@ -561,10 +563,13 @@ class GenLookObjPrevVariance(Function):
         cappedVbo2 = tuple([min(a, b) for (a, b) in zip(vs, vbo)])
         # vbo > ve
         # This is useful if it's between:  vbo > vv > ve
+        ve3 = (ve[0], ve[1], ve[3])
+        cvbo3 = (cappedVbo1[0], cappedVbo2[1], cappedVbo1[3])
         def useful(vv):
+            vv3 = (vv[0], vv[1], vv[3])
             # noinspection PyShadowingNames
-            return any([a > b for (a, b) in zip(vv, ve)]) and \
-                   any([a > b for (a, b) in zip(cappedVbo1, vv)])
+            return any([a > b for (a, b) in zip(vv3, ve3)]) and \
+                   any([a > b for (a, b) in zip(cvbo3, vv3)])
         def sqrts(vv):
             # noinspection PyShadowingNames
             return [sqrt(xx) for xx in vv]
@@ -1468,9 +1473,11 @@ push = Operator('Push', pushArgs,
                            'PreConf',
                             'PushConf', 'PostConf', 'PoseVar', 'PrePoseVar',
                             'PoseDelta', []]), True, canPPProb],True),
-              Bd([Holding(['Hand']), 'none', canPPProb], True)},                         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
+              Bd([Holding(['Hand']), 'none', canPPProb], True)},
+        2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
+              # Make this delta small 
               B([Pose(['Obj', 'PoseFace']), 'PrePose',
-                 'PrePoseVar', 'PoseDelta', 'P'], True)},
+                 'PrePoseVar',  (0.005, 0.005, 1e-4, 0.008), 'P'], True)},
          3 : {Conf(['PreConf', 'ConfDelta'], True)}
         },
         # Results

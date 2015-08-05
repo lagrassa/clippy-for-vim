@@ -944,13 +944,14 @@ def lookGenTop(args, goalConds, pbs):
         # obstacles.
         if testFn(confAtTarget, shapeForLook, shWorld_before):
             # Modify the lookConf (if needed) by moving arm out of the
-            # way of the viewCone.  Use the after shadow.
-            lookConf = lookAtConfCanView(newBS_after, prob, confAtTarget,
+            # way of the viewCone.  Use the before shadow because this
+            # conf needs to be safe before we look
+            lookConf = lookAtConfCanView(newBS_before, prob, confAtTarget,
                                          shapeForLook, shapeShadow=shapeShadow)
             if lookConf:
                 tr(tag, '=> Found a path to look conf with specified base.',
                    ('-> cyan', lookConf.conf),
-                   draw=[(newBS_after, prob, 'W'),
+                   draw=[(newBS_before, prob, 'W'),
                          (lookConf, 'W', 'cyan', attached)],
                    snap=['W'])
                 yield (lookConf,), rm.confViolations(lookConf, newBS_after,prob)
@@ -958,7 +959,7 @@ def lookGenTop(args, goalConds, pbs):
                 tr(tag,
                    '=> Failed to find path to look conf with specified base.',
                    ('target conf after look is magenta', confAtTarget.conf),
-                   draw=[(newBS_after, prob, 'W'),
+                   draw=[(newBS_before, prob, 'W'),
                          (confAtTarget, 'W', 'magenta', attached)],
                    snap=['W'])
         return

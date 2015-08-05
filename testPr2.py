@@ -569,11 +569,11 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
                objName: (0.1**2, 0.1**2, 1e-10, 0.3**2)}
 
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    front = hu.Pose(1.3, 0.0, tZ, 0.0)
+    #front = hu.Pose(1.3, 0.0, tZ, 0.0)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
-    skel = [[lookAt, move, push, #moveNB, lookAt,
-             move],
+    skel = [[lookAt, move, push, moveNB, lookAt, moveNB, lookAt,
+             move, lookAt, move, lookAt, move],
             [lookAt, moveNB]]
 
     # region = 'table1LeftFront'
