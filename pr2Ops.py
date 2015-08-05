@@ -1477,7 +1477,7 @@ push = Operator('Push', pushArgs,
         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
               # Make this delta small 
               B([Pose(['Obj', 'PoseFace']), 'PrePose',
-                 'PrePoseVar',  (0.005, 0.005, 1e-4, 0.008), 'P'], True)},
+                 'PrePoseVar',  (0.008, 0.008, 1e-4, 0.016), 'P'], True)},
          3 : {Conf(['PreConf', 'ConfDelta'], True)}
         },
         # Results
