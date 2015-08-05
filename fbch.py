@@ -1535,8 +1535,9 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
     (op, subgoal, oldSkel) = (top, g, None)
     while not ps.isEmpty() and op != None:
 
-        print 'pbs', id(s.details.pbs)
-        raw_input('Okay?')
+        if debug('pbsId'):
+            print 'pbs', id(s.details.pbs)
+            raw_input('Okay?')
 
         if op.isAbstract():
             # Plan again at a more concrete level
@@ -1595,11 +1596,13 @@ def executePrim(op, s, env, f = None):
     tr('prim', 'params', params)
     writePrimRefinement(f, op)
     obs = env.executePrim(op, params)
-    print 'pbs', id(s.details.pbs)
-    raw_input('Okay?')
+    if debug('pbsId'):
+        print 'pbs', id(s.details.pbs)
+        raw_input('Okay?')
     s.updateStateEstimate(op, obs)
-    print 'pbs', id(s.details.pbs)
-    raw_input('Okay?')
+    if debug('pbsId'):
+        print 'pbs', id(s.details.pbs)
+        raw_input('Okay?')
     hCacheReset()
 
 class PlanStack(Stack):
