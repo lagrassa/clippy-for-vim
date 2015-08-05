@@ -1399,6 +1399,9 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
         nsteps *= 2
     delta = float(dist+pushBuffer)/nsteps
     last = False
+    if prim:
+        offsetPose = hu.Pose(*(-pushBuffer*direction).tolist()+[0.0])
+        firstConf = displaceHand(conf, hand, offsetPose)
     for step_i in xrange(nsteps+1):
         step = (step_i * delta) - pushBuffer
         if step > dist and not last:
@@ -1426,8 +1429,7 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
             break
         viol = viol1.update(viol2)
         if prim:
-            print '*** prim rot'
-            nconf = displaceHandRot(conf, hand, offsetPose)
+            nconf = displaceHandRot(firstConf, conf, hand, offsetPose)
         if debug('pushPath'):
             print 'step=', step, viol
             if glob.useMathematica:
@@ -1461,17 +1463,23 @@ def displaceHand(conf, hand, offsetPose, nearTo=None):
     if all(nConf.values()):
         return nConf
 
-def displaceHandRot(conf, hand, offsetPose, nearTo=None, doRot=True):
+def displaceHandRot(firstConf, conf, hand, offsetPose, nearTo=None, doRot=True):
     cart = conf.cartConf()
     handFrameName = conf.robot.armChainNames[hand]
-    trans = cart[handFrameName]
-    if doRot:
-        rot = hu.Transform(rotation_matrix(-math.pi/12., (0,1,0)))
-        nTrans = offsetPose.compose(trans.compose(rot))
-    else:
-        nTrans = offsetPose.compose(trans)
+    trans = cart[handFrameName]         # initial hand position
+    nTrans = offsetPose.compose(trans)  # final hand position
+    if doRot and trans.matrix[2,0] < -0.9:     # rot and vertical (wrist x along -z)
+        firstCart = firstConf.cartConf()
+        firstTrans = firstCart[handFrameName]
+        handOff = firstTrans.inverse().compose(nTrans).pose()
+        if abs(handOff.z) > 0.001:
+            sign = -1.0 if handOff.z < 0 else 1.0
+            print handOff, '->', sign
+            rot = hu.Transform(rotation_matrix(sign*math.pi/15., (0,1,0)))
+            nTrans = nTrans.compose(rot)
     nCart = cart.set(handFrameName, nTrans)
     nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
     if all(nConf.values()):
         return nConf
+    
 

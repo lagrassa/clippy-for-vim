@@ -962,7 +962,7 @@ def tangentSol(x, y, x0, y0):
     # print 'lvals', lvals
     if not lvals: return []
     # vals for alpha
-    avals = [math.acos((l*l - r*r - d*d)/(-2*r*d)) for l in lvals]
+    avals = [math.acos(max(-1.0, min(1.0, (l*l - r*r - d*d)/(-2*r*d)))) for l in lvals]
     # print 'avals', avals
     # angs are candidate rotation angles
     angs = []
