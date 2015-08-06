@@ -1361,7 +1361,7 @@ pushPathCacheStats = [0, 0]
 pushPathCache = {}
 handTiltOffset = 0.033
 
-def pushPathOld(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
+def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
                 pushBuffer = glob.pushBuffer, prim=False):
     tag = 'pushPath'
     key = (pbs, prob, gB, pB, conf, tuple(direction.tolist()),
@@ -1456,7 +1456,7 @@ def pushPathOld(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regSha
     print tag, '->', reason
     return pathViols, reason
 
-def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
+def pushPathTest(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
              pushBuffer = 0.08, prim=False):
     tag = 'pushPath'
     key = (pbs, prob, gB, pB, conf, prePose, shape, regShape, hand, pushBuffer)

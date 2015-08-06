@@ -568,11 +568,12 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     # varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
     #             objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
 
-    #front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
     #front = hu.Pose(1.1, 0.0, tZ, 0.2)
 
 
-    front = hu.Pose(1.29429566, -0.10053788, 0.68000000, 0.04378181)
+    #front = hu.Pose(1.29429566, -0.10053788, 0.68000000, 0.04378181)
+    front = hu.Pose(1.3, 0.0, 0.68000000, 0.0)
     varDict[objName] = tuple([x**2 for x in \
                               [0.00499433, 0.00499433, 0.00000707, 0.00993311]])
 
@@ -583,7 +584,10 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
             [lookAt, move, push, moveNB, lookAt, moveNB, lookAt,
              move, achCanReach, move]]
 
-    skel = [[lookAt, move, push, moveNB, lookAt, move, lookAt, moveNB]]
+    # Two pushes, no uncertainty
+    skel = [[lookAt, move, push, moveNB,
+             lookAt, move, push, moveNB, lookAt,
+             move, lookAt, moveNB]]
 
     # region = 'table1LeftFront'
     # goal = State([Bd([In([objName, region]), True, goalProb], True)])
