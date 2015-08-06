@@ -421,9 +421,9 @@ class RealWorld(WorldState):
             # whole path to get displacement.  Could do it once.
             w1 = path[0].cartConf()[robot.armChainNames[hand]]
             w2 = path[-1].cartConf()[robot.armChainNames[hand]]
-            delta = w2.compose(w1.inverse()).pose(0.1)
-            mag = (delta.x**2 + delta.y**2)**0.5
-            deltaPose = hu.Pose(0.005*(delta.x/mag), 0.005*(delta.y/mag), 0.0, 0.0)
+            delta = w2.compose(w1.inverse()).pose(0.1) # from w1 to w2
+            mag = (delta.x**2 + delta.y**2 + delta.z**2)**0.5
+            deltaPose = hu.Pose(0.005*(delta.x/mag), 0.005*(delta.y/mag), 0.005*(delta.z/mag), 0.0)
             if i > 0:
                 place = path[i].placement()
                 while place.collides(self.objectShapes[obj]):

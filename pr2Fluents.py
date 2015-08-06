@@ -1359,7 +1359,7 @@ def robotGraspFrame(pbs, conf, hand):
 
 pushPathCacheStats = [0, 0]
 pushPathCache = {}
-handTiltOffset = 0.033
+handTiltOffset = 0.0375                 # 0.18*sin(pi/15)
 
 def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
                 pushBuffer = glob.pushBuffer, prim=False):
@@ -1381,7 +1381,7 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
         print 'Conf collides in pushPath'
         pdb.set_trace()
         return None, None
-
+    prePose = hu.Pose(*prePose) if isinstance(prePose, (tuple, list)) else prePose
     oldBS = pbs.copy()
     shWorld = newBS.getShadowWorld(prob)
     attached = shWorld.attached
@@ -1391,15 +1391,16 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
     dist = dist or 0.25                 # default push size
     nsteps = 10
     if prim:
-        dist -= handTiltOffset
+        pushBuffer -= handTiltOffset    # reduce due to tilt
     while float(dist+pushBuffer)/nsteps > pushStepSize:
         nsteps *= 2
     delta = float(dist+pushBuffer)/nsteps
     last = False
     # Move extra dist (pushBuffer) to make up for the displacement from object
     if prim:
-        offsetPose = hu.Pose(*(-pushBuffer*direction).tolist()+[0.0])
+        offsetPose = hu.Pose(*(-1.1*pushBuffer*direction).tolist()+[0.0])
         firstConf = displaceHand(conf, hand, offsetPose)
+        pdb.set_trace()
     for step_i in xrange(nsteps+1):
         step = (step_i * delta) - pushBuffer
         if step > dist and not last:
@@ -1415,7 +1416,7 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
         if not nconf:
             reason = 'invkin'
             break
-        offsetPB = pB.modifyPoseD(pB.poseD.mode().compose(offsetPose).pose(),
+        offsetPB = pB.modifyPoseD(offsetPose.compose(pB.poseD.mode()).pose(),
                                   var=4*(0.0,))
         oldBS.updateObjB(offsetPB)      # side effect
         viol1 = rm.confViolations(nconf, newBS, prob)
@@ -1428,7 +1429,7 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
         viol = viol1.update(viol2)
         if prim:
             nconf = displaceHandRot(firstConf, conf, hand, offsetPose)
-        if debug('pushPath'):
+        if prim or debug('pushPath'):
             print 'step=', step, viol
             if glob.useMathematica:
                 wm.getWindow('W').startCapture()
@@ -1500,7 +1501,7 @@ def pushPathNew(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regSha
     if prim:
         offsetPose = hu.Pose(*(-pushBuffer*direction).tolist()+[0.0])
         firstConf = displaceHand(conf, hand, offsetPose, angle=angleDiff)
-    for step_i in xrange(nsteps+1):
+    for step_i in xrange(nsteps):
         step = (step_i * delta) - pushBuffer
         if step > dist and not last:
             step = dist
