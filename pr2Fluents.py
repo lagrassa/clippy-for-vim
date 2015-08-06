@@ -1400,7 +1400,6 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
     if prim:
         offsetPose = hu.Pose(*(-1.1*pushBuffer*direction).tolist()+[0.0])
         firstConf = displaceHand(conf, hand, offsetPose)
-        pdb.set_trace()
     for step_i in xrange(nsteps+1):
         step = (step_i * delta) - pushBuffer
         if step > dist and not last:
