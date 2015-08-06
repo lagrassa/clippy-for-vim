@@ -1471,6 +1471,7 @@ def pushOp(*args):
     return push.applyBindings(newB)
 
 # TODO : LPK think through the deltas more carefully
+pushDelta = (0.01, 0.01, 1e-4, 0.3)
 push = Operator('Push', pushArgs,
         {0 : {Pushable(['Obj'], True),
               BLoc(['Obj', planVar, 'P'], True)},    # was planP
@@ -1480,9 +1481,8 @@ push = Operator('Push', pushArgs,
                             'PoseDelta', []]), True, canPPProb],True),
               Bd([Holding(['Hand']), 'none', canPPProb], True)},
         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
-              # Make this delta small 
               B([Pose(['Obj', 'PoseFace']), 'PrePose',
-                 'PrePoseVar',  (0.01, 0.01, 1e-4, 0.2), 'P'], True)},
+                 'PrePoseVar',  pushDelta, 'P'], True)},
          3 : {Conf(['PreConf', 'ConfDelta'], True)}
         },
         # Results
