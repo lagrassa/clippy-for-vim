@@ -1471,7 +1471,7 @@ def pushOp(*args):
     return push.applyBindings(newB)
 
 # TODO : LPK think through the deltas more carefully
-pushDelta = (0.01, 0.01, 1e-4, 0.3)
+pushDelta = (0.01, 0.01, 1e-4, 0.4)
 push = Operator('Push', pushArgs,
         {0 : {Pushable(['Obj'], True),
               BLoc(['Obj', planVar, 'P'], True)},    # was planP
