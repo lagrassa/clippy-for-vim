@@ -1482,7 +1482,7 @@ push = Operator('Push', pushArgs,
         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
               # Make this delta small 
               B([Pose(['Obj', 'PoseFace']), 'PrePose',
-                 'PrePoseVar',  (0.008, 0.008, 1e-4, 0.016), 'P'], True)},
+                 'PrePoseVar',  (0.01, 0.01, 1e-4, 0.2), 'P'], True)},
          3 : {Conf(['PreConf', 'ConfDelta'], True)}
         },
         # Results
@@ -1908,6 +1908,20 @@ def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
 # Meta operators:  make implicit fluents true
 #
 ######################################################################
+
+# Could be place, push, or look
+
+'''
+achIn = Operator('AchIn',
+        ['Obj1', 'Region'],
+        {0 : {}},
+        # Results
+        [({Bd([In(['Obj1', 'Region']), True, 'PR'], True)},{})],
+        functions = [AchInGen(['Op', 'NewCond'], ['Obj1', 'Region'])],
+        argsToPrint = [0, 1],
+        ignorableArgs = range(2, 10),
+        metaGenerator = True)
+'''        
 
 # Calls a generator that returns an instance of a base operator, and the
 # conditions it achieves.  Could look at obj, move an obj, look at hand,

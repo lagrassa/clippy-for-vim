@@ -563,22 +563,26 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
 
     goalProb, errProbs = (0.5,tinyErrProbs) if easy else (0.95,typicalErrProbs)
 
-    varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-               objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
+    # varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
+    #            objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
     varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-               objName: (0.1**2, 0.1**2, 1e-10, 0.3**2)}
+                objName: (0.1**2, 0.1**2, 1e-10, 0.08**2)}
 
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    #front = hu.Pose(1.3, 0.0, tZ, 0.0)
+    #front = hu.Pose(1.1, 0.0, tZ, 0.1)
+
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     skel = [[lookAt, move, push, moveNB, lookAt, moveNB, lookAt,
              move, achCanReach, move],
-            [lookAt, moveNB]]
+            [lookAt, move, push, moveNB, lookAt, moveNB, lookAt,
+             move, achCanReach, move]]
+
+    skel = [[lookAt, move, push, moveNB, lookAt, move, lookAt, moveNB]]
 
     # region = 'table1LeftFront'
     # goal = State([Bd([In([objName, region]), True, goalProb], True)])
-    targetPose = (1.1, 0.2, tZ, 0.0)
+    targetPose = (1.1, 0.4, tZ, 0.0)
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
     delta = (0.02, .02, .02, .05)
     delta = (0.05, .05, .05, .1)

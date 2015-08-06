@@ -108,6 +108,8 @@ maxVarianceTuple = (.1, .1)
 minPlaceInVarTuple = (.005, .005)        # Target variance for placing
 maxPlaceVarTuple = (.02, .02)            # Target variance for placing
 
+pushBuffer = 0.12
+
 ########################################
 # Table parameters
 ########################################

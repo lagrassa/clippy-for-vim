@@ -1365,7 +1365,7 @@ pushPathCache = {}
 handTiltOffset = 0.033
 
 def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
-             pushBuffer = 0.08, prim=False):
+             pushBuffer = glob.pushBuffer, prim=False):
     tag = 'pushPath'
     key = (pbs, prob, gB, pB, conf, tuple(direction.tolist()),
            dist, shape, regShape, hand, pushBuffer)
@@ -1422,7 +1422,7 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
         oldBS.updateObjB(offsetPB)      # side effect
         viol1 = rm.confViolations(nconf, newBS, prob)
         viol2 = rm.confViolations(nconf, oldBS, prob)
-        if not viol2 or viol2.weight() > 0:
+        if (not viol2 or viol2.weight() > 0) and debug('pushPath'):
             print 'Collision with object along pushPath'
         if viol1 is None or viol2 is None:
             reason = 'collide'
@@ -1448,6 +1448,12 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
             print 'offset:', offsetPose
     if debug('pushPath'):
         raw_input('Path:'+reason)
+
+    # if len(pathViols) > 0:
+    #     pathViols[0][0].draw('W', 'black')
+    #     if len(pathViols) > 1:
+    #         pathViols[-1][0].draw('W', 'blue')
+    #     raw_input('Push path: black -> blue')
 
     pushPathCache[key] = (pathViols, reason)
     print tag, '->', reason

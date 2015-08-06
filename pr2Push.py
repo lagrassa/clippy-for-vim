@@ -340,7 +340,7 @@ vertGM = np.array([(0.,-1.,0.,0.),
                     (0.,0.,-1.,0.),
                     (1.,0.,0.,0.),
                     (0.,0.,0.,1.)], dtype=np.float64)
-pushBuffer = 0.05
+
 def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
     tag = 'graspBForContactFrame'
     # TODO: what should these values be?
@@ -354,9 +354,9 @@ def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
 
     if debug(tag): print 'objFrame\n', objFrame.matrix
 
-    (tr, 'pushGen', 'Using pushBuffer', pushBuffer)
+    (tr, 'pushGen', 'Using pushBuffer', glob.pushBuffer)
     # Displacement of finger tip from contact face (along Z of contact frame)
-    zOff = zOffset + (-fingerTipWidth if vertical else 0.) - pushBuffer
+    zOff = zOffset + (-fingerTipWidth if vertical else 0.) - glob.pushBuffer
     displacedContactFrame = contactFrame.compose(hu.Pose(0.,0.,zOff,0.))
     if debug(tag):
         print 'displacedContactFrame\n', displacedContactFrame.matrix
