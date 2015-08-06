@@ -1374,13 +1374,14 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
         return val
 
     rm = pbs.getRoadMap()
-    viol = rm.confViolations(conf, pbs, prob)
-    if not viol:
-        print 'Conf collides in pushPath'
-        return None, None
-        
     newBS = pbs.copy()
     newBS = newBS.updateHeldBel(gB, hand)
+    viol = rm.confViolations(conf, newBS, prob)
+    if not viol:
+        print 'Conf collides in pushPath'
+        pdb.set_trace()
+        return None, None
+
     oldBS = pbs.copy()
     shWorld = newBS.getShadowWorld(prob)
     attached = shWorld.attached
@@ -1388,7 +1389,6 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
     pathViols = []
     reason = 'done'
     dist = dist or 0.25                 # default push size
-    # Move extra dist (pushBuffer) to make up for the displacement from object
     nsteps = 10
     if prim:
         dist -= handTiltOffset
@@ -1396,6 +1396,7 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
         nsteps *= 2
     delta = float(dist+pushBuffer)/nsteps
     last = False
+    # Move extra dist (pushBuffer) to make up for the displacement from object
     if prim:
         offsetPose = hu.Pose(*(-pushBuffer*direction).tolist()+[0.0])
         firstConf = displaceHand(conf, hand, offsetPose)
@@ -1405,7 +1406,7 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
             step = dist
             last = True
         offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
-        if shape:
+        if shape and step >= 0:
             nshape = shape.applyTrans(offsetPose)
             if not inside(nshape, regShape):
                 reason = 'outside'
@@ -1445,18 +1446,11 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
             print 'offset:', offsetPose
     if debug('pushPath'):
         raw_input('Path:'+reason)
-
-    # if len(pathViols) > 0:
-    #     pathViols[0][0].draw('W', 'black')
-    #     if len(pathViols) > 1:
-    #         pathViols[-1][0].draw('W', 'blue')
-    #     raw_input('Push path: black -> blue')
-
     pushPathCache[key] = (pathViols, reason)
     print tag, '->', reason
     return pathViols, reason
 
-def pushPathTest(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
+def pushPathNew(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
              pushBuffer = 0.08, prim=False):
     tag = 'pushPath'
     key = (pbs, prob, gB, pB, conf, prePose, shape, regShape, hand, pushBuffer)
@@ -1487,6 +1481,8 @@ def pushPathTest(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regSh
     dist = prePose.distance(postPose) # xyz distance
     direction = (prePose.point().matrix.reshape(4) - postPose.point().matrix.reshape(4))[:3]
     direction[2] = 0.0
+    if dist != 0:
+        direction /= dist
     angleDiff = hu.angleDiff(postPose.theta, prePose.theta)
     print 'angleDiff', angleDiff
     if abs(angleDiff) > math.pi/6:
@@ -1500,21 +1496,23 @@ def pushPathTest(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regSh
     delta = float(dist+pushBuffer)/nsteps
     deltaAngle = float(angleDiff)/nsteps
     last = False
+
     if prim:
-        offsetPose = hu.Pose(*(-pushBuffer*direction).tolist()+[angleDiff])
-        firstConf = displaceHand(conf, hand, offsetPose)
+        offsetPose = hu.Pose(*(-pushBuffer*direction).tolist()+[0.0])
+        firstConf = displaceHand(conf, hand, offsetPose, angle=angleDiff)
     for step_i in xrange(nsteps+1):
         step = (step_i * delta) - pushBuffer
         if step > dist and not last:
             step = dist
             last = True
-        offsetPose = hu.Pose(*(step*direction).tolist()+[angleDiff - step_i*deltaAngle])
+        offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
         if shape:
             nshape = shape.applyTrans(offsetPose)
             if not inside(nshape, regShape):
                 reason = 'outside'
                 break
-        nconf = displaceHand(conf, hand, offsetPose)
+        nconf = displaceHand(conf, hand, offsetPose,
+                             angle=(angleDiff - step_i*deltaAngle))
         if not nconf:
             reason = 'invkin'
             break
@@ -1530,7 +1528,8 @@ def pushPathTest(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regSh
             break
         viol = viol1.update(viol2)
         if prim:
-            nconf = displaceHandRot(firstConf, conf, hand, offsetPose)
+            nconf = displaceHandRot(firstConf, conf, hand, offsetPose,
+                                    angle=(angleDiff - step_i*deltaAngle))
         if debug('pushPath'):
             print 'step=', step, viol
             if glob.useMathematica:
@@ -1555,21 +1554,21 @@ def pushPathTest(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regSh
     return pathViols, reason
 
         
-def displaceHand(conf, hand, offsetPose, nearTo=None):
+def displaceHand(conf, hand, offsetPose, nearTo=None, angle=0.0):
     cart = conf.cartConf()
     handFrameName = conf.robot.armChainNames[hand]
     trans = cart[handFrameName]
-    nTrans = offsetPose.compose(trans)
+    nTrans = (offsetPose.compose(trans)).compose(hu.Pose(0,0,0,angle))
     nCart = cart.set(handFrameName, nTrans)
     nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
     if all(nConf.values()):
         return nConf
 
-def displaceHandRot(firstConf, conf, hand, offsetPose, nearTo=None, doRot=True):
+def displaceHandRot(firstConf, conf, hand, offsetPose, nearTo=None, doRot=True, angle=0.0):
     cart = conf.cartConf()
     handFrameName = conf.robot.armChainNames[hand]
     trans = cart[handFrameName]         # initial hand position
-    nTrans = offsetPose.compose(trans)  # final hand position
+    nTrans = offsetPose.compose(trans).compose(hu.Pose(0,0,0,angle)) # final hand position
     if doRot and trans.matrix[2,0] < -0.9:     # rot and vertical (wrist x along -z)
         firstCart = firstConf.cartConf()
         firstTrans = firstCart[handFrameName]

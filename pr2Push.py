@@ -182,6 +182,7 @@ def pushGenAux(pbs, placeB, hand, base, prob):
             viol = rm.confViolations(c, newBS, prob)
             if not viol:
                 print 'Conf collides in pushPath'
+                pdb.set_trace()
                 continue
             count += 1
             pathAndViols, reason = pushPath(newBS, prob, graspB, placeB, c,
@@ -415,7 +416,7 @@ def sortPushContacts(contacts, targetPose, curPose):
         else:
             # distance negated...
             good.append((-ntrz, vertical, contact, width))
-    good.sort(reverse=True)             # largest z distance first
+    good.sort(reverse=True)             # z distance first
     if debug('pushGen'):
         print 'push contacts sorted by push distance'
         for x in good:
