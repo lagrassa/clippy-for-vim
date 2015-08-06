@@ -1304,8 +1304,6 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
     if obj in [h.mode() for h in pbs.held.values()]:
         tr(tag, '=> obj is in the hand, failing')
         return None, None
-    # post = robotGraspFrame(pbs, postConf, hand)
-    # pre = robotGraspFrame(pbs, preConf, hand)
     post = hu.Pose(*pose)
     pushWrist = robotGraspFrame(pbs, pushConf, hand)
     pre = hu.Pose(*prePose)
@@ -1317,8 +1315,6 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
         direction /= dist
     # placeB
     objPose = post
-    # support = supportFaceIndex(pbs.getWorld().getObjectShapeAtOrigin(obj).\
-    #                            applyTrans(objPose))
     support = poseFace
     placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), support,
                        PoseD(objPose, poseVar), poseDelta)
@@ -1338,7 +1334,8 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
     graspB =  ObjGraspB(obj, graspDescList, -1, support,
                         PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
     pathViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
-                                 direction, dist, None, None, hand, prim=prim)
+                                 direction, dist,
+                                 prePose, None, None, hand, prim=prim)
     if not pathViols: return None, None
     viol = pathViols[0][1]
     path = []
@@ -1364,8 +1361,8 @@ pushPathCacheStats = [0, 0]
 pushPathCache = {}
 handTiltOffset = 0.033
 
-def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
-             pushBuffer = glob.pushBuffer, prim=False):
+def pushPathOld(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
+                pushBuffer = glob.pushBuffer, prim=False):
     tag = 'pushPath'
     key = (pbs, prob, gB, pB, conf, tuple(direction.tolist()),
            dist, shape, regShape, hand, pushBuffer)
@@ -1458,6 +1455,105 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, shape, regShape, hand,
     pushPathCache[key] = (pathViols, reason)
     print tag, '->', reason
     return pathViols, reason
+
+def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
+             pushBuffer = 0.08, prim=False):
+    tag = 'pushPath'
+    key = (pbs, prob, gB, pB, conf, prePose, shape, regShape, hand, pushBuffer)
+    pushPathCacheStats[0] += 1
+    val = pushPathCache.get(key, None)
+    if val is not None:
+        pushPathCacheStats[1] += 1
+        print tag, 'cached ->', val[-1]
+        return val
+
+    rm = pbs.getRoadMap()
+    viol = rm.confViolations(conf, pbs, prob)
+    if not viol:
+        print 'Conf collides in pushPath'
+        return None, None
+        
+    newBS = pbs.copy()
+    newBS = newBS.updateHeldBel(gB, hand)
+    oldBS = pbs.copy()
+    shWorld = newBS.getShadowWorld(prob)
+    attached = shWorld.attached
+    if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
+    pathViols = []
+    reason = 'done'
+
+    prePose = hu.Pose(*prePose) if isinstance(prePose, (tuple, list)) else prePose
+    postPose = pB.poseD.mode()
+    dist = prePose.distance(postPose) # xyz distance
+    direction = (prePose.point().matrix.reshape(4) - postPose.point().matrix.reshape(4))[:3]
+    direction[2] = 0.0
+    angleDiff = hu.angleDiff(postPose.theta, prePose.theta)
+    print 'angleDiff', angleDiff
+    if abs(angleDiff) > math.pi/6:
+        return (pathViols, 'tilt')
+
+    nsteps = 10
+    if prim:                            # due to tilt of hand
+        dist -= handTiltOffset
+    while float(dist+pushBuffer)/nsteps > pushStepSize:
+        nsteps *= 2
+    delta = float(dist+pushBuffer)/nsteps
+    deltaAngle = float(angleDiff)/nsteps
+    last = False
+    if prim:
+        offsetPose = hu.Pose(*(-pushBuffer*direction).tolist()+[angleDiff])
+        firstConf = displaceHand(conf, hand, offsetPose)
+    for step_i in xrange(nsteps+1):
+        step = (step_i * delta) - pushBuffer
+        if step > dist and not last:
+            step = dist
+            last = True
+        offsetPose = hu.Pose(*(step*direction).tolist()+[angleDiff - step_i*deltaAngle])
+        if shape:
+            nshape = shape.applyTrans(offsetPose)
+            if not inside(nshape, regShape):
+                reason = 'outside'
+                break
+        nconf = displaceHand(conf, hand, offsetPose)
+        if not nconf:
+            reason = 'invkin'
+            break
+        offsetPB = pB.modifyPoseD(pB.poseD.mode().compose(offsetPose).pose(),
+                                  var=4*(0.0,))
+        oldBS.updateObjB(offsetPB)      # side effect
+        viol1 = rm.confViolations(nconf, newBS, prob)
+        viol2 = rm.confViolations(nconf, oldBS, prob)
+        if not viol2 or viol2.weight() > 0:
+            print 'Collision with object along pushPath'
+        if viol1 is None or viol2 is None:
+            reason = 'collide'
+            break
+        viol = viol1.update(viol2)
+        if prim:
+            nconf = displaceHandRot(firstConf, conf, hand, offsetPose)
+        if debug('pushPath'):
+            print 'step=', step, viol
+            if glob.useMathematica:
+                wm.getWindow('W').startCapture()
+            newBS.draw(prob, 'W')
+            nconf.draw('W', 'cyan', attached)
+            if glob.useMathematica:
+                mathematica.mathFile(wm.getWindow('W').stopCapture(),
+                                     view = "ViewPoint -> {2, 0, 2}",
+                                     filenameOut='./pushPath.m')
+            if tag in glob.pauseOn: raw_input('Next?')
+        pathViols.append((nconf, viol,
+                          offsetPB.poseD.mode() if 0 <= step <= dist else None))
+        if debug('pushPath'):
+            print 'obj mode:', pB.poseD.mode()
+            print 'offset:', offsetPose
+    if debug('pushPath'):
+        raw_input('Path:'+reason)
+
+    pushPathCache[key] = (pathViols, reason)
+    print tag, '->', reason
+    return pathViols, reason
+
         
 def displaceHand(conf, hand, offsetPose, nearTo=None):
     cart = conf.cartConf()

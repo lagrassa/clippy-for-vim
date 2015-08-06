@@ -185,7 +185,8 @@ def pushGenAux(pbs, placeB, hand, base, prob):
                 continue
             count += 1
             pathAndViols, reason = pushPath(newBS, prob, graspB, placeB, c,
-                                            direction, dist, xyPrim, supportRegion, hand)
+                                            direction, dist, curPose,
+                                            xyPrim, supportRegion, hand)
             if reason == 'done':
                 doneCount +=1 
                 pushPaths.append((pathAndViols, reason))

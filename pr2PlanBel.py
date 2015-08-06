@@ -50,7 +50,9 @@ class BeliefContext:
         # Initialize generator caches
         self.genCaches = {}
         for gen in ['pickGen', 'placeGen', 'placeInGen', 'lookGen', 'clearGen',
-                    'easyGraspGen', 'getShadowWorld']:
+                    'easyGraspGen', 'getShadowWorld', 'pushPath',
+                    'pushGen', 'graspConfGen', 'pathObst', 'objectShadow',
+                    'confReach']:
             self.genCaches[gen] = {}
     def __repr__(self):
         return "Belief(%s)"%(str(self.world))
