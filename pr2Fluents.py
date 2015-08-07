@@ -1361,7 +1361,10 @@ pushPathCacheStats = [0, 0]
 pushPathCache = {}
 handTiltOffset = 0.0375                 # 0.18*sin(pi/15)
 
-def pushPathOld(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
+# The conf in the input is the robot conf in contact with the object
+# at the destination pose.
+
+def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
                 pushBuffer = glob.pushBuffer, prim=False):
     tag = 'pushPath'
     key = (pbs, prob, gB, pB, conf, tuple(direction.tolist()),
@@ -1381,14 +1384,10 @@ def pushPathOld(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regSha
         print 'Conf collides in pushPath'
         pdb.set_trace()
         return None, None
-    prePose = hu.Pose(*prePose) if isinstance(prePose, (tuple, list)) else prePose
     oldBS = pbs.copy()
-    shWorld = newBS.getShadowWorld(prob)
-    attached = shWorld.attached
     if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
     pathViols = []
     reason = 'done'
-    dist = dist or 0.25                 # default push size
     nsteps = 10
     if prim:
         pushBuffer -= handTiltOffset    # reduce due to tilt
@@ -1401,6 +1400,7 @@ def pushPathOld(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regSha
         offsetPose = hu.Pose(*(-1.1*pushBuffer*direction).tolist()+[0.0])
         firstConf = displaceHand(conf, hand, offsetPose)
     for step_i in xrange(nsteps+1):
+        # step = (step_i * delta) + (handTiltOffset if prim else 0.0)
         step = (step_i * delta) - pushBuffer
         if step > dist and not last:
             step = dist
@@ -1431,14 +1431,7 @@ def pushPathOld(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regSha
             nconf = displaceHandRot(firstConf, conf, hand, offsetPose)
         if prim or debug('pushPath'):
             print 'step=', step, viol
-            if glob.useMathematica:
-                wm.getWindow('W').startCapture()
-            newBS.draw(prob, 'W')
-            nconf.draw('W', 'cyan', attached)
-            if glob.useMathematica:
-                mathematica.mathFile(wm.getWindow('W').stopCapture(),
-                                     view = "ViewPoint -> {2, 0, 2}",
-                                     filenameOut='./pushPath.m')
+            drawState(newBS, prob, nconf)
             if tag in glob.pauseOn: raw_input('Next?')
         pathViols.append((nconf, viol,
                           offsetPB.poseD.mode() if 0 <= step <= dist else None))
@@ -1451,7 +1444,7 @@ def pushPathOld(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regSha
     print tag, '->', reason
     return pathViols, reason
 
-def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
+def pushPathNew(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
              pushBuffer = 0.08, prim=False):
     tag = 'pushPath'
     key = (pbs, prob, gB, pB, conf, prePose, shape, regShape, hand, pushBuffer)
@@ -1470,22 +1463,25 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
         print 'Conf collides in pushPath'
         return None, None
     oldBS = pbs.copy()
-    shWorld = newBS.getShadowWorld(prob)
-    attached = shWorld.attached
     if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
     pathViols = []
     reason = 'done'
-    prePose = hu.Pose(*prePose) if isinstance(prePose, (tuple, list)) else prePose
-    postPose = pB.poseD.mode()
-    dist = prePose.distance(postPose) # xyz distance
-    direction = (prePose.point().matrix.reshape(4) - postPose.point().matrix.reshape(4))[:3]
-    direction[2] = 0.0
-    if dist != 0:
-        direction /= dist
-    angleDiff = hu.angleDiff(prePose.theta, postPose.theta)
-    print 'angleDiff', angleDiff
-    if abs(angleDiff) > math.pi/6:
-        return (pathViols, 'tilt')
+    # If prePose is specified, we want to go directly to goal, else
+    # move along specified direction.
+    if prePose:
+        prePose = hu.Pose(*prePose) if isinstance(prePose, (tuple, list)) else prePose
+        postPose = pB.poseD.mode()
+        dist = prePose.distance(postPose) # xyz distance
+        direction = (prePose.point().matrix.reshape(4) - postPose.point().matrix.reshape(4))[:3]
+        direction[2] = 0.0
+        if dist != 0:
+            direction /= dist
+            angleDiff = hu.angleDiff(prePose.theta, postPose.theta)
+            print 'angleDiff', angleDiff
+            if abs(angleDiff) > math.pi/6:
+                return (pathViols, 'tilt')
+    else:
+        angleDiff = 0.0
     nsteps = 10
     if prim:                            # due to tilt of hand
         dist -= handTiltOffset
@@ -1530,14 +1526,7 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
                                     angle=(step_i*deltaAngle))
         if debug('pushPath'):
             print 'step=', step, viol
-            if glob.useMathematica:
-                wm.getWindow('W').startCapture()
-            newBS.draw(prob, 'W')
-            nconf.draw('W', 'cyan', attached)
-            if glob.useMathematica:
-                mathematica.mathFile(wm.getWindow('W').stopCapture(),
-                                     view = "ViewPoint -> {2, 0, 2}",
-                                     filenameOut='./pushPath.m')
+            drawState(pbs, prob, conf)
             if tag in glob.pauseOn: raw_input('Next?')
         pathViols.append((nconf, viol,
                           offsetPB.poseD.mode() if 0 <= step <= dist else None))
@@ -1551,6 +1540,17 @@ def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape,
     print tag, '->', reason
     return pathViols, reason
 
+def drawState(pbs, prob, conf):
+    shWorld = pbs.getShadowWorld(prob)
+    attached = shWorld.attached
+    if glob.useMathematica:
+        wm.getWindow('W').startCapture()
+    pbs.draw(prob, 'W')
+    conf.draw('W', 'cyan', attached)
+    if glob.useMathematica:
+        mathematica.mathFile(wm.getWindow('W').stopCapture(),
+                             view = "ViewPoint -> {2, 0, 2}",
+                             filenameOut='./pushPath.m')
         
 def displaceHand(conf, hand, offsetPose, nearTo=None, angle=0.0):
     cart = conf.cartConf()

@@ -143,9 +143,8 @@ class RealWorld(WorldState):
             # Check whether we should look
             args = 14*[None]
             if distSoFar >= maxOpenLoopDist:
-                # LPK !!! Just return
                 distSoFar = 0           #  reset
-                return self.robotConf.conf
+                return self.robotConf
 
                 obj = self.visibleObj(objShapes)
                 if obj:
@@ -172,7 +171,7 @@ class RealWorld(WorldState):
             raw_input('Backwards')
         wm.getWindow('World').update()
         tr('sim', 'Admire the path', snap=['World'])
-        return self.robotConf.conf
+        return self.robotConf
 
     def visibleObj(self, objShapes):
         def rem(l,x): return [y for y in l if y != x]
@@ -441,12 +440,16 @@ class RealWorld(WorldState):
                 hand = op.args[1]
                 robot = path[0].robot
                 obs = self.doPath(path, interpolated, action=moveObj, ignoreCrash=True)
+                print 'Forward push path obs', obs
                 obs = self.doPath(path[::-1], interpolated[::-1], ignoreCrash=True)
+                print 'Reverse push path obs', obs
             else:
                 print op
                 raw_input('No path given')
                 obs = None
             return obs
+        else:
+            print 'Random push path failure'
 
     def copy(self):
         return copy.copy(self)
