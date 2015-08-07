@@ -719,10 +719,14 @@ def testPush2(hpn = True, skeleton = False, hierarchical = False,
     glob.monotonicFirst = True
 
     goalProb, errProbs = (0.5, tinyErrProbs) if easy else (0.95,typicalErrProbs)
-    varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-               'coolShelves': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-               'bigA': (0.0001**2, 0.0001**2, 1e-10, 0.001**2),
-               'objB': (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
+    # varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
+    #            'coolShelves': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
+    #            'bigA': (0.0001**2, 0.0001**2, 1e-10, 0.001**2),
+    #            'objB': (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
+    varDict = {'table1': (0.001**2, 0.001**2, 1e-10, 0.001**2),
+               'coolShelves': (0.001**2, 0.001**2, 1e-10, 0.001**2),
+               'bigA': (0.01**2, 0.01**2, 1e-10, 0.05**2),
+               'objB': (0.01**2, 0.01**2, 1e-10, 0.05**2)}
     right1 = hu.Pose(1.1, -0.5, tZ, 0.0)
     right2 = hu.Pose(1.4, -0.5, tZ, 0.0)
     left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
@@ -742,7 +746,7 @@ def testPush2(hpn = True, skeleton = False, hierarchical = False,
     goal = State([\
                   Bd([SupportFace(['objB']), 4, goalProb], True),
                   B([Pose(['objB', 4]),
-                     targetPose, targetVar, (0.02,)*4,
+                     targetPose, targetVar, (0.02, 0.02, 0.02, 0.1),
                      goalProb], True)])
 
     hand = 'left'

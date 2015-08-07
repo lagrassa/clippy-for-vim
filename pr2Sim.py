@@ -145,8 +145,7 @@ class RealWorld(WorldState):
             if distSoFar >= maxOpenLoopDist:
                 # LPK !!! Just return
                 distSoFar = 0           #  reset
-                return obs
-
+                return self.robotConf.conf
 
                 obj = self.visibleObj(objShapes)
                 if obj:
@@ -173,7 +172,7 @@ class RealWorld(WorldState):
             raw_input('Backwards')
         wm.getWindow('World').update()
         tr('sim', 'Admire the path', snap=['World'])
-        return obs
+        return self.robotConf.conf
 
     def visibleObj(self, objShapes):
         def rem(l,x): return [y for y in l if y != x]

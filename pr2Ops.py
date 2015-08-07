@@ -849,8 +849,8 @@ def moveBProgress(details, args, obs=None):
     odoError = details.domainProbs.odoError
     odoVar = [x**2 for x in odoError]
 
-    # Change robot conf
-    details.pbs.updateConf(e)
+    # Change robot conf.  For now, trust the observation completely
+    details.pbs.updateConf(obs)
     if debug('pbsId'):
         print 'pbs', id(details.pbs); raw_input('Okay?')
 

@@ -32,6 +32,8 @@ maxPushPaths = 50
 pushGenCacheStats = [0, 0]
 pushGenCache = {}
 
+minPushLength = 0.01
+
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
         for ans in pushGenGen(args, goalConds, bState):
@@ -53,8 +55,11 @@ def pushGenGen(args, goalConds, bState):
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
                        PoseD(pose, posevar), delta=posedelta)
 
-    if pbs.getPlaceB(placeB.obj).poseD.mode().distance(placeB.poseD.mode()) < 0.01:
-        tr(tag, 'Target pose is too close to current pose, failing')
+    if pbs.getPlaceB(placeB.obj).poseD.mode().distance(placeB.poseD.mode()) \
+      < minPushLength:
+        tr(tag, 'Target pose is too close to current pose, failing',
+           pbs.getPlaceB(placeB.obj).poseD.mode(),placeB.poseD.mode(),
+          pbs.getPlaceB(placeB.obj).poseD.mode().distance(placeB.poseD.mode()))
         return
 
     # Figure out whether one hand or the other is required;  if not, do round robin
