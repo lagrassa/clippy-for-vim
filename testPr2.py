@@ -565,8 +565,8 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
 
     varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
                 objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
-    # varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-    #             objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
+    varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+               objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
 
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     #front = hu.Pose(1.1, 0.0, tZ, 0.2)
@@ -623,7 +623,7 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     return t
 
 def testPush0Easy(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-                  easy = False, rip = False, multiplier=6, objName='bigA'):
+                  easy = False, rip = False, multiplier=6, objName='bigA', angle=0.0):
 
     glob.rebindPenalty = 100
     glob.monotonicFirst = True
@@ -632,8 +632,8 @@ def testPush0Easy(hpn = True, skeleton = False, hierarchical = False, heuristic=
 
     varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
                objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
-    # varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-    #             objName: (0.1**2, 0.1**2, 1e-10, 0.08**2)}
+    varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+               objName: (0.1**2, 0.1**2, 1e-10, 0.08**2)}
 
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
 
@@ -643,7 +643,7 @@ def testPush0Easy(hpn = True, skeleton = False, hierarchical = False, heuristic=
 
     # region = 'table1LeftFront'
     # goal = State([Bd([In([objName, region]), True, goalProb], True)])
-    targetPose = (1.1, 0.2, tZ, 0.4)    # rotated
+    targetPose = (1.1, 0.2, tZ, angle)    # rotated
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
     delta = (0.02, .02, .02, .05)
     delta = (0.05, .05, .05, .1)
