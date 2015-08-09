@@ -144,8 +144,8 @@ class RealWorld(WorldState):
             args = 14*[None]
             if distSoFar >= maxOpenLoopDist:
                 distSoFar = 0           #  reset
+                raw_input('Exceeded max distance')
                 return self.robotConf
-
                 obj = self.visibleObj(objShapes)
                 if obj:
                     lookConf = lookAtConf(self.robotConf, obj)

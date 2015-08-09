@@ -461,10 +461,6 @@ class PushPrevVar(Function):
             tr('pushGenVar', 'Push previous var would be negative', res)
             return []
         else:
-            print 'Push var after', resultVar
-            print 'Max push var', maxPushVar
-            print 'Push prev var', res
-            
             return [[res]]
     
 class PlaceInPoseVar(Function):
@@ -845,24 +841,33 @@ def moveBProgress(details, args, obs=None):
     if debug('pbsId'):
         print 'pbs', id(details.pbs); raw_input('Okay?')
     (s, e, _) = args
-    # Assume we've controlled the error during motion.  This is a stdev
-    odoError = details.domainProbs.odoError
-    odoVar = [x**2 for x in odoError]
 
+    # Let's say this is error per meter / radian
+    odoError = details.domainProbs.odoError
+    obsConf = obs.conf
+    bp1 = (s['pr2Base'][0], s['pr2Base'][1], 0, s['pr2Base'][2])
+    bp2 = (obsConf['pr2Base'][0], obsConf['pr2Base'][1], 0,
+           obsConf['pr2Base'][2])
+    odoVar = tuple([((b1 - b2) * oe)**2 for (b1, b2, oe) in \
+                    zip(bp1, bp2, odoError)])
+
+    print 'About to move B progress'
+    print 'start base', bp1
+    print 'end base ', bp2
+    print 'odo error rate', odoError
+    print 'added odo var', odoVar
+    print 'added odo stdev', [sqrt(v) for v in odoVar]
+    raw_input('okay?')
+    
     # Change robot conf.  For now, trust the observation completely
     details.pbs.updateConf(obs)
     if debug('pbsId'):
         print 'pbs', id(details.pbs); raw_input('Okay?')
 
-    # Make variance of all objects not in the hand equal to the max of
-    # the previous variance and odoError
-
     for ob in details.pbs.moveObjBs.values() + \
                details.pbs.fixObjBs.values():
         oldVar = ob.poseD.var
-        # this is the additive version
-        # ob.poseD.var = tuple([a + b*b for (a, b) in zip(oldVar, odoError)])
-        ob.poseD.var = tuple([max(a, b) for (a, b) in zip(oldVar, odoVar)])
+        ob.poseD.var = tuple([a + b for (a, b) in zip(oldVar, odoVar)])
     if debug('pbsId'):
         print 'pbs', id(details.pbs); raw_input('Okay?')
     details.pbs.reset()

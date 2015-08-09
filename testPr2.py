@@ -561,11 +561,13 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     glob.rebindPenalty = 100
     glob.monotonicFirst = True
 
-    goalProb, errProbs = (0.5,tinyErrProbs) if easy else (0.95,typicalErrProbs)
-
-    # varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-    #             objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
-    varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
+    goalProb, errProbs = (0.95,typicalErrProbs)
+    
+    if easy: 
+        varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
+                objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
+    else: 
+        varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
                 objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
 
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
@@ -585,7 +587,12 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
         
     # region = 'table1LeftFront'
     # goal = State([Bd([In([objName, region]), True, goalProb], True)])
-    targetPose = (1.1, 0.4, tZ, 0.0)
+
+    #targetPose = (1.1, 0.4, tZ, 0.0)
+    # targetPose = (1.4, 0.4, tZ, 0.0) works
+    # targetPose = (1.5, 0.4, tZ, 0.0) doesn't work
+    targetPose = (1.5, 0.5, tZ, 0.0)
+
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
     delta = (0.1, .1, .1, .5)
     goal = State([\
