@@ -1102,3 +1102,119 @@ def testScan():
         newChain = MultiChain(objName, chain.chainsInOrder + [regChain])
         self.objects[objName] = newChain
 
+==========
+
+
+def pushPathOld(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
+                pushBuffer = glob.pushBuffer, prim=False):
+    tag = 'pushPath'
+    key = (pbs, prob, gB, pB, conf, tuple(direction.tolist()),
+           dist, shape, regShape, hand, pushBuffer)
+    pushPathCacheStats[0] += 1
+    val = pushPathCache.get(key, None)
+    if val is not None:
+        pushPathCacheStats[1] += 1
+        print tag, 'cached ->', val[-1]
+        return val
+    rm = pbs.getRoadMap()
+    newBS = pbs.copy()
+    newBS = newBS.updateHeldBel(gB, hand)
+    viol = rm.confViolations(conf, newBS, prob)
+    if not viol:
+        print 'Conf collides in pushPath'
+        pdb.set_trace()
+        return None, None
+    oldBS = pbs.copy()
+    if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
+    pathViols = []
+    reason = 'done'
+    nsteps = 10
+    if prim:
+        pushBuffer -= handTiltOffset    # reduce due to tilt
+    while float(dist+pushBuffer)/nsteps > pushStepSize:
+        nsteps *= 2
+    delta = float(dist+pushBuffer)/nsteps
+    # Move extra dist (pushBuffer) to make up for the displacement from object
+    if prim:
+        offsetPose = hu.Pose(*(-1.1*pushBuffer*direction).tolist()+[0.0])
+        firstConf = displaceHand(conf, hand, offsetPose)
+
+    # NB!!! This is going to be executed in REVERSE -- so initial part
+    # of the path returned is before contact.  This is why step starts
+    # at -pushBuffer.
+
+    for step_i in xrange(nsteps+1):
+        if step_i == nsteps:
+            step = dist
+        else:
+            step = (step_i * delta) - pushBuffer
+        offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
+        if shape and step >= 0:
+            nshape = shape.applyTrans(offsetPose)
+            if not inside(nshape, regShape):
+                reason = 'outside'
+                break
+        nconf = displaceHand(conf, hand, offsetPose)
+        if not nconf:
+            reason = 'invkin'
+            break
+        offsetPB = pB.modifyPoseD(offsetPose.compose(pB.poseD.mode()).pose(),
+                                  var=4*(0.0,))
+        offsetPB.delta=4*(0.0,)
+        oldBS.updateObjB(offsetPB)      # side effect
+        viol1 = rm.confViolations(nconf, newBS, prob)
+        viol2 = rm.confViolations(nconf, oldBS, prob)
+        if (not viol2 or viol2.weight() > 0) and debug('pushPath'):
+            print 'Collision with object along pushPath'
+        if viol1 is None or viol2 is None:
+            reason = 'collide'
+            break
+        viol = viol1.update(viol2)
+        if prim:
+            nconf = displaceHandRot(firstConf, conf, hand, offsetPose)
+        if prim or debug('pushPath'):
+            print 'step=', step, viol
+            drawState(newBS, prob, nconf)
+            if tag in glob.pauseOn: raw_input('Next?')
+        pathViols.append((nconf, viol,
+                          offsetPB.poseD.mode() if 0 <= step <= dist else None))
+        if debug('pushPath'):
+            print 'offset:', offsetPose
+    if debug('pushPath'):
+        raw_input('Path:'+reason)
+    pushPathCache[key] = (pathViols, reason)
+    print tag, '->', reason
+    return pathViols, reason
+
+def displaceHandRot(firstConf, conf, hand, offsetPose, nearTo=None, doRot=True, angle=0.0):
+    cart = conf.cartConf()
+    handFrameName = conf.robot.armChainNames[hand]
+    trans = cart[handFrameName]         # initial hand position
+    # wrist x points down, so we negate angle to get rotation around z.
+    xrot = hu.Transform(rotation_matrix(-angle, (1,0,0)))
+    nTrans = offsetPose.compose(trans).compose(xrot) # final hand position
+    if doRot and trans.matrix[2,0] < -0.9:     # rot and vertical (wrist x along -z)
+        firstCart = firstConf.cartConf()
+        firstTrans = firstCart[handFrameName]
+        handOff = firstTrans.inverse().compose(nTrans).pose()
+        if abs(handOff.z) > 0.001:
+            sign = -1.0 if handOff.z < 0 else 1.0
+            print handOff, angle, '->', sign
+            rot = hu.Transform(rotation_matrix(sign*math.pi/15., (0,1,0)))
+            nTrans = nTrans.compose(rot)
+    nCart = cart.set(handFrameName, nTrans)
+    nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
+    if all(nConf.values()):
+        return nConf
+
+def displaceHand(conf, hand, offsetPose, nearTo=None, angle=0.0):
+    cart = conf.cartConf()
+    handFrameName = conf.robot.armChainNames[hand]
+    trans = cart[handFrameName]
+    xrot = hu.Transform(rotation_matrix(-angle, (1,0,0)))
+    nTrans = (offsetPose.compose(trans)).compose(xrot)
+    nCart = cart.set(handFrameName, nTrans)
+    nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
+    if all(nConf.values()):
+        return nConf
+

@@ -1,5 +1,6 @@
 import pdb
 import math
+import time
 import hu
 import numpy as np
 from planUtil import Violations, ObjPlaceB, ObjGraspB
@@ -18,6 +19,7 @@ from traceFile import tr, trAlways
 import mathematica
 import windowManager3D as wm
 from transformations import rotation_matrix
+from shapes import drawFrame
 
 tiny = 1.0e-6
 obstCost = 10  # Heuristic cost of moving an object
@@ -1307,13 +1309,6 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
     post = hu.Pose(*pose)
     pushWrist = robotGraspFrame(pbs, pushConf, hand)
     pre = hu.Pose(*prePose)
-    direction = (pre.point().matrix.reshape(4) - post.point().matrix.reshape(4))[:3]
-    direction[2] = 0.0
-    dist = (direction[0]**2 + direction[1]**2)**0.5
-    print 'canPush, dist=', dist
-    if dist != 0:
-        direction /= dist
-    # placeB
     objPose = post
     support = poseFace
     placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), support,
@@ -1334,8 +1329,7 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
     graspB =  ObjGraspB(obj, graspDescList, -1, support,
                         PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
     pathViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
-                                 direction, dist,
-                                 prePose, None, None, hand, prim=prim)
+                                 None, None, prePose, None, None, hand, prim=prim)
     if not pathViols: return None, None
     viol = pathViols[0][1]
     path = []
@@ -1363,224 +1357,207 @@ handTiltOffset = 0.0375                 # 0.18*sin(pi/15)
 
 # The conf in the input is the robot conf in contact with the object
 # at the destination pose.
+# directionNeg is the NEGATIVE of the push direction
+# dist is a positive distance to be covered (from prePose to pB pose)
 
-def pushPath(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
-                pushBuffer = glob.pushBuffer, prim=False):
+def pushPath(pbs, prob, gB, pB, conf, directionNeg, dist, prePose, shape, regShape, hand,
+             prim=False):
     tag = 'pushPath'
-    key = (pbs, prob, gB, pB, conf, tuple(direction.tolist()),
-           dist, shape, regShape, hand, pushBuffer)
+    rm = pbs.getRoadMap()
+    # Check cache and return it if appropriate
+    key = (pbs, prob, gB, pB, conf,
+           None if directionNeg is None else tuple(directionNeg.tolist()),
+           dist, prePose, shape, regShape, hand, glob.pushBuffer)
     pushPathCacheStats[0] += 1
     val = pushPathCache.get(key, None)
     if val is not None:
         pushPathCacheStats[1] += 1
         print tag, 'cached ->', val[-1]
         return val
-
-    rm = pbs.getRoadMap()
+    # Create pbs in which the object is grasped
     newBS = pbs.copy()
     newBS = newBS.updateHeldBel(gB, hand)
+    if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
+    # Check there is no permanent collision
     viol = rm.confViolations(conf, newBS, prob)
     if not viol:
         print 'Conf collides in pushPath'
-        pdb.set_trace()
         return None, None
-    oldBS = pbs.copy()
-    if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
+    # We will return (conf, viol, pose) for steps along the path --
+    # starting at prePose.  Before contact, pose in None.
     pathViols = []
-    reason = 'done'
-    nsteps = 10
-    if prim:
-        pushBuffer -= handTiltOffset    # reduce due to tilt
-    while float(dist+pushBuffer)/nsteps > pushStepSize:
-        nsteps *= 2
-    delta = float(dist+pushBuffer)/nsteps
-    last = False
-    # Move extra dist (pushBuffer) to make up for the displacement from object
-    if prim:
-        offsetPose = hu.Pose(*(-1.1*pushBuffer*direction).tolist()+[0.0])
-        firstConf = displaceHand(conf, hand, offsetPose)
-    for step_i in xrange(nsteps+1):
-        # step = (step_i * delta) + (handTiltOffset if prim else 0.0)
-        step = (step_i * delta) - pushBuffer
-        if step > dist and not last:
-            step = dist
-            last = True
-        offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
-        if shape and step >= 0:
-            nshape = shape.applyTrans(offsetPose)
-            if not inside(nshape, regShape):
-                reason = 'outside'
-                break
-        nconf = displaceHand(conf, hand, offsetPose)
-        if not nconf:
-            reason = 'invkin'
-            break
-        offsetPB = pB.modifyPoseD(offsetPose.compose(pB.poseD.mode()).pose(),
-                                  var=4*(0.0,))
-        offsetPB.delta=4*(0.0,)
-        oldBS.updateObjB(offsetPB)      # side effect
-        viol1 = rm.confViolations(nconf, newBS, prob)
-        viol2 = rm.confViolations(nconf, oldBS, prob)
-        if (not viol2 or viol2.weight() > 0) and debug('pushPath'):
-            print 'Collision with object along pushPath'
-        if viol1 is None or viol2 is None:
-            reason = 'collide'
-            break
-        viol = viol1.update(viol2)
-        if prim:
-            nconf = displaceHandRot(firstConf, conf, hand, offsetPose)
-        if prim or debug('pushPath'):
-            print 'step=', step, viol
-            drawState(newBS, prob, nconf)
-            if tag in glob.pauseOn: raw_input('Next?')
-        pathViols.append((nconf, viol,
-                          offsetPB.poseD.mode() if 0 <= step <= dist else None))
-        if debug('pushPath'):
-            print 'obj mode:', pB.poseD.mode()
-            print 'offset:', offsetPose
-    if debug('pushPath'):
-        raw_input('Path:'+reason)
-    pushPathCache[key] = (pathViols, reason)
-    print tag, '->', reason
-    return pathViols, reason
-
-def pushPathNew(pbs, prob, gB, pB, conf, direction, dist, prePose, shape, regShape, hand,
-             pushBuffer = 0.08, prim=False):
-    tag = 'pushPath'
-    key = (pbs, prob, gB, pB, conf, prePose, shape, regShape, hand, pushBuffer)
-    pushPathCacheStats[0] += 1
-    val = pushPathCache.get(key, None)
-    if val is not None:
-        pushPathCacheStats[1] += 1
-        print tag, 'cached ->', val[-1]
-        return val
-
-    rm = pbs.getRoadMap()
-    newBS = pbs.copy()
-    newBS = newBS.updateHeldBel(gB, hand)
-    viol = rm.confViolations(conf, pbs, prob)
-    if not viol:
-        print 'Conf collides in pushPath'
-        return None, None
-    oldBS = pbs.copy()
-    if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
-    pathViols = []
-    reason = 'done'
-    # If prePose is specified, we want to go directly to goal, else
-    # move along specified direction.
-    if prePose:
+    reason = 'done'                     # done indicates success
+    # If prePose is specified but not direction, we want to go
+    # directly to goal, else move along specified direction.
+    postPose = pB.poseD.mode()
+    if directionNeg is None:            # direct push to target
+        # Set up directionNeg, dist and angleDiff
         prePose = hu.Pose(*prePose) if isinstance(prePose, (tuple, list)) else prePose
-        postPose = pB.poseD.mode()
         dist = prePose.distance(postPose) # xyz distance
-        direction = (prePose.point().matrix.reshape(4) - postPose.point().matrix.reshape(4))[:3]
-        direction[2] = 0.0
+        directionNeg = (prePose.point().matrix.reshape(4) - postPose.point().matrix.reshape(4))[:3]
+        directionNeg[2] = 0.0
         if dist != 0:
-            direction /= dist
-            angleDiff = hu.angleDiff(prePose.theta, postPose.theta)
+            directionNeg /= dist
+            angleDiff = hu.angleDiff(postPose.theta, prePose.theta)
             print 'angleDiff', angleDiff
-            if abs(angleDiff) > math.pi/6:
+            if abs(angleDiff) > math.pi/6 or \
+                   (abs(angleDiff) > 0.1 and dist < 0.02):
+                print 'Angle too large for pushing'
                 return (pathViols, 'tilt')
+        else: return (pathViols, 'dist=0')
+        # move to initial location
+        pConf = displaceHandRot(conf, hand, prePose.compose(postPose.inverse()))
+        if not pConf:
+            debugMsg(tag, 'No invkin at initial contact')
+            return pathViols, 'invkin'
+        direction = -1.0*directionNeg
+        # backoff by pushBuffer from preConf
+        tiltRot, handDir = handTiltAndDir(pConf, hand, direction)
+        print 'handDir', handDir
+        preConf = displaceHandRot(pConf, hand,
+                                  hu.Pose(*(-glob.pushBuffer*handDir).tolist()+[0.0]))
     else:
+        # directionNeg and dist are in input, assume angleDiff is 0.
+        direction = -1.0*directionNeg
+        handDir = direction
+        tiltRot = None
         angleDiff = 0.0
-    nsteps = 10
+        offset = dist
+        prePoseOffset = hu.Pose(*(offset*directionNeg).tolist()+[0.0])
+        # initial pose for object
+        prePose = prePoseOffset.compose(pB.poseD.mode())
+        offset = dist + glob.pushBuffer
+        prePoseBuffer = hu.Pose(*(offset*directionNeg).tolist()+[0.0])
+        # conf at backed off pose
+        preConf = displaceHandRot(conf, hand, prePoseBuffer)
+    if debug(tag) and shape:
+        offPose = postPose.inverse().compose(prePose)
+        shape.draw('W', 'pink'); shape.applyTrans(offPose).draw('W', 'blue')
+    if not preConf:
+        debugMsg(tag, 'No invkin at preConf')
+        return pathViols, 'invkin'
+    if debug(tag):
+        conf.draw('W', 'pink'); preConf.draw('W', 'blue'); raw_input('Go?')
     if prim:                            # due to tilt of hand
         dist -= handTiltOffset
-    while float(dist+pushBuffer)/nsteps > pushStepSize:
-        nsteps *= 2
-    delta = float(dist+pushBuffer)/nsteps
-    deltaAngle = float(angleDiff)/nsteps
-    last = False
-    if prim:
-        offsetPose = hu.Pose(*(-1.1*pushBuffer*direction).tolist()+[0.0])
-        firstConf = displaceHand(conf, hand, offsetPose, angle=0.0)
+    # Number of steps for total displacement
+    nsteps = int((dist+glob.pushBuffer) / pushStepSize)
+    delta = (dist+glob.pushBuffer) / nsteps
+    # Rotate only while in contact.
+    if angleDiff == 0:
+        deltaAngle = 0.0
+    else:
+        nstepsAngle = int(dist / pushStepSize) # angle rotation only after contact
+        deltaAngle = angleDiff / nstepsAngle
+    print 'nsteps=', nsteps, 'delta=', delta
+
+    # Initial part of the path (up to pushBuffer) is before contact,
+    # so pose does not change, then we get contact and pose changes.
+    step_a = 0
+    contact = False
     for step_i in xrange(nsteps+1):
-        step = (step_i * delta) - pushBuffer
-        if step > dist and not last:
-            step = dist
-            last = True
-        offsetPose = hu.Pose(*(step*direction).tolist()+[0.0])
-        if shape and step >= 0:
-            nshape = shape.applyTrans(offsetPose)
-            if not inside(nshape, regShape):
-                reason = 'outside'
-                break
-        nconf = displaceHand(conf, hand, offsetPose,
-                             angle=(step_i*deltaAngle))
+        step = (step_i * delta)
+        contact = step >= glob.pushBuffer
+        # This is offset for hand, after contact follow the object
+        if contact:
+            hoff = (step*direction).tolist()+[0.0]
+        else:
+            hoff = (step*handDir).tolist()+[0.0]
+        # hoff[2] = 0.01
+        hOffsetPose = hu.Pose(*hoff)
+        nconf = displaceHandRot(preConf, hand, hOffsetPose,
+                                tiltRot = tiltRot if prim else None,
+                                angle=(step_a*deltaAngle if contact else 0.0))
         if not nconf:
             reason = 'invkin'
             break
-        offsetPB = pB.modifyPoseD(offsetPose.compose(pB.poseD.mode()).pose(),
-                                  var=4*(0.0,))
-        offsetPB.delta=4*(0.0,)
-        oldBS.updateObjB(offsetPB)      # side effect
-        viol1 = rm.confViolations(nconf, newBS, prob)
-        viol2 = rm.confViolations(nconf, oldBS, prob)
-        if (not viol2 or viol2.weight() > 0) and debug('pushPath'):
-            print 'Collision with object along pushPath'
-        if viol1 is None or viol2 is None:
+        viol = rm.confViolations(nconf, newBS, prob)
+        if viol is None:
             reason = 'collide'
             break
-        viol = viol1.update(viol2)
-        if prim:
-            nconf = displaceHandRot(firstConf, conf, hand, offsetPose,
-                                    angle=(step_i*deltaAngle))
+        nshape = None
+        if contact:
+            # This is offset for object
+            offsetPose = hu.Pose(*((step-glob.pushBuffer)*direction).tolist()+[0.0])
+            offsetRot = hu.Pose(0.,0.,0.,step_a*deltaAngle)
+            if debug('pushPath'):
+                print 'offset:', offsetPose
+            offsetPB = pB.modifyPoseD((offsetPose.compose(prePose)).compose(offsetRot).pose(),
+                                      var=4*(0.0,))
+            offsetPB.delta=4*(0.0,)
+            nshape = offsetPB.shape(pbs.getWorld())
+            if regShape:
+                if not inside(nshape, regShape):
+                    reason = 'outside'
+                    break
+            if armCollides(nconf, nshape, hand):
+                reason = 'selfCollide'
+                print 'Self-collision on path'
+                break
         if debug('pushPath'):
             print 'step=', step, viol
-            drawState(pbs, prob, conf)
+            drawState(newBS, prob, nconf, nshape)
             if tag in glob.pauseOn: raw_input('Next?')
         pathViols.append((nconf, viol,
-                          offsetPB.poseD.mode() if 0 <= step <= dist else None))
-        if debug('pushPath'):
-            print 'obj mode:', pB.poseD.mode()
-            print 'offset:', offsetPose
+                          offsetPB.poseD.mode() if contact else None))
+        if contact: step_a += 1
     if debug('pushPath'):
         raw_input('Path:'+reason)
-
     pushPathCache[key] = (pathViols, reason)
-    print tag, '->', reason
+    print tag, '->', reason, 'path len=', len(pathViols)
     return pathViols, reason
 
-def drawState(pbs, prob, conf):
+def armCollides(conf, objShape, hand):
+    armShape = conf.placement()
+    parts = dict([(part.name(), part) for part in armShape.parts()])
+    gripperName = conf.robot.gripperChainNames[hand]
+    return any(objShape.collides(parts[name]) for name in parts if name != gripperName)
+
+def drawState(pbs, prob, conf, shape=None):
     shWorld = pbs.getShadowWorld(prob)
     attached = shWorld.attached
     if glob.useMathematica:
         wm.getWindow('W').startCapture()
     pbs.draw(prob, 'W')
     conf.draw('W', 'cyan', attached)
+    if shape: shape.draw('W', 'blue')
+    wm.getWindow('W').update()
+    time.sleep(0.1)
     if glob.useMathematica:
         mathematica.mathFile(wm.getWindow('W').stopCapture(),
                              view = "ViewPoint -> {2, 0, 2}",
                              filenameOut='./pushPath.m')
         
-def displaceHand(conf, hand, offsetPose, nearTo=None, angle=0.0):
-    cart = conf.cartConf()
-    handFrameName = conf.robot.armChainNames[hand]
-    trans = cart[handFrameName]
-    xrot = hu.Transform(rotation_matrix(-angle, (1,0,0)))
-    nTrans = (offsetPose.compose(trans)).compose(xrot)
-    nCart = cart.set(handFrameName, nTrans)
-    nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
-    if all(nConf.values()):
-        return nConf
-
-def displaceHandRot(firstConf, conf, hand, offsetPose, nearTo=None, doRot=True, angle=0.0):
+def displaceHandRot(conf, hand, offsetPose, nearTo=None, tiltRot=None, angle=0.0):
     cart = conf.cartConf()
     handFrameName = conf.robot.armChainNames[hand]
     trans = cart[handFrameName]         # initial hand position
+    # wrist x points down, so we negate angle to get rotation around z.
     xrot = hu.Transform(rotation_matrix(-angle, (1,0,0)))
     nTrans = offsetPose.compose(trans).compose(xrot) # final hand position
-    if doRot and trans.matrix[2,0] < -0.9:     # rot and vertical (wrist x along -z)
-        firstCart = firstConf.cartConf()
-        firstTrans = firstCart[handFrameName]
-        handOff = firstTrans.inverse().compose(nTrans).pose()
-        if abs(handOff.z) > 0.001:
-            sign = -1.0 if handOff.z < 0 else 1.0
-            print handOff, angle, '->', sign
-            rot = hu.Transform(rotation_matrix(sign*math.pi/15., (0,1,0)))
-            nTrans = nTrans.compose(rot)
+    if tiltRot and trans.matrix[2,0] < -0.9:     # rot and vertical (wrist x along -z)
+        nTrans = nTrans.compose(tiltRot)
     nCart = cart.set(handFrameName, nTrans)
     nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
     if all(nConf.values()):
         return nConf
+    drawFrame(nTrans)
     
-
+def handTiltAndDir(conf, hand, direction):
+    cart = conf.cartConf()
+    handFrameName = conf.robot.armChainNames[hand]
+    trans = cart[handFrameName]
+    if trans.matrix[2,0] >= -0.9:       # only when vertical
+        return None, None
+    transInv = trans.inverse()
+    transInvMat = transInv.matrix
+    handDir = np.dot(transInvMat, np.hstack([direction, np.array([0.0])]).reshape(4,1))
+    if abs(handDir[2,0]) > 0.001:
+        sign = -1.0 if handDir[2,0] < 0 else 1.0
+        hdir = np.dot(trans.matrix, np.array([0.0, 0.0, sign, 0.0]).reshape(4,1))[:3,0]
+        print hdir, '->', sign, hdir
+        # Because of the wrist orientation, the sign is negative
+        rot = hu.Transform(rotation_matrix(-sign*math.pi/15., (0,1,0)))
+        return rot, hdir
+    else:
+        assert None, 'Bad direction relative to hand'

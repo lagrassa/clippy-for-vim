@@ -225,9 +225,7 @@ def pushPrim(args, details):
                          poseDelta, resultProb, Violations(), prim=True)
     assert path
     tr('prim', '*** pushPrim', args, ('path length', len(path)))
-    # reverse the path...
-    rpath = path[::-1] 
-    return rpath, interpolate(rpath), details.pbs.getPlacedObjBs()    
+    return path, interpolate(path), details.pbs.getPlacedObjBs()    
 
 ################################################################
 ## Simple generators

@@ -570,7 +570,10 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
         varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
                 objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
 
+
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    # front = hu.Pose(1.3, 0.5, tZ, 0.0)
+    # front = hu.Pose(1.3, 0.0, tZ, 0.0)
 
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
@@ -583,12 +586,15 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     skel = [[lookAt, move, push, moveNB,
              lookAt, move, push, moveNB, lookAt,
              move, lookAt, moveNB]]
+    # One push, no uncertainty
+    # skel = [[lookAt, move, push, moveNB, lookAt,
+    #         move, lookAt, moveNB]]
 
         
     # region = 'table1LeftFront'
     # goal = State([Bd([In([objName, region]), True, goalProb], True)])
 
-    #targetPose = (1.1, 0.4, tZ, 0.0)
+    # targetPose = (1.1, 0.4, tZ, 0.0)
     # targetPose = (1.4, 0.4, tZ, 0.0) works
     # targetPose = (1.5, 0.4, tZ, 0.0) doesn't work
     targetPose = (1.5, 0.5, tZ, 0.0)
@@ -631,8 +637,8 @@ def testPush0Easy(hpn = True, skeleton = False, hierarchical = False, heuristic=
 
     varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
                objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
-    varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-               objName: (0.1**2, 0.1**2, 1e-10, 0.08**2)}
+    # varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+    #           objName: (0.1**2, 0.1**2, 1e-10, 0.08**2)}
 
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
 

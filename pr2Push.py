@@ -34,17 +34,19 @@ pushGenCache = {}
 
 minPushLength = 0.01
 
+useDirectPush = False
+
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
         for ans in pushGenGen(args, goalConds, bState):
-            tr('pushGen', str(ans))
+            tr('pushGen', '->', str(ans))
             yield ans
 
 def pushGenGen(args, goalConds, bState):
     (obj, pose, posevar, posedelta, confdelta, prob) = args
     tag = 'pushGen'
     base = sameBase(goalConds)
-    tr(tag, 'obj=%s, pose=%s, base=%s'%(obj, pose, base))
+    # tr(tag, 'obj=%s, pose=%s, base=%s'%(obj, pose, base))
     if goalConds:
         if getConf(goalConds, None):
             tr(tag, '=> conf is already specified, failing')
@@ -52,32 +54,31 @@ def pushGenGen(args, goalConds, bState):
     pbs = bState.pbs.copy()
     world = pbs.getWorld()
     support = pbs.getPlaceB(obj).support.mode()
+    # This is the target placement
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
                        PoseD(pose, posevar), delta=posedelta)
-
+    # If the current position is almost at the target, return
     if pbs.getPlaceB(placeB.obj).poseD.mode().distance(placeB.poseD.mode()) \
       < minPushLength:
-        tr(tag, 'Target pose is too close to current pose, failing',
+        tr(tag, '=> Target pose is too close to current pose, failing',
            pbs.getPlaceB(placeB.obj).poseD.mode(),placeB.poseD.mode(),
           pbs.getPlaceB(placeB.obj).poseD.mode().distance(placeB.poseD.mode()))
         return
-
     # Figure out whether one hand or the other is required;  if not, do round robin
     leftGen = pushGenTop((obj, placeB, 'left', base, prob),
                          goalConds, pbs)
     rightGen = pushGenTop((obj, placeB, 'right', base, prob),
                           goalConds, pbs)
-
+    # Run the push generator with each of the hands
     for ans in chooseHandGen(pbs, goalConds, obj, None, leftGen, rightGen):
-        
         yield ans
-    tr(tag, '=> Exhausted')
+    # tr(tag, '=> pushGenGen Exhausted')
 
 def pushGenTop(args, goalConds, pbs):
     (obj, placeB, hand, base, prob) = args
     startTime = time.clock()
     tag = 'pushGen'
-    tr(tag, '(%s,%s) h=%s'%(obj,hand, glob.inHeuristic))
+    # tr(tag, '(%s,%s) h=%s'%(obj,hand, glob.inHeuristic))
     tr(tag, 
        zip(('obj', 'placeB', 'hand', 'prob'), args),
        ('goalConds', goalConds),
@@ -110,32 +111,45 @@ def pushGenTop(args, goalConds, pbs):
     if obj in [h.mode() for h in newBS.held.values()]:
         tr(tag, '=> obj is in the hand, failing')
         return
+    # Check the cache, otherwise call Aux
     pushGenCacheStats[0] += 1
     key = (newBS, placeB, hand, base, prob)
+
     val = pushGenCache.get(key, None)
+    # val = None
+
     if val != None:
-        if debug(tag): print tag, 'cached'
         pushGenCacheStats[1] += 1
-        memo = val.copy()
+        # memo = val.copy()
+        memo = val
+        if debug(tag):
+            print tag, 'cached, with len(values)=', len(memo.values)
     else:
         gen = pushGenAux(newBS, placeB, hand, base, prob)
         memo = Memoizer(tag, gen)
         pushGenCache[key] = memo
+        if debug(tag):
+            print tag, 'creating new pushGenAux generator'
     for ans in memo:
-        tr(tag, str(ans) +' (t=%s)'%(time.clock()-startTime))
+        # tr(tag, str(ans) +' (t=%s)'%(time.clock()-startTime))
         yield ans
     tr(tag, '=> pushGenTop exhausted')
 
-def pickPrim(shape):
+def choosePrim(shape):
     return sorted(shape.toPrims(),
                   key = lambda p: bboxVolume(p.bbox()), reverse=True)[0]
 
 def pushGenAux(pbs, placeB, hand, base, prob):
     tag = 'pushGen'
+    # The shape at target, without any shadow
     shape = placeB.shape(pbs.getWorld())
-    prim = pickPrim(shape)
+    # TODO: this should really look for a large Cspace surface
+    # Choose a prim for contact
+    prim = choosePrim(shape)
+    # The xyPrim is extrusion of xy convex hull, so side faces are
+    # perp to support - assume original faces were almost that way.
     xyPrim = shape.xyPrim()
-    # Location of center at placeB
+    # Location of center at placeB; we'll treat as COM
     center =  np.average(xyPrim.vertices(), axis=1)
     # This should identify arbitrary surfaces, e.g. in shelves.  The
     # bottom of the region is the support polygon.
@@ -146,71 +160,66 @@ def pushGenAux(pbs, placeB, hand, base, prob):
     potentialContacts = []
     for vertical in (True, False):
         for (contactFrame, width) in handContactFrames(prim, center, vertical):
-            # construct a graspB corresponding to the push hand pose,
-            # determined by the contact frame
             potentialContacts.append((vertical, contactFrame, width))
+    # sort contacts and compute a distance when applicable, entries
+    # are: (distance, vertical, contactFrame, width)
     # Sort contacts by nearness to current pose of object
     curPose = pbs.getPlaceB(placeB.obj).poseD.mode()
-    # sort contacts and compute a distance when applicable, entries
-    # are: (distance, vertical, contactFrame)
     sortedContacts = sortPushContacts(potentialContacts, placeB.poseD.mode(), curPose)
-    # Now we have frames and confs for contact with object, we have to
-    # generate potential answers following the face normal in the
-    # given direction.  We'll generate answers in order of distance
-    # from placeB.
+    # Now we have frames for contact with object, we have to generate
+    # potential answers following the face normal in the given
+    # direction.
+    rm = pbs.getRoadMap()               # save typing...
     for (dist, vertical, contactFrame, width) in sortedContacts:
-        graspB = graspBForContactFrame(pbs, contactFrame,
+        # construct a graspB corresponding to the push hand pose,
+        # determined by the contact frame
+        graspB = graspBForContactFrame(pbs, prob, contactFrame,
                                        0.0,  placeB, hand, vertical)
-        gf = placeB.objFrame().compose(graspB.graspDesc[-1].frame)
-        # This is negative z axis
+        # This is negative z axis of face
         direction = -contactFrame.matrix[:3,2].reshape(3)
-        direction[2] = 0.0
+        direction[2] = 0.0            # we want z component exactly 0.
         if debug(tag):
             pbs.draw(prob, 'W')
             shape.draw('W', 'blue'); prim.draw('W', 'green')
             print 'vertical', vertical, 'dist', dist
             drawFrame(contactFrame)
             raw_input('graspDesc frame')
-        count = 0
-        doneCount = 0
-        rm = pbs.getRoadMap()
+        count = 0                       # how many tries
+        doneCount = 0                   # how many went all the way
         pushPaths = []                  # for different base positions
+        # Generate confs to place the hand at graspB
         for ans in potentialGraspConfGen(pbs, placeB, graspB,
                                          None, hand, base, prob):
             if not ans:
                 tr(tag+'Path', 'potential grasp conf is empy')
                 continue
-            (c, ca, viol) = ans
-            c = gripSet(c, hand, width)
-            # Make sure that we don't collide with the object to be pushed
-            newBS = pbs.copy().updatePermObjPose(placeB)
-            viol = rm.confViolations(c, newBS, prob)
-            if not viol:
-                print 'Conf collides in pushPath'
-                pdb.set_trace()
-                continue
+            (c, ca, viol) = ans         # conf, approach, violations
+            pushConf = gripSet(c, hand, 2*width) # open fingers
+            if debug(tag+'_kin'):
+                pbs.draw(prob, 'W'); pushConf.draw('W', 'orange')
+                # raw_input('Candidate conf')
+                wm.getWindow('W').update()
+                
             count += 1
-            pathAndViols, reason = pushPath(newBS, prob, graspB, placeB, c,
-                                            direction, dist, curPose,
-                                            xyPrim, supportRegion, hand)
-            if reason == 'done':
-                doneCount +=1 
-                pushPaths.append((pathAndViols, reason))
-            tr(tag+'Path', 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
+            # Try going directly to goal and along the direction of face
+            # The direct route only works for vertical pushing...
+            for direct in (True, False) if (useDirectPush and vertical) else (False,):
+                pathAndViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
+                                                direction if not direct else None,
+                                                dist if not direct else None,
+                                                curPose,
+                                                xyPrim, supportRegion, hand)
+                if reason == 'done':
+                    doneCount +=1 
+                    pushPaths.append((pathAndViols, reason))
+                tr(tag+'Path', 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
             if doneCount >= 2: break
             if count > maxPushPaths: break
-        sorted = sortedPushPaths(pushPaths)
+        # Sort the push paths by violations
+        sorted = sortedPushPaths(pushPaths, curPose)
         for i in range(min(len(sorted), 2)):
             pp = sorted[i]              # path is reversed (post...pre)
-            ptarget = placeB.poseD.mode()
-            for i in range(len(pp)):
-                cpost, vpost, ppost = pp[i]
-                if ppost: break
-            for j in range(1, len(pp)):
-                _, _, ppre = pp[-j]
-                if ppre: break
-            if not ppre: continue
-            cpre, _, _ = pp[-1]
+            ppre, cpre, ppost, cpost = getPrePost(pp)
             if debug(tag):
                 robot = cpre.robot
                 print 'pre pose\n', ppre.matrix
@@ -218,7 +227,6 @@ def pushGenAux(pbs, placeB, hand, base, prob):
                 print cpre.cartConf()[robot.armChainNames[hand]].compose(robot.toolOffsetX[hand]).matrix
                 print 'post conf tool'
                 print cpost.cartConf()[robot.armChainNames[hand]].compose(robot.toolOffsetX[hand]).matrix
-                raw_input('Yield this?')
             tr(tag, 'pre conf (blue), post conf (pink)',
                draw=[(pbs, prob, 'W'),
                      (cpre, 'W', 'blue'), (cpost, 'W', 'pink')], snap=['W'])
@@ -226,15 +234,26 @@ def pushGenAux(pbs, placeB, hand, base, prob):
     tr(tag, '=> pushGenAux exhausted')
     return
 
+# Path entries are (robot conf, violations, object pose)
+# Paths can end or start with a series of steps that do not move the
+# object, indocated by None for object pose.
+def getPrePost(pp):
+    cpost, _, _ = pp[-1]
+    cpre, _, _ = pp[0]
+    for i in range(1, len(pp)):
+        _, _, ppost = pp[-i]
+        if ppost: break
+    for j in range(len(pp)):
+        _, _, ppre = pp[j]
+        if ppre: break
+    return (ppre, cpre, ppost, cpost)
 
-def sortedPushPaths(pushPaths):
+def sortedPushPaths(pushPaths, curPose):
     scored = []
     for (pathAndViols, reason) in pushPaths:
-        if reason == 'done':
-            scored.append((0., pathAndViols))
-        elif pathAndViols:
-            vmax = max(v.weight() for (c,v,p) in pathAndViols)
-            scored.append((max(1, vmax), pathAndViols))
+        ppre, cpre, ppost, cpost = getPrePost(pathAndViols)   
+        vmax = max(v.weight() for (c,v,p) in pathAndViols)
+        scored.append((vmax + curPose.totalDist(ppre), pathAndViols))
     scored.sort()
     return [pv for (s, pv) in scored]
                 
@@ -315,10 +334,13 @@ def handContactFrames(shape, center, vertical):
         if min(wx) >= 0.5 * fingerTipThick and \
            min(wy) >= 0.5 * fingerTipThick:
             cf = frame.compose(hu.Pose(c[0], c[1], 0., 0.))
-            width = min(wx) - 0.5 * fingerTipThick
+            # wy is the y range (side to side)
+            width = min(wy) - 0.5 * fingerTipThick
             if debug(tag):
+                print faceBB
                 print 'width', width, 'valid contact frame\n', cf.matrix
-                raw_input('Target')
+                # raw_input('Target')
+                pdb.set_trace()
             contactFrames.append((cf, width))
         else:
             if debug(tag): print 'face is too small'
@@ -348,39 +370,35 @@ vertGM = np.array([(0.,-1.,0.,0.),
                     (1.,0.,0.,0.),
                     (0.,0.,0.,1.)], dtype=np.float64)
 
-def graspBForContactFrame(pbs, contactFrame, zOffset, placeB, hand, vertical):
+def graspBForContactFrame(pbs, prob, contactFrame, zOffset, placeB, hand, vertical):
     tag = 'graspBForContactFrame'
     # TODO: what should these values be?
     graspVar = 4*(0.01**2,)
     graspDelta = 4*(0.00,)
     obj = placeB.obj
-
-    # TODO: straighten this out...
     objFrame = placeB.objFrame()
-    # objFrame = placeB.poseD.mode()
-
     if debug(tag): print 'objFrame\n', objFrame.matrix
-
     (tr, 'pushGen', 'Using pushBuffer', glob.pushBuffer)
     # Displacement of finger tip from contact face (along Z of contact frame)
-    zOff = zOffset + (-fingerTipWidth if vertical else 0.) - glob.pushBuffer
+    zOff = zOffset + (-fingerTipWidth if vertical else 0.) # - glob.pushBuffer
     displacedContactFrame = contactFrame.compose(hu.Pose(0.,0.,zOff,0.))
     if debug(tag):
         print 'displacedContactFrame\n', displacedContactFrame.matrix
         drawFrame(displacedContactFrame)
+        placeB.shape(pbs.getWorld()).draw('W')
         raw_input('displacedContactFrame')
     graspB = None
     # consider flips of the hand (mapping one finger to the other)
     for angle in (0, np.pi):
         displacedContactFrame = displacedContactFrame.compose(hu.Pose(0.,0.,0.,angle))
         if debug(tag):
-            pbs.draw(0.9); drawFrame(displacedContactFrame)
+            pbs.draw(prob); drawFrame(displacedContactFrame)
             raw_input('displacedContactFrame (rotated)')
         gM = displacedContactFrame.compose(hu.Transform(vertGM if vertical else horizGM))
         if debug(tag):
             print gM.matrix
             print 'vertical =', vertical
-            pbs.draw(0.9); drawFrame(gM)
+            pbs.draw(prob); drawFrame(gM)
             raw_input('gM')
         gT = objFrame.inverse().compose(gM) # gM relative to objFrame
         # TODO: find good values for dx, dy, dz must be 0.
@@ -417,16 +435,19 @@ def sortPushContacts(contacts, targetPose, curPose):
             print 'offset z in contact frame\n', ntr
             raw_input('Next?')
         if ntrz >= 0.:
-            bad.append((None, vertical, contact, width))
+            # bad ones require "pulling"
+            bad.append((0, None, vertical, contact, width))
         else:
+            score = 5 * width - ntrz # prefer wide faces and longer pushes
             # distance negated...
-            good.append((-ntrz, vertical, contact, width))
+            good.append((score, -ntrz, vertical, contact, width))
     good.sort(reverse=True)             # z distance first
     if debug('pushGen'):
         print 'push contacts sorted by push distance'
         for x in good:
             print x
-    return good                         # bad ones require "pulling"
+    # remove score before returning
+    return [x[1:] for x in good]
 
 def gripSet(conf, hand, width=0.08):
     return conf.set(conf.robot.gripperChainNames[hand], [width])
