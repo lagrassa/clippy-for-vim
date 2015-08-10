@@ -95,7 +95,8 @@ flags = ['simpleAbstractCostEstimates',
           'useBBinH']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
                  'debugInHeuristic', 'h']  # 'hAddBack'
-skeletonTags = ['skeleton', 'regression:fail', 'appOp:number']
+skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
+                'clobber']
 traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
                    'pushGen', 'assign', 'canPushGen']

@@ -38,9 +38,11 @@ useDirectPush = False
 
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
+        if debug('pushGen'): print 'Entering pushGen'
         for ans in pushGenGen(args, goalConds, bState):
-            tr('pushGen', '->', str(ans))
+            tr('pushGen', '->', 'final', str(ans))
             yield ans
+        tr('pushGen', '-> completely exhausted')
 
 def pushGenGen(args, goalConds, bState):
     (obj, pose, posevar, posedelta, confdelta, prob) = args
@@ -72,7 +74,6 @@ def pushGenGen(args, goalConds, bState):
     # Run the push generator with each of the hands
     for ans in chooseHandGen(pbs, goalConds, obj, None, leftGen, rightGen):
         yield ans
-    # tr(tag, '=> pushGenGen Exhausted')
 
 def pushGenTop(args, goalConds, pbs):
     (obj, placeB, hand, base, prob) = args
@@ -133,7 +134,7 @@ def pushGenTop(args, goalConds, pbs):
     for ans in memo:
         # tr(tag, str(ans) +' (t=%s)'%(time.clock()-startTime))
         yield ans
-    tr(tag, '=> pushGenTop exhausted')
+    tr(tag, '=> pushGenTop exhausted for', hand)
 
 def choosePrim(shape):
     return sorted(shape.toPrims(),

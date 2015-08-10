@@ -956,13 +956,13 @@ class Operator(object):
         if newBindings == None:
             tr('regression:fail', self, 'could not get bindings',
                      'h = '+str(glob.inHeuristic))
-            if debug('regression:fail'):
+            if debug('regression:fail:bindings'):
                 glob.debugOn = glob.debugOn + ['btbind']
                 newBindings = btGetBindings(necessaryFunctions,
                                             goal.fluents,
                                             startState.details,
                                             avoid = goal.bindingsAlreadyTried)
-                tr('regression:fail', 'hope that was helpful')
+                raw_input('hope that was helpful')
                 glob.debugOn = glob.debugOn[:-1]
             return []
 
@@ -1039,7 +1039,7 @@ class Operator(object):
         if clobbered:
             if self.abstractionLevel < self.concreteAbstractionLevel:
                 tr('regression', 'Trying less abstract version of op', self)
-                tr('clobber')
+                tr('clobber', 'Trying less abstract version of op', self)
                 primOp = self.copy()
                 # LPK: Nicer to increase by 1, but expensive
                 # primOp.abstractionLevel += 1
@@ -1144,7 +1144,7 @@ class Operator(object):
                         for f2 in newGoal.fluents:
                             if f1.contradicts(f2, startState.details):
                                 print '    contradiction\n', f1, '\n', f2
-                    tr('regression:fail', self,
+            tr('regression:fail', self,
                              'preconds inconsistent with goal',
                              ('newGoal', newGoal), ('preconds', boundPreconds))
             bindingsNoGood = True
@@ -1173,9 +1173,9 @@ class Operator(object):
                         bindingsNoGood = True
 
         if bindingsNoGood:
+            tr('regression:fail', 'returning rebind node only')
             rebindLater.suspendedOperator.instanceCost = rebindCost
             return [[rebindLater, rebindCost]]
-
 
         bp.update(bTemp)
         newBindings.update(bp)
@@ -1274,7 +1274,8 @@ class Operator(object):
 
         rebindLater.suspendedOperator.instanceCost = rebindCost
         if cost == float('inf'):
-            tr('regression:fail', 'infinite cost', self)
+            tr('regression:fail', 'infinite cost; returning rebind node only',
+               self)
             return [[rebindLater, rebindCost]]
         newGoal.operator.instanceCost = cost
 

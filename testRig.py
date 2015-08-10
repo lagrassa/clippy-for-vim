@@ -62,6 +62,9 @@ reload(pr2GenAux)
 import pr2Gen
 reload(pr2Gen)
 
+import pr2Push
+reload(pr2Push)
+
 import pr2Ops
 reload(pr2Ops)
 # lookAtHand

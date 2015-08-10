@@ -1026,19 +1026,5 @@ def testIt():
         fizz.draw('W'); f.draw('W', 'red')
         raw_input('Ok')
 
-import pr2Push
-reload(pr2Push)
-from pr2Push import *
-
-def debugPush():
-    t = testSim()
-    pbs = t.bs.pbs
-    placeB = pbs.getPlaceB('objA')
-    targetB = placeB.modifyPoseD(hu.Pose(0,0.5,0,0).compose(placeB.poseD.mode()).pose())
-    targetB.shape(pbs.getShadowWorld(0.9)).draw('W')
-    raw_input('target')
-    ans = list(pushConfsGen(pbs, 0.9, targetB, 'left', None))
-    return t, ans
-
 def testHardSwap(**keys):
     return testSwap(hardSwap = True, **keys)
