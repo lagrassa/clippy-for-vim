@@ -121,8 +121,8 @@ def pushGenTop(args, goalConds, pbs):
 
     if val != None:
         pushGenCacheStats[1] += 1
-        # memo = val.copy()
-        memo = val
+        # re-start the generator
+        memo = val.copy()
         if debug(tag):
             print tag, 'cached, with len(values)=', len(memo.values)
     else:
@@ -179,6 +179,9 @@ def pushGenAux(pbs, placeB, hand, base, prob):
         # This is negative z axis of face
         direction = -contactFrame.matrix[:3,2].reshape(3)
         direction[2] = 0.0            # we want z component exactly 0.
+        prePoseOffset = hu.Pose(*(dist*direction).tolist()+[0.0])
+        # initial pose for object along direction
+        prePose = prePoseOffset.compose(placeB.poseD.mode())
         if debug(tag):
             pbs.draw(prob, 'W')
             shape.draw('W', 'blue'); prim.draw('W', 'green')
@@ -197,7 +200,7 @@ def pushGenAux(pbs, placeB, hand, base, prob):
             (c, ca, viol) = ans         # conf, approach, violations
             pushConf = gripSet(c, hand, 2*width) # open fingers
             if debug(tag+'_kin'):
-                pbs.draw(prob, 'W'); pushConf.draw('W', 'orange')
+                pushConf.draw('W', 'orange')
                 # raw_input('Candidate conf')
                 wm.getWindow('W').update()
                 
@@ -206,9 +209,7 @@ def pushGenAux(pbs, placeB, hand, base, prob):
             # The direct route only works for vertical pushing...
             for direct in (True, False) if (useDirectPush and vertical) else (False,):
                 pathAndViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
-                                                direction if not direct else None,
-                                                dist if not direct else None,
-                                                curPose,
+                                                curPose.pose() if direct else prePose.pose(),
                                                 xyPrim, supportRegion, hand)
                 if reason == 'done':
                     doneCount +=1 

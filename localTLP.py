@@ -74,7 +74,8 @@ flags = ['simpleAbstractCostEstimates',
           'useBBinH']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
                  'debugInHeuristic', 'h']  # 'hAddBack'
-skeletonTags = ['skeleton', 'regression:fail', 'appOp:number']
+skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
+                'clobber']
 traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
                    'pushGen', 'assign']
@@ -82,7 +83,7 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['disablePickPlace'] + ['animate', 'pushGen'] + skeletonTags
+debugOn = usualTags + ['disablePickPlace'] + ['animate', 'pushGen', 'pushPath', 'pushGen_kin'] + skeletonTags
 
 if platform.system() == 'Linux':
     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:
