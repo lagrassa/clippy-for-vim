@@ -83,7 +83,8 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['disablePickPlace'] + ['animate', 'pushGen', 'pushPath', 'pushGen_kin'] + skeletonTags
+debugOn = usualTags + ['disablePickPlace'] + ['animate'] + ['pushGen', 'pushPath']
+# + ['pushGen_kin'] + skeletonTags
 
 if platform.system() == 'Linux':
     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:
@@ -91,8 +92,6 @@ if platform.system() == 'Linux':
 
 #------------------------------------
 pauseOn = debugOn[:]
-
-if 'pushPath' in pauseOn: pauseOn.remove('pushPath')
 
 logOn = debugOn + traceOnly
 debugOn.extend(debugOnly)

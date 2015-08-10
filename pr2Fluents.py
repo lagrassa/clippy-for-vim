@@ -1386,7 +1386,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
             return replay
     else:
         pushPathCache[key] = []
-    raw_input('pushPath cache did not hit')
+    print 'pushPath cache did not hit'
     if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
     # Check there is no permanent collision
     viol = rm.confViolations(conf, newBS, prob)
@@ -1503,7 +1503,6 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         if debug('pushPath'):
             print 'step=', step, viol
             drawState(newBS, prob, nconf, nshape)
-            if tag in glob.pauseOn: raw_input('Next?')
         pathViols.append((nconf, viol,
                           offsetPB.poseD.mode() if contact else None))
         if contact: step_a += 1
@@ -1554,8 +1553,10 @@ def handTiltAndDir(conf, hand, direction):
     cart = conf.cartConf()
     handFrameName = conf.robot.armChainNames[hand]
     trans = cart[handFrameName]
-    if trans.matrix[2,0] >= -0.9:       # only when vertical
-        return None, None
+    if trans.matrix[2,0] >= -0.9:       # Horizontal hand orientation
+        # x axis of wrist points along hand, we don't need tilt
+        return None, trans[:3,0]
+    # Rest is for vertical hand orientation
     transInv = trans.inverse()
     transInvMat = transInv.matrix
     handDir = np.dot(transInvMat, np.hstack([direction, np.array([0.0])]).reshape(4,1))

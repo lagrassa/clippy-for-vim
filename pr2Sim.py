@@ -40,7 +40,7 @@ crashIsError = False
 
 simulateError = False
 
-animateSleep = 0.2
+animateSleep = 0.1
 
 maxOpenLoopDist = 2.0
 
@@ -144,8 +144,8 @@ class RealWorld(WorldState):
             args = 14*[None]
             if distSoFar >= maxOpenLoopDist:
                 distSoFar = 0           #  reset
-                raw_input('Exceeded max distance')
-                return self.robotConf
+                # raw_input('Exceeded max distance')
+                # return self.robotConf
                 obj = self.visibleObj(objShapes)
                 if obj:
                     lookConf = lookAtConf(self.robotConf, obj)

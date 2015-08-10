@@ -60,11 +60,13 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                  movePoses={'objA': front},
                  varDict = varDict)
 
-    actualSkel = None
+    # One push, no uncertainty
+    skel = [[poseAchIn, lookAt, moveNB, lookAt, move, push, moveNB, lookAt,
+             move, lookAt, moveNB]]
 
     t.run(goal,
           hpn = hpn,
-          skeleton = actualSkel if skeleton else None,
+          skeleton = skel if skeleton else None,
           hierarchical = hierarchical,
           regions=[region],
           heuristic = heuristic,

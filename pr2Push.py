@@ -28,6 +28,7 @@ import pdb
 # How many paths to generate for a particular hand contact with the
 # object, these will differ by the base placement.
 maxPushPaths = 50
+maxDone = 1
 
 pushGenCacheStats = [0, 0]
 pushGenCache = {}
@@ -215,11 +216,11 @@ def pushGenAux(pbs, placeB, hand, base, prob):
                     doneCount +=1 
                     pushPaths.append((pathAndViols, reason))
                 tr(tag+'Path', 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
-            if doneCount >= 2: break
+            if doneCount >= maxDone: break
             if count > maxPushPaths: break
         # Sort the push paths by violations
         sorted = sortedPushPaths(pushPaths, curPose)
-        for i in range(min(len(sorted), 2)):
+        for i in range(min(len(sorted), maxDone)):
             pp = sorted[i]              # path is reversed (post...pre)
             ppre, cpre, ppost, cpost = getPrePost(pp)
             if debug(tag):
