@@ -1386,7 +1386,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
             return replay
     else:
         pushPathCache[key] = []
-    print 'pushPath cache did not hit'
+    tr('pushPath', 'pushPath cache did not hit')
     if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
     # Check there is no permanent collision
     viol = rm.confViolations(conf, newBS, prob)

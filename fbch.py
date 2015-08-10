@@ -1305,14 +1305,23 @@ def simplifyCond(oldFs, newFs, details = None):
     resultList = list(result.fluents)
     resultList.sort(key = str)
     return tuple(resultList)
+
+def dictSubset(d1, d2):
+    return all([k in d2 and d1[k] == d2[k] for k in d1.keys()])
     
 def btGetBindings(functions, goalFluents, start, avoid = []):
     # Avoid is list of dictionaries
-    avoid = set(tuplify(b) for b in avoid)
     # Helper fun to find a set of bindings that hasn't been found before
     def gnb(funs, sofar):
         if funs == []:
-            if not tuplify(sofar) in avoid:
+            beenHere = any([dictSubset(sofar, b) for b in avoid])
+            if len(avoid) > 0:
+                print 'Returning bindings'
+                print 'avoiding', avoid
+                print 'new bindings', sofar
+                print 'new bindings in avoid?', beenHere
+                raw_input('okay?')
+            if not beenHere:
                 tr('btbind', 'returning', sofar)
                 return sofar
             else:
@@ -1352,6 +1361,11 @@ class RebindOp:
         g = goal.copy()
         op = goal.suspendedOperator
         tr('rebind', 'about to try local rebinding', op, g.bindings)
+        if debug('rebind'):
+            print 'Bindings already tried'
+            for thing in g.bindingsAlreadyTried:
+                print '    ', thing
+            raw_input('okay?')
             
         g.suspendedOperator = None
         g.rebind = False
@@ -2132,6 +2146,7 @@ def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
     if p: return p, c
     if not skeleton: return None, None
     # If we failed and had a skeleton, try without it
+    raw_input("Try again without skeleton?")
     return planBackwardAux(goal, startState, ops, ancestors, None, monotonic,
                     lastOp, nonMonOps, heuristic, h, visitF, expandF,
                     prevExpandF, maxCost, maxNodes = 500)
