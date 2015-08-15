@@ -42,11 +42,20 @@ class PushGen(Function):
         if debug('pushGen'): print 'Entering pushGen'
         for ans in pushGenGen(args, goalConds, bState):
             tr('pushGen', '->', 'final', str(ans))
-            yield ans
+            if debug('pushGen'):
+                # Verify that it's feasible
+                (obj, pose, support, poseVar, poseDelta, confdelta, prob) = args
+                (hand, prePose, preConf, pushConf, postConf) = ans
+                path, viol = canPush(bState.pbs, obj, hand, support, prePose,
+                                     pose, preConf, pushConf, postConf, poseVar,
+                                    poseVar, poseDelta, prob,
+                                    Violations(), prim=False)
+                assert viol != None
+                yield ans
         tr('pushGen', '-> completely exhausted')
 
 def pushGenGen(args, goalConds, bState):
-    (obj, pose, posevar, posedelta, confdelta, prob) = args
+    (obj, pose, support, posevar, posedelta, confdelta, prob) = args
     tag = 'pushGen'
     base = sameBase(goalConds)
     # tr(tag, 'obj=%s, pose=%s, base=%s'%(obj, pose, base))
@@ -56,7 +65,7 @@ def pushGenGen(args, goalConds, bState):
             return
     pbs = bState.pbs.copy()
     world = pbs.getWorld()
-    support = pbs.getPlaceB(obj).support.mode()
+    #support = pbs.getPlaceB(obj).support.mode()
     # This is the target placement
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
                        PoseD(pose, posevar), delta=posedelta)
