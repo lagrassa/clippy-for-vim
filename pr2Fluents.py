@@ -823,9 +823,9 @@ class CanPush(Fluent):
 
     def getViols(self, bState, v, p):
         assert v == True
+        assert self.isGround()
         (obj, hand, poseFace, prePose, pose, preConf, pushConf,
-         postConf, poseVar,
-         prePoseVar,  poseDelta, cond) = self.args
+         postConf, poseVar, prePoseVar,  poseDelta, cond) = self.args
 
         key = (hash(bState.pbs), p)
         if not hasattr(self, 'viols'): self.viols = {}

@@ -896,6 +896,21 @@ class Operator(object):
 
         return result
 
+    # Call regress multiple times, to get several different
+    # instatiations of the operator.
+    def multipleRegress(self, n, goal, startState = None, heuristic = None,
+                        operators = (), ancestors = {}):
+        result = []
+        op = self
+        for i in range(n):
+            r = op.regress(goal, startState, heuristic, operators, ancestors)
+            if len(r) < 2:
+                return result
+            ((newGoal, cost), (rebindGoal, _)) = r
+            result.append((newGoal, cost))
+            op = applicableOps(rebindGoal, operators, startState)[0]
+            goal = rebindGoal
+        return result
 
     # Returns a list of (goal, cost) pairs
     # Operators used in hierarchical heuristic
@@ -1315,12 +1330,6 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
     def gnb(funs, sofar):
         if funs == []:
             beenHere = any([dictSubset(sofar, b) for b in avoid])
-            if len(avoid) > 0:
-                print 'Returning bindings'
-                print 'avoiding', avoid
-                print 'new bindings', sofar
-                print 'new bindings in avoid?', beenHere
-                raw_input('okay?')
             if not beenHere:
                 tr('btbind', 'returning', sofar)
                 return sofar

@@ -490,7 +490,9 @@ regress = 0
 
 def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                  staticEval = lambda f: float('inf'),
-                 ddPartitionFn = lambda fs: [frozenset([f]) for f in fs]):
+                 ddPartitionFn = lambda fs: [frozenset([f]) for f in fs],
+                 feasibleOnly = True,
+                 primitiveHeuristicAlways = debug('primitiveHeuristicAlways')):
 
     global cacheHits, easy, regress
     cacheHits = 0
@@ -572,15 +574,20 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         if len(ops) == 0:
             debugMsg('hAddBack', 'no applicable ops', g)
         for o in ops:
-            if debug('primitiveHeuristicAlways', h = True):
+            if primitiveHeuristicAlways:
                 o.abstractionLevel = o.concreteAbstractionLevel
-            pres = o.regress(g, start)
-            if debug('hAddBackV'): print 'R',
+            # TODO : LPK : domain-dependent hack
+            if o.name == 'Push':
+                pres = o.multipleRegress(glob.numOpInstances, g, start)
+            else:
+                pres = o.multipleRegress(1, g, start)
+            if len(pres) > 0:
+                print 'mr', k, o.name, len(pres)
+
             regress += 1
-            if len(pres) <= 1:
-                # Only got the rebind result, or nothing
+            if len(pres) == 0:
                 debugMsg('hAddBack', 'no preimage', g, o)
-            for pre in pres[:-1]:
+            for pre in pres:
                 # Usually only one;  bindings of o
                 preImage, newOpCost = pre
                 newActSet = {preImage.operator}
@@ -619,6 +626,16 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                     # This is a better way of achieving fUp; a reliable value
                     minSoFar = partialCost
                     bestActSet = newActSet
+                    if feasibleOnly:
+                        # Good enough for us!
+                        addToCachesSet(fUp, minSoFar, bestActSet)
+                        if debug('hAddBack'):
+                            print '\n'+' '*(maxK - k)+'H', \
+                              prettyString(minSoFar), \
+                                  [f.shortName() for f in fUp]
+                        tr('hAddBack', 'stored value', k, minSoFar,
+                                  [a.name for a in bestActSet], h = True)
+                        return (minSoFar, bestActSet)
 
         # Done with all the ways of achieving fUp.  Store the result
         if bestActSet is not None:
@@ -757,13 +774,12 @@ def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         for o in ops:
             if debug('primitiveHeuristicAlways', h = True):
                 o.abstractionLevel = o.concreteAbstractionLevel
-            pres = o.regress(g, start)
-            if debug('hAddBackV'): print 'R',
+            pres = o.multipleRegress(glob.numOpInstances, g, start)
+            raw_input(str(len(pres)) + ' pres!')
             regress += 1
-            if len(pres) == 1:
-                # Only got the rebind result
+            if len(pres) == 0:
                 debugMsg('hAddBack', 'no preimage', g, o)
-            for pre in pres[:-1]:
+            for pre in pres:
                 # Usually only one;  bindings of o
                 preImage, newOpCost = pre
                 newActSet = {preImage.operator}

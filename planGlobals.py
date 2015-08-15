@@ -95,20 +95,30 @@ searchGreedy = 0.5                      # 0.5 is A*, 0 is UCS, 1 is best-first
 
 ## LPK Deprecated...try to be sure we're not using them
 
-from miscUtil import makeDiag
-# Super good looking!
-lookVarianceTuple = (0.001, 0.001)
-lookVariance = makeDiag(lookVarianceTuple)
-minVarianceTuple = (0.001, 0.001)
-minVariance = makeDiag(minVarianceTuple)
-minRobotVarianceTuple = minVarianceTuple
-minGraspVarianceTuple = minVarianceTuple
-minObjectVarianceTuple = minVarianceTuple
-maxVarianceTuple = (.1, .1)
-minPlaceInVarTuple = (.005, .005)        # Target variance for placing
-maxPlaceVarTuple = (.02, .02)            # Target variance for placing
+# from miscUtil import makeDiag
+# # Super good looking!
+# lookVarianceTuple = (0.001, 0.001)
+# lookVariance = makeDiag(lookVarianceTuple)
+# minVarianceTuple = (0.001, 0.001)
+# minVariance = makeDiag(minVarianceTuple)
+# minRobotVarianceTuple = minVarianceTuple
+# minGraspVarianceTuple = minVarianceTuple
+# minObjectVarianceTuple = minVarianceTuple
+# maxVarianceTuple = (.1, .1)
+# minPlaceInVarTuple = (.005, .005)        # Target variance for placing
+# maxPlaceVarTuple = (.02, .02)            # Target variance for placing
+
+########################################
+# Pushing params
+########################################
 
 pushBuffer = 0.12
+
+########################################
+# Heuristic
+########################################
+
+numOpInstances = 4
 
 ########################################
 # Table parameters

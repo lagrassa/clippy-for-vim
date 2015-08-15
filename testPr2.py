@@ -596,10 +596,12 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     # region = 'table1LeftFront'
     # goal = State([Bd([In([objName, region]), True, goalProb], True)])
 
-    # targetPose = (1.1, 0.4, tZ, 0.0)
-    # targetPose = (1.4, 0.4, tZ, 0.0) works
-    # targetPose = (1.5, 0.4, tZ, 0.0) doesn't work
-    targetPose = (1.5, 0.5, tZ, 0.0)
+    #targetPose = (1.1, 0.4, tZ, 0.0) # one push
+    #targetPose = (1.4, 0.4, tZ, 0.0) # easy two push
+    #targetPose = (1.5, 0.5, tZ, 0.0) # hard two push works
+    #targetPose = (1.4, 0.5, tZ, 0.0) # also works
+    targetPose = (1.5, 0.4, tZ, 0.0) # infinite root.  is it feasible?
+
 
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
     delta = (0.1, .1, .1, .5)
