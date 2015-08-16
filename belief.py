@@ -509,8 +509,16 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     # fUp is a set of fluents
     # cache entries will be frozen sets of fluents
     # Return a set of actions.
-    def aux(fUp, k, minSoFar):
+    # ha is heuristic ancestors
+    def aux(fUp, k, minSoFar, ha):
         global cacheHits, easy, regress
+
+        # If fUp is in ancestors, return infinite score.  Stops stupid
+        # endless backchaining
+        if fUp in ha:
+            if debug('hAddBackV'): print 'X'
+            return float('inf'), None
+        
         # See if it's in the main cache
         if inCache(fUp):
             cval = hCacheLookup(fUp)
@@ -561,6 +569,8 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             return cost, ops
 
         # Otherwise, do regression
+        newHA = ha.union({fUp})
+
         # If we find it has to be more expensive than this upper bound, quit
         # Set to true if we compute a reliable value for fUp that should be
         # put into the cache
@@ -590,7 +600,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             for pre in pres:
                 # Usually only one;  bindings of o
                 preImage, newOpCost = pre
-                newActSet = {preImage.operator}
+                newActSet = {preImage.operator.ignoreIgnorable()}
                 partialCost = preImage.operator.instanceCost
                 # AND loop over preconditions.  See if we have a good value
                 # for this operator
@@ -608,7 +618,8 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                              prettyString(minSoFar - partialCost),\
                                   [f.shortName() for f in fff]
                                        
-                    subCost, subActSet = aux(fff, k-1, minSoFar - partialCost)
+                    subCost, subActSet = \
+                      aux(fff, k-1, minSoFar - partialCost, newHA)
 
                     if debug('hAddBack', h = True):
                         print '\n'+' '*(maxK - k)+'R Aux:', k-1, o.name, \
@@ -656,7 +667,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     totalActSet = set()
     # AND loop over fluents
     for ff in partitionFn(goal.fluents):
-        (ic, actSet) = aux(ff, maxK, float('inf'))
+        (ic, actSet) = aux(ff, maxK, float('inf'), set())
         if ic == float('inf'):
             glob.inHeuristic = False
             return ic
@@ -685,6 +696,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     return totalCost
 
 
+'''
 # Alternative version that doesn't do branch and bound.  Might be better because
 # it can cache infinite heuristic values
 def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
@@ -850,3 +862,4 @@ def hAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         raw_input('woo hoo?')
 
     return totalCost
+'''

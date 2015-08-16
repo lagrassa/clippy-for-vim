@@ -1336,7 +1336,8 @@ bLoc1 = Operator(
          'BLoc1', ['Obj', 'Var', 'P'],
          {0 : {B([Pose(['Obj', '*']), '*', 'Var', '*', 'P'], True),
                Bd([SupportFace(['Obj']), '*', 'P'], True)}},
-         [({BLoc(['Obj', 'Var', 'P'], True)}, {})])
+         [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
+         ignorableArgs = (1, 2))
 
 bLoc2 = Operator(
          'BLoc2', ['Obj', 'Var', 'P'],
@@ -1344,7 +1345,8 @@ bLoc2 = Operator(
                B([Grasp(['Obj', 'left', '*']), '*', 'Var', '*', 'P'], True),
                Bd([Holding(['left']), 'Obj', 'P'], True),
                Bd([GraspFace(['Obj', 'left']), '*', 'P'], True)}},
-         [({BLoc(['Obj', 'Var', 'P'], True)}, {})])
+         [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
+         ignorableArgs = (1, 2))
 
 bLoc3 = Operator(
          'BLoc3', ['Obj', 'Var', 'P'],
@@ -1352,7 +1354,8 @@ bLoc3 = Operator(
                B([Grasp(['Obj', 'right', '*']), '*', 'Var', '*', 'P'], True),
                Bd([Holding(['right']), 'Obj', 'P'], True),
                Bd([GraspFace(['Obj', 'right']), '*', 'P'], True)}},
-         [({BLoc(['Obj', 'Var', 'P'], True)}, {})])
+         [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
+         ignorableArgs = (1, 2))
 
 poseAchIn = Operator(
              'PosesAchIn', ['Obj1', 'Region',
@@ -1388,7 +1391,7 @@ poseAchIn = Operator(
                 PlaceInRegionGen(['ObjPose1', 'PoseFace1'],
                    ['Obj1', 'Region', 'TotalVar', 'TotalDelta', probForGenerators])],
             argsToPrint = [0, 1],
-            ignorableArgs = range(1,11))
+            ignorableArgs = range(2,14))
 
 placeArgs = ['Obj', 'Hand',
          'PoseFace', 'Pose', 'PoseVar', 'RealPoseVar', 'PoseDelta',
@@ -1460,7 +1463,7 @@ place = Operator('Place', placeArgs,
         f = placeBProgress,
         prim = placePrim,
         argsToPrint = range(4),
-        ignorableArgs = range(1, 19))
+        ignorableArgs = range(4, 19))
 
 
 pushArgs = ['Obj', 'Hand', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta',
@@ -1509,7 +1512,7 @@ push = Operator('Push', pushArgs,
         f = pushBProgress,
         prim = pushPrim,
         argsToPrint = range(4),
-        ignorableArgs = range(1, 19))
+        ignorableArgs = range(3, 19))
 
 
 # Put the condition to know the pose precisely down at the bottom to
@@ -1571,7 +1574,7 @@ pick = Operator(
         f = pickBProgress,
         prim = pickPrim,
         argsToPrint = [0, 1, 3, 9],
-        ignorableArgs = range(1, 18))
+        ignorableArgs = range(4, 18))
 
 # We know that the resulting variance will always be less than obsVar.
 # Would like the result to be the min of PoseVarAfter (which is in the
@@ -1625,7 +1628,7 @@ lookAt = Operator(
     f = lookAtBProgress,
     prim = lookPrim,
     argsToPrint = [0, 1, 3],
-    ignorableArgs = [1, 2] + range(4, 11))
+    ignorableArgs = [1, 2] + range(4, 14))
 
 ## Should have a CanSeeFrom precondition
 ## Needs major update

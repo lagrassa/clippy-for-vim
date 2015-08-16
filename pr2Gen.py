@@ -16,6 +16,8 @@ pickPlaceBatchSize = 3
 
 easyGraspGenCacheStats = [0,0]
 
+# Inside the heuristic, instead of planning a regrasp in detail, just
+# generate a different grasp that might be easier to achieve.
 class EasyGraspGen(Function):
     # noinspection PyUnusedLocal
     @staticmethod

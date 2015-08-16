@@ -133,7 +133,8 @@ def habbs(s, g, ops, ancestors):
             fbch.hCacheReset()
             newVal = h(s, g, hops, ancestors,
                                         ddPartitionFn = partition,
-                                        maxK = hDepth)
+                                        maxK = hDepth,
+                                        feasibleOnly = False)
             if newVal >= 0:
                 tr('heuristic0', 'Heuristic cache inconsistent.'
                    'Leslie should fix this!')
@@ -773,6 +774,8 @@ class PlanTest:
 
 # Made odo error smaller...
 
+#variance for placement = 2 * obsvar + placeDelta
+
 typicalErrProbs = DomainProbs(
             # stdev, constant, assuming we control it by tracking while moving
             #odoError = (0.008, 0.008, 1e-5, 0.015),
@@ -805,7 +808,7 @@ typicalErrProbs = DomainProbs(
             # Use this for placing objects
             # placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             # graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
-            placeDelta = (0.01, 0.01, 1.0e-4, 0.05),
+            placeDelta = (0.01, 0.01, 1.0e-4, 0.02),
             graspDelta = (0.005, 0.005, 1.0e-4, 0.008))
 
 tinyErrProbs = DomainProbs(

@@ -741,6 +741,15 @@ class Operator(object):
         self.num = Operator.num
         Operator.num += 1
 
+    # make a version of this operator with None in for all ignorable
+    # args
+    def ignoreIgnorable(self):
+        thing = self.copy()
+        for i in range(len(self.args)):
+            if i in self.ignorableArgs:
+                thing.args[i] = None
+        return thing
+
     def allArgs(self):
         return self.args
 
