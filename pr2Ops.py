@@ -546,9 +546,14 @@ class GenLookObjPrevVariance(Function):
     @staticmethod
     def fun((ve, obj, face), goal, start):
         lookVar = start.domainProbs.obsVarTuple
-        vs = list(start.poseModeDist(obj, face).mld().sigma.diagonal().tolist()[0])
-        vs[2] = .0001**2
-        vs = tuple(vs)
+        if start.pbs.getHeld('left').mode() == obj or \
+          start.pbs.getHeld('right').mode() == obj:
+            vs = maxPoseVar
+        else:
+            vs = list(start.poseModeDist(obj, face).mld().sigma.diagonal().\
+                      tolist()[0])
+            vs[2] = .0001**2
+            vs = tuple(vs)
         # Don't let variance get bigger than variance in the initial state, or
         # the cap, whichever is bigger
         cap = [max(a, b) for (a, b) in zip(maxPoseVar, vs)]
