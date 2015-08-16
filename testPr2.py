@@ -153,7 +153,7 @@ def test2(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           )
     return t
 
-def testShelves(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                 easy = False, rip = False, multiplier=6):
 
     glob.rebindPenalty = 700
@@ -899,6 +899,8 @@ def clearCaches(details):
     bc.world.robot.cacheReset()
     pr2Visible.cache.clear()
     fbch.hCacheReset()
+    pr2Fluents.pushPathCache.clear()
+    pr2Push.pushGenCache.clear()
 
 # Evaluate on details and a fluent to flush the caches and evaluate
 def firstAid(details, fluent = None):

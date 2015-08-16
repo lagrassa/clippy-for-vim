@@ -413,7 +413,7 @@ def placeGenGen(args, goalConds, bState):
     leftGen = placeGenTop((obj, graspB, placeBs, 'left', base, prob),
                                  goalConds, pbs)
     rightGen = placeGenTop((obj, graspB, placeBs, 'right', base, prob),
-                                 goalConds, placeBs)
+                                 goalConds, pbs)
     
     for ans in chooseHandGen(pbs, goalConds, obj, hand, leftGen, rightGen):
         yield ans
