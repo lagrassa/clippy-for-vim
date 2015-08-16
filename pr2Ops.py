@@ -944,10 +944,6 @@ def pushBProgress(details, args, obs=None):
     v[2] = 1e-20
     gv = tuple(v)
 
-    print 'Push:  old variance', details.pbs.getPlaceB(o).poseD.varTuple()
-    print 'Push:  new variance', gv
-    raw_input('okay?')
-    
     # Failure here would be to knock the object over
     details.poseModeProbs[o] = (1 - failProb) * details.poseModeProbs[o]
     ff = details.pbs.getWorld().getFaceFrames(o)

@@ -40,7 +40,7 @@ crashIsError = False
 
 simulateError = False
 
-animateSleep = 0.1
+animateSleep = 0.01
 
 maxOpenLoopDist = 2.0
 
@@ -56,6 +56,7 @@ class RealWorld(WorldState):
         WorldState.__init__(self, world, robot)
         self.bs = bs
         self.domainProbs = probs
+        wm.getWindow('World').startCapture()
 
     # dispatch on the operators...
     def executePrim(self, op, params = None):
@@ -63,7 +64,9 @@ class RealWorld(WorldState):
             self.draw('World')
             tr('sim', 'Executed %s got obs= %s'%(op.name, obs),
                snap=['World'])
+            wm.getWindow('World').capturing = False
             return obs
+        wm.getWindow('World').capturing = True
         if op.name == 'Move':
             return endExec(self.executeMove(op, params))
         if op.name == 'MoveNB':
@@ -145,7 +148,7 @@ class RealWorld(WorldState):
             if distSoFar >= maxOpenLoopDist:
                 distSoFar = 0           #  reset
                 # raw_input('Exceeded max distance')
-                # return self.robotConf
+                return self.robotConf
                 obj = self.visibleObj(objShapes)
                 if obj:
                     lookConf = lookAtConf(self.robotConf, obj)

@@ -335,6 +335,7 @@ def testWorld(include = ('objA', 'objB', 'objC')):
                      (0.,0.,0.,1.)])
     for obj in manipulanda:
         world.graspDesc[obj] = []
+        if obj[:3] == 'big': continue   #  no grasps on big objects
         # TODO: derive these grasps from the shape of the object(s)
         if useHorizontal:             # horizontal
             world.graspDesc[obj].extend([GDesc(obj, hu.Transform(gMat0),

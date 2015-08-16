@@ -1319,10 +1319,6 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
     graspVar = 4*(0.01**2,)
     graspDelta = 4*(0.0,)
 
-    # TODO: straighten this out...
-    objFrame = placeB.objFrame()
-    # objFrame = placeB.poseD.mode()
-
     graspFrame = objFrame.inverse().compose(pushWrist.compose(gripperFaceFrame[hand]))
     graspDescList = [GDesc(obj, graspFrame, 0.0, 0.0, 0.0)]
     graspDescFrame = objFrame.compose(graspDescList[-1].frame)
@@ -1370,29 +1366,37 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     newBS = pbs.copy()
     newBS = newBS.updateHeldBel(gB, hand)
     # Check cache and return it if appropriate
-    key = (gB, pB.poseD.mode(), baseSig, prePose, hand, glob.pushBuffer)
+    key = (pB.poseD.mode(), baseSig, prePose, hand, glob.pushBuffer)
     pushPathCacheStats[0] += 1
     val = pushPathCache.get(key, None)
     if val is not None:
-        pushPathCacheStats[1] += 1
         for v in val:
-            (bs, p, ans) = v
-            if bs == pbs and p >= prob:
+            (bs, p, gB1, ans) = v
+            if bs == pbs and p >= prob and gB == gB1:
                 if debug(tag): print tag, 'cached ->', ans[-1]
+                pushPathCacheStats[1] += 1
                 return ans
         replay = checkReplay(newBS, prob, val)
         if replay:
             if debug(tag): print tag, 'cached replay ->', replay[-1]
+            pushPathCacheStats[1] += 1
             return replay
     else:
+        tr(tag, 'pushPath cache did not hit')
+        if debug(tag):
+            print '-----------'
+            conf.prettyPrint()
+            for x in key: print x
+            print '-----------'
+            if shape is None:           # called from canPush
+                pdb.set_trace()
         pushPathCache[key] = []
-    tr('pushPath', 'pushPath cache did not hit')
     if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
     # Check there is no permanent collision
     viol = rm.confViolations(conf, newBS, prob)
     if not viol:
         if debug(tag): print 'Conf collides in pushPath'
-        pushPathCache[key].append((pbs, prob, (None, None)))
+        pushPathCache[key].append((pbs, prob, gB, (None, None)))
         return None, None
     # We will return (conf, viol, pose) for steps along the path --
     # starting at prePose.  Before contact, pose in None.
@@ -1413,16 +1417,17 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
                (abs(angleDiff) > 0.1 and dist < 0.02):
             if debug(tag): print 'Angle too large for pushing'
             ans = (pathViols, 'tilt')
-            pushPathCache[key].append((prob, prob, ans))
+            pushPathCache[key].append((prob, prob, gB, ans))
             return ans
-    else: return (pathViols, 'dist=0')
+    else:
+        return (pathViols, 'dist=0')
     direction = -1.0*directionNeg
     # move to initial location
     pConf = displaceHandRot(conf, hand, prePose.compose(postPose.inverse()))
     if not pConf:
         debugMsg(tag, 'No invkin at initial contact')
         ans = pathViols, 'invkin'
-        pushPathCache[key].append((pbs, prob, ans))
+        pushPathCache[key].append((pbs, prob, gB, ans))
         return ans
     # backoff by pushBuffer from preConf
     tiltRot, handDir = handTiltAndDir(pConf, hand, direction)
@@ -1435,7 +1440,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     if not preConf:
         debugMsg(tag, 'No invkin at preConf')
         ans = pathViols, 'invkin'
-        pushPathCache[key].append((pbs, prob, ans))
+        pushPathCache[key].append((pbs, prob, gB, ans))
         return ans
     if debug(tag):
         conf.draw('W', 'pink'); preConf.draw('W', 'blue'); raw_input('Go?')
@@ -1470,9 +1475,12 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
             hoff = (step*handDir).tolist()+[0.0]
         # hoff[2] = 0.01
         hOffsetPose = hu.Pose(*hoff)
-        nconf = displaceHandRot(preConf, hand, hOffsetPose,
-                                tiltRot = tiltRot if prim else None,
-                                angle=(step_a*deltaAngle if contact else 0.0))
+        if step_i == nsteps:
+            nconf = conf
+        else:
+            nconf = displaceHandRot(preConf, hand, hOffsetPose,
+                                    tiltRot = tiltRot if prim else None,
+                                    angle=(step_a*deltaAngle if contact else 0.0))
         if not nconf:
             reason = 'invkin'
             break
@@ -1510,8 +1518,8 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     if debug('pushPath'):
         raw_input('Path:'+reason)
     ans = (pathViols, reason)
-    pushPathCache[key].append((pbs, prob, ans))
-    if debug(tag): 
+    pushPathCache[key].append((pbs, prob, gB, ans))
+    if debug(tag):
         print tag, '->', reason, 'path len=', len(pathViols)
     return ans
 
@@ -1574,7 +1582,7 @@ def handTiltAndDir(conf, hand, direction):
 
 def checkReplay(pbs, prob, cachedValues):
     rm = pbs.getRoadMap()
-    doneVals = [val for (bs, p, val) in cachedValues if val[-1] == 'done']
+    doneVals = [val for (bs, p, gB, val) in cachedValues if val[-1] == 'done']
     for (pathViols, reason) in doneVals:
         viol = [rm.confViolations(conf, pbs, prob) for (conf, _, _) in pathViols]
         if all(viol):

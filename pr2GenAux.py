@@ -1,3 +1,4 @@
+import pdb
 import numpy as np
 import math
 import random
@@ -871,6 +872,8 @@ def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, reachObsts
             if count > maxPoses: return
             count += 1
 
+# TODO: Should structure this as a mini-batch generator!
+
 def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachObsts, hand, base,
                               maxPoses = 30):
     def genPose(rs, angle, point):
@@ -888,6 +891,8 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             return pose
         else:
             debugMsg('potentialRegionPoseGen', ('fail pose', pose))
+            pbs.draw(prob, 'W'); sh.draw('W', 'brown'); rs.draw('W', 'purple')
+            pdb.set_trace()
 
     def poseViolationWeight(pose):
         pB = placeB.modifyPoseD(mu=pose)
@@ -959,7 +964,8 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                 for co in coObst: co.draw('W', 'brown')
                 for co in coShadow: co.draw('W', 'orange')
             z0 = bI.bbox()[0,2] + clearance
-            for point in bboxGridCoords(bI.bbox(), res = 0.02, z=z0):
+            # for point in bboxGridCoords(bI.bbox(), res = 0.01, z=z0):
+            for point in bboxRandomCoords(bI.bbox(), n=100, z=z0):
                 pt = point.reshape(4,1)
                 if any(np.all(np.dot(co.planes(), pt) <= tiny) for co in coFixed):
                     if debug('potentialRegionPoseGen'):
@@ -1071,7 +1077,10 @@ def baseDist(c1, c2):
 # Selecting safe points in region
 
 def bboxGridCoords(bb, n=5, z=None, res=None):
+    eps = 0.001
     ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)
+    x0 += eps; y0 += eps
+    x1 -= eps; y1 -= eps
     if res:
         dx = res
         dy = res
@@ -1092,6 +1101,16 @@ def bboxGridCoords(bb, n=5, z=None, res=None):
         for j in range(ny+1):
             y = y0 + j*dy
             points.append(np.array([x, y, z, 1.]))
+    return points
+
+def bboxRandomCoords(bb, n=20, z=None):
+    ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)
+    if z is None: z = z0
+    points = []
+    for i in xrange(n):
+        x = random.uniform(x0, x1)
+        y = random.uniform(y0, y1)
+        points.append(np.array([x, y, z, 1.]))
     return points
 
 def confDelta(c1, c2):
