@@ -851,16 +851,21 @@ def moveBProgress(details, args, obs=None):
     bp1 = (s['pr2Base'][0], s['pr2Base'][1], 0, s['pr2Base'][2])
     bp2 = (obsConf['pr2Base'][0], obsConf['pr2Base'][1], 0,
            obsConf['pr2Base'][2])
+    odoVar = (((bp1[0] - bp2[0]) * odoError[0])**2,
+              ((bp1[1] - bp2[1]) * odoError[1])**2,
+              0.0,
+              (hu.fixAnglePlusMinusPi(bp1[2] - bp2[2]) * odoError[2])**2)
+        
     odoVar = tuple([((b1 - b2) * oe)**2 for (b1, b2, oe) in \
                     zip(bp1, bp2, odoError)])
 
-    # print 'About to move B progress'
-    # print 'start base', bp1
-    # print 'end base ', bp2
-    # print 'odo error rate', odoError
-    # print 'added odo var', odoVar
-    # print 'added odo stdev', [sqrt(v) for v in odoVar]
-    # raw_input('okay?')
+    print 'About to move B progress'
+    print 'start base', bp1
+    print 'end base ', bp2
+    print 'odo error rate', odoError
+    print 'added odo var', odoVar
+    print 'added odo stdev', [sqrt(v) for v in odoVar]
+    raw_input('okay?')
     
     # Change robot conf.  For now, trust the observation completely
     details.pbs.updateConf(obs)

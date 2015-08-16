@@ -984,7 +984,8 @@ def lookGenTop(args, goalConds, pbs):
 
     # TODO: Generalize this to (pick or push)
 
-    if obj in world.graspDesc and not glob.inHeuristic:
+    if (obj in world.graspDesc and len(world.graspDesc[obj]) > 0) and \
+                           not glob.inHeuristic:
         graspVar = 4*(0.001,)
         graspDelta = 4*(0.001,)
         graspB = ObjGraspB(obj, world.getGraspDesc(obj), None, None,
