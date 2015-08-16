@@ -849,13 +849,13 @@ def moveBProgress(details, args, obs=None):
     odoVar = tuple([((b1 - b2) * oe)**2 for (b1, b2, oe) in \
                     zip(bp1, bp2, odoError)])
 
-    print 'About to move B progress'
-    print 'start base', bp1
-    print 'end base ', bp2
-    print 'odo error rate', odoError
-    print 'added odo var', odoVar
-    print 'added odo stdev', [sqrt(v) for v in odoVar]
-    raw_input('okay?')
+    # print 'About to move B progress'
+    # print 'start base', bp1
+    # print 'end base ', bp2
+    # print 'odo error rate', odoError
+    # print 'added odo var', odoVar
+    # print 'added odo stdev', [sqrt(v) for v in odoVar]
+    # raw_input('okay?')
     
     # Change robot conf.  For now, trust the observation completely
     details.pbs.updateConf(obs)
@@ -1766,11 +1766,11 @@ def achCanXGen(pbs, goal, cond, targetFluents, violFn, prob, tag):
         shWorld = newBS.getShadowWorld(prob)
             
         viol = violFn(newBS)
-        tr(tag, 1, ('viol', viol), draw=[(newBS, prob, 'W')], snap=['W'])
+        tr(tag, ('viol', viol), draw=[(newBS, prob, 'W')], snap=['W'])
         if viol is None:                  # hopeless
             trAlways('Impossible dream', pause = True); return []
         if viol.empty():
-            tr(tag, 1, '=> No obstacles or shadows; returning'); return []
+            tr(tag, '=> No obstacles or shadows; returning'); return []
 
         print 'need to see if base pose is specified and pass it in'
 
@@ -1788,7 +1788,7 @@ def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
                         (not objectName(sh.name()) in \
                           [obst.name() for obst in initViol.allObstacles()])]
     if not reducibleShadows:
-        tr(tag, 1, '=> No shadows to fix')
+        tr(tag, '=> No shadows to fix')
         return       # nothing available
 
     obsVar = newBS.domainProbs.obsVarTuple
@@ -1800,7 +1800,7 @@ def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
         graspable = obst in newBS.getWorld().graspDesc
         objBMinVar = objBMinVarGrasp if graspable else objBMinVarStatic
         placeB = newBS.getPlaceB(obst)
-        tr(tag, 1, '=> reduce shadow %s (in red):'%obst,
+        tr(tag, '=> reduce shadow %s (in red):'%obst,
            draw=[(newBS, prob, 'W'),
            (placeB.shadow(newBS.getShadowWorld(prob)), 'W', 'red')],
            snap=['W'])
@@ -1815,11 +1815,11 @@ def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
             op = lookAtOp(obst, 'LookConf', face, poseMean, 'PoseVarBefore',
                           lookDelta, objBMinVar, objBMinVar, 'ConfDelta',
                           obsVar,'P1', prob, prob, prob)
-            tr(tag, 1, '=> returning', op)
+            tr(tag, '=> returning', op)
             yield op, conds
         else:
             trAlways('Error? Looking could not dispel shadow')
-    tr(tag, 1, '=> Out of remedies')
+    tr(tag, '=> Out of remedies')
 
 
 # noinspection PyUnusedLocal
@@ -1833,7 +1833,7 @@ def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
                   if not o.name() in shWorld.fixedObjects and \
                      graspable(o.name())]
     if not obstacles:
-        tr(tag, 1, '=> No pickable obstacles to fix')
+        tr(tag, '=> No pickable obstacles to fix')
         return       # nothing available
 
     moveDelta = newBS.domainProbs.placeDelta
@@ -1867,16 +1867,16 @@ def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
                          graspFace, graspMean, graspVar, graspDelta,
                          r.ca, 'ConfDelta', r.c, 'AwayRegion',
                          prob, prob, prob, 'P1')
-            tr(tag, 1, '=> returning', op)
+            tr(tag, '=> returning', op)
             yield op, newConds
-    tr(tag, 1, '=> Out of remedies')
+    tr(tag, '=> Out of remedies')
 
 def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
     tag = 'pushAchGen'
     obstacles = [o.name() for o in initViol.allObstacles() \
                   if not o.name() in shWorld.fixedObjects]
     if not obstacles:
-        tr(tag, 1, '=> No movable obstacles to fix')
+        tr(tag, '=> No movable obstacles to fix')
         return       # nothing available
 
     moveDelta = newBS.domainProbs.placeDelta
@@ -1901,9 +1901,9 @@ def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
             op = pushOp(obst, r.hand, postPose, supportFace, postPoseVar,
                          moveDelta, prePose, prePoseVar, preConf, pushConf,
                          postConf,  'ConfDelta', prob, 'PR1', 'PR2')
-            tr(tag, 1, '=> returning', op)
+            tr(tag, '=> returning', op)
             yield op, newConds
-    tr(tag, 1, '=> Out of remedies')
+    tr(tag, '=> Out of remedies')
     
 
 ######################################################################

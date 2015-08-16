@@ -93,7 +93,7 @@ usualTags = ['nonmon']
 flags = ['simpleAbstractCostEstimates',
           'primitiveHeuristicAlways',
           'useBBinH']
-heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
+heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack', 
                  'debugInHeuristic', 'h']  # 'hAddBack'
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
                 'clobber']
@@ -104,7 +104,8 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['disablePickPlace'] + skeletonTags + ['pushGen']
+debugOn = usualTags #+ ['disablePickPlace'] 
+
                                                  
 
 

@@ -1378,11 +1378,11 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         for v in val:
             (bs, p, ans) = v
             if bs == pbs and p >= prob:
-                print tag, 'cached ->', ans[-1]
+                if debug(tag): print tag, 'cached ->', ans[-1]
                 return ans
         replay = checkReplay(newBS, prob, val)
         if replay:
-            print tag, 'cached replay ->', replay[-1]
+            if debug(tag): print tag, 'cached replay ->', replay[-1]
             return replay
     else:
         pushPathCache[key] = []
@@ -1391,7 +1391,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     # Check there is no permanent collision
     viol = rm.confViolations(conf, newBS, prob)
     if not viol:
-        print 'Conf collides in pushPath'
+        if debug(tag): print 'Conf collides in pushPath'
         pushPathCache[key].append((pbs, prob, (None, None)))
         return None, None
     # We will return (conf, viol, pose) for steps along the path --
@@ -1408,10 +1408,10 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     if dist != 0:
         directionNeg /= dist
         angleDiff = hu.angleDiff(postPose.theta, prePose.theta)
-        print 'angleDiff', angleDiff
+        if debug(tag): print 'angleDiff', angleDiff
         if abs(angleDiff) > math.pi/6 or \
                (abs(angleDiff) > 0.1 and dist < 0.02):
-            print 'Angle too large for pushing'
+            if debug(tag): print 'Angle too large for pushing'
             ans = (pathViols, 'tilt')
             pushPathCache[key].append((prob, prob, ans))
             return ans
@@ -1426,7 +1426,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         return ans
     # backoff by pushBuffer from preConf
     tiltRot, handDir = handTiltAndDir(pConf, hand, direction)
-    print 'handDir', handDir
+    if debug(tag): print 'handDir', handDir
     preConf = displaceHandRot(pConf, hand,
                               hu.Pose(*(-glob.pushBuffer*handDir).tolist()+[0.0]))
     if debug(tag) and shape:
@@ -1450,7 +1450,8 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     else:
         nstepsAngle = int(dist / pushStepSize) # angle rotation only after contact
         deltaAngle = angleDiff / nstepsAngle
-    print 'nsteps=', nsteps, 'delta=', delta
+    if debug(tag): 
+        print 'nsteps=', nsteps, 'delta=', delta
 
     # Initial part of the path (up to pushBuffer) is before contact,
     # so pose does not change, then we get contact and pose changes.
@@ -1498,7 +1499,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
                     break
             if armCollides(nconf, nshape, hand):
                 reason = 'selfCollide'
-                print 'Self-collision on path'
+                if debug(tag): print 'Self-collision on path'
                 break
         if debug('pushPath'):
             print 'step=', step, viol
@@ -1510,7 +1511,8 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         raw_input('Path:'+reason)
     ans = (pathViols, reason)
     pushPathCache[key].append((pbs, prob, ans))
-    print tag, '->', reason, 'path len=', len(pathViols)
+    if debug(tag): 
+        print tag, '->', reason, 'path len=', len(pathViols)
     return ans
 
 def armCollides(conf, objShape, hand):
@@ -1555,7 +1557,7 @@ def handTiltAndDir(conf, hand, direction):
     trans = cart[handFrameName]
     if trans.matrix[2,0] >= -0.9:       # Horizontal hand orientation
         # x axis of wrist points along hand, we don't need tilt
-        return None, trans[:3,0]
+        return None, trans.matrix[:3,0]
     # Rest is for vertical hand orientation
     transInv = trans.inverse()
     transInvMat = transInv.matrix
@@ -1563,7 +1565,7 @@ def handTiltAndDir(conf, hand, direction):
     if abs(handDir[2,0]) > 0.001:
         sign = -1.0 if handDir[2,0] < 0 else 1.0
         hdir = np.dot(trans.matrix, np.array([0.0, 0.0, sign, 0.0]).reshape(4,1))[:3,0]
-        print hdir, '->', sign, hdir
+        if debug('pushPath'): print hdir, '->', sign, hdir
         # Because of the wrist orientation, the sign is negative
         rot = hu.Transform(rotation_matrix(-sign*math.pi/15., (0,1,0)))
         return rot, hdir

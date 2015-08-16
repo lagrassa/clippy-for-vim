@@ -757,7 +757,7 @@ def LEQ(x, y):
 def getGoalPoseBels(goalConds, getFaceFrames):
     if not goalConds: return {}
     fbs = getMatchingFluents(goalConds,
-                            B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
+                   B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
 
     ans = dict([(b['Obj'], ObjPlaceB(b['Obj'],
                                      getFaceFrames(b['Obj']), # !! ??

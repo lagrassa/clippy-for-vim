@@ -115,11 +115,11 @@ def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     return t
 
 ######################################################################
-# Test 4: one table, move two objects
+# Test 2: one table, move two objects
 ######################################################################
 
 # pick and place into region... one table, for robot.
-def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+def test2(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
     glob.rebindPenalty = 700
@@ -138,7 +138,7 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     goal = State([Bd([In(['objA', region]), True, goalProb], True),
                   Bd([In(['objB', region]), True, goalProb], True)])
 
-    t = PlanTest('test4',  errProbs, allOperators,
+    t = PlanTest('test2',  errProbs, allOperators,
                  objects=['table1', 'objA', 'objB'],
                  fixPoses={'table1': table1Pose},
                  movePoses={'objA': right, 'objB':front},
@@ -579,11 +579,6 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
 
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
-    # skel = [[lookAt, move, push, moveNB, lookAt, moveNB, lookAt,
-    #          move, achCanReach, move],
-    #         [lookAt, move, push, moveNB, lookAt, moveNB, lookAt,
-    #          move, achCanReach, move]]
-
     # Two pushes, no uncertainty
     skel = [[lookAt, move, push, moveNB,
              lookAt, move, push, moveNB, lookAt,
@@ -600,8 +595,7 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
     #targetPose = (1.4, 0.4, tZ, 0.0) # easy two push
     #targetPose = (1.5, 0.5, tZ, 0.0) # hard two push works
     #targetPose = (1.4, 0.5, tZ, 0.0) # also works
-    targetPose = (1.5, 0.4, tZ, 0.0) # infinite root.  is it feasible?
-
+    targetPose = (1.5, 0.4, tZ, 0.0) # infinite root. Doesn't work
 
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
     delta = (0.1, .1, .1, .5)
@@ -688,10 +682,11 @@ def testPush1(hpn = True, skeleton = False, hierarchical = False,
     glob.rebindPenalty = 700
     glob.monotonicFirst = True
 
-    goalProb, errProbs = (0.5, tinyErrProbs) if easy else (0.95,typicalErrProbs)
-    varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
+    goalProb, errProbs = (0.95,typicalErrProbs)
+    varDict = {'table1': (0.001**2, 0.001**2, 1e-10, 0.001**2),
                'coolShelves': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-                'bigA': (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
+                #'bigA': (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
+                'bigA': (0.001**2, 0.001**2, 1e-10, 0.01**2)}
     right1 = hu.Pose(1.1, -0.5, tZ, 0.0)
     right2 = hu.Pose(1.5, -0.5, tZ, 0.0)
     left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
@@ -699,10 +694,9 @@ def testPush1(hpn = True, skeleton = False, hierarchical = False,
     coolShelvesPose = hu.Pose(1.4, 0.0, tZ, math.pi/2)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
-    skel = [[push, moveNB, lookAt, move,
-             push, move],
-             #push, moveNB, lookAt, move],
-            [lookAt, moveNB]]
+    skel = [[lookAt, move, push, moveNB,
+             lookAt, move, push, moveNB, lookAt,
+             move, lookAt, moveNB]]
 
     startPose = (1.05, 0.0, tZ, 0.0)
     targetPose = left2.xyztTuple()

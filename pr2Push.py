@@ -51,7 +51,7 @@ class PushGen(Function):
                                     poseVar, poseDelta, prob,
                                     Violations(), prim=False)
                 assert viol != None
-                yield ans
+            yield ans
         tr('pushGen', '-> completely exhausted')
 
 def pushGenGen(args, goalConds, bState):
