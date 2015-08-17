@@ -19,7 +19,7 @@ from fbch import State, planBackward, makePlanObj, HPN
 
 import belief
 reload(belief)
-from belief import hAddBackBSet, BBhAddBackBSet, B, Bd
+from belief import BBhAddBackBSet, B, Bd
 
 import pr2Util
 reload(pr2Util)
@@ -122,7 +122,7 @@ def habbs(s, g, ops, ancestors):
     global heuristicTime
     startTime = time.time()
     hops = ops + [hRegrasp]
-    h = BBhAddBackBSet if debug('useBBinH') else hAddBackBSet
+    h = BBhAddBackBSet
     val = h(s, g, hops, ancestors, ddPartitionFn = partition,
                          maxK = hDepth)
     if val == 0:
@@ -765,6 +765,9 @@ class PlanTest:
                 'Time =', runTime, '***************'
         print 'Heuristic time:', heuristicTime
         heuristicTime = 0.0
+        while raw_input('Playback? Return = No, Anything else = Yes: '):
+            wm.getWindow('World').playback(delay=0.01)
+            print 'Done playback'
 
 ######################################################################
 # Test Cases

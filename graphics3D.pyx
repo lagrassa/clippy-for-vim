@@ -45,7 +45,6 @@ cdef class Window3D:
                 self.capture.append(['clear', time.clock()])
 
     def pause(self):
-        print 'Pausing window'
         if self.capturing:
             if not self.capture or not self.capture[-1][0] == 'pause':
                 self.capture.append(['pause', time.clock()])
@@ -58,7 +57,7 @@ cdef class Window3D:
         self.capturing = False
         return self.capture
 
-    def playback(self, capture = None, delay = 0):
+    def playback(self, capture = None, delay = 0, update=False):
         capturing = self.capturing
         self.capturing = False
         for entry in capture or self.capture:
@@ -66,10 +65,11 @@ cdef class Window3D:
                 self.clear()
                 time.sleep(delay)
             elif entry[0] == 'pause':
+                self.update()
                 time.sleep(delay)
             else:
                 self.draw(entry[0], color=entry[1], opacity=entry[2])
-                # self.update()
+                if update: self.update()
         self.capturing = capturing
 
     cpdef draw(self, thing, str color = None, float opacity = 1.0):

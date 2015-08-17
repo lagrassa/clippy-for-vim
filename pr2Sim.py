@@ -64,6 +64,7 @@ class RealWorld(WorldState):
             self.draw('World')
             tr('sim', 'Executed %s got obs= %s'%(op.name, obs),
                snap=['World'])
+            wm.getWindow('World').pause()
             wm.getWindow('World').capturing = False
             return obs
         wm.getWindow('World').capturing = True
@@ -105,6 +106,7 @@ class RealWorld(WorldState):
                 sleep(animateSleep)
             else:
                 self.robotPlace.draw('World', 'pink')
+            wm.getWindow('World').pause()
             cart = conf.cartConf()
             leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3]).tolist()[0][:-1]
             rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3]).tolist()[0][:-1]
@@ -148,7 +150,7 @@ class RealWorld(WorldState):
             if distSoFar >= maxOpenLoopDist:
                 distSoFar = 0           #  reset
                 # raw_input('Exceeded max distance')
-                return self.robotConf
+                # return self.robotConf
                 obj = self.visibleObj(objShapes)
                 if obj:
                     lookConf = lookAtConf(self.robotConf, obj)

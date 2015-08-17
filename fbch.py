@@ -1,5 +1,6 @@
 import copy
 import os
+import pdb
 
 import planGlobals as glob
 from traceFile import debugMsg, debug
@@ -1222,6 +1223,8 @@ class Operator(object):
             if hNew == float('inf'):
                 # This is hopeless.  Give up now.
                 tr('regression:fail','New goal is infeasible', newGoal)
+                print 'Infeasible pre-image', self.name
+                pdb.set_trace()
                 cost = float('inf')
             elif debug('simpleAbstractCostEstimates', h = True):
                 hOrig = hh(goal)

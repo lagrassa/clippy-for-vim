@@ -70,10 +70,10 @@ drawRebindNodes = True
 
 usualTags = ['nonmon']
 flags = ['simpleAbstractCostEstimates',
-         # 'primitiveHeuristicAlways',
+         'primitiveHeuristicAlways',
           'useBBinH']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
-                 'debugInHeuristic', 'h']  # 'hAddBack'
+                 'debugInHeuristic', 'h', 'hAddBack']
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
                 'clobber']
 traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
@@ -83,7 +83,8 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['animate'] + ['potentialRegionPoseGen']
+debugOn = usualTags + ['animate']
+# + ['pushGen', 'pushGen_kin', 'potentialGraspConfs']
 # + ['disablePickPlace']
 # + ['pushGen'] + skeletonTags
 

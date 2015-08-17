@@ -354,6 +354,7 @@ graspConfGenCache = {}
 graspConfGenCacheStats = [0,0]
 
 def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None):
+    tag = 'potentialGraspConfs'
     key = (pbs, placeB, graspB, conf, hand, tuple(base) if base else None, prob, nMax)
     cache = graspConfGenCache
     val = cache.get(key, None)
@@ -362,10 +363,12 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None
     if val != None:
         graspConfGenCacheStats[1] += 1
         memo = val.copy()
+        if debug(tag): print tag, 'cached gen with len(values)=', memo.values
     else:
         memo = Memoizer('potentialGraspConfGen',
                         potentialGraspConfGenAux(*key))
         cache[key] = memo
+        if debug(tag): print tag, 'new gen'
     for x in memo:
         assert len(x) == 3 and x[-1] != None
         yield x
@@ -419,6 +422,7 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
 def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
                              nMax=10):
     tag = 'potentialGraspConfs'
+    if debug(tag): print 'Entering potentialGraspConfGenAux'
     if conf:
         ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
         if ca:
@@ -500,7 +504,7 @@ def potentialLookConfGen(pbs, prob, shape, maxDist):
             tested.add(nodeBase)
         x,y,th = nodeBase
         basePose = hu.Pose(x,y,0,th)
-        dist = centerPoint.distance(basePose.point())
+        dist = centerPoint.distanceXY(basePose.point())
         if dist > maxDist:
             continue
         inv = basePose.inverse()

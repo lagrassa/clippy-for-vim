@@ -69,28 +69,16 @@ class Node(Hashable):
     def baseConf(self):
         return tuple(self.conf['pr2Base'])
     def pointFromConf(self, conf):
-        if False:
+        if False:                       # complete conf
             point = []
             for chain in ['pr2Base', 'pr2LeftArm', 'pr2RightArm']:
                 if 'Gripper' in chain or 'Torso' in chain:
                     point.append(conf[chain][0])
                 else:
                     point.extend(conf[chain])
-        else:
+        else:                           # just base conf
             x,y,th=conf['pr2Base']
             point = (x,y, nodePointRotScale*math.cos(th), nodePointRotScale*math.sin(th))
-        return point
-    def pointFromCart(self, cart, alpha = 0.1):
-        point = []
-        for chain in ['pr2Base', 'pr2LeftArm', 'pr2RightArm']:
-            if 'Gripper' in chain or 'Torso' in chain:
-                point.append(cart[chain][0])
-            else:
-                pose = cart[chain] 
-                pose_o = [pose.matrix[i,3] for i in range(3)]
-                point.extend(pose_o)
-                for j in [2]:           # could be 0,1,2
-                    point.extend([alpha*pose.matrix[i,j] + pose_o[i] for i in range(3)])
         return point
     def draw(self, window, color = 'blue'):
         self.conf.draw(window, color=color)

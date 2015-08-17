@@ -39,7 +39,7 @@ def testAll(indices, repeat=3, crashIsError=True, **args):
 def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False):
 
-    glob.rebindPenalty = 100
+    glob.rebindPenalty = 10
     glob.monotonicFirst = True
 
     goalProb, errProbs = (0.5,tinyErrProbs) if easy else (0.95,typicalErrProbs)
@@ -560,7 +560,7 @@ def testHold(hpn = True, skeleton = False, hierarchical = False,
 def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
               easy = False, rip = False, multiplier=6, objName='bigA'):
 
-    glob.rebindPenalty = 100
+    glob.rebindPenalty = 10
     glob.monotonicFirst = True
 
     goalProb, errProbs = (0.95,typicalErrProbs)
