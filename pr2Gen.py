@@ -92,6 +92,9 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob, oldFace, oldGrasp):
     obj = placeB.obj
     approached = {}
     for gB in graspGen(newBS, obj, graspB):
+        if gB.grasp.mode() == oldFace and gB.poseD.mode().xyztTuple() == oldGrasp:
+            tr(tag, 'Rejected %s because same'%gB)
+            continue
         tr(tag, 'considering grasp=%s'%gB)
         graspConfGen = potentialGraspConfGen(newBS, placeB, gB, None, hand, None, prob)
         firstConf = next(graspApproachConfGen(None), None)
@@ -103,13 +106,8 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob, oldFace, oldGrasp):
             viol = pickable(ca, approached[ca], placeB, gB)
             if viol:
                 tr(tag, 'pickable')
-                ans = Response(placeB, gB, approached[ca], ca, viol, hand)
-                (newFace, newMode, newVar, newDelta) = ans.easyGraspTuple()
-                if newFace != oldFace or newMode != oldGrasp:
-                    yield ans
-                    break
-                else:
-                    tr(tag, 'Rejected because same', str(ans))
+                yield Response(placeB, gB, approached[ca], ca, viol, hand)
+                break
             else:
                 tr(tag, 'not pickable')
 

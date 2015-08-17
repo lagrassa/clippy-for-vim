@@ -1218,3 +1218,85 @@ def displaceHand(conf, hand, offsetPose, nearTo=None, angle=0.0):
     if all(nConf.values()):
         return nConf
 
+
+class KDTreeFull:
+    def __init__(self, entries, kdLeafSize = 20):
+        self.entries = entries
+        points = [e.point for e in entries]
+        self.points = np.array(points)  # array of point arrays
+        self.kdTree = cKDTree(self.points, kdLeafSize)
+        self.kdLeafSize = kdLeafSize
+        self.size = len(points)
+        self.newEntries = []
+        self.newPoints = []             # list of point lists
+        self.newSize = 0
+        self.newKDTree = None
+        self.entryTooClose = 0.001 # is there a rational way of picking this?
+
+    def allEntries(self):
+        return self.entries + self.newEntries
+
+    def batchAddEntries(self, entries):
+        if not entries: return
+        last = len(entries) - 1
+        for i, entry in enumerate(entries):
+            self.addEntry(entry, merge = (i == last))   # merge on the last one
+
+    def mergeKDTrees(self):
+        if self.newSize == 0: return
+        self.points = np.vstack((self.points,
+                                 np.array(self.newPoints)))
+        self.kdTree = cKDTree(self.points, self.kdLeafSize)
+        self.entries.extend(self.newEntries)
+        self.size += self.newSize
+        self.newPoints = []
+        self.newEntries = []
+        self.newSize = 0
+        self.newKDTree = None
+
+    def findEntry(self, entry):
+        (d, ne) = self.nearest(entry, 1)[0]
+        if d <= self.entryTooClose:
+            return ne
+        
+    def addEntry(self, entry, merge = False):
+        point = entry.point
+        if merge:
+            ne = self.findEntry(entry)
+            if ne:
+                if debug('addEntry'):
+                    print 'New', entry.point
+                    print 'Old', ne.point
+                    raw_input('Entry too close')
+                return ne
+        self.newPoints.append(point)
+        self.newEntries.append(entry)
+        self.newSize += 1
+        self.newKDTree = None
+        if merge and self.newSize > self.kdLeafSize:
+            self.mergeKDTrees()
+        return entry
+
+    # Is it better just to make a new global tree when we do addConf
+    def nearest(self, entry, k):
+        merge = []
+        dists, ids = self.kdTree.query(entry.point, k)
+        if k == 1:
+            dists = [dists]; ids = [ids]
+        if self.newPoints:
+            if not self.newKDTree:
+                self.newKDTree = cKDTree(self.newPoints, self.kdLeafSize)
+        else:
+            return [(d, self.entries[i]) for d, i in zip(dists, ids) if d < np.inf]
+        for (d, i) in zip(dists, ids):
+            if d < np.inf: merge.append((d, i, False))
+        assert self.newKDTree
+        newDists, newIds = self.newKDTree.query(entry.point, k)
+        if k == 1:
+            newDists = [newDists]; newIds = [newIds]
+        for (d, i) in zip(newDists, newIds):
+            if d < np.inf: merge.append((d, i, True))
+        merge.sort()
+        return [(d, self.newEntries[i]) if new else (d, self.entries[i]) \
+                for (d, i, new) in merge[:k]]
+

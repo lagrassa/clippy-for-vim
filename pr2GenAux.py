@@ -896,7 +896,6 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         else:
             debugMsg('potentialRegionPoseGen', ('fail pose', pose))
             pbs.draw(prob, 'W'); sh.draw('W', 'brown'); rs.draw('W', 'purple')
-            pdb.set_trace()
 
     def poseViolationWeight(pose):
         pB = placeB.modifyPoseD(mu=pose)

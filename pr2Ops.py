@@ -59,7 +59,7 @@ handI = {'left' : 0, 'right' : 1}
 #
 ######################################################################
 
-tryDirectPath = False
+tryDirectPath = True
 # canReachHome(conf) returns a path from conf to home!
 
 def primPath(bs, cs, ce, p):
@@ -1458,6 +1458,7 @@ place = Operator('Place', placeArgs,
             DefaultPlaceDelta(['PoseDelta'], []),
             # Assume fixed conf delta
             MoveConfDelta(['ConfDelta'], []),
+            # LPK!!! Fix this;  don't let graspDelta get too big even if poseDelta is big
             Subtract(['GraspDelta'], ['PoseDelta', 'ConfDelta']),
             # Not modeling the fact that the object's shadow should
             # grow a bit as we move to pick it.   Build that into pickGen.
