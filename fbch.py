@@ -1570,11 +1570,6 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
     ps.push(Plan([(nop, State([])), (top, g)]))
     (op, subgoal, oldSkel) = (top, g, None)
     while not ps.isEmpty() and op != None:
-
-        if debug('pbsId'):
-            print 'pbs', id(s.details.pbs)
-            raw_input('Okay?')
-
         if op.isAbstract():
             # Plan again at a more concrete level
             writeSubgoalRefinement(f, ps.guts()[-1], subgoal)
@@ -1606,9 +1601,8 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
         # Decide what to do next
         # will pop levels we don't need any more, so that p is on the top
         # op will be None if we are done
-        (op, subgoal, popSkel) = ps.nextStep(s, ops, f)
+        (op, subgoal, oldSkel) = ps.nextStep(s, ops, f)
         assert op != 'fail', 'HPN failed at top level'
-        oldSkel = popSkel #or (oldSkel and oldSkel[-1:])
         # Possibly pop ancestors
         ancestors = ancestors[0:ps.size()]
         # Tidy up this bookkeeping
@@ -1620,7 +1614,6 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
                      ' action.  Seems like we are stuck.  Restarting HPN from'+\
                      ' the top.', pause = True)
             raise PlanningFailed
-
     # If we return, we have succeeded!
         
 def executePrim(op, s, env, f = None):
@@ -1629,16 +1622,9 @@ def executePrim(op, s, env, f = None):
     params = op.evalPrim(s.details)
     # Print compactly unless we are debugging
     trAlways('PRIM:', op.prettyString(eq = debug('prim')))
-    tr('prim', 'params', params)
     writePrimRefinement(f, op)
     obs = env.executePrim(op, params)
-    if debug('pbsId'):
-        print 'pbs', id(s.details.pbs)
-        raw_input('Okay?')
     s.updateStateEstimate(op, obs)
-    if debug('pbsId'):
-        print 'pbs', id(s.details.pbs)
-        raw_input('Okay?')
     hCacheReset()
 
 class PlanStack(Stack):
@@ -1651,8 +1637,7 @@ class PlanStack(Stack):
     def depth(self):
         return len(self.guts())
     
-    # Also, return a skeleton constructed from any layers that get
-    # popped, if we're replanning.
+    # Returns (op, subgoal, skeleton) or ('fail', 'fail', 'fail')
     def nextStep(self, s, ops, f = None):
         layers = self.guts()
         numLayers = len(layers)
@@ -1674,12 +1659,11 @@ class PlanStack(Stack):
                 tr('nextStep', ('op', op), ('upperSG', upperSubgoal),
                          ('lowerGoal', lowerGoal))
                 # This is a surprise if previous is not current - 1
-                # Could actually check this condition going down farther in
-                # order to see where the surprise originated.
-
                 if lowerGoal and upperSubgoal:
                     previousUpperIndex = layers[i-1].subgoalIndex(lowerGoal)
                     currentUpperIndex = layers[i-1].subgoalIndex(upperSubgoal)
+                    assert previousUpperIndex != None
+                    assert currentUpperIndex != None
 
                     if previousUpperIndex != currentUpperIndex -1 :
                         writeSurprise(f, layers[i-1], previousUpperIndex,
@@ -1707,7 +1691,7 @@ class PlanStack(Stack):
                              'Selected inferential op for execution'
                 return (op, subgoal, None)
             else:
-                # go down a level
+                # All good here;  go down a level
                 (upperOp, upperSubgoal) = (op, subgoal)
         return (upperOp, upperSubgoal, None)
 
@@ -1766,9 +1750,9 @@ class PlanStack(Stack):
         for fl in layer.steps[layer.lastStepExecuted][1].fluents:
             if fl.value != s.fluentValue(fl):
                 fooFluents.append(fl)
-        tr('executionFail', 'Failure: expected to satisfy subgoal', layer.lastStepExecuted, \
-          'at layer', layer.level, ol = True, pause = False)
-        tr('executionFail', 'Unsatisfied fluents:', * fooFluents)
+        tr('executionFail', 'Failure: expected to satisfy subgoal',
+           layer.lastStepExecuted, 'at layer', layer.level, '\n',
+          'Unsatisfied fluents:',  fooFluents)
         writeFailure(f, layer, fooFluents)
 
         if debug('executionFail') and not quiet:

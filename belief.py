@@ -591,7 +591,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                 pres = o.multipleRegress(glob.numOpInstances, g, start)
             else:
                 pres = o.multipleRegress(1, g, start)
-            if len(pres) > 0:
+            if len(pres) > 0 and debug('hAddBack'):
                 print 'mr', k, o.name, len(pres)
 
             regress += 1

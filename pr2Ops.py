@@ -859,13 +859,10 @@ def moveBProgress(details, args, obs=None):
     odoVar = tuple([((b1 - b2) * oe)**2 for (b1, b2, oe) in \
                     zip(bp1, bp2, odoError)])
 
-    print 'About to move B progress'
-    print 'start base', bp1
-    print 'end base ', bp2
-    print 'odo error rate', odoError
-    print 'added odo var', odoVar
-    print 'added odo stdev', [sqrt(v) for v in odoVar]
-    raw_input('okay?')
+    tr('beliefUpdate', 'About to move B progress', 
+        'start base', bp1, 'end base ', bp2, 
+        'odo error rate', odoError, 'added odo var', odoVar, 
+        'added odo stdev', [sqrt(v) for v in odoVar])
     
     # Change robot conf.  For now, trust the observation completely
     details.pbs.updateConf(obs)
@@ -1113,6 +1110,7 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
                     gaussObsUpdate(oldPlaceB.poseD.mode().pose().xyztTuple(),
                                    obsPose.pose().xyztTuple(),
                                    oldPlaceB.poseD.variance(), obsVar)
+        ns = list(newSigma); ns[2] = 1e-10; newSigma = tuple(ns)
         ff = w.getFaceFrames(objName)[obsFace]
 
         ## LPK!!  Should really draw the detected object but I don't have
@@ -2063,9 +2061,6 @@ hRegrasp = Operator(
             RegressProb(['P3'], ['PR3'], pn = 'pickFailProb'),
             EasyGraspGen(['PrevGraspFace', 'PrevGraspMu', 'PrevGraspVar',
                           'PrevGraspDelta'],['Obj', 'Hand', 'GraspFace',
-                                             'GraspMu']),
-            # Only use to change grasp.
-            NotEqual([], ['GraspMu', 'GraspFace', 'GraspVar',
-                          'PrevGraspMu', 'PrevGraspFace', 'PrevGraspVar'])],
+                                             'GraspMu'])],
         cost = lambda al, args, details: magicRegraspCost,
         argsToPrint = [0, 1])

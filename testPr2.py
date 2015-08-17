@@ -153,6 +153,7 @@ def test2(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           )
     return t
 
+# Put in shelves
 def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                 easy = False, rip = False, multiplier=6):
 
@@ -198,7 +199,8 @@ def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           )
     return t
 
-def testPick(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+# Pick.  Very boring.
+def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           easy = False, rip = False, multiplier=6):
 
     glob.rebindPenalty = 700
@@ -256,7 +258,7 @@ def makeAttachedWorldFromPBS(pbs, realWorld, grasped, hand):
     realWorld.delObjectState(grasped)
     realWorld.setRobotConf(realWorld.robotConf) # to compute a new robotPlace
 
-def testPutDown(hpn = True, skeleton = False, hierarchical = False,
+def test5(hpn = True, skeleton = False, hierarchical = False,
                 heuristic = habbs, easy = False, rip = False):
 
     # Seems to need this
@@ -282,10 +284,60 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
                     #fixPoses={'table2': table2Pose},
                  varDict = varDict)
 
-    targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
-    targetDelta = (0.01, 0.01, 0.01, 0.05)
     # Just empty the hand.  No problem.
     goal1 = State([Bd([Holding(['left']), 'none', goalProb], True)])
+    grasped = 'objB'
+    hand = 'left'
+    initGraspVar = (1e-6,)*4    # very small
+    def initBel(bs):
+        # Change pbs so obj B is in the left hand
+        gm = (0, -0.025, 0, 0)
+        gv = initGraspVar
+        gd = (1e-4,)*4
+        gf = 0
+        bs.pbs.updateHeld(grasped, gf, PoseD(gm, gv), hand, gd)
+        bs.pbs.excludeObjs([grasped])
+        bs.pbs.reset()
+
+    def initWorld(bs, realWorld):
+        makeAttachedWorldFromPBS(bs.pbs, realWorld, grasped, hand)
+
+    t.run(goal1,
+          hpn = hpn,
+          hierarchical = hierarchical,
+          heuristic = heuristic,
+          regions = ['table1Top'],
+          initBelief = initBel,
+          initWorld = initWorld
+          )
+        
+def test6(hpn = True, skeleton = False, hierarchical = False,
+                heuristic = habbs, easy = False, rip = False):
+
+    # Seems to need this
+    global useRight, useVertical
+    useRight, useVertical = True, True
+
+    glob.rebindPenalty = 150
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
+    glob.monotonicFirst = True
+    
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+
+    targetDelta = (0.01, 0.01, 0.01, 0.05)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
+
+    t = PlanTest('test6',  errProbs, allOperators,
+                 objects=['table1', 'objA','objB'], 
+                 movePoses={'objA': back,
+                            'objB': front},
+                    #fixPoses={'table2': table2Pose},
+                 varDict = varDict)
     # Pick obj A
     graspType = 2
     goal2 = State([Bd([Holding(['left']), 'objA', goalProb], True),
@@ -293,6 +345,60 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
                    B([Grasp(['objA', 'left',  graspType]),
                      (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), targetDelta,
                      goalProb], True)])
+
+    grasped = 'objB'
+    hand = 'left'
+    initGraspVar = (1e-6,)*4    # very small
+    def initBel(bs):
+        # Change pbs so obj B is in the left hand
+        gm = (0, -0.025, 0, 0)
+        gv = initGraspVar
+        gd = (1e-4,)*4
+        gf = 0
+        bs.pbs.updateHeld(grasped, gf, PoseD(gm, gv), hand, gd)
+        bs.pbs.excludeObjs([grasped])
+        bs.pbs.reset()
+
+    def initWorld(bs, realWorld):
+        makeAttachedWorldFromPBS(bs.pbs, realWorld, grasped, hand)
+
+    t.run(goal2,
+          hpn = hpn,
+          hierarchical = hierarchical,
+          heuristic = heuristic,
+          regions = ['table1Top'],
+          initBelief = initBel,
+          initWorld = initWorld
+          )
+
+def test7(hpn = True, skeleton = False, hierarchical = False,
+                heuristic = habbs, easy = False, rip = False):
+
+    # Seems to need this
+    global useRight, useVertical
+    useRight, useVertical = True, True
+
+    glob.rebindPenalty = 150
+    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
+    glob.monotonicFirst = True
+    
+    front = hu.Pose(0.95, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+
+    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
+                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
+
+    t = PlanTest('test7',  errProbs, allOperators,
+                 objects=['table1', 'objA','objB'], 
+                 movePoses={'objA': back,
+                            'objB': front},
+                    #fixPoses={'table2': table2Pose},
+                 varDict = varDict)
+
+    targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
+    targetDelta = (0.01, 0.01, 0.01, 0.05)
     # Put A somewhere.  Ideally use right hand!
     goal3 = State([Bd([SupportFace(['objA']), 4, goalProb], True),
                   B([Pose(['objA', 4]),
@@ -323,6 +429,9 @@ def testPutDown(hpn = True, skeleton = False, hierarchical = False,
           initBelief = initBel,
           initWorld = initWorld
           )
+
+
+
 
 def testChangeGrasp(hpn = True, skeleton = False, hierarchical = False,
                 heuristic = habbs, easy = False, rip = False):
@@ -389,7 +498,7 @@ def testChangeGrasp(hpn = True, skeleton = False, hierarchical = False,
 #       shouldn't be hard.
 ######################################################################
 
-def test5(hpn = True, skeleton = False, hierarchical = False,
+def test55(hpn = True, skeleton = False, hierarchical = False,
                 heuristic = habbs, easy = False, rip = False):
 
     # Seems to need this
