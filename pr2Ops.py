@@ -442,6 +442,21 @@ class RealPoseVar(Function):
         placeVar = start.domainProbs.placeVar
         return [[tuple([gv+pv for (gv, pv) in zip(graspVar, placeVar)])]]
 
+# Two constraints: one from the delta of the resulting pose and one
+# from the tolerance for picking.
+class GraspDelta(Function):
+    # noinspection PyUnusedLocal
+    @staticmethod
+    def fun((poseDelta, confDelta, graspVar, p), goal, start):
+        pickTol = start.domainProbs.pickTolerance
+        numStdDevs =  sqrt(chiSqFromP(1-p, 3))
+        graspStds = [sqrt(v) * numStdDevs for v in graspVar]
+        maxForPose = [pd - cd for (pd, cd) in zip(poseDelta, confDelta)]
+        maxForGraspTol = [gt - gstd for (gt, gstd) in zip(pickTol, graspStds)]
+
+        return [[tuple([min(d1, d2) for (d1, d2) in \
+                        zip(maxForPose, maxForGraspTol)])]]
+
 # Realistically, push increases variance quite a bit.  For now, we'll just
 # assume stdev needs to be halved
 # Also have a max stdev
@@ -1456,14 +1471,17 @@ place = Operator('Place', placeArgs,
             DefaultPlaceDelta(['PoseDelta'], []),
             # Assume fixed conf delta
             MoveConfDelta(['ConfDelta'], []),
-            # LPK!!! Fix this;  don't let graspDelta get too big even if poseDelta is big
-            Subtract(['GraspDelta'], ['PoseDelta', 'ConfDelta']),
+            # Grasp delta is min of  poseDelta - confDelta and
+            # pickTolerance - shadow(realPoseVar, prob)
+            GraspDelta(['GraspDelta'], ['PoseDelta', 'ConfDelta',
+                                        'GraspVar', 'P1']),
             # Not modeling the fact that the object's shadow should
             # grow a bit as we move to pick it.   Build that into pickGen.
             PlaceGen(['Hand','GraspMu', 'GraspFace', 'PlaceConf', 'PreConf',
                       'Pose', 'PoseFace'],
-                     ['Obj', 'Hand', 'Pose', 'PoseFace', 'RealPoseVar', 'GraspVar',
-                      'PoseDelta', 'GraspDelta', 'ConfDelta',probForGenerators])],
+                     ['Obj', 'Hand', 'Pose', 'PoseFace', 'RealPoseVar',
+                      'GraspVar', 'PoseDelta', 'GraspDelta', 'ConfDelta',
+                     probForGenerators])],
         cost = placeCostFun,
         f = placeBProgress,
         prim = placePrim,

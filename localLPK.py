@@ -104,11 +104,10 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['executionSurprise', 'executionFail']
+debugOn = usualTags + ['executionSurprise', 'executionFail', 'getShadowWorld']
 #+ ['disablePickPlace'] 
-debugOnly = debugOnly + ['nextStep']
-
-
+debugOnly = debugOnly
+traceOnly = traceOnly + ['nextStep']
                                                  
 
 

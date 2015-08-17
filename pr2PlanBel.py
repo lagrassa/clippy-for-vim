@@ -593,7 +593,6 @@ class PBS:
         shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName, color=color)
         self.beliefContext.objectShadowCache[key] = shadow
         if debug('getShadowWorld'):
-            debugMsg('objShadow', key, ('->', shtr.bbox()))
             shadow.draw('W', 'red')
         return shadow
 
@@ -622,7 +621,7 @@ class PBS:
 ####################
 
 def sigmaPoses(prob, poseD, poseDelta):
-    interpStep = math.pi/4
+    interpStep = math.pi/16
     def interpAngle(lo, hi):
         if hi - lo <= interpStep:
             return [lo, hi]
