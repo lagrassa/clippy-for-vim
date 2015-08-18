@@ -7,7 +7,7 @@ from itertools import product, permutations, chain, imap
 from dist import DeltaDist, varBeforeObs, probModeMoved, MixtureDist,\
      UniformDist, chiSqFromP, MultivariateGaussianDistribution
 from fbch import Function, Operator, simplifyCond, State
-from miscUtil import isVar, prettyString, makeDiag, argmax
+from miscUtil import isVar, prettyString, makeDiag, argmax, lookup
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowWidths, objectName
 from pr2Gen import PickGen, LookGen,\
@@ -388,7 +388,7 @@ class RegressProb(Function):
     # noinspection PyUnusedLocal
     def fun(self, args, goal, start):
         failProb = getattr(start.domainProbs, self.probName) \
-                                          if (self.probName is not None) else 0.0
+                                        if (self.probName is not None) else 0.0
         pr = max([a for a in args if not isVar(a)]) / (1 - failProb)
         # noinspection PyTypeChecker
         val = power(pr, 1.0/self.n)
@@ -396,6 +396,10 @@ class RegressProb(Function):
             return [[val]*self.n]
         else:
             return []
+    def applyBindings(self, bindings):
+        return self.__class__([lookup(v, bindings) for v in self.outVars],
+                              [lookup(v, bindings) for v in self.inVars],
+                              self.isNecessary, self.probName)
 
 class MaxGraspVarFun(Function):
     # noinspection PyUnusedLocal
@@ -847,13 +851,11 @@ def lookAtHandCostFun(al, args, details):
 
 # noinspection PyUnusedLocal
 def moveBProgress(details, args, obs=None):
-    if debug('pbsId'):
-        print 'pbs', id(details.pbs); raw_input('Okay?')
     (s, e, _) = args
-
     # Let's say this is error per meter / radian
     odoError = details.domainProbs.odoError
-    obsConf = obs.conf
+    (endConf, (xyDisp, angDisp))
+    obsConf = endConf.conf
     bp1 = (s['pr2Base'][0], s['pr2Base'][1], 0, s['pr2Base'][2])
     bp2 = (obsConf['pr2Base'][0], obsConf['pr2Base'][1], 0,
            obsConf['pr2Base'][2])
@@ -872,21 +874,15 @@ def moveBProgress(details, args, obs=None):
     
     # Change robot conf.  For now, trust the observation completely
     details.pbs.updateConf(obs)
-    if debug('pbsId'):
-        print 'pbs', id(details.pbs); raw_input('Okay?')
 
     for ob in details.pbs.moveObjBs.values() + \
                details.pbs.fixObjBs.values():
         oldVar = ob.poseD.var
         ob.poseD.var = tuple([a + b for (a, b) in zip(oldVar, odoVar)])
-    if debug('pbsId'):
-        print 'pbs', id(details.pbs); raw_input('Okay?')
     details.pbs.reset()
     details.pbs.getShadowWorld(0)
     details.pbs.internalCollisionCheck()
     debugMsg('beliefUpdate', 'moveBel')
-    if debug('pbsId'):
-        print 'pbs', id(details.pbs); raw_input('Okay?')
 
 # noinspection PyUnusedLocal
 def moveNBBProgress(details, args, obs=None):
@@ -1431,8 +1427,7 @@ place = Operator('Place', placeArgs,
          3 : {Conf(['PreConf', 'ConfDelta'], True)}
         },
         # Results
-        [#({BLoc(['Obj', planVar, 'PR2'], True)},{}),  # 'PoseVar'
-         ({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
+        [({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
            B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta','PR2'],
                  True)},{}),
          ({Bd([Holding(['Hand']), 'none', 'PR3'], True)}, {})],

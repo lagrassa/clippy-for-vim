@@ -88,15 +88,15 @@ class PBS:
         self.shadowWorld = None
         self.shadowProb = None
 
-    def ditherRobotOutOfCollision(self):
+    def ditherRobotOutOfCollision(self, p):
         count = 0
         rm = self.beliefContext.roadMap
-        confViols = rm.confViolations(self.conf, self, 0.)
+        confViols = rm.confViolations(self.conf, self, p)
         while count < 100 and (confViols is None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]):
             count += 1
             if debug('dither'):
-                self.draw(0.0, 'W')
+                self.draw(p, 'W')
                 raw_input('go?')
             base = self.conf['pr2Base']
             # Should consider motions in both positive and negative directions
@@ -104,24 +104,27 @@ class PBS:
             newBase = tuple([b + (random.random() - 0.5) * 0.05 for b in base])
             newConf = self.conf.set('pr2Base', newBase)
             self.updateConf(newConf)
-            confViols = rm.confViolations(self.conf, self, 0.)
+            confViols = rm.confViolations(self.conf, self, p)
         if count == 100:
             raise Exception, 'Failed to move robot out of collision'
 
     def internalCollisionCheck(self):
         ws = self.getShadowWorld(0.0)   # minimal shadow
         rm = self.beliefContext.roadMap
-        # First check the robot for hard collisions
-        confViols = rm.confViolations(self.conf, self, 0.)
+        # First check the robot for hard collisions.  Increase this to
+        # give some boundary
+        shProb = 0.1
+        confViols = rm.confViolations(self.conf, self, shProb)
         if confViols is None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]:
             tr('dither', 'Robot in collision.  Will try to fix.',
                      draw=[(self, 0.0, 'W')], snap=['W'])
-            self.ditherRobotOutOfCollision()
-            confViols = rm.confViolations(self.conf, self, 0.)
+            self.ditherRobotOutOfCollision(shProb)
+            confViols = rm.confViolations(self.conf, self, shProb)
 
         # Now, see if the shadow of the object in the hand is colliding.
         # If so, reduce it.
+        shProb = 0.999
         for h in (0, 1):
             colls = confViols.heldShadows[h]
             hand = ('left', 'right')[h]
@@ -130,7 +133,7 @@ class PBS:
                 count += 1
                 tr('beliefUpdate',
                    'Shadow of obj in hand.  Will try to fix', hand, colls,
-                    draw = [(self, 0.98, 'W')], snap = ['W'])
+                    draw = [(self, shProb, 'W')], snap = ['W'])
                 # Divide variance in half.  Very crude.  Should find the
                 # max variance that does not result in a shadow colliion.
                 if count > 10:
@@ -144,14 +147,14 @@ class PBS:
                 colls = confViols.heldShadows[h]
             
         # Now for shadow collisions;  reduce the shadow if necessary
-        confViols = rm.confViolations(self.conf, self, .98)
+        confViols = rm.confViolations(self.conf, self, shProb)
         shadows = confViols.allShadows()
         count = 0
         while shadows:
             count += 1
             tr('beliefUpdate',
                    'Robot collides with shadows.  Will try to fix', shadows,
-                    draw = [(self, 0.98, 'W')], snap = ['W'])
+                    draw = [(self, shProb, 'W')], snap = ['W'])
             # Divide variance in half.  Very crude.  Should find the
             # max variance that does not result in a shadow colliion.
             if count > 10:
@@ -163,7 +166,7 @@ class PBS:
                 newVar = tuple(v/2.0 for v in var)
                 self.resetPlaceB(obj, pB.modifyPoseD(var=newVar))
             self.reset()
-            confViols = rm.confViolations(self.conf, self, .98)
+            confViols = rm.confViolations(self.conf, self, shProb)
             shadows = confViols.allShadows()
 
         # Finally, look for object-object collisions
@@ -686,7 +689,7 @@ def makeShadow(shape, prob, bel, name=None, color='gray'):
     return final
 
 def sigmaPosesOrigin(prob, poseVar, poseDelta):
-    interpStep = math.pi/8.
+    interpStep = math.pi/16
     def interpAngle(lo, hi):
         if hi - lo <= interpStep:
             return [lo, hi]

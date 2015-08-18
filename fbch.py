@@ -1004,6 +1004,7 @@ class Operator(object):
             preCond = None
             for k in newBindings.keys():
                 if k[:7] == 'NewCond': newCond = newBindings[k]
+            goal = goal.copy()
             goal.addSet(newCond)
 
             # Set abstraction level for mop
