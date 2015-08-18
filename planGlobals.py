@@ -55,9 +55,11 @@ useMathematica = False
 ########################################
 
 IKfastStep = 0.1
+useRRT = True                           # use RRT exclusively
 rrtStep = 0.025
 rrtInterpolateStepSize = 10*rrtStep
 smoothSteps = 100
+smoothPasses = 20
 torsoZ = 0.15                            # normally 0.3
 skipRRT = False
 maxRRTIter = 200

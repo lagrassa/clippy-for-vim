@@ -202,7 +202,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                 conf.draw('W', 'blue')
         debugMsg('robotEnv', 'executePath')
 
-        distSoFar = 0
+        distSoFar = 0.0
+        angleSoFar = 0.0
         prevXYT = path[0]['pr2Base']
         for (i, conf) in enumerate(path):
             debugMsg('robotEnvCareful', '    conf[%d]'%i)
@@ -212,11 +213,13 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             # !! Do some looking and update the belief state.
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
             # approx pi => 1 meter
-            distSoFar += 0.33*abs(hu.angleDiff(prevXYT[2],newXYT[2]))
+            angleSoFar += abs(hu.angleDiff(prevXYT[2],newXYT[2]))
             print 'distSoFar', distSoFar
             # Check whether we should look
             args = 14*[None]
-            if distSoFar >= maxOpenLoopDist:
+            if distSoFar + 0.33 * angleSoFar >= maxOpenLoopDist:
+                print 'Exceeded max distance - exiting'
+                return outConf, (distSoFar, angleSoFar)
                 distSoFar = 0           #  reset
                 obj = next(self.visibleShapes(conf, objShapes), None)
                 if obj:
@@ -233,8 +236,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                 else:
                     raw_input('No visible object')
             prevXYT = newXYT
-
-        return None
+        return outConf, (distSoFar, angleSoFar)
 
     def executeMove(self, op, params, noBase=False):
         if noBase:

@@ -94,13 +94,16 @@ class RealWorld(WorldState):
         objShapes = getObjShapes()
         obs = None
         path = interpolated or path
-        distSoFar = 0
+        distSoFar = 0.0
+        angleSoFar = 0.0
         backSteps = []
+        pathTraveled = []
         prevXYT = self.robotConf.conf['pr2Base']
         for (i, conf) in enumerate(path):
             # !! Add noise to conf
             if action: action(path, i) # do optional action
             self.setRobotConf(conf)
+            pathTraveled.append(conf)
             if debug('animate'):
                 self.draw('World')
                 sleep(animateSleep)
@@ -143,14 +146,15 @@ class RealWorld(WorldState):
             # Integrate the displacement
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
             # approx pi => 1 meter
-            distSoFar += 0.33*abs(hu.angleDiff(prevXYT[2],newXYT[2]))
-            #print 'distSoFar', distSoFar
+            angleSoFar += abs(hu.angleDiff(prevXYT[2],newXYT[2]))
             # Check whether we should look
             args = 14*[None]
-            if distSoFar >= maxOpenLoopDist:
-                distSoFar = 0           #  reset
+            if distSoFar + 0.33*angleSoFar >= maxOpenLoopDist:
+                distSoFar = 0.0           #  reset
+                angleSoFar = 0.0
                 # raw_input('Exceeded max distance')
-                # return self.robotConf
+                print 'Exceeded max distance - exiting'
+                return self.robotConf, (distSoFar, angleSoFar)
                 obj = self.visibleObj(objShapes)
                 if obj:
                     lookConf = lookAtConf(self.robotConf, obj)
@@ -176,7 +180,7 @@ class RealWorld(WorldState):
             raw_input('Backwards')
         wm.getWindow('World').update()
         tr('sim', 'Admire the path', snap=['World'])
-        return self.robotConf
+        return self.robotConf, (distSoFar, angleSoFar)
 
     def visibleObj(self, objShapes):
         def rem(l,x): return [y for y in l if y != x]

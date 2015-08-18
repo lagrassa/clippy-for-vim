@@ -849,7 +849,7 @@ class LookGen(Function):
             # This could produce a mode of None if object is held
             pB = pbs.getPlaceB(obj, default=False)
             if pB is None:
-                tr(tag, '=> Trying to reduce variance on object pose but obj is in hand')
+                tr('lookGen', '=> Trying to reduce variance on object pose but obj is in hand')
                 return
             pose = pB.poseD.mode()
         # Use current support if it is not specified.

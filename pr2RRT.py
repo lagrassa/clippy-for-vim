@@ -374,6 +374,6 @@ def interpolatePath(path):
         qf = path[i]
         qi = path[i-1]
         confs = interpolate(qf, qi, stepSize=0.25)
-        print i, 'path segment has', len(confs), 'confs'
+        if debug('rrt'): print i, 'path segment has', len(confs), 'confs'
         interpolated.extend(confs)
     return interpolated

@@ -68,6 +68,7 @@ def primPath(bs, cs, ce, p):
         path, viols = canReachHome(bs, cs, p, Violations(),
                                    homeConf=ce, optimize=True)
     else:
+        pdb.set_trace()
         path, viols = None, None
     if (not path) or viols.weight() > 0:
         path1, v1 = canReachHome(bs, cs, p, Violations(), optimize=True)
@@ -96,12 +97,12 @@ def primPath(bs, cs, ce, p):
             path2, v2 = None, None
         if (not path) and path1 and path2:
             # make sure to interpolate paths in their original directions.
-            path = interpolate(path1) + interpolate(path2)[::-1]
+            path = rrt.interpolatePath(path1) + rrt.interpolatePath(path2)[::-1]
     else:
         print 'Direct path succeeded'
 
     smoothed = bs.getRoadMap().smoothPath(path, bs, p)
-    interpolated = interpolate(smoothed)
+    interpolated = rrt.interpolatePath(smoothed)
     verifyPaths(bs, p, path, smoothed, interpolated)
     return smoothed, interpolated
 
@@ -117,19 +118,9 @@ def primNBPath(bs, cs, ce, p):
     else:
         print 'Success'
     smoothed = bs.getRoadMap().smoothPath(path, bs, p)
-    interpolated = interpolate(smoothed)
+    interpolated = rrt.interpolatePath(smoothed)
     verifyPaths(bs, p, path, smoothed, interpolated)
     return smoothed, interpolated
-
-def interpolate(path):
-    interpolated = []
-    for i in range(1, len(path)):
-        qf = path[i]
-        qi = path[i-1]
-        confs = rrt.interpolate(qf, qi, stepSize=0.25)
-        tr('path', '%d path segment has %d confs'%(i,len(confs)))
-        interpolated.extend(confs)
-    return interpolated
 
 def verifyPath(pbs, prob, path, msg):
     print 'Verifying', msg, 'path'

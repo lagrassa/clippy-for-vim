@@ -433,6 +433,8 @@ class RoadMap:
                 print '    collision at end point'
                 raw_input('okay?')
             return confAns(None)
+        if glob.inHeuristic or (glob.skipSearch and not optimize):
+            return (endPtViol, 0, (targetConf, initConf))
         finalConf = None
         if not glob.inHeuristic and targetConf in self.approachConfs:
             finalConf = targetConf
@@ -442,22 +444,23 @@ class RoadMap:
         cached = checkFullCache()
         if cached:
             return confAns(cached)
-
-        targetCluster = self.addToCluster(targetNode, connect=False)
-        startCluster = self.addToCluster(initNode)
-        graph = combineNodeGraphs(self.clusterGraph,
-                                  startCluster.nodeGraph,
-                                  targetCluster.nodeGraph)
-        # if not glob.inHeuristic:
-        #     print '    Graph nodes =', len(graph.incidence), 'graph edges', len(graph.edges)
-        if debug('traceCRH'): print '    find path'
-        # tr('CRH', 1, 'find path')
-        # search back from target... if we will execute in reverse, it's a double negative.
-        ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
-                                     optimize=optimize, moveBase=moveBase,
-                                     reverse = (not reversePath),
-                                     useStartH = True)
-        ans = next(ansGen, None)
+        ans = None
+        if not glob.useRRT:
+            targetCluster = self.addToCluster(targetNode, connect=False)
+            startCluster = self.addToCluster(initNode)
+            graph = combineNodeGraphs(self.clusterGraph,
+                                      startCluster.nodeGraph,
+                                      targetCluster.nodeGraph)
+            # if not glob.inHeuristic:
+            #     print '    Graph nodes =', len(graph.incidence), 'graph edges', len(graph.edges)
+            if debug('traceCRH'): print '    find path'
+            # tr('CRH', 1, 'find path')
+            # search back from target... if we will execute in reverse, it's a double negative.
+            ansGen = self.minViolPathGen(graph, targetNode, [initNode], pbs, prob,
+                                         optimize=optimize, moveBase=moveBase,
+                                         reverse = (not reversePath),
+                                         useStartH = True)
+            ans = next(ansGen, None)
         
         if ans is None:
             trAlways('trying RRT')
@@ -1377,44 +1380,66 @@ class RoadMap:
         return True
 
     def smoothPath(self, path, pbs, prob, verbose=False, nsteps = glob.smoothSteps):
+        verbose = verbose or debug('smooth')
         n = len(path)
         if n < 3: return path
         if verbose: print 'Path has %s points'%str(n), '... smoothing'
-        smoothed = path[:]
+        input = path[:]
         checked = set([])
+        outer = 0
         count = 0
         step = 0
-        while count < nsteps:
-            if verbose: print step, 
-            i = random.randrange(n)
-            j = random.randrange(n)
-            if j < i: i, j = j, i 
-            step += 1
-            if verbose: print i, j, len(checked)
-            if j-i < 2 or \
-                (smoothed[j], smoothed[i]) in checked:
-                count += 1
-                continue
+        if not verbose: print 'Smoothing',
+        while outer < glob.smoothPasses:
+            if verbose:
+                print 'Start smoothing pass', outer, 'dist=', basePathLength(input)
             else:
-                checked.add((smoothed[j], smoothed[i]))
-            if debug('smooth'):
-                pbs.draw(prob, 'W')
-                for k in range(i, j+1):
-                    smoothed[k].draw('W', 'blue')
-                raw_input('Testing')
-            if self.safePath(smoothed[j], smoothed[i], pbs, prob):
-                count = 0
+                print "%.4f"%basePathLength(input),
+            smoothed = []
+            for p in input:
+                if not smoothed or smoothed[-1] != p:
+                    smoothed.append(p)
+            n = len(smoothed)
+            while count < nsteps:
+                if verbose: print 'step', step, ':', 
+                i = random.randrange(n)
+                j = random.randrange(n)
+                if j < i: i, j = j, i 
+                step += 1
+                if verbose: print i, j, len(checked)
+                if j-i < 2 or \
+                    (smoothed[j], smoothed[i]) in checked:
+                    count += 1
+                    continue
+                else:
+                    checked.add((smoothed[j], smoothed[i]))
                 if debug('smooth'):
-                    raw_input('Safe')
                     pbs.draw(prob, 'W')
-                    for k in range(i+1)+range(j,len(smoothed)):
+                    for k in range(i, j+1):
                         smoothed[k].draw('W', 'blue')
-                    raw_input('remaining')
-                smoothed[i+1:j] = []
-                n = len(smoothed)
-                if verbose: print 'Smoothed path length is', n
-            else:
-                count += 1
+                    raw_input('Testing')
+                if self.safePath(smoothed[j], smoothed[i], pbs, prob):
+                    count = 0
+                    if debug('smooth'):
+                        raw_input('Safe')
+                        pbs.draw(prob, 'W')
+                        for k in range(i+1)+range(j,len(smoothed)):
+                            smoothed[k].draw('W', 'blue')
+                        raw_input('remaining')
+                    smoothed[i+1:j] = []
+                    n = len(smoothed)
+                    if verbose: print 'Smoothed path length is', n
+                else:
+                    count += 1
+            outer += 1
+            if outer < glob.smoothPasses:
+                count = 0
+                if verbose: print 'Re-expanding path'
+                input = rrt.interpolatePath(smoothed)
+        if verbose:
+            print 'Final smooth path len =', len(smoothed), 'dist=', basePathLength(smoothed)
+        else:
+            print "%.4f"%basePathLength(smoothed)
         return smoothed
 
     # does not use self... could be a static method
@@ -1666,4 +1691,19 @@ def showPath(pbs, p, path):
         c.draw('W')
         raw_input('Next?')
     raw_input('Path end')
+
+def basePathDistAndAngle(path):
+    distSoFar = 0.0
+    angleSoFar = 0.0
+    for i in xrange(1, len(path)):
+        prevXYT = path[i-1]['pr2Base']
+        newXYT = path[i]['pr2Base']
+        distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
+        # approx pi => 1 meter
+        angleSoFar += abs(hu.angleDiff(prevXYT[2],newXYT[2]))
+    return distSoFar, angleSoFar
+
+def basePathLength(path, angleEquiv = 0.33):
+    dist, angle = basePathDistAndAngle(path)
+    return dist + angleEquiv*angle
 

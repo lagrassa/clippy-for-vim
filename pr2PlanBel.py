@@ -636,6 +636,7 @@ def sigmaPoses(prob, poseD, poseDelta):
     if debug('getShadowWorld'):
         print 'shadowWidths', widths
         print 'angles', angles
+        pdb.set_trace()
     for a in angles: offsets.append([-wx, 0, 0, a])
     for a in angles: offsets.append([wx, 0, 0, a])
     for a in angles: offsets.append([0, -wy, 0, a])
@@ -685,7 +686,7 @@ def makeShadow(shape, prob, bel, name=None, color='gray'):
     return final
 
 def sigmaPosesOrigin(prob, poseVar, poseDelta):
-    interpStep = math.pi/4
+    interpStep = math.pi/8.
     def interpAngle(lo, hi):
         if hi - lo <= interpStep:
             return [lo, hi]
