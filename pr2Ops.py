@@ -1731,6 +1731,26 @@ class AchCanReachGen(Function):
             else:
                 yield op, newCond
 
+class AchCanReachNBGen(Function):
+    @staticmethod
+    def fun(args, goal, start):
+        tag = 'canReachNBGen'
+        (startConf, endConf, prob, cond) = args
+        crFluent = Bd([CanReachNB([startConf, endConf, cond]), True, prob],
+                       True)
+        def violFn(pbs):
+            p, v = canReachNB(pbs, startConf, endConf, prob, Violations())
+            return v
+        for ans in \
+              achCanXGen(start.pbs, goal, cond, [crFluent], violFn, prob, tag):
+            (op, newCond) = ans
+            if not State(goal).isConsistent(newCond):
+                print 'AchCanReachNB suggestion inconsistent with goal'
+                for c in newCond: print c
+                raw_input('go?')
+            else:
+                yield op, newCond
+
 class AchCanPickPlaceGen(Function):
     @staticmethod
     def fun(args, goal, start):
@@ -1965,6 +1985,22 @@ achCanReach = Operator('AchCanReach',
         AddPreConds(['PreCond'],['PostCond', 'NewCond'])],
     argsToPrint = [0],
     ignorableArgs = range(1, 6),
+    ignorableArgsForHeuristic = range(1, 6),
+    metaGenerator = True
+    )
+
+achCanReachNB = Operator('AchCanReachNB',
+    ['CStart', 'CEnd', 'PreCond', 'PostCond', 'NewCond', 'Op', 'PR'],
+    {0: {},
+     1: {Bd([CanReachNB(['CStart', 'CEnd', 'PreCond']),  True, 'PR'], True)}},
+    # Result
+    [({Bd([CanReachNB(['CStart', 'CEnd', 'PostCond']), True,'PR'], True)}, {})],
+    functions = [
+        AchCanReachNBGen(['Op', 'NewCond'],['CStart', 'CEnd', 'PR','PostCond']),
+        AddPreConds(['PreCond'],['PostCond', 'NewCond'])],
+    argsToPrint = [0, 1],
+    ignorableArgs = range(2, 6),
+    ignorableArgsForHeuristic = range(2, 6),
     metaGenerator = True
     )
 

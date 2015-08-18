@@ -68,7 +68,7 @@ reload(pr2Push)
 import pr2Ops
 reload(pr2Ops)
 # lookAtHand
-from pr2Ops import move, push, pick, place, lookAt, achCanReach, \
+from pr2Ops import move, push, pick, place, lookAt, achCanReach, achCanReachNB,\
    achCanPickPlace, achCanPush, \
    hRegrasp, poseAchIn, moveNB, bLoc1, bLoc2, bLoc3
 
@@ -841,8 +841,8 @@ tinyErrProbs = DomainProbs(
             graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
 
 allOperators = [move, push, lookAt, moveNB,
-                achCanReach, achCanPickPlace, achCanPush, poseAchIn,
-                bLoc1, bLoc2, bLoc3]
+                achCanReach, achCanReachNB, achCanPickPlace, achCanPush,
+                poseAchIn, bLoc1, bLoc2, bLoc3]
 
 if not debug('disablePickPlace'):
     allOperators.extend([pick, place])
