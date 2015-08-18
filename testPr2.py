@@ -669,9 +669,7 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False,
 
     glob.rebindPenalty = 50
     glob.monotonicFirst = True
-
     goalProb, errProbs = (0.95,typicalErrProbs)
-    
     if easy: 
         varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
                 objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
@@ -679,13 +677,16 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False,
         varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
                 objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
 
-
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
     # One push, no uncertainty
     skel = [[lookAt, move, push, moveNB, lookAt,
              move, lookAt, moveNB]]
 
+    # pick and place!
+    skel = [[lookAt, move, place, move, 
+             pick, moveNB, lookAt, moveNB, lookAt, move]]
+        
     targetPose = (1.1, 0.4, tZ, 0.0) # one push
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
     delta = (0.1, .1, .1, .5)

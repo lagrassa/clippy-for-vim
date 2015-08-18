@@ -1410,7 +1410,8 @@ poseAchIn = Operator(
                    ['Obj1', 'Region', 'TotalVar', 'TotalDelta', probForGenerators])],
             argsToPrint = [0, 1],
             ignorableArgs = range(2,14),
-            ignorableArgsForHeuristic = range(2, 14))
+            ignorableArgsForHeuristic = range(2, 14),
+            conditionOnPreconds = True)
 
 placeArgs = ['Obj', 'Hand',
          'PoseFace', 'Pose', 'PoseVar', 'RealPoseVar', 'PoseDelta',

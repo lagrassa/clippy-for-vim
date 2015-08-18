@@ -663,6 +663,7 @@ class Operator(object):
                  sideEffects = None,
                  ignorableArgs = None,
                  ignorableArgsForHeuristic = None,
+                 conditionOnPreconds = False, 
                  argsToPrint = None,
                  specialRegress = None,
                  metaGenerator = False):
@@ -700,6 +701,7 @@ class Operator(object):
         self.ignorableArgs = [] if ignorableArgs is None else ignorableArgs
         self.ignorableArgsForHeuristic = [] \
           if ignorableArgsForHeuristic is None else ignorableArgsForHeuristic
+        self.conditionOnPreconds = conditionOnPreconds
         self.instanceCost = 'none'
         self.specialRegress = specialRegress
         self.subPlans = []
@@ -879,6 +881,7 @@ class Operator(object):
                             for (v, preConds) in self.sideEffects.items()]),
                       self.ignorableArgs,
                       self.ignorableArgsForHeuristic,
+                      self.conditionOnPreconds,
                       self.argsToPrint,
                       self.specialRegress,
                       self.metaGenerator)
@@ -1149,8 +1152,7 @@ class Operator(object):
                 fBefore = f.copy()
                 # Preconds will not override results
                 f.addConditions(explicitResults, startState.details)
-                if not self.prim:
-                    # Only add preconds if it's an inference step
+                if self.conditionOnPreconds:
                     f.addConditions(explicitPreconds, startState.details)
                 f.addConditions(explicitSE, startState.details)
                 f.update()
@@ -1229,7 +1231,6 @@ class Operator(object):
                 # This is hopeless.  Give up now.
                 tr('regression:fail','New goal is infeasible', newGoal)
                 print 'Infeasible pre-image', self.name
-                pdb.set_trace()
                 cost = float('inf')
             elif debug('simpleAbstractCostEstimates', h = True):
                 hOrig = hh(goal)
@@ -2023,6 +2024,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                              o.sideEffects,
                              o.ignorableArgs,
                              o.ignorableArgsForHeuristic,
+                             o.conditionOnPreconds,
                              o.argsToPrint,
                              o.specialRegress,
                              o.metaGenerator)
