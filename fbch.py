@@ -662,6 +662,7 @@ class Operator(object):
                  prim = None,
                  sideEffects = None,
                  ignorableArgs = None,
+                 ignorableArgsForHeuristic = None,
                  argsToPrint = None,
                  specialRegress = None,
                  metaGenerator = False):
@@ -697,6 +698,8 @@ class Operator(object):
         self.incrementNum()
         self.argsToPrint = argsToPrint
         self.ignorableArgs = [] if ignorableArgs is None else ignorableArgs
+        self.ignorableArgsForHeuristic = [] \
+          if ignorableArgsForHeuristic is None else ignorableArgsForHeuristic
         self.instanceCost = 'none'
         self.specialRegress = specialRegress
         self.subPlans = []
@@ -743,11 +746,11 @@ class Operator(object):
         Operator.num += 1
 
     # make a version of this operator with None in for all ignorable
-    # args
-    def ignoreIgnorable(self):
+    # args for heuristic
+    def ignoreIgnorableForH(self):
         thing = self.copy()
         for i in range(len(self.args)):
-            if i in self.ignorableArgs:
+            if i in self.ignorableArgsForHeuristic:
                 thing.args[i] = None
         return thing
 
@@ -875,6 +878,7 @@ class Operator(object):
                       dict([(v, [f.applyBindings(rb) for f in preConds]) \
                             for (v, preConds) in self.sideEffects.items()]),
                       self.ignorableArgs,
+                      self.ignorableArgsForHeuristic,
                       self.argsToPrint,
                       self.specialRegress,
                       self.metaGenerator)
@@ -2018,6 +2022,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                              o.functions, o.f, o.cost, o.prim,
                              o.sideEffects,
                              o.ignorableArgs,
+                             o.ignorableArgsForHeuristic,
                              o.argsToPrint,
                              o.specialRegress,
                              o.metaGenerator)

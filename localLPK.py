@@ -97,6 +97,7 @@ heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack',
                  'debugInHeuristic', 'h']  # 'hAddBack'
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
                 'clobber']
+executionTags = ['executionSurprise', 'executionFail']
 traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
                    'pushGen', 'assign', 'canPushGen', 'beliefUpdate']
@@ -104,7 +105,7 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['executionSurprise', 'executionFail']
+debugOn = usualTags + skeletonTags
 #+ ['disablePickPlace'] 
 debugOnly = debugOnly
 traceOnly = traceOnly 

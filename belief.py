@@ -600,7 +600,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             for pre in pres:
                 # Usually only one;  bindings of o
                 preImage, newOpCost = pre
-                newActSet = {preImage.operator.ignoreIgnorable()}
+                newActSet = {preImage.operator.ignoreIgnorableForH()}
                 partialCost = preImage.operator.instanceCost
                 # AND loop over preconditions.  See if we have a good value
                 # for this operator

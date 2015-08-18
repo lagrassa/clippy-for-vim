@@ -430,10 +430,7 @@ def test7(hpn = True, skeleton = False, hierarchical = False,
           initWorld = initWorld
           )
 
-
-
-
-def testChangeGrasp(hpn = True, skeleton = False, hierarchical = False,
+def test8(hpn = True, skeleton = False, hierarchical = False,
                 heuristic = habbs, easy = False, rip = False):
 
     # Seems to need this
@@ -498,7 +495,7 @@ def testChangeGrasp(hpn = True, skeleton = False, hierarchical = False,
 #       shouldn't be hard.
 ######################################################################
 
-def test55(hpn = True, skeleton = False, hierarchical = False,
+def test9(hpn = True, skeleton = False, hierarchical = False,
                 heuristic = habbs, easy = False, rip = False):
 
     # Seems to need this
@@ -517,7 +514,7 @@ def test55(hpn = True, skeleton = False, hierarchical = False,
                                'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
                                'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
 
-    t = PlanTest('test5',  errProbs, allOperators,
+    t = PlanTest('test9',  errProbs, allOperators,
                  objects=['table1', 'objA','objB'], 
                  movePoses={'objA': back,
                             'objB': front},
@@ -666,6 +663,59 @@ def testHold(hpn = True, skeleton = False, hierarchical = False,
           regions=['table1Top']
           )
 
+def testPush0(hpn = True, skeleton = False, hierarchical = False,
+              heuristic=habbs,
+              easy = False, rip = False, multiplier=6, objName='bigA'):
+
+    glob.rebindPenalty = 50
+    glob.monotonicFirst = True
+
+    goalProb, errProbs = (0.95,typicalErrProbs)
+    
+    if easy: 
+        varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
+                objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
+    else: 
+        varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
+                objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
+
+
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
+    # One push, no uncertainty
+    skel = [[lookAt, move, push, moveNB, lookAt,
+             move, lookAt, moveNB]]
+
+    targetPose = (1.1, 0.4, tZ, 0.0) # one push
+    targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
+    delta = (0.1, .1, .1, .5)
+    goal = State([\
+                  Bd([SupportFace([objName]), 4, goalProb], True),
+                  B([Pose([objName, 4]),
+                     targetPose, targetVar, delta,
+                     goalProb], True)])
+
+    t = PlanTest('testPush0',  errProbs, allOperators,
+                 objects=['table1', objName],
+                 fixPoses={'table1': table1Pose},
+                 movePoses={objName: front},
+                 varDict = varDict,
+                 multiplier=multiplier
+                 )
+
+    actualSkel = None
+
+    t.run(goal,
+          hpn = hpn,
+          skeleton = skel if skeleton else None,
+          hierarchical = hierarchical,
+          # regions=[region],
+          heuristic = heuristic,
+          rip = rip,
+          )
+    return t
+
+'''
 def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
               easy = False, rip = False, multiplier=6, objName='bigA'):
 
@@ -683,9 +733,6 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
 
 
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    # front = hu.Pose(1.3, 0.5, tZ, 0.0)
-    # front = hu.Pose(1.3, 0.0, tZ, 0.0)
-
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
     # Two pushes, no uncertainty
@@ -733,6 +780,72 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habb
           rip = rip,
           )
     return t
+
+def testPush0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+              easy = False, rip = False, multiplier=6, objName='bigA'):
+
+    glob.rebindPenalty = 10
+    glob.monotonicFirst = True
+
+    goalProb, errProbs = (0.95,typicalErrProbs)
+    
+    if easy: 
+        varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
+                objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
+    else: 
+        varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
+                objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
+
+
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
+
+    # Two pushes, no uncertainty
+    skel = [[lookAt, move, push, moveNB,
+             lookAt, move, push, moveNB, lookAt,
+             move, lookAt, moveNB]]
+    # One push, no uncertainty
+    # skel = [[lookAt, move, push, moveNB, lookAt,
+    #         move, lookAt, moveNB]]
+
+        
+    # region = 'table1LeftFront'
+    # goal = State([Bd([In([objName, region]), True, goalProb], True)])
+
+    #targetPose = (1.1, 0.4, tZ, 0.0) # one push
+    #targetPose = (1.4, 0.4, tZ, 0.0) # easy two push
+    #targetPose = (1.5, 0.5, tZ, 0.0) # hard two push works
+    # targetPose = (1.4, 0.5, tZ, 0.0) # also works
+    targetPose = (1.5, 0.4, tZ, 0.0) # fixed
+
+    targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
+    delta = (0.1, .1, .1, .5)
+    goal = State([\
+                  Bd([SupportFace([objName]), 4, goalProb], True),
+                  B([Pose([objName, 4]),
+                     targetPose, targetVar, delta,
+                     goalProb], True)])
+
+    t = PlanTest('testPush0',  errProbs, allOperators,
+                 objects=['table1', objName],
+                 fixPoses={'table1': table1Pose},
+                 movePoses={objName: front},
+                 varDict = varDict,
+                 multiplier=multiplier
+                 )
+
+    actualSkel = None
+
+    t.run(goal,
+          hpn = hpn,
+          skeleton = skel if skeleton else None,
+          hierarchical = hierarchical,
+          # regions=[region],
+          heuristic = heuristic,
+          rip = rip,
+          )
+    return t
+'''    
 
 def testPush0Easy(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                   easy = False, rip = False, multiplier=6, objName='bigA', angle=0.0):

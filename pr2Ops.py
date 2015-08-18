@@ -216,7 +216,7 @@ def pushPrim(args, details):
                          poseDelta, resultProb, Violations(), prim=True)
     assert path
     tr('prim', '*** pushPrim', args, ('path length', len(path)))
-    return path, interpolate(path), details.pbs.getPlacedObjBs()    
+    return path, rrt.interpolatePath(path), details.pbs.getPlacedObjBs()    
 
 ################################################################
 ## Simple generators
@@ -859,10 +859,15 @@ def moveBProgress(details, args, obs=None):
     bp1 = (s['pr2Base'][0], s['pr2Base'][1], 0, s['pr2Base'][2])
     bp2 = (obsConf['pr2Base'][0], obsConf['pr2Base'][1], 0,
            obsConf['pr2Base'][2])
-    odoVar = (((bp1[0] - bp2[0]) * odoError[0])**2,
-              ((bp1[1] - bp2[1]) * odoError[1])**2,
+    # Just takes start and end poses into account
+    # odoVar = (((bp1[0] - bp2[0]) * odoError[0])**2,
+    #           ((bp1[1] - bp2[1]) * odoError[1])**2,
+    #           0.0,
+    #           (hu.fixAnglePlusMinusPi(bp1[2] - bp2[2]) * odoError[2])**2)
+    odoVar = ((xyDisp * odoError[0])**2,
+              (xyDisp * odoError[1])**2,
               0.0,
-              (hu.fixAnglePlusMinusPi(bp1[2] - bp2[2]) * odoError[2])**2)
+              (angDisp * odoError[2])**2)
         
     odoVar = tuple([((b1 - b2) * oe)**2 for (b1, b2, oe) in \
                     zip(bp1, bp2, odoError)])
@@ -1313,8 +1318,10 @@ move = Operator(
     # special regression condition.
     specialRegress = moveSpecialRegress,
     argsToPrint = [0, 1],
-    ignorableArgs = range(3))  # For abstraction
-    # Would like really to just pay attention to the base!!
+    ignorableArgs = range(3), # For hierarchy
+    ignorableArgsForHeuristic = (0, 2)
+    )
+
 
 # Not allowed to move base
 moveNB = Operator(
@@ -1334,7 +1341,9 @@ moveNB = Operator(
     f = moveNBBProgress,
     prim  = moveNBPrim,
     argsToPrint = [0],
-    ignorableArgs = range(4))
+    ignorableArgs = range(4), # For hierarchy
+    ignorableArgsForHeuristic = (1, 3),
+    )
 
 # All this work to say you can know the location of something by knowing its
 # pose or its grasp
@@ -1343,7 +1352,8 @@ bLoc1 = Operator(
          {0 : {B([Pose(['Obj', '*']), '*', 'Var', '*', 'P'], True),
                Bd([SupportFace(['Obj']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
-         ignorableArgs = (1, 2))
+         ignorableArgs = (1, 2),
+         ignorableArgsForHeuristic = (1, 2))
 
 bLoc2 = Operator(
          'BLoc2', ['Obj', 'Var', 'P'],
@@ -1352,7 +1362,8 @@ bLoc2 = Operator(
                Bd([Holding(['left']), 'Obj', 'P'], True),
                Bd([GraspFace(['Obj', 'left']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
-         ignorableArgs = (1, 2))
+         ignorableArgs = (1, 2),
+         ignorableArgsForHeuristic = (1, 2))
 
 bLoc3 = Operator(
          'BLoc3', ['Obj', 'Var', 'P'],
@@ -1361,7 +1372,8 @@ bLoc3 = Operator(
                Bd([Holding(['right']), 'Obj', 'P'], True),
                Bd([GraspFace(['Obj', 'right']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
-         ignorableArgs = (1, 2))
+         ignorableArgs = (1, 2),
+         ignorableArgsForHeuristic = (1, 2))
 
 poseAchIn = Operator(
              'PosesAchIn', ['Obj1', 'Region',
@@ -1397,22 +1409,18 @@ poseAchIn = Operator(
                 PlaceInRegionGen(['ObjPose1', 'PoseFace1'],
                    ['Obj1', 'Region', 'TotalVar', 'TotalDelta', probForGenerators])],
             argsToPrint = [0, 1],
-            ignorableArgs = range(2,14))
+            ignorableArgs = range(2,14),
+            ignorableArgsForHeuristic = range(2, 14))
 
 placeArgs = ['Obj', 'Hand',
          'PoseFace', 'Pose', 'PoseVar', 'RealPoseVar', 'PoseDelta',
          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
          'PreConf', 'ConfDelta', 'PlaceConf', 'AwayRegion',
          'PR1', 'PR2', 'PR3', 'P1']
-
-# make an instance of the lookAt operation with given arguments
 def placeOp(*args):
     assert len(args) == len(placeArgs)
     newB = dict([(a, v) for (a, v) in zip(placeArgs, args) if a != v]) 
     return place.applyBindings(newB)
-
-# TODO: LPK: check to see if some of these functions should have isNecessary
-# TODO: set to true, to check to see if they would fail
 
 place = Operator('Place', placeArgs,
         {0 : {Graspable(['Obj'], True)},
@@ -1472,8 +1480,8 @@ place = Operator('Place', placeArgs,
         f = placeBProgress,
         prim = placePrim,
         argsToPrint = range(4),
-        ignorableArgs = range(4, 19))
-
+        ignorableArgs = range(1, 19),   # all place of same obj at same level
+        ignorableArgsForHeuristic = range(4, 19))
 
 pushArgs = ['Obj', 'Hand', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta',
             'PrePose', 'PrePoseVar', 'PreConf', 'PushConf', 'PostConf',
@@ -1521,7 +1529,8 @@ push = Operator('Push', pushArgs,
         f = pushBProgress,
         prim = pushPrim,
         argsToPrint = range(4),
-        ignorableArgs = range(3, 19))
+        ignorableArgs = range(1, 19),
+        ignorableArgsForHeuristic = range(3, 19))
 
 
 # Put the condition to know the pose precisely down at the bottom to
@@ -1583,7 +1592,8 @@ pick = Operator(
         f = pickBProgress,
         prim = pickPrim,
         argsToPrint = [0, 1, 3, 9],
-        ignorableArgs = range(4, 18))
+        ignorableArgs = range(1, 18),
+        ignorableArgsForHeuristic = range(4, 18))
 
 # We know that the resulting variance will always be less than obsVar.
 # Would like the result to be the min of PoseVarAfter (which is in the
@@ -1637,7 +1647,8 @@ lookAt = Operator(
     f = lookAtBProgress,
     prim = lookPrim,
     argsToPrint = [0, 1, 3],
-    ignorableArgs = [1, 2] + range(4, 14))
+    ignorableArgs = [1, 2] + range(4, 14),
+    ignorableArgsForHeuristic = [1, 2] + range(4, 14))
 
 ## Should have a CanSeeFrom precondition
 ## Needs major update
@@ -1983,6 +1994,7 @@ achCanPickPlace = Operator('AchCanPickPlace',
          AddPreConds(['PreCond'], ['PostCond', 'NewCond'])],
     argsToPrint = [2, 3, 4],
     ignorableArgs = [0, 1] + range(5, 17),
+    ignorableArgsForHeuristic = [0, 1] + range(5, 17),
     metaGenerator = True)
 
 achCanPush = Operator('AchCanPush',
@@ -2008,6 +2020,7 @@ achCanPush = Operator('AchCanPush',
         AddPreConds(['PreCond'],['PostCond', 'NewCond'])],
     argsToPrint = [0, 1, 4],
     ignorableArgs = range(1, 14),
+    ignorableArgsForHeuristic = range(1, 14),
     metaGenerator = True
     )
 
@@ -2067,4 +2080,5 @@ hRegrasp = Operator(
                           'PrevGraspDelta'],['Obj', 'Hand', 'GraspFace',
                                              'GraspMu'])],
         cost = lambda al, args, details: magicRegraspCost,
+        ignorableArgsForHeuristic = range(1, 16),
         argsToPrint = [0, 1])

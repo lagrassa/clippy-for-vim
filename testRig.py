@@ -783,8 +783,8 @@ class PlanTest:
 
 typicalErrProbs = DomainProbs(
             # stdev, constant, assuming we control it by tracking while moving
-            #odoError = (0.008, 0.008, 1e-5, 0.015),
-            odoError = (0.01, 0.01, 1e-5, 0.03),
+            #odoError = (0.01, 0.01, 1e-5, 0.03),
+            odoError = (0.005, 0.005, 1e-5, 0.01),
             # variance in observations; diagonal for now
             obsVar = (0.005**2, 0.005**2, 1e-5 **2, 0.01**2),
             # big angle var from robot experience
