@@ -854,7 +854,7 @@ def moveBProgress(details, args, obs=None):
     (s, e, _) = args
     # Let's say this is error per meter / radian
     odoError = details.domainProbs.odoError
-    (endConf, (xyDisp, angDisp))
+    (endConf, (xyDisp, angDisp)) = obs
     obsConf = endConf.conf
     bp1 = (s['pr2Base'][0], s['pr2Base'][1], 0, s['pr2Base'][2])
     bp2 = (obsConf['pr2Base'][0], obsConf['pr2Base'][1], 0,
@@ -873,7 +873,7 @@ def moveBProgress(details, args, obs=None):
         'added odo stdev', [sqrt(v) for v in odoVar])
     
     # Change robot conf.  For now, trust the observation completely
-    details.pbs.updateConf(obs)
+    details.pbs.updateConf(endConf)
 
     for ob in details.pbs.moveObjBs.values() + \
                details.pbs.fixObjBs.values():
