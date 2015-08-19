@@ -613,8 +613,7 @@ class PlanTest:
                              'moveChains':
                              ['pr2Base', 'pr2LeftArm', 'pr2RightArm'] if useRight \
                              else ['pr2Base', 'pr2LeftArm']})
-        if not glob.useRRT:
-            rm.batchAddClusters(self.initConfs)
+        rm.batchAddClusters(self.initConfs)
         belC.roadMap = rm
         pbs = PBS(belC, conf=pr2Home, fixObjBs = self.fix.copy(), moveObjBs = self.move.copy(),
         regions = frozenset(regions), domainProbs=self.domainProbs, useRight=useRight) 
