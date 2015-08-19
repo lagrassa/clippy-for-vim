@@ -10,7 +10,7 @@ from traceFile import debugMsg, debug
 import planGlobals as glob
 from miscUtil import isGround, isVar, prettyString, applyBindings
 from fbch import Fluent, getMatchingFluents, Operator
-from belief import B, Bd
+from belief import B, Bd, ActSet
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from pr2RoadMap import validEdgeTest
@@ -237,7 +237,7 @@ class BaseConf(Fluent):
         # Could be smarter.
         dummyOp = Operator('LookMove', ['dummy'],{},[])
         dummyOp.instanceCost = 3
-        return (dummyOp.instanceCost, {dummyOp})
+        return (dummyOp.instanceCost, ActSet([dummyOp]))
 
     def fglb(self, other, details = None):
         (sval, sdelta) = self.args
@@ -363,7 +363,7 @@ class CanReachHome(Fluent):
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
             dummyOp.instanceCost = obstCost
-            return (obstCost, {dummyOp})
+            return (obstCost, ActSet([dummyOp]))
         
         path, violations = self.getViols(details, v, p)
 
@@ -437,18 +437,18 @@ def hCost(violations, obstCost, details):
 
     totalCost = sum([o.instanceCost for o in ops])
 
-    return totalCost, ops
+    return totalCost, ActSet(ops)
 
 def hCostSee(vis, occluders, obstCost, details):
     # vis is whether enough is visible;   we're 0 cost if that's true
     if vis:
-        return 0, set()
+        return 0, ActSet()
 
     obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
                    for o in occluders])
     for o in obstOps: o.instanceCost = obstCost
     totalCost = sum([o.instanceCost for o in obstOps])
-    return totalCost, obstOps
+    return totalCost, ActSet(obstOps)
 
 class CanReachNB(Fluent):
     predicate = 'CanReachNB'
@@ -548,7 +548,7 @@ class CanReachNB(Fluent):
         if not self.isGround():
             dummyOp = Operator('UnboundStart', ['dummy'],{},[])
             dummyOp.instanceCost = unboundCost
-            return obstCost, {dummyOp}
+            return obstCost, ActSet([dummyOp])
             
         path, violations = self.getViols(details, v, p)
 
@@ -743,7 +743,7 @@ class CanPickPlace(Fluent):
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
             dummyOp.instanceCost = obstCost
-            return obstCost, {dummyOp}
+            return obstCost, ActSet([dummyOp])
 
         path, violations = self.getViols(details, v, p)
         totalCost, ops = hCost(violations, obstCost, details)
@@ -856,7 +856,7 @@ class CanPush(Fluent):
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
             dummyOp.instanceCost = obstCost
-            return obstCost, {dummyOp}
+            return obstCost, ActSet([dummyOp])
 
         path, violations = self.getViols(details, v, p)
         totalCost, ops = hCost(violations, obstCost, details)
@@ -1071,7 +1071,7 @@ class CanSeeFrom(Fluent):
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
             dummyOp.instanceCost = obstCost
-            return obstCost, {dummyOp}
+            return obstCost, ActSet([dummyOp])
         
         vis, occluders = self.getViols(details, v, p)
         totalCost, ops = hCostSee(vis, occluders, obstCost, details)

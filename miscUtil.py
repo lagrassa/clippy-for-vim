@@ -4,6 +4,24 @@ import collections
 from itertools import chain, combinations, cycle, islice
 import copy
 
+
+class SetWithEquality:
+    def __init__(self, test, elts):
+        self.test = [test]
+        self.elts = elts
+    def union(self, other):
+        assert id(self.test[0]) == id(other.test[0])
+        elts = self.elts
+        for e in other.elts:
+            if not self.contains(e):
+                elts.append(e)
+        return SetWithEquality(self.test[0], elts)
+    def add(self, elt):
+        if not self.contains(elt):
+            self.elts.append(elt)
+    def contains(self, elt):
+        return any([self.test[0](e, elt) for e in self.elts])
+
 def timeString():
     return str(datetime.datetime.now()).replace(' ','').replace(':','_').\
            replace('.','_')

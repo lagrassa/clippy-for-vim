@@ -118,33 +118,21 @@ hDepth = 10
 
 heuristicTime = 0.0
 
-def habbs(s, g, ops, ancestors):
+# Return a value and a set of action instances
+def habbs(s, g, ops, ancestors, feasibleOnly = True):
     global heuristicTime
     startTime = time.time()
     hops = ops + [hRegrasp]
-    h = BBhAddBackBSet
-    val = h(s, g, hops, ancestors, ddPartitionFn = partition,
-                         maxK = hDepth)
+    val = BBhAddBackBSet(s, g, hops, ancestors, ddPartitionFn = partition,
+                                maxK = hDepth, feasibleOnly = feasibleOnly)
     if val == 0:
         # Just in case the addBack heuristic thinks we're at 0 when
         # the goal is not yet satisfied.
         isSat = s.satisfies(g)
         if not isSat:
-            fbch.hCacheReset()
-            newVal = h(s, g, hops, ancestors,
-                                        ddPartitionFn = partition,
-                                        maxK = hDepth,
-                                        feasibleOnly = False)
-            if newVal >= 0:
-                tr('heuristic0', 'Heuristic cache inconsistent.'
-                   'Leslie should fix this!')
-                return newVal
-            tr('heuristic0', 'habbs is 0 but goal not sat',
-               [thing for thing in g.fluents if not thing.isGround() or \
-                                            s.fluentValue(thing)==False])
             easyVal = hEasy(s, g, ops, ancestors)
             tr('heuristic0', '*** returning easyVal', easyVal)
-            return easyVal
+            return easyVal, set()
     heuristicTime += (time.time() - startTime)
     return val
 

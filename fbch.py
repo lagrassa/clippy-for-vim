@@ -666,7 +666,8 @@ class Operator(object):
                  conditionOnPreconds = False, 
                  argsToPrint = None,
                  specialRegress = None,
-                 metaGenerator = False):
+                 metaGenerator = False,
+                 rebindPenalty = glob.rebindPenalty):
         self.name = name # string
         self.args = args # list of vars or constants
         self.preconditions = preconditions
@@ -695,8 +696,7 @@ class Operator(object):
         self.sideEffects = sideEffects if sideEffects != None else {}
         self.prim = prim
         self.verifyArgs()
-        # Unique ID for drawing graphs
-        self.incrementNum()
+        self.incrementNum()         # Unique ID for drawing graphs
         self.argsToPrint = argsToPrint
         self.ignorableArgs = [] if ignorableArgs is None else ignorableArgs
         self.ignorableArgsForHeuristic = [] \
@@ -704,6 +704,7 @@ class Operator(object):
         self.conditionOnPreconds = conditionOnPreconds
         self.instanceCost = 'none'
         self.specialRegress = specialRegress
+        self.rebindPenalty = rebindPenalty
         self.subPlans = []
 
     def verifyArgs(self):
@@ -842,8 +843,8 @@ class Operator(object):
                     lastAL = max(lastAL, a.abstractionLevel)
             level = min(lastAL+1, self.concreteAbstractionLevel)
             if ancestorList:
-                debugMsg('abstractionLevel', self, ancestorList,
-                              level)    
+                tr('abstractionLevel', self.name, level, '\n', 
+                         [(a.name, a.abstractionLevel) for a in ancestorList])
             self.abstractionLevel = level
 
     def uniqueStr(self):
@@ -860,6 +861,13 @@ class Operator(object):
 
     def copy(self):
         return self.applyBindings({})
+
+    # Make a version with a single result set.  If 
+    def reconfigure(self, preConds, results):
+        new = self.copy()
+        new.preconditions = preConds
+        new.results = [(results, {})]
+        return new
 
     def applyBindings(self, bindings, rename = False):
         rb = copy.copy(bindings)
@@ -884,7 +892,8 @@ class Operator(object):
                       self.conditionOnPreconds,
                       self.argsToPrint,
                       self.specialRegress,
-                      self.metaGenerator)
+                      self.metaGenerator,
+                      self.rebindPenalty)
 
         op.abstractionLevel = self.abstractionLevel
         op.instanceCost = self.instanceCost
@@ -1060,7 +1069,8 @@ class Operator(object):
                     # see if f1 is really just a result
                     okay = False
                     for f3 in boundResults:
-                        if f3.contradicts(f1) or f3.entails(f1):
+                        if f3.contradicts(f1) or f3.entails(f1) != False or \
+                          f3.entails(f2) != False:
                             # Seems weird, but the idea is that the result
                             # will override whatever the precond-side effects do
                             okay = True
@@ -1186,7 +1196,7 @@ class Operator(object):
         rebindLater.suspendedOperator = self.copy()
         rebindLater.bindingsAlreadyTried.append(newBindings)
         rebindLater.rebind = True
-        rebindCost = glob.rebindPenalty
+        rebindCost = self.rebindPenalty
 
         if not bindingsNoGood:
             # Add side-effects into result
@@ -1383,6 +1393,7 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
 
 class RebindOp:
     name = 'Rebind'
+    abstractionLevel = 0
     def regress(self, goal, startState, heuristic = None, operators = (),
                 ancestors = ()):
         g = goal.copy()
@@ -1401,7 +1412,7 @@ class RebindOp:
         if len(results) > 0 and debug('rebind'):
             tr('rebind', 'successfully rebound local vars',
                      'costs', [c for (s, c) in results], 'minus',
-                     glob.rebindPenalty)
+                     self.rebindPenalty)
             results[0][1] -= op.instanceCost
         else:
             tr('rebind', 'failed to rebind local vars')
@@ -1452,90 +1463,7 @@ def hCacheDel(f):
 # hCache maps each fluent to the set of actions needed to achieve it
 # This can be saved until the next action is taken
 
-# hCache[f] = (totalCost, operators)
-
-# At AND nodes, take union
-# At OR nodes, take option with least summed cost
-'''
-def hAddBack(start, goal, operators, minK = 20, maxK = 30,
-             staticEval = lambda f: float("inf")):
-
-    raw_input('This version of hAddBack probably needs to have bugs fixed'+\
-              '; see the version in belief.py for details')
-
-    # Return a set of actions
-    def aux(fl, k):
-        if fl in hCache:
-            if debug('hAddBackV'): print 'c',
-            return hCache[fl]
-        
-        g = State([fl])
-        if start.satisfies(g):
-            if debug('hAddBackV'): print 's',
-            hCache[fl] = (0, set())
-            return hCache[fl]
-        elif k == 0:
-            if debug('hAddBackV'): print 'l',
-            # Get a final value. At a leaf.  Use static eval
-            v = staticEval(fl)
-            dummyO = Operator('dummy'+prettyString(v), [], {}, [])
-            dummyO.instanceCost = v
-            hCache[fl] = (v, set([dummyO]))
-            return hCache[fl]
-        else:
-            # If totalCost = infinity, ignore action set
-            totalCost, actSet = (float('inf'), set())
-
-            # OR loop over operators and ways of achieving them
-            for o in applicableOps(g, operators, start):
-                o.abstractionLevel = o.concreteAbstractionLevel
-                pres = o.regress(g, start)
-                for pre in pres[:-1]:
-                    (preImage, newOpCost) = pre
-                    newActSet = set([preImage.operator])
-                    canonicalChildren = []
-                    # AND loop over preconditions
-                    for ff in preImage.fluents:
-                        canonicalChildren.append(ff)
-                        subCost, subActSet = aux(ff, k-1)
-                        # make this side effect
-                        newActSet = newActSet.union(subActSet)
-                    newTotalCost = sum([op.instanceCost for op in newActSet])
-
-                    if newTotalCost < totalCost:
-                        hCache[fl] = (newTotalCost, newActSet)
-                        print '**Added', len(hCache), newTotalCost, fl
-                        
-                        (totalCost, actSet) = (newTotalCost, newActSet)
-                        if debug('hAddBackV'):
-                            print ' '
-                            print o
-                            print 'Children:'
-                            for c in children:
-                                print '    ', hCache[c][0], c
-                            
-                        debugMsg('hAddBackV', ('stored', k,
-                                 newTotalCost, newOpCost, fl))
-            return (totalCost, actSet)
-
-    totalActSet = set()
-    # AND loop over fluents
-    for ff in goal.fluents:
-        (ic, actSet) = aux(ff, maxK)
-        if ic == float('inf'):
-            debugMsg('hAddBackInf', ('infinite cost', ff))
-            print ic
-            return ic
-        debugMsg('hAddBackV', ff, ('actSet', actSet))
-        totalActSet = totalActSet.union(actSet)
-    totalCost = sum([op.instanceCost for op in totalActSet])
-    debugMsg('hAddBackV', ('instancecosts',
-                           [op.instanceCost for op in totalActSet]))
-    if debug('hAddBackPrintVal'):
-        print totalCost
-    return totalCost
-'''
-
+# TODO : LPK!!   Put non-belief version of heuristic here!
 
 ######################################################################
 # Execution
@@ -1975,8 +1903,7 @@ def hNum(start, goal, operators):
 # Handling all binding choices (including objects) by the rebinding mechanism. 
 # Allow some operations to be nonmonotonic if they're on the nonMonOps list.
 def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
-                  monotonic = True, lastOp = None, nonMonOps = []):
-
+                  monotonic = True, lastOp = None, nonMonOps = [], hOps = None):
     tag = 'applicableOps'
     result = set([])
     if skeleton:
@@ -2002,100 +1929,92 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         debugMsg(tag, 'Doing rebind op')
         return [RebindOp()]
 
-    # Consider doing this work in a preprocessing pass
+    result = set()
     for o in ops:
-        debugMsg('appOp:detail', 'Operator', o)
-        sharedPreconds = o.preconditions
+        result.update(appOpInstances(o, g, startState, ancestors, monotonic,
+                                     nonMonOps))
 
-        resultSets = powerset(o.results, includeEmpty = False)
-        for resultSet in resultSets:
-            debugMsg('appOp:result', 'result set', resultSet)
-            preConds = mergeDicts([sharedPreconds] +\
-                                   [ps for (r, ps) in resultSet])
-
-            # List of sets of result fluents
-            resultSetList = [r for (r, ps) in resultSet]
-            results = squashSets(resultSetList)
-
-            newOp = Operator(o.name, o.args, preConds,
-                             #[(r, {}) for r in results]
-                             [(results, {})],
-                             o.functions, o.f, o.cost, o.prim,
-                             o.sideEffects,
-                             o.ignorableArgs,
-                             o.ignorableArgsForHeuristic,
-                             o.conditionOnPreconds,
-                             o.argsToPrint,
-                             o.specialRegress,
-                             o.metaGenerator)
-            bigBindingSet = getBindingsBetween(list(results), list(g.fluents),
-                                               startState)
-            bindingSet = []
-            for b in bigBindingSet:
-                rawBoundRFs = set([f.applyBindings(b) for f in results])
-
-                # Ugly attempt to remove internal entailments
-                boundRFs = set()
-                for thing in rawBoundRFs:
-                    boundRFs = addFluentToSet(boundRFs, thing,
-                                              startState.details)[0]
-
-                # All results should be bound
-                allBound = all([f.isGround() for f in boundRFs])
-                # All results should be useful
-                allUseful = all([any([rf.entails(gf, startState.details) \
-                                      != False \
-                                      for gf in g.fluents]) \
-                                  for rf in boundRFs])
-                # monotonic
-                mono = any([(f.isGround() and \
-                             startState.fluentValue(f) != f.getValue()) \
-                                    for f in boundRFs])
-                # check to see that this binding doesn't achieve any
-                # additional results in the goal.  If it does, leave
-                # it off the list because it doesn't have all the
-                # necessary preconditions, and some other version
-                # does.
-                allBoundRfs = set([f.applyBindings(b) \
-                                   for f in o.allResultFluents()])
-            
-                # Require these to be ground?  Or, definitely, not all
-                # variables
-                extraRfs = allBoundRfs.difference(boundRFs)
-                # Asking this question backward.  We want to know whether there
-                # are bindings that would make rf entail gf.
-                dup = any([(rf.isPartiallyBound() and \
-                            gf.entails(rf, startState) != False) \
-                           for rf in extraRfs for gf in g.fluents])
-
-                if allUseful and not dup and \
-                    (mono or not monotonic or o.name in nonMonOps):
-                    debugMsg('appOp:detail', 'adding binding', b, boundRFs)
-                    bindingSet.append(b)
-                elif not allUseful:
-                    debugMsg('appOp:detail', 'all results not useful', b,
-                             boundRFs)
-                elif dup:
-                    debugMsg('appOp:detail', 'some extra result in goal', b,
-                             extraRfs)
-                elif monotonic:
-                    debugMsg('appOp:detail', 'nonmon so skipping binding', b,
-                             boundRFs)
-            for b in bindingSet:
-                if b != False:
-                    newOpBound = newOp.applyBindings(b, rename = True)
-                    newOpBound.setAbstractionLevel(ancestors)
-                    if not redundant(newOpBound, result):
-                        result.add(newOpBound)
-                        debugMsg('appOp:detail', 'added bound op', newOpBound)
-                    else:
-                        debugMsg('appOp:detail', 'redundant op', newOpBound)
+    if hOps is not None:
+        # take non-dummy hOps that are instances of applicable ops
+        oNames = [o.name for o in result]
+        helpfulActions = [o for o in hOps(g) if o.name in oNames]
+        for o in helpfulActions:
+            o.abstractionLevel = 0  # Will be set appropriately below
+            result.update(appOpInstances(o, g, startState, ancestors,
+                                         monotonic, nonMonOps))
 
     resultNames = [o.name for o in result]
     if len(result) == 0:
         debugMsg('appOp:number', ('h', glob.inHeuristic, 'number', len(result)))
     debugMsg(tag, ('h', glob.inHeuristic, 'number', len(result)),
              ('result', result))
+    return result
+
+def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):
+    debugMsg('appOp:detail', 'Operator', o)
+    sharedPreconds = o.preconditions
+    resultSets = powerset(o.results, includeEmpty = False)
+    result = set()
+    for resultSet in resultSets:
+        debugMsg('appOp:result', 'result set', resultSet)
+        preConds = mergeDicts([sharedPreconds] + [ps for (r, ps) in resultSet])
+       # List of sets of result fluents
+        resultSetList = [r for (r, ps) in resultSet]
+        results = squashSets(resultSetList)
+        # Operator just involving the results we need
+        newOp = o.reconfigure(preConds, results)
+        bigBindingSet = getBindingsBetween(list(results), list(g.fluents),
+                                               startState)
+        bindingSet = []
+        for b in bigBindingSet:
+            rawBoundRFs = set([f.applyBindings(b) for f in results])
+            # Ugly attempt to remove internal entailments
+            boundRFs = set()
+            for thing in rawBoundRFs:
+                boundRFs = addFluentToSet(boundRFs, thing,startState.details)[0]
+            # All results should be bound
+            allBound = all([f.isGround() for f in boundRFs])
+            # All results should be useful
+            allUseful = all([any([rf.entails(gf, startState.details) != False \
+                                      for gf in g.fluents]) for rf in boundRFs])
+            # monotonic
+            mono = any([(f.isGround() and \
+                         startState.fluentValue(f) != f.getValue()) \
+                                    for f in boundRFs])
+            # check to see that this binding doesn't achieve any
+            # additional results in the goal.  If it does, leave it
+            # off the list because it doesn't have all the necessary
+            # preconditions, and some other version does.
+            allBoundRfs = set([f.applyBindings(b) \
+                                   for f in o.allResultFluents()])
+            # Require these to be ground?  Or, definitely, not all
+            # variables
+            extraRfs = allBoundRfs.difference(boundRFs)
+            # Asking this question backward.  We want to know whether there
+            # are bindings that would make rf entail gf.
+            dup = any([(rf.isPartiallyBound() and \
+                        gf.entails(rf, startState) != False) \
+                           for rf in extraRfs for gf in g.fluents])
+
+            if allUseful and not dup and \
+                (mono or not monotonic or o.name in nonMonOps):
+                debugMsg('appOp:detail', 'adding binding', b, boundRFs)
+                bindingSet.append(b)
+            elif not allUseful:
+                debugMsg('appOp:detail', 'all results not useful', b, boundRFs)
+            elif dup:
+                debugMsg('appOp:detail', 'some extra result in goal',b,extraRfs)
+            elif monotonic:
+                debugMsg('appOp:detail', 'nonmon: skipping binding', b,boundRFs)
+        for b in bindingSet:
+            if b != False:
+                newOpBound = newOp.applyBindings(b, rename = True)
+                newOpBound.setAbstractionLevel(ancestors)
+                if not redundant(newOpBound, result):
+                    result.add(newOpBound)
+                    debugMsg('appOp:detail', 'added bound op', newOpBound)
+                else:
+                    debugMsg('appOp:detail', 'redundant op', newOpBound)
     return result
 
 def redundant(o1, opList):
@@ -2110,8 +2029,8 @@ def opEquiv(o1, o2):
     m2 = matchLists(o2.args, o1.args)
     return m1 != None and m2 != None and \
         o1.name == o2.name and \
-        len(m1.keys()) == len(set(m1.values())) and \
-        len(m2.keys()) == len(set(m2.values()))
+        len(m1.keys()) == len(set(tuplify(m1.values()))) and \
+        len(m2.keys()) == len(set(tuplify(m2.values())))
 
 # Try to see if the unbound variables in the fluents can be bound in the
 # details
@@ -2129,21 +2048,18 @@ def getGrounding(fluents, details):
         return None
 
 def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
-                    lastOp, nonMonOps, heuristic, h, visitF, expandF,
-                    prevExpandF, maxCost, maxNodes = 500):
+                    lastOp, nonMonOps, heuristic, hIsUseful, usefulActions,
+                    visitF, expandF, prevExpandF, maxCost, maxNodes = 500):
     if not debug('primitiveHeuristicAlways'):
         hCacheReset()   # flush heuristic values
     p, c =  ucSearch.search(goal,
                            lambda subgoal: startState.satisfies(subgoal),
                            lambda g: applicableOps(g, ops,
-                                                   startState,
-                                                   ancestors, skeleton,
-                                                   monotonic = monotonic,
-                                                   lastOp = lastOp,
-                                                   nonMonOps = nonMonOps),
+                                  startState, ancestors, skeleton,
+                                   monotonic, lastOp, nonMonOps, usefulActions),
                            lambda s, o: o.regress(s, startState, 
-                                                  heuristic if h else h,
-                                                  ops, ancestors),
+                                             heuristic if hIsUseful else None,
+                                             ops, ancestors),
                            heuristic = heuristic, 
                            visitF = visitF,
                            expandF = expandF,
@@ -2161,8 +2077,10 @@ def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
     # If we failed and had a skeleton, try without it
     raw_input("Try again without skeleton?")
     return planBackwardAux(goal, startState, ops, ancestors, None, monotonic,
-                    lastOp, nonMonOps, heuristic, h, visitF, expandF,
+                    lastOp, nonMonOps, heuristic, hIsUseful, visitF, expandF,
                     prevExpandF, maxCost, maxNodes = 500)
+
+# h = None or h:(start, goal, ops, ancestors) -> (value, actionSet) 
 
 def planBackward(startState, goal, ops, ancestors = [],
                  h = None, fileTag = None, skeleton = None, lastOp = None,
@@ -2172,9 +2090,11 @@ def planBackward(startState, goal, ops, ancestors = [],
     goal.depth = 0
     
     if h:
-        heuristic = lambda g: h(startState, g, ops, ancestors)
+        heuristic = lambda g: h(startState, g, ops, ancestors)[0]
+        usefulActions = lambda g: h(startState, g, ops, ancestors)[1]
     else:
         heuristic = lambda g: 0
+        usefulActions = None
 
     if fileTag:
         visitF = lambda s1, c1, h1, a, s2, c2, h2: \
@@ -2198,7 +2118,8 @@ def planBackward(startState, goal, ops, ancestors = [],
         # Try monotonic first
         if glob.monotonicFirst: 
             (p, c) = planBackwardAux(goal, startState, ops, ancestors, skeleton,
-                                     True, lastOp, nonMonOps, heuristic, h,
+                                     True, lastOp, nonMonOps, heuristic,
+                                     h is not None, usefulActions,
                                      visitF, expandF, prevExpandF, maxMonoCost,
                                      maxNodes)
             if p:
@@ -2210,7 +2131,8 @@ def planBackward(startState, goal, ops, ancestors = [],
         if fileTag:
             (f1, f2) = writeSearchPreamble(goal.planNum, fileTag+'NonMon')
         (p, c) = planBackwardAux(goal, startState, ops, ancestors, skeleton,
-                                 False, lastOp, nonMonOps, heuristic, h,
+                                 False, lastOp, nonMonOps, heuristic,
+                                 h is not None, usefulActions,
                                  visitF, expandF, prevExpandF, float('inf'),
                                  maxNodes)
         if p and f1:

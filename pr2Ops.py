@@ -1319,7 +1319,8 @@ move = Operator(
     specialRegress = moveSpecialRegress,
     argsToPrint = [0, 1],
     ignorableArgs = range(3), # For hierarchy
-    ignorableArgsForHeuristic = (0, 2)
+    ignorableArgsForHeuristic = (0, 2),
+    rebindPenalty = 100
     )
 
 
@@ -1343,6 +1344,7 @@ moveNB = Operator(
     argsToPrint = [0],
     ignorableArgs = range(4), # For hierarchy
     ignorableArgsForHeuristic = (1, 3),
+    rebindPenalty = 100
     )
 
 # All this work to say you can know the location of something by knowing its
@@ -1353,7 +1355,8 @@ bLoc1 = Operator(
                Bd([SupportFace(['Obj']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
          ignorableArgs = (1, 2),
-         ignorableArgsForHeuristic = (1, 2))
+         ignorableArgsForHeuristic = (1, 2),
+         rebindPenalty = 100)
 
 bLoc2 = Operator(
          'BLoc2', ['Obj', 'Var', 'P'],
@@ -1363,7 +1366,8 @@ bLoc2 = Operator(
                Bd([GraspFace(['Obj', 'left']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
          ignorableArgs = (1, 2),
-         ignorableArgsForHeuristic = (1, 2))
+         ignorableArgsForHeuristic = (1, 2),
+         rebindPenalty = 100)
 
 bLoc3 = Operator(
          'BLoc3', ['Obj', 'Var', 'P'],
@@ -1373,7 +1377,8 @@ bLoc3 = Operator(
                Bd([GraspFace(['Obj', 'right']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
          ignorableArgs = (1, 2),
-         ignorableArgsForHeuristic = (1, 2))
+         ignorableArgsForHeuristic = (1, 2),
+         rebindPenalty = 100)
 
 poseAchIn = Operator(
              'PosesAchIn', ['Obj1', 'Region',
@@ -1411,7 +1416,8 @@ poseAchIn = Operator(
             argsToPrint = [0, 1],
             ignorableArgs = range(2,14),
             ignorableArgsForHeuristic = range(2, 14),
-            conditionOnPreconds = True)
+            conditionOnPreconds = True,
+            rebindPenalty = 100)
 
 placeArgs = ['Obj', 'Hand',
          'PoseFace', 'Pose', 'PoseVar', 'RealPoseVar', 'PoseDelta',
@@ -1482,7 +1488,9 @@ place = Operator('Place', placeArgs,
         prim = placePrim,
         argsToPrint = range(4),
         ignorableArgs = range(1, 19),   # all place of same obj at same level
-        ignorableArgsForHeuristic = range(4, 19))
+        ignorableArgsForHeuristic = range(4, 19),
+        rebindPenalty = 10)
+        
 
 pushArgs = ['Obj', 'Hand', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta',
             'PrePose', 'PrePoseVar', 'PreConf', 'PushConf', 'PostConf',
@@ -1531,8 +1539,8 @@ push = Operator('Push', pushArgs,
         prim = pushPrim,
         argsToPrint = range(4),
         ignorableArgs = range(1, 19),
-        ignorableArgsForHeuristic = range(3, 19))
-
+        ignorableArgsForHeuristic = range(3, 19),
+        rebindPenalty = 10)
 
 # Put the condition to know the pose precisely down at the bottom to
 # try to decrease replanning.
@@ -1594,7 +1602,8 @@ pick = Operator(
         prim = pickPrim,
         argsToPrint = [0, 1, 3, 9],
         ignorableArgs = range(1, 18),
-        ignorableArgsForHeuristic = range(4, 18))
+        ignorableArgsForHeuristic = range(4, 18),
+        rebindPenalty = 10)
 
 # We know that the resulting variance will always be less than obsVar.
 # Would like the result to be the min of PoseVarAfter (which is in the
@@ -1649,7 +1658,9 @@ lookAt = Operator(
     prim = lookPrim,
     argsToPrint = [0, 1, 3],
     ignorableArgs = [1, 2] + range(4, 14),
-    ignorableArgsForHeuristic = [1, 2] + range(4, 14))
+    ignorableArgsForHeuristic = [1, 2] + range(4, 14),
+    rebindPenalty = 100)
+    
 
 ## Should have a CanSeeFrom precondition
 ## Needs major update
