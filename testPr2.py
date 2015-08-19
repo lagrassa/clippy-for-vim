@@ -677,7 +677,8 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False,
         varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
                 objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
 
-    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    # front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    front = hu.Pose(1.2, 0.0, tZ, 0.0)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
     # One push, no uncertainty
     skel = [[lookAt, move, push, moveNB, lookAt,
@@ -687,7 +688,8 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False,
     skel = [[lookAt, move, place, move, 
              pick, moveNB, lookAt, moveNB, lookAt, move]]
         
-    targetPose = (1.1, 0.4, tZ, 0.0) # one push
+    # targetPose = (1.1, 0.4, tZ, 0.0) # one push
+    targetPose = (1.2, 0.4, tZ, 0.0) # one push
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
     delta = (0.1, .1, .1, .5)
     goal = State([\
@@ -890,7 +892,7 @@ def testPush4(hpn = True, skeleton = False, hierarchical = False,
              move, pick, moveNB, lookAt,
               move]]
 
-    startPoseA = (1.1, 0.0, tZ, 0.0)
+    startPoseA = (1.05, 0.0, tZ, 0.0)
     startPoseB = (1.0, 0.25, tZ, 0.0)
     targetPose = left1.xyztTuple()
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)

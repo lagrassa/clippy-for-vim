@@ -420,3 +420,29 @@ def insideAux(shape, reg):
         if not np.all(np.dot(reg.planes(), verts[:,i].reshape(4,1)) <= tiny):
             return False
     return True
+
+def bboxGridCoords(bb, n=5, z=None, res=None):
+    eps = 0.001
+    ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)
+    x0 += eps; y0 += eps
+    x1 -= eps; y1 -= eps
+    if res:
+        dx = res
+        dy = res
+        nx = int(float(x1 - x0)/res)
+        ny = int(float(y1 - y0)/res)
+        if nx*ny > n*n:
+            return bboxGridCoords(bb, n=n, z=z, res=None)
+    else:
+        dx = float(x1 - x0)/n
+        dy = float(y1 - y0)/n
+        nx = ny = n
+    if z is None: z = z0
+    points = []
+    for i in range(nx+1):
+        x = x0 + i*dx
+        for j in range(ny+1):
+            y = y0 + j*dy
+            points.append(np.array([x, y, z, 1.]))
+    return points
+

@@ -1359,6 +1359,9 @@ handTiltOffset = 0.0375                 # 0.18*sin(pi/15)
 def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
              prim=False):
     tag = 'pushPath'
+
+    prim = True                         # Since we cache calls from pushGen
+
     rm = pbs.getRoadMap()
     prePose = hu.Pose(*prePose) if isinstance(prePose, (tuple, list)) else prePose
     baseSig = "%.6f, %.6f, %.6f"%tuple(conf['pr2Base'])
@@ -1373,7 +1376,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         for v in val:
             (bs, p, gB1, ans) = v
             if bs == pbs and p >= prob and gB == gB1:
-                if debug(tag): print tag, 'cached ->', ans[-1]
+                if debug(tag): print tag, pB.obj, 'cached ->', ans[-1]
                 pushPathCacheStats[1] += 1
                 return ans
         replay = checkReplay(newBS, prob, val)
@@ -1391,7 +1394,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
             if shape is None:           # called from canPush
                 pdb.set_trace()
         pushPathCache[key] = []
-    if debug(tag): newBS.draw(prob, 'W'); raw_input('Go?')
+    if debug(tag): newBS.draw(prob, 'W'); raw_input('pushPath: Go?')
     # Check there is no permanent collision
     viol = rm.confViolations(conf, newBS, prob)
     if not viol:
@@ -1463,6 +1466,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     step_a = 0
     contact = False
     firstContact = True
+    shape = pbs.getPlaceB(pB.obj).shape(pbs.getWorld())
     for step_i in xrange(nsteps+1):
         step = (step_i * delta)
         contact = step >= glob.pushBuffer
@@ -1505,10 +1509,12 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
                 if not inside(nshape, regShape):
                     reason = 'outside'
                     break
-            if armCollides(nconf, nshape, hand):
-                reason = 'selfCollide'
-                if debug(tag): print 'Self-collision on path'
-                break
+        else:
+            nshape = shape              # object has not moved
+        if armCollides(nconf, nshape, hand):
+            reason = 'selfCollide'
+            if debug(tag): print 'Self-collision on path'
+            break
         if debug('pushPath'):
             print 'step=', step, viol
             drawState(newBS, prob, nconf, nshape)
@@ -1575,7 +1581,12 @@ def handTiltAndDir(conf, hand, direction):
         hdir = np.dot(trans.matrix, np.array([0.0, 0.0, sign, 0.0]).reshape(4,1))[:3,0]
         if debug('pushPath'): print hdir, '->', sign, hdir
         # Because of the wrist orientation, the sign is negative
-        rot = hu.Transform(rotation_matrix(-sign*math.pi/15., (0,1,0)))
+
+        if debug('pushSim'):
+            rot = hu.Transform(rotation_matrix(-sign*math.pi/8., (0,1,0)))
+        else:
+            rot = hu.Transform(rotation_matrix(-sign*math.pi/15., (0,1,0)))
+
         return rot, hdir
     else:
         assert None, 'Bad direction relative to hand'

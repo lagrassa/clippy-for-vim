@@ -463,7 +463,7 @@ class RoadMap:
             ans = next(ansGen, None)
         
         if ans is None:
-            trAlways('trying RRT')
+            trAlways('Calling RRT')
             path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
                                               maxIter=50, failIter=10)
             if viol:
@@ -809,7 +809,7 @@ class RoadMap:
         return edge
 
     def confColliders(self, pbs, prob, conf, aColl, hColl, hsColl, 
-                      edge=None, ignoreAttached=False, draw=False):
+                      edge=None, ignoreAttached=False, clearance=0.0, draw=False):
 
         aColl1 = aColl[:]
         hColl1 = (hColl[0][:], hColl[1][:])
@@ -820,14 +820,14 @@ class RoadMap:
         
         if glob.useCC:
             ansCC = self.confCollidersCC(pbs, prob, conf, aColl, hColl, hsColl,
-                                         edge, ignoreAttached, draw)
+                                         edge, ignoreAttached, clearance, draw)
             if debug('testCC'):
                 ans = self.confCollidersPlace(pbs, prob, conf, aColl1, hColl1, hsColl1,
                                               edge, ignoreAttached, draw)
                 if ans != ansCC or (aColl, hColl, hsColl) != (aColl1, hColl1, hsColl1):
                     pdb.set_trace()
                     ansCC2 = self.confCollidersCC(pbs, prob, conf, aColl2, hColl2, hsColl2,
-                                                  edge, ignoreAttached, draw)
+                                                  edge, ignoreAttached, clearance, draw)
             return ansCC
         else:
             return self.confCollidersPlace(pbs, prob, conf, aColl, hColl, hsColl,
@@ -925,7 +925,7 @@ class RoadMap:
 
     # Checks individual collision: returns True if remediable
     # collision, False if no collision and None if irremediable.
-    def confCollidersAux(self, rob, rcc, obst, occ, sumColl, edgeColl, perm, draw):
+    def confCollidersAux(self, rob, rcc, obst, occ, sumColl, edgeColl, perm, clearance, draw):
         if obst in sumColl:
             # already encountered this, can't have been perm or we
             # would have stopped, so return True.
@@ -940,7 +940,7 @@ class RoadMap:
         else:
             coll = None                 # not known
         if coll is None:                # not known, so check
-            coll = self.checkCollision(rob, rcc, obst, occ) # outcome
+            coll = self.checkCollision(rob, rcc, obst, occ, clearance) # outcome
         if coll:                        # collision
             sumColl.append(obst)        # record in summary
             if edgeColl:
@@ -959,7 +959,7 @@ class RoadMap:
     # if an irremediable collision is found, otherwise return value is
     # not significant.
     def confCollidersCC(self, pbs, prob, conf, aColl, hColl, hsColl, 
-                        edge=None, ignoreAttached=False, draw=False):
+                        edge=None, ignoreAttached=False, clearance=0.0, draw=False):
         def heldSolidParts(obj):
             parts = obj.parts()
             assert len(parts) == 2
@@ -999,7 +999,7 @@ class RoadMap:
             eColl = edge.aColl if edge else None
             oCC = compileObjectFrames(obst)
             res = self.confCollidersAux(None, robCC, obst, oCC, aColl, eColl,
-                                        perm, draw)
+                                        perm, clearance, draw)
             if debug(tag): print 'Robot obst', obst.name(), 'res', res
             if res is None: return None # irremediable
             elif res: continue          # collision with robot, go to next obj
@@ -1015,7 +1015,7 @@ class RoadMap:
                 eColl = edge.hColl[hand][pbs.graspB[hand]] if edge else None
                 attCC = compileAttachedFrames(conf.robot, attached, hand, robCC[0], heldSolidParts)
                 res = self.confCollidersAux(None, attCC, obst, oCC, hColl[h], eColl,
-                                            (perm and shWorld.fixedHeld[hand]), draw)
+                                            (perm and shWorld.fixedHeld[hand]), clearance, draw)
                 if debug(tag): print 'Held obst', obst.name(), 'res', res
                 if res is None: return None # irremediable
                 elif res: continue          # collision, move to next obj
@@ -1025,7 +1025,7 @@ class RoadMap:
                 eColl = edge.hsColl[hand][pbs.graspB[hand]] if edge else None
                 attCC = compileAttachedFrames(conf.robot, attached, hand, robCC[0], heldShadowParts)
                 res = self.confCollidersAux(None, attCC, obst, oCC, hsColl[h], eColl,
-                                            (perm and shWorld.fixedGrasp[hand]), draw)
+                                            (perm and shWorld.fixedGrasp[hand]), clearance,  draw)
                 if debug(tag): print 'HeldShadow obst', obst.name(), 'res', res
                 if res is None: return None # irremediable
         if debug(tag): print 'returning True'
@@ -1125,13 +1125,15 @@ class RoadMap:
             if viol is None: return None
         return viol
 
-    def confViolations(self, conf, pbs, prob, initViol=viol0, ignoreAttached=False):
+    def confViolations(self, conf, pbs, prob, initViol=viol0,
+                       ignoreAttached=False, clearance = 0.0):
         if initViol is None:
             return None, (None, None)
         shWorld = pbs.getShadowWorld(prob)
         (aColl, hColl, hsColl) = violToColl(initViol)
         if self.confColliders(pbs, prob, conf, aColl, hColl, hsColl,
                               ignoreAttached=ignoreAttached,
+                              clearance=clearance,
                               draw=debug('confViolations')) is None:
             if debug('confViolations'):
                 conf.draw('W')
@@ -1443,7 +1445,7 @@ class RoadMap:
         return smoothed
 
     # does not use self... could be a static method
-    def checkRobotCollision(self, conf, obj, attached=None, selectedChains=None):
+    def checkRobotCollision(self, conf, obj, clearance=0.0, attached=None, selectedChains=None):
         if glob.useCC:
             assert conf.robot.compiledChains
             rcc = confPlaceChains(conf, conf.robot.compiledChains)
@@ -1454,7 +1456,7 @@ class RoadMap:
             if (not ansCC) and attached:
                 for hand in ('left', 'right'):
                     acc = compileAttachedFrames(conf.robot, attached, hand, rcc[0])
-                    if chainCollides(acc, None, occ, None):
+                    if chainCollides(acc, None, occ, None, clearance):
                         ansCC = True
                         break
             if debug('testCC'):
@@ -1472,9 +1474,9 @@ class RoadMap:
             placement = conf.placement(attached=attached)
             return placement.collides(obj)
 
-    def checkCollision(self, rob, rcc, obj, occ):
+    def checkCollision(self, rob, rcc, obj, occ, clearance=0.0):
         if glob.useCC and rcc and occ:
-            ansCC = chainCollides(rcc, None, occ, None)
+            ansCC = chainCollides(rcc, None, occ, None, clearance)
             if rob and debug('testCC'):
                 ans = rob.collides(obj)
                 if ans != ansCC:

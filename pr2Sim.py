@@ -6,7 +6,7 @@ import random
 from objects import WorldState
 import windowManager3D as wm
 import pr2Util
-from pr2Util import supportFaceIndex, DomainProbs, bigAngleWarn
+from pr2Util import supportFaceIndex, DomainProbs, bigAngleWarn, bboxGridCoords
 from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 import hu
@@ -21,6 +21,7 @@ from pr2RoadMap import validEdgeTest
 from traceFile import tr, snap
 import locate
 reload(locate)
+import pr2RRT as rrt
 
 # debug tables
 import pointClouds as pc
@@ -421,6 +422,16 @@ class RealWorld(WorldState):
             # print 'retracted'
         return None
 
+    def pushObject(self, obj, c1, c2, hand, deltaPose):
+        place = c2.placement()
+        shape = self.objectShapes[obj]
+        if not place.collides(shape):
+            return
+        # There is contact, step the object along
+        deltaPose = objectDisplacement(shape, c1, c2, hand, deltaPose)
+        self.setObjectPose(obj, deltaPose.compose(self.getObjectPose(obj)))
+        print 'Touching', obj, 'in push, moved it to', self.getObjectPose(obj).pose()
+
     def executePush(self, op, params, noBase = True):
         # TODO: compute the cartConfs once.
         def moveObj(path, i):
@@ -436,6 +447,11 @@ class RealWorld(WorldState):
                 while place.collides(self.objectShapes[obj]):
                     self.setObjectPose(obj, deltaPose.compose(self.getObjectPose(obj)))
                     print i, 'Touching', obj, 'in push, moved it to', self.getObjectPose(obj).pose()
+
+        # def moveObj(path, i):
+        #     if i > 0:
+        #         self.pushObject(obj, path[i-1], path[i], hand, deltaPose)
+
         failProb = self.domainProbs.pushFailProb
         success = DDist({True : 1 - failProb, False : failProb}).draw()
         if success:
@@ -448,6 +464,11 @@ class RealWorld(WorldState):
                 obj = op.args[0]
                 hand = op.args[1]
                 robot = path[0].robot
+                w1 = path[0].cartConf()[robot.armChainNames[hand]]
+                w2 = path[-1].cartConf()[robot.armChainNames[hand]]
+                delta = w2.compose(w1.inverse()).pose(0.1) # from w1 to w2
+                mag = (delta.x**2 + delta.y**2 + delta.z**2)**0.5
+                deltaPose = hu.Pose(0.005*(delta.x/mag), 0.005*(delta.y/mag), 0.005*(delta.z/mag), 0.0)
                 obs = self.doPath(path, interpolated, action=moveObj, ignoreCrash=True)
                 print 'Forward push path obs', obs
                 obs = self.doPath(path[::-1], interpolated[::-1], ignoreCrash=True)
@@ -486,3 +507,88 @@ def graspFaceIndexAndPose(conf, hand, shape, graspDescs):
                 return (g, params)
     raw_input('Could not find graspFace')
     return (0, (0,0,0,0))
+
+from scipy.optimize import fmin, fmin_powell
+
+def objectDisplacement(shape, c1, c2, hand, deltaPose):
+    def sumDisplacements(delta):
+        penalty = 0.
+        pose = hu.Pose(delta[0], delta[1], 0.0, delta[2])
+        nshape = shape.applyTrans(pose).toPrims()[0]
+        if gripperShape.collides(nshape):
+            penalty = 100. * penetrationDist(nshape, gripperVerts)
+        disp = np.dot(pose.matrix, supportPoints)
+        dist_2 = (disp - supportPoints)**2
+        sumDisp = np.sum(np.sqrt(np.sum(dist_2, axis=0)))
+        # print delta, '=> sumDisp', sumDisp, 'penalty', penalty
+        return sumDisp + penalty
+        
+    parts = dict([(part.name(), part) for part in c2.placement().parts()])
+    gripperName = c2.robot.gripperChainNames[hand]
+    gripperShape = parts[gripperName]
+    gripperVerts = allVerts(gripperShape)
+
+    if gripperShape.collides(shape):
+        nshape = shape.applyTrans(deltaPose)
+        delta = deltaPose
+        while gripperShape.collides(nshape):
+            delta = delta.compose(delta).pose(0.1)
+            nshape = shape.applyTrans(delta)
+        supportPoints = shapeSupportPoints(shape)
+        initial = np.array([delta.x, delta.y, delta.theta])
+        print 'initial', initial
+        # ans = fmin(sumDisplacements, initial,
+        #            full_output=True, ftol = 0.001)
+        # final, val = ans[0], ans[1]
+        final = bruteForceMin(sumDisplacements, initial)
+        print 'final', final
+        return hu.Pose(final[0], final[1], 0.0, final[2])
+    else:
+        return hu.Pose(0.0, 0.0, 0.0, 0.0)
+    
+def allVerts(shape):
+    verts = shape.toPrims()[0].vertices()
+    for p in shape.toPrims()[1:]:
+        verts = np.hstack([verts, p.vertices()])
+    return verts
+
+tiny = 1.0e-6
+def penetrationDist(prim, verts):
+    planes = prim.planes()
+    maxPen = 0.0
+    for i in xrange(verts.shape[1]):
+        dists = np.dot(planes, verts[:,i].reshape(4,1))
+        if np.all(dists <= tiny):
+            maxPen = max(maxPen, -np.min(dists))
+    return maxPen
+
+def shapeSupportPoints(shape):
+    shape0 = shape.toPrims()[0]
+    # Raise z a bit, to make sure that it is inside
+    z = shape0.bbox()[0,2] + 0.01
+    points = bboxGridCoords(shape0.bbox(), z=z, res = 0.01)
+    planes = shape0.planes()
+    inside = []
+    for p in points:
+        if np.all(np.dot(planes, p.reshape(4,1)) <= tiny):
+            inside.append(p)
+    return np.vstack(inside).T
+
+def bruteForceMin(f, init):
+
+    def fun(x):
+        return fmin(f, x, full_output=True, disp=False)[1]
+
+    minVal = fun(init)
+    minX = init
+    print 'min:', minX, '->', minVal
+    for x in np.arange(-0.02, 0.021, 0.01):
+        for y in np.arange(-0.02, 0.021, 0.01):
+            for th in np.arange(-0.03, 0.031, 0.01):
+                X = np.array([x, y, th])
+                val = fun(X)
+                if val < minVal:
+                    minVal = val
+                    minX = X
+                    print 'min:', minX, '->', minVal
+    return fmin(f, minX, disp=False)

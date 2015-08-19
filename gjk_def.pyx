@@ -47,27 +47,27 @@ cpdef double gjkDist(shapes.Prim prim1, shapes.Prim prim2):
     return ans
 
 cdef inline bool bboxOverlap(np.ndarray[np.float64_t, ndim=2] bb1,
-                      np.ndarray[np.float64_t, ndim=2] bb2):
-    # Touching is not overlap
-    # return not (np.any(bb1[0] >= bb2[1]) or np.any(bb1[1] <= bb2[0]))
+                             np.ndarray[np.float64_t, ndim=2] bb2,
+                             double eps):
+    # Grow the bbox by eps
     # Due to a Cython bug... cannot convert numpy.bool_ to bool
     return False if \
-           bb1[0,0] >= bb2[1,0] or bb1[1,0] <= bb2[0,0] or \
-           bb1[0,1] >= bb2[1,1] or bb1[1,1] <= bb2[0,1] or \
-           bb1[0,2] >= bb2[1,2] or bb1[1,2] <= bb2[0,2] else True
+           bb1[0,0]-eps >= bb2[1,0]+eps or bb1[1,0]+eps <= bb2[0,0]-eps or \
+           bb1[0,1]-eps >= bb2[1,1]+eps or bb1[1,1]+eps <= bb2[0,1]-eps or \
+           bb1[0,2]-eps >= bb2[1,2]+eps or bb1[1,2]+eps <= bb2[0,2]-eps else True
 
 
 gwp1 = np.zeros(3, dtype=np.double)
 gwp2 = np.zeros(3, dtype=np.double)
 
 cpdef bool chainCollides(tuple CC1, list chains1, tuple CC2, list chains2,
-                         double minDist = 1.0e-6, bool ignoreBBox = False):
+                         double minDist = 1.0e-6):
     cdef Object_structure obj1
     cdef Object_structure obj2
     cdef list framesList1, framesList2, verts
     cdef str frame1, frame2, cname
     cdef dict frames1, frames2
-    cdef double dist
+    cdef double dist, md
     cdef np.ndarray[double, ndim=2] bb1, bb2
     cdef np.ndarray[double, ndim=2, mode="c"] ov1, ov2, tr1, tr2
     cdef np.ndarray[double, ndim=1, mode="c"] wp1, wp2
@@ -88,6 +88,9 @@ cpdef bool chainCollides(tuple CC1, list chains1, tuple CC2, list chains2,
     if chains2 is None:
         chains2 = chainNames2.keys()
 
+    minDist = max(minDist, 1.0e-6)
+    md = minDist*0.5                    # clearance for bbox
+
     # Check collisions between chains
     for frame2 in framesList2:
         if not frameChain2[frame2] in chains2: continue
@@ -105,7 +108,7 @@ cpdef bool chainCollides(tuple CC1, list chains1, tuple CC2, list chains2,
                 verts1 = entry1.linkVerts
                 if verts1 is None: continue
                 bb1 = entry1.bbox
-                if not (ignoreBBox or bboxOverlap(bb2, bb1)): continue
+                if not bboxOverlap(bb2, bb1, md): continue
                 tr1 = entry1.frame
                 for ov1 in verts1:
                     obj1.numpoints = ov1.shape[0]
@@ -127,8 +130,8 @@ cdef list right_arm = ['pr2RightArm']
 cpdef bool confSelfCollide(tuple compiledChains, tuple heldCC,
                            double minDist = minSelfDistance):
     minDist = minDist*minDist  # gjk_distance returns squared distance
-    return chainCollides(compiledChains, left_gripper, compiledChains, right_gripper, minDist, ignoreBBox=True) \
-           or chainCollides(heldCC[1], None, heldCC[0], None, minDist, ignoreBBox=True) \
+    return chainCollides(compiledChains, left_gripper, compiledChains, right_gripper, minDist) \
+           or chainCollides(heldCC[1], None, heldCC[0], None, minDist) \
            or chainCollides(compiledChains, left_gripper, compiledChains, right_arm) \
            or chainCollides(compiledChains, right_gripper, compiledChains, left_arm) \
            or chainCollides(compiledChains, left_arm, heldCC[1], None) \

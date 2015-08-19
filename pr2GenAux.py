@@ -272,12 +272,12 @@ def canView(pbs, prob, conf, hand, shape,
         for h in ['left', 'right']:     # try both hands
             chainName = robot.armChainNames[h]
             armChains = [chainName, robot.gripperChainNames[h]]
-            if not collides(conf, vc, attached, armChains):  # vc.collides(armShape(conf, h)):
+            if not collides(conf, vc, attached=attached, selectedChains=armChains):  # vc.collides(armShape(conf, h)):
                 continue
             if debug('canView'):
                 print 'canView collision with', h, 'arm', conf['pr2Base']
             path, viol = planRobotGoalPath(pbs, prob, conf,
-                                lambda c: not (collides(c, avoid, attached, armChains) \
+                                lambda c: not (collides(c, avoid, attached=attached, selectedChains=armChains) \
                                                           if glob.useCC else avoid.collides(armShape(c,h))),
                                            None, [chainName], maxIter = maxIter)
             if debug('canView'):
@@ -353,6 +353,8 @@ graspConfHistory = []
 graspConfGenCache = {}
 graspConfGenCacheStats = [0,0]
 
+graspConfClear = 0.02
+
 def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None):
     tag = 'potentialGraspConfs'
     key = (pbs, placeB, graspB, conf, hand, tuple(base) if base else None, prob, nMax)
@@ -403,10 +405,11 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
     ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
     if ca:
         # Check for collisions, don't include attached...
-        viol = rm.confViolations(ca, pbs, prob, ignoreAttached=True)
+        viol = rm.confViolations(ca, pbs, prob, ignoreAttached=True,
+                                 clearance=graspConfClear)
         if not viol: return
         viol = rm.confViolations(conf, pbs, prob, initViol=viol,
-                                 ignoreAttached=True)
+                                 ignoreAttached=True, clearance=graspConfClear)
         if viol:
             if debug('potentialGraspConfsWin'):
                 pbs.draw(prob, 'W')
@@ -427,7 +430,8 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
         ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
         if ca:
             viol = pbs.getRoadMap().confViolations(ca, pbs, prob,
-                                                   ignoreAttached=True)
+                                                   ignoreAttached=True,
+                                                   clearance=graspConfClear)
             if viol:
                 yield conf, ca, viol
         tr(tag, 'Conf specified; viol is None or out of alternatives')
@@ -908,7 +912,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                     pbs.draw(prob, 'W'); c.draw('W')
                     debugMsg('potentialRegionPoseGenWeight', 'v=%s'%v,
                              'weight=%s'%str(v.weight()), 'pose=%s'%pose)
-                return v.weight()
+                return v.weight() + baseDist(pbs.conf, ca)
         return None
 
     clearance = 0.01
@@ -1079,33 +1083,6 @@ def baseDist(c1, c2):
     
 #############
 # Selecting safe points in region
-
-def bboxGridCoords(bb, n=5, z=None, res=None):
-    eps = 0.001
-    ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)
-    x0 += eps; y0 += eps
-    x1 -= eps; y1 -= eps
-    if res:
-        dx = res
-        dy = res
-        nx = int(float(x1 - x0)/res)
-        ny = int(float(y1 - y0)/res)
-        if nx*ny > n*n:
-            return bboxGridCoords(bb, n=n, z=z, res=None)
-    else:
-        dx = float(x1 - x0)/n
-        dy = float(y1 - y0)/n
-        nx = ny = n
-    if debug('potentialRegionPoseGen'):
-        print 'dx', dx, 'dy', dy, 'nx', nx, 'ny', ny
-    if z is None: z = z0
-    points = []
-    for i in range(nx+1):
-        x = x0 + i*dx
-        for j in range(ny+1):
-            y = y0 + j*dy
-            points.append(np.array([x, y, z, 1.]))
-    return points
 
 def bboxRandomCoords(bb, n=20, z=None):
     ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)

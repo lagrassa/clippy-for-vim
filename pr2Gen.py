@@ -177,8 +177,8 @@ def pickGenTop(args, goalConds, pbs, onlyCurrent = False):
     if obj == pbs.held[hand].mode():
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
                                                    hand)
-        shape = pbs.getWorld().getObjectShapeAtOrigin(obj).\
-                                             applyLoc(attachedShape.origin())
+        shape = pbs.getObjectShapeAtOrigin(obj).\
+                applyLoc(attachedShape.origin())
         sup = supportFaceIndex(shape)
         pose = None
         conf = None
@@ -187,8 +187,8 @@ def pickGenTop(args, goalConds, pbs, onlyCurrent = False):
     elif obj == pbs.held[otherHand(hand)].mode():
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
                                                    otherHand(hand))
-        shape = pbs.getWorld().getObjectShapeAtOrigin(obj).\
-                                       applyLoc(attachedShape.origin())
+        shape = pbs.getObjectShapeAtOrigin(obj).\
+                applyLoc(attachedShape.origin())
         sup = supportFaceIndex(shape)
         pose = None
         conf = None
@@ -670,14 +670,14 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
     elif obj == pbs.held['left'].mode():
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
                                                    'left')
-        shape = pbs.getWorld().getObjectShapeAtOrigin(obj).\
-                                        applyLoc(attachedShape.origin())
+        shape = pbs.getObjectShapeAtOrigin(obj).\
+                applyLoc(attachedShape.origin())
         support = supportFaceIndex(shape)
     elif obj == pbs.held['right'].mode():
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
                                                    'right')
-        shape = pbs.getWorld().getObjectShapeAtOrigin(obj).\
-                                        applyLoc(attachedShape.origin())
+        shape = pbs.getObjectShapeAtOrigin(obj).\
+                applyLoc(attachedShape.origin())
         support = supportFaceIndex(shape)
     else:
         raise Exception('Cannot determine support')

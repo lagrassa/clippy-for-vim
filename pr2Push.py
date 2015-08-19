@@ -39,7 +39,6 @@ useDirectPush = False
 
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
-        if debug('pushGen'): print 'Entering pushGen'
         for ans in pushGenGen(args, goalConds, bState):
             tr('pushGen', '->', 'final', str(ans))
             if debug('pushGen'):
@@ -141,8 +140,19 @@ def pushGenTop(args, goalConds, pbs):
         pushGenCache[key] = memo
         if debug(tag):
             print tag, 'creating new pushGenAux generator'
+    rm = newBS.getRoadMap()
     for ans in memo:
-        # tr(tag, str(ans) +' (t=%s)'%(time.clock()-startTime))
+        (hand, prePose, preConf, pushConf, postConf) = ans
+
+        testBS = newBS.copy()
+        testPB = testBS.getPlaceB(obj)
+        testBS.updatePermObjPose(testPB.modifyPoseD(prePose))
+        testBS.draw(prob, 'W')
+        preConf.draw('W')
+        viol = rm.confViolations(preConf, testBS, prob)
+        print 'Violations in preConf for push', viol
+        assert viol
+
         yield ans
     tr(tag, '=> pushGenTop exhausted for', hand)
 
@@ -333,6 +343,10 @@ def handContactFrames(shape, center, vertical):
             trAlways('The y axis of face frame should be parallel to support')
         c = np.dot(frameInv.matrix, pushCenter.reshape((4,1)))
         c[2] = 0.0                      # project to face plane
+
+        if debug('pushSim'):
+            c[1] -= 0.07
+        
         faceVerts = np.dot(frameInv.matrix, verts)
         faceBB = vertsBBox(faceVerts, face)
         faceBB[0,2] = faceBB[1,2] = 0.0
@@ -350,6 +364,10 @@ def handContactFrames(shape, center, vertical):
             cf = frame.compose(hu.Pose(c[0], c[1], 0., 0.))
             # wy is the y range (side to side)
             width = min(wy) - 0.5 * fingerTipThick
+
+            if debug('pushSim'):
+                width=0.
+
             if debug(tag):
                 print faceBB
                 print 'width', width, 'valid contact frame\n', cf.matrix
@@ -464,4 +482,4 @@ def sortPushContacts(contacts, targetPose, curPose):
     return [x[1:] for x in good]
 
 def gripSet(conf, hand, width=0.08):
-    return conf.set(conf.robot.gripperChainNames[hand], [width])
+    return conf.set(conf.robot.gripperChainNames[hand], [min(width, 0.08)])
