@@ -691,8 +691,8 @@ class Operator(object):
         self.cost = cost # function from abs level and args to number
         self.concreteAbstractionLevel = max(preconditions.keys()) if \
                                         preconditions else 0
-        self.abstractionLevel = \
-                         self.concreteAbstractionLevel if flatPlan else 0
+        self.abstractionLevel = 0
+        # self.concreteAbstractionLevel if flatPlan else 0
         self.sideEffects = sideEffects if sideEffects != None else {}
         self.prim = prim
         self.verifyArgs()
@@ -1024,7 +1024,10 @@ class Operator(object):
             goal.addSet(newCond)
 
             # Set abstraction level for mop
-            mop.setAbstractionLevel(ancestors)
+            if flatPlan:
+                mop.abstractionLevel = mop.concreteAbstractionLevel
+            else:
+                mop.setAbstractionLevel(ancestors)
             tr('regression', 'Applied metagenerator, got', mop, ol = True)
             res = mop.regress(goal, startState, heuristic, operators,
                               ancestors)
@@ -1412,7 +1415,7 @@ class RebindOp:
         if len(results) > 0 and debug('rebind'):
             tr('rebind', 'successfully rebound local vars',
                      'costs', [c for (s, c) in results], 'minus',
-                     self.rebindPenalty)
+                     op.rebindPenalty)
             results[0][1] -= op.instanceCost
         else:
             tr('rebind', 'failed to rebind local vars')
@@ -1934,12 +1937,13 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         result.update(appOpInstances(o, g, startState, ancestors, monotonic,
                                      nonMonOps))
 
-    if hOps is not None:
+    if skeleton is None and hOps is not None:
         # take non-dummy hOps that are instances of applicable ops
         oNames = [o.name for o in result]
         helpfulActions = [o for o in hOps(g) if o.name in oNames]
         for o in helpfulActions:
-            o.abstractionLevel = 0  # Will be set appropriately below
+            if not flatPlan: 
+                o.abstractionLevel = 0  # Will be set appropriately below
             result.update(appOpInstances(o, g, startState, ancestors,
                                          monotonic, nonMonOps))
 
@@ -2009,7 +2013,11 @@ def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):
         for b in bindingSet:
             if b != False:
                 newOpBound = newOp.applyBindings(b, rename = True)
-                newOpBound.setAbstractionLevel(ancestors)
+                if flatPlan:
+                    newOpBound.abstractionLevel = \
+                               newOpBound.concreteAbstractionLevel
+                else:
+                    newOpBound.setAbstractionLevel(ancestors)
                 if not redundant(newOpBound, result):
                     result.add(newOpBound)
                     debugMsg('appOp:detail', 'added bound op', newOpBound)

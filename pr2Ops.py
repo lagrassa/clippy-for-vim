@@ -1815,8 +1815,8 @@ class AchCanPushGen(Function):
 # know how to achieve it targetFluents are the declarative version of
 # the same condition; would be better if we didn't have to specify it
 # both ways
-def achCanXGen(pbs, goal, cond, targetFluents, violFn, prob, tag):
-        allConds = list(cond) + targetFluents
+def achCanXGen(pbs, goal, originalCond, targetFluents, violFn, prob, tag):
+        allConds = list(originalCond) + targetFluents
         newBS = pbs.conditioned(goal, allConds)
         shWorld = newBS.getShadowWorld(prob)
             
@@ -1830,7 +1830,8 @@ def achCanXGen(pbs, goal, cond, targetFluents, violFn, prob, tag):
         print 'need to see if base pose is specified and pass it in'
 
         lookG = lookAchCanXGen(newBS, shWorld, viol, violFn, prob)
-        placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob, allConds)
+        placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob,
+                                 allConds + goal)
         #pushG = pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
         # prefer looking
         return itertools.chain(lookG, placeG)
@@ -1898,7 +1899,8 @@ def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
     # arrange that.
     for obst in obstacles:
         for r in moveOut(newBS, prob, obst, moveDelta, cond):
-            # TODO: LPK: concerned about how graspVar and graspDelta are computed
+            # TODO: LPK: concerned about how graspVar and graspDelta
+            # are computed
             graspFace = r.gB.grasp.mode()
             graspMean = r.gB.poseD.modeTuple()
             graspVar = r.gB.poseD.varTuple()

@@ -1138,7 +1138,8 @@ def lookHandGenTop(args, goalConds, pbs, outBindings):
            snap=['W'])
         yield (lookConf,), viol
 
-# Generates (obst, pose, support, variance, delta
+# Generates (obst, pose, support, variance, delta)
+# Uses goalConds to find taboo regions
 def moveOut(pbs, prob, obst, delta, goalConds):
     tr('moveOut', 'obst=%s'%obst)
     domainPlaceVar = tuple([placeVarIncreaseFactor * x \

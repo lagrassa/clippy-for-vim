@@ -100,13 +100,14 @@ skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
 executionTags = ['executionSurprise', 'executionFail']
 traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
-                   'pushGen', 'assign', 'canPushGen', 'beliefUpdate']
+                   'pushGen', 'assign', 'canPushGen', 'beliefUpdate',
+                   'placeAchGen', 'lookAchGen']
 debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags 
-#+ ['disablePickPlace'] 
+debugOn = usualTags
+
 debugOnly = debugOnly
 traceOnly = traceOnly 
                                                  
