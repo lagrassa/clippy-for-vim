@@ -291,6 +291,8 @@ def testWorld(include = ('objA', 'objB', 'objC')):
     for i, objName in enumerate(manipulanda):
         if objName[0:3] == 'obj':
             thing = makeSoda(name = objName, color=colors[i%len(colors)])
+        elif objName[0:6] == 'bigBar':
+            thing = makeBigBar(name = objName, color=colors[i%len(colors)])
         else:
             thing = makeBig(name = objName, color=colors[i%len(colors)])
         height = thing.bbox()[1,2]

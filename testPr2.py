@@ -663,6 +663,59 @@ def testHold(hpn = True, skeleton = False, hierarchical = False,
           regions=['table1Top']
           )
 
+def testPushBar(hpn = True, skeleton = False, hierarchical = False,
+                heuristic=habbs, easy = False, rip = False, multiplier=6,
+                objName='bigBar'):
+
+    glob.rebindPenalty = 50
+    glob.monotonicFirst = True
+    goalProb, errProbs = (0.95,typicalErrProbs)
+    if easy: 
+        varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
+                objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
+    else: 
+        varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
+                objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
+
+    front = hu.Pose(1.2, 0.0, tZ, 0.0)
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
+    # One push, no uncertainty
+    skel = [[lookAt, move, push, moveNB, lookAt,
+             move, lookAt, moveNB]]
+
+    # pick and place!
+    skel = [[lookAt, move, place, move, 
+             pick, moveNB, lookAt, moveNB, lookAt, move]]
+        
+    targetPose = (1.2, 0.4, tZ, 0.0) # one push
+    targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
+    delta = (0.1, .1, .1, .5)
+    goal = State([\
+                  Bd([SupportFace([objName]), 4, goalProb], True),
+                  B([Pose([objName, 4]),
+                     targetPose, targetVar, delta,
+                     goalProb], True)])
+
+    t = PlanTest('testPushBar',  errProbs, allOperators,
+                 objects=['table1', objName],
+                 fixPoses={'table1': table1Pose},
+                 movePoses={objName: front},
+                 varDict = varDict,
+                 multiplier=multiplier
+                 )
+
+    actualSkel = None
+
+    t.run(goal,
+          hpn = hpn,
+          skeleton = skel if skeleton else None,
+          hierarchical = hierarchical,
+          # regions=[region],
+          heuristic = heuristic,
+          rip = rip,
+          )
+    return t
+
 def testPush0(hpn = True, skeleton = False, hierarchical = False,
               heuristic=habbs,
               easy = False, rip = False, multiplier=6, objName='bigA'):
@@ -677,8 +730,7 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False,
         varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
                 objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
 
-    # front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    front = hu.Pose(1.2, 0.0, tZ, 0.0)
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
     # One push, no uncertainty
     skel = [[lookAt, move, push, moveNB, lookAt,
@@ -688,8 +740,7 @@ def testPush0(hpn = True, skeleton = False, hierarchical = False,
     skel = [[lookAt, move, place, move, 
              pick, moveNB, lookAt, moveNB, lookAt, move]]
         
-    # targetPose = (1.1, 0.4, tZ, 0.0) # one push
-    targetPose = (1.2, 0.4, tZ, 0.0) # one push
+    targetPose = (1.1, 0.4, tZ, 0.0) # one push
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
     delta = (0.1, .1, .1, .5)
     goal = State([\

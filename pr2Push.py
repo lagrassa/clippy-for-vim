@@ -275,9 +275,12 @@ def getPrePost(pp):
 def sortedPushPaths(pushPaths, curPose):
     scored = []
     for (pathAndViols, reason) in pushPaths:
-        ppre, cpre, ppost, cpost = getPrePost(pathAndViols)   
+        ppre, cpre, ppost, cpost = getPrePost(pathAndViols)
         vmax = max(v.weight() for (c,v,p) in pathAndViols)
-        scored.append((vmax + curPose.totalDist(ppre), pathAndViols))
+        if ppre:
+            scored.append((vmax + curPose.totalDist(ppre), pathAndViols))
+        else:
+            scored.append((vmax, pathAndViols))
     scored.sort()
     return [pv for (s, pv) in scored]
                 
@@ -344,7 +347,7 @@ def handContactFrames(shape, center, vertical):
         c = np.dot(frameInv.matrix, pushCenter.reshape((4,1)))
         c[2] = 0.0                      # project to face plane
 
-        if debug('pushSim'):
+        if 'pushSimSkew' in glob.debugOn:
             c[1] -= 0.07
         
         faceVerts = np.dot(frameInv.matrix, verts)
@@ -365,7 +368,7 @@ def handContactFrames(shape, center, vertical):
             # wy is the y range (side to side)
             width = min(wy) - 0.5 * fingerTipThick
 
-            if debug('pushSim'):
+            if 'pushSimSkew' in glob.debugOn:
                 width=0.
 
             if debug(tag):

@@ -1521,6 +1521,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         pathViols.append((nconf, viol,
                           offsetPB.poseD.mode() if contact else None))
         if contact: step_a += 1
+    if not contact: reason = 'no contact'
     if debug('pushPath'):
         raw_input('Path:'+reason)
     ans = (pathViols, reason)
@@ -1582,7 +1583,7 @@ def handTiltAndDir(conf, hand, direction):
         if debug('pushPath'): print hdir, '->', sign, hdir
         # Because of the wrist orientation, the sign is negative
 
-        if debug('pushSim'):
+        if 'pushSim' in glob.debugOn:
             rot = hu.Transform(rotation_matrix(-sign*math.pi/8., (0,1,0)))
         else:
             rot = hu.Transform(rotation_matrix(-sign*math.pi/15., (0,1,0)))

@@ -293,6 +293,7 @@ class RealWorld(WorldState):
                 if not deb and debug('visibleEx'): glob.debugOn.remove('visible')
                 if not vis:
                     tr('sim', 'Object %s is not visible'%curObj)
+                    pdb.set_trace()
                     continue
                 else:
                     tr('sim', 'Object %s is visible'%curObj)
@@ -434,23 +435,23 @@ class RealWorld(WorldState):
 
     def executePush(self, op, params, noBase = True):
         # TODO: compute the cartConfs once.
-        def moveObj(path, i):
+        def moveObjRigid(path, i):
             # There's a lot of noise in the interpolation, so use the
             # whole path to get displacement.  Could do it once.
             w1 = path[0].cartConf()[robot.armChainNames[hand]]
             w2 = path[-1].cartConf()[robot.armChainNames[hand]]
             delta = w2.compose(w1.inverse()).pose(0.1) # from w1 to w2
             mag = (delta.x**2 + delta.y**2 + delta.z**2)**0.5
-            deltaPose = hu.Pose(0.005*(delta.x/mag), 0.005*(delta.y/mag), 0.005*(delta.z/mag), 0.0)
+            deltaPose = hu.Pose(0.005*(delta.x/mag), 0.005*(delta.y/mag), 0.0, 0.0)
             if i > 0:
                 place = path[i].placement()
                 while place.collides(self.objectShapes[obj]):
                     self.setObjectPose(obj, deltaPose.compose(self.getObjectPose(obj)))
                     print i, 'Touching', obj, 'in push, moved it to', self.getObjectPose(obj).pose()
 
-        # def moveObj(path, i):
-        #     if i > 0:
-        #         self.pushObject(obj, path[i-1], path[i], hand, deltaPose)
+        def moveObjSim(path, i):
+            if i > 0:
+                self.pushObject(obj, path[i-1], path[i], hand, deltaPose)
 
         failProb = self.domainProbs.pushFailProb
         success = DDist({True : 1 - failProb, False : failProb}).draw()
@@ -469,7 +470,8 @@ class RealWorld(WorldState):
                 delta = w2.compose(w1.inverse()).pose(0.1) # from w1 to w2
                 mag = (delta.x**2 + delta.y**2 + delta.z**2)**0.5
                 deltaPose = hu.Pose(0.005*(delta.x/mag), 0.005*(delta.y/mag), 0.005*(delta.z/mag), 0.0)
-                obs = self.doPath(path, interpolated, action=moveObj, ignoreCrash=True)
+                moveFn = moveObjSim if debug('pushSim') else moveObjRigid
+                obs = self.doPath(path, interpolated, action=moveFn, ignoreCrash=True)
                 print 'Forward push path obs', obs
                 obs = self.doPath(path[::-1], interpolated[::-1], ignoreCrash=True)
                 print 'Reverse push path obs', obs
@@ -566,7 +568,7 @@ def shapeSupportPoints(shape):
     shape0 = shape.toPrims()[0]
     # Raise z a bit, to make sure that it is inside
     z = shape0.bbox()[0,2] + 0.01
-    points = bboxGridCoords(shape0.bbox(), z=z, res = 0.01)
+    points = bboxGridCoords(shape0.bbox(), z=z, res = 0.02)
     planes = shape0.planes()
     inside = []
     for p in points:
@@ -577,18 +579,17 @@ def shapeSupportPoints(shape):
 def bruteForceMin(f, init):
 
     def fun(x):
-        return fmin(f, x, full_output=True, disp=False)[1]
+        return fmin(f, x, full_output=True, disp=False)[:2]
 
-    minVal = fun(init)
-    minX = init
+    (minX, minVal) = fun(init)
     print 'min:', minX, '->', minVal
-    for x in np.arange(-0.02, 0.021, 0.01):
-        for y in np.arange(-0.02, 0.021, 0.01):
-            for th in np.arange(-0.03, 0.031, 0.01):
+    for x in [-0.02, 0.02]:
+        for y in [-0.02, 0.02]:
+            for th in [-0.02, 0.02]:
                 X = np.array([x, y, th])
-                val = fun(X)
+                newX, val = fun(X)
                 if val < minVal:
                     minVal = val
-                    minX = X
+                    minX = newX
                     print 'min:', minX, '->', minVal
-    return fmin(f, minX, disp=False)
+    return minX

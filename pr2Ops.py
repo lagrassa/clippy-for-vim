@@ -1,3 +1,4 @@
+import pdb
 import numpy as np
 import planGlobals as glob
 from numpy import cos, sin, arctan2, sqrt, power
@@ -1098,6 +1099,7 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
         details.poseModeProbs[objName] = newP
         tr('assign',  'No match above threshold', objName, oldP, newP,
            ol = True)
+        pdb.set_trace()
         newMu = oldPlaceB.poseD.mode().pose().xyztTuple()
         newSigma = [v + .001 for v in oldPlaceB.poseD.varTuple()]
         newSigma[2] = 1e-10
