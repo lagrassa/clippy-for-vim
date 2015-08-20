@@ -94,7 +94,7 @@ flags = ['simpleAbstractCostEstimates',
           'primitiveHeuristicAlways',
           'useBBinH']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack', 
-                 'debugInHeuristic', 'h']  # 'hAddBack'
+                 'debugInHeuristic', 'h'] #, 'hv'] 
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
                 'clobber']
 executionTags = ['executionSurprise', 'executionFail']

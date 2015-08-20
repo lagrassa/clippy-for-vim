@@ -411,13 +411,16 @@ def bigAngleWarn(conf1, conf2, thr = math.pi/8.):
 
 tiny = 1.0e-6
 def inside(shape, reg):
-    return any(all(insideAux(s, r) for s in shape.parts()) for r in reg.parts())
+    bbox = shape.bbox()
+    buffer = min([0.5*(bbox[1][i] - bbox[0][i]) for i in [0,1]])
+    return any(all(insideAux(s, r, buffer) \
+                   for s in shape.parts()) for r in reg.parts())
 
-def insideAux(shape, reg):
+def insideAux(shape, reg, buffer=tiny):
     # all([np.all(np.dot(reg.planes(), p) <= 1.0e-6) for p in shape.vertices().T])
     verts = shape.vertices()
     for i in xrange(verts.shape[1]):
-        if not np.all(np.dot(reg.planes(), verts[:,i].reshape(4,1)) <= tiny):
+        if not np.all(np.dot(reg.planes(), verts[:,i].reshape(4,1)) <= buffer):
             return False
     return True
 

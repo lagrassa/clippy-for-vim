@@ -385,7 +385,7 @@ class CanReachHome(Fluent):
 # Returns cost, ops
 def hCost(violations, obstCost, details):
     if violations is None:
-        tr('hAddBackInf', 'computed hv infinite')
+        tr('hAddBackInf', 'computed hcost is infinite')
         return float('inf'), {}
     obstacles = violations.obstacles
     shadows = violations.shadows
