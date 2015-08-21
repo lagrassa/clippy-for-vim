@@ -153,7 +153,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob):
         # If the current position is almost at the target, return
         if curPose.distance(targetPose)  < minPushLength:
             tr(tag, '=> Target pose is too close to current pose, failing',
-               curPose, targetose, curPose.distance(targetPose))
+               curPose, targetPose, curPose.distance(targetPose))
     else:
         curPOse = None
     # TODO: this should really look for a large Cspace surface
