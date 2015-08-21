@@ -1484,12 +1484,14 @@ nop = Operator('Nop', [], {1:[]}, [], [], None)
 # NonMonOps are allowed to be treated monotonically
 
 def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
-        skeleton = None, verbose = False, nonMonOps = [], maxNodes = 300):
+        skeleton = None, verbose = False, nonMonOps = [], maxNodes = 300,
+        clearCaches = None):
     f = writePreamble(hpnFileTag or fileTag)
     try:
         successful = False
         while not successful:
             try:
+                if clearCaches: clearCaches(s.details)
                 HPNAux(s, g, ops, env, h, f, fileTag, skeleton, verbose,
                        nonMonOps, maxNodes)
                 successful = True

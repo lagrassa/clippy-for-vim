@@ -106,6 +106,31 @@ if useROS:
     useHorizontal = True
 
 ######################################################################
+# Clear caches
+######################################################################
+
+def clearCaches(details):
+    pbs = details.pbs
+    bc = pbs.beliefContext
+
+    # invkin cache
+    # robot.confCache
+    
+    pbs.getRoadMap().confReachCache.clear()
+    pbs.getRoadMap().approachConfs.clear()
+    for thing in bc.genCaches.values():
+        thing.clear()
+    pr2Visible.cache.clear()
+    bc.pathObstCache.clear()
+    bc.objectShadowCache.clear()
+    pr2GenAux.graspConfGenCache.clear()
+    bc.world.robot.cacheReset()
+    pr2Visible.cache.clear()
+    fbch.hCacheReset()
+    pr2Fluents.pushPathCache.clear()
+    pr2Push.pushGenCache.clear()
+
+######################################################################
 # Test Rig
 ######################################################################
 
@@ -732,7 +757,8 @@ class PlanTest:
                     verbose = False,
                     fileTag = self.name if writeSearch else None,
                     nonMonOps = ['Move', 'MoveNB', 'LookAt', 'Place'],
-                    maxNodes = 100)
+                    maxNodes = 100,
+                    clearCaches = clearCaches)
             else:
                 p = planBackward(s,
                                  goal,

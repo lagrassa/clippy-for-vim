@@ -390,15 +390,15 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
         wrist = objectGraspFrame(pbs, graspB, placeB, hand)
     basePose = basePose.pose()
 
-    # If just the base collides with a perm obstacle, no need to continue
-    graspConfStats[0] += 1
-    baseShape = pr2BaseLink.applyTrans(basePose)
-    shWorld = pbs.getShadowWorld(prob)
-    for perm in shWorld.fixedObjects:
-        obst = shWorld.objectShapes[perm]
-        if obst.collides(baseShape):
-            graspConfStats[1] += 1
-            return
+    # # If just the base collides with a perm obstacle, no need to continue
+    # graspConfStats[0] += 1
+    # baseShape = pr2BaseLink.applyTrans(basePose)
+    # shWorld = pbs.getShadowWorld(prob)
+    # for perm in shWorld.fixedObjects:
+    #     obst = shWorld.objectShapes[perm]
+    #     if obst.collides(baseShape):
+    #         graspConfStats[1] += 1
+    #         return
         
     cart = CartConf({'pr2BaseFrame': basePose,
                      'pr2Torso':[torsoZ]}, robot)
