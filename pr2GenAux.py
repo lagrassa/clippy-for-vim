@@ -765,10 +765,9 @@ def pushPathObst(obj, hand, poseFace, prePose, pose, preConf, pushConf,
 
 def getCPObsts(goalConds, pbs):
     fbs = fbch.getMatchingFluents(goalConds,
-                                  Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
-                                               'PreConf', 'PushConf',
-                                               'PostConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',
-                                               'PreCond']),  True, 'Prob'], True))
+                     Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
+                                  'PreConf', 'PushConf',
+                               'PostConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',                                 'PreCond']),  True, 'Prob'], True))
     world = pbs.getWorld()
     obsts = []
     index = 0

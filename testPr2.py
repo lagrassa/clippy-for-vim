@@ -941,8 +941,8 @@ def testPush4(hpn = True, skeleton = False, hierarchical = False,
              move, pick, moveNB, lookAt,
               move]]
 
-    startPoseA = (1.05, 0.0, tZ, 0.0)
-    startPoseB = (1.05, 0.25, tZ, 0.0)
+    startPoseA = (1.05, 0.2, tZ, 0.0)
+    startPoseB = (1.05, 0.4, tZ, 0.0)
     targetPose = goalPose.xyztTuple()
     targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
     goal = State([\

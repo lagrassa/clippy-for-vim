@@ -1300,12 +1300,14 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
             poseDelta, prob, initViol, prim=False):
     tag = 'canPush'
     # direction from post to pre
-    if pbs.held[hand].mode() != 'none':
-        tr(tag, '=> Hand=%s is holding in pbs, failing'%hand)
-        return None, None
-    if obj in [h.mode() for h in pbs.held.values()]:
-        tr(tag, '=> obj is in the hand, failing')
-        return None, None
+    # LPK:  took this out.  We could return the obj in the hand as a viol.
+    # but explicit preconditions will deal with making the hand be empty
+    # if pbs.held[hand].mode() != 'none':
+    #     tr(tag, '=> Hand=%s is holding in pbs, failing'%hand)
+    #     return None, None
+    # if obj in [h.mode() for h in pbs.held.values()]:
+    #     tr(tag, '=> obj is in the hand, failing')
+    #     return None, None
     post = hu.Pose(*pose)
     placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), poseFace,
                        PoseD(post, poseVar), poseDelta)
@@ -1313,7 +1315,9 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
     graspB = pushGraspB(pbs, pushConf, hand, placeB)
     pathViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
                                  prePose, None, None, hand, prim=prim)
-    if not pathViols: return None, None
+    if not pathViols:
+        tr(tag, 'pushPath failed')
+        return None, None
     viol = pathViols[0][1]
     path = []
     for (c, v, _) in pathViols:

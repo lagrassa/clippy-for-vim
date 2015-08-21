@@ -1250,6 +1250,8 @@ class Operator(object):
                 cost = hOrig - hNew
                 if cost <= 0:
                     cost = 2
+                tr('cost', self.name, 'hOrig', hh(goal), 'hNew', hNew,
+                   '\n    cost est:', cost)
                 rebindCost = hOrig + rebindCost
             else:
                 # Do one step of primitive regression on the old state

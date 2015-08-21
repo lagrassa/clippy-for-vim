@@ -649,7 +649,8 @@ class AddPreConds(Function):
     # noinspection PyUnusedLocal
     @staticmethod
     def fun((postCond, newConds), goal, start):
-        return [[simplifyCond(postCond, newConds)]]
+        resultCond = simplifyCond(postCond, newConds)
+        return [[resultCond]]
 
 '''
 # Really just return true if reducing variance on the object in the
@@ -1511,12 +1512,12 @@ push = Operator('Push', pushArgs,
          1 : {Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
                            'PreConf',
                             'PushConf', 'PostConf', 'PoseVar', 'PrePoseVar',
-                            'PoseDelta', []]), True, canPPProb],True),
-              Bd([Holding(['Hand']), 'none', canPPProb], True)},
+                            'PoseDelta', []]), True, canPPProb],True)},
         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
               B([Pose(['Obj', 'PoseFace']), 'PrePose',
                  'PrePoseVar',  pushDelta, 'P'], True)},
-         3 : {Conf(['PreConf', 'ConfDelta'], True)}
+        3 : {Conf(['PreConf', 'ConfDelta'], True),
+             Bd([Holding(['Hand']), 'none', canPPProb], True)}
         },
         # Results
         [({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
@@ -1925,7 +1926,7 @@ def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
                          graspFace, graspMean, graspVar, graspDelta,
                          r.ca, 'ConfDelta', r.c, 'AwayRegion',
                          prob, prob, prob, 'P1')
-            tr(tag, '=> returning', op)
+            tr(tag, '=> returning', op, '\n', newConds)
             yield op, newConds
     tr(tag, '=> Out of remedies')
 

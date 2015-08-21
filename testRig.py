@@ -119,9 +119,10 @@ hDepth = 10
 heuristicTime = 0.0
 
 # Return a value and a set of action instances
-def habbs(s, g, ops, ancestors, feasibleOnly = True):
+def habbs(s, g, ops, ancestors):
     global heuristicTime
     startTime = time.time()
+    feasibleOnly = debug('feasibleHeuristicOnly')
     hops = ops + [hRegrasp]
     val = BBhAddBackBSet(s, g, hops, ancestors, ddPartitionFn = partition,
                                 maxK = hDepth, feasibleOnly = feasibleOnly)

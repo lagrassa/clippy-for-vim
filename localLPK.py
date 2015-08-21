@@ -48,6 +48,7 @@ drawInHeuristic
 executionFail
 extraTests (test for rendundancy and contradiction within state fluent set;
             test that cached fluent strings are right)
+feasibleHeuristicOnly (don't try to find optimal value in heuristic)
 fluentCache (be sure the fluent cache is behaving)
 hAddBack   (super verbose)
 hAddBackInf
@@ -106,7 +107,7 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags
+debugOn = usualTags 
 
 debugOnly = debugOnly
 traceOnly = traceOnly 
