@@ -2,7 +2,7 @@ import time
 import pdb
 from fbch import Function
 from dist import DeltaDist
-from pr2Util import supportFaceIndex, shadowWidths
+from pr2Util import supportFaceIndex, shadowWidths, trArgs
 #from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations, Response
 from pr2PlanBel import getConf, getGoalPoseBels
 from shapes import Box
@@ -157,16 +157,7 @@ def pickGenTop(args, goalConds, pbs, onlyCurrent = False):
     tag = 'pickGen'
     graspDelta = pbs.domainProbs.pickStdev
     tr(tag, '(%s,%s,%d) b=%s h=%s'%(obj,hand,graspB.grasp.mode(),base,glob.inHeuristic))
-    tr(tag, 
-       zip(('obj', 'graspB', 'placeB', 'hand', 'prob'), args),
-       ('goalConds', goalConds),
-       ('moveObjBs', pbs.moveObjBs),
-       ('fixObjBs', pbs.fixObjBs),
-       ('held', (pbs.held['left'].mode(),
-                 pbs.held['right'].mode(),
-                 pbs.graspB['left'],
-                 pbs.graspB['right'])))
-
+    trArgs(tag, ('obj', 'graspB', 'placeB', 'hand', 'prob'), args, goalConds, pbs)
     if obj == 'none':                   # can't pick up 'none'
         tr(tag, '=> cannot pick up none, failing')
         return
@@ -426,15 +417,7 @@ def placeGenTop(args, goalConds, pbs, regrasp=False, away=False, update=True):
     startTime = time.clock()
     tag = 'placeGen'
     tr(tag, '(%s,%s) h=%s'%(obj,hand, glob.inHeuristic))
-    tr(tag,  
-       zip(('obj', 'graspB', 'placeBs', 'hand', 'prob'), args),
-       ('goalConds', goalConds),
-       ('moveObjBs', pbs.moveObjBs),
-       ('fixObjBs', pbs.fixObjBs),
-       ('held', (pbs.held['left'].mode(),
-                 pbs.held['right'].mode(),
-                 pbs.graspB['left'],
-                 pbs.graspB['right'])))
+    trArgs(tag, ('obj', 'graspB', 'placeBs', 'hand', 'prob'), args, goalConds, pbs)
     if obj == 'none' or not placeBs:
         tr(tag, '=> obj is none or no poses, failing')
         return

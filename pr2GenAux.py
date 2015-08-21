@@ -15,7 +15,7 @@ from dist import UniformDist, DDist
 from geom import bboxCenter
 from pr2Robot import CartConf, gripperFaceFrame, pr2BaseLink
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations, Response
-from pr2Util import shadowName, objectName, Memoizer, inside
+from pr2Util import shadowName, objectName, Memoizer, inside, otherHand
 import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
@@ -357,7 +357,7 @@ graspConfHistory = []
 graspConfGenCache = {}
 graspConfGenCacheStats = [0,0]
 
-graspConfClear = 0.02
+graspConfClear = 0.001
 
 def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None):
     tag = 'potentialGraspConfs'
@@ -390,15 +390,15 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
         wrist = objectGraspFrame(pbs, graspB, placeB, hand)
     basePose = basePose.pose()
 
-    # # If just the base collides with a perm obstacle, no need to continue
-    # graspConfStats[0] += 1
-    # baseShape = pr2BaseLink.applyTrans(basePose)
-    # shWorld = pbs.getShadowWorld(prob)
-    # for perm in shWorld.fixedObjects:
-    #     obst = shWorld.objectShapes[perm]
-    #     if obst.collides(baseShape):
-    #         graspConfStats[1] += 1
-    #         return
+    # If just the base collides with a perm obstacle, no need to continue
+    graspConfStats[0] += 1
+    baseShape = pr2BaseLink.applyTrans(basePose)
+    shWorld = pbs.getShadowWorld(prob)
+    for perm in shWorld.fixedObjects:
+        obst = shWorld.objectShapes[perm]
+        if obst.collides(baseShape):
+            graspConfStats[1] += 1
+            return
         
     cart = CartConf({'pr2BaseFrame': basePose,
                      'pr2Torso':[torsoZ]}, robot)
@@ -424,7 +424,10 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
         # Check for collisions, don't include attached...
         viol = rm.confViolations(ca, pbs, prob, ignoreAttached=True,
                                  clearance=graspConfClear)
-        if not viol: return
+        if not viol:
+            if debug('potentialGraspConfs'):
+                pbs.draw(prob, 'W'); conf.draw('W','red')
+            return
         viol = rm.confViolations(conf, pbs, prob, initViol=viol,
                                  ignoreAttached=True, clearance=graspConfClear)
         if viol:
@@ -551,9 +554,6 @@ def potentialLookConfGen(pbs, prob, shape, maxDist):
             if rm.confViolations(node.conf, pbs, prob):
                 yield node.conf
     return
-
-def otherHand(hand):
-    return 'left' if hand == 'right' else 'right'
 
 ang = -math.pi/2
 rotL = hu.Transform(rotation_matrix(-math.pi/4, (1,0,0)))

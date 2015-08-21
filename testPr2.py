@@ -213,10 +213,10 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
-    skeleton =  [[pick, moveNB, lookAt, move, lookAt, move, lookAt]]
+    skel =  [[pick, moveNB, lookAt, move, lookAt, move, lookAt]]
 
-    hand = 'left'
-    graspType = 2
+    hand = 'right'
+    graspType = 0
     targetDelta = (0.01, 0.01, 0.01, 0.05)
     goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
                    Bd([GraspFace(['objA', hand]), graspType, goalProb], True),
@@ -234,7 +234,7 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     t.run(goal,
           hpn = hpn,
           hierarchical = hierarchical,
-          skeleton = skeleton,
+          skeleton = skel if skeleton else None,
           heuristic = heuristic,
           rip = rip
           )

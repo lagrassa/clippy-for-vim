@@ -4,7 +4,7 @@ import copy
 from colors import RGBToPyColor, HSVtoRGB
 from dist import chiSqFromP
 import numpy as np
-from traceFile import debug, debugMsg
+from traceFile import debug, debugMsg, tr
 from planUtil import PoseD, Violations
 
 class Hashable:
@@ -448,4 +448,18 @@ def bboxGridCoords(bb, n=5, z=None, res=None):
             y = y0 + j*dy
             points.append(np.array([x, y, z, 1.]))
     return points
+
+def trArgs(tag, names, args, goalConds, pbs):
+    tr(tag, 
+       zip(names, args),
+       ('goalConds', goalConds),
+       ('moveObjBs', pbs.moveObjBs),
+       ('fixObjBs', pbs.fixObjBs),
+       ('held', (pbs.held['left'].mode(),
+                 pbs.held['right'].mode(),
+                 pbs.graspB['left'],
+                 pbs.graspB['right'])))
+
+def otherHand(hand):
+    return 'left' if hand == 'right' else 'right'
 

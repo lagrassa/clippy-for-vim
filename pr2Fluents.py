@@ -1299,21 +1299,21 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
             preConf, pushConf, postConf, poseVar, prePoseVar,
             poseDelta, prob, initViol, prim=False):
     tag = 'canPush'
-    # direction from post to pre
-    # LPK:  took this out.  We could return the obj in the hand as a viol.
-    # but explicit preconditions will deal with making the hand be empty
-    # if pbs.held[hand].mode() != 'none':
-    #     tr(tag, '=> Hand=%s is holding in pbs, failing'%hand)
-    #     return None, None
-    # if obj in [h.mode() for h in pbs.held.values()]:
-    #     tr(tag, '=> obj is in the hand, failing')
-    #     return None, None
+    held = pbs.held[hand].mode()
+    newBS = pbs.copy()
+    if held != 'none':
+        tr(tag, 'Hand=%s is holding %s in pbs'%(hand, held))
+        newBS.updateHeld('none', None, None, hand, None)
+    if obj in [h.mode() for h in pbs.held.values()]:
+        tr(tag, '=> obj is in the other hand')
+        assert pbs.held[hand].mode() == obj
+        newBS.updateHeld('none', None, None, otherHand(hand), None)
     post = hu.Pose(*pose)
     placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), poseFace,
                        PoseD(post, poseVar), poseDelta)
     # graspB - from hand and objFrame
-    graspB = pushGraspB(pbs, pushConf, hand, placeB)
-    pathViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
+    graspB = pushGraspB(newBS, pushConf, hand, placeB)
+    pathViols, reason = pushPath(newBS, prob, graspB, placeB, pushConf,
                                  prePose, None, None, hand, prim=prim)
     if not pathViols:
         tr(tag, 'pushPath failed')
@@ -1325,6 +1325,11 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
         if viol is None:
             return None, None
         path.append(c)
+    if held != 'none':
+        # if we had something in the hand indicate a collision
+        shape = placeB.shape(pbs.getWorld())
+        heldColl = ([shape],[]) if hand=='left' else ([],[shape])
+        viol.update(Violations([],[],heldColl,([],[])))
     tr(tag, 'path=%s, viol=%s'%(path, viol))
     return path, viol
 
@@ -1453,11 +1458,12 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         return ans
     if debug(tag):
         conf.draw('W', 'pink'); preConf.draw('W', 'blue'); raw_input('Go?')
+    pushBuffer = glob.pushBuffer
     if prim:                            # due to tilt of hand
-        dist -= handTiltOffset
+        pushBuffer -= handTiltOffset
     # Number of steps for total displacement
-    nsteps = int((dist+glob.pushBuffer) / pushStepSize)
-    delta = (dist+glob.pushBuffer) / nsteps
+    nsteps = int((dist+pushBuffer) / pushStepSize)
+    delta = (dist+pushBuffer) / nsteps
     # Rotate only while in contact.
     if angleDiff == 0:
         deltaAngle = 0.0
@@ -1475,11 +1481,11 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     shape = pbs.getPlaceB(pB.obj).shape(pbs.getWorld())
     for step_i in xrange(nsteps+1):
         step = (step_i * delta)
-        contact = step >= glob.pushBuffer
+        contact = step >= pushBuffer
         # This is offset for hand, after contact follow the object
         if contact:
             if firstContact:
-                step = glob.pushBuffer
+                step = pushBuffer
             hoff = (step*direction).tolist()+[0.0]
         else:
             hoff = (step*handDir).tolist()+[0.0]
@@ -1501,7 +1507,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         nshape = None
         if contact:
             # This is offset for object
-            offsetPose = hu.Pose(*((step-glob.pushBuffer)*direction).tolist()+[0.0])
+            offsetPose = hu.Pose(*((step-pushBuffer)*direction).tolist()+[0.0])
             newPose = prePose if firstContact else offsetPose.compose(prePose)
             firstContact = False
             offsetRot = hu.Pose(0.,0.,0.,step_a*deltaAngle)
@@ -1527,7 +1533,12 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         pathViols.append((nconf, viol,
                           offsetPB.poseD.mode() if contact else None))
         if contact: step_a += 1
-    if not contact: reason = 'no contact'
+
+    if not contact and reason == 'done':
+        reason = 'no contact'
+        print 'No contact on path'
+        pdb.set_trace()
+        
     if debug('pushPath'):
         raw_input('Path:'+reason)
     ans = (pathViols, reason)
