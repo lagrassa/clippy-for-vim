@@ -136,7 +136,9 @@ def pushGenTop(args, goalConds, pbs):
         testBS.updatePermObjPose(placeB.modifyPoseD(prePose)) # obj at prePose
         testBS.draw(prob, 'W'); preConf.draw('W')
         viol = rm.confViolations(preConf, testBS, prob)
-        assert viol                     # no permanent collisions
+        if not viol:
+            raw_input('Collision in pushPath')
+            continue
         # End double check
         yield ans
     tr(tag, '=> pushGenTop exhausted for', hand)
@@ -482,7 +484,7 @@ def sortPushContacts(contacts, targetPose, curPose):
             for k in range(3):
                 # TODO: Pick distances to meaningful locations!!
                 dist = random.uniform(0.05, 0.25)
-                good.append((score, -dist, vertical, contact, width))
+                good.append((score, dist, vertical, contact, width))
     good.sort(reverse=True)             # z distance first
     if debug('pushGen'):
         print 'push contacts sorted by push distance'
