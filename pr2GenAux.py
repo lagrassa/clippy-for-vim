@@ -13,14 +13,14 @@ from traceFile import debugMsg, debug
 from miscUtil import argmax, isGround, isVar, argmax, squashOne
 from dist import UniformDist, DDist
 from geom import bboxCenter
-from pr2Robot import CartConf, gripperFaceFrame
+from pr2Robot import CartConf, gripperFaceFrame, pr2BaseLink
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations, Response
 from pr2Util import shadowName, objectName, Memoizer, inside
 import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
 from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace, \
-    BaseConf, Holding, CanReachNB, Conf, CanPush, canPush
+    BaseConf, Holding, CanReachNB, Conf, CanPush, canPush, pushGraspB
 from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCOParts
 from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
@@ -309,9 +309,13 @@ def canView(pbs, prob, conf, hand, shape,
 
 # This needs generalization
 
+approachConfCacheStats = [0,0]
 def findApproachConf(pbs, obj, placeB, conf, hand, prob):
+    approachConfCacheStats[0] += 1
     cached = pbs.getRoadMap().approachConfs.get(conf, False)
-    if cached is not False: return cached
+    if cached is not False:
+        approachConfCacheStats[1] += 1
+        return cached
     robot = pbs.getRobot()
     cart = conf.cartConf()
     wristFrame = cart[robot.armChainNames[hand]]
@@ -377,12 +381,25 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None
 
 graspConfs = set([])
 
+graspConfStats = [0,0]
+
 def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
     robot = pbs.getRobot()
     rm = pbs.getRoadMap()
     if not wrist:
         wrist = objectGraspFrame(pbs, graspB, placeB, hand)
     basePose = basePose.pose()
+
+    # If just the base collides with a perm obstacle, no need to continue
+    graspConfStats[0] += 1
+    baseShape = pr2BaseLink.applyTrans(basePose)
+    shWorld = pbs.getShadowWorld(prob)
+    for perm in shWorld.fixedObjects:
+        obst = shWorld.objectShapes[perm]
+        if obst.collides(baseShape):
+            graspConfStats[1] += 1
+            return
+        
     cart = CartConf({'pr2BaseFrame': basePose,
                      'pr2Torso':[torsoZ]}, robot)
     if hand == 'left':
@@ -721,12 +738,18 @@ def getReachObsts(goalConds, pbs):
     return obstacles
 
 def pushPathObst(obj, hand, poseFace, prePose, pose, preConf, pushConf,
-                 postConf, posevar, prePoseVar, poseDelta, cond, p, pbs, name):
+                 postConf, poseVar, prePoseVar, poseDelta, cond, p, pbs, name):
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
     path,  viol = canPush(newBS, obj, hand, poseFace, prePose, pose,
-                          preConf, pushConf, postConf, posevar,
+                          preConf, pushConf, postConf, poseVar,
                           prePoseVar, poseDelta, p, Violations())
+    # Attache the pushed object to the hand so that it is in reachObst
+    post = hu.Pose(*pose)
+    placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), poseFace,
+                       PoseD(post, poseVar), poseDelta)
+    gB = pushGraspB(pbs, pushConf, hand, placeB)
+    newBS = newBS.updateHeldBel(gB, hand)
     if debug('pathObst'):
         newBS.draw(p, 'W')
         cs.draw('W', 'red', attached=newBS.getShadowWorld(p).attached)

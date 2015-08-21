@@ -1307,23 +1307,10 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
         tr(tag, '=> obj is in the hand, failing')
         return None, None
     post = hu.Pose(*pose)
-    pushWrist = robotGraspFrame(pbs, pushConf, hand)
-    pre = hu.Pose(*prePose)
-    objPose = post
-    support = poseFace
-    placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), support,
-                       PoseD(objPose, poseVar), poseDelta)
-    objFrame = placeB.objFrame()
+    placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), poseFace,
+                       PoseD(post, poseVar), poseDelta)
     # graspB - from hand and objFrame
-    # TODO: what should these values be?
-    graspVar = 4*(0.01**2,)
-    graspDelta = 4*(0.0,)
-
-    graspFrame = objFrame.inverse().compose(pushWrist.compose(gripperFaceFrame[hand]))
-    graspDescList = [GDesc(obj, graspFrame, 0.0, 0.0, 0.0)]
-    graspDescFrame = objFrame.compose(graspDescList[-1].frame)
-    graspB =  ObjGraspB(obj, graspDescList, -1, support,
-                        PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
+    graspB = pushGraspB(pbs, pushConf, hand, placeB)
     pathViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
                                  prePose, None, None, hand, prim=prim)
     if not pathViols: return None, None
@@ -1336,6 +1323,21 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
         path.append(c)
     tr(tag, 'path=%s, viol=%s'%(path, viol))
     return path, viol
+
+def pushGraspB(pbs, pushConf, hand, placeB):
+    obj = placeB.obj
+    pushWrist = robotGraspFrame(pbs, pushConf, hand)
+    objFrame = placeB.objFrame()
+    support = placeB.support.mode()
+    # TODO: what should these values be?
+    graspVar = 4*(0.01**2,)
+    graspDelta = 4*(0.0,)
+    graspFrame = objFrame.inverse().compose(pushWrist.compose(gripperFaceFrame[hand]))
+    graspDescList = [GDesc(obj, graspFrame, 0.0, 0.0, 0.0)]
+    graspDescFrame = objFrame.compose(graspDescList[-1].frame)
+    graspB =  ObjGraspB(obj, graspDescList, -1, support,
+                        PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
+    return graspB
 
 # TODO: Straighten out the mess with the imports
 # Duplicated from pr2GenAux - we can't import it since that imports this.
@@ -1526,7 +1528,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         raw_input('Path:'+reason)
     ans = (pathViols, reason)
     pushPathCache[key].append((pbs, prob, gB, ans))
-    if debug(tag):
+    if True: # debug(tag):
         print tag, '->', reason, 'path len=', len(pathViols)
     return ans
 
