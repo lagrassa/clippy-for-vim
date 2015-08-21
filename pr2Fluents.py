@@ -1480,15 +1480,28 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     step_a = 0
     contact = False
     firstContact = True
-    shape = pbs.getPlaceB(pB.obj).shape(pbs.getWorld())
-    for step_i in xrange(nsteps+1):
+    firstContactStep = None
+    # Avoid the minimal shadow in the approach
+    shape = pbs.getPlaceB(pB.obj).shadow(pbs.getShadowWorld(0.0)) or \
+            pbs.getPlaceB(pB.obj).shape(pbs.getWorld())
+
+    # For heuristic, just do (start, contact, end)
+    if glob.inHeuristic:
+        stepVals = [0, int(math.ceil(pushBuffer/delta)), nsteps]
+    else:
+        stepVals = xrange(nsteps+1)
+
+    for step_i in stepVals:
         step = (step_i * delta)
         contact = step >= pushBuffer
         # This is offset for hand, after contact follow the object
         if contact:
             if firstContact:
                 step = pushBuffer
-            hoff = (step*direction).tolist()+[0.0]
+                firstContactStep = step_i
+                firstContact = False
+                hoff = (step*direction).tolist()+[0.0]
+            step_a = step_i - firstContactStep
         else:
             hoff = (step*handDir).tolist()+[0.0]
         # hoff[2] = 0.01
@@ -1511,7 +1524,6 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
             # This is offset for object
             offsetPose = hu.Pose(*((step-pushBuffer)*direction).tolist()+[0.0])
             newPose = prePose if firstContact else offsetPose.compose(prePose)
-            firstContact = False
             offsetRot = hu.Pose(0.,0.,0.,step_a*deltaAngle)
             if debug('pushPath'):
                 print 'offset:', offsetPose
@@ -1545,7 +1557,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         raw_input('Path:'+reason)
     ans = (pathViols, reason)
     pushPathCache[key].append((pbs, prob, gB, ans))
-    if True: # debug(tag):
+    if debug(tag):
         print tag, '->', reason, 'path len=', len(pathViols)
     return ans
 

@@ -137,7 +137,8 @@ def pushGenTop(args, goalConds, pbs):
         testBS.draw(prob, 'W'); preConf.draw('W')
         viol = rm.confViolations(preConf, testBS, prob)
         if not viol:
-            raw_input('Collision in pushPath')
+            if debug(tag):
+                raw_input('Collision in pushPath')
             continue
         # End double check
         yield ans
@@ -481,9 +482,9 @@ def sortPushContacts(contacts, targetPose, curPose):
                 print 'push contact, vertical=', vertical, '\n', contact.matrix
                 raw_input('Next?')
             score = width
-            for k in range(3):
+            for dist in [0.05, 0.1, 0.25]:
                 # TODO: Pick distances to meaningful locations!!
-                dist = random.uniform(0.05, 0.25)
+                # dist = random.uniform(0.05, 0.25)
                 good.append((score, dist, vertical, contact, width))
     good.sort(reverse=True)             # z distance first
     if debug('pushGen'):
