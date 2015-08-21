@@ -86,10 +86,6 @@ def search(initialState, goalTest, actions, successor,
                each state in the path
         """
 
-        if greedy != 0.5:
-                print 'greedy', greedy
-                raw_input('okay?')
-
         somewhatVerbose = verbose
         verbose = False
 
