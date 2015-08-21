@@ -667,7 +667,8 @@ class Operator(object):
                  argsToPrint = None,
                  specialRegress = None,
                  metaGenerator = False,
-                 rebindPenalty = glob.rebindPenalty):
+                 rebindPenalty = glob.rebindPenalty,
+                 costAdjustment = 0):
         self.name = name # string
         self.args = args # list of vars or constants
         self.preconditions = preconditions
@@ -705,6 +706,7 @@ class Operator(object):
         self.instanceCost = 'none'
         self.specialRegress = specialRegress
         self.rebindPenalty = rebindPenalty
+        self.costAdjustment = costAdjustment
         self.subPlans = []
 
     def verifyArgs(self):
@@ -893,7 +895,8 @@ class Operator(object):
                       self.argsToPrint,
                       self.specialRegress,
                       self.metaGenerator,
-                      self.rebindPenalty)
+                      self.rebindPenalty,
+                      self.costAdjustment)
 
         op.abstractionLevel = self.abstractionLevel
         op.instanceCost = self.instanceCost
@@ -1230,10 +1233,12 @@ class Operator(object):
         newGoal.bindings = copy.copy(goal.bindings)
         newGoal.bindings.update(newBindings)
 
-        if self.abstractionLevel == self.concreteAbstractionLevel:
-            cost = self.cost(self.abstractionLevel,
+        primCost = self.cost(self.abstractionLevel,
                          [lookup(arg, newBindings) for arg in self.args],
                          startState.details)
+
+        if self.abstractionLevel == self.concreteAbstractionLevel:
+            cost = primCost
         else:
             # Idea is to use heuristic difference as an estimate of operator
             # cost.
@@ -1247,14 +1252,9 @@ class Operator(object):
                 cost = float('inf')
             elif debug('simpleAbstractCostEstimates', h = True):
                 hOrig = hh(goal)
-                cost = hOrig - hNew
-                if cost <= 0:
+                cost = max(hOrig - hNew, primCost)
+                if cost <= 0:   # Can't be negative!
                     cost = 2
-                # Just add cost related to the degree of abstraction;  keeps
-                # abstract operators from winning ties
-                cost = cost + \
-                  (self.concreteAbstractionLevel - self.abstractionLevel)
-
                 tr('cost', self.name, 'hOrig', hh(goal), 'hNew', hNew,
                    '\n    cost est:', cost)
                 rebindCost = hOrig + rebindCost
@@ -1319,6 +1319,9 @@ class Operator(object):
                                 rebindCost = hOld + rebindCost
                             if cost < float('inf'): break
                         if cost < float('inf'): break
+
+        # We sometimes add an adjustment to encourage
+        cost = max(cost + self.costAdjustment, 1)
 
         tr(tag, 'Final regression result', ('Op', self),
                      ('cost', cost),
@@ -1934,6 +1937,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
     elif lastOp and g.depth == 0:
         # At least ensure we try these bindings at the top node of the plan
         ops = [lastOp] + [o for o in operators if o.name != lastOp.name]
+        lastOp.costAdjustment = -20 # encourage it to use this !
     else:
         ops = operators
 
@@ -1953,6 +1957,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         for o in helpfulActions:
             if not flatPlan: 
                 o.abstractionLevel = 0  # Will be set appropriately below
+            o.costAdjustment = -8
             result.update(appOpInstances(o, g, startState, ancestors,
                                          monotonic, nonMonOps))
 

@@ -780,6 +780,7 @@ def placeCostFun(al, args, details):
     rawCost = 10
     abstractCost = 20
     (_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,p1) = args
+    if isVar(p1): p1 = 0.9
     result = costFun(rawCost,
                      p1*canPPProb*(1-details.domainProbs.placeFailProb)) + \
                (abstractCost if al == 0 else 0)
@@ -789,7 +790,7 @@ def placeCostFun(al, args, details):
 def pushCostFun(al, args, details):
     # Make it cost more than pick/place for now, though not clear it
     # should always be like this.
-    rawCost = 5
+    rawCost = 50
     abstractCost = 10
     (_, _, _, _, _, _, _, _, _, _, _, _, p, _, _)  = args
     result = costFun(rawCost,
