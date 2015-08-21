@@ -1305,7 +1305,7 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
     if held != 'none':
         tr(tag, 'Hand=%s is holding %s in pbs'%(hand, held))
         newBS.updateHeld('none', None, None, hand, None)
-    if obj in [h.mode() for h in pbs.held.values()]:
+    if obj in [h.mode() for h in newBS.held.values()]:
         tr(tag, '=> obj is in the other hand')
         # LPK!! Changed hand below to otherHand(hand)
         assert pbs.held[otherHand(hand)].mode() == obj

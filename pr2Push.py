@@ -102,8 +102,8 @@ def pushGenTop(args, goalConds, pbs):
         # violations in canPush...
         tr(tag, 'Hand=%s is holding %s in pbs'%(hand,held))
         newBS.updateHeld('none', None, None, hand, None)
-    # LPK!!! Changed this from if to elif because the previous case
-    # was true, and that made the assert currPB fail.
+    if held == obj:
+        curPB = None
     elif obj in [h.mode() for h in newBS.held.values()]:
         tr(tag, 'obj is in other hand')
         newBS.updateHeld('none', None, None, otherHand(hand), None)
@@ -157,7 +157,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob):
             tr(tag, '=> Target pose is too close to current pose, failing',
                curPose, targetPose, curPose.distance(targetPose))
     else:
-        curPOse = None
+        curPose = None
     # TODO: this should really look for a large Cspace surface
     # Choose a prim for contact
     prim = choosePrim(shape)
