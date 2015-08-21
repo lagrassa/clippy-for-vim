@@ -102,7 +102,9 @@ def pushGenTop(args, goalConds, pbs):
         # violations in canPush...
         tr(tag, 'Hand=%s is holding %s in pbs'%(hand,held))
         newBS.updateHeld('none', None, None, hand, None)
-    if obj in [h.mode() for h in newBS.held.values()]:
+    # LPK!!! Changed this from if to elif because the previous case
+    # was true, and that made the assert currPB fail.
+    elif obj in [h.mode() for h in newBS.held.values()]:
         tr(tag, 'obj is in other hand')
         newBS.updateHeld('none', None, None, otherHand(hand), None)
         curPB = None

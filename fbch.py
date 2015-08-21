@@ -1250,6 +1250,11 @@ class Operator(object):
                 cost = hOrig - hNew
                 if cost <= 0:
                     cost = 2
+                # Just add cost related to the degree of abstraction;  keeps
+                # abstract operators from winning ties
+                cost = cost + \
+                  (self.concreteAbstractionLevel - self.abstractionLevel)
+
                 tr('cost', self.name, 'hOrig', hh(goal), 'hNew', hNew,
                    '\n    cost est:', cost)
                 rebindCost = hOrig + rebindCost

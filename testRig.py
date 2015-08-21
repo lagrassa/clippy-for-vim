@@ -664,7 +664,7 @@ class PlanTest:
         if skeleton: fbch.dotSearchId = 0
         startTime = time.clock()
         fbch.flatPlan = not hierarchical
-        fbch.plannerGreedy = greedy  # somewhat greedy by default
+        fbch.plannerGreedy = greedy 
         pr2Sim.simulateError = simulateError
         for win in wm.windows:
             wm.getWindow(win).clear()

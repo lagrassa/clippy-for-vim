@@ -4,7 +4,8 @@ import time
 import hu
 import numpy as np
 from planUtil import Violations, ObjPlaceB, ObjGraspB
-from pr2Util import shadowName, drawPath, objectName, PoseD, supportFaceIndex, GDesc, inside
+from pr2Util import shadowName, drawPath, objectName, PoseD, \
+     supportFaceIndex, GDesc, inside, otherHand
 from dist import DeltaDist, probModeMoved
 from traceFile import debugMsg, debug
 import planGlobals as glob
@@ -1306,7 +1307,8 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
         newBS.updateHeld('none', None, None, hand, None)
     if obj in [h.mode() for h in pbs.held.values()]:
         tr(tag, '=> obj is in the other hand')
-        assert pbs.held[hand].mode() == obj
+        # LPK!! Changed hand below to otherHand(hand)
+        assert pbs.held[otherHand(hand)].mode() == obj
         newBS.updateHeld('none', None, None, otherHand(hand), None)
     post = hu.Pose(*pose)
     placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), poseFace,
