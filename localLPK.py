@@ -85,7 +85,6 @@ skeleton
 testVerbose
 traceCRH
 traceGen  (compact summary of generators)
-useBBInH
 visible
 visibleEx (show visibility stuff during execution even if visible is false)
 
@@ -95,8 +94,8 @@ visibleEx (show visibility stuff during execution even if visible is false)
 usualTags = ['nonmon']
 flags = ['simpleAbstractCostEstimates',
           'primitiveHeuristicAlways',
-          'useBBinH',
-          'helpfulActions']
+          'helpfulActions',
+          'pushSim']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack', 
                  'debugInHeuristic', 'h'] #, 'hv'] 
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',

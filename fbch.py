@@ -1372,8 +1372,6 @@ def btGetBindings(functions, goalFluents, start, avoid = [], numBindings = 1):
                 bToAvoid.append(sofar)
             else:
                 tr('btbind', 'hit duplicate', sofar)
-                if sofar == {}:
-                    raw_input('hit duplicate', sofar, bToAvoid)
         else:
             f = funs[0]
             values  = f.fun([lookup(v, sofar) for v in f.inVars],
