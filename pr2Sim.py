@@ -92,7 +92,6 @@ class RealWorld(WorldState):
             held = self.held.values()
             return [self.objectShapes[obj] \
                     for obj in self.objectShapes if not obj in held]
-        objShapes = getObjShapes()
         obs = None
         path = interpolated or path
         distSoFar = 0.0
@@ -102,8 +101,10 @@ class RealWorld(WorldState):
         prevXYT = self.robotConf.conf['pr2Base']
         for (i, conf) in enumerate(path):
             # !! Add noise to conf
-            if action: action(path, i) # do optional action
-            self.setRobotConf(conf)
+            if action:
+                action(path, i) # do optional action
+            else:
+                self.setRobotConf(conf)
             pathTraveled.append(conf)
             if debug('animate'):
                 self.draw('World')
@@ -115,14 +116,18 @@ class RealWorld(WorldState):
             leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3]).tolist()[0][:-1]
             rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3]).tolist()[0][:-1]
             tr('sim',
-               ('base', conf['pr2Base'], 'left', leftPos, 'right', rightPos))
+               'base', conf['pr2Base'], 'left', leftPos, 'right', rightPos)
+            if debug('sim'):
+                print 'left\n', cart['pr2LeftArm'].matrix
+                print 'right\n', cart['pr2RightArm'].matrix
             if ignoreCrash:
                 pass
             else:
-                for obst in objShapes:
+                for obst in getObjShapes():
                     if self.robotPlace.collides(obst):
                         obs ='crash'
                         tr('sim', 'Crash! with '+obst.name())
+                        pdb.set_trace()
                         raw_input('Crash! with '+obst.name())
                         if crashIsError:
                             raise Exception, 'Crash'
@@ -293,7 +298,6 @@ class RealWorld(WorldState):
                 if not deb and debug('visibleEx'): glob.debugOn.remove('visible')
                 if not vis:
                     tr('sim', 'Object %s is not visible'%curObj)
-                    pdb.set_trace()
                     continue
                 else:
                     tr('sim', 'Object %s is visible'%curObj)
@@ -426,11 +430,16 @@ class RealWorld(WorldState):
     def pushObject(self, obj, c1, c2, hand, deltaPose):
         place = c2.placement()
         shape = self.objectShapes[obj]
-        if not place.collides(shape):
+        if not place.collides(shape):   # obj at current pose
             return
         # There is contact, step the object along
         deltaPose = objectDisplacement(shape, c1, c2, hand, deltaPose)
         self.setObjectPose(obj, deltaPose.compose(self.getObjectPose(obj)))
+        self.setRobotConf(c2)           # move robot and objectShapes update
+        shape = self.objectShapes[obj]
+        if self.robotPlace.collides(shape):
+            print 'Push left object in collision'
+            pbd.set_trace()
         print 'Touching', obj, 'in push, moved it to', self.getObjectPose(obj).pose()
 
     def executePush(self, op, params, noBase = True):
@@ -471,9 +480,9 @@ class RealWorld(WorldState):
                 mag = (delta.x**2 + delta.y**2 + delta.z**2)**0.5
                 deltaPose = hu.Pose(0.005*(delta.x/mag), 0.005*(delta.y/mag), 0.005*(delta.z/mag), 0.0)
                 moveFn = moveObjSim if debug('pushSim') else moveObjRigid
-                obs = self.doPath(path, interpolated, action=moveFn, ignoreCrash=True)
+                obs = self.doPath(path, interpolated, action=moveFn)
                 print 'Forward push path obs', obs
-                obs = self.doPath(path[::-1], interpolated[::-1], ignoreCrash=True)
+                obs = self.doPath(path[::-1], interpolated[::-1])
                 print 'Reverse push path obs', obs
             else:
                 print op
@@ -518,7 +527,8 @@ def objectDisplacement(shape, c1, c2, hand, deltaPose):
         pose = hu.Pose(delta[0], delta[1], 0.0, delta[2])
         nshape = shape.applyTrans(pose).toPrims()[0]
         if gripperShape.collides(nshape):
-            penalty = 100. * penetrationDist(nshape, gripperVerts)
+            # penalty = 100. * penetrationDist(nshape, gripperVerts)
+            penalty = 10.
         disp = np.dot(pose.matrix, supportPoints)
         dist_2 = (disp - supportPoints)**2
         sumDisp = np.sum(np.sqrt(np.sum(dist_2, axis=0)))
@@ -537,13 +547,9 @@ def objectDisplacement(shape, c1, c2, hand, deltaPose):
             delta = delta.compose(delta).pose(0.1)
             nshape = shape.applyTrans(delta)
         supportPoints = shapeSupportPoints(shape)
-        initial = np.array([delta.x, delta.y, delta.theta])
-        print 'initial', initial
-        # ans = fmin(sumDisplacements, initial,
-        #            full_output=True, ftol = 0.001)
-        # final, val = ans[0], ans[1]
-        final = bruteForceMin(sumDisplacements, initial)
-        print 'final', final
+        #  initial = np.array([delta.x, delta.y, delta.theta])
+        initial = np.zeros(3)
+        final, finalVal = bruteForceMin(sumDisplacements, initial)
         return hu.Pose(final[0], final[1], 0.0, final[2])
     else:
         return hu.Pose(0.0, 0.0, 0.0, 0.0)
@@ -582,14 +588,14 @@ def bruteForceMin(f, init):
         return fmin(f, x, full_output=True, disp=False)[:2]
 
     (minX, minVal) = fun(init)
-    print 'min:', minX, '->', minVal
+    print 'initial', minX, '->', minVal
     for x in [-0.02, 0.02]:
         for y in [-0.02, 0.02]:
-            for th in [-0.02, 0.02]:
+            for th in [-0.02, -0.01, 0.0, 0.01, 0.02]:
                 X = np.array([x, y, th])
                 newX, val = fun(X)
                 if val < minVal:
                     minVal = val
                     minX = newX
-                    print 'min:', minX, '->', minVal
-    return minX
+    print 'final', minX, '->', minVal
+    return minX, minVal

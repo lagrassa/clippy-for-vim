@@ -217,7 +217,7 @@ def pushPrim(args, details):
                          poseDelta, resultProb, Violations(), prim=True)
     assert path
     tr('prim', '*** pushPrim', args, ('path length', len(path)))
-    return path, rrt.interpolatePath(path), details.pbs.getPlacedObjBs()    
+    return path, path, details.pbs.getPlacedObjBs()    
 
 ################################################################
 ## Simple generators

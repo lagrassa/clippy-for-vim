@@ -961,7 +961,7 @@ def testPush4(hpn = True, skeleton = False, hierarchical = False,
     goal = State([\
                   Bd([SupportFace(['bigA']), 4, goalProb], True),
                   B([Pose(['bigA', 4]),
-                     targetPose, targetVar, (0.02,)*4,
+                     targetPose, targetVar, (0.03,0.03,0.03,0.2),
                      goalProb], True)])
 
     t = PlanTest('testPush4',  errProbs, allOperators,

@@ -83,7 +83,7 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['animate'] + ['pushGen', 'pushPath']
+debugOn = usualTags + ['animate', 'pushSim']
 # + ['disablePickPlace']
 # + ['pushGen'] + skeletonTags
 

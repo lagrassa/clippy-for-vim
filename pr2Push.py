@@ -374,7 +374,6 @@ def handContactFrames(shape, center, vertical):
                 print faceBB
                 print 'width', width, 'valid contact frame\n', cf.matrix
                 # raw_input('Target')
-                pdb.set_trace()
             contactFrames.append((cf, width))
         else:
             if debug(tag): print 'face is too small'

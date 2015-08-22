@@ -1316,7 +1316,7 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
     graspB = pushGraspB(newBS, pushConf, hand, placeB)
     pathViols, reason = pushPath(newBS, prob, graspB, placeB, pushConf,
                                  prePose, None, None, hand, prim=prim)
-    if not pathViols:
+    if not pathViols or reason != 'done':
         tr(tag, 'pushPath failed')
         return None, None
     viol = pathViols[0][1]
@@ -1381,7 +1381,8 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     newBS = pbs.copy()
     newBS = newBS.updateHeldBel(gB, hand)
     # Check cache and return it if appropriate
-    key = (pB.poseD.mode(), baseSig, prePose, hand, glob.pushBuffer)
+    key = (pB.poseD.mode(), baseSig, prePose, hand, glob.pushBuffer, glob.inHeuristic)
+    names =('postPose', 'base', 'prePose', 'hand', 'pushBuffer', 'inHeuristic')
     pushPathCacheStats[0] += 1
     val = pushPathCache.get(key, None)
     if val is not None:
@@ -1401,10 +1402,10 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         if debug(tag):
             print '-----------'
             conf.prettyPrint()
-            for x in key: print x
+            for n, x in zip(names, key): print n, x
             print '-----------'
-            if shape is None:           # called from canPush
-                pdb.set_trace()
+            # if shape is None:           # called from canPush
+            #     pdb.set_trace()
         pushPathCache[key] = []
     if debug(tag): newBS.draw(prob, 'W'); raw_input('pushPath: Go?')
     # Check there is no permanent collision
@@ -1472,7 +1473,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         nstepsAngle = int(dist / pushStepSize) # angle rotation only after contact
         deltaAngle = angleDiff / nstepsAngle
     if debug(tag): 
-        print 'nsteps=', nsteps, 'delta=', delta
+        print 'nsteps=', nsteps, 'delta=', delta, 'deltaAngle', deltaAngle
 
     # Initial part of the path (up to pushBuffer) is before contact,
     # so pose does not change, then we get contact and pose changes.
@@ -1483,7 +1484,6 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     # Avoid the minimal shadow in the approach
     shape = pbs.getPlaceB(pB.obj).shadow(pbs.getShadowWorld(0.0)) or \
             pbs.getPlaceB(pB.obj).shape(pbs.getWorld())
-
     # For heuristic, just do (start, contact, end)
     if glob.inHeuristic:
         stepVals = [0, int(math.ceil(pushBuffer/delta)), nsteps]
@@ -1501,8 +1501,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
                 firstContact = False
                 hoff = (step*direction).tolist()+[0.0]
             step_a = step_i - firstContactStep
-        else:
-            hoff = (step*handDir).tolist()+[0.0]
+        hoff = (step*handDir).tolist()+[0.0]
         # hoff[2] = 0.01
         hOffsetPose = hu.Pose(*hoff)
         if step_i == nsteps:
@@ -1572,10 +1571,9 @@ def drawState(pbs, prob, conf, shape=None):
     if glob.useMathematica:
         wm.getWindow('W').startCapture()
     pbs.draw(prob, 'W')
-    conf.draw('W', 'cyan', attached)
+    conf.draw('W', 'green', attached)
     if shape: shape.draw('W', 'blue')
     wm.getWindow('W').update()
-    # time.sleep(0.1)
     if glob.useMathematica:
         mathematica.mathFile(wm.getWindow('W').stopCapture(),
                              view = "ViewPoint -> {2, 0, 2}",
@@ -1613,10 +1611,7 @@ def handTiltAndDir(conf, hand, direction):
         if debug('pushPath'): print hdir, '->', sign, hdir
         # Because of the wrist orientation, the sign is negative
 
-        if 'pushSim' in glob.debugOn:
-            rot = hu.Transform(rotation_matrix(-sign*math.pi/8., (0,1,0)))
-        else:
-            rot = hu.Transform(rotation_matrix(-sign*math.pi/15., (0,1,0)))
+        rot = hu.Transform(rotation_matrix(-sign*math.pi/15., (0,1,0)))
 
         return rot, hdir
     else:
