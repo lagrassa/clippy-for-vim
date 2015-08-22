@@ -925,22 +925,6 @@ class Operator(object):
 
         return result
 
-    # Call regress multiple times, to get several different
-    # instatiations of the operator.
-    def multipleRegress(self, n, goal, startState = None, heuristic = None,
-                        operators = (), ancestors = {}):
-        result = []
-        op = self
-        for i in range(n):
-            r = op.regress(goal, startState, heuristic, operators, ancestors)
-            if len(r) < 2:
-                return result
-            ((newGoal, cost), (rebindGoal, _)) = r
-            result.append((newGoal, cost))
-            op = applicableOps(rebindGoal, operators, startState)[0]
-            goal = rebindGoal
-        return result
-
     # Returns a list of (goal, cost) pairs
     # Operators used in hierarchical heuristic
     # Should refactor!  Here's an outline
@@ -958,7 +942,7 @@ class Operator(object):
     # - compute the cost
     
     def regress(self, goal, startState = None, heuristic = None,
-                operators = (), ancestors = ()):
+                operators = (), ancestors = (), numResults = 1):
         tag = 'regression'
         # Stop right away if an immutable precond is false
         if any([(p.immutable and p.isGround() and\
@@ -976,13 +960,11 @@ class Operator(object):
         # It's an experiment to do this here, before getting all the bindings
         pendingFluents = []
         for gf in goal.fluents: 
-            entailed = False
             for rf in results:
-                bTemp = rf.entails(gf, startState.details)
-                tr('regression:entails',
-                         'entails', rf, gf, bTemp, bTemp != False)
-                if bTemp != False:
-                    entailed = True
+                entailed = rf.entails(gf, startState.details) != False
+                tr('regression:entails', 'entails', rf, gf, entailed)
+                # TODO: LPK: !! Should we do something with these bindings?
+                if entailed:
                     break
             if not entailed:
                 pendingFluents.append(gf.copy())
@@ -990,64 +972,89 @@ class Operator(object):
         # Figure out which variables, and therefore which functions, we need.
         necessaryFunctions = self.getNecessaryFunctions()
         # Call backtracker to get bindings of unbound vars
-        newBindings = btGetBindings(necessaryFunctions,
-                                    pendingFluents, #goal.fluents,
+        newBindingsList = btGetBindings(necessaryFunctions,
+                                    pendingFluents,
                                     startState.details,
-                                    avoid = goal.bindingsAlreadyTried)
-        # Debugging stuff
-        tr('regression:bind', 'getting new bindings',
-                 self.functions, goal.fluents, ('result', newBindings))
-        if newBindings == None:
+                                    avoid = goal.bindingsAlreadyTried,
+                                    numBindings = numResults)
+
+        tr('regression:bind', 'new bindings',
+                 self.functions, pendingFluents, ('result', newBindingsList))
+        if len(newBindingsList) == 0:
             tr('regression:fail', self, 'could not get bindings',
                      'h = '+str(glob.inHeuristic))
             if debug('regression:fail:bindings'):
                 glob.debugOn = glob.debugOn + ['btbind']
-                newBindings = btGetBindings(necessaryFunctions,
-                                            goal.fluents,
-                                            startState.details,
-                                            avoid = goal.bindingsAlreadyTried)
+                btGetBindings(necessaryFunctions, pendingFluents,
+                              startState.details,
+                              avoid = goal.bindingsAlreadyTried,
+                              numBindings = numResults)
                 raw_input('hope that was helpful')
                 glob.debugOn = glob.debugOn[:-1]
             return []
 
-        mop = None
-        if self.metaGenerator:
-            for k in newBindings.keys():
-                if k[:2] == 'Op': mop = newBindings[k]
-
-        if self.metaGenerator and mop is not None:
-            # We have made a commitment to achieving these conditions as a
-            # way of achieving the goal.  We need to remember them for
-            # planning at the next level down.  It feels like we need to
-            # side-effect this goal.  Is that okay?  Will it work?
-            preCond = None
-            for k in newBindings.keys():
-                if k[:7] == 'NewCond': newCond = newBindings[k]
-            goal = goal.copy()
-            goal.addSet(newCond)
-
-            # Set abstraction level for mop
-            if flatPlan:
-                mop.abstractionLevel = mop.concreteAbstractionLevel
+        resultList = []
+        for nb in newBindingsList:
+            if self.metaGenerator:
+                res = self.mopFromBindings(nb, goal, startState, heuristic,
+                                     operators, ancestors)
             else:
-                mop.setAbstractionLevel(ancestors)
-            tr('regression', 'Applied metagenerator, got', mop, ol = True)
-            res = mop.regress(goal, startState, heuristic, operators,
-                              ancestors)
-            return res
+                res = self.newGoalFromBindings(nb, results, goal, startState,
+                                               heuristic, operators, ancestors)
+            if res != None:
+                resultList.append(res)
 
+        # Make another result, which is a place-holder for rebinding
+        rebindLater = goal.copy()
+        rebindLater.suspendedOperator = self.copy()
+        rebindLater.operator = rebindLater.suspendedOperator
+        rebindLater.bindingsAlreadyTried.extend(newBindingsList)
+        rebindLater.rebind = True
+        if len(resultList) == 0:
+            c = max([self.cost(self.abstractionLevel,
+                         [lookup(arg, nb) for arg in self.args],
+                         startState.details) for nb in newBindingsList])
+        else: 
+            c =  max([cc for (gg, cc) in resultList])
+        rebindCost = self.rebindPenalty + c
+        rebindLater.suspendedOperator.instanceCost = rebindCost
+        resultList.append([rebindLater, rebindCost])
+
+        tr(tag, 'Final regression result', ('Op', self), resultList)
+        return resultList
+
+    def mopFromBindings(newBindings, goal, startState, heuristic, operators,
+                       ancestors):
+        for k in newBindings.keys():
+            if k[:2] == 'Op': mop = newBindings[k]
+
+        # We have made a commitment to achieving these conditions as a
+        # way of achieving the goal.  We need to remember them for
+        # planning at the next level down.  It feels like we need to
+        # side-effect this goal.  Is that okay?  Will it work?
+        preCond = None
+        for k in newBindings.keys():
+            if k[:7] == 'NewCond': newCond = newBindings[k]
+        goal = goal.copy()
+        goal.addSet(newCond)
+        # Set abstraction level for mop
+        if flatPlan:
+            mop.abstractionLevel = mop.concreteAbstractionLevel
+        else:
+            mop.setAbstractionLevel(ancestors)
+        tr('regression', 'Applied metagenerator, got', mop, ol = True)
+        return mop.regress(goal, startState, heuristic, operators,
+                           ancestors, numResults = 1)[0]
+
+    def newGoalFromBindings(self, newBindings, results, goal, startState,
+                            heuristic, operators, ancestors):
         resultSE = [f.applyBindings(newBindings) \
                     for f in self.guaranteedSideEffects(allLevels = True)]
         groundResultSE = [f for f in resultSE if f.isGround()]
-
         nonGroundSE = [f for f in resultSE if not f.isGround()]
         boundSE = [f.applyBindings(newBindings) \
                    for f in self.sideEffectSet(allLevels = True)] + \
                    nonGroundSE
-
-        # TODO: LPK should check to be sure that groundSE and results are
-        # consistent;  but that would be a stupid rule to write!
-
         br = set()
         # Get rid of entailments *within* the results.  Kind of ugly.
         for f in results.union(set(groundResultSE)):
@@ -1064,8 +1071,7 @@ class Operator(object):
         # Be sure the result is consistent
         if not goal.isConsistent(boundResults, startState.details):
             tr('regression:fail', self, 'results inconsistent with goal')
-            # This is not a fatal flaw;  just a problem with these bindings
-            return []
+            return None
 
         # Be sure not clobbered by non-ground side effects
         clobbered = False
@@ -1086,26 +1092,21 @@ class Operator(object):
                         if debug('regression:fail'):
                                 print '    might clobber\n', f1, '\n', f2
         if clobbered:
-            if self.abstractionLevel < self.concreteAbstractionLevel:
-                tr('regression', 'Trying less abstract version of op', self)
-                tr('clobber', 'Trying less abstract version of op', self)
-                primOp = self.copy()
-                # LPK: Nicer to increase by 1, but expensive
-                # primOp.abstractionLevel += 1
-                primOp.abstractionLevel = primOp.concreteAbstractionLevel
-                return primOp.regress(goal, startState)
-            else:
-                trAlways('Clobbering at primitive level???', pause = True)
-                tr('regression:fail', 'clobber', goal, self)
-                return []
+            assert self.abstractionLevel < self.concreteAbstractionLevel,\
+              'Clobbering at primitive level.  Bad operator description'
+            tr('clobber', 'Trying less abstract version of op', self)
+            #primOp = self.applyBindings(newBindings)
+            primOp = self.copy()
+            # LPK: Nicer to increase by 1, but expensive
+            primOp.abstractionLevel = primOp.concreteAbstractionLevel
+            res = primOp.regress(goal, startState)
+            return res[0] if len(res) > 1 else None
 
         # Treat ground side effects as results
         boundResults = boundResults + groundResultSE
-
         # Some bindings that we make after this might apply to previous steps
         # in the plan, so we have to accumulate and store then
         bp = {}
-        
         # Discharge conditions that are entailed by this result and
         # apply the special regression function if there is one
         newFluents = []
@@ -1114,8 +1115,7 @@ class Operator(object):
             entailed = False
             for rf in boundResults:
                 bTemp = rf.entails(gf, startState.details)
-                tr('regression:entails',
-                         'entails', rf, gf, bTemp, bTemp != False)
+                tr('regression:entails', 'entails', rf, gf,bTemp,bTemp != False)
                 if bTemp != False:
                     entailed = True
                     newBindings.update(bTemp)
@@ -1131,21 +1131,19 @@ class Operator(object):
                 else:
                     nf = gf.copy()
                 if nf == None:
-                    tr('regression:fail', 'special regress failure')
-                    return []
+                    tr('regression:fail', 'special regress failure',
+                       self.name, gf)
+                    return None
                 newFluents.append(nf)
 
         newBoundFluents = [f.applyBindings(newBindings) for f in newFluents]
-
         # Regress the implicit predicates by adding the bound results of this
         # operator to the conditions of those predicates.
 
         ### Took this out to see what effect it is having
         resultsFromSpecialRegression = []
-
         boundPreconds = [f.applyBindings(newBindings) \
                          for f in self.preconditionSet()]
-
         explicitResults = [r for r in \
                             boundResults + resultsFromSpecialRegression \
                            if r.isGround() and not r.isImplicit()]
@@ -1157,11 +1155,9 @@ class Operator(object):
         # Add conditions and make new state.  Put these fluents into
         # the new state sequentially to get rid of redundancy.  Make
         # this code nicer.
-        bindingsNoGood = False
         # These fluents are side-effected; but applyBindings always
         # copies so that should be okay.
         newGoal = State([])
-
         for f in newBoundFluents:
             if f.isConditional():
                 valueBefore = startState.fluentValue(f)
@@ -1173,10 +1169,8 @@ class Operator(object):
                 f.addConditions(explicitSE, startState.details)
                 f.update()
                 if not f.feasible(startState.details):
-                    tr('regression:fail', 'conditional fluent infeasible',
-                            f)
-                    bindingsNoGood = True
-                    break
+                    tr('regression:fail', 'conditional fluent infeasible', f)
+                    return None
                 valueAfter = startState.fluentValue(f)
                 if valueBefore and not valueAfter:
                     trAlways('suspicious: conditioning made fluent false',
@@ -1192,150 +1186,108 @@ class Operator(object):
                         for f2 in newGoal.fluents:
                             if f1.contradicts(f2, startState.details):
                                 print '    contradiction\n', f1, '\n', f2
-            tr('regression:fail', self,
-                             'preconds inconsistent with goal',
+            tr('regression:fail', self,'preconds inconsistent with goal',
                              ('newGoal', newGoal), ('preconds', boundPreconds))
-            bindingsNoGood = True
+            return None
             
-        # Make another result, which is a place-holder for rebinding
-        rebindLater = goal.copy()
-        rebindLater.suspendedOperator = self.copy()
-        rebindLater.bindingsAlreadyTried.append(newBindings)
-        rebindLater.rebind = True
-        rebindCost = self.rebindPenalty
-
-        if not bindingsNoGood:
-            # Add side-effects into result
+        # Add side-effects into result
             
-
-            # Add in the preconditions.  We can make new bindings between
-            # new and old preconds, but not between new ones!
-            bTemp = newGoal.addSet(boundPreconds,
-                                   moreDetails = startState.details)
-
-            for f in newGoal.fluents:
-                if f.isConditional(): 
-                    if not f.feasible(startState.details):
-                        tr('regression:fail',
-                                 'conditional fluent is infeasible', f)
-                        bindingsNoGood = True
-
-        if bindingsNoGood:
-            tr('regression:fail', 'returning rebind node only')
-            rebindLater.suspendedOperator.instanceCost = rebindCost
-            return [[rebindLater, rebindCost]]
+        # Add in the preconditions.  We can make new bindings between
+        # new and old preconds, but not between new ones!
+        bTemp = newGoal.addSet(boundPreconds, moreDetails = startState.details)
+        for f in newGoal.fluents:
+            if f.isConditional(): 
+                if not f.feasible(startState.details):
+                    tr('regression:fail', 'conditional fluent is infeasible', f)
+                    return None
 
         bp.update(bTemp)
         newBindings.update(bp)
-
         newGoal.depth = goal.depth + 1
         newGoal.operator = self.applyBindings(newBindings)
         newGoal.bindings = copy.copy(goal.bindings)
         newGoal.bindings.update(newBindings)
-
         primCost = self.cost(self.abstractionLevel,
                          [lookup(arg, newBindings) for arg in self.args],
                          startState.details)
-
         if self.abstractionLevel == self.concreteAbstractionLevel:
             cost = primCost
         else:
-            # Idea is to use heuristic difference as an estimate of operator
-            # cost.
+            # Use heuristic difference as an estimate of operator cost.
             hh = heuristic if heuristic else \
-              lambda s: s.easyH(startState, defaultFluentCost = 1.5)
+                        lambda s: s.easyH(startState, defaultFluentCost = 1.5)
             hNew = hh(newGoal)
             if hNew == float('inf'):
-                # This is hopeless.  Give up now.
                 tr('regression:fail','New goal is infeasible', newGoal)
-                print 'Infeasible pre-image', self.name
                 cost = float('inf')
             elif debug('simpleAbstractCostEstimates', h = True):
                 hOrig = hh(goal)
                 cost = max(hOrig - hNew, primCost)
                 if cost <= 0:   # Can't be negative!
                     cost = 2
-                tr('cost', self.name, 'hOrig', hh(goal), 'hNew', hNew,
+                tr('cost', self.name, 'hOrig', hOrig, 'hNew', hNew,
                    '\n    cost est:', cost)
-                rebindCost = hOrig + rebindCost
             else:
-                # Do one step of primitive regression on the old state
-                # and then compute the heuristic on that.  This is an
-                # estimate of how hard it is to establish all the
-                # preconds. Cost to get from start to one primitive
-                # step before newGoal, plus the cost of the last step
-                primOp = self.applyBindings(newBindings) # was self.copy()
-                primOp.abstractionLevel = primOp.concreteAbstractionLevel
-                primOpRegr = primOp.regress(goal, startState)
- 
-                if len(primOpRegr) < 2:
-                    # Looks good abstractly, but can't apply concrete op
-                    # Try other ops!
-                    tr('infeasible', 'Concrete op not applicable',
-                                 primOp, goal)
-                    cost = float('inf')
-                else:
-                    (sp, cp) = primOpRegr[0]
-                    primPrecondCost = hh(sp)
-                    if primPrecondCost == float('inf'):
-                        tr('infeasible','Prim preconds infeasible', sp)
-    
-                    hOld = primPrecondCost + cp
-                    # Difference between that cost, and the cost of
-                    # the regression of the abstract action.  This is
-                    # an estimate of the cost of the abstract action.
-                    cost = hOld - hNew
-
-                    if cost < 0:
-                        cost = cp
-
-                    if hOld != float('inf'):
-                        rebindCost = hOld + rebindCost
-                    else:
-                        # Try a smaller penalty here to encourage rebinding
-                        rebindCost = 10
-
-                # Try one more thing.  If prim op is not
-                # applicable or cost of preconds is infinite, try
-                # other ops, because in fact the last operation
-                # may need to be something else.
-
-                # Should try them all, but we'll stop as soon as we
-                # get one that is non-inf.  Try monotonic ones first.
-                if cost == float('inf'):
-                    opsm = applicableOps(goal, operators, startState,
-                                        monotonic = True)
-                    ops = applicableOps(goal, operators, startState,
-                                        monotonic = False)
-                    for o in list(opsm) + list(ops.difference(opsm)): 
-                        o.abstractionLevel = o.concreteAbstractionLevel
-                        pres = o.regress(goal, startState)
-                        for (sp, cp) in pres[:-1]:
-                            primPrecondCost = hh(sp)
-                            hOld = primPrecondCost + cp
-                            newCost = hOld - hNew
-                            if newCost < cost:
-                                cost = newCost
-                                rebindCost = hOld + rebindCost
-                            if cost < float('inf'): break
-                        if cost < float('inf'): break
+                cost = self.primRegressCostEst(newGoal, newBindings,
+                                               goal, startState)
 
         # We sometimes add an adjustment to encourage
         cost = max(cost + self.costAdjustment, 1)
-
-        tr(tag, 'Final regression result', ('Op', self),
-                     ('cost', cost),
-                     ('goal',  goal.prettyString(False, startState)),
-                     ('newGoal', newGoal.prettyString(False, startState)))
-
-        rebindLater.suspendedOperator.instanceCost = rebindCost
         if cost == float('inf'):
-            tr('regression:fail', 'infinite cost; returning rebind node only',
-               self)
-            return [[rebindLater, rebindCost]]
+            tr('regression:fail', 'infinite cost for bindings', newBindings)
+            return None
         newGoal.operator.instanceCost = cost
+        tr('regression', self.name,
+           '\n', 'result for bindings', newBindings,
+           '\n', cost, newGoal)
+        return (newGoal, cost)
 
-        return [[newGoal, cost], [rebindLater, rebindCost]]
+    def primRegressCostEst(self, newGoal, newBindings, goal, startState):
+        # Do one step of primitive regression on the old state and
+        # then compute the heuristic on that.  This is an estimate of
+        # how hard it is to establish all the preconds. Cost to get
+        # from start to one primitive step before newGoal, plus the
+        # cost of the last step
+        primOp = self.applyBindings(newBindings) # was self.copy()
+        primOp.abstractionLevel = primOp.concreteAbstractionLevel
+        primOpRegr = primOp.regress(goal, startState)
+        if len(primOpRegr) < 2:
+            # Looks good abstractly, but can't apply concrete op
+            tr('infeasible', 'Concrete op not applicable', primOp, goal)
+            cost = float('inf')
+        else:
+            (sp, cp) = primOpRegr[0]
+            primPrecondCost = hh(sp)
+            if primPrecondCost == float('inf'):
+                tr('infeasible','Prim preconds infeasible', sp)
+            hOld = primPrecondCost + cp
+            # Difference between that cost, and the cost of the
+            # regression of the abstract action.  This is an estimate
+            # of the cost of the abstract action.
+            cost = hOld - hNew
+            if cost < 0: cost = cp
+
+        # If prim op is not applicable or cost of preconds is
+        # infinite, try other ops, because in fact the last operation
+        # may need to be something else. Try monotonic ones first.
+        if cost == float('inf'):
+            opsm = applicableOps(goal, operators, startState,
+                                        monotonic = True)
+            ops = applicableOps(goal, operators, startState,
+                                        monotonic = False)
+            for o in list(opsm) + list(ops.difference(opsm)): 
+                o.abstractionLevel = o.concreteAbstractionLevel
+                pres = o.regress(goal, startState)
+                for (sp, cp) in pres[:-1]:
+                    primPrecondCost = hh(sp)
+                    hOld = primPrecondCost + cp
+                    newCost = hOld - hNew
+                    if newCost < cost: cost = newCost
+                    # Stop as soon as we get one that is not inf
+                    # More efficient, less correct
+                    if cost < float('inf'): break
+                if cost < float('inf'): break
+        return cost
 
     def prettyString(self, eq = True):
         # Make unbound vars anonymous
@@ -1364,8 +1316,10 @@ def simplifyCond(oldFs, newFs, details = None):
 
 def dictSubset(d1, d2):
     return all([k in d2 and d1[k] == d2[k] for k in d1.keys()])
-    
-def btGetBindings(functions, goalFluents, start, avoid = []):
+
+'''
+Old version for reference
+def btGetBindings(functions, goalFluents, start, avoid = [], num = 1):
     # Avoid is list of dictionaries
     # Helper fun to find a set of bindings that hasn't been found before
     def gnb(funs, sofar):
@@ -1399,10 +1353,54 @@ def btGetBindings(functions, goalFluents, start, avoid = []):
             tr('btbind', 'ran out of values', f, sofar)
             return None
 
+    resultList = []
     funsInOrder = [f for f in functions if \
                    f.isNecessary or not isGround(f.outVars)]
     novelBindings = gnb(funsInOrder, {})
     return novelBindings
+'''    
+
+def btGetBindings(functions, goalFluents, start, avoid = [], numBindings = 1):
+    # Avoid is list of dictionaries
+    # Helper fun to find num sets of bindings that hasn't been found before
+    def gnb(funs, sofar):
+        if funs == []:
+            beenHere = any([dictSubset(sofar, b) for b in bToAvoid])
+            if not beenHere:
+                tr('btbind', 'adding', sofar)
+                resultList.append(sofar)
+                bToAvoid.append(sofar)
+            else:
+                tr('btbind', 'hit duplicate', sofar)
+                if sofar == {}:
+                    raw_input('hit duplicate', sofar, bToAvoid)
+        else:
+            f = funs[0]
+            values  = f.fun([lookup(v, sofar) for v in f.inVars],
+                            [z.applyBindings(sofar) for z in goalFluents],
+                            start)
+            if values == None or values == []:
+                tr('btbind', 'fun failed', f,
+                         [lookup(v, sofar) for v in f.inVars], sofar)
+                return None
+            for val in values:
+                assert len(f.outVars) == len(val)
+                sf = copy.copy(sofar)
+                for (var, vv) in zip(f.outVars, val):
+                    if isVar(var) and not var == vv:
+                        assert not isVar(vv)
+                        sf[var] = vv
+                gnb(funs[1:], sf)
+                if len(resultList) == numBindings:
+                    return
+            tr('btbind', 'ran out of values', f, sofar)
+
+    bToAvoid = avoid[:]
+    resultList = []
+    funsInOrder = [f for f in functions if \
+                   f.isNecessary or not isGround(f.outVars)]
+    gnb(funsInOrder, {})
+    return resultList
 
 class RebindOp:
     name = 'Rebind'
@@ -1426,7 +1424,7 @@ class RebindOp:
             tr('rebind', 'successfully rebound local vars',
                      'costs', [c for (s, c) in results], 'minus',
                      op.rebindPenalty)
-            results[0][1] -= op.instanceCost
+            results[0] = (results[0][0], results[0][1] - op.instanceCost)
         else:
             tr('rebind', 'failed to rebind local vars')
         return results
@@ -1950,7 +1948,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         result.update(appOpInstances(o, g, startState, ancestors, monotonic,
                                      nonMonOps))
 
-    if skeleton is None and hOps is not None:
+    if skeleton is None and hOps is not None and debug('helpfulActions'):
         # take non-dummy hOps that are instances of applicable ops
         oNames = [o.name for o in result]
         helpfulActions = [o for o in hOps(g) if o.name in oNames]

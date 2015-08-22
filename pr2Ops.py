@@ -790,8 +790,8 @@ def placeCostFun(al, args, details):
 def pushCostFun(al, args, details):
     # Make it cost more than pick/place for now, though not clear it
     # should always be like this.
-    rawCost = 50
-    abstractCost = 10
+    rawCost = 75
+    abstractCost = 100
     (_, _, _, _, _, _, _, _, _, _, _, _, p, _, _)  = args
     result = costFun(rawCost,
                      p*canPPProb*(1-details.domainProbs.placeFailProb)) + \
@@ -802,7 +802,7 @@ def pushCostFun(al, args, details):
 def pickCostFun(al, args, details):
     (o,h,pf,p,pd,gf,gm,gv,gd,prc,cd,pc,rgv,pv,p1,pr1,pr2,pr3) = args
     rawCost = 3
-    abstractCost = 1
+    abstractCost = 10
     result = costFun(rawCost, p1*canPPProb*canPPProb*\
                      (1 - details.domainProbs.pickFailProb)) + \
                (abstractCost if al == 0 else 0)
@@ -1543,7 +1543,7 @@ push = Operator('Push', pushArgs,
         argsToPrint = range(4),
         ignorableArgs = range(1, 19),
         ignorableArgsForHeuristic = range(3, 19),
-        rebindPenalty = 10)
+        rebindPenalty = 30)
 
 # Put the condition to know the pose precisely down at the bottom to
 # try to decrease replanning.

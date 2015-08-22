@@ -55,6 +55,7 @@ hAddBackInf
 hAddBackInfFinal
 hAddBackV  (just values)
 h (really just values)
+helpfulActions
 heuristic (in ucSearch: positive value at goal or 0 value elsewhere)
 heuristicInversion  (prim actually achieves more than abs)
 infeasible (hierarchical subgoal)
@@ -74,6 +75,7 @@ potentialLookConfs
 prim
 regression
 regression:fail
+regression:fail:bindings
 regression:inconsistent (maybe evidence that generator could have failed
                           earlier)
 satisfies                          
@@ -93,7 +95,8 @@ visibleEx (show visibility stuff during execution even if visible is false)
 usualTags = ['nonmon']
 flags = ['simpleAbstractCostEstimates',
           'primitiveHeuristicAlways',
-          'useBBinH']
+          'useBBinH',
+          'helpfulActions']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack', 
                  'debugInHeuristic', 'h'] #, 'hv'] 
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
@@ -107,7 +110,7 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags
+debugOn = usualTags 
 
 debugOnly = debugOnly
 traceOnly = traceOnly 

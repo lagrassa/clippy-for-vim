@@ -132,7 +132,6 @@ class Bd(BFluent):
         (rFluent, v, p) = self.args
         return rFluent.feasible(details, v, p)
 
-
     def heuristicVal(self, details):
         (rFluent, v, p) = self.args
         return rFluent.heuristicVal(details, v, p)
@@ -141,7 +140,6 @@ class Bd(BFluent):
         (rFluent, v, p) = self.args
         if hasattr(rFluent, 'bTest'):
             return rFluent.bTest(details, v, 0.5)
-        
         # Mode of the rfluent's value distribution
         return self.args[1].dist().mode()
 
@@ -597,18 +595,14 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             if primitiveHeuristicAlways:
                 o.abstractionLevel = o.concreteAbstractionLevel
             # TODO : LPK : domain-dependent hack
-            if o.name == 'Push':
-                pres = o.multipleRegress(glob.numOpInstances, g, start)
-            else:
-                pres = o.multipleRegress(1, g, start)
-            if len(pres) > 0 and debug('hAddBack'):
-                print 'mr', k, o.name, len(pres)
-
+            n = glob.numOpInstances if o.name == 'Push' else 1
+            pres = o.regress(g, start, numResults = n)
+            if len(pres) > 0:
+                pres = pres[:-1] # Last one is rebind
+                if debug('hAddBack'): print 'mr', k, o.name, len(pres)
             regress += 1
-            if len(pres) == 0:
-                debugMsg('hAddBack', 'no preimage', g, o)
+            if len(pres) == 0: debugMsg('hAddBack', 'no preimage', g, o)
             for pre in pres:
-                # Usually only one;  bindings of o
                 preImage, newOpCost = pre
                 newActSet = ActSet([preImage.operator])
                 partialCost = preImage.operator.instanceCost

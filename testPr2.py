@@ -42,10 +42,8 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
     glob.rebindPenalty = 10
     glob.monotonicFirst = True
 
-    goalProb, errProbs = (0.5,tinyErrProbs) if easy else (0.95,typicalErrProbs)
+    goalProb, errProbs = (0.95,typicalErrProbs)
 
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
     varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.1**2),
                                'objA': (0.05**2, 0.05**2, 1e-10, 0.1**2)} 
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
@@ -60,9 +58,22 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
                  movePoses={'objA': front},
                  varDict = varDict)
 
-    # One push, no uncertainty
-    skel = [[poseAchIn, lookAt, moveNB, lookAt, move, push, moveNB, lookAt,
-             move, lookAt, moveNB]]
+    # pick/place, flat
+    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), move, 
+             place.applyBindings({'Obj' : 'objA'}),
+             move, pick, moveNB,
+             lookAt.applyBindings({'Obj' : 'objA'}),
+             moveNB, lookAt, move]]
+
+    skel = [[poseAchIn],
+            [poseAchIn],
+            [poseAchIn, lookAt, place],
+            [place],
+            [place, pick],
+            [pick],
+            [pick],
+            [pick, moveNB, lookAt, move],
+            [place, move]]
 
     t.run(goal,
           hpn = hpn,
@@ -239,7 +250,6 @@ def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           rip = rip
           )
     return t
-
 
 ######################################################################
 # Test Put Down

@@ -838,9 +838,7 @@ class CanPush(Fluent):
         path, violations = canPush(newPBS, obj, hand, poseFace, prePose, pose,
                                    preConf, pushConf, postConf, poseVar,
                                    prePoseVar, poseDelta, p, Violations())
-        debugMsg('CanPush',
-                 ('pose', pose),
-                 ('->', violations))
+        debugMsg('CanPush', ('pose', pose), ('key', key), ('->', violations))
         if glob.inHeuristic:
             self.hviols[key] = path, violations
         else:
@@ -1299,6 +1297,7 @@ pushStepSize = 0.01
 def canPush(pbs, obj, hand, poseFace, prePose, pose,
             preConf, pushConf, postConf, poseVar, prePoseVar,
             poseDelta, prob, initViol, prim=False):
+    #print '*cptest*'
     tag = 'canPush'
     held = pbs.held[hand].mode()
     newBS = pbs.copy()
