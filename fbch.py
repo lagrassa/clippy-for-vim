@@ -675,9 +675,6 @@ class Operator(object):
         self.functions = functions if functions is not None else []
         self.metaGenerator = metaGenerator
 
-        if self.name == 'AchCanPickPlace':
-            assert self.metaGenerator
-
         assert type(results) == list
         if len(results) > 0:
             assert type(results[0]) == tuple
@@ -1023,8 +1020,9 @@ class Operator(object):
         tr(tag, 'Final regression result', ('Op', self), resultList)
         return resultList
 
-    def mopFromBindings(newBindings, goal, startState, heuristic, operators,
-                       ancestors):
+    def mopFromBindings(self, newBindings, goal, startState, heuristic,
+                        operators, ancestors):
+
         for k in newBindings.keys():
             if k[:2] == 'Op': mop = newBindings[k]
 
