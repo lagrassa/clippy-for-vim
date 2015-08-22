@@ -1002,20 +1002,22 @@ class Operator(object):
                 resultList.append(res)
 
         # Make another result, which is a place-holder for rebinding
-        rebindLater = goal.copy()
-        rebindLater.suspendedOperator = self.copy()
-        rebindLater.operator = rebindLater.suspendedOperator
-        rebindLater.bindingsAlreadyTried.extend(newBindingsList)
-        rebindLater.rebind = True
-        if len(resultList) == 0:
-            c = max([self.cost(self.abstractionLevel,
-                         [lookup(arg, nb) for arg in self.args],
-                         startState.details) for nb in newBindingsList])
-        else: 
-            c =  max([cc for (gg, cc) in resultList])
-        rebindCost = self.rebindPenalty + c
-        rebindLater.suspendedOperator.instanceCost = rebindCost
-        resultList.append([rebindLater, rebindCost])
+        if len(newBindingsList) > 0:
+            rebindLater = goal.copy()
+            rebindLater.suspendedOperator = self.copy()
+            rebindLater.operator = rebindLater.suspendedOperator
+            rebindLater.bindingsAlreadyTried.extend(newBindingsList)
+            rebindLater.rebind = True
+            if len(resultList) == 0:
+                c = 0
+                # max([self.cost(self.abstractionLevel,
+                #              [lookup(arg, nb) for arg in self.args],
+                #              startState.details) for nb in newBindingsList])
+            else: 
+                c =  max([cc for (gg, cc) in resultList])
+            rebindCost = self.rebindPenalty + c
+            rebindLater.suspendedOperator.instanceCost = rebindCost
+            resultList.append([rebindLater, rebindCost])
 
         tr(tag, 'Final regression result', ('Op', self), resultList)
         return resultList

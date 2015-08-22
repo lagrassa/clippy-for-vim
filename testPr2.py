@@ -65,6 +65,7 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              lookAt.applyBindings({'Obj' : 'objA'}),
              moveNB, lookAt, move]]
 
+    # pick/place, hierarchical
     skel = [[poseAchIn],
             [poseAchIn],
             [poseAchIn, lookAt, place],
