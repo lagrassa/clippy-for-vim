@@ -1409,7 +1409,7 @@ poseAchIn = Operator(
                 StdevTimes2(['TotalVar'], ['PoseVar']),
                 Times2(['TotalDelta'], ['PoseDelta']),
                 # call main generator
-                PlaceInRegionGen(['ObjPose1', 'PoseFace1'],
+                PoseInRegionGen(['ObjPose1', 'PoseFace1'],
                    ['Obj1', 'Region', 'TotalVar', 'TotalDelta',
                     probForGenerators])],
             argsToPrint = [0, 1],
