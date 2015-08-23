@@ -1297,7 +1297,6 @@ pushStepSize = 0.01
 def canPush(pbs, obj, hand, poseFace, prePose, pose,
             preConf, pushConf, postConf, poseVar, prePoseVar,
             poseDelta, prob, initViol, prim=False):
-    #print '*cptest*'
     tag = 'canPush'
     held = pbs.held[hand].mode()
     newBS = pbs.copy()

@@ -862,11 +862,6 @@ def moveBProgress(details, args, obs=None):
     bp1 = (s['pr2Base'][0], s['pr2Base'][1], 0, s['pr2Base'][2])
     bp2 = (obsConf['pr2Base'][0], obsConf['pr2Base'][1], 0,
            obsConf['pr2Base'][2])
-    # Just takes start and end poses into account
-    # odoVar = (((bp1[0] - bp2[0]) * odoError[0])**2,
-    #           ((bp1[1] - bp2[1]) * odoError[1])**2,
-    #           0.0,
-    #           (hu.fixAnglePlusMinusPi(bp1[2] - bp2[2]) * odoError[2])**2)
     odoVar = ((xyDisp * odoError[0])**2,
               (xyDisp * odoError[1])**2,
               0.0,
@@ -1414,7 +1409,7 @@ poseAchIn = Operator(
                 StdevTimes2(['TotalVar'], ['PoseVar']),
                 Times2(['TotalDelta'], ['PoseDelta']),
                 # call main generator
-                PoseInRegionGen(['ObjPose1', 'PoseFace1'],
+                PlaceInRegionGen(['ObjPose1', 'PoseFace1'],
                    ['Obj1', 'Region', 'TotalVar', 'TotalDelta',
                     probForGenerators])],
             argsToPrint = [0, 1],
@@ -2129,9 +2124,13 @@ hRegrasp = Operator(
         functions = [
             # Be sure obj is not none
             NotNone([], ['Obj']),
-            RegressProb(['P1'], ['PR1'], pn = 'pickFailProb'),
-            RegressProb(['P2'], ['PR2'],pn = 'pickFailProb'),
-            RegressProb(['P3'], ['PR3'], pn = 'pickFailProb'),
+            # Take out error in backchaining just so we hit cache
+            RegressProb(['P1'], ['PR1']),
+            RegressProb(['P2'], ['PR2']),
+            RegressProb(['P3'], ['PR3']),
+            # RegressProb(['P1'], ['PR1'], pn = 'pickFailProb'),
+            # RegressProb(['P2'], ['PR2'],pn = 'pickFailProb'),
+            # RegressProb(['P3'], ['PR3'], pn = 'pickFailProb'),
             EasyGraspGen(['PrevGraspFace', 'PrevGraspMu', 'PrevGraspVar',
                           'PrevGraspDelta'],['Obj', 'Hand', 'GraspFace',
                                              'GraspMu'])],

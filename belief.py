@@ -129,8 +129,21 @@ class Bd(BFluent):
             return rFluent.dist(b).prob(v) >= p
 
     def feasible(self, details):
-        (rFluent, v, p) = self.args
-        return rFluent.feasible(details, v, p)
+        # (rFluent, v, p) = self.args
+        # return rFluent.feasible(details, v, p)
+        fs = frozenset((self,))
+        if glob.inHeuristic:
+            if not inCache(fs):
+                if inNHCache(fs):  # okay to use real value for heuristic
+                    return nhCacheLookup(fs)[0] < float('inf')
+                (cost, ops) = self.heuristicVal(details)
+                addToCachesSet(fs, cost, ops)
+            return hCacheLookup(fs)[0] < float('inf')
+        else:
+            if not inNHCache(fs):
+                (cost, ops) = self.heuristicVal(details)
+                addToNHCache(fs, cost, ops)
+            return nhCacheLookup(fs)[0] < float('inf')
 
     def heuristicVal(self, details):
         (rFluent, v, p) = self.args
@@ -400,11 +413,13 @@ def getOverlap(vl1, vl2, dl1, dl2):
 hCache2 = {}
 hCacheInf = {}  # Maps fluent sets to the level at which they have
                 # generated infinite values
+nhCache = {}
 
 def hCacheReset():
     fbch.hCache.clear()
     hCache2.clear()
     hCacheInf.clear()
+    nhCache.clear()
 
 fbch.hCacheReset = hCacheReset
 
@@ -442,6 +457,9 @@ def removeProbs(f):
     else:
         return f
 
+def addToNHCache(fs, cost, actSet):
+    nhCache[fs] = (cost, actSet)
+
 def addToCachesSet(fs, cost, actSet):
     hCache[fs] = (cost, actSet)
     if hAddBackEntail: 
@@ -452,12 +470,13 @@ def addToCachesSet(fs, cost, actSet):
 
 def inCache(fs):
     return fs in hCache
+def inNHCache(fs):
+    return fs in nhCache
 
 def hCacheLookup(fs):
-    if fs in hCache:
-        return hCache[fs]
-    else:
-        return False
+    return hCache[fs] if fs in hCache else False
+def nhCacheLookup(fs):
+    return nhCache[fs] if fs in nhCache else False
 
 def hCacheEntailsSet(fs):
     fsStripped = frozenset([removeProbs(f) for f in fs])

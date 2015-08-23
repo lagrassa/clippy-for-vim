@@ -50,46 +50,10 @@ class BeliefState:
             poseD = self.pbs.getPlaceB(obj, face).poseD
             return GMU([(MVG(poseD.modeTuple(), diagToSq(poseD.var)),
                          self.poseModeProbs[obj])])
-
-    '''
-    def drawOld(self, w = 'Belief'):
-        print '------------  Belief -------------'
-        print 'Conf:'
-        for key in self.pbs.conf.keys():
-            print '   ', key, prettyString(self.pbs.conf[key])
-        gb = self.pbs.graspB
-        gbl = gb['left']
-        gbr = gb['right']
-        print 'Held Left:', self.pbs.held['left'], \
-                 'mode prob', prettyString(self.graspModeProb['left'])
-        print '    Grasp type:', prettyString(gbl.grasp) \
-               if gbl else None
-        print '    Grasp mean:', prettyString(gbl.poseD.meanTuple()) \
-               if (gbl and gbl.poseD) else None
-        print '    Grasp stdev:', prettyStdev(gbl.poseD.varTuple()) \
-               if (gbl and gbl.poseD) else None
-        print 'Held Right:', self.pbs.held['right'], \
-                 'mode prob', prettyString(self.graspModeProb['right'])
-        print '    Grasp type:', prettyString(gbr.grasp) \
-                         if gbr else None
-        print '    Grasp mean:', prettyString(gbr.poseD.meanTuple()) \
-                    if (gbr and gbr.poseD) else None
-        print '    Grasp stdev:', prettyStdev(gbr.poseD.varTuple()) \
-                    if (gbr and gbr.poseD) else None
-        print 'Objects:'
-        for (name, stuff) in self.pbs.moveObjBs.items() + \
-                             self.pbs.fixObjBs.items():
-            print name
-            print '   prob:', self.poseModeProbs[name]
-            print '   face:', stuff.support
-            print '   pose:', prettyString(stuff.poseD.meanTuple())
-            print ' stdev :', prettyStdev(stuff.poseD.varTuple())
-        print '------------  Belief -------------'
-        print self.pbs.draw(0.9, w)
-        wm.getWindow(w).update()
-    '''
-
+        
     def draw(self, w = 'Belief'):
+        # TODO : TLP!  Put hooks to store and replay belief state here.
+        
         s = '------------  Belief -------------\n'
         s += 'Conf:\n'
         for key in self.pbs.conf.keys():

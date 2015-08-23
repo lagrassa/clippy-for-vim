@@ -1054,6 +1054,10 @@ class Operator(object):
         preCond = None
         for k in newBindings.keys():
             if k[:7] == 'NewCond': newCond = newBindings[k]
+        if not goal.isConsistent(newCond, startState.details):
+            print self.name, 'generated a bad suggestion'
+            print 'Ignoring it for now, but we should fix this.'
+            return None
         goal = goal.copy()
         goal.addSet(newCond)
         # Set abstraction level for mop
@@ -1965,7 +1969,6 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         # At least ensure we try these bindings at the top node of the plan
         ops = [lastOp] + [o for o in operators if o.name != lastOp.name]
         lastOp.costAdjustment = -20 # encourage it to use this !
-        print '////// AO ////////', 'topOp', lastOp.name
     else:
         ops = operators
 
@@ -1973,8 +1976,6 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
     for o in ops:
         result.update(appOpInstances(o, g, startState, ancestors, monotonic,
                                      nonMonOps))
-    flizz = copy.copy(result)
-    print '////// AO ////////', 'regular AO', [o.name for o in result]
 
     if skeleton is None and hOps is not None and debug('helpfulActions'):
         # take non-dummy hOps that are instances of applicable ops
@@ -1986,10 +1987,8 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
             o.costAdjustment = -8
             result.update(appOpInstances(o, g, startState, ancestors,
                                          monotonic, nonMonOps))
-        print '////// AO ////////', 'helpful', [o.name for o in helpfulActions]
 
     resultNames = [o.name for o in result]
-    print '////// AO ////////', 'final', resultNames
     if len(result) == 0:
         debugMsg('appOp:number', ('h', glob.inHeuristic, 'number', len(result)))
     debugMsg(tag, ('h', glob.inHeuristic, 'number', len(result)),
