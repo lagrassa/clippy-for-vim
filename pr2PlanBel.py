@@ -645,9 +645,7 @@ def sigmaPoses(prob, poseD, poseDelta):
     for a in angles: offsets.append([0, -wy, 0, a])
     for a in angles: offsets.append([0, wy, 0, a])
     poses = []
-    # poseTuple = poseD.mode().xyztTuple()
     for offset in offsets:
-        # offPoseTuple = [c+o for c,o in zip(poseTuple, offset)]
         offPoseTuple = offset
         poses.append(hu.Pose(*offPoseTuple))
     return poses

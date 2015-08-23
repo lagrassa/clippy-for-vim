@@ -12,7 +12,7 @@ from miscUtil import isVar, prettyString, makeDiag, argmax, lookup
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowWidths, objectName
 from pr2Gen import PickGen, LookGen,\
-    EasyGraspGen, canPickPlaceTest, PlaceInRegionGen, PlaceGen, moveOut
+    EasyGraspGen, canPickPlaceTest, PoseInRegionGen, PlaceGen, moveOut
 from belief import Bd, B
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
@@ -254,7 +254,7 @@ def graspStuffFromStart(start, hand):
 
     gd = pbs.getGraspB(obj, hand)
     face = gd.grasp.mode()
-    mu = gd.poseD.mu.xyztTuple()
+    mu = gd.poseD.modeTuple()
     var = gd.poseD.var
     return obj, face, mu, var, smallDelta
 
@@ -285,7 +285,7 @@ class PoseInStart(Function):
     def fun((obj,), goal, start):
         pd = start.pbs.getPlaceB(obj)
         face = pd.support.mode()
-        mu = pd.poseD.mu.xyztTuple()
+        mu = pd.poseD.modeTuple()
         return [(face, mu)]
 
 # Use this when we don't want to generate an argument (expecting to
@@ -1062,10 +1062,10 @@ def obsDist(details, obj):
     obsVar = details.domainProbs.obsVarTuple
     objBel = details.pbs.getPlaceB(obj)
     poseFace = objBel.support.mode()
-    poseMu = objBel.poseD.mode()
+    poseMu = objBel.poseD.modeTuple()
     var = objBel.poseD.variance()
     obsCov = [v1 + v2 for (v1, v2) in zip(var, obsVar)]
-    obsPoseD = MultivariateGaussianDistribution(np.mat(poseMu.xyztTuple()).T,
+    obsPoseD = MultivariateGaussianDistribution(np.mat(poseMu).T,
                                                 makeDiag(obsCov))
     return obsPoseD, poseFace
 
@@ -1101,7 +1101,7 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
         details.poseModeProbs[objName] = newP
         tr('assign',  'No match above threshold', objName, oldP, newP,
            ol = True)
-        newMu = oldPlaceB.poseD.mode().pose().xyztTuple()
+        newMu = oldPlaceB.poseD.modeTuple()
         newSigma = [v + .001 for v in oldPlaceB.poseD.varTuple()]
         newSigma[2] = 1e-10
         newSigma = tuple(newSigma)
@@ -1117,7 +1117,7 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
         # Update mean and sigma
         ## Be sure handling angle right.
         (newMu, newSigma) = \
-                    gaussObsUpdate(oldPlaceB.poseD.mode().pose().xyztTuple(),
+                    gaussObsUpdate(oldPlaceB.poseD.modeTuple(),
                                    obsPose.pose().xyztTuple(),
                                    oldPlaceB.poseD.variance(), obsVar)
         ns = list(newSigma); ns[2] = 1e-10; newSigma = tuple(ns)
@@ -1247,7 +1247,7 @@ def lookAtHandBProgress(details, args, obs):
         elif obsObj == 'none':
             # obj, graspDesc, graspD, poseD
             poseDist = details.pbs.graspB[h].poseD
-            oldPose = poseDist.mode().xyztTuple()
+            oldPose = poseDist.modeTuple()
             newOGB = ObjGraspB(mlo, gd, faceDist, PoseD(oldPose, bigSigma))
         else:
             # we observed the same object as the current mode; do a
@@ -1271,7 +1271,7 @@ def lookAtHandBProgress(details, args, obs):
 
             mlf = faceDist.mode()
             poseDist = details.pbs.graspB[h].poseD
-            oldMu = poseDist.mode().xyztTuple()
+            oldMu = poseDist.modeTuple()
             oldSigma = poseDist.variance()
 
             if mlf != oldMlf:
@@ -1865,7 +1865,7 @@ def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
            (placeB.shadow(newBS.getShadowWorld(prob)), 'W', 'red')],
            snap=['W'])
         face = placeB.support.mode()
-        poseMean = placeB.poseD.mode().xyztTuple()
+        poseMean = placeB.poseD.modeTuple()
         conds = frozenset([Bd([SupportFace([obst]), face, prob], True),
                            B([Pose([obst, face]), poseMean, objBMinVar,
                               lookDelta, prob], True)])
@@ -1942,15 +1942,16 @@ def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
     moveDelta = newBS.domainProbs.placeDelta
     for obst in obstacles:
         for r in pushOut(newBS, prob, obst, moveDelta, cond):
-            # TODO for tlp:  need a generator that will return parameters
-            # for a push action that will move obst out of the way.
-            # For now, suggest a pose;  eventually, think about more general
-            # operator that could just clear stuff out of the way.
 
+            supportFace = r.postPB.support.mode()
+            postPose = r.postPB.modeTuple()
+            postPoseVar = r.postPB.poseD.var
+            prePose = r.prePB.modeTuple()
+            prePoseVar = r.prePB.poseD.var
 
             newConds = frozenset(
                 {Bd([SupportFace([obst]), supportFace, prob], True),
-                 B([Pose([obst, supportFace]), poseMean, poseVar,
+                 B([Pose([obst, supportFace]), postPose, postPoseVar,
                            moveDelta, prob], True)})
 
             # Verify that this is helpful
@@ -1959,8 +1960,8 @@ def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
             assert resultViol is not None, 'impossible proposal'
 
             op = pushOp(obst, r.hand, postPose, supportFace, postPoseVar,
-                         moveDelta, prePose, prePoseVar, preConf, pushConf,
-                         postConf,  'ConfDelta', prob, 'PR1', 'PR2')
+                         moveDelta, prePose, prePoseVar, r.preConf, r.pushConf,
+                         r.postConf,  'ConfDelta', prob, 'PR1', 'PR2')
             tr(tag, '=> returning', op)
             yield op, newConds
     tr(tag, '=> Out of remedies')

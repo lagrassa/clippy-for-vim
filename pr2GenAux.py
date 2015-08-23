@@ -14,8 +14,8 @@ from miscUtil import argmax, isGround, isVar, argmax, squashOne
 from dist import UniformDist, DDist
 from geom import bboxCenter
 from pr2Robot import CartConf, gripperFaceFrame, pr2BaseLink
-from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations, Response
-from pr2Util import shadowName, objectName, Memoizer, inside, otherHand
+from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
+from pr2Util import shadowName, objectName, Memoizer, inside, otherHand, bboxRandomCoords
 import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
@@ -861,10 +861,6 @@ def getHolding(goalConds):
                 held.append((pb['Hand'], pb['Obj']))
     return held
 
-def bboxRandomDrawCoords(bb):
-    pt = tuple([random.uniform(bb[0,i], bb[1,i]) for i in xrange(3)])
-    return pt[:2]+(bb[0,2],)
-
 # find bbox for CI_1(2), that is, displacements of bb1 that place it
 # inside bb2.  Assumes that bb1 has origin at 0,0.
 def bboxInterior(bb1, bb2):
@@ -1104,17 +1100,6 @@ def baseDist(c1, c2):
     return ((x2-x1)**2 + (y2-y1)**2)**0.5
     
 #############
-# Selecting safe points in region
-
-def bboxRandomCoords(bb, n=20, z=None):
-    ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)
-    if z is None: z = z0
-    points = []
-    for i in xrange(n):
-        x = random.uniform(x0, x1)
-        y = random.uniform(y0, y1)
-        points.append(np.array([x, y, z, 1.]))
-    return points
 
 def confDelta(c1, c2):
     return max([max([abs(x-y) for (x,y) in zip(c1.conf[k], c2.conf[k])]) \

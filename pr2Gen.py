@@ -3,10 +3,10 @@ import pdb
 from fbch import Function
 from dist import DeltaDist
 from pr2Util import supportFaceIndex, shadowWidths, trArgs
-#from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations, Response
 from pr2PlanBel import getConf, getGoalPoseBels
 from shapes import Box
 from pr2GenAux import *
+from pr2Push import pushInRegionGenGen
 
 Ident = hu.Transform(np.eye(4))            # identity transform
 
@@ -41,7 +41,7 @@ class EasyGraspGen(Function):
         placeB = newBS.getPlaceB(obj)
         shWorld = newBS.getShadowWorld(prob)
         if obj == newBS.held[hand].mode():
-            ans = Response(placeB, newBS.graspB[hand], None, None, None, hand)
+            ans = PPResponse(placeB, newBS.graspB[hand], None, None, None, hand)
             tr(tag, 'inHand:'+ str(ans))
             yield ans.easyGraspTuple()
             return
@@ -92,7 +92,7 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob, oldFace, oldGrasp):
     obj = placeB.obj
     approached = {}
     for gB in graspGen(newBS, obj, graspB):
-        if gB.grasp.mode() == oldFace and gB.poseD.mode().xyztTuple() == oldGrasp:
+        if gB.grasp.mode() == oldFace and gB.poseD.modeTuple() == oldGrasp:
             tr(tag, 'Rejected %s because same'%gB)
             continue
         tr(tag, 'considering grasp=%s'%gB)
@@ -106,7 +106,7 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob, oldFace, oldGrasp):
             viol = pickable(ca, approached[ca], placeB, gB)
             if viol:
                 tr(tag, 'pickable')
-                yield Response(placeB, gB, approached[ca], ca, viol, hand)
+                yield PPResponse(placeB, gB, approached[ca], ca, viol, hand)
                 break
             else:
                 tr(tag, 'not pickable')
@@ -255,7 +255,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
             confs = graspConfForBase(pbs, placeB, graspB, hand, currBasePose, prob)
             if confs:
                 (c, ca, viol) = confs
-                ans = Response(placeB, graspB, c, ca, viol, hand)
+                ans = PPResponse(placeB, graspB, c, ca, viol, hand)
                 tr(tag, '=>'+str(ans))
                 yield ans
         graspConfGen = potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob)
@@ -293,7 +293,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                 trialConfs.sort()
                 for _, viol, ca in trialConfs:
                     c = approached[ca]
-                    ans = Response(placeB, graspB, c, ca, viol, hand)
+                    ans = PPResponse(placeB, graspB, c, ca, viol, hand)
                     tr(tag, 
                        'currently graspable ->'+str(ans), 'viol: %s'%(ans.viol),
                        draw=[(pbs, prob, 'W'),
@@ -602,7 +602,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
             for _, viol, ca in trialConfs:
                 (pB, gB) = context[ca]
                 c = approached[ca]
-                ans = Response(pB, gB, c, ca, viol, hand)
+                ans = PPResponse(pB, gB, c, ca, viol, hand)
                 tr(tag, '->' + str(ans), 'viol=%s'%viol,
                    draw=[(pbs, prob, 'W'),
                          (pB.shape(shWorld), 'W', 'magenta'),
@@ -622,17 +622,22 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
 
 # In(obj, Region)
 
-class PlaceInRegionGen(Function):
+class PoseInRegionGen(Function):
     # Return objPose, poseFace.
     def fun(self, args, goalConds, bState):
-        for ans in placeInRegionGenGen(args, goalConds, bState, away = False):
-            yield ans.placeInTuple()
+        for ans in roundrobin(placeInRegionGenGen(args, goalConds, bState, away = False),
+                              pushInRegionGenGen(args, goalConds, bState, away = False)):
+            if ans:
+                yield ans
 
 def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
     (obj, region, var, delta, prob) = args
     tag = 'placeInGen'
     pbs = bState.pbs.copy()
     world = pbs.getWorld()
+
+    # If there are no grasps, just fail
+    if not world.getGraspDesc(obj): return
 
     # Get the regions
     if not isinstance(region, (list, tuple, frozenset)):
@@ -679,7 +684,7 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
         shw = shadowWidths(pB.poseD.var, pB.delta, prob)
         shwMin = shadowWidths(graspV, graspDelta, prob)
         if any(w > mw for (w, mw) in zip(shw, shwMin)):
-            args = (obj, None, pB.poseD.mode().xyztTuple(),
+            args = (obj, None, pB.poseD.modeTuple(),
                     support, var, graspV,
                     delta, graspDelta, None, prob)
             gen = placeGenGen(args, goalConds, bState)
@@ -688,7 +693,7 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
                 tr(tag, str(ans), 'regions=%s'%regions,
                    draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
                    snap=['W'])
-                yield ans
+                yield ans.placeInTuple()
             return
         else:
             # If pose is specified and variance is small, return
@@ -1294,7 +1299,7 @@ def canXGenTop(violFn, args, goalConds, newBS, tag):
            draw=[(newBS, prob, 'W'),
                  (placeB.shadow(newBS.getShadowWorld(prob)), 'W', 'red')],
            snap=['W'])
-        ans = Response(placeB, None, None, None, None, objBMinVar, lookDelta)
+        ans = PPResponse(placeB, None, None, None, None, objBMinVar, lookDelta)
         yield ans
         # Either reducing the shadow is not enough or we failed and
         # need to move the object (if it's movable).

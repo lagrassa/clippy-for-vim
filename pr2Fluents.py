@@ -1315,7 +1315,7 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
     # graspB - from hand and objFrame
     graspB = pushGraspB(newBS, pushConf, hand, placeB)
     pathViols, reason = pushPath(newBS, prob, graspB, placeB, pushConf,
-                                 prePose, None, None, hand, prim=prim)
+                                 prePose, None, None, hand)
     if not pathViols or reason != 'done':
         tr(tag, 'pushPath failed')
         return None, None
@@ -1369,11 +1369,8 @@ handTiltOffset = 0.0375                 # 0.18*sin(pi/15)
 # dist is a positive distance to be covered (from prePose to pB pose)
 
 def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
-             prim=False):
+             reachObsts=[]):
     tag = 'pushPath'
-
-    prim = True                         # Since we cache calls from pushGen
-
     rm = pbs.getRoadMap()
     prePose = hu.Pose(*prePose) if isinstance(prePose, (tuple, list)) else prePose
     baseSig = "%.6f, %.6f, %.6f"%tuple(conf['pr2Base'])
@@ -1417,6 +1414,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     # We will return (conf, viol, pose) for steps along the path --
     # starting at prePose.  Before contact, pose in None.
     pathViols = []
+    safePathViols = None
     reason = 'done'                     # done indicates success
     # If direction is not specified, we want to go directly to goal,
     # else move along specified direction.
@@ -1460,9 +1458,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         return ans
     if debug(tag):
         conf.draw('W', 'pink'); preConf.draw('W', 'blue'); raw_input('Go?')
-    pushBuffer = glob.pushBuffer
-    if prim:                            # due to tilt of hand
-        pushBuffer -= handTiltOffset
+    pushBuffer = glob.pushBuffer - handTiltOffset
     # Number of steps for total displacement
     nsteps = int((dist+pushBuffer) / pushStepSize)
     delta = (dist+pushBuffer) / nsteps
@@ -1508,7 +1504,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
             nconf = conf
         else:
             nconf = displaceHandRot(preConf, hand, hOffsetPose,
-                                    tiltRot = tiltRot if prim else None,
+                                    tiltRot = tiltRot,
                                     angle=(step_a*deltaAngle if contact else 0.0))
         if not nconf:
             reason = 'invkin'
@@ -1544,16 +1540,21 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
             drawState(newBS, prob, nconf, nshape)
         pathViols.append((nconf, viol,
                           offsetPB.poseD.mode() if contact else None))
-        if contact: step_a += 1
-
-    if not contact and reason == 'done':
-        reason = 'no contact'
-        print 'No contact on path'
-        pdb.set_trace()
-        
+        if contact:
+            if all(not nhape.collides(obst) for (ig, obst) in reachObsts \
+                   if obj not in ig):
+                safePathViols = list(pathViols)
+                reason = 'done'
+            else:
+                reason = 'reachObst collision'
+    if not contact:
+        if reason == 'done':
+            print 'No contact on path, but done'
+            pdb.set_trace()
+        return [], None
     if debug('pushPath'):
         raw_input('Path:'+reason)
-    ans = (pathViols, reason)
+    ans = (safePathViols or pathViols, reason)
     pushPathCache[key].append((pbs, prob, gB, ans))
     if debug(tag):
         print tag, '->', reason, 'path len=', len(pathViols)

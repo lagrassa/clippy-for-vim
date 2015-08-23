@@ -30,6 +30,7 @@ cdef class ObjPlaceB(Hash):
     cpdef tuple desc(self)
     cpdef shape(self, ws)
     cpdef shadow(self, ws)
+    cpdef makeShadow(self, pbs, prob)
 
 cdef class Violations(Hash):
     cdef public frozenset obstacles, shadows

@@ -83,6 +83,40 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           )
     return t
 
+def testBig0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+             easy = False, rip = False):
+
+    glob.rebindPenalty = 10
+    glob.monotonicFirst = True
+
+    goalProb, errProbs = (0.95,typicalErrProbs)
+
+    varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.1**2),
+                               'bigA': (0.05**2, 0.05**2, 1e-10, 0.1**2)} 
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
+
+    region = 'table1Left'
+    goal = State([Bd([In(['bigA', region]), True, goalProb], True)])
+
+    t = PlanTest('testBig0',  errProbs, allOperators,
+                 objects=['table1', 'bigA'],
+                 fixPoses={'table1': table1Pose},
+                 movePoses={'bigA': front},
+                 varDict = varDict)
+
+    skel = None
+    t.run(goal,
+          hpn = hpn,
+          skeleton = skel if skeleton else None,
+          hierarchical = hierarchical,
+          regions=[region],
+          heuristic = heuristic,
+          rip = rip
+          )
+    return t
+
+
 ######################################################################
 # Test 1: 2 tables move 1 object
 ######################################################################

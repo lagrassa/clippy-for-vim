@@ -51,9 +51,9 @@ cdef class PoseD(Hash):
     cpdef mode(self):
         return self.mu
     cpdef tuple meanTuple(self):
-        return self.mu.xyztTuple()
+        return self.mu.pose().xyztTuple()
     cpdef tuple modeTuple(self):
-        return self.mu.xyztTuple()
+        return self.mu.pose().xyztTuple()
     cpdef tuple variance(self):
         return self.var
     cpdef tuple varTuple(self):
@@ -149,6 +149,10 @@ cdef class ObjPlaceB(Hash):
     cpdef shadow(self, ws):
         if shadowName(self.obj) in ws.objectShapes:
             return ws.objectShapes[shadowName(self.obj)].applyLoc(self.objFrame())
+    cpdef makeShadow(self, pbs, prob):
+        faceFrame = self.faceFrames[self.support.mode()]
+        sh = pbs.objShadow(self.obj, shadowName(self.obj), prob, self, faceFrame)
+        return sh.applyLoc(self.objFrame())
     def __richcmp__(self, other, int op):
         if op == 2:
             return isinstance(other, ObjPlaceB) and self.desc() == other.desc()
@@ -243,7 +247,7 @@ cpdef list upd(curShapes, newShapes):
     curDict.update(newDict)
     return curDict.values()
 
-class Response:
+class PPResponse:
     def __init__(self, pB, gB, c, ca, viol, hand, var=None, delta=None):
         self.pB = pB
         self.gB = gB
@@ -268,7 +272,7 @@ class Response:
         return (self.pB.obj, self.pB.poseD.mode().xyztTuple(), self.pB.support.mode(),
                 self.var, self.delta)
     def copy(self):
-        return Response(self.pB, self.gB, self.c, self.ca, self.viol, self.hand)
+        return PPResponse(self.pB, self.gB, self.c, self.ca, self.viol, self.hand)
     def __str__(self):
         obj = (self.pB or self.gB).obj
         pose = self.pB.poseD.mode().xyztTuple() if self.pB else None
@@ -276,6 +280,36 @@ class Response:
         pg = (self.pB.support.mode(), grasp)
         w = self.viol.weight() if self.viol else None
         return '%s %s v=%s (p,g)=%s, pose=%s'%(obj, self.hand, w, pg, pose)
+    def __repr__(self):
+        return str(self)
+    
+class PushResponse:
+    def __init__(self, prePB, postPB, preConf, pushConf, postConf, viol, hand,
+                 var=None, delta=None):
+        self.prePB = prePB
+        self.postPB = postPB
+        self.preConf = preConf
+        self.pushConf = pushConf
+        self.postConf = postConf
+        self.viol = viol
+        self.hand = hand
+        self.var = var
+        self.delta = delta
+    def pushTuple(self):
+        return (self.hand, self.prePB.poseD.mode().xyztTuple(),
+                self.preConf, self.pushConf, self.postConf)
+    def pushInTuple(self):
+        return (self.postPB.poseD.mode().xyztTuple(), self.postPB.support.mode())
+    def canXGenTuple(self):
+        return tuple()
+    def copy(self):
+        return PushResponse(self.prePB, self.postPB, self.preConf, self.pushConf, self.postConf,
+                            self.viol, self.hand)
+    def __str__(self):
+        obj = (self.prePB or self.postPB).obj
+        pose = self.prePB.poseD.mode().xyztTuple() if self.prePB else None
+        w = self.viol.weight() if self.viol else None
+        return '%s %s v=%s pose=%s'%(obj, self.hand, w,  pose)
     def __repr__(self):
         return str(self)
     

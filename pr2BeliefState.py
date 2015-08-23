@@ -39,7 +39,7 @@ class BeliefState:
         else:
             if face == '*': face = None
             poseD = self.pbs.getGraspB(obj, hand, face).poseD
-            return GMU([(MVG(poseD.mu.xyztTuple(), diagToSq(poseD.var)),
+            return GMU([(MVG(poseD.modeTuple(), diagToSq(poseD.var)),
                         self.graspModeProb[hand])])
 
     def poseModeDist(self, obj, face):
@@ -48,7 +48,7 @@ class BeliefState:
         else:
             if face == '*': face = None
             poseD = self.pbs.getPlaceB(obj, face).poseD
-            return GMU([(MVG(poseD.mu.xyztTuple(), diagToSq(poseD.var)),
+            return GMU([(MVG(poseD.modeTuple(), diagToSq(poseD.var)),
                          self.poseModeProbs[obj])])
 
     '''

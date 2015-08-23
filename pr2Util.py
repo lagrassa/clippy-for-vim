@@ -1,5 +1,6 @@
 import math
 import hu
+import random
 import copy
 from colors import RGBToPyColor, HSVtoRGB
 from dist import chiSqFromP
@@ -410,9 +411,12 @@ def bigAngleWarn(conf1, conf2, thr = math.pi/8.):
             joint += 1
 
 tiny = 1.0e-6
-def inside(shape, reg):
+def inside(shape, reg, strict=False):
     bbox = shape.bbox()
-    buffer = min([0.5*(bbox[1][i] - bbox[0][i]) for i in [0,1]])
+    if strict:
+        buffer = 0.001
+    else:
+        buffer = min([0.5*(bbox[1][i] - bbox[0][i]) for i in [0,1]])
     return any(all(insideAux(s, r, buffer) \
                    for s in shape.parts()) for r in reg.parts())
 
@@ -447,6 +451,16 @@ def bboxGridCoords(bb, n=5, z=None, res=None):
         for j in range(ny+1):
             y = y0 + j*dy
             points.append(np.array([x, y, z, 1.]))
+    return points
+
+def bboxRandomCoords(bb, n=20, z=None):
+    ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)
+    if z is None: z = z0
+    points = []
+    for i in xrange(n):
+        x = random.uniform(x0, x1)
+        y = random.uniform(y0, y1)
+        points.append(np.array([x, y, z, 1.]))
     return points
 
 def trArgs(tag, names, args, goalConds, pbs):
