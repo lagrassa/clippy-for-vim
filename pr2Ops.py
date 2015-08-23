@@ -1414,8 +1414,9 @@ poseAchIn = Operator(
                 StdevTimes2(['TotalVar'], ['PoseVar']),
                 Times2(['TotalDelta'], ['PoseDelta']),
                 # call main generator
-                PlaceInRegionGen(['ObjPose1', 'PoseFace1'],
-                   ['Obj1', 'Region', 'TotalVar', 'TotalDelta', probForGenerators])],
+                PoseInRegionGen(['ObjPose1', 'PoseFace1'],
+                   ['Obj1', 'Region', 'TotalVar', 'TotalDelta',
+                    probForGenerators])],
             argsToPrint = [0, 1],
             ignorableArgs = range(2,14),
             ignorableArgsForHeuristic = range(2, 14),
@@ -1835,7 +1836,7 @@ def achCanXGen(pbs, goal, originalCond, targetFluents, violFn, prob, tag):
         lookG = lookAchCanXGen(newBS, shWorld, viol, violFn, prob)
         placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob,
                                  allConds + goal)
-        #pushG = pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
+        # pushG = pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
         # prefer looking
         return itertools.chain(lookG, placeG)
     
@@ -1884,7 +1885,6 @@ def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
 # noinspection PyUnusedLocal
 def ignore(thing):
     pass
-
 
 def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
     tag = 'placeAchGen'

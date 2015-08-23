@@ -800,6 +800,7 @@ class Operator(object):
             result.extend(self.preconditions[i])
         return result
 
+    # Side effects with deterministic results
     def guaranteedSideEffects(self, allLevels = False):
         maxRange = (self.concreteAbstractionLevel + 1) if allLevels \
                    else (self.abstractionLevel + 1)
@@ -809,6 +810,7 @@ class Operator(object):
             result.extend(self.sideEffects.get(i, set({})))
         return result
 
+    # Side effects with non-deterministic results
     def sideEffectSet(self, allLevels = False):
         maxRange = (self.concreteAbstractionLevel + 1) if allLevels \
                    else (self.abstractionLevel + 1)
@@ -861,11 +863,28 @@ class Operator(object):
     def copy(self):
         return self.applyBindings({})
 
-    # Make a version with a single result set.  If 
-    def reconfigure(self, preConds, results):
+    # Make a version with a single result set containing elements of
+    # input paramter results.  Any other result fluents should be
+    # side-effects.  Assume we have determined the necessary preconds
+    # for these results.
+    def reconfigure(self, preConds, desiredResults):
         new = self.copy()
         new.preconditions = preConds
-        new.results = [(results, {})]
+        new.results = [(desiredResults, {})]
+        sideEffects = [] 
+        for (resSet, preSet) in self.results:
+            # See if these preconditions will be satisfied
+            preSat = all([c in preConds for c in preSet])
+            for r in resSet:
+                if r not in desiredResults:
+                    if not preSat:
+                        r = r.copy()
+                        r.value = None # Can't rely on the effect
+                    sideEffects.append(r)
+        cal = self.concreteAbstractionLevel
+        if cal not in self.sideEffects:
+            new.sideEffects[cal] = set()
+        new.sideEffects[cal] = new.sideEffects[cal].union(set(sideEffects))
         return new
 
     def applyBindings(self, bindings, rename = False):
@@ -884,7 +903,7 @@ class Operator(object):
                       self.f,
                       self.cost,
                       self.prim,
-                      dict([(v, [f.applyBindings(rb) for f in preConds]) \
+                      dict([(v, set([f.applyBindings(rb) for f in preConds])) \
                             for (v, preConds) in self.sideEffects.items()]),
                       self.ignorableArgs,
                       self.ignorableArgsForHeuristic,
@@ -1043,20 +1062,24 @@ class Operator(object):
         else:
             mop.setAbstractionLevel(ancestors)
         tr('regression', 'Applied metagenerator, got', mop, ol = True)
-        return mop.regress(goal, startState, heuristic, operators,
-                           ancestors, numResults = 1)[0]
+        mopr = mop.regress(goal, startState, heuristic, operators,
+                           ancestors, numResults = 1)
+        return mopr[0] if len(mopr) > 1 else None
 
     def newGoalFromBindings(self, newBindings, results, goal, startState,
                             heuristic, operators, ancestors):
         resultSE = [f.applyBindings(newBindings) \
                     for f in self.guaranteedSideEffects(allLevels = True)]
+        # These are side effects we can rely on
         groundResultSE = [f for f in resultSE if f.isGround()]
         nonGroundSE = [f for f in resultSE if not f.isGround()]
+        # These are non-deterministic or not ground side-effects
         boundSE = [f.applyBindings(newBindings) \
                    for f in self.sideEffectSet(allLevels = True)] + \
                    nonGroundSE
-        br = set()
+
         # Get rid of entailments *within* the results.  Kind of ugly.
+        br = set()
         for f in results.union(set(groundResultSE)):
             bf = f.applyBindings(newBindings)
             addF = True
@@ -1068,42 +1091,10 @@ class Operator(object):
             if addF: br.add(bf)
         boundResults = list(br)
 
-        # Be sure the result is consistent
-        if not goal.isConsistent(boundResults, startState.details):
-            tr('regression:fail', self, 'results inconsistent with goal')
-            return None
+        cr = self.regressionConsistent(boundResults, boundSE, goal, startState)
+        if cr == False: return None
+        elif cr != True: return cr  # clobbering led to regresssion with prim
 
-        # Be sure not clobbered by non-ground side effects
-        clobbered = False
-        for f1 in boundSE:
-            for f2 in goal.fluents:
-                if f1.couldClobber(f2, startState.details):
-                    # see if f1 is really just a result
-                    okay = False
-                    for f3 in boundResults:
-                        if f3.contradicts(f1) or f3.entails(f1) != False or \
-                          f3.entails(f2) != False:
-                            # Seems weird, but the idea is that the result
-                            # will override whatever the precond-side effects do
-                            okay = True
-                            break
-                    if not okay:
-                        clobbered = True
-                        if debug('regression:fail'):
-                                print '    might clobber\n', f1, '\n', f2
-        if clobbered:
-            assert self.abstractionLevel < self.concreteAbstractionLevel,\
-              'Clobbering at primitive level.  Bad operator description'
-            tr('clobber', 'Trying less abstract version of op', self)
-            #primOp = self.applyBindings(newBindings)
-            primOp = self.copy()
-            # LPK: Nicer to increase by 1, but expensive
-            primOp.abstractionLevel = primOp.concreteAbstractionLevel
-            res = primOp.regress(goal, startState)
-            return res[0] if len(res) > 1 else None
-
-        # Treat ground side effects as results
-        boundResults = boundResults + groundResultSE
         # Some bindings that we make after this might apply to previous steps
         # in the plan, so we have to accumulate and store then
         bp = {}
@@ -1241,6 +1232,41 @@ class Operator(object):
            '\n', 'result for bindings', newBindings,
            '\n', cost, newGoal)
         return (newGoal, cost)
+
+    def regressionConsistent(self, results, ndSideEffects, goal, startState):
+        # Be sure the result is consistent
+        if not goal.isConsistent(results, startState.details):
+            tr('regression:fail', self, 'results inconsistent with goal')
+            return False
+        # Be sure not clobbered by non-ground side effects
+        clobberers = []
+        for f1 in ndSideEffects:
+            for f2 in goal.fluents:
+                if f1.couldClobber(f2, startState.details):
+                    # see if f1 is really overridden by a result
+                    if not any([r.contradicts(f1) or r.entails(f1) != False or \
+                                r.entails(f2) != False for r in results]):
+                        if debug('clobber'):
+                            print 'CC:', f1
+                            print '    could clobber', f2
+                        clobberers.append(f1)
+        # At this point, clobberers are going to be true before the
+        # prim is executed and are not overridden by the result.  If
+        # they are ground, then there's no hope.
+        if any([c.isGround() for c in clobberers]):
+            return False
+        elif clobberers:
+            assert self.abstractionLevel < self.concreteAbstractionLevel,\
+              'Clobbering at primitive level.  Bad operator description'
+            primOp = self.copy()
+            tr('clobber', 'Trying less abstract version of op', self.name)
+            primOp.abstractionLevel = primOp.concreteAbstractionLevel
+            res = primOp.regress(goal, startState)
+            tr('clobber', 'regression result', res)
+            return res[0] if len(res) > 1 else False
+        else:
+            return True
+        
 
     def primRegressCostEst(self, newGoal, newBindings, goal, startState):
         # Do one step of primitive regression on the old state and
@@ -1916,6 +1942,11 @@ def hNum(start, goal, operators):
 def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                   monotonic = True, lastOp = None, nonMonOps = [], hOps = None):
     tag = 'applicableOps'
+
+    if g.rebind:
+        debugMsg(tag, 'Doing rebind op')
+        return [RebindOp()]
+
     result = set([])
     if skeleton:
         #monotonic = False
@@ -1934,17 +1965,16 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         # At least ensure we try these bindings at the top node of the plan
         ops = [lastOp] + [o for o in operators if o.name != lastOp.name]
         lastOp.costAdjustment = -20 # encourage it to use this !
+        print '////// AO ////////', 'topOp', lastOp.name
     else:
         ops = operators
-
-    if g.rebind:
-        debugMsg(tag, 'Doing rebind op')
-        return [RebindOp()]
 
     result = set()
     for o in ops:
         result.update(appOpInstances(o, g, startState, ancestors, monotonic,
                                      nonMonOps))
+    flizz = copy.copy(result)
+    print '////// AO ////////', 'regular AO', [o.name for o in result]
 
     if skeleton is None and hOps is not None and debug('helpfulActions'):
         # take non-dummy hOps that are instances of applicable ops
@@ -1956,8 +1986,10 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
             o.costAdjustment = -8
             result.update(appOpInstances(o, g, startState, ancestors,
                                          monotonic, nonMonOps))
+        print '////// AO ////////', 'helpful', [o.name for o in helpfulActions]
 
     resultNames = [o.name for o in result]
+    print '////// AO ////////', 'final', resultNames
     if len(result) == 0:
         debugMsg('appOp:number', ('h', glob.inHeuristic, 'number', len(result)))
     debugMsg(tag, ('h', glob.inHeuristic, 'number', len(result)),

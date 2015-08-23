@@ -373,7 +373,8 @@ def placeGenGen(args, goalConds, bState):
     if poses == '*' or isVar(poses) or support == '*' or isVar(support):
         tr(tag, 'Unspecified pose')
         if base:
-            # Don't try to keep the same base, if we're trying to place the object away.
+            # Don't try to keep the same base, if we're trying to
+            # place the object away.
             tr(tag, '=> unspecified pose with same base constraint, failing')
             return
         assert not isVar(hand)
@@ -643,7 +644,8 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
     shWorld = pbs.getShadowWorld(prob)
     regShapes = [shWorld.regionShapes[region] for region in regions]
     tr(tag, 'Target region in purple',
-       draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes], snap=['W'])
+       draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
+       snap=['W'])
     # Set pose and support from current state
     pose = None
     if pbs.getPlaceB(obj, default=False):

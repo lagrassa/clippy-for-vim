@@ -18,9 +18,6 @@ def testRepeat(n, repeat=3, **args):
         except TimeoutError:
             print '************** Timed out **************'
 
-# defined in testRig.
-#testResults = {}
-
 def testAll(indices, repeat=3, crashIsError=True, **args):
     pr2Sim.crashIsError = crashIsError
     for i in indices:

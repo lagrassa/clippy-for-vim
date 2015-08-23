@@ -41,17 +41,18 @@ useDirectPush = False
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
         for ans in pushGenGen(args, goalConds, bState):
-            tr('pushGen', '->', 'final', str(ans))
-            if debug('pushGen'):
-                # Verify that it's feasible
-                (obj, pose, support, poseVar, poseDelta, confdelta, prob) = args
-                (hand, prePose, preConf, pushConf, postConf) = ans
-                path, viol = canPush(bState.pbs, obj, hand, support, prePose,
+            # Verify that it's feasible.  Take this out if we trust it.
+            (obj, pose, support, poseVar, poseDelta, confdelta, prob) = args
+            (hand, prePose, preConf, pushConf, postConf) = ans
+            path, viol = canPush(bState.pbs, obj, hand, support, prePose,
                                      pose, preConf, pushConf, postConf, poseVar,
                                     poseVar, poseDelta, prob,
                                     Violations(), prim=False)
-                assert viol != None
-            yield ans
+            if viol == None:
+                print 'PushGen generated infeasible answer'
+            else:
+                tr('pushGen', '->', 'final', str(ans))
+                yield ans
         tr('pushGen', '-> completely exhausted')
 
 def pushGenGen(args, goalConds, bState):
@@ -110,8 +111,8 @@ def pushGenTop(args, goalConds, pbs):
         curPB = None
     else:
         curPB = newBS.getPlaceB(obj, default=False)
-        assert curPB, 'Object needs to be somewhere'
-        tr(tag, 'obj is placed')
+        if curPB:
+            tr(tag, 'obj is placed')
     # Check the cache, otherwise call Aux
     pushGenCacheStats[0] += 1
     key = (newBS, placeB, hand, base, prob)
