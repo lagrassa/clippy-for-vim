@@ -8,7 +8,7 @@ from itertools import product, permutations, chain, imap
 from dist import DeltaDist, varBeforeObs, probModeMoved, MixtureDist,\
      UniformDist, chiSqFromP, MultivariateGaussianDistribution
 from fbch import Function, Operator, simplifyCond, State
-from miscUtil import isVar, prettyString, makeDiag, argmax, lookup
+from miscUtil import isVar, prettyString, makeDiag, argmax, lookup, roundrobin
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowWidths, objectName
 from pr2Gen import PickGen, LookGen,\
@@ -1831,9 +1831,9 @@ def achCanXGen(pbs, goal, originalCond, targetFluents, violFn, prob, tag):
         lookG = lookAchCanXGen(newBS, shWorld, viol, violFn, prob)
         placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob,
                                  allConds + goal)
-        # pushG = pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
+        pushG = pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
         # prefer looking
-        return itertools.chain(lookG, placeG)
+        return itertools.chain(lookG, roundrobin(placeG, pushG))
     
 
 def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
