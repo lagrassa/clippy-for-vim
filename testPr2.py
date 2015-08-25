@@ -1186,7 +1186,8 @@ def testBig0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs
 def testBig1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
              easy = False, rip = False):
 
-    glob.rebindPenalty = 10
+    print 'rebind penalty is set very high to avoid backtracking; decrease to try alternative grasps'
+    glob.rebindPenalty = 300
     glob.monotonicFirst = True
 
     goalProb, errProbs = (0.95,typicalErrProbs)
@@ -1202,6 +1203,9 @@ def testBig1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs
     right = hu.Pose(1.25, -0.15, tZ, 0.0)
     left = hu.Pose(1.25, 0.15, tZ, 0.0)
     middle = hu.Pose(1.25, 0.0, tZ, 0.0)
+
+    skel = [[pick, moveNB, lookAt, move,
+             achCanPickPlace, moveNB, lookAt, move]]
 
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
@@ -1220,8 +1224,6 @@ def testBig1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs
                  movePoses={'bigA': front, 'tallB': back, 'tallC': right, 'tallD': left,
                             'objA': middle},
                  varDict = varDict)
-
-    skel = None
     region = 'table1Top'
     t.run(goal,
           hpn = hpn,

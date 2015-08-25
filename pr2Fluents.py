@@ -34,7 +34,8 @@ def graspable(thingName):
     return thingName[0:3] == 'obj'
 
 def pushable(thingName):
-    return thingName[0:3] == 'obj' or thingName[0:3] == 'big'
+    return thingName[0:3] == 'obj' or thingName[0:3] == 'big' or \
+      thingName[0:4] == 'tall'
 
 class Graspable(Fluent):
     predicate = 'Graspable'
