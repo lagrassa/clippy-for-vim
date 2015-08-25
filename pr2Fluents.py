@@ -1360,7 +1360,8 @@ def robotGraspFrame(pbs, conf, hand):
 
 pushPathCacheStats = [0, 0]
 pushPathCache = {}
-handTiltOffset = 0.0375                 # 0.18*sin(pi/15)
+handTiltOffset = 0.0375                 # 0.18*math.sin(math.pi/15)
+handTiltOffset = 0.0560                 # 0.18*math.sin(math.pi/10)
 
 # The conf in the input is the robot conf in contact with the object
 # at the destination pose.
@@ -1409,11 +1410,11 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     if not viol:
         if debug(tag): print 'Conf collides in pushPath'
         pushPathCache[key].append((pbs, prob, gB, (None, None)))
-        return None, None
+        return [], None
     # We will return (conf, viol, pose) for steps along the path --
     # starting at prePose.  Before contact, pose in None.
     pathViols = []
-    safePathViols = None
+    safePathViols = []
     reason = 'done'                     # done indicates success
     # If direction is not specified, we want to go directly to goal,
     # else move along specified direction.
@@ -1462,7 +1463,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     nsteps = int((dist+pushBuffer) / pushStepSize)
     delta = (dist+pushBuffer) / nsteps
     # Rotate only while in contact.
-    if angleDiff == 0:
+    if angleDiff == 0 or dist < pushStepSize:
         deltaAngle = 0.0
     else:
         nstepsAngle = int(dist / pushStepSize) # angle rotation only after contact
@@ -1536,27 +1537,26 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
             break
         if debug('pushPath'):
             print 'step=', step, viol
-            drawState(newBS, prob, nconf, nshape)
+            drawState(newBS, prob, nconf, nshape, reachObsts)
         pathViols.append((nconf, viol,
                           offsetPB.poseD.mode() if contact else None))
         if contact:
-            if all(not nhape.collides(obst) for (ig, obst) in reachObsts \
-                   if obj not in ig):
+            if all(not nshape.collides(obst) for (ig, obst) in reachObsts \
+                   if pB.obj not in ig):
                 safePathViols = list(pathViols)
-                reason = 'done'
-            else:
-                reason = 'reachObst collision'
     if not contact:
         if reason == 'done':
             print 'No contact on path, but done'
             pdb.set_trace()
         return [], None
+    if not safePathViols:
+        reason = 'reachObst collision'
     if debug('pushPath'):
+        for (ig, obst) in reachObsts: obst.draw('W', 'brown')
+        print tag, '->', reason, 'path len=', len(safePathViols)
         raw_input('Path:'+reason)
-    ans = (safePathViols or pathViols, reason)
+    ans = (safePathViols, reason)
     pushPathCache[key].append((pbs, prob, gB, ans))
-    if debug(tag):
-        print tag, '->', reason, 'path len=', len(pathViols)
     return ans
 
 def armCollides(conf, objShape, hand):
@@ -1565,7 +1565,7 @@ def armCollides(conf, objShape, hand):
     gripperName = conf.robot.gripperChainNames[hand]
     return any(objShape.collides(parts[name]) for name in parts if name != gripperName)
 
-def drawState(pbs, prob, conf, shape=None):
+def drawState(pbs, prob, conf, shape=None, reachObsts=[]):
     shWorld = pbs.getShadowWorld(prob)
     attached = shWorld.attached
     if glob.useMathematica:
@@ -1611,7 +1611,7 @@ def handTiltAndDir(conf, hand, direction):
         if debug('pushPath'): print hdir, '->', sign, hdir
         # Because of the wrist orientation, the sign is negative
 
-        rot = hu.Transform(rotation_matrix(-sign*math.pi/15., (0,1,0)))
+        rot = hu.Transform(rotation_matrix(-sign*math.pi/10., (0,1,0)))
 
         return rot, hdir
     else:

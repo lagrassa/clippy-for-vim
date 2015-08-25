@@ -24,7 +24,7 @@ from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace, \
 from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCOParts
 from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
-from pr2RRT import planRobotGoalPath
+from pr2RRT import planRobotGoalPath, interpolatePath
 from traceFile import tr
 from miscUtil import roundrobin
 
@@ -694,6 +694,7 @@ def pathObst(cs, cd, p, pbs, name, start=None):
     if key in pbs.beliefContext.pathObstCache:
         return pbs.beliefContext.pathObstCache[key]
     path,  viol = canReachHome(newBS, cs, p, Violations(), homeConf = start)
+    path = interpolatePath(path)        # fill it in...
     if debug('pathObst'):
         newBS.draw(p, 'W')
         cs.draw('W', 'red', attached=newBS.getShadowWorld(p).attached)

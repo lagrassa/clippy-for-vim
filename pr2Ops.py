@@ -19,7 +19,7 @@ from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      findRegionParent, CanReachNB, BaseConf, BLoc, canReachHome, canReachNB,\
      Pushable, CanPush, canPush, graspable, pushable
 from traceFile import debugMsg, debug
-from pr2Push import PushGen
+from pr2Push import PushGen, pushOut
 import pr2RRT as rrt
 from pr2Visible import visible
 import itertools
@@ -1495,9 +1495,9 @@ pushArgs = ['Obj', 'Hand', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta',
             'PrePose', 'PrePoseVar', 'PreConf', 'PushConf', 'PostConf',
             'ConfDelta', 'P', 'PR1', 'PR2']
 
-# make an instance of the lookAt operation with given arguments
+# make an instance of the push operation with given arguments
 def pushOp(*args):
-    assert len(args) == len(placeArgs)
+    assert len(args) == len(pushArgs)
     newB = dict([(a, v) for (a, v) in zip(pushArgs, args) if a != v]) 
     return push.applyBindings(newB)
 
@@ -1831,7 +1831,8 @@ def achCanXGen(pbs, goal, originalCond, targetFluents, violFn, prob, tag):
         lookG = lookAchCanXGen(newBS, shWorld, viol, violFn, prob)
         placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob,
                                  allConds + goal)
-        pushG = pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
+        pushG = pushAchCanXGen(newBS, shWorld, viol, violFn, prob,
+                               allConds + goal)
         # prefer looking
         return itertools.chain(lookG, roundrobin(placeG, pushG))
     
@@ -1939,9 +1940,9 @@ def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
         for r in pushOut(newBS, prob, obst, moveDelta, cond):
 
             supportFace = r.postPB.support.mode()
-            postPose = r.postPB.modeTuple()
+            postPose = r.postPB.poseD.modeTuple()
             postPoseVar = r.postPB.poseD.var
-            prePose = r.prePB.modeTuple()
+            prePose = r.prePB.poseD.modeTuple()
             prePoseVar = r.prePB.poseD.var
 
             newConds = frozenset(

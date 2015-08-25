@@ -311,7 +311,7 @@ def testWorld(include = ('objA', 'objB', 'objC')):
         world.addObjectRegion('coolShelves', reg.name(), reg, pose)
 
     # Some objects to grasp
-    manipulanda = [oname for oname in include if oname[0:3] in ('obj', 'big')]
+    manipulanda = [oname for oname in include if oname[0:3] in ('obj', 'big', 'tal')]
 
     colors = ['red', 'green', 'blue', 'cyan', 'purple', 'pink', 'orange']
     for i, objName in enumerate(manipulanda):
@@ -319,7 +319,9 @@ def testWorld(include = ('objA', 'objB', 'objC')):
             thing = makeSoda(name = objName, color=colors[i%len(colors)])
         elif objName[0:6] == 'bigBar':
             thing = makeBigBar(name = objName, color=colors[i%len(colors)])
-        else:
+        elif objName[0:4] == 'tall':
+            thing = makeTall(name = objName, color=colors[i%len(colors)])
+        elif objName[0:3] == 'big':
             thing = makeBig(name = objName, color=colors[i%len(colors)])
         height = thing.bbox()[1,2]
         world.addObjectShape(thing)
@@ -351,7 +353,7 @@ def testWorld(include = ('objA', 'objB', 'objC')):
                      (0.,0.,0.,1.)])
     for obj in manipulanda:
         world.graspDesc[obj] = []
-        if obj[:3] == 'big': continue   #  no grasps on big objects
+        if obj[:3] in ('big', 'tal'): continue   #  no grasps on big objects
         # TODO: derive these grasps from the shape of the object(s)
         if useHorizontal:             # horizontal
             world.graspDesc[obj].extend([GDesc(obj, hu.Transform(gMat0),
@@ -368,7 +370,9 @@ def testWorld(include = ('objA', 'objB', 'objC')):
     def t(o):
         if o[0:3] == 'obj': return 'soda'
         if o[0:3] == 'big': return 'big'
+        if o[0:4] == 'tall': return 'tall'
         if o[0:5] == 'table': return 'table'
+        if o[0:6] == 'bigBar': return 'bigBar'
         if o[0:7] == 'shelves': return 'shelves'
         if o[0:4] == 'cool': return 'coolShelves'
         return 'unknown'
@@ -377,6 +381,10 @@ def testWorld(include = ('objA', 'objB', 'objC')):
     world.symmetries = {'soda' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.),
                                                  hu.Pose(0.,0.,0.,math.pi)]}),
                         'big' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.),
+                                                 hu.Pose(0.,0.,0.,math.pi)]}),
+                        'bigBar' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.),
+                                                 hu.Pose(0.,0.,0.,math.pi)]}),
+                        'tall' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.),
                                                  hu.Pose(0.,0.,0.,math.pi)]}),
                         'table' : ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,0.),
                                                  hu.Pose(0.,0.,0.,math.pi)]}),

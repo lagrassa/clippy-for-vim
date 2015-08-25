@@ -6,6 +6,7 @@ from pr2Util import supportFaceIndex, shadowWidths, trArgs
 from pr2PlanBel import getConf, getGoalPoseBels
 from shapes import Box
 from pr2GenAux import *
+from planUtil import PPResponse
 from pr2Push import pushInRegionGenGen
 
 Ident = hu.Transform(np.eye(4))            # identity transform
@@ -628,7 +629,7 @@ class PoseInRegionGen(Function):
         for ans in roundrobin(placeInRegionGenGen(args, goalConds, bState, away = False),
                               pushInRegionGenGen(args, goalConds, bState, away = False)):
             if ans:
-                yield ans
+                yield ans.poseInTuple()
 
 def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
     (obj, region, var, delta, prob) = args
@@ -693,7 +694,7 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
                 tr(tag, str(ans), 'regions=%s'%regions,
                    draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
                    snap=['W'])
-                yield ans.placeInTuple()
+                yield ans
             return
         else:
             # If pose is specified and variance is small, return

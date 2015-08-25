@@ -368,12 +368,22 @@ def verifyPath(pbs, p, path, allowedViol, msg='rrt'):
             raw_input('Ok?')
     return True
 
-def interpolatePath(path):
+def interpolatePath(path, stepSize = 0.25):
     interpolated = []
     for i in range(1, len(path)):
         qf = path[i]
         qi = path[i-1]
-        confs = interpolate(qf, qi, stepSize=0.25)
+        confs = interpolate(qf, qi, stepSize=stepSize)
         if debug('rrt'): print i, 'path segment has', len(confs), 'confs'
         interpolated.extend(confs)
     return interpolated
+
+
+
+
+
+
+
+
+
+

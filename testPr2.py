@@ -83,40 +83,6 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
           )
     return t
 
-def testBig0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-             easy = False, rip = False):
-
-    glob.rebindPenalty = 10
-    glob.monotonicFirst = True
-
-    goalProb, errProbs = (0.95,typicalErrProbs)
-
-    varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.1**2),
-                               'bigA': (0.05**2, 0.05**2, 1e-10, 0.1**2)} 
-    front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
-
-    region = 'table1Left'
-    goal = State([Bd([In(['bigA', region]), True, goalProb], True)])
-
-    t = PlanTest('testBig0',  errProbs, allOperators,
-                 objects=['table1', 'bigA'],
-                 fixPoses={'table1': table1Pose},
-                 movePoses={'bigA': front},
-                 varDict = varDict)
-
-    skel = None
-    t.run(goal,
-          hpn = hpn,
-          skeleton = skel if skeleton else None,
-          hierarchical = hierarchical,
-          regions=[region],
-          heuristic = heuristic,
-          rip = rip
-          )
-    return t
-
-
 ######################################################################
 # Test 1: 2 tables move 1 object
 ######################################################################
@@ -1181,3 +1147,89 @@ def testIt():
 
 def testHardSwap(**keys):
     return testSwap(hardSwap = True, **keys)
+
+#####################################################
+
+def testBig0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+             easy = False, rip = False):
+
+    glob.rebindPenalty = 10
+    glob.monotonicFirst = True
+
+    goalProb, errProbs = (0.95,typicalErrProbs)
+
+    varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.1**2),
+                               'bigA': (0.05**2, 0.05**2, 1e-10, 0.1**2)} 
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
+
+    region = 'table1Left'
+    goal = State([Bd([In(['bigA', region]), True, goalProb], True)])
+
+    t = PlanTest('testBig0',  errProbs, allOperators,
+                 objects=['table1', 'bigA'],
+                 fixPoses={'table1': table1Pose},
+                 movePoses={'bigA': front},
+                 varDict = varDict)
+
+    skel = None
+    t.run(goal,
+          hpn = hpn,
+          skeleton = skel if skeleton else None,
+          hierarchical = hierarchical,
+          regions=[region],
+          heuristic = heuristic,
+          rip = rip
+          )
+    return t
+
+def testBig1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
+             easy = False, rip = False):
+
+    glob.rebindPenalty = 10
+    glob.monotonicFirst = True
+
+    goalProb, errProbs = (0.95,typicalErrProbs)
+
+    varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.1**2),
+                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
+                               'bigA': (0.05**2, 0.05**2, 1e-10, 0.1**2),
+                               'tallB': (0.05**2, 0.05**2, 1e-10, 0.1**2),
+                               'tallC': (0.05**2, 0.05**2, 1e-10, 0.1**2),
+                               'tallD': (0.05**2, 0.05**2, 1e-10, 0.1**2)} 
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    back = hu.Pose(1.4, 0.0, tZ, 0.0)
+    right = hu.Pose(1.25, -0.15, tZ, 0.0)
+    left = hu.Pose(1.25, 0.15, tZ, 0.0)
+    middle = hu.Pose(1.25, 0.0, tZ, 0.0)
+
+    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
+
+    targetDelta = (0.01, 0.01, 0.01, 0.05)
+    hand = 'left'
+    graspType = 2
+    goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
+                   Bd([GraspFace(['objA', hand]), graspType, goalProb], True),
+                   B([Grasp(['objA', hand,  graspType]),
+                     (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), targetDelta,
+                     goalProb], True)])
+
+    t = PlanTest('testBig1',  errProbs, allOperators,
+                 objects=['table1', 'objA', 'bigA', 'tallB', 'tallC', 'tallD'],
+                 fixPoses={'table1': table1Pose},
+                 movePoses={'bigA': front, 'tallB': back, 'tallC': right, 'tallD': left,
+                            'objA': middle},
+                 varDict = varDict)
+
+    skel = None
+    region = 'table1Top'
+    t.run(goal,
+          hpn = hpn,
+          skeleton = skel if skeleton else None,
+          hierarchical = hierarchical,
+          regions=[region],
+          heuristic = heuristic,
+          rip = rip
+          )
+    return t
+

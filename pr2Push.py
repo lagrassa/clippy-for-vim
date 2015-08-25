@@ -38,7 +38,7 @@ maxDone = 1
 pushGenCacheStats = [0, 0]
 pushGenCache = {}
 
-minPushLength = 0.01
+minPushLength = 0.02
 
 useDirectPush = False
 
@@ -47,7 +47,7 @@ class PushGen(Function):
         for ans in pushGenGen(args, goalConds, bState):
             # Verify that it's feasible
             (obj, pose, support, poseVar, poseDelta, confdelta, prob) = args
-            (hand, prePose, preConf, pushConf, postConf) = ans
+            (hand, prePose, preConf, pushConf, postConf) = ans.pushTuple()
             path, viol = canPush(bState.pbs, obj, hand, support, hu.Pose(*prePose),
                                  pose, preConf, pushConf, postConf, poseVar,
                                  poseVar, poseDelta, prob,
@@ -56,7 +56,7 @@ class PushGen(Function):
                 print 'PushGen generated infeasible answer'
             else:
                 tr('pushGen', '->', 'final', str(ans))
-                yield ans
+                yield ans.pushTuple()
         tr('pushGen', '-> completely exhausted')
 
 def pushGenGen(args, goalConds, bState):
@@ -74,7 +74,7 @@ def pushGenGen(args, goalConds, bState):
                           goalConds, pbs)
     # Run the push generator with each of the hands
     for ans in chooseHandGen(pbs, goalConds, obj, None, leftGen, rightGen):
-        yield ans.pushTuple()
+        yield ans
 
 def pushGenTop(args, goalConds, pbs,
                partialPaths=False, reachObsts=[]):
@@ -189,8 +189,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
     # span the centroid.
     potentialContacts = []
     for vertical in (True, False):
-        for (contactFrame, width) in handContactFrames(prim, center, vertical):
-            potentialContacts.append((vertical, contactFrame, width))
+        potentialContacts.extend(handContactFrames(prim, center, vertical))
     # sort contacts and compute a distance when applicable, entries
     # are: (distance, vertical, contactFrame, width)
     # Sort contacts by nearness to current pose of object
@@ -224,22 +223,22 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
         doneCount = 0                   # how many went all the way
         pushPaths = []                  # for different base positions
         # Generate confs to place the hand at graspB
-        for ans in potentialGraspConfGen(pbs, placeB, graspB,
-                                         None, hand, base, prob):
-            if not ans:
-                tr(tag+'Path', 'potential grasp conf is empy')
-                continue
-            (c, ca, viol) = ans         # conf, approach, violations
-            pushConf = gripSet(c, hand, 2*width) # open fingers
-            if debug(tag+'_kin'):
-                pushConf.draw('W', 'orange')
-                # raw_input('Candidate conf')
-                wm.getWindow('W').update()
-                
-            count += 1
-            # Try going directly to goal and along the direction of face
-            # The direct route only works for vertical pushing...
-            for direct in (True, False) if (useDirectPush and vertical and curPose) else (False,):
+        # Try going directly to goal and along the direction of face
+        # The direct route only works for vertical pushing...
+        for direct in (True, False) if (useDirectPush and vertical and curPose) else (False,):
+            for ans in potentialConfs(pbs, prob, placeB,
+                                      curPose.pose() if direct else prePose.pose(),
+                                      graspB, hand, base):
+                if not ans:
+                    tr(tag+'Path', 'potential grasp conf is empy')
+                    continue
+                (c, ca, viol) = ans         # conf, approach, violations
+                pushConf = gripSet(c, hand, 2*width) # open fingers
+                if debug(tag+'_kin'):
+                    pushConf.draw('W', 'orange')
+                    # raw_input('Candidate conf')
+                    wm.getWindow('W').update()
+                count += 1
                 pathAndViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
                                                 curPose.pose() if direct else prePose.pose(),
                                                 xyPrim, supportRegion, hand, reachObsts=reachObsts)
@@ -248,7 +247,9 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
                     pushPaths.append((pathAndViols, reason))
                 elif pathAndViols and partialPaths:
                     pushPaths.append((pathAndViols, reason))
-                tr(tag+'Path', 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
+                tr(tag, 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
+                if doneCount >= maxDone and not partialPaths: break
+                if count > maxPushPaths: break
             if doneCount >= maxDone and not partialPaths: break
             if count > maxPushPaths: break
         if count == 0 and not glob.inHeuristic:
@@ -258,6 +259,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
         for i in range(min(len(sorted), maxDone)):
             pp = sorted[i]              # path is reversed (post...pre)
             ppre, cpre, ppost, cpost = getPrePost(pp)
+            if not ppre or not ppost: continue
             if debug(tag):
                 robot = cpre.robot
                 print 'pre pose\n', ppre.matrix
@@ -270,13 +272,26 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
                      (cpre, 'W', 'blue'), (cpost, 'W', 'pink')], snap=['W'])
 
             viol = Violations()
-            for (c,v,p) in pathAndViols: viol.update(v)
+            for (c,v,p) in pathAndViols:
+                viol.update(v)
             yield PushResponse(placeB.modifyPoseD(ppre.pose()),
                                placeB, cpre, cpost, cpre, viol, hand,
                                placeB.poseD.var, placeB.delta)
 
     tr(tag, '=> pushGenAux exhausted')
     return
+
+def potentialConfs(pbs, prob, placeB, prePose, graspB, hand, base):
+    def preGraspConfGen():
+        for (c, ca, v) in potentialGraspConfGen(pbs, prePB, graspB, None, hand, base, prob):
+            (x, y, th) = c['pr2Base']
+            basePose = hu.Pose(x, y, 0, th)
+            ans = graspConfForBase(pbs, placeB, graspB, hand, basePose, prob)
+            if ans: yield ans
+    prePB = placeB.modifyPoseD(prePose)
+    postGen = potentialGraspConfGen(pbs, placeB, graspB, None, hand, base, prob)
+    preGen = preGraspConfGen()
+    return roundrobin(postGen, preGen)
 
 # Path entries are (robot conf, violations, object pose)
 # Paths can end or start with a series of steps that do not move the
@@ -395,7 +410,7 @@ def handContactFrames(shape, center, vertical):
                 print faceBB
                 print 'width', width, 'valid contact frame\n', cf.matrix
                 # raw_input('Target')
-            contactFrames.append((cf, width))
+            contactFrames.append((vertical, cf, width))
         else:
             if debug(tag): print 'face is too small'
     return contactFrames
@@ -403,7 +418,12 @@ def handContactFrames(shape, center, vertical):
 # TODO: This should be a property of robot -- and we should extend to held objects
 def pushHeight(vertical):
     if vertical:
-        return 0.04                 # tool tip above the table
+
+#############
+# HACK SO THAT WE CAN PUSH TALL OBJECTS WITHOUT THE ARM COLLIDING!!!        
+#############
+
+        return 0.08                 # tool tip above the table
     else:                           
         return 0.06                 # wrist needs to clear the support
 
@@ -492,12 +512,13 @@ def sortPushContacts(contacts, targetPose, curPose):
             if ntrz >= 0.:
                 # bad ones require "pulling"
                 bad.append((0, None, vertical, contact, width))
-            else:
+            elif -ntrz >= minPushLength:
                 # distance negated...
                 score = 5 * width - ntrz # prefer wide faces and longer pushes
                 good.append((score, -ntrz, vertical, contact, width))
-                score = 5 * width - 0.5*ntrz # prefer wide faces and longer pushes
-                good.append((score, -0.5*ntrz, vertical, contact, width))
+                if abs(ntrz) > 0.1:
+                    score = 5 * width - 0.5*ntrz # prefer wide faces and longer pushes
+                    good.append((score, -0.5*ntrz, vertical, contact, width))
     else:                               # no pose, just use width
         for (vertical, contact, width) in contacts:
             if debug('pushGenDetail'):
@@ -528,7 +549,7 @@ class PushInRegionGen(Function):
     def fun(self, args, goalConds, bState):
         for ans in pushInRegionGenGen(args, goalConds, bState, away = False):
             assert isinstance(ans, tuple)
-            yield ans
+            yield ans.poseInTuple()
 
 def pushInRegionGenGen(args, goalConds, bState, away = False):
     (obj, region, var, delta, prob) = args
@@ -581,7 +602,7 @@ def pushInRegionGenGen(args, goalConds, bState, away = False):
                 tr(tag, str(ans), 'regions=%s'%regions,
                    draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
                    snap=['W'])
-                yield ans.pushInTuple()
+                yield ans
             return
         else:
             # If pose is specified and variance is small, return
@@ -598,7 +619,7 @@ def pushInRegionGenGen(args, goalConds, bState, away = False):
     gen = pushInGenTop((obj, regShapes, placeB, prob),
                           goalConds, pbs, away = away)
     for ans in gen:
-        yield ans.pushInTuple()
+        yield ans
 
 pushVarIncreaseFactor = 3 # was 2
 
@@ -624,7 +645,7 @@ def pushOut(pbs, prob, obst, delta, goalConds):
                             for x in pbs.domainProbs.obsVarTuple])
     if not isinstance(obst, str):
         obst = obst.name()
-    for ans in placeInGenAway((obst, delta, prob), goalConds, pbs):
+    for ans in pushInGenAway((obst, delta, prob), goalConds, pbs):
         ans = ans.copy()
         ans.var = domainPlaceVar; ans.delta = delta
         yield ans
@@ -670,11 +691,15 @@ def pushInGenTop(args, goalConds, pbs, away = False):
     for ans in mainGen:
         yield ans
 
+# placeB is current place for object
+# regShapes is a list of (one) target region
+# reachObsts are regions where placements are forbidden
 def pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, hand):
     shWorld = pbs.getShadowWorld(prob)
-    for pB in regionPB(pbs, prob, placeB, regShapes):
+    for pB in awayTargetPB(pbs, prob, placeB, regShapes):
         for ans in pushGenTop((placeB.obj, pB, hand, prob),
                               goalConds, pbs,
+                              # TODO: should this be true or false?
                               partialPaths=True, reachObsts=reachObsts):
 
             tr('pushInGen', ('->', str(ans)),
@@ -687,16 +712,17 @@ def pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, hand):
                snap=['W'])
 
             yield ans
-        pdb.set_trace()
+        # pdb.set_trace()
 
+# Find target placements in region.  Object starts out in placeB.
 def regionPB(pbs, prob, placeB, regShapes):
     shWorld = pbs.getShadowWorld(prob)
     shape = pbs.getObjectShapeAtOrigin(placeB.obj)
     regShape = regShapes[0]
     mode = placeB.poseD.mode().pose()
     bbox = bboxInterior(shape.bbox(), regShape.bbox())
-    targets = sortedTargets(pbs, prob, placeB, bboxGridCoords(bbox, res=0.02))
-    print 'len(targets)', len(targets)
+    n = len(bboxGridCoords(bbox, res=0.2))
+    targets = sortedTargets(pbs, prob, placeB, bboxRandomCoords(bbox, n=n))
     for point in targets:
         newMode = hu.Pose(point[0], point[1], mode.z, mode.theta)
         newPB = placeB.modifyPoseD(newMode, var=4*(0.02**2,))
@@ -715,8 +741,7 @@ def sortedTargets(pbs, prob, placeB, targetPoints):
     center =  np.average(xyPrim.vertices(), axis=1)
     potentialContacts = []
     for vertical in (True, False):
-        for (contactFrame, width) in handContactFrames(prim, center, vertical):
-            potentialContacts.append((vertical, contactFrame, width))
+        potentialContacts.extend(handContactFrames(prim, center, vertical))
     mode = placeB.poseD.mode().pose()
     targets = []
     for point in targetPoints:
@@ -749,3 +774,40 @@ def removeDuplicates(pointList):
         if not match:
             points.append(point1)
     return points
+
+def awayTargetPB(pbs, prob, placeB, regShapes):
+    shape = placeB.shape(pbs.getWorld())
+    regShape = regShapes[0]
+    prim = choosePrim(shape)
+    xyPrim = shape.xyPrim()
+    center =  np.average(xyPrim.vertices(), axis=1)
+    potentialContacts = []
+    for vertical in (True, False):
+        potentialContacts.extend(handContactFrames(prim, center, vertical))
+    targets = []
+    for (vertical, contactFrame, width) in potentialContacts:
+        # This is z axis of face, push will be in that direction 
+        direction = contactFrame.matrix[:3,2].reshape(3).copy()
+        direction[2] = 0.0            # we want z component exactly 0.
+        newPB = maxDistInRegionPB(pbs, prob, placeB, direction, regShape)
+        if newPB not in targets:
+            targets.append(newPB)
+            print 'direction', direction, 'newPB', newPB
+            newShape = newPB.makeShadow(pbs, prob)
+            pbs.draw(prob, 'W'); drawFrame(contactFrame); newShape.draw('W', 'magenta')
+            raw_input('Go?')
+    return targets
+
+def maxDistInRegionPB(pbs, prob, placeB, direction, regShape, mind = 0.0, maxd = 1.0):
+    dist = 0.5*(mind+maxd)
+    postPoseOffset = hu.Pose(*(dist*direction).tolist()+[0.0])
+    postPose = postPoseOffset.compose(placeB.poseD.mode())
+    newPB = placeB.modifyPoseD(postPose.pose(), var=4*(0.01**2,))
+    newPB.delta = delta=4*(0.001,)
+    if inside(newPB.makeShadow(pbs, prob), regShape, strict=True):
+        if maxd-mind < 0.01:
+            return newPB
+        else:
+            return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, dist, maxd)
+    else:
+        return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, mind, dist)

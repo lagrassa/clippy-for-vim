@@ -266,7 +266,7 @@ class PPResponse:
         return (self.hand, self.gB.poseD.mode().xyztTuple(), self.gB.grasp.mode(),
                 self.c, self.ca,
                 self.pB.poseD.mode().xyztTuple(), self.pB.support.mode())
-    def placeInTuple(self):
+    def poseInTuple(self):
         return (self.pB.poseD.mode().xyztTuple(), self.pB.support.mode())
     def canXGenTuple(self):
         return (self.pB.obj, self.pB.poseD.mode().xyztTuple(), self.pB.support.mode(),
@@ -298,7 +298,7 @@ class PushResponse:
     def pushTuple(self):
         return (self.hand, self.prePB.poseD.mode().xyztTuple(),
                 self.preConf, self.pushConf, self.postConf)
-    def pushInTuple(self):
+    def poseInTuple(self):
         return (self.postPB.poseD.mode().xyztTuple(), self.postPB.support.mode())
     def canXGenTuple(self):
         return tuple()
