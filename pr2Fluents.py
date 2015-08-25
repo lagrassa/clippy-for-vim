@@ -23,8 +23,10 @@ from transformations import rotation_matrix
 from shapes import drawFrame
 
 tiny = 1.0e-6
-obstCost = 10  # Heuristic cost of moving an object
 
+#### Ugly!!!!!
+graspObstCost = 20  # Heuristic cost of moving an object
+pushObstCost = 75  # Heuristic cost of moving an object
 
 ################################################################
 ## Fluent definitions
@@ -364,12 +366,12 @@ class CanReachHome(Fluent):
         if not self.isGround():
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
-            dummyOp.instanceCost = obstCost
-            return (obstCost, ActSet([dummyOp]))
+            dummyOp.instanceCost = graspObstCost
+            return (graspObstCost, ActSet([dummyOp]))
         
         path, violations = self.getViols(details, v, p)
 
-        totalCost, ops = hCost(violations, obstCost, details)
+        totalCost, ops = hCost(violations, details)
         tr('hv', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
         return totalCost, ops
@@ -385,7 +387,7 @@ class CanReachHome(Fluent):
         return self.predicate + ' ' + argStr + valueStr
 
 # Returns cost, ops
-def hCost(violations, obstCost, details):
+def hCost(violations, details):
     if violations is None:
         tr('hAddBackInf', 'computed hcost is infinite')
         return float('inf'), {}
@@ -393,7 +395,8 @@ def hCost(violations, obstCost, details):
     shadows = violations.shadows
     obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
                    for o in obstacles])
-    for o in obstOps: o.instanceCost = obstCost
+    for o in obstOps: o.instanceCost = graspObstCost \
+                    if graspable(o.args[0]) else pushObstCost
     shadowOps = set([Operator('RemoveShadow', [o.name()],{},[]) \
                  for o in shadows])
     d = details.domainProbs.minDelta
@@ -420,11 +423,11 @@ def hCost(violations, obstCost, details):
 
     if leftDrop:
         op = Operator('DropLeft', [], {}, [])
-        op.instanceCost = obstCost / 2.0
+        op.instanceCost = graspObstCost / 2.0
         ops.add(op)
     if rightDrop:
         op = Operator('DropRight', [], {}, [])
-        op.instanceCost = obstCost / 2.0
+        op.instanceCost = graspObstCost / 2.0
         ops.add(op)
     if leftLook:
         op = Operator('Lookleft', [], {}, [])
@@ -441,14 +444,14 @@ def hCost(violations, obstCost, details):
 
     return totalCost, ActSet(ops)
 
-def hCostSee(vis, occluders, obstCost, details):
+def hCostSee(vis, occluders, details):
     # vis is whether enough is visible;   we're 0 cost if that's true
     if vis:
         return 0, ActSet()
 
     obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
                    for o in occluders])
-    for o in obstOps: o.instanceCost = obstCost
+    for o in obstOps: o.instanceCost = graspObstCost
     totalCost = sum([o.instanceCost for o in obstOps])
     return totalCost, ActSet(obstOps)
 
@@ -550,11 +553,11 @@ class CanReachNB(Fluent):
         if not self.isGround():
             dummyOp = Operator('UnboundStart', ['dummy'],{},[])
             dummyOp.instanceCost = unboundCost
-            return obstCost, ActSet([dummyOp])
+            return unboundCost, ActSet([dummyOp])
             
         path, violations = self.getViols(details, v, p)
 
-        totalCost, ops = hCost(violations, obstCost, details)
+        totalCost, ops = hCost(violations, details)
         tr('hv', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
         return totalCost, ops
@@ -744,11 +747,11 @@ class CanPickPlace(Fluent):
         if not self.isGround():
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
-            dummyOp.instanceCost = obstCost
-            return obstCost, ActSet([dummyOp])
+            dummyOp.instanceCost = graspObstCost
+            return graspObstCost, ActSet([dummyOp])
 
         path, violations = self.getViols(details, v, p)
-        totalCost, ops = hCost(violations, obstCost, details)
+        totalCost, ops = hCost(violations, details)
 
         tr('hv', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
@@ -855,11 +858,11 @@ class CanPush(Fluent):
         if not self.isGround():
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
-            dummyOp.instanceCost = obstCost
-            return obstCost, ActSet([dummyOp])
+            dummyOp.instanceCost = graspObstCost
+            return graspObstCost, ActSet([dummyOp])
 
         path, violations = self.getViols(details, v, p)
-        totalCost, ops = hCost(violations, obstCost, details)
+        totalCost, ops = hCost(violations, details)
 
         tr('hv', ('Heuristic val', self.predicate),
            ('ops', ops), ('cost', totalCost))
@@ -1070,11 +1073,11 @@ class CanSeeFrom(Fluent):
         if not self.isGround():
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
-            dummyOp.instanceCost = obstCost
-            return obstCost, ActSet([dummyOp])
+            dummyOp.instanceCost = graspObstCost
+            return graspOCost, ActSet([dummyOp])
         
         vis, occluders = self.getViols(details, v, p)
-        totalCost, ops = hCostSee(vis, occluders, obstCost, details)
+        totalCost, ops = hCostSee(vis, occluders, details)
         tr('hv', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
         return totalCost, ops
