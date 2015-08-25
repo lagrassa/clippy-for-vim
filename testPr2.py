@@ -1187,7 +1187,10 @@ def testBig1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs
              easy = False, rip = False):
 
     print 'rebind penalty is set very high to avoid backtracking; decrease to try alternative grasps'
-    glob.rebindPenalty = 300
+    pick.rebindPenalty = 300
+    moveNB.rebindPenalty = 300
+    move.rebindPenalty = 300
+    lookAt.rebindPenalty = 300
     glob.monotonicFirst = True
 
     goalProb, errProbs = (0.95,typicalErrProbs)
@@ -1205,7 +1208,8 @@ def testBig1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs
     middle = hu.Pose(1.25, 0.0, tZ, 0.0)
 
     skel = [[pick, moveNB, lookAt, move,
-             achCanPickPlace, moveNB, lookAt, move]]
+             achCanPickPlace, moveNB, lookAt, moveNB, lookAt, move, 
+             push, move, achCanReach]]
 
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
