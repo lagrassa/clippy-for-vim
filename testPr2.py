@@ -1199,17 +1199,19 @@ def testBig1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs
                                'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
                                'bigA': (0.05**2, 0.05**2, 1e-10, 0.1**2),
                                'tallB': (0.05**2, 0.05**2, 1e-10, 0.1**2),
-                               'tallC': (0.05**2, 0.05**2, 1e-10, 0.1**2),
-                               'tallD': (0.05**2, 0.05**2, 1e-10, 0.1**2)} 
+                               'bigBarC': (0.05**2, 0.05**2, 1e-10, 0.1**2),
+                               'bigBarD': (0.05**2, 0.05**2, 1e-10, 0.1**2)} 
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     back = hu.Pose(1.4, 0.0, tZ, 0.0)
-    right = hu.Pose(1.25, -0.15, tZ, 0.0)
-    left = hu.Pose(1.25, 0.15, tZ, 0.0)
+    right = hu.Pose(1.25, -0.16, tZ, 0.0)
+    left = hu.Pose(1.25, 0.16, tZ, 0.0)
     middle = hu.Pose(1.25, 0.0, tZ, 0.0)
 
+    poseD = hu.Pose(1.461, .160, tZ, 0.0)
+
     skel = [[pick, moveNB, lookAt, move,
-             achCanPickPlace, moveNB, lookAt, moveNB, lookAt, move, 
-             push, move, achCanReach]]
+             achCanPickPlace, moveNB, lookAt, move,
+             achCanPickPlace, moveNB, lookAt, move]]
 
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
@@ -1223,9 +1225,13 @@ def testBig1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs
                      goalProb], True)])
 
     t = PlanTest('testBig1',  errProbs, allOperators,
-                 objects=['table1', 'objA', 'bigA', 'tallB', 'tallC', 'tallD'],
+                 objects=['table1', 'objA', 'bigA', 'tallB',
+                          # 'bigBarC',
+                          'bigBarD'],
                  fixPoses={'table1': table1Pose},
-                 movePoses={'bigA': front, 'tallB': back, 'tallC': right, 'tallD': left,
+                 movePoses={'bigA': front, 'tallB': back,
+                            # 'bigBarC': right,
+                            'bigBarD': left,    #poseD
                             'objA': middle},
                  varDict = varDict)
     region = 'table1Top'

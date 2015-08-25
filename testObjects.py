@@ -16,7 +16,7 @@ def makeTall(dx=0.0445, dy=0.0445, dz=0.2, name='tallA', color='blue'):
     return Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)])],
               name=name, color=color)
 
-def makeBigBar(dx=0.1, dy=0.0445, dz=0.1175, name='bigBarA', color='blue'):
+def makeBigBar(dx=0.1, dy=0.0445, dz=0.2, name='bigBarA', color='blue'):
     return Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)])],
               name=name, color=color)
 
