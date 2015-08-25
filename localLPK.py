@@ -109,7 +109,9 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + skeletonTags + ['regression:fail:bindings']
+debugOn = usualTags + skeletonTags + ['regression:fail:bindings',
+                                      'canPickPlaceGen',
+                                      'regression:mop']
 
 debugOnly = debugOnly
 traceOnly = traceOnly 

@@ -1210,8 +1210,8 @@ def testBig1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs
     poseD = hu.Pose(1.461, .160, tZ, 0.0)
 
     skel = [[pick, moveNB, lookAt, move,
-             achCanPickPlace, moveNB, lookAt, move,
-             achCanPickPlace, moveNB, lookAt, move]]
+             achCanPickPlace, move, 
+             achCanPickPlace, move]]
 
     table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
 
@@ -1226,11 +1226,11 @@ def testBig1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs
 
     t = PlanTest('testBig1',  errProbs, allOperators,
                  objects=['table1', 'objA', 'bigA', 'tallB',
-                          # 'bigBarC',
+                          'bigBarC',
                           'bigBarD'],
                  fixPoses={'table1': table1Pose},
                  movePoses={'bigA': front, 'tallB': back,
-                            # 'bigBarC': right,
+                            'bigBarC': right,
                             'bigBarD': left,    #poseD
                             'objA': middle},
                  varDict = varDict)

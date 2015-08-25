@@ -152,6 +152,7 @@ def moveNBPrim(args, details):
     # Make all the objects be fixed
     bs.fixObjBs.update(bs.moveObjBs)
     bs.moveObjBs = {}
+    cs = bs.conf
     tr('prim', 'moveNBPrim (start, end)', confStr(cs), confStr(ce),
        pause = False)
     path, interpolated = primNBPath(bs, cs, ce, movePreProb)
@@ -166,6 +167,7 @@ def movePrim(args, details):
     # Make all the objects be fixed
     bs.fixObjBs.update(bs.moveObjBs)
     bs.moveObjBs = {}
+    cs = bs.conf
     tr('prim', 'movePrim (start, end)', confStr(cs), confStr(ce),
        pause = False)
     path, interpolated = primPath(bs, cs, ce, movePreProb)

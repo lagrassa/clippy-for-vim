@@ -1011,11 +1011,7 @@ class Operator(object):
 
         resultList = []
         for nb in newBindingsList:
-            if self.metaGenerator:
-                res = self.mopFromBindings(nb, goal, startState, heuristic,
-                                     operators, ancestors)
-            else:
-                res = self.newGoalFromBindings(nb, results, goal, startState,
+            res = self.newGoalFromBindings(nb, results, goal, startState,
                                                heuristic, operators, ancestors)
             if res != None:
                 resultList.append(res)
@@ -1041,7 +1037,8 @@ class Operator(object):
         tr(tag, 'Final regression result', ('Op', self), resultList)
         return resultList
 
-    def mopFromBindings(self, newBindings, goal, startState, heuristic,
+    def mopFromBindings(self, newBindings, results, newGoal, startState,
+                        heuristic,
                         operators, ancestors):
 
         for k in newBindings.keys():
@@ -1049,24 +1046,24 @@ class Operator(object):
 
         # We have made a commitment to achieving these conditions as a
         # way of achieving the goal.  We need to remember them for
-        # planning at the next level down.  It feels like we need to
-        # side-effect this goal.  Is that okay?  Will it work?
+        # planning at the next level down. 
         preCond = None
         for k in newBindings.keys():
             if k[:7] == 'NewCond': newCond = newBindings[k]
-        if not goal.isConsistent(newCond, startState.details):
+        if not newGoal.isConsistent(newCond, startState.details):
             print self.name, 'generated a bad suggestion'
             print 'Ignoring it for now, but we should fix this.'
             return None
-        goal = goal.copy()
-        goal.addSet(newCond)
+        newGoal.addSet(newCond)
+        newGoal.depth = newGoal.depth - 1
         # Set abstraction level for mop
         if flatPlan:
             mop.abstractionLevel = mop.concreteAbstractionLevel
         else:
             mop.setAbstractionLevel(ancestors)
-        tr('regression', 'Applied metagenerator, got', mop, ol = True)
-        mopr = mop.regress(goal, startState, heuristic, operators,
+        tr('regression:mop', 'Applied metagenerator, got', mop, '\n',
+           newCond)
+        mopr = mop.regress(newGoal, startState, heuristic, operators,
                            ancestors, numResults = 1)
         return mopr[0] if len(mopr) > 1 else None
 
@@ -1196,12 +1193,20 @@ class Operator(object):
                     tr('regression:fail', 'conditional fluent is infeasible', f)
                     return None
 
+        # Stash away these bindings for later.
         bp.update(bTemp)
         newBindings.update(bp)
         newGoal.depth = goal.depth + 1
         newGoal.operator = self.applyBindings(newBindings)
         newGoal.bindings = copy.copy(goal.bindings)
         newGoal.bindings.update(newBindings)
+
+        # Not sure this is the right place...
+        if self.metaGenerator:
+            return self.mopFromBindings(newBindings, results, newGoal,
+                                        startState,
+                                           heuristic, operators, ancestors)
+        
         primCost = self.cost(self.abstractionLevel,
                          [lookup(arg, newBindings) for arg in self.args],
                          startState.details)
