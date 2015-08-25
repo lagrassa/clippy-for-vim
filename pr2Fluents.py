@@ -1526,9 +1526,9 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
             if debug('pushPath'):
                 print 'offset:', offsetPose
             offsetPB = pB.modifyPoseD(newPose.compose(offsetRot).pose(),
-                                      var=4*(0.0,))
-            offsetPB.delta=4*(0.0,)
-            nshape = offsetPB.shape(pbs.getWorld())
+                                      var=4*(0.02**2,))
+            offsetPB.delta=4*(0.001,)
+            nshape = offsetPB.makeShadow(pbs, prob)
             if regShape:
                 if not inside(nshape, regShape):
                     reason = 'outside'

@@ -252,7 +252,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
             if doneCount >= maxDone and not partialPaths: break
             if count > maxPushPaths: break
         if count == 0 and not glob.inHeuristic:
-            print tag, 'No potentialGraspConfGen results'
+            print tag, 'Could not find conf for push.'
         # Sort the push paths by violations
         sorted = sortedPushPaths(pushPaths, curPose)
         for i in range(min(len(sorted), maxDone)):
