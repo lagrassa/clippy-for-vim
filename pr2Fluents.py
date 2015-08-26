@@ -1526,7 +1526,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
             if debug('pushPath'):
                 print 'offset:', offsetPose
             offsetPB = pB.modifyPoseD(newPose.compose(offsetRot).pose(),
-                                      var=4*(0.02**2,))
+                                      var=4*(0.01**2,))
             offsetPB.delta=4*(0.001,)
             nshape = offsetPB.makeShadow(pbs, prob)
             if regShape:

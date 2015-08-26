@@ -252,7 +252,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
             if doneCount >= maxDone and not partialPaths: break
             if count > maxPushPaths: break
         if count == 0 and not glob.inHeuristic:
-            print tag, 'Could not find conf for push.'
+            print tag, 'Could not find conf for push along', direction[:2]
         # Sort the push paths by violations
         sorted = sortedPushPaths(pushPaths, curPose)
         for i in range(min(len(sorted), maxDone)):
@@ -426,7 +426,7 @@ def pushHeight(vertical):
 # HACK SO THAT WE CAN PUSH TALL OBJECTS WITHOUT THE ARM COLLIDING!!!        
 #############
 
-        return 0.08                 # tool tip above the table
+        return 0.1                 # tool tip above the table
     else:                           
         return 0.06                 # wrist needs to clear the support
 
