@@ -473,7 +473,7 @@ class PlanTest:
                     verbose = False,
                     fileTag = self.name if writeSearch else None,
                     nonMonOps = ['Move', 'MoveNB', 'LookAt', 'Place'],
-                    maxNodes = 100,
+                    maxNodes = 200,
                     clearCaches = clearCaches)
             else:
                 p = planBackward(s,

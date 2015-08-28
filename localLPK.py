@@ -99,7 +99,7 @@ flags = ['simpleAbstractCostEstimates',
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack', 
                  'debugInHeuristic', 'h'] #, 'hv'] 
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
-                'clobber']
+                'clobber' + 'regression:fail:bindings']
 executionTags = ['executionSurprise', 'executionFail']
 traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
@@ -109,10 +109,7 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags
-# + skeletonTags + ['regression:fail:bindings',
-#                                       'canPickPlaceGen',
-#                                       'regression:mop']
+debugOn = usualTags #+ skeletonTags + ['canPickPlaceGen']
 
 debugOnly = debugOnly
 traceOnly = traceOnly 

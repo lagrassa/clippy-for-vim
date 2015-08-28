@@ -1201,7 +1201,6 @@ class Operator(object):
         newGoal.bindings = copy.copy(goal.bindings)
         newGoal.bindings.update(newBindings)
 
-        # Not sure this is the right place...
         if self.metaGenerator:
             return self.mopFromBindings(newBindings, results, newGoal,
                                         startState,

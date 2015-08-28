@@ -1815,7 +1815,8 @@ class AchCanPushGen(Function):
 # violFn specifies what we are trying to achieve tries all the ways we
 # know how to achieve it targetFluents are the declarative version of
 # the same condition; would be better if we didn't have to specify it
-# both ways
+# both ways.
+
 def achCanXGen(pbs, goal, originalCond, targetFluents, violFn, prob, tag):
         allConds = list(originalCond) + targetFluents
         newBS = pbs.conditioned(goal, allConds)
