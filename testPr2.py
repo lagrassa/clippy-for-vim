@@ -26,6 +26,94 @@ def testAll(indices, repeat=3, crashIsError=True, **args):
     print testResults
 
 ######################################################################
+# Various Settings
+######################################################################
+
+sd = 1.0e-3
+tz = 0.68
+class Experiment:
+    defaultVar = (sd**2, sd**2, 1.0e-10, sd**2)
+    defaultDelta = 4*(0.0,)
+    domainProbs = typicalErrProbs
+    operators = allOperators
+    varDict = {}
+    movePoses = {}
+    fixPoses = {}
+    regions = []
+
+table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2.0)
+table2Pose = hu.Pose(1.0, -1.2, 0.0, 0.0)
+table3Pose = hu.Pose(1.6,0.0,0.0, math.pi/2.0),
+coolShelvesPose = hu.Pose(1.4, 0.0, tZ, math.pi/2)
+
+bigVar = (0.1**2, 0.1**2, 1e-10, 0.3**2)
+medVar = (0.05**2, 0.05**2, 1e-10, 0.1**2)
+smallVar = (0.03**2, 0.03**2, 1e-10, 0.06**2)
+
+targetSmallVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2)
+
+def makeExp(fix, move, reg, easy=False):
+    exp = Experiment()
+    exp.fixPoses = { x: pose for (x,(pose, var)) in fix.items()}
+    exp.movePoses = { x: pose for (x,(pose, var)) in move.items()}
+    exp.varDict = {} if easy \
+                  else { x: var for (x,(pose, var)) in move.items() + fix.items()}
+    exp.regions = reg
+    return exp
+
+# Goals
+def holding(obj, hand='left', graspType=2, goalProb=0.95,
+            targetVar=targetSmallVar, targetDelta=(0.01, 0.01, 0.01, 0.05)):
+    return State([Bd([Holding([hand]), obj, goalProb], True),
+                  Bd([GraspFace([obj, hand]), graspType, goalProb], True),
+                  B([Grasp([obj, hand,  graspType]),
+                     (0,-0.025,0,0), targetSmallVar, targetDelta,
+                     goalProb], True)])
+
+def placed(obj, pose, hand='left', goalProb=0.95,
+           targetVar=targetSmallVar, targetDelta=(0.01, 0.01, 0.01, 0.05)) :
+    return State([Bd([SupportFace([obj]), 4, goalProb], True),
+                  B([Pose([obj, 4]),
+                     pose.xyztTuple(), targetVar, targetDelta,
+                     goalProb], True)])
+
+def emptyHand(hand='left', goalProb=0.95):
+    return State([Bd([Holding([hand]), 'none', goalProb], True)])
+    
+def inRegion(objs, regions, goalProb=0.95):
+    if isinstance(objs, str): objs = [objs]
+    if isinstance(regions, str):
+        regions = [regions for o in objs] # if multiple objs, each in region
+    assert len(objs) == len(regions)
+    return State([Bd([In([obj, reg]), True, goalProb], True) \
+                  for obj,reg in zip(objs, regions)])
+
+defaultArgs = {'hpn' : True,
+               'hierarchical' : True,
+               'heuristic' : habbs,
+               'rip' : False,
+               'skeleton' : None,
+               'easy' : False,
+               'multiplier' : 6,
+               'initBel' : None,
+               'initWorld' : None}
+
+def doTest(name, exp, goal, skel, args):
+
+    glob.monotonicFirst = True          # always...
+
+    tArgs = defaultArgs.copy()
+    tArgs.update(args)
+    tArgs['skeleton'] = skel if tArgs['skeleton'] else None
+    tArgs['regions'] = exp.regions
+    t = PlanTest(name, exp, multiplier=tArgs['multiplier'])
+    for x,y in tArgs.items():
+        if x not in {'initBel', 'initWorld'}:
+            print x, '<-', y
+    t.run(goal, **tArgs)
+    return t
+
+######################################################################
 # Test 0: 1 table move 1 object
 ######################################################################
 
@@ -33,37 +121,20 @@ def testAll(indices, repeat=3, crashIsError=True, **args):
 # Assumption is that odometry error is kept in check during motions.
 # Use domainProbs.odoError as the stdev of any object.
 
-def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-          easy = False, rip = False):
-
+def test0(**args):
     glob.rebindPenalty = 10
-    glob.monotonicFirst = True
-
-    goalProb, errProbs = (0.95,typicalErrProbs)
-
-    varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.1**2),
-                               'objA': (0.05**2, 0.05**2, 1e-10, 0.1**2)} 
-    front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
-
-    region = 'table1Left'
-    goal = State([Bd([In(['objA', region]), True, goalProb], True)])
-
-    t = PlanTest('test0',  errProbs, allOperators,
-                 objects=['table1', 'objA'],
-                 fixPoses={'table1': table1Pose},
-                 movePoses={'objA': front},
-                 varDict = varDict)
-
+    exp = makeExp({'table1' : (table1Pose, medVar)},
+                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
+                  ['table1Top', 'table1Left'], easy=args.get('easy', False))
+    goal = inRegion(['objA'], 'table1Left')
     # pick/place, flat
     skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), move, 
              place.applyBindings({'Obj' : 'objA'}),
              move, pick, moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}),
              moveNB, lookAt, move]]
-
     # pick/place, hierarchical
-    skel = [[poseAchIn],
+    hskel = [[poseAchIn],
             [poseAchIn],
             [poseAchIn, lookAt, place],
             [place],
@@ -72,935 +143,332 @@ def test0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
             [pick],
             [pick, moveNB, lookAt, move],
             [place, move]]
-
-    t.run(goal,
-          hpn = hpn,
-          skeleton = skel if skeleton else None,
-          hierarchical = hierarchical,
-          regions=[region],
-          heuristic = heuristic,
-          rip = rip
-          )
-    return t
+    return doTest('test0', exp, goal, skel, args)
 
 ######################################################################
 # Test 1: 2 tables move 1 object
 ######################################################################
 
 # pick and place into region.  2 tables
-def test1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-          easy = False, rip = False, multiplier=6):
-
+def test1(**args):
     glob.rebindPenalty = 700
-    glob.monotonicFirst = True
-
-    goalProb, errProbs = (0.5,tinyErrProbs) if easy else (0.95,typicalErrProbs)
-
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
-    front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    table2Pose = hu.Pose(1.0, -1.00, 0.0, 0.0)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
-
-    region = 'table2Left'
-    goal = State([Bd([In(['objA', region]), True, goalProb], True)])
-
-    t = PlanTest('test1',  errProbs, allOperators,
-                 objects=['table1', 'objA', 'table2'],
-                 fixPoses={'table1': table1Pose,
-                           'table2': table2Pose},
-                 movePoses={'objA': front},
-                 varDict = varDict,
-                 multiplier = multiplier)
-
-    t.run(goal,
-          hpn = hpn,
-          hierarchical = hierarchical,
-          regions=[region],
-          heuristic = heuristic,
-          rip = rip
-          )
-    return t
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   'table2' : (table2Pose, smallVar)},
+                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
+                  ['table1Top', 'table1Left',
+                   'table2Top', 'table2Left'], easy=args.get('easy', False))
+    goal = inRegion(['objA'], 'table2Left')
+    skel = None
+    return doTest('test1', exp, goal, skel, args)
 
 ######################################################################
 # Test 2: one table, move two objects
 ######################################################################
 
 # pick and place into region... one table, for robot.
-def test2(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-          easy = False, rip = False):
-
+def test2(**args):
     glob.rebindPenalty = 700
-    glob.monotonicFirst = True
+    exp = makeExp({'table1' : (table1Pose, smallVar)},
+                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar),
+                   'objB' : (hu.Pose(1.1, -0.4, tZ, 0.0), medVar)},
+                  ['table1Top', 'table1Left'], easy=args.get('easy', False))
+    goal = inRegion(['objA', 'objB'], 'table1Left')
+    skel = None
+    return doTest('test2', exp, goal, skel, args)
 
-    goalProb, errProbs = (0.5, tinyErrProbs) if easy else (0.95,typicalErrProbs)
+######################################################################
+# Test 3: Put object in shelves
+######################################################################
 
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2),
-                               'objB': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
-    front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    right = hu.Pose(1.1, -0.4, tZ, 0.0)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
-
-    region = 'table1Left'
-    goal = State([Bd([In(['objA', region]), True, goalProb], True),
-                  Bd([In(['objB', region]), True, goalProb], True)])
-
-    t = PlanTest('test2',  errProbs, allOperators,
-                 objects=['table1', 'objA', 'objB'],
-                 fixPoses={'table1': table1Pose},
-                 movePoses={'objA': right, 'objB':front},
-                 varDict = varDict)
-
-    t.run(goal,
-          hpn = hpn,
-          hierarchical = hierarchical,
-          regions=[region],
-          heuristic = heuristic,
-          rip = rip
-          )
-    return t
-
-# Put in shelves
-def test3(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-                easy = False, rip = False, multiplier=6):
-
+def test3(**args):
     glob.rebindPenalty = 700
-    glob.monotonicFirst = True
-
-    goalProb, errProbs = (0.5, tinyErrProbs) if easy else (0.95,typicalErrProbs)
-
-    varDict = {} if easy else {'coolShelves': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2),
-                               'objB': (0.1**2, 0.1**2, 1e-10, 0.3**2)
-                               } 
-    right1 = hu.Pose(1.1, -0.5, tZ, 0.0)
+    right1 = hu.Pose(1.1, 0.0, tZ, 0.0) 
     right2 = hu.Pose(1.5, -0.5, tZ, 0.0)
     left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
     left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
-    coolShelvesPose = hu.Pose(1.3, 0.0, tZ, math.pi/2)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
-    
     region = 'coolShelves_space_2'
-    goal1 = State([Bd([In(['objA', region]), True, goalProb], True)])
-    goal2 = State([Bd([In(['objB', region]), True, goalProb], True),
-                  Bd([In(['objA', region]), True, goalProb], True)])
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   'coolShelves' : (coolShelvesPose , medVar)},
+                  {'objA' : (right1, medVar),
+                   'objB' : (left1, medVar)},
+                  [region, 'table1Top'], easy=args.get('easy', False))
+    goal1 = inRegion('objA', region)
+    goal2 = inRegion(['objA', 'objB'], region)
+    skel = None
+    return doTest('test3', exp, goal1, skel, args)
 
-    t = PlanTest('testShelves',  errProbs, allOperators,
-                 objects=['table1', 'coolShelves', 'objA',
-                          # 'objB'
-                          ],
-                 fixPoses={'table1' : table1Pose, 'coolShelves': coolShelvesPose},
-                 movePoses={'objA': right1,
-                            # 'objB': left1
-                            },
-                 varDict = varDict,
-                 multiplier = multiplier)
+######################################################################
+# Test 4: Boring pick
+######################################################################
 
-    t.run(goal1,
-          hpn = hpn,
-          hierarchical = hierarchical,
-          regions=[region],
-          heuristic = heuristic,
-          rip = rip,
-          )
-    return t
-
-# Pick.  Very boring.
-def test4(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-          easy = False, rip = False, multiplier=6):
-
+def test4(**args):
     glob.rebindPenalty = 100
-    glob.monotonicFirst = True
-
-    goalProb, errProbs = (0.95,typicalErrProbs)
-
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
-    front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
-
+    exp = makeExp({'table1' : (table1Pose, smallVar)},
+                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
+                  [], easy=args.get('easy', False))
+    goal = holding('objA', hand='right', graspType=0)
     skel =  [[pick, moveNB, lookAt, move, lookAt, move, lookAt]]
-
-    hand = 'right'
-    graspType = 0
-    targetDelta = (0.01, 0.01, 0.01, 0.05)
-    goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
-                   Bd([GraspFace(['objA', hand]), graspType, goalProb], True),
-                   B([Grasp(['objA', hand,  graspType]),
-                     (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), targetDelta,
-                     goalProb], True)])
-
-    t = PlanTest('test1',  errProbs, allOperators,
-                 objects=['table1', 'objA'],
-                 fixPoses={'table1': table1Pose},
-                 movePoses={'objA': front},
-                 varDict = varDict,
-                 multiplier = multiplier)
-
-    t.run(goal,
-          hpn = hpn,
-          hierarchical = hierarchical,
-          skeleton = skel if skeleton else None,
-          heuristic = heuristic,
-          rip = rip
-          )
-    return t
+    return doTest('test4', exp, goal, skel, args)
 
 ######################################################################
 # Test Put Down
 #       Start with something in the hand
 ######################################################################
 
-def makeAttachedWorldFromPBS(pbs, realWorld, grasped, hand):
-    attachedShape = pbs.getRobot().\
-                    attachedObj(pbs.getShadowWorld(0.9), hand)
-    shape = pbs.getWorld().\
-            getObjectShapeAtOrigin(grasped).applyLoc(attachedShape.origin())
-    realWorld.robot.attach(shape, realWorld, hand)
-    robot = pbs.getRobot()
-    cart = realWorld.robotConf.cartConf()
-    handPose = cart[robot.armChainNames[hand]].compose(robot.toolOffsetX[hand])
-    pose = shape.origin()
-    realWorld.held[hand] = grasped
-    realWorld.grasp[hand] = handPose.inverse().compose(pose)
-    realWorld.delObjectState(grasped)
-    realWorld.setRobotConf(realWorld.robotConf) # to compute a new robotPlace
-
-def test5(hpn = True, skeleton = False, hierarchical = False,
-                heuristic = habbs, easy = False, rip = False):
-
-    # Seems to need this
-    global useRight, useVertical
-    useRight, useVertical = True, True
-
+def testWithBInHand(name, goal, args):
     glob.rebindPenalty = 150
-    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
-    glob.monotonicFirst = True
-    
     front = hu.Pose(0.95, 0.0, tZ, 0.0)
     back = hu.Pose(1.25, 0.0, tZ, 0.0)
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   'table2' : (table2Pose, smallVar)},
+                  {'objA' : (back, medVar),
+                   'objB' : (front, medVar)},
+                  ['table1Left'], easy=args.get('easy', False))
+    grasped = 'objB'; hand = 'left'
+    args['initBel'] = lambda bs: makeInitBel(bs, grasped, hand)
+    args['initWorld'] = lambda bs,rw: makeAttachedWorldFromPBS(bs.pbs, rw, grasped, hand)
+    skel = None
+    return doTest(name, exp, goal, skel, args)
 
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
-
-    t = PlanTest('testPutDown',  errProbs, allOperators,
-                 objects=['table1', 'objA','objB'], 
-                 movePoses={'objA': back,
-                            'objB': front},
-                    #fixPoses={'table2': table2Pose},
-                 varDict = varDict)
-
-    # Just empty the hand.  No problem.
-    goal1 = State([Bd([Holding(['left']), 'none', goalProb], True)])
-    grasped = 'objB'
-    hand = 'left'
-    initGraspVar = (1e-6,)*4    # very small
-    def initBel(bs):
-        # Change pbs so obj B is in the left hand
-        gm = (0, -0.025, 0, 0)
-        gv = initGraspVar
-        gd = (1e-4,)*4
-        gf = 0
-        bs.pbs.updateHeld(grasped, gf, PoseD(gm, gv), hand, gd)
-        bs.pbs.excludeObjs([grasped])
-        bs.pbs.reset()
-
-    def initWorld(bs, realWorld):
-        makeAttachedWorldFromPBS(bs.pbs, realWorld, grasped, hand)
-
-    t.run(goal1,
-          hpn = hpn,
-          hierarchical = hierarchical,
-          heuristic = heuristic,
-          regions = ['table1Top'],
-          initBelief = initBel,
-          initWorld = initWorld
-          )
-        
-def test6(hpn = True, skeleton = False, hierarchical = False,
-                heuristic = habbs, easy = False, rip = False):
-
-    # Seems to need this
-    global useRight, useVertical
-    useRight, useVertical = True, True
-
-    glob.rebindPenalty = 150
-    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
-    glob.monotonicFirst = True
+def test5(**args):
+    goal = emptyHand()
+    testWithBInHand('test5', goal, args)
     
-    front = hu.Pose(0.95, 0.0, tZ, 0.0)
-    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+######################################################################
+# Test Pick Up
+#       Start with something in the hand
+######################################################################
 
-    targetDelta = (0.01, 0.01, 0.01, 0.05)
-
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
-
-    t = PlanTest('test6',  errProbs, allOperators,
-                 objects=['table1', 'objA','objB'], 
-                 movePoses={'objA': back,
-                            'objB': front},
-                    #fixPoses={'table2': table2Pose},
-                 varDict = varDict)
-    # Pick obj A
-    graspType = 2
-    goal2 = State([Bd([Holding(['left']), 'objA', goalProb], True),
-                   Bd([GraspFace(['objA', 'left']), graspType, goalProb], True),
-                   B([Grasp(['objA', 'left',  graspType]),
-                     (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), targetDelta,
-                     goalProb], True)])
-
-    grasped = 'objB'
-    hand = 'left'
-    initGraspVar = (1e-6,)*4    # very small
-    def initBel(bs):
-        # Change pbs so obj B is in the left hand
-        gm = (0, -0.025, 0, 0)
-        gv = initGraspVar
-        gd = (1e-4,)*4
-        gf = 0
-        bs.pbs.updateHeld(grasped, gf, PoseD(gm, gv), hand, gd)
-        bs.pbs.excludeObjs([grasped])
-        bs.pbs.reset()
-
-    def initWorld(bs, realWorld):
-        makeAttachedWorldFromPBS(bs.pbs, realWorld, grasped, hand)
-
-    t.run(goal2,
-          hpn = hpn,
-          hierarchical = hierarchical,
-          heuristic = heuristic,
-          regions = ['table1Top'],
-          initBelief = initBel,
-          initWorld = initWorld
-          )
-
-def test7(hpn = True, skeleton = False, hierarchical = False,
-                heuristic = habbs, easy = False, rip = False):
-
-    # Seems to need this
-    global useRight, useVertical
-    useRight, useVertical = True, True
-
-    glob.rebindPenalty = 150
-    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
-    glob.monotonicFirst = True
+def test6(**args):
+    goal = holding('objA', 'left', 2)
+    testWithBInHand('test6', goal, args)
     
-    front = hu.Pose(0.95, 0.0, tZ, 0.0)
-    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+######################################################################
+# Test Placing
+#       Start with something in the hand
+######################################################################
 
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
+def test7(**args):
+    goal = placed('objA', front, 'left')
+    testWithBInHand('test7', goal, args)
 
-    t = PlanTest('test7',  errProbs, allOperators,
-                 objects=['table1', 'objA','objB'], 
-                 movePoses={'objA': back,
-                            'objB': front},
-                    #fixPoses={'table2': table2Pose},
-                 varDict = varDict)
+######################################################################
+# Test Regrasp
+#       Start with something in the hand
+######################################################################
 
-    targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
-    targetDelta = (0.01, 0.01, 0.01, 0.05)
-    # Put A somewhere.  Ideally use right hand!
-    goal3 = State([Bd([SupportFace(['objA']), 4, goalProb], True),
-                  B([Pose(['objA', 4]),
-                     front.xyztTuple(), targetVar, targetDelta,
-                     goalProb], True)])
-
-    grasped = 'objB'
-    hand = 'left'
-    initGraspVar = (1e-6,)*4    # very small
-    def initBel(bs):
-        # Change pbs so obj B is in the left hand
-        gm = (0, -0.025, 0, 0)
-        gv = initGraspVar
-        gd = (1e-4,)*4
-        gf = 0
-        bs.pbs.updateHeld(grasped, gf, PoseD(gm, gv), hand, gd)
-        bs.pbs.excludeObjs([grasped])
-        bs.pbs.reset()
-
-    def initWorld(bs, realWorld):
-        makeAttachedWorldFromPBS(bs.pbs, realWorld, grasped, hand)
-
-    t.run(goal3,
-          hpn = hpn,
-          hierarchical = hierarchical,
-          heuristic = heuristic,
-          regions = ['table1Top'],
-          initBelief = initBel,
-          initWorld = initWorld
-          )
-
-def test8(hpn = True, skeleton = False, hierarchical = False,
-                heuristic = habbs, easy = False, rip = False):
-
-    # Seems to need this
-    global useRight, useVertical
-    useRight, useVertical = True, True
-
-    glob.rebindPenalty = 150
-    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
-    glob.monotonicFirst = True
-    
-    front = hu.Pose(0.95, 0.0, tZ, 0.0)
-    back = hu.Pose(1.25, 0.0, tZ, 0.0)
-
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
-
-    t = PlanTest('testChangeGrasp',  errProbs, allOperators,
-                 objects=['table1', 'objA','objB'], 
-                 varDict = varDict)
-
-    targetDelta = (0.01, 0.01, 0.01, 0.05)
-
-    # Pick obj B
-    graspType = 0
-    goalProb = 0.7
-    goal = State([Bd([Holding(['left']), 'objB', goalProb], True),
-                  Bd([GraspFace(['objB', 'left']), graspType, goalProb], True),
-                  B([Grasp(['objB', 'left',  graspType]),
-                     (0,-0.025,0,0), (0.01**2, 0.01**2, 0.01**2, 0.02**2), targetDelta,
-                     goalProb], True)])
-
-    grasped = 'objB'
-    hand = 'left'
-    initGraspVar = (1e-6,)*4    # very small
-    def initBel(bs):
-        # Change pbs so obj B is in the left hand
-        gm = (0, -0.025, 0, 0)
-        gv = (0.011**2, 0.011**2, 0.011**2, 0.021**2)  # initGraspVar
-        gd = (1e-4,)*4
-        gf = 0
-        bs.pbs.updateHeld(grasped, gf, PoseD(gm, gv), hand, gd)
-        bs.pbs.excludeObjs([grasped])
-        bs.pbs.reset()
-
-    def initWorld(bs, realWorld):
-        makeAttachedWorldFromPBS(bs.pbs, realWorld, grasped, hand)
-
-    t.run(goal,
-          hpn = hpn,
-          hierarchical = hierarchical,
-          heuristic = heuristic,
-          regions = ['table1Top'],
-          initBelief = initBel,
-          initWorld = initWorld
-          )
-
+def test8(**args):
+    goal = holding('objB', 'left', 0, goalProb=0.7)
+    testWithBInHand('test8', goal, args)
 
 ######################################################################
 #       Another test.  Picking something up from the back.
 #       shouldn't be hard.
 ######################################################################
 
-def test9(hpn = True, skeleton = False, hierarchical = False,
-                heuristic = habbs, easy = False, rip = False):
-
-    # Seems to need this
-    global useRight, useVertical
-    useRight, useVertical = True, True
-
+def test9(**args):
     glob.rebindPenalty = 150
-    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
-    glob.monotonicFirst = True
-    
     front = hu.Pose(0.95, 0.0, tZ, 0.0)
     back = hu.Pose(1.25, 0.0, tZ, 0.0)
-
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
-
-    t = PlanTest('test9',  errProbs, allOperators,
-                 objects=['table1', 'objA','objB'], 
-                 movePoses={'objA': back,
-                            'objB': front},
-                 varDict = varDict)
-
-    targetVar = (0.0001, 0.0001, 0.0001, 0.0005)
-    targetDelta = (0.01, 0.01, 0.01, 0.05)
-
-    # Pick obj A
-    graspType = 2
-    goal2 = State([Bd([Holding(['left']), 'objA', goalProb], True),
-                  Bd([GraspFace(['objA', 'left']), graspType, goalProb], True),
-                  B([Grasp(['objA', 'left',  graspType]),
-                     (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), targetDelta,
-                     goalProb], True)])
-    # Put A somewhere.  
-    goal3 = State([Bd([SupportFace(['objA']), 4, goalProb], True),
-                  B([Pose(['objA', 4]),
-                     front.xyztTuple(), targetVar, targetDelta,
-                     goalProb], True)])
-
-    t.run(goal2,
-          hpn = hpn,
-          hierarchical = hierarchical,
-          heuristic = heuristic,
-          regions = ['table1Top'])
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   'table2' : (table2Pose, smallVar)},
+                  {'objA' : (back, medVar),
+                   'objB' : (front, medVar)},
+                  ['table1Left'], easy=args.get('easy', False))
+    goal1 = holding('objA', 'left', 2)
+    goal2 = placed('objA', front)
+    skel = None
+    return doTest('test9', exp, goal1, skel, args)
 
 ######################################################################
-# Test Swap:
-#     with goal3, it just puts object b in back
-#     with goal, it does whole swap
+# Test Swap
 ######################################################################
 
-
-#  Swap!
-def testSwap(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = False, rip = False,
-           hardSwap = False):
-
-
-    # Seems to need this
-    global useRight, useVertical
-    useRight, useVertical = True, True
-
+def testSwap(hardSwap = False, **args):
     glob.rebindPenalty = 150
-    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
-    glob.monotonicFirst = True
-    table2Pose = hu.Pose(1.0, -1.2, 0.0, 0.0)
-    
     front = hu.Pose(0.95, 0.0, tZ, 0.0)
     # Put this back to make the problem harder
     #back = hu.Pose(1.1, 0.0, tZ, 0.0)
     back = hu.Pose(1.25, 0.0, tZ, 0.0)
     parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
     parking2 = hu.Pose(0.95, -0.3, tZ, 0.0)
-
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
-
-
-    t = PlanTest('testSwap',  errProbs, allOperators,
-                 objects=['table1', 'table2', 'objA',
-                          'objB'], #,'cupboardSide1', 'cupboardSide2'],
-                 movePoses={'objA': back,
-                            'objB': front},
-                 fixPoses={'table2': table2Pose},
-                 varDict = varDict)
-
-    goal = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True),
-                  Bd([In(['objA', 'table1MidFront']), True, goalProb], True)])
-
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   'table2' : (table2Pose, smallVar)},
+                  {'objA' : (back, medVar),
+                   'objB' : (front, medVar)},
+                  ['table1Top', 'table2Top', 'table1MidFront',
+                   'table1MidRear'], easy=args.get('easy', False))
+    goal = inRegion(['objA', 'objB'], ['table1MidRear', 'table1MidFront'])
     # A on other table
-    goal1 = State([Bd([In(['objA', 'table2Top']), True, goalProb], True)])
+    goal1 = inRegion('objA', 'table2Top')
     skel1 = [[poseAchIn, 
               place, moveNB, lookAt, move,
               pick, moveNB, lookAt, moveNB, lookAt, move, lookAt, moveNB]]
-
     # A and B on other table
-    goal2 = State([Bd([In(['objB', 'table2Top']), True, goalProb], True),
-                   Bd([In(['objA', 'table2Top']), True, goalProb], True)])
-
+    goal2 = inRegion(['objA', 'objB'], 'table2Top')
     # B in back
-    goal3 = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
-
+    goal3 = inRegion('objB', 'table1MidRear')
     actualGoal = goal if hardSwap else goal3
+    skel = None
+    return doTest('testSwap', exp, actualGoal, skel, args)
 
-    t.run(actualGoal,
-          hpn = hpn,
-          heuristic = heuristic,
-          hierarchical = hierarchical,
-          rip = rip,
-          regions=['table1Top', 'table2Top', 'table1MidFront',
-                   'table1MidRear']
-          )
+def testHardSwap(**keys):
+    return testSwap(hardSwap = True, **keys)
 
-def testHold(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = False, rip = False):
+######################################################################
+# Test Swap with clutter
+######################################################################
 
+def testBusy(hardSwap = False, **args):
     glob.rebindPenalty = 150
-    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
-    glob.monotonicFirst = True
-    table2Pose = hu.Pose(1.0, -1.20, 0.0, 0.0)
-    
-    front = hu.Pose(0.95, 0.0, tZ, 0.0)
     # Put this back to make the problem harder
     #back = hu.Pose(1.1, 0.0, tZ, 0.0)
     back = hu.Pose(1.25, 0.0, tZ, 0.0)
+    parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
+    parking2 = hu.Pose(0.95, -0.3, tZ, 0.0)
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   'table2' : (table2Pose, smallVar)},
+                  {'objA' : (back, medVar),
+                   'objB': (hu.Pose(0.95, -0.4, tZ, 0.0), medVar),
+                   'objC': (hu.Pose(0.45, -1.2, tZ, 0.0), medVar),
+                   'objD': (hu.Pose(0.95, -0.2, tZ, 0.0), medVar),
+                   'objE': (hu.Pose(0.95, 0.0, tZ, 0.0), medVar),
+                   'objF': (hu.Pose(0.95, 0.2, tZ, 0.0), medVar),
+                   'objG': (hu.Pose(0.95, 0.4, tZ, 0.0), medVar)},
+                  ['table1Top', 'table2Top', 'table1MidFront',
+                   'table1MidRear'], easy=args.get('easy', False))
+    goal = inRegion(['objA', 'objB'], ['table1MidRear', 'table1MidFront'])
+    # A on other table
+    goal1 = inRegion('objA', 'table2Top')
+    skel1 = [[poseAchIn, 
+              place, moveNB, lookAt, move,
+              pick, moveNB, lookAt, moveNB, lookAt, move, lookAt, moveNB]]
+    # A and B on other table
+    goal2 = inRegion(['objA', 'objB'], 'table2Top')
+    # B in back
+    goal3 = inRegion('objB', 'table1MidRear')
+    actualGoal = goal if hardSwap else goal3
+    skel = None
+    return doTest('testBusy', exp, actualGoal, skel, args)
 
-    easyVarDict = {'table1': (0.001**2, 0.001**2, 1e-10, 0.001**2),
-                               'table2': (0.001**2, 0.001**2, 1e-10, 0.001**2),
-                               'objA': (0.0001**2,0.0001**2, 1e-10,0.001**2),
-                               'objB': (0.0001**2,0.0001**2, 1e-10,0.001**2)}
+######################################################################
+# Test One Push
+######################################################################
 
-    varDict = easyVarDict if easy else \
-                            {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2)}
-
-    t = PlanTest('testHold',  errProbs, allOperators,
-                 objects=['table1', 'table2', 'objA', 'objB'],
-#                          'cupboardSide1', 'cupboardSide2'],
-                 movePoses={'objA': back,
-                            'objB': front},
-                 fixPoses={'table2': table2Pose},
-                 varDict = varDict)
-
-    obj = 'objA'
-    hand = 'left'
-    grasp = 3
-    delta = (0.01,)*4
-
-    goal = State([Bd([Holding([hand]), obj, goalProb], True),
-                  Bd([GraspFace([obj, hand]), grasp, goalProb], True),
-                  B([Grasp([obj, hand,  grasp]),
-                     (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), delta,
-                     goalProb], True)])
-
-    t.run(goal,
-          hpn = hpn,
-          heuristic = heuristic,
-          hierarchical = hierarchical,
-          rip = rip,
-          regions=['table1Top']
-          )
-
-def testPushBar(hpn = True, skeleton = False, hierarchical = False,
-                heuristic=habbs, easy = False, rip = False, multiplier=6,
-                objName='bigBar'):
-
+def testPush(name, objName, startPose, targetPose, **args):
     glob.rebindPenalty = 50
-    glob.monotonicFirst = True
-    goalProb, errProbs = (0.95,typicalErrProbs)
-    if easy: 
-        varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-                objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
-    else: 
-        varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
-                objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
-
-    front = hu.Pose(1.2, 0.0, tZ, 0.0)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
-    # One push, no uncertainty
-    skel = [[lookAt, move, push, moveNB, lookAt,
-             move, lookAt, moveNB]]
-
+    exp = makeExp({'table1' : (table1Pose, smallVar)},
+                  {objName : (startPose, medVar)},
+                  ['table1Top'], easy=args.get('easy', False))
+    goal = placed(objName, targetPose, targetDelta = (0.1, .1, .1, .5))
     # pick and place!
     skel = [[lookAt, move, place, move, 
              pick, moveNB, lookAt, moveNB, lookAt, move]]
-        
-    targetPose = (1.2, 0.4, tZ, 0.0) # one push
-    targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
-    delta = (0.1, .1, .1, .5)
-    goal = State([\
-                  Bd([SupportFace([objName]), 4, goalProb], True),
-                  B([Pose([objName, 4]),
-                     targetPose, targetVar, delta,
-                     goalProb], True)])
-
-    t = PlanTest('testPushBar',  errProbs, allOperators,
-                 objects=['table1', objName],
-                 fixPoses={'table1': table1Pose},
-                 movePoses={objName: front},
-                 varDict = varDict,
-                 multiplier=multiplier
-                 )
-
-    actualSkel = None
-
-    t.run(goal,
-          hpn = hpn,
-          skeleton = skel if skeleton else None,
-          hierarchical = hierarchical,
-          # regions=[region],
-          heuristic = heuristic,
-          rip = rip,
-          )
-    return t
-
-def testPush0(hpn = True, skeleton = False, hierarchical = False,
-              heuristic=habbs,
-              easy = False, rip = False, multiplier=6, objName='bigA'):
-
-    glob.rebindPenalty = 50
-    glob.monotonicFirst = True
-    goalProb, errProbs = (0.95,typicalErrProbs)
-    if easy: 
-        varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-                objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
-    else: 
-        varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
-                objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
-
-    front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
     # One push, no uncertainty
     skel = [[lookAt, move, push, moveNB, lookAt,
              move, lookAt, moveNB]]
+    return doTest(name, exp, goal, skel, args)
 
+def testPush0(objName='bigA', **args):
+    testPush('testPush0', objName,
+             hu.Pose(1.2, 0.0, tZ, 0.0),
+             hu.Pose(1.2, 0.4, tZ, 0.0), **args)
+
+######################################################################
+# Test TWo Pushes, easier
+######################################################################
+
+def testPush1(objName='bigA', **args):
+    testPush('testPush1', objName,
+             hu.Pose(1.2, 0.0, tZ, 0.0),
+             hu.Pose(1.4, 0.4, tZ, 0.0), **args)
+    
+######################################################################
+# Test TWo Pushes, harder
+######################################################################
+
+def testPush2(objName='bigA', **args):
+    testPush('testPush2', objName,
+             hu.Pose(1.2, 0.0, tZ, 0.0),
+             hu.Pose(1.5, 0.4, tZ, 0.0), **args)
+
+######################################################################
+# Test TWo Pushes around shelves
+######################################################################
+
+def testPushShelves(name, objName, startPose, targetPose,
+                    startPoseB, **args):
+    glob.rebindPenalty = 50
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   'coolShelves' : (coolShelvesPose, smallVar)},
+                  {objName : (startPose, medVar),
+                   'objB' : (startPoseB, medVar)},
+                  ['table1Top'], easy=args.get('easy', False))
+    goal = placed(objName, targetPose, targetDelta = (0.1, .1, .1, .5))
     # pick and place!
     skel = [[lookAt, move, place, move, 
              pick, moveNB, lookAt, moveNB, lookAt, move]]
-        
-    targetPose = (1.1, 0.4, tZ, 0.0) # one push
-    targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
-    delta = (0.1, .1, .1, .5)
-    goal = State([\
-                  Bd([SupportFace([objName]), 4, goalProb], True),
-                  B([Pose([objName, 4]),
-                     targetPose, targetVar, delta,
-                     goalProb], True)])
-
-    t = PlanTest('testPush0',  errProbs, allOperators,
-                 objects=['table1', objName],
-                 fixPoses={'table1': table1Pose},
-                 movePoses={objName: front},
-                 varDict = varDict,
-                 multiplier=multiplier
-                 )
-
-    actualSkel = None
-
-    t.run(goal,
-          hpn = hpn,
-          skeleton = skel if skeleton else None,
-          hierarchical = hierarchical,
-          # regions=[region],
-          heuristic = heuristic,
-          rip = rip,
-          )
-    return t
-
-def testPush1(hpn = True, skeleton = False, hierarchical = False,
-              heuristic=habbs,
-              easy = False, rip = False, multiplier=6, objName='bigA'):
-
-    glob.rebindPenalty = 10
-    glob.monotonicFirst = True
-
-    goalProb, errProbs = (0.95,typicalErrProbs)
-    
-    if easy: 
-        varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-                objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
-    else: 
-        varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
-                objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
-
-
-    front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
-
-    # Two pushes, no uncertainty
-    skel = [[lookAt, move, push, moveNB,
-             lookAt, move, push, moveNB, lookAt,
+    # One push, no uncertainty
+    skel = [[lookAt, move, push, moveNB, lookAt,
              move, lookAt, moveNB]]
+    return doTest(name, exp, goal, skel, args)
 
-    targetPose = (1.4, 0.4, tZ, 0.0) # easy two push
-    targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
-    delta = (0.1, .1, .1, .5)
-    goal = State([\
-                  Bd([SupportFace([objName]), 4, goalProb], True),
-                  B([Pose([objName, 4]),
-                     targetPose, targetVar, delta,
-                     goalProb], True)])
+def testPush3(objName='bigA', **args):
+    testPushShelves('testPush3', objName,
+                    hu.Pose(1.05, 0.0, tZ, 0.0),
+                    hu.Pose(1.5, 0.5, tZ, 0.0),
+                    hu.Pose(1.05, -0.4, tZ, 0.0), # out of the way
+                    **args)
 
-    t = PlanTest('testPush0',  errProbs, allOperators,
-                 objects=['table1', objName],
-                 fixPoses={'table1': table1Pose},
-                 movePoses={objName: front},
-                 varDict = varDict,
-                 multiplier=multiplier
-                 )
-
-    actualSkel = None
-
-    t.run(goal,
-          hpn = hpn,
-          skeleton = skel if skeleton else None,
-          hierarchical = hierarchical,
-          # regions=[region],
-          heuristic = heuristic,
-          rip = rip,
-          )
-    return t
-
-def testPush2(hpn = True, skeleton = False, hierarchical = False,
-              heuristic=habbs,
-              easy = False, rip = False, multiplier=6, objName='bigA'):
-
-    glob.rebindPenalty = 10
-    glob.monotonicFirst = True
-
-    goalProb, errProbs = (0.95,typicalErrProbs)
-    
-    if easy: 
-        varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-                objName: (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
-    else: 
-        varDict = {'table1': (0.07**2, 0.03**2, 1e-10, 0.15**2),
-                objName: (0.1**2, 0.1**2, 1e-10, 0.1**2)}
-
-    front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
-
-    # Two pushes, no uncertainty
-    skel = [[lookAt, move, push, moveNB,
-             lookAt, move, push, moveNB, lookAt,
-             move, lookAt, moveNB]]
-    targetPose = (1.5, 0.4, tZ, 0.0) # hard
-
-    targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
-    delta = (0.1, .1, .1, .5)
-    goal = State([\
-                  Bd([SupportFace([objName]), 4, goalProb], True),
-                  B([Pose([objName, 4]),
-                     targetPose, targetVar, delta,
-                     goalProb], True)])
-
-    t = PlanTest('testPush2',  errProbs, allOperators,
-                 objects=['table1', objName],
-                 fixPoses={'table1': table1Pose},
-                 movePoses={objName: front},
-                 varDict = varDict,
-                 multiplier=multiplier
-                 )
-
-    actualSkel = None
-
-    t.run(goal,
-          hpn = hpn,
-          skeleton = skel if skeleton else None,
-          hierarchical = hierarchical,
-          # regions=[region],
-          heuristic = heuristic,
-          rip = rip,
-          )
-    return t
-
-def testPush3(hpn = True, skeleton = False, hierarchical = False,
-              heuristic=habbs, easy = False, rip = False, multiplier=6):
-    glob.rebindPenalty = 100
-    glob.monotonicFirst = True
-
-    goalProb, errProbs = (0.95,typicalErrProbs)
-    varDict = {'table1': (0.001**2, 0.001**2, 1e-10, 0.001**2),
-               'coolShelves': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-                #'bigA': (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
-                'bigA': (0.001**2, 0.001**2, 1e-10, 0.01**2)}
-    left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
-    coolShelvesPose = hu.Pose(1.4, 0.0, tZ, math.pi/2)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
-
-    skel = [[lookAt, move, push, moveNB,
-             lookAt, move, push, moveNB, lookAt,
-             move, lookAt, moveNB]]
-
-    startPose = (1.05, 0.0, tZ, 0.0)
-    targetPose = left2.xyztTuple()
-    targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
-    goal = State([\
-                  Bd([SupportFace(['bigA']), 4, goalProb], True),
-                  B([Pose(['bigA', 4]),
-                     targetPose, targetVar, (0.02,)*4,
-                     goalProb], True)])
-
-    t = PlanTest('testPush3',  errProbs, allOperators,
-                 objects=['table1', 'coolShelves', 'bigA'],
-                 fixPoses={'table1' : table1Pose, 'coolShelves': coolShelvesPose},
-                 movePoses={'bigA': hu.Pose(*startPose)},
-                 varDict = varDict,
-                 multiplier = multiplier)
-
-    t.run(goal,
-          hpn = hpn,
-          skeleton = skel if skeleton else None,
-          hierarchical = hierarchical,
-          heuristic = heuristic,
-          rip = rip,
-          )
-    return t
-
-
+######################################################################
 # Move obj b out of the way to push bigA
-# Increase variance once this works
-def testPush4(hpn = True, skeleton = False, hierarchical = False,
-              heuristic=habbs, easy = False, rip = False, multiplier=6):
-    glob.rebindPenalty = 100
-    glob.monotonicFirst = True
+######################################################################
 
-    goalProb, errProbs = 0.95,typicalErrProbs
-    varDict = {'table1': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-               'coolShelves': (0.0001**2, 0.0001**2, 1e-10, 0.0001**2),
-               'bigA': (0.0001**2, 0.0001**2, 1e-10, 0.001**2),
-               'objB': (0.0001**2, 0.0001**2, 1e-10, 0.001**2)}
-    goalPose = hu.Pose(1.05, 0.5, tZ, 0.0)
-    coolShelvesPose = hu.Pose(1.4, 0.0, tZ, math.pi/2)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
+def testPush4(objName='bigA', **args):
+    testPushShelves('testPush3', objName,
+                    hu.Pose(1.05, 0.0, tZ, 0.0),
+                    hu.Pose(1.5, 0.5, tZ, 0.0),
+                    hu.Pose(1.05, 0.4, tZ, 0.0), # in the way
+                    **args)
 
-    skel = [[lookAt, move, push, #moveNB, lookAt, 
-             move, achCanPush, #moveNB, lookAt,
-             move, pick, moveNB, lookAt,
-              move]]
+######################################################################
+# Push to Region
+######################################################################
 
-    startPoseA = (1.05, 0.2, tZ, 0.0)
-    startPoseB = (1.05, 0.4, tZ, 0.0)
-    targetPose = goalPose.xyztTuple()
-    targetVar = (0.01**2, 0.01**2, 0.01**2, 0.05)
-    goal = State([\
-                  Bd([SupportFace(['bigA']), 4, goalProb], True),
-                  B([Pose(['bigA', 4]),
-                     targetPose, targetVar, (0.03,0.03,0.03,0.2),
-                     goalProb], True)])
+def testPush5(objName = 'bigA', **args):
+    glob.rebindPenalty = 50
+    exp = makeExp({'table1' : (table1Pose, smallVar)},
+                  {objName : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
+                  ['table1Top', 'table1Left'], easy=args.get('easy', False))
+    goal = inRegion(objName, 'table1Left')
+    skel = None
+    return doTest('testPush5', exp, goal, skel, args)
 
-    t = PlanTest('testPush4',  errProbs, allOperators,
-                 objects=['table1', 'coolShelves',
-                          'bigA',
-                          'objB'],
-                 movePoses={'objB': hu.Pose(*startPoseB),
-                            'bigA': hu.Pose(*startPoseA),
-                            },
-                 fixPoses={'table1' : table1Pose, 'coolShelves': coolShelvesPose},
-                 varDict = varDict,
-                 multiplier = multiplier)
+######################################################################
+# Push objects out of the way to gras bigA
+######################################################################
 
-    t.run(goal,
-          hpn = hpn,
-          skeleton = skel if skeleton else None,
-          hierarchical = hierarchical,
-          heuristic = heuristic,
-          rip = rip,
-          regions=['table1Top']
-          )
-    return t
-
-def testSim():
-    varDict =  {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                'objA': (0.1**2, 0.1**2, 1e-10, 0.3**2),
-                'objB': (0.1**2, 0.1**2, 1e-10, 0.3**2)} 
+def testPush6(objName = 'objA', **args):
+    glob.rebindPenalty = 50
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    right = hu.Pose(1.1, -0.4, tZ, 0.0)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
+    back = hu.Pose(1.4, 0.0, tZ, 0.0)
+    right = hu.Pose(1.25, -0.16, tZ, 0.0)
+    left = hu.Pose(1.25, 0.16, tZ, 0.0)
+    middle = hu.Pose(1.25, 0.0, tZ, 0.0)
+    exp = makeExp({'table1' : (table1Pose, smallVar)},
+                  {'objA': (middle, medVar),
+                   'bigB': (front, medVar),
+                   'tallC': (back, medVar),
+                   'barD': (right, medVar),
+                   'barE': (left, medVar)},
+                  ['table1Top'], easy=args.get('easy', False))
+    goal = holding('objA', 'left', 2)
+    skel = None
+    return doTest('testPush6', exp, goal, skel, args)
 
-    t = PlanTest('testSim', typicalErrProbs, allOperators,
-                 objects=['table1', 'objA'],
-                 fixPoses={'table1': table1Pose},
-                 movePoses={'objA': right, 'objB':front},
-                 varDict = varDict,
-                 multiplier=1)
-
-    t.run(None)
-
-    return t
+######################################################################
+# Utilities
+######################################################################
 
 def prof(test, n=100):
     import cProfile
@@ -1072,65 +540,6 @@ def testOpen(hand='left'):
     startConf = makeConf(t.world.robot, 0.0, 0.0, 0.0)
     result, cnfOut, _ = pr2GoToConf(gripOpen(startConf, hand), 'open')    
 
-def testBusy(hpn = True, skeleton = False, hierarchical = False,
-           heuristic = habbs, easy = False, rip = False,
-           hardSwap = False):
-
-
-    # Seems to need this
-    global useRight, useVertical
-    useRight, useVertical = True, True
-
-    glob.rebindPenalty = 150
-    goalProb, errProbs = (0.4, tinyErrProbs) if easy else (0.95,typicalErrProbs)
-    glob.monotonicFirst = True
-    table2Pose = hu.Pose(1.0, -1.2, 0.0, 0.0)
-    
-    front = hu.Pose(0.95, 0.0, tZ, 0.0)
-    back = hu.Pose(1.25, 0.0, tZ, 0.0)
-
-    varDict = {} if easy else {'table1': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'table2': (0.07**2, 0.03**2, 1e-10, 0.2**2),
-                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objB': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objC': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objD': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objE': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objF': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'objG': (0.05**2,0.05**2, 1e-10,0.2**2)}
-
-
-    t = PlanTest('testSwap',  errProbs, allOperators,
-                 objects=['table1', 'table2', 'objA',
-                          'objB', 'objC', 'objD', 'objE', 'objF', 'objG'], 
-                 movePoses={'objA': back},
-                 fixPoses={'table2': table2Pose},
-                 varDict = varDict)
-
-    goal = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True),
-                  Bd([In(['objA', 'table1MidFront']), True, goalProb], True)])
-
-    # A on other table
-    goal1 = State([Bd([In(['objA', 'table2Top']), True, goalProb], True)])
-
-    # A and B on other table
-    goal2 = State([Bd([In(['objB', 'table2Top']), True, goalProb], True),
-                   Bd([In(['objA', 'table2Top']), True, goalProb], True)])
-
-    # B in back
-    goal3 = State([Bd([In(['objB', 'table1MidRear']), True, goalProb], True)])
-
-    actualGoal = goal if hardSwap else goal3
-
-    t.run(actualGoal,
-          hpn = hpn,
-          heuristic = heuristic,
-          hierarchical = hierarchical,
-          rip = rip,
-          regions=['table1Top', 'table2Top', 'table1MidFront',
-                   'table1MidRear']
-          )
-
 def testIt():
     import gjk
     fizz = shapes.Box(0.1,0.2,0.3, None)
@@ -1145,103 +554,4 @@ def testIt():
         fizz.draw('W'); f.draw('W', 'red')
         raw_input('Ok')
 
-def testHardSwap(**keys):
-    return testSwap(hardSwap = True, **keys)
-
-#####################################################
-
-def testBig0(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-             easy = False, rip = False):
-
-    glob.rebindPenalty = 10
-    glob.monotonicFirst = True
-
-    goalProb, errProbs = (0.95,typicalErrProbs)
-
-    varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.1**2),
-                               'bigA': (0.05**2, 0.05**2, 1e-10, 0.1**2)} 
-    front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
-
-    region = 'table1Left'
-    goal = State([Bd([In(['bigA', region]), True, goalProb], True)])
-
-    t = PlanTest('testBig0',  errProbs, allOperators,
-                 objects=['table1', 'bigA'],
-                 fixPoses={'table1': table1Pose},
-                 movePoses={'bigA': front},
-                 varDict = varDict)
-
-    skel = None
-    t.run(goal,
-          hpn = hpn,
-          skeleton = skel if skeleton else None,
-          hierarchical = hierarchical,
-          regions=[region],
-          heuristic = heuristic,
-          rip = rip
-          )
-    return t
-
-def testBig1(hpn = True, skeleton = False, hierarchical = False, heuristic=habbs,
-             easy = False, rip = False):
-
-    print 'rebind penalty is set very high to avoid backtracking; decrease to try alternative grasps'
-    pick.rebindPenalty = 300
-    moveNB.rebindPenalty = 300
-    move.rebindPenalty = 300
-    lookAt.rebindPenalty = 300
-    glob.monotonicFirst = True
-
-    goalProb, errProbs = (0.95,typicalErrProbs)
-
-    varDict = {} if easy else {'table1': (0.03**2, 0.03**2, 1e-10, 0.1**2),
-                               'objA': (0.05**2,0.05**2, 1e-10,0.2**2),
-                               'bigA': (0.05**2, 0.05**2, 1e-10, 0.1**2),
-                               'tallB': (0.05**2, 0.05**2, 1e-10, 0.1**2),
-                               'bigBarC': (0.05**2, 0.05**2, 1e-10, 0.1**2),
-                               'bigBarD': (0.05**2, 0.05**2, 1e-10, 0.1**2)} 
-    front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    back = hu.Pose(1.4, 0.0, tZ, 0.0)
-    right = hu.Pose(1.25, -0.16, tZ, 0.0)
-    left = hu.Pose(1.25, 0.16, tZ, 0.0)
-    middle = hu.Pose(1.25, 0.0, tZ, 0.0)
-
-    poseD = hu.Pose(1.461, .160, tZ, 0.0)
-
-    skel = [[pick, moveNB, lookAt, move,
-             achCanPickPlace, move, 
-             achCanPickPlace, move]]
-
-    table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2)
-
-    targetDelta = (0.01, 0.01, 0.01, 0.05)
-    hand = 'left'
-    graspType = 2
-    goal = State([Bd([Holding([hand]), 'objA', goalProb], True),
-                   Bd([GraspFace(['objA', hand]), graspType, goalProb], True),
-                   B([Grasp(['objA', hand,  graspType]),
-                     (0,-0.025,0,0), (0.01, 0.01, 0.01, 0.01), targetDelta,
-                     goalProb], True)])
-
-    t = PlanTest('testBig1',  errProbs, allOperators,
-                 objects=['table1', 'objA', 'bigA', 'tallB',
-                          'bigBarC',
-                          'bigBarD'],
-                 fixPoses={'table1': table1Pose},
-                 movePoses={'bigA': front, 'tallB': back,
-                            'bigBarC': right,
-                            'bigBarD': left,    #poseD
-                            'objA': middle},
-                 varDict = varDict)
-    region = 'table1Top'
-    t.run(goal,
-          hpn = hpn,
-          skeleton = skel if skeleton else None,
-          hierarchical = hierarchical,
-          regions=[region],
-          heuristic = heuristic,
-          rip = rip
-          )
-    return t
 

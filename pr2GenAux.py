@@ -259,7 +259,7 @@ def canView(pbs, prob, conf, hand, shape,
             print 'canView - no view cone collision'
         return [conf]
     # !! don't move arms to clear view of fixed objects
-    if objectName(shape.name()) in pbs.getWorld().graspDesc:
+    if pbs.getWorld().getGraspDesc(objectName(shape.name())):
         if debug('canView'):
             vc.draw('W', 'red')
             conf.draw('W', attached=attached)

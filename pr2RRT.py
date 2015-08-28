@@ -262,26 +262,6 @@ def planRobotPathSeq(pbs, prob, initConf, destConf, allowedViol,
     return planRobotPath(pbs, prob, initConf, destConf, allowedViol, chains,
                   maxIter = maxIter, failIter = failIter, safeCheck = False)
 
-def planRobotPathSeqBuggy(pbs, prob, initConf, destConf, allowedViol,
-                     maxIter = None, failIter = None):
-    path = [initConf]
-    v = allowedViol
-    for chain in destConf.conf:
-        if initConf.conf[chain] != destConf.conf[chain]:
-            if debug('rrt'): print 'RRT - planning for', chain
-            pth, v = planRobotPath(pbs, prob, path[-1], destConf, v, [chain],
-                                   maxIter = maxIter, failIter = failIter, safeCheck = False)
-            if pth:
-                if debug('rrt'): print 'RRT - found path for', chain
-                path.extend(pth)
-                if debug('verifyRRTPath'):
-                    verifyPath(pbs, prob, path, 'rrt:'+chain)
-                    verifyPath(pbs, prob, interpolatePath(path), 'interp rrt:'+chain)
-            else:
-                if debug('rrt'): print 'RRT - failed to find path for', chain
-                return [], None
-    return path, v
-
 
 def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
                       maxIter = None, failIter = None):

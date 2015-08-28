@@ -17,20 +17,21 @@ LINUX = (platform.system() == 'Linux')
 useROS = LINUX
 speedFactor = 0.5
 
-########################################
-# Windows
-########################################
+######################################################################
+# Right Arm??
+######################################################################
 
-# import windowManager3D as wm
-# windowWidth = 400
+useCartesian = False
+useLookAtHand = False
 
-# stderrWin = 'Error'
-# debugWin = 'Debug'
-# beliefWin = 'Belief'
-# worldWin = 'World'
-# for win in [stderrWin, debugWin, beliefWin, worldWin]:
-#     if not win in wm.windows:
-#         wm.makeWindow(win, viewPort = [-6, 6, -6, 6])
+useRight = True                        # DEBUG
+useVertical = True                     # DEBUG
+useHorizontal = True
+
+if useROS:
+    useRight = True
+    useVertical = True
+    useHorizontal = True
 
 ########################################
 # HACKS
@@ -49,6 +50,18 @@ inHeuristic = False
 useCC = True                            # Use compiled chains collision checks
 skipSearch = False                       # Don't plan paths except for prims
 useMathematica = False
+
+########################################
+# Name prefixes for objects that are graspable, pushable, etc.
+# These are set when defining objects.
+########################################
+
+objectTypes = {}
+graspableNames = []
+pushableNames = []
+objectSymmetries = {}
+graspDesc = {}
+constructor = {}
 
 ########################################
 # Robot Parameters
@@ -91,24 +104,6 @@ shCollisionCost = 5.0
 maxSearchNodes = 10000.
 searchGreedy = 0.5                      # 0.5 is A*, 0 is UCS, 1 is best-first
 
-########################################
-# Variance parameters
-########################################
-
-## LPK Deprecated...try to be sure we're not using them
-
-# from miscUtil import makeDiag
-# # Super good looking!
-# lookVarianceTuple = (0.001, 0.001)
-# lookVariance = makeDiag(lookVarianceTuple)
-# minVarianceTuple = (0.001, 0.001)
-# minVariance = makeDiag(minVarianceTuple)
-# minRobotVarianceTuple = minVarianceTuple
-# minGraspVarianceTuple = minVarianceTuple
-# minObjectVarianceTuple = minVarianceTuple
-# maxVarianceTuple = (.1, .1)
-# minPlaceInVarTuple = (.005, .005)        # Target variance for placing
-# maxPlaceVarTuple = (.02, .02)            # Target variance for placing
 
 ########################################
 # Pushing params

@@ -195,8 +195,8 @@ class RealWorld(WorldState):
         shWorld = self.bs.pbs.getShadowWorld(prob)
         rob = world.robot.placement(self.robotConf, attached=shWorld.attached)[0]
         fixed = [s.name() for s in objShapes] + [rob.name()]
-        immovable = [s for s in objShapes if s not in world.graspDesc]
-        movable = [s for s in objShapes if s in world.graspDesc]
+        immovable = [s for s in objShapes if not world.getGraspdesc(s)]
+        movable = [s for s in objShapes if world.getGraspdesc(s)]
         for s in immovable + movable:
             if visible(shWorld, self.robotConf, s, rem(objShapes,s)+[rob], prob,
                        moveHead=True, fixed=fixed)[0]:

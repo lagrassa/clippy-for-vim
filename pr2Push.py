@@ -77,7 +77,7 @@ def pushGenGen(args, goalConds, bState):
         yield ans
 
 def pushGenTop(args, goalConds, pbs,
-               partialPaths=False, reachObsts=[]):
+               partialPaths=False, reachObsts=[], update=True, away=False):
     (obj, placeB, hand, prob) = args
     startTime = time.clock()
     tag = 'pushGen'
@@ -86,8 +86,8 @@ def pushGenTop(args, goalConds, pbs,
         tr(tag, '=> obj is none or no placeB, failing')
         return
     if goalConds:
-        if getConf(goalConds, None):
-            tr(tag, '=> goal conf specified, failing')
+        if getConf(goalConds, None) and not away:
+            tr(tag, '=> goal conf specified and not away, failing')
             return
         for (h, o) in getHolding(goalConds):
             if h == hand:
@@ -99,8 +99,9 @@ def pushGenTop(args, goalConds, pbs,
         base = None
     # Set up pbs
     newBS = pbs.copy()
-    # Just placements specified in goal
-    newBS = newBS.updateFromGoalPoses(goalConds)
+    if update:
+        # Just placements specified in goal
+        newBS = newBS.updateFromGoalPoses(goalConds)
     tr(tag, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
     held = newBS.held[hand].mode()
     if held != 'none':
@@ -120,7 +121,7 @@ def pushGenTop(args, goalConds, pbs,
             tr(tag, 'obj is placed')
     # Check the cache, otherwise call Aux
     pushGenCacheStats[0] += 1
-    key = (newBS, placeB, hand, base, prob, partialPaths, glob.inHeuristic)
+    key = (newBS, placeB, hand, base, prob, partialPaths, away, update, glob.inHeuristic)
     val = pushGenCache.get(key, None)
     if val != None:
         pushGenCacheStats[1] += 1
@@ -322,7 +323,7 @@ def sortedPushPaths(pushPaths, curPose):
     scored.sort()
     return [pv for (s, pv) in scored]
                 
-def findSupportRegionInPbs(pbs, prob, shape):
+def findSupportRegionInPbs(pbs, prob, shape, fail=True):
     tag = 'findSupportRegionInPbs'
     shWorld = pbs.getShadowWorld(prob)
     bbox = shape.bbox()
@@ -346,9 +347,10 @@ def findSupportRegionInPbs(pbs, prob, shape):
         print 'Could not find supporting region for %s'%shape.name()
         shape.draw('W', 'magenta')
         for regShape in shWorld.regionShapes.values():
-            print regShape.draw('W', 'cyan')
-        print 'gonna fail!'
-        raise Exception
+            regShape.draw('W', 'cyan')
+        if fail:
+            print 'Gonna fail!'
+            raise Exception, 'Unsupported object'
     return bestRegShape
 
 # Potential contacts
@@ -364,10 +366,11 @@ def handContactFrames(shape, center, vertical):
     pushCenter = center.copy().reshape(4)
     if vertical:
         minPushZ = shape.bbox()[1,2] - fingerLength
-        # TODO : max(minPushZ...)?
-        pushCenter[2] = shape.bbox()[0,2] + pushHeight(vertical)
+
+        pushCenter[2] = max(shape.bbox()[0,2] + minPushHeight(vertical),
+                            shape.bbox()[1,2] - 0.1) # avoid colliding with forearm
     else:
-        pushCenter[2] = shape.bbox()[0,2] + pushHeight(vertical)
+        pushCenter[2] = shape.bbox()[0,2] + minPushHeight(vertical)
     if debug(tag):
         print 'pushCenter', pushCenter
     contactFrames = []
@@ -419,14 +422,9 @@ def handContactFrames(shape, center, vertical):
     return contactFrames
 
 # TODO: This should be a property of robot -- and we should extend to held objects
-def pushHeight(vertical):
+def minPushHeight(vertical):
     if vertical:
-
-#############
-# HACK SO THAT WE CAN PUSH TALL OBJECTS WITHOUT THE ARM COLLIDING!!!        
-#############
-
-        return 0.1                 # tool tip above the table
+        return 0.02                 # tool tip above the table
     else:                           
         return 0.06                 # wrist needs to clear the support
 
@@ -554,7 +552,7 @@ class PushInRegionGen(Function):
             assert isinstance(ans, tuple)
             yield ans.poseInTuple()
 
-def pushInRegionGenGen(args, goalConds, bState, away = False):
+def pushInRegionGenGen(args, goalConds, bState, away = False, update=True):
     (obj, region, var, delta, prob) = args
     tag = 'pushInGen'
     pbs = bState.pbs.copy()
@@ -620,7 +618,7 @@ def pushInRegionGenGen(args, goalConds, bState, away = False):
                        PoseD(pose, var), delta=delta)
 
     gen = pushInGenTop((obj, regShapes, placeB, prob),
-                          goalConds, pbs, away = away)
+                          goalConds, pbs, away = away, update=update)
     for ans in gen:
         yield ans
 
@@ -636,10 +634,11 @@ def pushInGenAway(args, goalConds, pbs):
        draw=[(pbs, prob, 'W')], snap=['W'])
     targetPushVar = tuple([pushVarIncreaseFactor * x \
                             for x in pbs.domainProbs.obsVarTuple])
+    # Pass in the goalConds to get reachObsts, but don't do the update of
+    # the pbs, since achCanXGen has already done it.
     for ans in pushInRegionGenGen((obj, regShape.name(),
                                    targetPushVar, delta, prob),
-                                   # preserve goalConds to get reachObsts
-                                   goalConds, pbs, away=True):
+                                   goalConds, pbs, away=True, update=False):
         yield ans
 
 def pushOut(pbs, prob, obst, delta, goalConds):
@@ -656,7 +655,7 @@ def pushOut(pbs, prob, obst, delta, goalConds):
 pushInGenMaxPoses  = 50
 pushInGenMaxPosesH = 10
 
-def pushInGenTop(args, goalConds, pbs, away = False):
+def pushInGenTop(args, goalConds, pbs, away = False, update=True):
     (obj, regShapes, placeB, prob) = args
     tag = 'pushInGen'
     regions = [x.name() for x in regShapes]
@@ -685,8 +684,10 @@ def pushInGenTop(args, goalConds, pbs, away = False):
     shWorld = pbs.getShadowWorld(prob)
     nPoses = pushInGenMaxPosesH if glob.inHeuristic else pushInGenMaxPoses
 
-    leftGen = pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, 'left')
-    rightGen = pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, 'right')
+    leftGen = pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts,
+                           'left', away=away, update=update)
+    rightGen = pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts,
+                            'right', away=away, update=update)
     # Figure out whether one hand or the other is required;  if not, do round robin
     mainGen = chooseHandGen(pbs, goalConds, obj, None, leftGen, rightGen)
 
@@ -697,13 +698,15 @@ def pushInGenTop(args, goalConds, pbs, away = False):
 # placeB is current place for object
 # regShapes is a list of (one) target region
 # reachObsts are regions where placements are forbidden
-def pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, hand):
+def pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, hand,
+                 away=False, update=True):
     shWorld = pbs.getShadowWorld(prob)
     for pB in awayTargetPB(pbs, prob, placeB, regShapes):
         for ans in pushGenTop((placeB.obj, pB, hand, prob),
                               goalConds, pbs,
                               # TODO: should this be true or false?
-                              partialPaths=True, reachObsts=reachObsts):
+                              partialPaths=True, reachObsts=reachObsts,
+                              update=update, away=away):
 
             tr('pushInGen', ('->', str(ans)),
                draw=[(pbs, prob, 'W'),

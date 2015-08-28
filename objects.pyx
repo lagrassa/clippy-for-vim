@@ -5,6 +5,8 @@ import random
 import numpy as np
 import xml.etree.ElementTree as ET
 
+import planGlobals as glob
+
 from hu cimport Ident, Transform, angleDiff, fixAnglePlusMinusPi
 from shapes cimport Shape
 from planGlobals import  mergeShadows
@@ -24,26 +26,33 @@ class World:
         self.regions = {}
         self.robot = None
         self.workspace = None
-        # The frames are relative to the origin
-        self.graspDesc = None               # dict {obj : [GDesc,...]}
-        self.supportFrames = None           # dict {obj : [frame,..]}
-        # Mapping from strings to strings:  obj name to obj type name
-        self.objectTypes = {}
-        # Mapping from object types to symmetries.  If obj type not
-        # listed, assume no symmetries.  A symmetry entry has two
-        # parts: a mapping from faces to a canonical face; mapping
-        # from canonical faces to a set of 4D transforms
-        self.symmetries = {}
         # pointClouds (4xn numpy arrays) for each type.
         self.typePointClouds = {}
 
     def getObjType(self, obj):
-        return self.objectTypes[obj]
-    def getSymmetries(self, objType):
-        if objType in self.symmetries:
-            return self.symmetries[objType]
-        else:
-            return ({}, {})
+        if obj in glob.objectTypes.values():
+            return obj
+        for prefix in glob.objectTypes:
+            if obj[0:len(prefix)] == prefix:
+                return glob.objectTypes[prefix]
+        return 'unknown'
+
+    # Mapping from object types to symmetries.  If obj type not
+    # listed, assume no symmetries.  A symmetry entry has two parts: a
+    # mapping from faces to a canonical face; mapping from canonical
+    # faces to a set of 4D transforms
+    def getSymmetries(self, obj):
+        objType = self.getObjType(obj)
+        return glob.objectSymmetries.get(objType, ({}, {}))
+
+    def getGraspDesc(self, obj):
+        # The frames are relative to the origin
+        objType = self.getObjType(obj)
+        return glob.graspDesc.get(objType, []) # # dict {obj : [GDesc,...]}
+
+    def getSupportFrames(self, obj):
+        objType = self.getObjType(obj)
+        return glob.supportFrames.get(objType, []) # dict {obj : [frame,..]}
 
     def copy(self):
         cw = copy.copy(self)
@@ -95,10 +104,6 @@ class World:
             # Make sure that we remove unnesessary nestings
             return simplify(shape)
 
-    def getGraspDesc(self, obj):
-        if obj == 'none':
-            obj = self.graspDesc.keys()[0]
-        return self.graspDesc[obj]
     def getFaceFrames(self, obj):
         return self.getObjectShapeAtOrigin(obj).faceFrames()
         

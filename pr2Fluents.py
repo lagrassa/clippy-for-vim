@@ -33,11 +33,16 @@ pushObstCost = 75  # Heuristic cost of moving an object
 ################################################################
 
 def graspable(thingName):
-    return thingName[0:3] == 'obj'
+    # These global lists are defined when obhects are defined
+    for prefix in glob.graspableNames:
+        if thingName[0:len(prefix)] == prefix:
+            return True
 
 def pushable(thingName):
-    return thingName[0:3] == 'obj' or thingName[0:3] == 'big' or \
-      thingName[0:4] == 'tall'
+    # These global lists are defined when objects are defined
+    for prefix in glob.pushableNames:
+        if thingName[0:len(prefix)] == prefix:
+            return True
 
 class Graspable(Fluent):
     predicate = 'Graspable'

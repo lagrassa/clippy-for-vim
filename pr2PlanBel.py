@@ -77,7 +77,7 @@ class PBS:
         self.fixHeld = fixHeld or {'left':False, 'right':False} # whether the held can be changed
         self.regions = regions
         self.pbs = self
-        self.useRight = useRight
+        self.useRight = glob.useRight
         self.avoidShadow = avoidShadow  # shadows to avoid
         self.domainProbs = domainProbs
         # cache
@@ -407,7 +407,7 @@ class PBS:
         def shLE(w1, w2):
             return all([w1[i] <= w2[i] for i in (0,1,3)])
         obj = objB.obj
-        graspable = obj in self.getWorld().graspDesc
+        graspable = bool(self.getWorld().getGraspDesc(obj))
         # We set these to zero for canPickPlaceTest.
         if sum(objB.poseD.var) == 0.0 and sum(objB.delta) == 0.0:
             objBMinDelta = objB.delta
@@ -793,7 +793,8 @@ def getHeldAndGraspBel(overrides, getGraspDesc):
     for (f, b) in hbs:
         if isGround(b.values()):  
             hand = b['H']
-            assert hand in ('left', 'right') and not hand in objects
+            assert hand in ('left', 'right') and not hand in objects, \
+                   'Multiple inconsistent Holding in conds'
             held[hand] = DeltaDist(b['Obj'])   # !! is this right?
             objects[hand] = b['Obj']
 

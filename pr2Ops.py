@@ -1855,7 +1855,7 @@ def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
     lookDelta = newBS.domainProbs.shadowDelta
     for shadowName in reducibleShadows:
         obst = objectName(shadowName)
-        graspable = obst in newBS.getWorld().graspDesc
+        graspable = bool(newBS.getWorld().getGraspDesc(obst))
         objBMinVar = objBMinVarGrasp if graspable else objBMinVarStatic
         placeB = newBS.getPlaceB(obst)
         tr(tag, '=> reduce shadow %s (in red):'%obst,

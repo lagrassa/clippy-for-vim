@@ -727,9 +727,10 @@ def placeInGenAway(args, goalConds, pbs):
        draw=[(pbs, prob, 'W')], snap=['W'])
     targetPlaceVar = tuple([placeVarIncreaseFactor * x \
                             for x in pbs.domainProbs.obsVarTuple])
+    # Pass in the goalConds to get reachObsts, but don't do the update of
+    # the pbs, since achCanXGen has already done it.
     for ans in placeInRegionGenGen((obj, pbs.awayRegions(),
                                     targetPlaceVar, delta, prob),
-                                   # preserve goalConds to get reachObsts
                                    goalConds, pbs, away=True, update=False):
         yield ans
 
@@ -973,8 +974,7 @@ def lookGenTop(args, goalConds, pbs):
 
     # TODO: Generalize this to (pick or push)
 
-    if (obj in world.graspDesc and len(world.graspDesc[obj]) > 0) and \
-                           not glob.inHeuristic:
+    if len(world.getGraspDesc[obj]) > 0 and not glob.inHeuristic:
         graspVar = 4*(0.001,)
         graspDelta = 4*(0.001,)
         graspB = ObjGraspB(obj, world.getGraspDesc(obj), None, None,
@@ -1293,7 +1293,7 @@ def canXGenTop(violFn, args, goalConds, newBS, tag):
     if shadows:
         shadowName = shadows[0]
         obst = objectName(shadowName)
-        graspable = obst in newBS.getWorld().graspDesc    
+        graspable = len(newBS.getWorld().getFraspDesc(obst)) > 0
         objBMinVar = objBMinVarGrasp if graspable else objBMinVarStatic
         placeB = newBS.getPlaceB(obst)
         tr(tag, '=> reduce shadow %s (in red):'%obst,
