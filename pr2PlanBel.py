@@ -14,12 +14,13 @@ from traceFile import debugMsg, debug
 import planGlobals as glob
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
 from planUtil import ObjGraspB, ObjPlaceB
-from pr2Util import shadowName, shadowWidths, objectName, supportFaceIndex, PoseD
+from pr2Util import shadowName, shadowWidths, objectName, supportFaceIndex, PoseD, inside
 #import fbch
 from fbch import getMatchingFluents
 from belief import B, Bd
 from traceFile import tr, trAlways
 from transformations import rotation_matrix
+from geom import bboxVolume
 
 Ident = hu.Transform(np.eye(4))            # identity transform
 
@@ -108,6 +109,45 @@ class PBS:
         if count == 100:
             raise Exception, 'Failed to move robot out of collision'
 
+    def findSupportRegion(self, prob, shape, strict=False, fail=True):
+        return findSupportRegion(shape, self.getShadowWorld(prob).regionShapes,
+                                 strict=strict, fail=fail)
+
+    def findSupportRegionForObj(self, prob, obj, strict=False, fail=True):
+        placeB = self.getPlaceB(obj, default=False)
+        if not placeB: return
+        shape = placeB.shape(self.getWorld())
+        return findSupportRegion(shape, self.getShadowWorld(prob).regionShapes,
+                                 strict=strict, fail=fail)
+
+    def ditherObjectToSupport(self, obj, p):
+        def delta(x): return x + (random.random() - 0.5)*0.01
+        count = 0
+        rm = self.beliefContext.roadMap
+        world = self.getWorld()
+        pB = self.getPlaceB(obj)
+        shape = pB.shape(world)
+        supported = self.findSupportRegion(p, shape,
+                                           strict=True, fail=False)
+        while count < 100 and not supported:
+            count += 1
+            pB = self.getPlaceB(obj)
+            poseList = list(pB.poseD.modeTuple())
+            if debug('dither'):
+                self.draw(p, 'W')
+                print obj, poseList
+                raw_input('go?')
+            for i in (0,1):
+                poseList[i] = delta(poseList[i])
+            newPose = hu.Pose(*poseList)
+            self.resetPlaceB(obj, pB.modifyPoseD(newPose))
+            self.reset()
+            shape = pB.shape(world)
+            supported = self.findSupportRegion(p, shape,
+                                               strict=True, fail=False)
+        if count == 100:
+            raise Exception, 'Failed to move object to support'
+
     def internalCollisionCheck(self):
         ws = self.getShadowWorld(0.0)   # minimal shadow
         rm = self.beliefContext.roadMap
@@ -187,6 +227,17 @@ class PBS:
                     shape2.draw('W', 'magenta')
                     raise Exception, 'Object-Object collision: '+ \
                                      shape.name()+' - '+shape2.name()
+
+        # Check objects are supported
+        for pB in self.moveObjBs.values():
+            shape = pB.shape(self.getWorld())
+            supported = self.findSupportRegion(0.99, shape,
+                                              strict=True, fail=False)
+            print pB.obj, 'supported=', supported
+            if not supported:
+                tr('dither', 'Object not supported.  Will try to fix.',
+                   draw=[(self, 0.0, 'W')], snap=['W'])
+                self.ditherObjectToSupport(pB.obj, 0.99)
         debugMsg('collisionCheck')
 
     def getWorld(self):
@@ -213,6 +264,12 @@ class PBS:
         if self.fixObjBs.get(obj, None):
             self.fixObjBs[obj] = pB
         elif self.moveObjBs.get(obj, None):
+            self.moveObjBs[obj] = pB
+        elif obj == self.held['left'].mode():
+            self.updateHeld('none', None, None, 'left', None)
+            self.moveObjBs[obj] = pB
+        elif obj == self.held['right'].mode():
+            self.updateHeld('none', None, None, 'right', None)
             self.moveObjBs[obj] = pB
         else:
             assert None, 'Unknown obj in resetPlaceB'
@@ -828,3 +885,31 @@ def getHeldAndGraspBel(overrides, getGraspDesc):
 
     return (held, graspB)
 
+def findSupportRegion(shape, regions, strict=False, fail=True):
+    tag = 'findSupportRegion'
+    bbox = shape.bbox()
+    bestRegShape = None
+    bestVol = 0.
+    if debug(tag): print 'find support region for', shape
+    for regShape in regions.values():
+        if debug(tag): print 'considering', regShape
+        regBB = regShape.bbox()
+        if inside(shape, regShape, strict=strict):
+            # TODO: Have global support(region, shape) test?
+            if debug(tag): print 'shape in region'
+            if 0 <= bbox[0,2] - regBB[0,2] <= 0.02:
+                if debug(tag): print 'bottom z is close enough'
+                vol = bboxVolume(regBB)
+                if vol > bestVol:
+                    bestRegShape = regShape
+                    bestVol = vol
+                    if debug(tag): print 'bestRegShape', regShape
+    if not bestRegShape:
+        print 'Could not find supporting region for %s'%shape.name()
+        shape.draw('W', 'magenta')
+        for regShape in regions.values():
+            regShape.draw('W', 'cyan')
+        if fail:
+            print 'Gonna fail!'
+            raise Exception, 'Unsupported object'
+    return bestRegShape

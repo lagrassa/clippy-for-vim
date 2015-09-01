@@ -1,3 +1,4 @@
+import pdb
 import time
 import string
 
@@ -50,7 +51,7 @@ from pr2Fluents import partition, In, Holding, Grasp, GraspFace, Pose, SupportFa
 
 import pr2PlanBel
 reload(pr2PlanBel)
-from pr2PlanBel import BeliefContext, PBS
+from pr2PlanBel import BeliefContext, PBS, findSupportRegion
 
 import pr2Visible
 reload(pr2Visible)
@@ -427,13 +428,14 @@ class PlanTest:
             # LPK!! add collision checking
             heldLeft = self.bs.pbs.held['left'].mode()
             heldRight = self.bs.pbs.held['right'].mode()
+            self.realWorld.setRobotConf(self.bs.pbs.conf)
             for obj in self.objects:
                 if not obj in (heldLeft, heldRight):
                     pb = self.bs.pbs.getPlaceB(obj)
                     meanObjPose = pb.objFrame().pose()
                     if randomizedInitialPoses:
-                        stDev = tuple([math.sqrt(v) for v in pb.poseD.variance()])
-                        objPose = getSupportedPose(self.bs.pbs, obj, meanObjPose, stDev)
+                        var = pb.poseD.variance()
+                        objPose = getSupportedPose(self.realWorld, obj, meanObjPose, var)
                     else:
                         objPose = meanObjPose
                     self.realWorld.setObjectPose(obj, objPose)
@@ -505,16 +507,16 @@ class PlanTest:
             wm.getWindow('World').playback(delay=0.01)
             print 'Done playback'
 
-def getSupportedPose(pbs, obj, meanObjPose, stDev):
-    world = pbs.getWorld()
-    if world.getGraspDesc(obj): # graspable
+def getSupportedPose(realWorld, obj, meanObjPose, variance):
+    stDev = tuple([math.sqrt(v) for v in variance])
+    if realWorld.world.getGraspDesc(obj): # graspable
         supported = False
         while not supported:
             objPose = meanObjPose.corruptGauss(0.0, stDev, noZ =True)
-            shape = world.getObjectShapeAtOrigin(obj).applyLoc(objPose)
-            supported = pr2Push.findSupportRegionInPbs(pbs, 0.9,
-                                                       shape, fail=False)
-            # shape.draw('W', 'magenta')
+            shape = realWorld.world.getObjectShapeAtOrigin(obj).applyLoc(objPose)
+            supported = findSupportRegion(shape, realWorld.regionShapes,
+                                          strict=True, fail=False)
+            # realWorld.draw('World'); shape.draw('World', 'magenta')
     else:
         objPose = meanObjPose.corruptGauss(0.0, stDev, noZ =True)
     return objPose
@@ -578,7 +580,7 @@ typicalErrProbs = DomainProbs(
             #shadowDelta = (0.001, 0.001, 1e-11, 0.002),
             shadowDelta = (0.004, 0.004, 1e-6, 0.008),
             # Use this for placing objects
-            # placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
+            #placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             # graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
             placeDelta = (0.01, 0.01, 1.0e-4, 0.02),
             graspDelta = (0.005, 0.005, 1.0e-4, 0.008))

@@ -3,6 +3,7 @@ from miscUtil import timeString
 import local
 import planGlobals as glob
 import os
+import pdb
 
 # debugOn  : print to tty
 # pauseOn : pause tty
@@ -90,7 +91,9 @@ def tr(genTag, *msg, **keys):
         targetFile.write('<pre>'+tagStr)
         terminator = ' ' if ol else '\n    '
         for m in msg:
-            targetFile.write(str(m)+terminator)
+            mo = (str(m)+terminator).replace('\n', '<br>')
+            mo = mo.replace('\\n', '<br>')
+            targetFile.write(mo)
         targetFile.write('</pre>\n')
 
     # Drawing

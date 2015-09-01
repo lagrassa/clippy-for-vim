@@ -75,15 +75,19 @@ flags = ['simpleAbstractCostEstimates',
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
                  'debugInHeuristic', 'h', 'hAddBack']
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
-                'clobber']
+                'clobber', 'regression:fail:bindings']
 traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
-                   'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
-                   'pushGen', 'assign',  'pushGen', 'beliefUpdate']
+             'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
+             'pushGen', 'pushGen', 'pushInGen',
+             'assign', 'beliefUpdate', 'regression', 'regression:fail']
 debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['animate'] 
+debugOn = usualTags + ['animate']
+# + ['potentialRegionPoseGen', 'placeInGen', 'placeGen', 'potentialRegionPoseGenWeight',
+#    'potentialGraspConfs', 'potentialGraspConfsWin', 'potentialGraspConfsLose',
+#    'debugInHeuristic', 'confViolations'] 
 # + ['disablePickPlace']
 # + ['pushGen'] + skeletonTags
 

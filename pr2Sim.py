@@ -439,7 +439,7 @@ class RealWorld(WorldState):
         shape = self.objectShapes[obj]
         if self.robotPlace.collides(shape):
             print 'Push left object in collision'
-            pbd.set_trace()
+            pdb.set_trace()
         print 'Touching', obj, 'in push, moved it to', self.getObjectPose(obj).pose()
 
     def executePush(self, op, params, noBase = True):
@@ -467,7 +467,7 @@ class RealWorld(WorldState):
         if success:
             # Execute the push prim
             if params:
-                path, interpolated, _  = params
+                path, revPath, _  = params
                 tr('sim', 'path len = %d'%(len(path)))
                 if not path:
                     raw_input('No path!!')
@@ -480,9 +480,9 @@ class RealWorld(WorldState):
                 mag = (delta.x**2 + delta.y**2 + delta.z**2)**0.5
                 deltaPose = hu.Pose(0.005*(delta.x/mag), 0.005*(delta.y/mag), 0.005*(delta.z/mag), 0.0)
                 moveFn = moveObjSim if debug('pushSim') else moveObjRigid
-                obs = self.doPath(path, interpolated, action=moveFn)
+                obs = self.doPath(path, path, action=moveFn)
                 print 'Forward push path obs', obs
-                obs = self.doPath(path[::-1], interpolated[::-1])
+                obs = self.doPath(revPath, revPath)
                 print 'Reverse push path obs', obs
             else:
                 print op

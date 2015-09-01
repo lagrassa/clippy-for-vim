@@ -2130,7 +2130,7 @@ def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
     # If we failed and had a skeleton, try without it
     raw_input("Try again without skeleton?")
     return planBackwardAux(goal, startState, ops, ancestors, None, monotonic,
-                    lastOp, nonMonOps, heuristic, hIsUseful, visitF, expandF,
+                    lastOp, nonMonOps, heuristic, hIsUseful, usefulActions, visitF, expandF,
                     prevExpandF, maxCost, maxNodes = 500)
 
 # h = None or h:(start, goal, ops, ancestors) -> (value, actionSet) 

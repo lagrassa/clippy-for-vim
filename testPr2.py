@@ -95,7 +95,7 @@ defaultArgs = {'hpn' : True,
                'skeleton' : None,
                'easy' : False,
                'multiplier' : 6,
-               'initBel' : None,
+               'initBelief' : None,
                'initWorld' : None}
 
 def doTest(name, exp, goal, skel, args):
@@ -108,7 +108,7 @@ def doTest(name, exp, goal, skel, args):
     tArgs['regions'] = exp.regions
     t = PlanTest(name, exp, multiplier=tArgs['multiplier'])
     for x,y in tArgs.items():
-        if x not in {'initBel', 'initWorld'}:
+        if x not in {'initBelief', 'initWorld'}:
             print x, '<-', y
     t.run(goal, **tArgs)
     return t
@@ -149,7 +149,6 @@ def test0(**args):
 # Test 1: 2 tables move 1 object
 ######################################################################
 
-# pick and place into region.  2 tables
 def test1(**args):
     glob.rebindPenalty = 700
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -165,7 +164,6 @@ def test1(**args):
 # Test 2: one table, move two objects
 ######################################################################
 
-# pick and place into region... one table, for robot.
 def test2(**args):
     glob.rebindPenalty = 700
     exp = makeExp({'table1' : (table1Pose, smallVar)},
@@ -187,14 +185,24 @@ def test3(**args):
     left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
     left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
     region = 'coolShelves_space_2'
+    easy=args.get('easy', False)
     exp = makeExp({'table1' : (table1Pose, smallVar),
-                   'coolShelves' : (coolShelvesPose , medVar)},
+                   'coolShelves' : (coolShelvesPose , smallVar)},  # was medVar
                   {'objA' : (right1, medVar),
                    'objB' : (left1, medVar)},
-                  [region, 'table1Top'], easy=args.get('easy', False))
+                  [region, 'table1Top'], easy=easy)
     goal1 = inRegion('objA', region)
     goal2 = inRegion(['objA', 'objB'], region)
-    skel = None
+    # pick/place, one object, flat
+    if easy:
+        skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}),
+                 move, place.applyBindings({'Obj' : 'objA'}),
+                 move, pick, move]]
+    else:
+        skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), move, 
+                 place.applyBindings({'Obj' : 'objA'}),
+                 move, pick, moveNB,
+                 lookAt, move, lookAt, move]]
     return doTest('test3', exp, goal1, skel, args)
 
 ######################################################################
@@ -217,15 +225,15 @@ def test4(**args):
 
 def testWithBInHand(name, goal, args):
     glob.rebindPenalty = 150
-    front = hu.Pose(0.95, 0.0, tZ, 0.0)
-    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    back = hu.Pose(1.4, 0.0, tZ, 0.0)
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    'table2' : (table2Pose, smallVar)},
                   {'objA' : (back, medVar),
                    'objB' : (front, medVar)},
                   ['table1Left'], easy=args.get('easy', False))
     grasped = 'objB'; hand = 'left'
-    args['initBel'] = lambda bs: makeInitBel(bs, grasped, hand)
+    args['initBelief'] = lambda bs: makeInitBel(bs, grasped, hand)
     args['initWorld'] = lambda bs,rw: makeAttachedWorldFromPBS(bs.pbs, rw, grasped, hand)
     skel = None
     return doTest(name, exp, goal, skel, args)
@@ -249,6 +257,7 @@ def test6(**args):
 ######################################################################
 
 def test7(**args):
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
     goal = placed('objA', front, 'left')
     testWithBInHand('test7', goal, args)
 
@@ -268,8 +277,8 @@ def test8(**args):
 
 def test9(**args):
     glob.rebindPenalty = 150
-    front = hu.Pose(0.95, 0.0, tZ, 0.0)
-    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    back = hu.Pose(1.4, 0.0, tZ, 0.0)
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    'table2' : (table2Pose, smallVar)},
                   {'objA' : (back, medVar),
@@ -286,9 +295,7 @@ def test9(**args):
 
 def testSwap(hardSwap = False, **args):
     glob.rebindPenalty = 150
-    front = hu.Pose(0.95, 0.0, tZ, 0.0)
-    # Put this back to make the problem harder
-    #back = hu.Pose(1.1, 0.0, tZ, 0.0)
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
     back = hu.Pose(1.25, 0.0, tZ, 0.0)
     parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
     parking2 = hu.Pose(0.95, -0.3, tZ, 0.0)
@@ -361,9 +368,6 @@ def testPush(name, objName, startPose, targetPose, **args):
                   {objName : (startPose, medVar)},
                   ['table1Top'], easy=args.get('easy', False))
     goal = placed(objName, targetPose, targetDelta = (0.1, .1, .1, .5))
-    # pick and place!
-    skel = [[lookAt, move, place, move, 
-             pick, moveNB, lookAt, moveNB, lookAt, move]]
     # One push, no uncertainty
     skel = [[lookAt, move, push, moveNB, lookAt,
              move, lookAt, moveNB]]
@@ -375,7 +379,7 @@ def testPush0(objName='bigA', **args):
              hu.Pose(1.2, 0.4, tZ, 0.0), **args)
 
 ######################################################################
-# Test TWo Pushes, easier
+# Test Two Pushes, easier
 ######################################################################
 
 def testPush1(objName='bigA', **args):

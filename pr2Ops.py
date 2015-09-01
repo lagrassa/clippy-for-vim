@@ -33,6 +33,9 @@ maxVarianceTuple = (.1,)*4
 maxPoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
 maxPoseVar = (0.03**2, 0.03**2, 0.03**2, 0.05**2)
 
+# Don't allow delta smaller than this
+minDelta = .0001
+
 # Fixed accuracy to use for some standard preconditions
 canPPProb = 0.9
 otherHandProb = 0.9
@@ -219,7 +222,11 @@ def pushPrim(args, details):
                          poseDelta, resultProb, Violations(), prim=True)
     assert path
     tr('prim', '*** pushPrim', args, ('path length', len(path)))
-    return path, path, details.pbs.getPlacedObjBs()    
+    assert postConf in path
+    revIndex = path.index(postConf)
+    revPath = path[revIndex:]
+    revPath.reverse()
+    return path, revPath, details.pbs.getPlacedObjBs()    
 
 ################################################################
 ## Simple generators
@@ -348,11 +355,11 @@ class Subtract(Function):
     def fun((a, b), goal, start):
         if a == '*' or b == '*':
             return [['*']]
-        ans = tuple([aa - bb for (aa, bb) in zip(a, b)])
-        if any([x <=  0.0 for x in ans]):
-            debugMsg('smallDelta', 'Delta would be negative or zero', ans)
+        result = tuple([aa - bb for (aa, bb) in zip(a, b)])
+        if any([x < minDelta for x in [result[0], result[1], result[3]]]):
+            debugMsg('smallDelta', 'Delta would be negative or zero', result)
             return []
-        return [[ans]]
+        return [[result]]
         
 # Return as many values as there are args; overwrite any that are
 # variables with the minimum value
@@ -452,8 +459,11 @@ class GraspDelta(Function):
         maxForPose = [pd - cd for (pd, cd) in zip(poseDelta, confDelta)]
         maxForGraspTol = [gt - gstd for (gt, gstd) in zip(pickTol, graspStds)]
 
-        return [[tuple([min(d1, d2) for (d1, d2) in \
-                        zip(maxForPose, maxForGraspTol)])]]
+        result = tuple([min(d1, d2) for (d1, d2) in zip(maxForPose, maxForGraspTol)])
+        if any([x < minDelta for x in [result[0], result[1], result[3]]]):
+            debugMsg('smallDelta', 'Delta would be negative or zero', result)
+            return []
+        return [[result]]
 
 # Realistically, push increases variance quite a bit.  For now, we'll just
 # assume stdev needs to be halved
@@ -479,7 +489,8 @@ class PlaceInPoseVar(Function):
     # noinspection PyUnusedLocal
     @staticmethod
     def fun(args, goal, start):
-        pv = [v * 2 for v in start.domainProbs.obsVarTuple]
+        #pv = [v * 2 for v in start.domainProbs.obVarTuple]
+        pv = list(start.domainProbs.obsVarTuple)
         pv[2] = pv[0]
         return [[tuple(pv)]]
 
@@ -1408,7 +1419,8 @@ poseAchIn = Operator(
                 # Assume the base doesn't move
                 PoseInStart(['PoseFace2', 'ObjPose2'], ['Obj2']),
                 PlaceInPoseVar(['PoseVar'], []),
-                StdevTimes2(['TotalVar'], ['PoseVar']),
+                #StdevTimes2(['TotalVar'], ['PoseVar']),
+                Times2(['TotalVar'], ['PoseVar']),
                 Times2(['TotalDelta'], ['PoseDelta']),
                 # call main generator
                 PoseInRegionGen(['ObjPose1', 'PoseFace1'],

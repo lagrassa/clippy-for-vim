@@ -1300,3 +1300,24 @@ class KDTreeFull:
         return [(d, self.newEntries[i]) if new else (d, self.entries[i]) \
                 for (d, i, new) in merge[:k]]
 
+
+    if debug('collectGraspConfs'):
+        xAxisZ = wrist.matrix[2,0]
+        bases = robot.potentialBasePosesGen(wrist, hand)
+        if abs(xAxisZ) < 0.01:
+            if not glob.horizontal:
+                glob.horizontal = [(b,
+                                    CartConf({'pr2BaseFrame': b,
+                                              robot.armChainNames[hand]+'Frame' : wrist,
+                                              'pr2Torso':[glob.torsoZ]}, robot)) \
+                                   for b in bases]
+        elif abs(xAxisZ + 1.0) < 0.01:
+            if not glob.vertical:
+                glob.vertical = [(b,
+                                  CartConf({'pr2BaseFrame': b,
+                                            robot.armChainNames[hand]+'Frame' : wrist,
+                                            'pr2Torso':[glob.torsoZ]}, robot)) \
+                                 for b in bases]
+        else:
+            assert None
+

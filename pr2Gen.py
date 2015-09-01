@@ -6,7 +6,7 @@ from pr2Util import supportFaceIndex, shadowWidths, trArgs
 from pr2PlanBel import getConf, getGoalPoseBels
 from shapes import Box
 from pr2GenAux import *
-from planUtil import PPResponse
+from planUtil import PPResponse, ObjPlaceB, PoseD
 from pr2Push import pushInRegionGenGen
 
 Ident = hu.Transform(np.eye(4))            # identity transform
@@ -166,20 +166,29 @@ def pickGenTop(args, goalConds, pbs, onlyCurrent = False):
         if getConf(goalConds, None):
             tr(tag, '=> conf is already specified')
             return
-    if obj == pbs.held[hand].mode():
-        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
+    # Set up pbs
+    newBS = pbs.copy()
+    # Just placements specified in goal
+    newBS = newBS.updateFromGoalPoses(goalConds)
+    if placeB.poseD.mode() is not None: # specified by, e.g. lookGen
+        pose = placeB.poseD.mode()
+        sup =  placeB.support.mode()
+        newBS.resetPlaceB(obj, placeB)
+        tr(tag, 'Setting placeB, support=%s, pose=%s'%(sup, pose.xyztTuple()))
+    if obj == newBS.held[hand].mode():
+        attachedShape = newBS.getRobot().attachedObj(newBS.getShadowWorld(prob),
                                                    hand)
-        shape = pbs.getObjectShapeAtOrigin(obj).\
+        shape = newBS.getObjectShapeAtOrigin(obj).\
                 applyLoc(attachedShape.origin())
         sup = supportFaceIndex(shape)
         pose = None
         conf = None
         confAppr = None
         tr(tag, 'Object already in hand, support=%s'%sup)
-    elif obj == pbs.held[otherHand(hand)].mode():
-        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
+    elif obj == newBS.held[otherHand(hand)].mode():
+        attachedShape = newBS.getRobot().attachedObj(newBS.getShadowWorld(prob),
                                                    otherHand(hand))
-        shape = pbs.getObjectShapeAtOrigin(obj).\
+        shape = newBS.getObjectShapeAtOrigin(obj).\
                 applyLoc(attachedShape.origin())
         sup = supportFaceIndex(shape)
         pose = None
@@ -188,18 +197,15 @@ def pickGenTop(args, goalConds, pbs, onlyCurrent = False):
         tr(tag, 'Object already in other hand, support=%s'%sup)
     else:
         # Use placeB from the current state
-        pose = pbs.getPlaceB(obj).poseD.mode()
-        sup =  pbs.getPlaceB(obj).support.mode()
+        pose = newBS.getPlaceB(obj).poseD.mode()
+        sup =  newBS.getPlaceB(obj).support.mode()
         conf = None
         confAppr = None
         tr(tag, 'Using current state, support=%s, pose=%s'%(sup, pose.xyztTuple()))
-    placeB.poseD = PoseD(pose, placeB.poseD.var) # record the pose
-    placeB.support = DeltaDist(sup)              # and supportFace
+    # Update placeB
+    placeB = ObjPlaceB(obj, placeB.faceFrames, DeltaDist(sup),
+                       PoseD(pose, placeB.poseD.var), placeB.delta)
     tr(tag, 'target placeB=%s'%placeB)
-    # Set up pbs
-    newBS = pbs.copy()
-    # Just placements specified in goal
-    newBS = newBS.updateFromGoalPoses(goalConds)
     shWorld = newBS.getShadowWorld(prob)
     tr('pickGen', 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
     gen = pickGenAux(newBS, obj, confAppr, conf, placeB, graspB, hand, base, prob,
@@ -248,7 +254,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
     approached = {}
     rm = pbs.getRoadMap()
     failureReasons = []
-    if placeB.poseD.mode() != None: # otherwise go to regrasp
+    if placeB.poseD.mode() is not None: # otherwise go to regrasp
         if not base:
             # Try current conf
             (x,y,th) = pbs.conf['pr2Base']
@@ -637,6 +643,8 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
     pbs = bState.pbs.copy()
     world = pbs.getWorld()
 
+    print tag, args
+
     # If there are no grasps, just fail
     if not world.getGraspDesc(obj): return
 
@@ -734,8 +742,8 @@ def placeInGenAway(args, goalConds, pbs):
                                    goalConds, pbs, away=True, update=False):
         yield ans
 
-placeInGenMaxPoses  = 50
-placeInGenMaxPosesH = 10
+placeInGenMaxPoses  = 100
+placeInGenMaxPosesH = 100
 
 def placeInGenTop(args, goalConds, pbs,
                   regrasp=False, away = False, update=True):
@@ -974,7 +982,7 @@ def lookGenTop(args, goalConds, pbs):
 
     # TODO: Generalize this to (pick or push)
 
-    if len(world.getGraspDesc[obj]) > 0 and not glob.inHeuristic:
+    if len(world.getGraspDesc(obj)) > 0 and not glob.inHeuristic:
         graspVar = 4*(0.001,)
         graspDelta = 4*(0.001,)
         graspB = ObjGraspB(obj, world.getGraspDesc(obj), None, None,
@@ -984,12 +992,10 @@ def lookGenTop(args, goalConds, pbs):
         # with shadow of obj.
         for gB in graspGen(newBS, obj, graspB):
             for hand in ['left', 'right']:
-                for ans, viol in pickGenTop((obj, gB, placeB_after, hand, base,
-                                             prob),
-                                            goalConds, newBS, onlyCurrent=True):
-                    (pB, c, ca) = ans   # pB should be placeB
+                for ans in pickGenTop((obj, gB, placeB_after, hand, base, prob),
+                                      goalConds, newBS, onlyCurrent=True):
                     # Modify the approach conf so that robot avoids view cone.
-                    lookConf = lookAtConfCanView(newBS, prob, ca,
+                    lookConf = lookAtConfCanView(newBS, prob, ans.ca,
                                                  shapeForLook, shapeShadow=shapeShadow)
                     if not lookConf:
                         tr(tag, 'canView failed')

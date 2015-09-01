@@ -459,10 +459,10 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
     def executePush(self, op, params, noBase = True):
         # Execute the push prim
         if params:
-            path, interpolated, placeBs  = params
+            path, revPath, placeBs  = params
             debugMsg('robotEnv', 'executePush: path len = ', len(path))
             obs = self.executePath(path, placeBs)
-            obs = self.executePath(path[::-1], placeBs)
+            obs = self.executePath(revPath, placeBs)
         else:
             print op
             raw_input('No path given')

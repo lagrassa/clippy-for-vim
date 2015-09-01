@@ -2,7 +2,7 @@
 import math
 from operator import itemgetter
 from fbch import Function
-from geom import bboxInside, bboxVolume, vertsBBox, bboxContains, bboxVolume
+from geom import bboxInside, bboxVolume, vertsBBox, bboxContains, bboxIsect
 import numpy as np
 from traceFile import debug, debugMsg, tr, trAlways
 from shapes import thingFaceFrames, drawFrame
@@ -40,7 +40,7 @@ pushGenCache = {}
 
 minPushLength = 0.02
 
-useDirectPush = False
+useDirectPush = True
 
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
@@ -56,6 +56,10 @@ class PushGen(Function):
                 print 'PushGen generated infeasible answer'
             else:
                 tr('pushGen', '->', 'final', str(ans))
+                if debug('pushGen'):
+                    ans.preConf.cartConf().prettyPrint('Pre Conf')
+                    ans.pushConf.cartConf().prettyPrint('Push Conf')
+                    ans.postConf.cartConf().prettyPrint('Post Conf')
                 yield ans.pushTuple()
         tr('pushGen', '-> completely exhausted')
 
@@ -184,7 +188,10 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
     center =  np.average(xyPrim.vertices(), axis=1)
     # This should identify arbitrary surfaces, e.g. in shelves.  The
     # bottom of the region is the support polygon.
-    supportRegion = findSupportRegionInPbs(pbs, prob, xyPrim)
+    supportRegion = pbs.findSupportRegion(prob, xyPrim, fail = False)
+    if not supportRegion:
+        trAlways('Target pose is not supported')
+        return
     # find tool point frames (with Z opposing normal, like face
     # frames) that brings the fingers in contact with the object and
     # span the centroid.
@@ -220,13 +227,13 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
             print 'vertical', vertical, 'dist', dist
             drawFrame(contactFrame)
             raw_input('graspDesc frame')
-        count = 0                       # how many tries
-        doneCount = 0                   # how many went all the way
         pushPaths = []                  # for different base positions
         # Generate confs to place the hand at graspB
         # Try going directly to goal and along the direction of face
         # The direct route only works for vertical pushing...
         for direct in (True, False) if (useDirectPush and vertical and curPose) else (False,):
+            count = 0                       # how many tries
+            doneCount = 0                   # how many went all the way
             for ans in potentialConfs(pbs, prob, placeB,
                                       curPose.pose() if direct else prePose.pose(),
                                       graspB, hand, base):
@@ -250,33 +257,32 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
                 tr(tag, 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
                 if doneCount >= maxDone and not partialPaths: break
                 if count > maxPushPaths: break
-            if doneCount >= maxDone and not partialPaths: break
-            if count > maxPushPaths: break
-        if count == 0 and not glob.inHeuristic:
-            print tag, 'Could not find conf for push along', direction[:2]
+            if count == 0 and not glob.inHeuristic:
+                print tag, 'Could not find conf for push along', direction[:2]
         # Sort the push paths by violations
         sorted = sortedPushPaths(pushPaths, curPose)
         for i in range(min(len(sorted), maxDone)):
             pp = sorted[i]
             ppre, cpre, ppost, cpost = getPrePost(pp)
             if not ppre or not ppost: continue
+            crev = reverseConf(pp, hand)
             if debug(tag):
                 robot = cpre.robot
+                handName = robot.armChainNames[hand]
                 print 'pre pose\n', ppre.matrix
-                print 'pre conf tool'
-                print cpre.cartConf()[robot.armChainNames[hand]].compose(robot.toolOffsetX[hand]).matrix
-                print 'post conf tool'
-                print cpost.cartConf()[robot.armChainNames[hand]].compose(robot.toolOffsetX[hand]).matrix
-            tr(tag, 'pre conf (blue), post conf (pink)',
+                for (name, conf) in (('pre', cpre), ('post', cpost), ('rev', crev)):
+                    print name, 'conf tool'
+                    print conf.cartConf()[handName].compose(robot.toolOffsetX[hand]).matrix
+            tr(tag, 'pre conf (blue), post conf (pink), rev conf (green)',
                draw=[(pbs, prob, 'W'),
-                     (cpre, 'W', 'blue'), (cpost, 'W', 'pink')], snap=['W'])
-
+                     (cpre, 'W', 'blue'), (cpost, 'W', 'pink'),
+                     (crev, 'W', 'green')], snap=['W'])
             viol = Violations()
             for (c,v,p) in pathAndViols:
                 viol.update(v)
             yield PushResponse(placeB.modifyPoseD(ppre.pose()),
                                placeB.modifyPoseD(ppost.pose()),
-                               cpre, cpost, cpre, viol, hand,
+                               cpre, cpost, crev, viol, hand,
                                placeB.poseD.var, placeB.delta)
 
     tr(tag, '=> pushGenAux exhausted')
@@ -311,6 +317,17 @@ def getPrePost(pp):
         if ppre: break
     return (ppre, cpre, ppost, cpost)
 
+def reverseConf(pp, hand):
+    cpost, _, _ = pp[-1]
+    handFrameName = cpost.robot.armChainNames[hand]
+    tpost = cpost.cartConf()[handFrameName] # final hand position
+    for i in range(2, len(pp)):
+        c, _, _ = pp[-i]
+        t = c.cartConf()[handFrameName] # hand position
+        if t.distance(tpost) > 0.1:
+            break
+    return c
+
 def sortedPushPaths(pushPaths, curPose):
     scored = []
     for (pathAndViols, reason) in pushPaths:
@@ -322,36 +339,6 @@ def sortedPushPaths(pushPaths, curPose):
             scored.append((vmax, pathAndViols))
     scored.sort()
     return [pv for (s, pv) in scored]
-                
-def findSupportRegionInPbs(pbs, prob, shape, fail=True):
-    tag = 'findSupportRegionInPbs'
-    shWorld = pbs.getShadowWorld(prob)
-    bbox = shape.bbox()
-    bestRegShape = None
-    bestVol = 0.
-    if debug(tag): print 'find support region for', shape
-    for regShape in shWorld.regionShapes.values():
-        if debug(tag): print 'considering', regShape
-        regBB = regShape.bbox()
-        if inside(shape, regShape):
-            # TODO: Have global support(region, shape) test?
-            if debug(tag): print 'shape in region'
-            if 0 <= bbox[0,2] - regBB[0,2] <= 0.02:
-                if debug(tag): print 'bottom z is close enough'
-                vol = bboxVolume(regBB)
-                if vol > bestVol:
-                    bestRegShape = regShape
-                    bestVol = vol
-                    if debug(tag): print 'bestRegShape', regShape
-    if not bestRegShape:
-        print 'Could not find supporting region for %s'%shape.name()
-        shape.draw('W', 'magenta')
-        for regShape in shWorld.regionShapes.values():
-            regShape.draw('W', 'cyan')
-        if fail:
-            print 'Gonna fail!'
-            raise Exception, 'Unsupported object'
-    return bestRegShape
 
 # Potential contacts
 fingerTipThick = 0.02
@@ -424,7 +411,7 @@ def handContactFrames(shape, center, vertical):
 # TODO: This should be a property of robot -- and we should extend to held objects
 def minPushHeight(vertical):
     if vertical:
-        return 0.02                 # tool tip above the table
+        return 0.04                 # tool tip above the table
     else:                           
         return 0.06                 # wrist needs to clear the support
 
@@ -629,7 +616,7 @@ def pushInGenAway(args, goalConds, pbs):
     placeB = pbs.getPlaceB(obj, default=False)
     assert placeB, 'Need to know where object is to get support region'
     shape = placeB.shape(pbs.getWorld())
-    regShape = findSupportRegionInPbs(pbs, prob, shape.xyPrim())
+    regShape = pbs.findSupportRegion(prob, shape.xyPrim())
     tr('pushInGenAway', zip(('obj', 'delta', 'prob'), args),
        draw=[(pbs, prob, 'W')], snap=['W'])
     targetPushVar = tuple([pushVarIncreaseFactor * x \
@@ -655,6 +642,10 @@ def pushOut(pbs, prob, obst, delta, goalConds):
 pushInGenMaxPoses  = 50
 pushInGenMaxPosesH = 10
 
+def connectedSupport(reg, support):
+    isectBB = bboxIsect([reg.bbox(), support.bbox()])
+    return bboxVolume(isectBB) > 0 and abs(isectBB[0,2] - support.bbox()[0,2]) <= 0.005
+
 def pushInGenTop(args, goalConds, pbs, away = False, update=True):
     (obj, regShapes, placeB, prob) = args
     tag = 'pushInGen'
@@ -670,7 +661,12 @@ def pushInGenTop(args, goalConds, pbs, away = False, update=True):
         # if conf is specified, just fail
         tr(tag, '=> conf is specified, failing')
         return
-
+    supportRegion = pbs.findSupportRegionForObj(prob, obj,
+                                                strict=True, fail=False)
+    regShapes = [r for r in regShapes if connectedSupport(r, supportRegion)]
+    if not regShapes:
+        tr(tag, '=> target regions do no share support')
+        return
     conf = None
     confAppr = None
     # Obstacles for all Reachable fluents

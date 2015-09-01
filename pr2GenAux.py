@@ -15,7 +15,7 @@ from dist import UniformDist, DDist
 from geom import bboxCenter
 from pr2Robot import CartConf, gripperFaceFrame, pr2BaseLink
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
-from pr2Util import shadowName, objectName, Memoizer, inside, otherHand, bboxRandomCoords
+from pr2Util import shadowName, objectName, Memoizer, inside, otherHand, bboxRandomCoords, bboxGridCoords, shadowWidths
 import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
@@ -383,7 +383,8 @@ graspConfs = set([])
 
 graspConfStats = [0,0]
 
-def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
+def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
+                     wrist = None, counts = None):
     robot = pbs.getRobot()
     rm = pbs.getRoadMap()
     if not wrist:
@@ -398,6 +399,7 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
         obst = shWorld.objectShapes[perm]
         if obst.collides(baseShape):
             graspConfStats[1] += 1
+            if counts: counts[1] += 1   # collision
             return
         
     cart = CartConf({'pr2BaseFrame': basePose,
@@ -409,9 +411,10 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
         cart.conf['pr2RightArmFrame'] = wrist 
         cart.conf['pr2RightGripper'] = [0.08]
     # Check inverse kinematics
-    conf = robot.inverseKin(cart,
-                            complain=debug('potentialGraspConfs'))
-    if None in conf.values(): return
+    conf = robot.inverseKin(cart)
+    if None in conf.values():
+        if counts: counts[0] += 1       # kin failure
+        return
     # Copy the other arm
     if hand == 'left':
         conf.conf['pr2RightArm'] = pbs.conf['pr2RightArm']
@@ -425,22 +428,30 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist = None):
         viol = rm.confViolations(ca, pbs, prob, ignoreAttached=True,
                                  clearance=graspConfClear)
         if not viol:
-            if debug('potentialGraspConfs'):
+            if debug('potentialGraspConfsLose'):
                 pbs.draw(prob, 'W'); conf.draw('W','red')
+                debugMsg('potentialGraspConfsLose', 'collision at approach')
+            if counts: counts[1] += 1   # collision
             return
         viol = rm.confViolations(conf, pbs, prob, initViol=viol,
                                  ignoreAttached=True, clearance=graspConfClear)
         if viol:
             if debug('potentialGraspConfsWin'):
-                pbs.draw(prob, 'W')
-                conf.draw('W','green')
+                pbs.draw(prob, 'W'); conf.draw('W','green')
                 debugMsg('potentialGraspConfsWin', ('->', conf.conf))
             if debug('keepGraspConfs'):
                 graspConfs.add((conf, ca, pbs, prob, viol))
             return conf, ca, viol
+        else:
+            if debug('potentialGraspConfsLose'):
+                pbs.draw(prob, 'W'); conf.draw('W','red')
+                debugMsg('potentialGraspConfsLose', 'collision at target')
+            if counts: counts[1] += 1   # collision
     else:
-        if debug('potentialGraspConfs'):
-            pbs.draw(prob, 'W'); conf.draw('W','red')
+        if counts: counts[0] += 1       # kin failure
+        if debug('potentialGraspConfsLose'):
+            pbs.draw(prob, 'W'); conf.draw('W','orange')
+            debugMsg('potentialGraspConfsLose', 'no approach conf')
 
 def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
                              nMax=10):
@@ -457,6 +468,15 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
         tr(tag, 'Conf specified; viol is None or out of alternatives')
         return
     wrist = objectGraspFrame(pbs, graspB, placeB, hand)
+
+    shWorld = pbs.getShadowWorld(prob)
+    gripperShape = gripperPlace(shWorld.robotConf, hand, wrist, shWorld.robotPlace)
+    for perm in shWorld.fixedObjects:
+        obst = shWorld.objectShapes[perm]
+        if obst.collides(gripperShape):
+            tr(tag, 'Hand collides with permanent', perm)
+            return
+
     tr(tag, hand, placeB.obj, graspB.grasp, '\n', wrist,
        draw = [(pbs, prob, 'W')], snap = ['W'])
     count = 0
@@ -466,51 +486,42 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
         (x,y,th) = base
         nominalBasePose = hu.Pose(x, y, 0.0, th)
     else:
-        (x,y,th) = pbs.getShadowWorld(prob).robotConf['pr2Base']
+        (x,y,th) = shWorld.robotConf['pr2Base']
         curBasePose = hu.Pose(x, y, 0.0, th)
-
-    if debug('collectGraspConfs'):
-        xAxisZ = wrist.matrix[2,0]
-        bases = robot.potentialBasePosesGen(wrist, hand)
-        if abs(xAxisZ) < 0.01:
-            if not glob.horizontal:
-                glob.horizontal = [(b,
-                                    CartConf({'pr2BaseFrame': b,
-                                              robot.armChainNames[hand]+'Frame' : wrist,
-                                              'pr2Torso':[glob.torsoZ]}, robot)) \
-                                   for b in bases]
-        elif abs(xAxisZ + 1.0) < 0.01:
-            if not glob.vertical:
-                glob.vertical = [(b,
-                                  CartConf({'pr2BaseFrame': b,
-                                            robot.armChainNames[hand]+'Frame' : wrist,
-                                            'pr2Torso':[glob.torsoZ]}, robot)) \
-                                 for b in bases]
-        else:
-            assert None
-
+    counts = [0, 0]
     if base:
         for ans in [graspConfForBase(pbs, placeB, graspB, hand,
-                                     nominalBasePose, prob, wrist)]:
+                                     nominalBasePose, prob, wrist=wrist, counts=counts)]:
             if ans:
                 yield ans
         tr(tag, 'Base specified; out of grasp confs for base')
         return
     # Try current pose first
-    ans = graspConfForBase(pbs, placeB, graspB, hand, curBasePose, prob, wrist)
+    ans = graspConfForBase(pbs, placeB, graspB, hand, curBasePose, prob,
+                           wrist=wrist, counts=counts)
     if ans: yield ans
     # Try the rest
-    # !! Sample subset??
+    # TODO: Sample subset?
     for basePose in robot.potentialBasePosesGen(wrist, hand):
         if nMax and count >= nMax: break
         tried += 1
-        ans = graspConfForBase(pbs, placeB, graspB, hand, basePose, prob, wrist)
+        ans = graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
+                               wrist=wrist, counts=counts)
         if ans:
             count += 1
             yield ans
     debugMsg('potentialGraspConfs',
-             ('Tried', tried, 'Found', count, 'potential grasp confs'))
+             ('Tried', tried, 'found', count, 'potential grasp confs, with grasp', graspB.grasp),
+             ('Failed', counts[0], 'invkin', counts[1], 'collisions'))
     return
+
+def gripperPlace(conf, hand, wrist, robotPlace=None):
+    confWrist = conf.cartConf()[conf.robot.armChainNames[hand]]
+    if not robotPlace:
+        robotPlace = conf.placement()
+    gripperChain = conf.robot.gripperChainNames[hand]
+    shape = (part for part in robotPlace.parts() if part.name() == gripperChain).next()
+    return shape.applyTrans(confWrist.inverse()).applyTrans(wrist)
 
 def potentialLookConfGen(pbs, prob, shape, maxDist):
     def testPoseInv(basePoseInv):
@@ -910,8 +921,9 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         sh = shRotations[angle].applyTrans(pose)
         if debug('potentialRegionPoseGen'):
             sh.draw('W', 'brown')
-            wm.getWindow('W').update()
-            
+            print x,y,z,angle
+            raw_input('Go?')
+        pose = hu.Pose(x,y,z,angle)
         if inside(sh, rs) and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
             debugMsg('potentialRegionPoseGen', ('-> pose', pose))
@@ -919,23 +931,31 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         else:
             debugMsg('potentialRegionPoseGen', ('fail pose', pose))
             pbs.draw(prob, 'W'); sh.draw('W', 'brown'); rs.draw('W', 'purple')
-            #pdb.set_trace()
 
     def poseViolationWeight(pose):
+        tag = 'potentialRegionPoseGenWeight'
         pB = placeB.modifyPoseD(mu=pose)
         for gB in graspGen(pbs, obj, graspB):
+            grasp = gB.grasp.mode()
+            debugMsg(tag, 'Trying grasp = %d'%grasp)
             c, ca, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, base, prob, nMax=1),
                             (None,None,None))
             if v:
-                if debug('potentialRegionPoseGenWeight'):
-                    pbs.draw(prob, 'W'); c.draw('W')
-                    debugMsg('potentialRegionPoseGenWeight', 'v=%s'%v,
-                             'weight=%s'%str(v.weight()), 'pose=%s'%pose)
+                if debug(tag):
+                    pbs.draw(prob, 'W'); c.draw('W', 'green')
+                    debugMsg(tag, 'v=%s'%v, 'weight=%s'%str(v.weight()),
+                             'pose=%s'%pose, 'grasp=%s'%grasp)
                 return v.weight() + baseDist(pbs.conf, ca)
+            else:
+                if debug(tag):
+                    debugMsg(tag, 'v=%s'%v, 'pose=%s'%pose, 'grasp=%s'%grasp)
         return None
 
+    tag = 'potentialRegionPoseGen'
+    debugMsg(tag, placeB, shadowWidths(placeB.poseD.var, placeB.delta, prob))
+
     clearance = 0.01
-    if debug('potentialRegionPoseGen'):
+    if debug(tag):
         pbs.draw(prob, 'W')
         for rs in regShapes: rs.draw('W', 'purple')
     ff = placeB.faceFrames[placeB.support.mode()]
@@ -943,21 +963,18 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     
     objShadow = pbs.objShadow(obj, shadowName(obj), prob, placeB, ff)
     if placeB.poseD.mode():
-        tr('potentialRegionPoseGen', 'pose specified', placeB.poseD.mode(),
-           ol = True)
+        tr(tag, 'pose specified', placeB.poseD.mode(), ol = True)
         sh = objShadow.applyLoc(placeB.objFrame()).prim()
         verts = sh.vertices()
         if any(any(np.all(np.all(np.dot(r.planes(), verts) <= tiny, axis=1)) \
                    for r in rs.parts()) \
                for rs in regShapes)  and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
-            tr('potentialRegionPoseGen',
-               'pose specified and safely in region',
+            tr(tag, 'pose specified and safely in region',
                placeB.poseD.mode(), ol = True)
             yield placeB.poseD.mode()
         else:
-            tr('potentialRegionPoseGen',
-               'pose specified and not safely in region')
+            tr(tag, 'pose specified and not safely in region')
 
     shRotations = dict([(angle, objShadow.applyTrans(hu.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
@@ -967,26 +984,26 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     count = 0
     world = pbs.getWorld()
     for rs in regShapes:
-        tr('potentialRegionPoseGen', obj, rs.name(), hand, ol = True)
-        if debug('potentialRegionPoseGen'):
+        tr(tag, obj, rs.name(), hand, ol = True)
+        if debug(tag):
             print 'Considering region', rs.name()
         for (angle, shRot) in shRotations.items():
             bI = CI(shRot, rs.prim())
             if bI is None:
-                if debug('potentialRegionPoseGen'):
+                if debug(tag):
                     print 'bI is None for angle', angle
                     raw_input('bI')
                 continue
-            elif debug('potentialRegionPoseGen'):
+            elif debug(tag):
                 bI.draw('W', 'cyan')
-                debugMsg('potentialRegionPoseGen', 'Region interior in cyan for angle', angle)
+                debugMsg(tag, 'Region interior in cyan for angle', angle)
             coFixed = squashOne([xyCOParts(shRot, o) for o in shWorld.getObjectShapes() \
                                  if o.name() in shWorld.fixedObjects])
             coObst = squashOne([xyCOParts(shRot, o) for o in shWorld.getNonShadowShapes() \
                                 if o.name() not in shWorld.fixedObjects])
             coShadow = squashOne([xyCOParts(shRot, o) for o in shWorld.getShadowShapes() \
                                   if o.name() not in shWorld.fixedObjects])
-            if debug('potentialRegionPoseGen'):
+            if debug(tag):
                 for co in coFixed: co.draw('W', 'red')
                 for co in coObst: co.draw('W', 'brown')
                 for co in coShadow: co.draw('W', 'orange')
@@ -995,7 +1012,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             for point in bboxRandomCoords(bI.bbox(), n=100, z=z0):
                 pt = point.reshape(4,1)
                 if any(np.all(np.dot(co.planes(), pt) <= tiny) for co in coFixed):
-                    if debug('potentialRegionPoseGen'):
+                    if debug(tag):
                         shapes.pointBox(pt.T[0]).draw('W', 'blue')
                     continue
                 cost = 0
@@ -1011,6 +1028,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
 
                 hyps.append(hyp)
                 count += 1
+
     if hyps:
         # Randomized
         # pointDist = DDist(dict(hyps))
@@ -1030,9 +1048,9 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             random.shuffle(l)
         pointDist = []
         for l in levels: pointDist.extend(l)
-        debugMsg('potentialRegionPoseGen', 'Invalid points in blue, len(valid)=%d'%len(pointDist))
+        debugMsg(tag, 'Invalid points in blue, len(valid)=%d'%len(pointDist))
     else:
-        debugMsg('potentialRegionPoseGen', 'Invalid points in blue, no valid points in region')
+        debugMsg(tag, 'Invalid points in blue, no valid points in region')
         return
     count = 0
     maxTries = min(2*maxPoses, len(pointDist))
@@ -1047,7 +1065,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             pose = genPose(rs, angle, point)
             if not pose: continue
             count += 1
-            if debug('potentialRegionPoseGen'):
+            if debug(tag):
                 print '->', pose, 'cost=', cost
                 # shRotations is already rotated
                 (x,y,z,_) = pose.xyztTuple()
@@ -1076,23 +1094,23 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                 minIndex = costHistory.index(min(costHistory))
                 pose = poseHistory[minIndex]
                 poseCost = costHistory[minIndex]
-                if debug('potentialRegionPoseGen'):
+                if debug(tag):
                     print 'pose cost', costHistory[minIndex]
                 costHistory[minIndex] = cost
                 poseHistory[minIndex] = p
             else:                           # cost <= min(costHistory)
                 pose = p
                 poseCost = cost
-                if debug('potentialRegionPoseGen'): print 'pose cost', cost
+                if debug(tag): print 'pose cost', cost
             count += 1
-            if debug('potentialRegionPoseGen'):
+            if debug(tag):
                 print '->', pose, 'cost=', poseCost
                 # shRotations is already rotated
                 (x,y,z,_) = pose.xyztTuple()
                 shRotations[angle].applyTrans(hu.Pose(x,y,z, 0.)).draw('W', 'green')
             yield pose
-    if True: # debug('potentialRegionPoseGen'):
-        print 'Tried', tries, 'returned', count, 'for regions', [r.name() for r in regShapes]
+    if True: # debug(tag):
+        print 'Tried', tries, 'with', hand, 'returned', count, 'for regions', [r.name() for r in regShapes]
     return
 
 def baseDist(c1, c2):

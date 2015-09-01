@@ -303,6 +303,13 @@ class CartConf(JointConf):
                     vals.append(val)
             self.items = frozenset(vals)
         return self.items
+    def prettyPrint(self, msg='Cart Conf:'):
+        print msg
+        for key in sorted(self.conf.keys()):
+            if isinstance(self.conf[key], hu.Transform):
+                print '   ', key, '\n', self.conf[key].matrix
+            else:
+                print '   ', key, prettyString(self.conf[key])
     def copy(self):
         return CartConf(self.conf.copy(), self.robot)
     def __getitem__(self, name):

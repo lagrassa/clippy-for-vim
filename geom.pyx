@@ -199,8 +199,8 @@ cpdef np.ndarray bboxUnion(list bboxes):
     return np.array([minVals, maxVals])
 
 cpdef np.ndarray bboxIsect(list bboxes):
-    return np.array([np.max(np.vstack([bb[0] for bb in bboxes])),
-                     np.min(np.vstack([bb[1] for bb in bboxes]))])
+    return np.array([np.max(np.vstack([bb[0] for bb in bboxes]), axis=0),
+                     np.min(np.vstack([bb[1] for bb in bboxes]), axis=0)])
 
 cpdef bool bboxOverlap(np.ndarray[np.float64_t, ndim=2] bb1,
                        np.ndarray[np.float64_t, ndim=2] bb2):

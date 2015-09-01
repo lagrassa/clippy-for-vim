@@ -1455,6 +1455,8 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     # backoff by pushBuffer from preConf
     tiltRot, handDir = handTiltAndDir(pConf, hand, direction)
     if debug(tag): print 'handDir', handDir
+    if handDir is None:
+        return [], 'bad dir'
     preConf = displaceHandRot(pConf, hand,
                               hu.Pose(*(-glob.pushBuffer*handDir).tolist()+[0.0]))
     if debug(tag) and shape:
@@ -1490,7 +1492,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     shape = pbs.getPlaceB(pB.obj).shadow(pbs.getShadowWorld(0.0)) or \
             pbs.getPlaceB(pB.obj).shape(pbs.getWorld())
     # For heuristic, just do (start, contact, end)
-    if glob.inHeuristic:
+    if False:  # glob.inHeuristic:
         stepVals = [0, int(math.ceil(pushBuffer/delta)), nsteps]
     else:
         stepVals = xrange(nsteps+1)
@@ -1614,17 +1616,17 @@ def handTiltAndDir(conf, hand, direction):
     transInv = trans.inverse()
     transInvMat = transInv.matrix
     handDir = np.dot(transInvMat, np.hstack([direction, np.array([0.0])]).reshape(4,1))
-    if abs(handDir[2,0]) > 0.001:
+    if abs(handDir[2,0]) > 0.7:
         sign = -1.0 if handDir[2,0] < 0 else 1.0
-        hdir = np.dot(trans.matrix, np.array([0.0, 0.0, sign, 0.0]).reshape(4,1))[:3,0]
-        if debug('pushPath'): print hdir, '->', sign, hdir
+        # hdir = np.dot(trans.matrix, np.array([0.0, 0.0, sign, 0.0]).reshape(4,1))[:3,0]
+        # if debug('pushPath'): print hdir, '->', sign, hdir
         # Because of the wrist orientation, the sign is negative
-
         rot = hu.Transform(rotation_matrix(-sign*math.pi/10., (0,1,0)))
-
-        return rot, hdir
+        return rot, direction
     else:
-        assert None, 'Bad direction relative to hand'
+        if debug('pushPath'):
+            print 'Bad direction relative to hand'
+        return None, None
 
 def checkReplay(pbs, prob, cachedValues):
     rm = pbs.getRoadMap()
