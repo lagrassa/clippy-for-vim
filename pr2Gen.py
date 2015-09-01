@@ -97,20 +97,25 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob, oldFace, oldGrasp):
             tr(tag, 'Rejected %s because same'%gB)
             continue
         tr(tag, 'considering grasp=%s'%gB)
-        graspConfGen = potentialGraspConfGen(newBS, placeB, gB, None, hand, None, prob)
-        firstConf = next(graspApproachConfGen(None), None)
-        if not firstConf:
-            tr(tag, 'no confs for grasp = %s'%gB)
-            continue
-        for ca in graspApproachConfGen(firstConf):
-            tr(tag, 'considering conf=%s'%ca.conf)
-            viol = pickable(ca, approached[ca], placeB, gB)
-            if viol:
-                tr(tag, 'pickable')
-                yield PPResponse(placeB, gB, approached[ca], ca, viol, hand)
-                break
-            else:
-                tr(tag, 'not pickable')
+
+        # Just say "yes" -- otherwise, we would have to search over placements...
+        # TODO: is there a middle road between this and full regrasp?
+        yield PPResponse(placeB, gB, None, None, None, hand)
+        
+        # graspConfGen = potentialGraspConfGen(newBS, placeB, gB, None, hand, None, prob)
+        # firstConf = next(graspApproachConfGen(None), None)
+        # if not firstConf:
+        #     tr(tag, 'no confs for grasp = %s'%gB)
+        #     continue
+        # for ca in graspApproachConfGen(firstConf):
+        #     tr(tag, 'considering conf=%s'%ca.conf)
+        #     viol = pickable(ca, approached[ca], placeB, gB)
+        #     if viol:
+        #         tr(tag, 'pickable')
+        #         yield PPResponse(placeB, gB, approached[ca], ca, viol, hand)
+        #         break
+        #     else:
+        #         tr(tag, 'not pickable')
 
 # R1: Pick bindings that make pre-conditions not inconsistent with goalConds
 # R2: Pick bindings so that results do not make conditional fluents in the goalConds infeasible

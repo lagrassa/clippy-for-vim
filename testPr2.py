@@ -209,12 +209,12 @@ def test3(**args):
 # Test 4: Boring pick
 ######################################################################
 
-def test4(**args):
+def test4(gt=0, **args):
     glob.rebindPenalty = 100
     exp = makeExp({'table1' : (table1Pose, smallVar)},
-                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
+                  {'objA' : (hu.Pose(1.2, 0.0, tZ, 0.0), medVar)},
                   [], easy=args.get('easy', False))
-    goal = holding('objA', hand='right', graspType=0)
+    goal = holding('objA', hand='right', graspType=gt)
     skel =  [[pick, moveNB, lookAt, move, lookAt, move, lookAt]]
     return doTest('test4', exp, goal, skel, args)
 
@@ -267,7 +267,7 @@ def test7(**args):
 ######################################################################
 
 def test8(**args):
-    goal = holding('objB', 'left', 0, goalProb=0.7)
+    goal = holding('objB', 'left', 1, goalProb=0.7)
     testWithBInHand('test8', goal, args)
 
 ######################################################################

@@ -29,11 +29,11 @@ sym6 = ({4 : 4}, {4 : [hu.Pose(0.,0.,0., (1./3.)*math.pi*x) for x in range(6)]})
 # from the side
 gMat0 = hu.Transform(np.array([(0.,1.,0.,0.),
                                (0.,0.,1.,-0.025),
-                               (1.,0.,0.,0.),
+                               (1.,0.,0.,0.03),
                                (0.,0.,0.,1.)]))
 gMat1 = hu.Transform(np.array([(0.,-1.,0.,0.),
                                (0.,0.,-1.,0.025),
-                               (1.,0.,0.,0.),
+                               (1.,0.,0.,0.03),
                                (0.,0.,0.,1.)]))
 # from the top
 gMat2= hu.Transform(np.array([(-1.,0.,0.,0.),
