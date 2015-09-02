@@ -25,7 +25,7 @@ class EasyGraspGen(Function):
     def fun(args, goalConds, bState):
         tag = 'easyGraspGen'
         graspVar = 4*(0.1,)                # make precondition even weaker
-        graspDelta = 4*(0.001,)            # put back to prev value
+        graspDelta = 4*(0.005,)            # put back to prev value
 
         pbs = bState.pbs.copy()
         (obj, hand, face, grasp) = args
@@ -98,24 +98,23 @@ def easyGraspGenAux(newBS, placeB, graspB, hand, prob, oldFace, oldGrasp):
             continue
         tr(tag, 'considering grasp=%s'%gB)
 
-        # Just say "yes" -- otherwise, we would have to search over placements...
         # TODO: is there a middle road between this and full regrasp?
-        yield PPResponse(placeB, gB, None, None, None, hand)
+        #yield PPResponse(placeB, gB, None, None, None, hand)
         
-        # graspConfGen = potentialGraspConfGen(newBS, placeB, gB, None, hand, None, prob)
-        # firstConf = next(graspApproachConfGen(None), None)
-        # if not firstConf:
-        #     tr(tag, 'no confs for grasp = %s'%gB)
-        #     continue
-        # for ca in graspApproachConfGen(firstConf):
-        #     tr(tag, 'considering conf=%s'%ca.conf)
-        #     viol = pickable(ca, approached[ca], placeB, gB)
-        #     if viol:
-        #         tr(tag, 'pickable')
-        #         yield PPResponse(placeB, gB, approached[ca], ca, viol, hand)
-        #         break
-        #     else:
-        #         tr(tag, 'not pickable')
+        graspConfGen = potentialGraspConfGen(newBS, placeB, gB, None, hand, None, prob)
+        firstConf = next(graspApproachConfGen(None), None)
+        if not firstConf:
+            tr(tag, 'no confs for grasp = %s'%gB)
+            continue
+        for ca in graspApproachConfGen(firstConf):
+            tr(tag, 'considering conf=%s'%ca.conf)
+            viol = pickable(ca, approached[ca], placeB, gB)
+            if viol:
+                tr(tag, 'pickable')
+                yield PPResponse(placeB, gB, approached[ca], ca, viol, hand)
+                break
+            else:
+                tr(tag, 'not pickable')
 
 # R1: Pick bindings that make pre-conditions not inconsistent with goalConds
 # R2: Pick bindings so that results do not make conditional fluents in the goalConds infeasible
@@ -325,7 +324,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         return
     
     tr(tag, 'Calling for regrasping... h=%s'%glob.inHeuristic)
-    raw_input('Regrasp?')
+    #raw_input('Regrasp?')
     # !! Needs to look for plausible regions...
     regShapes = regShapes = [shWorld.regionShapes[region] for region in pbs.awayRegions()]
     plGen = placeInGenTop((obj, regShapes, graspB, placeB, None, prob),
