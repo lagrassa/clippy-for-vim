@@ -286,12 +286,12 @@ def makeConf(robot,x,y,th,g=0.07, vertical=False):
 
 initConfs = []
 
-def makeInitBel(bs, grasped, hand):
+# gf is grasp index
+def makeInitBel(bs, grasped, hand, gf):
     # Change pbs so obj B is in the left hand
     gm = (0, -0.025, 0, 0)
     gv = (1e-6,)*4    # very small
     gd = (1e-4,)*4
-    gf = 0
     bs.pbs.updateHeld(grasped, gf, PoseD(gm, gv), hand, gd)
     bs.pbs.excludeObjs([grasped])
     bs.pbs.reset()

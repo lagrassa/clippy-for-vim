@@ -183,6 +183,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
             raw_input('PPconf collides for place in canPickPlaceTest')
             return None, 'Support shadow collision'
         if not canView(pbs2, p, preConf, hand, shadow):
+            preConfShape = preConf.placement(attached = pbs2.getShadowWorld(p).attached)
             pbs2.draw(p, 'W'); preConfShape.draw('W', 'orange'); shadow.draw('W', 'orange')
             raw_input('Failing to view for place in canPickPlaceTest')
             return None, 'Support visibility'

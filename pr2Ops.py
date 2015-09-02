@@ -1558,6 +1558,8 @@ push = Operator('Push', pushArgs,
 # Put the condition to know the pose precisely down at the bottom to
 # try to decrease replanning.
 
+# Debate about level 2 vs level 1 preconds.
+
 pick = Operator(
         'Pick',
         ['Obj', 'Hand', 'PoseFace', 'Pose', 'PoseDelta',
@@ -2115,7 +2117,7 @@ achCanSee = Operator('AchCanSee',
 #
 ######################################################################
 
-magicRegraspCost = 10
+magicRegraspCost = 40
 
 hRegrasp = Operator(
         'HeuristicRegrasp',

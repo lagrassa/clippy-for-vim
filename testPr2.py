@@ -263,7 +263,7 @@ def testWithBInHand(name, goal, args):
                    'objB' : (front, medVar)},
                   ['table1Left'], easy=args.get('easy', False))
     grasped = 'objB'; hand = 'left'
-    args['initBelief'] = lambda bs: makeInitBel(bs, grasped, hand)
+    args['initBelief'] = lambda bs: makeInitBel(bs, grasped, hand, gf=0)
     args['initWorld'] = lambda bs,rw: makeAttachedWorldFromPBS(bs.pbs, rw, grasped, hand)
     skel = None
     return doTest(name, exp, goal, skel, args)
