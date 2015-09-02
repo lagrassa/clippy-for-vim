@@ -76,8 +76,6 @@ prim
 regression
 regression:fail
 regression:fail:bindings
-regression:inconsistent (maybe evidence that generator could have failed
-                          earlier)
 satisfies                          
 sim
 simpleAbstractCostEstimates  (cut down on generator calls high in the hierarchy)
@@ -99,7 +97,7 @@ flags = ['simpleAbstractCostEstimates',
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack', 
                  'debugInHeuristic', 'h'] #, 'hv'] 
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
-                'clobber' + 'regression:fail:bindings']
+                'clobber', 'regression:fail:bindings']
 executionTags = ['executionSurprise', 'executionFail']
 traceOnly = ['traceCRH', 'pickGen', 'placeGen', 'easyGraspGen',
                    'placeInGen', 'lookGen', 'lookHandGen', 'canPickPlaceGen',
@@ -109,7 +107,8 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags #+ skeletonTags + ['canPickPlaceGen']
+debugOn = usualTags + skeletonTags + ['achCanPickPlace', 'canPickPlaceGen',
+                                      'lookAchGen']
 
 debugOnly = debugOnly
 traceOnly = traceOnly 

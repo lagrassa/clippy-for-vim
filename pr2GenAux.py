@@ -705,7 +705,6 @@ def pathObst(cs, cd, p, pbs, name, start=None):
     if key in pbs.beliefContext.pathObstCache:
         return pbs.beliefContext.pathObstCache[key]
     path,  viol = canReachHome(newBS, cs, p, Violations(), homeConf = start)
-    path = interpolatePath(path)        # fill it in...
     if debug('pathObst'):
         newBS.draw(p, 'W')
         cs.draw('W', 'red', attached=newBS.getShadowWorld(p).attached)
@@ -715,6 +714,7 @@ def pathObst(cs, cd, p, pbs, name, start=None):
             print 'pathObst', 'failed to find path to conf in red', (cs, p, newBS)
         ans = None
     else:
+        path = interpolatePath(path)        # fill it in...
         ans = pathShape(path, p, newBS, name)
     pbs.beliefContext.pathObstCache[key] = ans
     return ans

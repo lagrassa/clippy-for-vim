@@ -49,6 +49,7 @@ coolShelvesPose = hu.Pose(1.4, 0.0, tZ, math.pi/2)
 bigVar = (0.1**2, 0.1**2, 1e-10, 0.3**2)
 medVar = (0.05**2, 0.05**2, 1e-10, 0.1**2)
 smallVar = (0.03**2, 0.03**2, 1e-10, 0.06**2)
+tinyVar = (0.001**2, 0.001**2, 1e-10, 0.002**2)
 
 targetSmallVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2)
 
@@ -157,7 +158,30 @@ def test1(**args):
                   ['table1Top', 'table1Left',
                    'table2Top', 'table2Left'], easy=args.get('easy', False))
     goal = inRegion(['objA'], 'table2Left')
-    skel = None
+    skel = [[poseAchIn, lookAt, moveNB, lookAt, move,
+             place, move, pick, moveNB, lookAt, moveNB, lookAt, move]]
+    return doTest('test1', exp, goal, skel, args)
+
+######################################################################
+# Test 1.5: 2 tables move 1 object: more error on table 1
+######################################################################
+
+# pick and place into region.  2 tables
+def test1Point5(**args):
+    glob.rebindPenalty = 700
+    exp = makeExp({'table1' : (table1Pose, medVar),
+                   'table2' : (table2Pose, tinyVar)},
+                  {'objA' : (hu.Pose(1.2, 0.0, tZ, 0.0), medVar)},
+                  ['table1Top', 'table1Left',
+                   'table2Top', 'table2Left'], easy=args.get('easy', False))
+    goal = inRegion(['objA'], 'table2Left')
+    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}),
+             move, place.applyBindings({'Obj' : 'objA'}),
+             move, pick.applyBindings({'Obj' : 'objA'}),
+             moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
+             moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
+             move, achCanPickPlace,
+             move]]
     return doTest('test1', exp, goal, skel, args)
 
 ######################################################################
@@ -199,10 +223,16 @@ def test3(**args):
                  move, place.applyBindings({'Obj' : 'objA'}),
                  move, pick, move]]
     else:
-        skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), move, 
-                 place.applyBindings({'Obj' : 'objA'}),
-                 move, pick, moveNB,
-                 lookAt, move, lookAt, move]]
+        skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}),
+             move, place.applyBindings({'Obj' : 'objA'}),
+             move, pick.applyBindings({'Obj' : 'objA'}),
+             moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
+             moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
+             move, achCanPickPlace,
+             moveNB, lookAt.applyBindings({'Obj' : 'coolShelves'}),
+             move, achCanReach,
+             moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
+             move]]
     return doTest('test3', exp, goal1, skel, args)
 
 ######################################################################

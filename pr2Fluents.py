@@ -307,8 +307,12 @@ class BaseConf(Fluent):
             return self, b
 
 def innerPred(thing):
-    return thing.args[0].predicate if thing.predicate in ('B', 'Bd')\
+    pred = thing.args[0].predicate if thing.predicate in ('B', 'Bd')\
                           else thing.predicate
+    arg0 = thing.args[0].args[0] if thing.predicate in ('B', 'Bd')\
+                          else thing.args[0]
+    return pred+'('+arg0+',...)'
+
 # Check reachability to "home"
 class CanReachHome(Fluent):
     predicate = 'CanReachHome'
@@ -454,7 +458,7 @@ def hCostSee(vis, occluders, details):
     if vis:
         return 0, ActSet()
 
-    obstOps = set([Operator('RemoveObst', [o.name()],{},[]) \
+    obstOps = set([Operator('RemoveObst', [o],{},[]) \
                    for o in occluders])
     for o in obstOps: o.instanceCost = graspObstCost
     totalCost = sum([o.instanceCost for o in obstOps])

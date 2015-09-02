@@ -1351,49 +1351,6 @@ def simplifyCond(oldFs, newFs, details = None):
 def dictSubset(d1, d2):
     return all([k in d2 and d1[k] == d2[k] for k in d1.keys()])
 
-'''
-Old version for reference
-def btGetBindings(functions, goalFluents, start, avoid = [], num = 1):
-    # Avoid is list of dictionaries
-    # Helper fun to find a set of bindings that hasn't been found before
-    def gnb(funs, sofar):
-        if funs == []:
-            beenHere = any([dictSubset(sofar, b) for b in avoid])
-            if not beenHere:
-                tr('btbind', 'returning', sofar)
-                return sofar
-            else:
-                tr('btbind', 'hit duplicate', sofar)
-                return None
-        else:
-            f = funs[0]
-            values  = f.fun([lookup(v, sofar) for v in f.inVars],
-                            [z.applyBindings(sofar) for z in goalFluents],
-                            start)
-            if values == None or values == []:
-                tr('btbind', 'fun failed', f,
-                         [lookup(v, sofar) for v in f.inVars], sofar)
-                return None
-            for val in values:
-                assert len(f.outVars) == len(val)
-                sf = copy.copy(sofar)
-                for (var, vv) in zip(f.outVars, val):
-                    if isVar(var) and not var == vv:
-                        assert not isVar(vv)
-                        sf[var] = vv
-                result = gnb(funs[1:], sf)
-                if result != None:
-                    return result
-            tr('btbind', 'ran out of values', f, sofar)
-            return None
-
-    resultList = []
-    funsInOrder = [f for f in functions if \
-                   f.isNecessary or not isGround(f.outVars)]
-    novelBindings = gnb(funsInOrder, {})
-    return novelBindings
-'''    
-
 def btGetBindings(functions, goalFluents, start, avoid = [], numBindings = 1):
     # Avoid is list of dictionaries
     # Helper fun to find num sets of bindings that hasn't been found before
