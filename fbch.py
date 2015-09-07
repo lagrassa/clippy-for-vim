@@ -1158,8 +1158,6 @@ class Operator(object):
         newGoal = State([])
         for f in newBoundFluents:
             if f.isConditional():
-                valueBefore = startState.fluentValue(f)
-                fBefore = f.copy()
                 # Preconds will not override results
                 f.addConditions(explicitResults, startState.details)
                 if self.conditionOnPreconds:
@@ -1169,11 +1167,6 @@ class Operator(object):
                 if not f.feasible(startState.details):
                     tr('regression:fail', 'conditional fluent infeasible', f)
                     return None
-                valueAfter = startState.fluentValue(f)
-                if valueBefore and not valueAfter:
-                    trAlways('suspicious: conditioning made fluent false',
-                             ('before', fBefore), ('after', f),
-                             pause = True)
             newGoal.add(f, startState.details)
 
         # Could fold the boundPrecond part of this in to addSet later
@@ -1486,7 +1479,7 @@ nop = Operator('Nop', [], {1:[]}, [], [], None)
 
 def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
         skeleton = None, verbose = False, nonMonOps = [], maxNodes = 300,
-        clearCaches = None):
+        clearCaches = None, alwaysReplan = False):
     f = writePreamble(hpnFileTag or fileTag)
     try:
         successful = False
@@ -1494,7 +1487,7 @@ def HPN(s, g, ops, env, h = None, fileTag = None, hpnFileTag = None,
             try:
                 if clearCaches: clearCaches(s.details)
                 HPNAux(s, g, ops, env, h, f, fileTag, skeleton, verbose,
-                       nonMonOps, maxNodes)
+                       nonMonOps, maxNodes, alwaysReplan)
                 successful = True
             except PlanningFailed:
                 trAlways('Planning failed.  Trying HPN from the top.',
@@ -1507,11 +1500,13 @@ class PlanningFailed(Exception):
         return 'Exception: Planning Failed'
 
 def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
-        skeleton = None, verbose = False, nonMonOps = [], maxNodes = 500):
+            skeleton = None, verbose = False, nonMonOps = [], maxNodes = 500,
+            alwaysReplan = False):
     ps = PlanStack(); ancestors = []; lastPlan = -1; planBeforeLastAction = -1
     ps.push(Plan([(nop, State([])), (top, g)]))
     (op, subgoal, oldSkel) = (top, g, None)
     while not ps.isEmpty() and op != None:
+        didPrim = False
         if op.isAbstract():
             # Plan again at a more concrete level
             writeSubgoalRefinement(f, ps.guts()[-1], subgoal)
@@ -1539,7 +1534,11 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
             # Execute
             executePrim(op, s, env, f)
             planBeforeLastAction = lastPlan
-                
+            didPrim = True
+
+        if alwaysReplan and didPrim:
+            ps.popTo(1)
+
         # Decide what to do next
         # will pop levels we don't need any more, so that p is on the top
         # op will be None if we are done
