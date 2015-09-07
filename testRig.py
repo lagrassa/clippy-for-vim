@@ -385,7 +385,7 @@ class PlanTest:
             heuristic = habbs,
             greedy = 0.75, simulateError = False,
             initBelief = None, initWorld=None,
-            rip = False, **other):
+            rip = False, alwaysReplan = False, **other):
         randomizedInitialPoses = rip
         global heuristicTime
         glob.inHeuristic = False
@@ -476,7 +476,8 @@ class PlanTest:
                     fileTag = self.name if writeSearch else None,
                     nonMonOps = ['Move', 'MoveNB', 'LookAt', 'Place'],
                     maxNodes = 200,
-                    clearCaches = clearCaches)
+                    clearCaches = clearCaches,
+                    alwaysReplan = alwaysReplan)
             else:
                 p = planBackward(s,
                                  goal,
