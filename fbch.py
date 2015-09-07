@@ -133,8 +133,6 @@ class State:
                              *fizz)
                 result = numNonGround * defaultFluentCost
 
-        tr('h', result)
-
         return result, actSet  # this will probably cause trouble
 
     def updateStateEstimate(self, op, obs=None):

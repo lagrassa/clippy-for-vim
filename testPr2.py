@@ -133,8 +133,10 @@ def test0(**args):
              place.applyBindings({'Obj' : 'objA'}),
              move, pick, moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}),
-             moveNB, lookAt, move]]
-    # pick/place, hierarchical
+             moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
+             move, lookAt.applyBindings({'Obj' : 'table1'}),
+             move]]
+    # pick/place, hierarchical.  Not verified recently
     hskel = [[poseAchIn],
             [poseAchIn],
             [poseAchIn, lookAt, place],

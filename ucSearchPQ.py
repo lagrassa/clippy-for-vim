@@ -13,7 +13,7 @@ from heapq import heappush, heappop
 
 import planGlobals as glob
 reload(glob)
-from traceFile import debugMsg, debug, trAlways
+from traceFile import debugMsg, debug, trAlways, tr
 
 class SearchNode:
     """A node in a search tree"""
@@ -93,7 +93,9 @@ def search(initialState, goalTest, actions, successor,
         hVals = {}
         def getH(state):
             if not state in hVals:
-                hVals[state] = heuristic(state)
+                hv = heuristic(state)
+                hVals[state] = hv
+                tr('h', hv)
             return hVals[state]
 
         startNode = SearchNode(None, initialState, None, 0,

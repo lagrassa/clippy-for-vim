@@ -242,10 +242,11 @@ class BaseConf(Fluent):
         return baseConfWithin(bState.pbs.conf['pr2Base'], targetConf, delta)
 
     def heuristicVal(self, details):
-        # Assume we will need to do a look and a move
-        # Could be smarter.
+        # Needs heuristic val because we don't have an operator that
+        # explicitly produces this.  Assume we will need to do a look
+        # and a move Could be smarter.
         dummyOp = Operator('LookMove', ['dummy'],{},[])
-        dummyOp.instanceCost = 3
+        dummyOp.instanceCost = 7.0
         return (dummyOp.instanceCost, ActSet([dummyOp]))
 
     def fglb(self, other, details = None):
