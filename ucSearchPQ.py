@@ -72,7 +72,8 @@ def search(initialState, goalTest, actions, successor,
            multipleSuccessors = False,
            greedy = 0.5,
            verbose = False, printFinal = True, maxHDelta = None,
-           maxCost = float('inf')):
+           maxCost = float('inf'),
+           fail = True):
         """
         @param initialState: root of the search
         @param goalTest: function from state to Boolean
@@ -195,7 +196,7 @@ def search(initialState, goalTest, actions, successor,
 
         if somewhatVerbose or verbose or count >= maxNodes:
             print "Search failed after visiting ", count, " states."
-            pdb.set_trace()
+            if fail: pdb.set_trace()
 
         return None, None
 
@@ -216,7 +217,8 @@ def searchGen(initialState, goalStates, actions, successor,
               greedy = 0.5,
               goalKey = lambda x: x,
               goalCostFn = lambda x: 0,
-              verbose = False, printFinal = True, maxHDelta = None):
+              verbose = False, printFinal = True, maxHDelta = None,
+              fail = False):
 
     somewhatVerbose = verbose
     verbose = False
@@ -332,7 +334,7 @@ def searchGen(initialState, goalStates, actions, successor,
     if somewhatVerbose or verbose or count >= maxNodes or countExpanded >= maxExpanded:
         print "Search failed after visiting ", count, " states."
         # raw_input('Too many nodes')
-        pdb.set_trace()
+        if fail: pdb.set_trace()
 
     yield None, None
 

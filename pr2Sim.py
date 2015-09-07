@@ -471,6 +471,8 @@ class RealWorld(WorldState):
                 tr('sim', 'path len = %d'%(len(path)))
                 if not path:
                     raw_input('No path!!')
+                if len(path) < 4:
+                    raw_input('Short path!!')
                 obj = op.args[0]
                 hand = op.args[1]
                 robot = path[0].robot
@@ -541,15 +543,17 @@ def objectDisplacement(shape, c1, c2, hand, deltaPose):
     gripperVerts = allVerts(gripperShape)
 
     if gripperShape.collides(shape):
-        nshape = shape.applyTrans(deltaPose)
-        delta = deltaPose
-        while gripperShape.collides(nshape):
-            delta = delta.compose(delta).pose(0.1)
-            nshape = shape.applyTrans(delta)
+        # nshape = shape.applyTrans(deltaPose)
+        # delta = deltaPose
+        # while gripperShape.collides(nshape):
+        #     delta = delta.compose(delta).pose(0.1)
+        #     nshape = shape.applyTrans(delta)
         supportPoints = shapeSupportPoints(shape)
-        #  initial = np.array([delta.x, delta.y, delta.theta])
         initial = np.zeros(3)
         final, finalVal = bruteForceMin(sumDisplacements, initial)
+        displacement = math.sqrt(final[0]**2 + final[1]**2)
+        if displacement > 0.05:
+            print 'Displacement for the object while pushing', displacement
         return hu.Pose(final[0], final[1], 0.0, final[2])
     else:
         return hu.Pose(0.0, 0.0, 0.0, 0.0)

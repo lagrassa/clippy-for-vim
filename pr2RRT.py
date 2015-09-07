@@ -1,6 +1,4 @@
-#import math
-#import random
-#import copy
+import pdb
 import time
 from time import sleep
 import planGlobals as glob
@@ -283,7 +281,9 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
         nodes = rrt.findGoalPath(goalTest, K = maxIter or glob.maxRRTIter)
         failCount += 1
         if debug('rrt') or failCount % 10 == 0:
-            if failCount > 0: print 'RRT Failed', failCount, 'times'
+            if failCount > 0:
+                print 'RRT Failed', failCount, 'times'
+                pdb.set_trace()
     if failCount == (failIter or glob.failRRTIter):
         return [], None
     rrtTime = time.time() - startTime

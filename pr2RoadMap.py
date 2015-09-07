@@ -461,7 +461,6 @@ class RoadMap:
                                          reverse = (not reversePath),
                                          useStartH = True)
             ans = next(ansGen, None)
-        
         if ans is None:
             trAlways('Calling RRT')
             path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
@@ -1265,7 +1264,8 @@ class RoadMap:
                                    visitF = minViolPathDebugVisit if debug('expand') else None,
                                    greedy = searchOpt if optimize else searchGreedy,
                                    printFinal = debug('minViolPath'),
-                                   verbose = False)
+                                   verbose = False,
+                                   fail = False)
             for ans in gen:
                 (path, costs) = ans
                 if not path:
@@ -1455,6 +1455,9 @@ class RoadMap:
                 ansCC = True
             if (not ansCC) and attached:
                 for hand in ('left', 'right'):
+                    if selectedChains is not None:
+                        armChainName = conf.robot.armChainNames[hand]
+                        if armChainName not in selectedChains: continue
                     acc = compileAttachedFrames(conf.robot, attached, hand, rcc[0])
                     if chainCollides(acc, None, occ, None, clearance):
                         ansCC = True

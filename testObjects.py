@@ -135,8 +135,8 @@ def makeLegTable(dx=0.603, dy=0.298, dz=0.67, name='table1', width=0.1, color = 
     reg = [Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name+'Top', color=color),
            Ba([(0.2, -dy, 0.), (dx, dy, dz)], name=name+'Left', color=color),
            Ba([(-dx, -dy, 0.), (-0.2, dy, dz)], name=name+'Right', color=color),
-           Ba([(-0.2*dx, 0, 0.), (0.2*dx, dy, dz)], name=name+'MidRear', color=color),
-           Ba([(-0.2*dx, -dy, 0.), (0.2*dx, 0, dz)], name=name+'MidFront', color=color)]
+           Ba([(-0.2*dx, 0, 0.), (0.2*dx, dy, dz)], name=name+'MidFront', color=color),
+           Ba([(-0.2*dx, -dy, 0.), (0.2*dx, 0, dz)], name=name+'MidRear', color=color)]
     regions = [(r, hu.Pose(0.,0.,dz/2,0.)) for r in reg]
     table = [\
         Ba([(-dx, -dy, dz-width), (dx, dy, dz)],

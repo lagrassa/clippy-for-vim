@@ -326,7 +326,7 @@ def test9(**args):
 def testSwap(hardSwap = False, **args):
     glob.rebindPenalty = 150
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+    back = hu.Pose(1.4, 0.0, tZ, 0.0)
     parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
     parking2 = hu.Pose(0.95, -0.3, tZ, 0.0)
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -335,7 +335,7 @@ def testSwap(hardSwap = False, **args):
                    'objB' : (front, medVar)},
                   ['table1Top', 'table2Top', 'table1MidFront',
                    'table1MidRear'], easy=args.get('easy', False))
-    goal = inRegion(['objA', 'objB'], ['table1MidRear', 'table1MidFront'])
+    goal = inRegion(['objA', 'objB'], ['table1MidFront', 'table1MidRear'])
     # A on other table
     goal1 = inRegion('objA', 'table2Top')
     skel1 = [[poseAchIn, 
@@ -360,21 +360,21 @@ def testBusy(hardSwap = False, **args):
     glob.rebindPenalty = 150
     # Put this back to make the problem harder
     #back = hu.Pose(1.1, 0.0, tZ, 0.0)
-    back = hu.Pose(1.25, 0.0, tZ, 0.0)
-    parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
-    parking2 = hu.Pose(0.95, -0.3, tZ, 0.0)
+    back = hu.Pose(1.45, 0.0, tZ, 0.0)
+    parking1 = hu.Pose(1.15, 0.3, tZ, 0.0)
+    parking2 = hu.Pose(1.15, -0.3, tZ, 0.0)
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    'table2' : (table2Pose, smallVar)},
                   {'objA' : (back, medVar),
-                   'objB': (hu.Pose(0.95, -0.4, tZ, 0.0), medVar),
-                   'objC': (hu.Pose(0.45, -1.2, tZ, 0.0), medVar),
-                   'objD': (hu.Pose(0.95, -0.2, tZ, 0.0), medVar),
-                   'objE': (hu.Pose(0.95, 0.0, tZ, 0.0), medVar),
-                   'objF': (hu.Pose(0.95, 0.2, tZ, 0.0), medVar),
-                   'objG': (hu.Pose(0.95, 0.4, tZ, 0.0), medVar)},
+                   'objB': (hu.Pose(1.15, -0.4, tZ, 0.0), medVar),
+                   'objC': (hu.Pose(0.65, -1.2, tZ, 0.0), medVar),
+                   'objD': (hu.Pose(1.15, -0.2, tZ, 0.0), medVar),
+                   'objE': (hu.Pose(1.15, 0.0, tZ, 0.0), medVar),
+                   'objF': (hu.Pose(1.15, 0.2, tZ, 0.0), medVar),
+                   'objG': (hu.Pose(1.15, 0.4, tZ, 0.0), medVar)},
                   ['table1Top', 'table2Top', 'table1MidFront',
                    'table1MidRear'], easy=args.get('easy', False))
-    goal = inRegion(['objA', 'objB'], ['table1MidRear', 'table1MidFront'])
+    goal = inRegion(['objA', 'objB'], ['table1MidFront', 'table1MidRear'])
     # A on other table
     goal1 = inRegion('objA', 'table2Top')
     skel1 = [[poseAchIn, 
@@ -449,9 +449,9 @@ def testPushShelves(name, objName, startPose, targetPose,
 
 def testPush3(objName='bigA', **args):
     testPushShelves('testPush3', objName,
-                    hu.Pose(1.05, 0.0, tZ, 0.0),
+                    hu.Pose(1.1, 0.0, tZ, 0.0),
                     hu.Pose(1.5, 0.5, tZ, 0.0),
-                    hu.Pose(1.05, -0.4, tZ, 0.0), # out of the way
+                    hu.Pose(1.1, -0.4, tZ, 0.0), # out of the way
                     **args)
 
 ######################################################################
@@ -460,9 +460,9 @@ def testPush3(objName='bigA', **args):
 
 def testPush4(objName='bigA', **args):
     testPushShelves('testPush3', objName,
-                    hu.Pose(1.05, 0.0, tZ, 0.0),
+                    hu.Pose(1.1, 0.0, tZ, 0.0),
                     hu.Pose(1.5, 0.5, tZ, 0.0),
-                    hu.Pose(1.05, 0.4, tZ, 0.0), # in the way
+                    hu.Pose(1.1, 0.4, tZ, 0.0), # in the way
                     **args)
 
 ######################################################################

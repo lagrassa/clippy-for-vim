@@ -1422,7 +1422,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     viol = rm.confViolations(conf, newBS, prob)
     if not viol:
         if debug(tag): print 'Conf collides in pushPath'
-        pushPathCache[key].append((pbs, prob, gB, (None, None)))
+        pushPathCache[key].append((pbs, prob, gB, ([], None)))
         return [], None
     # We will return (conf, viol, pose) for steps along the path --
     # starting at prePose.  Before contact, pose in None.

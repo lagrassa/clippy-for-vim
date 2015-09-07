@@ -276,9 +276,11 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         # but infeasibility of one of the grasp confs due to held
         # object does not guarantee there are no solutions.
         if (not firstConf):
-            tr(tag, 'No potential grasp confs, will need to regrasp',
-               draw=[(pbs, prob, 'W')], snap=['W'])
-            raw_input('need to regrasp')
+            if not onlyCurrent:
+                tr(tag, 'No potential grasp confs, will need to regrasp',
+                   draw=[(pbs, prob, 'W')], snap=['W'])
+                if debug(tag): raw_input('Cannot find conf for current pose, need to regrasp')
+                else: print 'Cannot find conf for current pose, need to regrasp'
         else:
             targetConfs = graspApproachConfGen(firstConf)
             batchSize = 1 if glob.inHeuristic else pickPlaceBatchSize
@@ -312,9 +314,13 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                              (c, 'W', 'navy', shWorld.attached)],
                        snap=['W'])
                     yield ans
-        if onlyCurrent:
-            tr(tag, 'onlyCurrent: out of values')
-            return
+    else:
+        if debug(tag): raw_input('Current pose is not known, need to regrasp')
+        else: print 'Current pose is not known, need to regrasp'
+
+    if onlyCurrent:
+        tr(tag, 'onlyCurrent: out of values')
+        return
         
     # Try a regrasp... that is place the object somewhere else where it can be grasped.
     if glob.inHeuristic:
@@ -324,7 +330,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         return
     
     tr(tag, 'Calling for regrasping... h=%s'%glob.inHeuristic)
-    #raw_input('Regrasp?')
+
     # !! Needs to look for plausible regions...
     regShapes = regShapes = [shWorld.regionShapes[region] for region in pbs.awayRegions()]
     plGen = placeInGenTop((obj, regShapes, graspB, placeB, None, prob),

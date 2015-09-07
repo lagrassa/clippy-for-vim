@@ -356,7 +356,7 @@ class Subtract(Function):
         if a == '*' or b == '*':
             return [['*']]
         result = tuple([aa - bb for (aa, bb) in zip(a, b)])
-        if any([x < minDelta for x in [result[0], result[1], result[3]]]):
+        if any([x < minDelta for x in [result[0], result[1], result[3]]]) or result[2] < 0.0:
             debugMsg('smallDelta', 'Delta would be negative or zero', result)
             return []
         return [[result]]
