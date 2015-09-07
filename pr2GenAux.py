@@ -1128,9 +1128,9 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     return
 
 def baseDist(c1, c2):
-    (x1,y1,_) = c1['pr2Base']
-    (x2,y2,_) = c2['pr2Base']
-    return ((x2-x1)**2 + (y2-y1)**2)**0.5
+    (x1,y1,th1) = c1['pr2Base']
+    (x2,y2,th2) = c2['pr2Base']
+    return ((x2-x1)**2 + (y2-y1)**2 + hu.angleDiff(th1,th2)**2)**0.5
     
 #############
 

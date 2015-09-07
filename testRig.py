@@ -504,9 +504,17 @@ class PlanTest:
         # Remove the skeleton tags
         glob.debugOn = [x for x in glob.debugOn if x not in glob.skeletonTags]
         glob.pauseOn = [x for x in glob.pauseOn if x not in glob.skeletonTags]
-        while raw_input('Playback? Return = No, Anything else = Yes: '):
-            wm.getWindow('World').playback(delay=0.01)
-            print 'Done playback'
+        while True:
+            ans = raw_input('Playback? w = world, b = belief, q = no: ')
+            if ans in ('w', 'W'):
+                wm.getWindow('World').playback(delay=0.01)
+            elif ans in ('b', 'B'):
+                wm.getWindow('Belief').playback(delay=0.01)
+            elif ans in ('q', 'Q'):
+                print 'Done playback'
+                return
+            else:
+                print 'Please enter w, b or q'
 
 def getSupportedPose(realWorld, obj, meanObjPose, variance):
     stDev = tuple([math.sqrt(v) for v in variance])
