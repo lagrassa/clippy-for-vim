@@ -509,7 +509,7 @@ class PlanTest:
             if ans in ('w', 'W'):
                 wm.getWindow('World').playback(delay=0.01)
             elif ans in ('b', 'B'):
-                wm.getWindow('Belief').playback(delay=0.01)
+                wm.getWindow('Belief').playback(delay=0.1)
             elif ans in ('q', 'Q'):
                 print 'Done playback'
                 return

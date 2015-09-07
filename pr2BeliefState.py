@@ -79,11 +79,11 @@ class BeliefState:
             s += '   pose: %s\n'%prettyString(stuff.poseD.meanTuple())
             s += '  stdev: %s\n'%prettyStdev(stuff.poseD.varTuple())
         s += '------------  Belief -------------\n'
-        wm.getWindow('World').capturing = True
+        wm.getWindow('Belief').capturing = True
         trAlways(s, pause = False, draw=[(self.pbs, 0.9, w)], snap=[w])
-        wm.getWindow('World').update()
-        wm.getWindow('World').pause()
-        wm.getWindow('World').capturing = False
+        wm.getWindow('Belief').update()
+        wm.getWindow('Belief').pause()
+        wm.getWindow('Belief').capturing = False
 
 def diagToSq(d):
     return [[(d[i] if i==j else 0.0) \
