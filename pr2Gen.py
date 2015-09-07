@@ -5,6 +5,7 @@ from dist import DeltaDist
 from pr2Util import supportFaceIndex, shadowWidths, trArgs
 from pr2PlanBel import getConf, getGoalPoseBels
 from shapes import Box
+from pr2Fluents import baseConfWithin
 from pr2GenAux import *
 from planUtil import PPResponse, ObjPlaceB, PoseD
 from pr2Push import pushInRegionGenGen
@@ -957,13 +958,16 @@ def lookGenTop(args, goalConds, pbs):
             # Modify the lookConf (if needed) by moving arm out of the
             # way of the viewCone.  Use the before shadow because this
             # conf needs to be safe before we look
-
-            # lookConf = lookAtConfCanView(newBS_after, prob, newBS_after.conf,
-            #                              shapeForLook,
-            #                              shapeShadow=shapeShadow, findPath=False) \
-            #             or \
-
-            lookConf = lookAtConfCanView(newBS_after, prob, confAtTarget,
+            delta = pbs.domainProbs.moveConfDelta
+            if baseConfWithin(pbs.conf['pr2Base'], base, delta):
+                curLookConf = lookAtConfCanView(newBS_after, prob, newBS_after.conf,
+                                                shapeForLook,
+                                                shapeShadow=shapeShadow,
+                                                findPath=False)
+            else:
+                curLookConf = None
+            lookConf = curLookConf or \
+                       lookAtConfCanView(newBS_after, prob, confAtTarget,
                                          shapeForLook, shapeShadow=shapeShadow)
             if lookConf:
                 tr(tag, '=> Found a path to look conf with specified base.',

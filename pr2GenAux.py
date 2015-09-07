@@ -943,8 +943,17 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         for gB in graspGen(pbs, obj, graspB):
             grasp = gB.grasp.mode()
             debugMsg(tag, 'Trying grasp = %d'%grasp)
-            c, ca, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, base, prob, nMax=1),
-                            (None,None,None))
+            if base:
+                c, ca, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, base, prob, nMax=1),
+                                (None,None,None))
+            else:
+                # Try not to move the base...
+                cb = pbs.conf['pr2Base']
+                c, ca, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, cb, prob, nMax=1),
+                                (None,None,None))
+                if not v:
+                    c, ca, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, None, prob, nMax=1),
+                                    (None,None,None))
             if v:
                 if debug(tag):
                     pbs.draw(prob, 'W'); c.draw('W', 'green')
@@ -1079,7 +1088,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     else:
         costHistory = []
         poseHistory = []
-        historySize = 5
+        historySize = 20                # used to be 5
         tries = 0
         while count < maxPoses and tries < maxTries:
             # Randomized
