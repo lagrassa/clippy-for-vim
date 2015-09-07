@@ -178,11 +178,11 @@ class Conf(Fluent):
         (targetConf, delta) = self.args
         return confWithin(bState.pbs.conf, targetConf, delta)
 
-    def getGrounding(self, details):
+    def getGrounding(self, bstate):
         assert self.value == True
         (targetConf, delta) = self.args
         assert not isGround(targetConf)
-        return {targetConf : details.pbs.conf}
+        return {targetConf : bstate.details.pbs.conf}
 
     def couldClobber(self, other, details = None):
         return other.predicate in ('Conf', 'BaseConf')
@@ -537,7 +537,7 @@ class CanReachNB(Fluent):
                snap = ['W'])
         return bool(path and violations.empty())
 
-    def getGrounding(self, details):
+    def getGrounding(self, bstate):
         assert self.value == True
         (startConf, targetConf, cond) = self.args
         assert not isGround(targetConf)

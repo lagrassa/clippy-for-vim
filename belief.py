@@ -92,11 +92,11 @@ class Bd(BFluent):
     def removeProbs(self):
         return Bd([self.args[0], self.args[1], None], self.value)
 
-    def getGrounding(self, details):
+    def getGrounding(self, bstate):
         (rFluent, v, p) = self.args
         if not isGround(rFluent.args):
             return None
-        dv = rFluent.dist(details)
+        dv = rFluent.dist(bstate.details)
         b = {}
         if isAnyVar(v):
             b[v] = dv.mode()
@@ -279,11 +279,11 @@ class B(BFluent):
                    and (dc.sigma.diagonal() <= np.array(var)).all() \
                    and dp >= p
 
-    def getGrounding(self, details):
+    def getGrounding(self, bstate):
         (rFluent, v, var, delta, p) = self.args
         if not isGround(rFluent.args):
             return None
-        dv = rFluent.dist(details)
+        dv = rFluent.dist(bstate.details)
         b = {}
         if isAnyVar(v):
             b[v] = dv.modeList()  # hack

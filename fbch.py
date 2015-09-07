@@ -73,7 +73,10 @@ class State:
         # defined, else the default
         total = 0
         actSet = set()
-        fluentGroups = start.details.partitionFn(self.fluents)
+        if hasattr(start.details, 'partitionFn'):
+            fluentGroups = start.details.partitionFn(self.fluents)
+        else:
+            fluentGroups = [[f] for f in self.fluents]
         for fg in fluentGroups:
             # If the group is not all ground, check first to see if
             # the whole group is satisfiable.  Would be nicer to
@@ -129,7 +132,10 @@ class State:
                              'Heuristic 0 but not sure why',
                              *fizz)
                 result = numNonGround * defaultFluentCost
-        return result
+
+        tr('h', result)
+
+        return result, actSet  # this will probably cause trouble
 
     def updateStateEstimate(self, op, obs=None):
         # Assumes that we're not progressing fluents, so just update
@@ -245,7 +251,7 @@ class State:
         goalFluents = goal.fluents
         extraBindings = {}
         if not all([bf.isGround() for bf in goalFluents]):
-            b = getGrounding(goalFluents, self.details)
+            b = getGrounding(goalFluents, self)
             if b == None:
                 debugMsg('satisfies', 'failed to find satisfiable grounding',
                          goalFluents)
@@ -487,11 +493,11 @@ class Fluent(object):
         return self.isPartiallyBoundStored
 
     # For a fluent that is ground except for the value, get the value
-    def getGrounding(self, details):
+    def getGrounding(self, state):
         if not isGround(self.args):
             return None
-        #v = self.valueInDetails(details)
-        v = details.fluentValue(self)
+        #v = self.valueInDetails(self.details)
+        v = state.fluentValue(self)
         b = {}
         if isVar(self.value):
             b[self.value] = v
@@ -1214,7 +1220,7 @@ class Operator(object):
         else:
             # Use heuristic difference as an estimate of operator cost.
             hh = heuristic if heuristic else \
-                        lambda s: s.easyH(startState, defaultFluentCost = 1.5)
+                     lambda s: s.easyH(startState, defaultFluentCost = 1.5)[0]
             hNew = hh(newGoal)
             if hNew == float('inf'):
                 tr('regression:fail','New goal is infeasible', newGoal)
@@ -1769,7 +1775,7 @@ def makePlanObj(regressionPlanUnbound, start):
     # Result is supposed to be a list of (action, state)
     planPreImage = regressionPlanUnbound[-1][1]
     b = planPreImage.bindings
-    grounding = getGrounding(planPreImage.fluents, start.details)
+    grounding = getGrounding(planPreImage.fluents, start)
     b.update(grounding)
     plan = applyBindings(regressionPlanUnbound, b)
     n = len(plan)
@@ -2044,11 +2050,11 @@ def opEquiv(o1, o2):
 
 # Try to see if the unbound variables in the fluents can be bound in the
 # details
-def getGrounding(fluents, details):
+def getGrounding(fluents, state):
     b = {}
     for f in fluents:
         if not f.isGround():
-            g = f.getGrounding(details)
+            g = f.getGrounding(state)
             if g != None:
                 b.update(g)
     bFluents = [f.applyBindings(b) for f in fluents] if b != {} else fluents
