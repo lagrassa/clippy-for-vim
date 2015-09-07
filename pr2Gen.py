@@ -953,9 +953,16 @@ def lookGenTop(args, goalConds, pbs):
         # checking that confAtTarget is not blocked by fixed
         # obstacles.
         if testFn(confAtTarget, shapeForLook, shWorld_before):
+            # Is current conf good enough?  If not -
             # Modify the lookConf (if needed) by moving arm out of the
             # way of the viewCone.  Use the before shadow because this
             # conf needs to be safe before we look
+
+            # lookConf = lookAtConfCanView(newBS_after, prob, newBS_after.conf,
+            #                              shapeForLook,
+            #                              shapeShadow=shapeShadow, findPath=False) \
+            #             or \
+
             lookConf = lookAtConfCanView(newBS_after, prob, confAtTarget,
                                          shapeForLook, shapeShadow=shapeShadow)
             if lookConf:
@@ -1046,7 +1053,8 @@ def lookGenTop(args, goalConds, pbs):
 # block the view cone.  It will construct a path from the input conf
 # to the returned lookConf if necessary - the path is not returned,
 # only the final conf.
-def lookAtConfCanView(pbs, prob, conf, shape, hands=('left', 'right'), shapeShadow=None):
+def lookAtConfCanView(pbs, prob, conf, shape, hands=('left', 'right'),
+                      shapeShadow=None, findPath=True):
     lookConf = lookAtConf(conf, shape)  # conf with head looking at shape
     if not glob.inHeuristic:            # if heuristic we'll ignore robot
         for hand in hands:              # consider each hand in turn
@@ -1056,7 +1064,8 @@ def lookAtConfCanView(pbs, prob, conf, shape, hands=('left', 'right'), shapeShad
             # Find path from lookConf to some conf that does not
             # collide with viewCone.  The last conf in the path will
             # be the new lookConf.
-            path = canView(pbs, prob, lookConf, hand, shape, shapeShadow=shapeShadow)
+            path = canView(pbs, prob, lookConf, hand, shape,
+                           shapeShadow=shapeShadow, findPath=findPath)
             if not path:
                 tr('lookAtConfCanView', 'lookAtConfCanView failed path')
                 return None
