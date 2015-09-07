@@ -461,7 +461,7 @@ def testPush3(objName='bigA', **args):
 def testPush4(objName='bigA', **args):
     testPushShelves('testPush3', objName,
                     hu.Pose(1.1, 0.0, tZ, 0.0),
-                    hu.Pose(1.5, 0.5, tZ, 0.0),
+                    hu.Pose(1.1, 0.5, tZ, 0.0), # x = 1.5 to get two pushes
                     hu.Pose(1.1, 0.4, tZ, 0.0), # in the way
                     **args)
 

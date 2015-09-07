@@ -1606,8 +1606,8 @@ def displaceHandRot(conf, hand, offsetPose, nearTo=None, tiltRot=None, angle=0.0
     nCart = cart.set(handFrameName, nTrans)
     nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
     if all(nConf.values()):
+        assert all(conf[g] == nConf[g] for g in ('pr2LeftGripper', 'pr2RightGripper'))
         return nConf
-    drawFrame(nTrans)
     
 def handTiltAndDir(conf, hand, direction):
     cart = conf.cartConf()
