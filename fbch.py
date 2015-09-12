@@ -447,7 +447,7 @@ class Fluent(object):
         assert self.isConditional()
         cond = self.args[-1]
         newRelevantConds = [c for c in newConds if self.conditionOn(c)]
-        self.args[-1] = simplifyCond(cond, newConds, details)
+        self.args[-1] = simplifyCond(cond, newRelevantConds, details)
         self.update()
 
     def shortName(self):
@@ -1974,6 +1974,7 @@ def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):
         newOp = o.reconfigure(preConds, results)
         bigBindingSet = getBindingsBetween(list(results), list(g.fluents),
                                                startState)
+        debugMsg('appOp:result', 'binding set', bigBindingSet)
         bindingSet = []
         for b in bigBindingSet:
             rawBoundRFs = set([f.applyBindings(b) for f in results])
@@ -2015,6 +2016,10 @@ def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):
                 debugMsg('appOp:detail', 'some extra result in goal',b,extraRfs)
             elif monotonic:
                 debugMsg('appOp:detail', 'nonmon: skipping binding', b,boundRFs)
+            else:
+                debugMsg('appOp:detail', 'beats the hell out of me')
+
+
         for b in bindingSet:
             if b != False:
                 newOpBound = newOp.applyBindings(b, rename = True)
