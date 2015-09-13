@@ -86,10 +86,12 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
             debugMsg('visible', 'Not enough hit points')
         cache[key] = (False, [])
         return False, []
+
     if 'table' in shape.name() or glob.inHeuristic:
         threshold = 0.5*prob            # generous
     else:
-        threshold = 0.75*prob
+        # threshold = 0.75*prob
+        threshold = 0.5
 
     for i, objShape in enumerate(fix):
         if objShape not in potentialOccluders: continue
@@ -155,7 +157,8 @@ def lookAtConf(conf, shape):
         lookConf = conf.robot.inverseKin(lookCartConf, conf=conf)
         if all(lookConf.values()):
             return lookConf
-    print 'Failed to look at', shape.name(), center.tolist()
+    if debug('visible'):
+        print 'Failed head kinematics trying to look at', shape.name(), 'from', center.tolist()
 
 def viewCone(conf, shape, offset = 0.1, moveHead=True):
     if moveHead:

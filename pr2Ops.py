@@ -103,7 +103,7 @@ def primPath(bs, cs, ce, p):
             # make sure to interpolate paths in their original directions.
             path = rrt.interpolatePath(path1) + rrt.interpolatePath(path2)[::-1]
     else:
-        print 'Direct path succeeded'
+        trAlways('Direct path succeeded')
 
     smoothed = bs.getRoadMap().smoothPath(path, bs, p)
     interpolated = rrt.interpolatePath(smoothed)
@@ -120,7 +120,7 @@ def primNBPath(bs, cs, ce, p):
     if v.weight() > 0:
         raw_input('Potential collision in primitive path')
     else:
-        print 'Success'
+        trAlways('Success on primNB')
     smoothed = bs.getRoadMap().smoothPath(path, bs, p)
     interpolated = rrt.interpolatePath(smoothed)
     verifyPaths(bs, p, path, smoothed, interpolated)
@@ -1615,7 +1615,7 @@ pick = Operator(
         cost = pickCostFun,
         f = pickBProgress,
         prim = pickPrim,
-        argsToPrint = [0, 1, 3, 9],
+        argsToPrint = [0, 1, 5, 3, 9],
         ignorableArgs = range(1, 18),
         ignorableArgsForHeuristic = range(4, 18),
         rebindPenalty = 10)
@@ -1753,7 +1753,7 @@ class AchCanReachGen(Function):
             if not State(goal).isConsistent(newCond):
                 print 'AchCanReach suggestion inconsistent with goal'
                 for c in newCond: print c
-                raw_input('go?')
+                debugMsg(tag, 'Inconsistent')
             else:
                 yield op, newCond
 
@@ -1773,7 +1773,7 @@ class AchCanReachNBGen(Function):
             if not State(goal).isConsistent(newCond):
                 print 'AchCanReachNB suggestion inconsistent with goal'
                 for c in newCond: print c
-                raw_input('go?')
+                debugMsg(tag, 'Inconsistent')
             else:
                 yield op, newCond
 
@@ -1843,7 +1843,8 @@ def achCanXGen(pbs, goal, originalCond, targetFluents, violFn, prob, tag):
         if viol.empty():
             tr(tag, '=> No obstacles or shadows; returning'); return []
 
-        print 'need to see if base pose is specified and pass it in'
+        if debug('nagLeslie'):
+            print 'need to see if base pose is specified and pass it in'
 
         lookG = lookAchCanXGen(newBS, shWorld, viol, violFn, prob)
         placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob,
@@ -1899,12 +1900,21 @@ def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
 def ignore(thing):
     pass
 
+def fixedHeld(pbs, obj):
+    for hand in ('left', 'right'):
+        if obj == pbs.held[hand].mode() and pbs.fixHeld[hand]:
+            return True
+    return False
+
 def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
     tag = 'placeAchGen'
     obstacles = [o.name() for o in initViol.allObstacles() \
-                  if not o.name() in shWorld.fixedObjects and \
+                  if (not o.name() in shWorld.fixedObjects) and \
+                     (not fixedHeld(newBS, o.name())) and \
                      graspable(o.name())]
-    if not obstacles:
+    if obstacles:
+        tr(tag, '=> Pickable obstacles to fix', obstacles)
+    else:
         tr(tag, '=> No pickable obstacles to fix')
         return       # nothing available
 
@@ -1941,14 +1951,18 @@ def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
                          r.ca, 'ConfDelta', r.c, 'AwayRegion',
                          prob, prob, prob, 'P1')
             tr(tag, '=> returning', op, '\n', newConds)
+            print '*** moveOut', obst
             yield op, newConds
     tr(tag, '=> Out of remedies')
 
 def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
     tag = 'pushAchGen'
     obstacles = [o.name() for o in initViol.allObstacles() \
-                  if not o.name() in shWorld.fixedObjects]
-    if not obstacles:
+                  if (not o.name() in shWorld.fixedObjects) and \
+                  (not fixedHeld(newBS, o.name()))]
+    if obstacles:
+        tr(tag, 'Movable obstacles to fix', obstacles)        
+    else:
         tr(tag, '=> No movable obstacles to fix')
         return       # nothing available
 
@@ -1976,6 +1990,7 @@ def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
                          moveDelta, prePose, prePoseVar, r.preConf, r.pushConf,
                          r.postConf,  'ConfDelta', prob, 'PR1', 'PR2')
             tr(tag, '=> returning', op)
+            print '*** pushOut', obst
             yield op, newConds
     tr(tag, '=> Out of remedies')
     

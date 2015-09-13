@@ -71,7 +71,7 @@ def debugDraw(tag, obj, window, color = None, skip=False):
 
 
 def tr(genTag, *msg, **keys):
-    if keys.get('skip', False):  return
+    if keys.get('skip', False) or 'noTrace' in glob.debugOn:  return
         
     if glob.inHeuristic and htmlFileH:
         targetFile = htmlFileH

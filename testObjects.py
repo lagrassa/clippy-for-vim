@@ -29,11 +29,11 @@ sym6 = ({4 : 4}, {4 : [hu.Pose(0.,0.,0., (1./3.)*math.pi*x) for x in range(6)]})
 # from the side
 gMat0 = hu.Transform(np.array([(0.,1.,0.,0.),
                                (0.,0.,1.,-0.025),
-                               (1.,0.,0.,0.03),
+                               (1.,0.,0.,0.01),
                                (0.,0.,0.,1.)]))
 gMat1 = hu.Transform(np.array([(0.,-1.,0.,0.),
                                (0.,0.,-1.,0.025),
-                               (1.,0.,0.,0.03),
+                               (1.,0.,0.,0.01),
                                (0.,0.,0.,1.)]))
 # from the top
 gMat2= hu.Transform(np.array([(-1.,0.,0.,0.),
@@ -117,7 +117,7 @@ glob.graspableNames.append('soup'); glob.pushableNames.append('soup')
 glob.objectTypes['soup'] = 'soup'
 glob.constructor['soup'] = makeSoup
 
-def makeSolidTable(dx=0.603, dy=0.298, dz=0.67, name='tableSolid', width=0.1, color = 'brown'):
+def makeSolidTable(dx=0.603, dy=0.298, dz=0.67, name='tableSolid', width=0.1, color = 'orange'):
     table = Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name+'Body', color=color)
     reg = [Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name+'Top', color=color),
            Ba([(0.2, -dy, 0.), (dx, dy, dz)], name=name+'Left', color=color),
@@ -129,7 +129,7 @@ glob.objectTypes['solidTable'] = 'solidTable'
 glob.constructor['solidTable'] = makeSolidTable
 
 tZ = 0.68                               # table height + 0.01
-def makeLegTable(dx=0.603, dy=0.298, dz=0.67, name='table1', width=0.1, color = 'brown'):
+def makeLegTable(dx=0.603, dy=0.298, dz=0.67, name='table1', width=0.1, color = 'orange'):
     legInset = 0.02
     legOver = 0.02
     reg = [Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name+'Top', color=color),
@@ -161,7 +161,7 @@ coolerZ = 0.225
 
 def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                 width = shelfWidth, nshelf = 2,
-                name='shelves', color='brown'):
+                name='shelves', color='orange'):
     sidePrims = [\
         Ba([(-dx, -dy-width, 0), (dx, -dy, dz)],
            name=name+'_side_A', color=color),
@@ -194,7 +194,7 @@ glob.objectTypes['shelves'] = 'shelves'
 
 def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                 width = shelfWidth, nshelf = 2,
-                name='tableShelves', color='brown'):
+                name='tableShelves', color='orange'):
     coolerPose = hu.Pose(0.0, 0.0, tZ, -math.pi/2)
     shelvesPose = hu.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
     tH = 0.67                           # table height
@@ -215,7 +215,7 @@ glob.objectTypes['shelves'] = 'shelves'
 
 def makeCoolShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                       width = shelfWidth, nshelf = 2,
-                      name='coolShelves', color='brown'):
+                      name='coolShelves', color='orange'):
     coolerPose = hu.Pose(0.0, 0.0, 0.0, -math.pi/2)
     shelvesPose = hu.Pose(0.0, 0.0, coolerZ, -math.pi/2)
     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
@@ -234,9 +234,9 @@ glob.constructor['coolShelves'] = makeCoolShelves
 
 # Other permanent objects
 # cupboard1 = Sh([place((-0.25, 0.25), (-0.05, 0.05), (0.0, 0.4))],
-#                  name = 'cupboardSide1', color='brown')
+#                  name = 'cupboardSide1', color='orange')
 # cupboard2 = Sh([place((-0.25, 0.25), (-0.05, 0.06), (0.0, 0.4))],
-#                  name = 'cupboardSide2', color='brown')
+#                  name = 'cupboardSide2', color='orange')
 
 
 

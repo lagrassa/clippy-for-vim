@@ -8,8 +8,8 @@ from timeout import timeout, TimeoutError
 
 # 10 min timeout for all tests
 @timeout(1000)
-def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=True, easy=False, rip=True):
-    eval('test%s(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical, easy=easy, rip=rip)'%str(n))
+def testFunc(n, skeleton=None, heuristic=habbs, hierarchical=True, easy=False, rip=True, alwaysReplan=False):
+    eval('test%s(skeleton=skeleton, heuristic=heuristic, hierarchical=hierarchical, easy=easy, rip=rip, alwaysReplan=alwaysReplan)'%str(n))
 
 def testRepeat(n, repeat=3, **args):
     for i in range(repeat):
@@ -44,7 +44,7 @@ class Experiment:
 table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2.0)
 table2Pose = hu.Pose(1.0, -1.2, 0.0, 0.0)
 table3Pose = hu.Pose(1.6,0.0,0.0, math.pi/2.0),
-coolShelvesPose = hu.Pose(1.4, 0.0, tZ, math.pi/2)
+coolShelvesPose = hu.Pose(1.35, 0.03, tZ, math.pi/2)
 
 bigVar = (0.1**2, 0.1**2, 1e-10, 0.3**2)
 medVar = (0.05**2, 0.05**2, 1e-10, 0.1**2)
@@ -109,7 +109,7 @@ def doTest(name, exp, goal, skel, args):
     tArgs['regions'] = exp.regions
     t = PlanTest(name, exp, multiplier=tArgs['multiplier'])
     for x,y in tArgs.items():
-        if x not in {'initBelief', 'initWorld'}:
+        if x not in {'initBelief', 'initWorld', 'skeleton', 'regions'}:
             print x, '<-', y
     t.run(goal, **tArgs)
     return t
@@ -135,7 +135,7 @@ def test0(**args):
              lookAt.applyBindings({'Obj' : 'objA'}),
              moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
              move, lookAt.applyBindings({'Obj' : 'table1'}),
-             move]]
+             move]]*10
     # pick/place, hierarchical.  Not verified recently
     hskel = [[poseAchIn],
             [poseAchIn],
@@ -243,8 +243,11 @@ def test3(**args):
 
 def test4(gt=0, **args):
     glob.rebindPenalty = 100
+    front = hu.Pose(1.2, 0.0, tZ, 0.0)
+    side = hu.Pose(1.25, 0.5, tZ, -math.pi/2) # works for grasp 0
+    pose = side                               # select start pose
     exp = makeExp({'table1' : (table1Pose, smallVar)},
-                  {'objA' : (hu.Pose(1.2, 0.0, tZ, 0.0), medVar)},
+                  { 'objA' : (pose, medVar)},
                   [], easy=args.get('easy', False))
     goal = holding('objA', hand='right', graspType=gt)
     skel =  [[pick, moveNB, lookAt, move, lookAt, move, lookAt]]
@@ -389,6 +392,57 @@ def testBusy(hardSwap = False, **args):
     actualGoal = goal if hardSwap else goal3
     skel = None
     return doTest('testBusy', exp, actualGoal, skel, args)
+
+######################################################################
+# Test with shelves as obstacles
+######################################################################
+
+def testShelvesGrasp(**args):
+    glob.rebindPenalty = 700
+    front = hu.Pose(1.1, 0.475, tZ, 0.0)
+    # -pi/2 works ok for grasp 0.  Why doesn't this work as well for for pi/2 and grasp 1??
+    mid = hu.Pose(1.15, 0.35, tZ, 0.0)
+    sh1 = hu.Pose(1.3, -0.1, 1.170, 0.0)
+    sh2 = hu.Pose(1.3, 0.1, 1.170, 0.0)
+    region = 'coolShelves_space_2'
+    easy=args.get('easy', False)
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   'coolShelves' : (coolShelvesPose , smallVar)},  # was medVar
+                  {'objA' : (mid, medVar),
+                   'objD' : (front, medVar), # or objD
+                   # 'bigB' : (back, medVar),
+                   'objB' : (sh1, medVar),
+                   'objC' : (sh2, medVar),
+                   },
+                  [region, 'table1Top'], easy=easy)
+
+    goal1 = inRegion('objA', region)
+    # goal1 = holding('objA', 'left', 0)
+    skel = None
+    return doTest('testShelvesGrasp', exp, goal1, skel, args)
+
+def testShelvesPush(**args):
+    glob.rebindPenalty = 700
+    front = hu.Pose(1.1, 0.5, tZ, 0.0)
+    # -pi/2 works ok for grasp 0.  Why doesn't this work as well for for pi/2 and grasp 1??
+    mid = hu.Pose(1.15, 0.35, tZ, 0.0)
+    sh1 = hu.Pose(1.3, -0.1, 1.170, 0.0)
+    sh2 = hu.Pose(1.3, 0.1, 1.170, 0.0)
+    region = 'coolShelves_space_2'
+    easy=args.get('easy', False)
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   'coolShelves' : (coolShelvesPose , smallVar)},  # was medVar
+                  {'objA' : (mid, medVar),
+                   'bigD' : (front, medVar), # or objD
+                   'objB' : (sh1, medVar),
+                   'objC' : (sh2, medVar),
+                   },
+                  [region, 'table1Top'], easy=easy)
+
+    goal1 = inRegion('objA', region)
+    # goal1 = holding('objA', 'left', 0)
+    skel = None
+    return doTest('testShelvesPush', exp, goal1, skel, args)
 
 ######################################################################
 # Test One Push

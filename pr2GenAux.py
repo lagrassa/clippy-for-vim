@@ -3,7 +3,7 @@ import numpy as np
 import math
 import random
 import hu
-from time import sleep
+import time
 import copy
 import windowManager3D as wm
 import shapes
@@ -423,10 +423,12 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
     # Copy the other arm
     if hand == 'left':
         conf.conf['pr2RightArm'] = pbs.conf['pr2RightArm']
-        conf.conf['pr2RightGripper'] = pbs.conf['pr2RightGripper']
+        # conf.conf['pr2RightGripper'] = pbs.conf['pr2RightGripper']
+        conf.conf['pr2RightGripper'] = [0.08]
     else:
         conf.conf['pr2LeftArm'] = pbs.conf['pr2LeftArm']
-        conf.conf['pr2LeftGripper'] = pbs.conf['pr2LeftGripper']
+        # conf.conf['pr2LeftGripper'] = pbs.conf['pr2LeftGripper']
+        conf.conf['pr2LeftGripper'] = [0.08]
     ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
     if ca:
         # Check for collisions, don't include attached...
@@ -703,7 +705,7 @@ def pathShape(path, prob, pbs, name):
     attached = pbs.getShadowWorld(prob).attached
     return shapes.Shape([c.placement(attached=attached) for c in path], None, name=name)
 
-def pathObst(cs, cd, p, pbs, name, start=None):
+def pathObst(cs, cd, p, pbs, name, start=None, smooth=False):
     newBS = pbs.copy()
     newBS = newBS.updateFromGoalPoses(cd, permShadows=True)
     key = (cs, newBS, p)
@@ -719,6 +721,14 @@ def pathObst(cs, cd, p, pbs, name, start=None):
             print 'pathObst', 'failed to find path to conf in red', (cs, p, newBS)
         ans = None
     else:
+        if smooth or glob.smoothPathObst:
+            if debug('pathObst'):
+                print 'Smoothing in pathObst - initial', len(path)
+            st = time.time()
+            path = newBS.getRoadMap().smoothPath(path, newBS, p,
+                                                 nsteps = 50, npasses = 5)
+            if debug('pathObst'):
+                print 'Smoothing in pathObst - final', len(path), 'time=%.3f'%(time.time()-st)
         path = interpolatePath(path)        # fill it in...
         ans = pathShape(path, p, newBS, name)
     pbs.beliefContext.pathObstCache[key] = ans
@@ -925,7 +935,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         pose = hu.Pose(x,y,z, 0.)     # shRotations is already rotated
         sh = shRotations[angle].applyTrans(pose)
         if debug('potentialRegionPoseGen'):
-            sh.draw('W', 'brown')
+            sh.draw('W', 'orange')
             print x,y,z,angle
             raw_input('Go?')
         pose = hu.Pose(x,y,z,angle)
@@ -935,7 +945,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             return pose
         else:
             debugMsg('potentialRegionPoseGen', ('fail pose', pose))
-            pbs.draw(prob, 'W'); sh.draw('W', 'brown'); rs.draw('W', 'purple')
+            pbs.draw(prob, 'W'); sh.draw('W', 'orange'); rs.draw('W', 'purple')
 
     def poseViolationWeight(pose):
         tag = 'potentialRegionPoseGenWeight'
@@ -1023,7 +1033,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                 for co in coShadow: co.draw('W', 'orange')
             z0 = bI.bbox()[0,2] + clearance
             # for point in bboxGridCoords(bI.bbox(), res = 0.01, z=z0):
-            for point in bboxRandomCoords(bI.bbox(), n=100, z=z0):
+            for point in bboxRandomCoords(bI.bbox(), n=maxPoses, z=z0):
                 pt = point.reshape(4,1)
                 if any(np.all(np.dot(co.planes(), pt) <= tiny) for co in coFixed):
                     if debug(tag):
@@ -1160,16 +1170,20 @@ def chooseHandGen(pbs, goalConds, obj, hand, leftGen, rightGen):
     leftHeldTargetObjNow = pbs.held['left'].mode() == obj
     rightHeldTargetObjNow = pbs.held['right'].mode() == obj
 
+    if leftHeldInGoal and rightHeldInGoal:
+        # Both hands are busy!!
+        return []
+
     if mustUseLeft or rightHeldInGoal:
         if leftHeldInGoal:
             tr(tag, 0, '=> Left held already in goal, fail')
-            return
+            return []
         else:
             gen = leftGen
     elif mustUseRight or leftHeldInGoal:
         if rightHeldInGoal:
             tr(tag, 0, '=> Right held already in goal, fail')
-            return
+            return []
         else:
             gen = rightGen
     elif rightHeldTargetObjNow or (leftHeldNow and not leftHeldTargetObjNow):
@@ -1178,3 +1192,9 @@ def chooseHandGen(pbs, goalConds, obj, hand, leftGen, rightGen):
     else:
         gen = roundrobin(leftGen, rightGen)
     return gen
+
+def minimalConf(conf, hand):
+    if hand == 'left':
+        return (tuple(conf['pr2Base']), tuple(conf['pr2LeftArm']))
+    else:
+        return (tuple(conf['pr2Base']), tuple(conf['pr2RightArm']))

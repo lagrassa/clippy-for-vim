@@ -8,7 +8,7 @@ from traceFile import debug, debugMsg, tr, trAlways
 from shapes import thingFaceFrames, drawFrame
 import hu
 from planUtil import ObjGraspB, PoseD, PushResponse
-from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords
+from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords, supportFaceIndex
 from pr2GenAux import *
 from pr2PlanBel import getConf
 from pr2Fluents import pushPath
@@ -45,22 +45,24 @@ useDirectPush = True
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
         for ans in pushGenGen(args, goalConds, bState):
-            # Verify that it's feasible
-            (obj, pose, support, poseVar, poseDelta, confdelta, prob) = args
-            (hand, prePose, preConf, pushConf, postConf) = ans.pushTuple()
-            path, viol = canPush(bState.pbs, obj, hand, support, hu.Pose(*prePose),
-                                 pose, preConf, pushConf, postConf, poseVar,
-                                 poseVar, poseDelta, prob,
-                                 Violations(), prim=False)
-            if viol == None:
-                print 'PushGen generated infeasible answer'
+            if debug('pushGen'):
+                # Verify that it's feasible
+                (obj, pose, support, poseVar, poseDelta, confdelta, prob) = args
+                (hand, prePose, preConf, pushConf, postConf) = ans.pushTuple()
+                path, viol = canPush(bState.pbs, obj, hand, support, hu.Pose(*prePose),
+                                     pose, preConf, pushConf, postConf, poseVar,
+                                     poseVar, poseDelta, prob,
+                                     Violations(), prim=False)
+                if viol == None:
+                    raw_input('PushGen generated infeasible answer')
+                    return
             else:
                 tr('pushGen', '->', 'final', str(ans))
                 if debug('pushGen'):
                     ans.preConf.cartConf().prettyPrint('Pre Conf')
                     ans.pushConf.cartConf().prettyPrint('Push Conf')
                     ans.postConf.cartConf().prettyPrint('Post Conf')
-                yield ans.pushTuple()
+            yield ans.pushTuple()
         tr('pushGen', '-> completely exhausted')
 
 def pushGenGen(args, goalConds, bState):
@@ -123,6 +125,18 @@ def pushGenTop(args, goalConds, pbs,
         curPB = newBS.getPlaceB(obj, default=False)
         if curPB:
             tr(tag, 'obj is placed')
+
+    # Are we in a pre-push?
+    ans = push(newBS, prob, obj, hand)
+    if ans:
+        shWorld = newBS.getShadowWorld(prob)
+        tr(tag, 'Cached push ->' + str(ans), 'viol=%s'%ans.viol,
+           draw=[(newBS, prob, 'W'),
+                 (ans.prePB.shape(shWorld), 'W', 'magenta'),
+                 (ans.preConf, 'W', 'magenta', shWorld.attached)],
+           snap=['W'])
+        yield ans
+        
     # Check the cache, otherwise call Aux
     pushGenCacheStats[0] += 1
     key = (newBS, placeB, hand, base, prob, partialPaths, away, update, glob.inHeuristic)
@@ -150,7 +164,7 @@ def pushGenTop(args, goalConds, pbs,
         testBS.draw(prob, 'W'); preConf.draw('W')
         viol = rm.confViolations(preConf, testBS, prob)
 
-        if not glob.inHeuristic:
+        if not glob.inHeuristic and debug(tag):
             print 'pushGen violations', viol
         if not viol:
             if debug(tag):
@@ -257,7 +271,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
                 tr(tag, 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
                 if doneCount >= maxDone and not partialPaths: break
                 if count > maxPushPaths: break
-            if count == 0 and not glob.inHeuristic:
+            if count == 0 and not glob.inHeuristic and debug(tag):
                 print tag, 'Could not find conf for push along', direction[:2]
         # Sort the push paths by violations
         sorted = sortedPushPaths(pushPaths, curPose)
@@ -280,10 +294,12 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
             viol = Violations()
             for (c,v,p) in pathAndViols:
                 viol.update(v)
-            yield PushResponse(placeB.modifyPoseD(ppre.pose()),
+            ans = PushResponse(placeB.modifyPoseD(ppre.pose()),
                                placeB.modifyPoseD(ppost.pose()),
                                cpre, cpost, crev, viol, hand,
                                placeB.poseD.var, placeB.delta)
+            cachePushResponse(ans)
+            yield ans
 
     tr(tag, '=> pushGenAux exhausted')
     return
@@ -674,8 +690,8 @@ def pushInGenTop(args, goalConds, pbs, away = False, update=True):
     if reachObsts is None:
         tr(tag, '=> No path for reachObst, failing')
         return
-    tr(tag, '%d reachObsts - in brown'%len(reachObsts),
-       draw=[(pbs, prob, 'W')] + [(obst, 'W', 'brown') for _,obst in reachObsts],
+    tr(tag, '%d reachObsts - in orange'%len(reachObsts),
+       draw=[(pbs, prob, 'W')] + [(obst, 'W', 'orange') for _,obst in reachObsts],
        snap=['W'])
     shWorld = pbs.getShadowWorld(prob)
     nPoses = pushInGenMaxPosesH if glob.inHeuristic else pushInGenMaxPoses
@@ -801,7 +817,11 @@ def awayTargetPB(pbs, prob, placeB, regShapes):
                     raw_input('Go?')
     return targets
 
-def maxDistInRegionPB(pbs, prob, placeB, direction, regShape, mind = 0.0, maxd = 1.0):
+def maxDistInRegionPB(pbs, prob, placeB, direction, regShape,
+                      mind = 0.0, maxd = 1.0, count = 0):
+    if count > 10:
+        debugMsg('pushGen', 'maxDistInRegionPB failed to converge')
+        return [placeB]
     dist = 0.5*(mind+maxd)
     postPoseOffset = hu.Pose(*(dist*direction).tolist()+[0.0])
     postPose = postPoseOffset.compose(placeB.poseD.mode())
@@ -815,6 +835,38 @@ def maxDistInRegionPB(pbs, prob, placeB, direction, regShape, mind = 0.0, maxd =
             newPB2.delta = delta=4*(0.001,)
             return [newPB2, newPB]
         else:
-            return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, dist, maxd)
+            return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, dist, maxd, count+1)
     else:
-        return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, mind, dist)
+        return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, mind, dist, count+1)
+
+PushCache = {}
+def cachePushResponse(pr):
+    minConf = minimalConf(pr.preConf, pr.hand)
+    if minConf not in PushCache:
+        PushCache[minConf] = pr
+    else:
+        old = PushCache[minConf]
+        if old.prePB.poseD.mode() != pr.prePB.poseD.mode() or \
+           old.postPB.poseD.mode() != pr.postPB.poseD.mode():
+            print 'PushCache collision'
+            pdb.set_trace()
+
+def push(pbs, prob, obj, hand):
+    minConf = minimalConf(pbs.conf, hand)
+    if minConf in PushCache:
+        pr = PushCache[minConf]
+    else:
+        return
+    assert pr.hand == hand
+    path, viol = canPush(pbs, obj, hand, pr.prePB.support.mode(),
+                         pr.prePB.poseD.mode().xyztTuple(), pr.postPB.poseD.mode().xyztTuple(),
+                         pr.preConf, pr.pushConf, pr.postConf, pr.var,
+                         pr.var, pr.delta, prob,
+                         Violations(), prim=False)
+    if viol:
+        print '*** Cached push ***'
+        return pr
+    else:
+        print 'Cached push failed'
+        pdb.set_trace()
+

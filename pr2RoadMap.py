@@ -1381,7 +1381,8 @@ class RoadMap:
                 if debug('smooth'): conf.draw('W', 'green')
         return True
 
-    def smoothPath(self, path, pbs, prob, verbose=False, nsteps = glob.smoothSteps):
+    def smoothPath(self, path, pbs, prob, verbose=False,
+                   nsteps = glob.smoothSteps, npasses = glob.smoothPasses):
         verbose = verbose or debug('smooth')
         n = len(path)
         if n < 3: return path
@@ -1391,12 +1392,10 @@ class RoadMap:
         outer = 0
         count = 0
         step = 0
-        if not verbose: print 'Smoothing',
-        while outer < glob.smoothPasses:
+        if verbose: print 'Smoothing...'
+        while outer < npasses:
             if verbose:
-                print 'Start smoothing pass', outer, 'dist=', basePathLength(input)
-            else:
-                print "%.4f"%basePathLength(input),
+                print '  Start smoothing pass', outer, 'dist=', basePathLength(input)
             smoothed = []
             for p in input:
                 if not smoothed or smoothed[-1] != p:
@@ -1404,6 +1403,9 @@ class RoadMap:
             n = len(smoothed)
             while count < nsteps:
                 if verbose: print 'step', step, ':', 
+                if n < 1:
+                    print 'Path is empty!'
+                    return path
                 i = random.randrange(n)
                 j = random.randrange(n)
                 if j < i: i, j = j, i 
@@ -1434,14 +1436,12 @@ class RoadMap:
                 else:
                     count += 1
             outer += 1
-            if outer < glob.smoothPasses:
+            if outer < npasses:
                 count = 0
                 if verbose: print 'Re-expanding path'
                 input = rrt.interpolatePath(smoothed)
         if verbose:
             print 'Final smooth path len =', len(smoothed), 'dist=', basePathLength(smoothed)
-        else:
-            print "%.4f"%basePathLength(smoothed)
         return smoothed
 
     # does not use self... could be a static method

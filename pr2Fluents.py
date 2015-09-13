@@ -1298,9 +1298,9 @@ def inTest(bState, obj, regName, prob, pB=None):
     ans = any([np.all(np.all(np.dot(r.planes(), shadow.prim().vertices()) <= tiny, axis=1)) \
                for r in region.parts()])
 
-    tr('testVerbose', 'In test, shadow in brown, region in purple',
+    tr('testVerbose', 'In test, shadow in orange, region in purple',
        (shadow, region, ans), draw = [(bState.pbs, prob, 'W'),
-                                      (shadow, 'W', 'brown'),
+                                      (shadow, 'W', 'orange'),
                                       (region, 'W', 'purple')], snap=['W'])
     return ans
 
@@ -1374,8 +1374,12 @@ def robotGraspFrame(pbs, conf, hand):
 
 pushPathCacheStats = [0, 0]
 pushPathCache = {}
-handTiltOffset = 0.0375                 # 0.18*math.sin(math.pi/15)
-handTiltOffset = 0.0560                 # 0.18*math.sin(math.pi/10)
+
+if glob.useHandTiltForPush:
+    handTiltOffset = 0.0375                 # 0.18*math.sin(math.pi/15)
+    handTiltOffset = 0.0560                 # 0.18*math.sin(math.pi/10)
+else:
+    handTiltOffset = 0.0
 
 # The conf in the input is the robot conf in contact with the object
 # at the destination pose.
@@ -1497,6 +1501,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     shape = pbs.getPlaceB(pB.obj).shadow(pbs.getShadowWorld(0.0)) or \
             pbs.getPlaceB(pB.obj).shape(pbs.getWorld())
     # For heuristic, just do (start, contact, end)
+    # We keep paths computed in heuristic, so do the full simulation.
     if False:  # glob.inHeuristic:
         stepVals = [0, int(math.ceil(pushBuffer/delta)), nsteps]
     else:
@@ -1516,12 +1521,17 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         hoff = (step*handDir).tolist()+[0.0]
         # hoff[2] = 0.01
         hOffsetPose = hu.Pose(*hoff)
+        nconf = displaceHandRot(preConf, hand, hOffsetPose,
+                                tiltRot = tiltRot,
+                                angle=(step_a*deltaAngle if contact else 0.0))
         if step_i == nsteps:
+            if nconf and conf:
+                ac = conf.robot.armChainNames[hand]
+                d = nconf.cartConf()[ac].point().distance(conf.cartConf()[ac].point())
+                if d > 2*delta:
+                    print 'Unexpectedly large hand step, probably due to hand tilt'
+                    pdb.set_trace()
             nconf = conf
-        else:
-            nconf = displaceHandRot(preConf, hand, hOffsetPose,
-                                    tiltRot = tiltRot,
-                                    angle=(step_a*deltaAngle if contact else 0.0))
         if not nconf:
             reason = 'invkin'
             break
@@ -1554,6 +1564,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         if debug('pushPath'):
             print 'step=', step, viol
             drawState(newBS, prob, nconf, nshape, reachObsts)
+        
         pathViols.append((nconf, viol,
                           offsetPB.poseD.mode() if contact else None))
         if contact:
@@ -1568,7 +1579,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     if not safePathViols:
         reason = 'reachObst collision'
     if debug('pushPath'):
-        for (ig, obst) in reachObsts: obst.draw('W', 'brown')
+        for (ig, obst) in reachObsts: obst.draw('W', 'orange')
         print tag, '->', reason, 'path len=', len(safePathViols)
         raw_input('Path:'+reason)
     ans = (safePathViols, reason)
@@ -1626,7 +1637,11 @@ def handTiltAndDir(conf, hand, direction):
         # hdir = np.dot(trans.matrix, np.array([0.0, 0.0, sign, 0.0]).reshape(4,1))[:3,0]
         # if debug('pushPath'): print hdir, '->', sign, hdir
         # Because of the wrist orientation, the sign is negative
-        rot = hu.Transform(rotation_matrix(-sign*math.pi/10., (0,1,0)))
+        if glob.useHandTiltForPush:
+            print 'Tilting the hand causes a discontinuity at the end of the push'
+            rot = hu.Transform(rotation_matrix(-sign*math.pi/10., (0,1,0)))
+        else:
+            rot = hu.Pose(0,0,0,0)
         return rot, direction
     else:
         if debug('pushPath'):

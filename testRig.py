@@ -87,8 +87,6 @@ from testObjects import *
 
 import mathematica
 
-writeSearch = True
-
 ######################################################################
 # Clear caches
 ######################################################################
@@ -473,7 +471,7 @@ class PlanTest:
                     skeleton = skeleton,
                     h = heuristic,
                     verbose = False,
-                    fileTag = self.name if writeSearch else None,
+                    fileTag = self.name if not debug('noWriteSearch') else None,
                     nonMonOps = ['Move', 'MoveNB', 'LookAt', 'Place'],
                     maxNodes = glob.maxNodesHPN,
                     clearCaches = clearCaches,
@@ -483,7 +481,7 @@ class PlanTest:
                                  goal,
                                  self.operators,
                                  h = heuristic,
-                                 fileTag = self.name if writeSearch else None,
+                                 fileTag = self.name if not debug('noWriteSearch') else None,
                                  nonMonOps = [move])
                 if p:
                     makePlanObj(p, s).printIt(verbose = False)
@@ -504,8 +502,8 @@ class PlanTest:
         # Remove the skeleton tags
         glob.debugOn = [x for x in glob.debugOn if x not in glob.skeletonTags]
         glob.pauseOn = [x for x in glob.pauseOn if x not in glob.skeletonTags]
-        while True:
-            ans = raw_input('Playback? w = world, b = belief, q = no: ')
+        while not debug('noPlayback'):
+            ans = raw_input('Playback? w = world, b = belief, m name = math movie, q = no: ')
             if ans in ('w', 'W'):
                 wm.getWindow('World').playback(delay=0.01)
             elif ans in ('b', 'B'):
@@ -513,8 +511,15 @@ class PlanTest:
             elif ans in ('q', 'Q'):
                 print 'Done playback'
                 return
+            elif ans[0] in ('m', 'M') and len(ans.split()) == 2: 
+                name = ans.split()[1]
+                print 'Writing mathematica movies for', name
+                mathematica.mathMovie(wm.getWindow('Belief').capture,
+                                      './'+name+'_bel.m')
+                mathematica.mathMovie(wm.getWindow('World').capture,
+                                      './'+name+'.m')
             else:
-                print 'Please enter w, b or q'
+                print 'Please enter w, b, m name, or q'
 
 def getSupportedPose(realWorld, obj, meanObjPose, variance):
     stDev = tuple([math.sqrt(v) for v in variance])
@@ -587,7 +592,11 @@ typicalErrProbs = DomainProbs(
             moveConfDelta = (0.001, 0.001, 1e-6, 0.002),
             #shadowDelta = (0.01, 0.01, 1.0e-8, 0.05),
             #shadowDelta = (0.001, 0.001, 1e-11, 0.002),
-            shadowDelta = (0.004, 0.004, 1e-6, 0.008),
+
+            # The soda box is getting too fat... TLP
+            # shadowDelta = (0.004, 0.004, 1e-6, 0.008),
+            shadowDelta = (0.001, 0.001, 1e-6, 0.002),
+
             # Use this for placing objects
             #placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
             # graspDelta = (0.001, 0.001, 1.0e-4, 0.002))

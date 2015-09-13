@@ -455,7 +455,7 @@ confCacheStats = [0, 0, 0, 0]
 # Controls size of confCache - bigger cache leads to faster motion
 # planning, but makes Python bigger, which can lead to swapping.
 maxConfCacheSize = 150*10**3
-print '*** pr2Robot.maxConfCacheSize', maxConfCacheSize, '***'
+# print '*** pr2Robot.maxConfCacheSize', maxConfCacheSize, '***'
 
 # (additions, deletions)
 confCacheUpdateStats = [0, 0]

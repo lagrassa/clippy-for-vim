@@ -45,6 +45,8 @@ mergeShadows = False
 approachBackoff = 0.1
 approachPerpBackoff = 0.025
 
+useHandTiltForPush = False              # Use for real robot
+
 inHeuristic = False
 
 useCC = True                            # Use compiled chains collision checks
@@ -73,10 +75,11 @@ rrtStep = 0.025
 rrtInterpolateStepSize = 10*rrtStep
 smoothSteps = 100
 smoothPasses = 20
-torsoZ = 0.25                            # normally 0.3
+torsoZ = 0.2                            # normally 0.3
 skipRRT = False
 maxRRTIter = 200
 failRRTIter = 20
+smoothPathObst = True
 
 ########################################
 # Obstacle growing, should be determined by uncertainty
@@ -89,7 +92,7 @@ baseGrowthY = 0.1
 # FBCH
 ########################################
 
-maxNodesHPN = 500
+maxNodesHPN = 1000
 rebindPenalty = 30
 monotonicFirst = True
 monotonicNow = True

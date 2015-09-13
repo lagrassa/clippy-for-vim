@@ -2,7 +2,7 @@ import math
 import windowManager3D as wm
 from dist import GMU, MultivariateGaussianDistribution
 from miscUtil import prettyString
-from traceFile import tr, trAlways
+from traceFile import tr, trAlways, debug
 MVG = MultivariateGaussianDistribution
 
 zeroObjectVarianceArray = [[0]*4]*4
@@ -80,6 +80,8 @@ class BeliefState:
             s += '  stdev: %s\n'%prettyStdev(stuff.poseD.varTuple())
         s += '------------  Belief -------------\n'
         wm.getWindow('Belief').capturing = True
+        if debug('noTrace'):            # really always
+            self.pbs.draw(0.9, w)
         trAlways(s, pause = False, draw=[(self.pbs, 0.9, w)], snap=[w])
         wm.getWindow('Belief').update()
         wm.getWindow('Belief').pause()

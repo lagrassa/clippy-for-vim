@@ -84,12 +84,10 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['animate']
-# + ['potentialRegionPoseGen', 'placeInGen', 'placeGen', 'potentialRegionPoseGenWeight',
-#    'potentialGraspConfs', 'potentialGraspConfsWin', 'potentialGraspConfsLose',
-#    'debugInHeuristic', 'confViolations'] 
-# + ['disablePickPlace']
-# + ['pushGen'] + skeletonTags
+debugOn = usualTags + ['noWriteSearch', 'noTrace', 'noPlayback'] 
+#+ ['canReachGen', 'pushPath', 'pushGen', 'debugInHeuristic', 'sim']
+#+ ['pickGen', 'debugInHeuristic', 'potentialGraspConfs', 'potentialGraspConfsWin', 'potentialGraspConfsLose']
+# + ['noWriteSearch', 'noTrace', 'noPlayback'] 
 
 if platform.system() == 'Linux':
     for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:

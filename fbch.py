@@ -1,3 +1,4 @@
+import time
 import copy
 import os
 import pdb
@@ -1512,11 +1513,13 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
             sk = (oldSkel and oldSkel[0]) or (skeleton and \
                  len(skeleton)>subgoal.planNum and skeleton[subgoal.planNum])
             # Ignore last operation if we popped to get here.
+            planStartTime = time.time()
             p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
                                  lastOp = op if oldSkel == None else None,
                                  skeleton = sk,
                                  nonMonOps = nonMonOps,
                                  maxNodes = maxNodes)
+            print 'Plan time', time.time() - planStartTime
             if p:
                 planObj = makePlanObj(p, s)
                 planObj.printIt(verbose = verbose)
@@ -1560,6 +1563,8 @@ def executePrim(op, s, env, f = None):
     # necessary from belief.details and store it in the prim.
     params = op.evalPrim(s.details)
     # Print compactly unless we are debugging
+    if debug('noTrace'):                # really ALWAYS
+        print 'PRIM:', op.prettyString(eq = False)
     trAlways('PRIM:', op.prettyString(eq = debug('prim')))
     writePrimRefinement(f, op)
     obs = env.executePrim(op, params)
@@ -1865,8 +1870,8 @@ class Plan:
                 trAlways('    result', i, ':',
                   self.steps[i][1].prettyString().replace('\\n','\n'),
                          ol = True)
-        print '** End plan **'
-        print '===== Total Cost =', prettyString(totalCost), '====='
+        trAlways('** End plan **')
+        trAlways('===== Total Cost =', prettyString(totalCost), '=====')
         debugMsg('displayPlan', 'Continue?')
 
 # Return an instance of Plan

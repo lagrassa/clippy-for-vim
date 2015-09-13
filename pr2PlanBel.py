@@ -233,7 +233,7 @@ class PBS:
             shape = pB.shape(self.getWorld())
             supported = self.findSupportRegion(0.99, shape,
                                               strict=True, fail=False)
-            print pB.obj, 'supported=', supported
+            tr('dither', pB.obj, 'supported=', supported)
             if not supported:
                 tr('dither', 'Object not supported.  Will try to fix.',
                    draw=[(self, 0.0, 'W')], snap=['W'])
@@ -500,7 +500,7 @@ class PBS:
             print 'objB', objB
             shadow.draw('W', 'gray')
             print 'objBMin', objBMin
-            shadowMin.draw('W', 'brown')
+            shadowMin.draw('W', 'orange')
             print 'max shadow widths', shWidth
             print 'min shadow widths', minShWidth
             # print obj, 'origin\n', sw.objectShapes[obj].origin()
@@ -508,7 +508,7 @@ class PBS:
             print obj, 'shadow origin\n', shadow.origin().matrix
             print obj, 'support pose\n', objB.poseD.mode().matrix
             print obj, 'origin pose\n', objB.objFrame().matrix
-            raw_input('Shadows for %s (brown in inner, gray is outer)'%obj)
+            raw_input('Shadows for %s (orange in inner, gray is outer)'%obj)
 
         return shadowMin, shadow
     
@@ -730,7 +730,7 @@ def makeShadow(shape, prob, bel, name=None, color='gray'):
                                     opacity=shadowOpacity).xyPrim())
         shParts[-1].properties['opacity']=shadowOpacity
         if debug('getShadowWorld'):
-            shParts[-1].draw('W', 'brown')
+            shParts[-1].draw('W', 'orange')
             raw_input('Next part?')
     if debug('getShadowWorld'):
         raw_input('multiple part shadow, Ok?')
@@ -791,7 +791,7 @@ def makeShadowOrigin(shape, prob, var, delta, name=None, color='gray'):
                                     opacity=shadowOpacity).xyPrim())
         shParts[-1].properties['opacity']=shadowOpacity
         if debug('getShadowWorld'):
-            shParts[-1].draw('W', 'brown')
+            shParts[-1].draw('W', 'orange')
             raw_input('Next part?')
     if debug('getShadowWorld'):
         raw_input('multiple part shadow, Ok?')

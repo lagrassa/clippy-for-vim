@@ -89,7 +89,7 @@ visibleEx (show visibility stuff during execution even if visible is false)
 '''
 
 
-usualTags = ['nonmon']
+usualTags = ['nonmon', 'nagLeslie']
 flags = ['simpleAbstractCostEstimates',
           'primitiveHeuristicAlways',
           'helpfulActions',

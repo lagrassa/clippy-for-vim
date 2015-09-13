@@ -1,4 +1,5 @@
 import colorNames
+reload(colorNames)
 import shapes
 
 ### Mathematica interface
@@ -6,16 +7,27 @@ import shapes
 closeupView = 'ViewAngle -> 0.3, ViewPoint -> {2, 0, 1.0}'
 closeupLights = 'Lighting -> {{"Directional", White, {{4, 0, 2}, {0.75,0.5,0.5}}}, {"Directional", White, {{4.5, -9, 6.0}, {0.75,0.5,0.5}}}}, Background -> LightBlue'
 
-def mathMovie(data, filenameOut = "./mathMovie",
+def mathMovie(displays, filenameOut = "./mathMovie",
               view = "ViewPoint -> {0, -1, 2}",
               lights = 'Lighting -> {{"Point", Red, {3.,0.,3.}}, {"Point", White, {-2.,-2.,3.}}, {"Point", Green, {3.,3.,3.}}, {"Point", Blue, {0.,3.,3.}}}',
               init = 0):
     f = open(filenameOut, 'w')
+    data = []
+    this = []
+    for i, entry in enumerate(displays):
+        if entry[0] in ('clear', 'pause'):
+            if this:
+                data.append(this)
+                this = []
+            continue
+        this.append(entry)
+    if this: data.append(this)
     f.write('{')
     n = len(data)
     for i in range(init, n):
-        f.write(toMathList(data[i], view, lights))
-        if i < n-1 : f.write(',\n')
+        if data[i]:
+            f.write(toMathList(data[i], view, lights))
+            if i < n-1 : f.write(',\n')
     f.write('}')
     f.close()
     print "Movie", filenameOut, "saved"
@@ -37,7 +49,7 @@ def mathFile(displays,
 
 def toMathList(pl, view, lights):
     strs = ''.join([toMath(p) for p in pl])
-    return 'Graphics3D[{ %s }, ImageSize -> 1000, Boxed -> False, %s, %s]'%(strs[:-1], view, lights)
+    return 'Graphics3D[{ %s }, ImageSize -> 1000, Boxed -> False, SphericalRegion -> True, %s, %s]'%(strs[:-1], view, lights)
 
 def toMath(p):
     if p[0] in ('clear', 'pause'):
