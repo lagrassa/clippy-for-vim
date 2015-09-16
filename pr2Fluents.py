@@ -326,9 +326,9 @@ class CanReachHome(Fluent):
     # a pose and the shadow of that object is irreducible.
 
     def conditionOn(self, f):
-        return f.predicate in \
-                  ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
-          and not ('*' in f.args)
+        preds = ('Pose', 'SupportFace', 'Holding', 'Grasp', 'GraspFace')
+        return (f.predicate in preds and not ('*' in f.args)) or \
+          (f.predicate in ('B', 'Bd') and self.conditionOn(f.args[0]))
 
     def update(self):
         super(CanReachHome, self).update()
@@ -471,9 +471,9 @@ class CanReachNB(Fluent):
     conditional = True
 
     def conditionOn(self, f):
-        return f.predicate in \
-                  ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
-          and not ('*' in f.args)
+        preds = ('Pose', 'SupportFace', 'Holding', 'Grasp', 'GraspFace')
+        return (f.predicate in preds and not ('*' in f.args)) or \
+          (f.predicate in ('B', 'Bd') and self.conditionOn(f.args[0]))
 
     def feasible(self, details, v, p):
         if not self.isGround():
@@ -597,9 +597,9 @@ class CanPickPlace(Fluent):
     conditional = True
 
     def conditionOn(self, f):
-        return f.predicate in \
-                  ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
-          and not ('*' in f.args)
+        preds = ('Pose', 'SupportFace', 'Holding', 'Grasp', 'GraspFace')
+        return (f.predicate in preds and not ('*' in f.args)) or \
+          (f.predicate in ('B', 'Bd') and self.conditionOn(f.args[0]))
 
     def feasible(self, bState, v, p):
         path, violations = self.getViols(bState, v, p)
@@ -823,9 +823,9 @@ class CanPush(Fluent):
     conditional = True
 
     def conditionOn(self, f):
-        return f.predicate in \
-                  ('Pose', 'SupportFace', 'Holding', 'GraspFace', 'Grasp') \
-          and not ('*' in f.args)
+        preds = ('Pose', 'SupportFace', 'Holding', 'Grasp', 'GraspFace')
+        return (f.predicate in preds and not ('*' in f.args)) or \
+          (f.predicate in ('B', 'Bd') and self.conditionOn(f.args[0]))
 
     def feasible(self, bState, v, p):
         path, violations = self.getViols(bState, v, p)
@@ -1008,9 +1008,9 @@ class CanSeeFrom(Fluent):
     conditional = True
 
     def conditionOn(self, f):
-        return f.predicate in \
-          ('Pose', 'SupportFace', 'Holding', 'Grasp', 'GraspFace') \
-          and not ('*' in f.args) 
+        preds = ('Pose', 'SupportFace', 'Holding', 'Grasp', 'GraspFace')
+        return (f.predicate in preds and not ('*' in f.args)) or \
+          (f.predicate in ('B', 'Bd') and self.conditionOn(f.args[0]))
 
     def feasible(self, bState, v, p):
         path, violations = self.getViols(bState, v, p)

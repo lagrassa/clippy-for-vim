@@ -6,12 +6,13 @@ import os
 import pdb
 
 # only import if we need it
-wmImported = False
+wm = None
 def importWm():
-    global wmImported
-    if not wmImported:
-        import windowManager3D as wm
-        wmImported = True
+    global wm
+    if not wm:
+        import windowManager3D
+        wm = windowManager3D
+    return wm
 
 # debugOn  : print to tty
 # pauseOn : pause tty
@@ -177,7 +178,7 @@ def traceEnd():
         htmlFileH = None
 
 def snap(targetFile, *windows):
-    importWm()
+    wm = importWm()
     global pngFileId
     for win in windows:
         pngFileName = local.pngGen%(dirName, str(pngFileId))
