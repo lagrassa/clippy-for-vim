@@ -1,9 +1,17 @@
-import windowManager3D as wm
+#import windowManager3D as wm
 from miscUtil import timeString
 import local
 import planGlobals as glob
 import os
 import pdb
+
+# only import if we need it
+wmImported = False
+def importWm():
+    global wmImported
+    if not wmImported:
+        import windowManager3D as wm
+        wmImported = True
 
 # debugOn  : print to tty
 # pauseOn : pause tty
@@ -121,6 +129,7 @@ def tr(genTag, *msg, **keys):
     if doPause:
         windows = keys.get('snap', [])
         for w in windows:
+            importWm()
             wm.getWindow(w).update()
         raw_input(tagStr+' go?')
 
@@ -168,6 +177,7 @@ def traceEnd():
         htmlFileH = None
 
 def snap(targetFile, *windows):
+    importWm()
     global pngFileId
     for win in windows:
         pngFileName = local.pngGen%(dirName, str(pngFileId))

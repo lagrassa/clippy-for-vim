@@ -189,6 +189,15 @@ class CanPlace(Fluent):
         pbs = details.updateFromCond(cond)
         return pbs.intervalFree((poseMid, poseDelta + (objSize / 2.0)))
             
+######################################################################
+#
+#   World
+#
+######################################################################
+
+# Need notion of permanent objects
+# Feasibility of conditional fluents
+
 class SimpleBel:
     def __init__(self, objects):
         self.objects = objects # dictionary maping names to (center, width)
@@ -230,9 +239,11 @@ class SimpleBel:
 eps = 1e-2
 minConfDelta = 0.1
 paintLoc = 5
+placeDelta = 0.0
+pickDelta = 0.0
 paintDelta = 0.5
 maxGraspDelta = 0.5
-movePrecision = 0.05
+movePrecision = 0.0
 outDelta = 0.5
 objSize = 1 # constant for now
 
@@ -260,14 +271,14 @@ class PickGen(Function):
             # Strategy below is legal, but might make confDelta too small for
             # comfort.
             confDelta = max(graspDelta - poseDelta, minConfDelta)
-            poseDelta = graspDelta - confDelta
+            poseDelta = graspDelta - confDelta - pickDelta
             return [(conf, confDelta, pose, poseDelta)]
 
         results = []
         # initial pose, pose for painting
         # cool to make a generator for random poses after these
         poses = [start.objects[obj][0], paintLoc]
-        poseDelta = (graspDelta / 2.0)
+        poseDelta = (graspDelta - pickDelta) / 2.0
         confDelta = poseDelta
         for pose in poses:
             conf = pose - grasp
@@ -288,12 +299,12 @@ class PlaceGen(Function):
         fbh = getMatchingFluents(goal, Holding([], obj))
         if fbh:
             assert(fbg)
-            grasp, graspDelta = fbg[0][1]['G'], fbp[0][1]['GD']
+            grasp, graspDelta = fbg[0][1]['G'], fbg[0][1]['GD']
             conf = pose - grasp
             # Strategy below is legal, but might make confDelta too small for
             # comfort.
             confDelta = max(poseDelta - graspDelta, minConfDelta)
-            graspDelta = poseDelta - confDelta
+            graspDelta = poseDelta - confDelta - placeDelta
             return [(conf, confDelta, pose, poseDelta)]
 
         results = []
@@ -302,7 +313,7 @@ class PlaceGen(Function):
         # Divide by 2 is easier, but try divide by 4 here (to give
         # more slack to the conf)
         graspDelta = min((poseDelta / 2.0), maxGraspDelta)
-        confDelta = poseDelta - graspDelta
+        confDelta = poseDelta - graspDelta - placeDelta
         for grasp in grasps:
             conf = pose - grasp
             results.append((conf, confDelta, grasp, graspDelta))
@@ -410,7 +421,7 @@ def it1():
     goal = State([W([Conf([]), 5,  0.2], True)])
     runTest(goal)
 
-# Move the object
+# Move the object.  
 def it2():
     skeleton = [place, move, pick, move]
     goal = State([W([Pose(['a']), 5,  0.5], True)])
@@ -435,6 +446,12 @@ def it5():
     objects = {'a' : (2, 0), 'b' : (10, 0)}
     goal = State([W([Pose(['a']), 10, 1.0], True)])
     runTest(goal, objects = objects)
-                
+
+# Paint two objects
+def it6():
+    objects = {'a' : (2, 0), 'b' : (10, 0), 'c' : (20, 0)}
+    goal = State([Painted(['a'], True),
+                  Painted(['b'], True)])
+    runTest(goal, objects = objects)
 
 print 'interval loaded'
