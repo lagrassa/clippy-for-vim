@@ -44,7 +44,6 @@ class Experiment:
 table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2.0)
 table2Pose = hu.Pose(1.0, -1.2, 0.0, 0.0)
 table3Pose = hu.Pose(1.6,0.0,0.0, math.pi/2.0),
-coolShelvesPose = hu.Pose(1.35, 0.03, tZ, math.pi/2)
 
 bigVar = (0.1**2, 0.1**2, 1e-10, 0.3**2)
 medVar = (0.05**2, 0.05**2, 1e-10, 0.1**2)
@@ -210,6 +209,7 @@ def test3(**args):
     right2 = hu.Pose(1.5, -0.5, tZ, 0.0)
     left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
     left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
+    coolShelvesPose = hu.Pose(1.4, 0.03, tZ, math.pi/2)
     region = 'coolShelves_space_2'
     easy=args.get('easy', False)
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -324,6 +324,53 @@ def test9(**args):
     skel = None
     return doTest('test9', exp, goal1, skel, args)
 
+def test10(**args):
+    glob.rebindPenalty = 150
+    front = hu.Pose(1.3, 0.0, tZ, math.pi/2)
+    back1 = hu.Pose(1.45, -0.075, tZ, math.pi)
+    back2 = hu.Pose(1.5, 0.075, tZ, math.pi)
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   # 'barC' : (front, smallVar)
+                   },
+                  {'objA' : (back1, medVar),
+                   'objB' : (back2, medVar)},
+                  ['table1Top'], easy=args.get('easy', False))
+    goal1 = holding('objA', 'left', 2)
+    skel = None
+    def moveObjects(bs, rw):
+        changePose(bs, rw, 'objA', hu.Pose(1.5, -0.075, tZ, math.pi))
+        changePose(bs, rw, 'objB', hu.Pose(1.45, 0.075, tZ, math.pi))
+    args['initWorld'] = moveObjects
+    return doTest('test10', exp, goal1, skel, args)
+
+def test11(**args):
+    glob.rebindPenalty = 150
+    front1 = hu.Pose(1.1, 0.0, tZ, 0.)
+    front2 = hu.Pose(1.1, 0.13, tZ, -math.pi/2)
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   },
+                  {'objA' : (front1, medVar),
+                   'objB' : (front2, medVar)},
+                  ['table1Left'], easy=args.get('easy', False))
+    goal1 = holding('objA', 'left', 2)
+
+    skel = [[
+        pick, moveNB,
+        lookAt.applyBindings({'Obj' : 'objA'}), move,
+        achCanPickPlace,    # place
+        move, pick, moveNB,
+        lookAt.applyBindings({'Obj' : 'objB'}),
+        move]]
+    # def moveObjects(bs, rw):
+    #     changePose(bs, rw, 'objA', hu.Pose(1.1, 0.0, tZ, 0.))
+    #     changePose(bs, rw, 'objB', hu.Pose(1.1, 0.1, tZ, -math.pi/2))
+    # args['initWorld'] = moveObjects
+    return doTest('test11', exp, goal1, skel, args)
+
+def changePose(bs, rw, obj, pose):
+    origPose = rw.getObjectPose(obj)
+    rw.setObjectPose(obj, hu.Pose(pose.x, pose.y, origPose.z, pose.theta))
+
 ######################################################################
 # Test Swap
 ######################################################################
@@ -404,6 +451,7 @@ def testShelvesGrasp(**args):
     mid = hu.Pose(1.15, 0.35, tZ, 0.0)
     sh1 = hu.Pose(1.3, -0.1, 1.170, 0.0)
     sh2 = hu.Pose(1.3, 0.1, 1.170, 0.0)
+    coolShelvesPose = hu.Pose(1.35, 0.03, tZ, math.pi/2)
     region = 'coolShelves_space_2'
     easy=args.get('easy', False)
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -428,6 +476,7 @@ def testShelvesPush(**args):
     mid = hu.Pose(1.15, 0.35, tZ, 0.0)
     sh1 = hu.Pose(1.3, -0.1, 1.170, 0.0)
     sh2 = hu.Pose(1.3, 0.1, 1.170, 0.0)
+    coolShelvesPose = hu.Pose(1.35, 0.03, tZ, math.pi/2)
     region = 'coolShelves_space_2'
     easy=args.get('easy', False)
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -489,6 +538,7 @@ def testPush2(objName='bigA', **args):
 def testPushShelves(name, objName, startPose, targetPose,
                     startPoseB, **args):
     glob.rebindPenalty = 50
+    coolShelvesPose = hu.Pose(1.4, 0.03, tZ, math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    'coolShelves' : (coolShelvesPose, smallVar)},
                   {objName : (startPose, medVar),
@@ -515,7 +565,7 @@ def testPush3(objName='bigA', **args):
 ######################################################################
 
 def testPush4(objName='bigA', **args):
-    testPushShelves('testPush3', objName,
+    testPushShelves('testPush4', objName,
                     hu.Pose(1.1, 0.0, tZ, 0.0),
                     hu.Pose(1.1, 0.5, tZ, 0.0), # x = 1.5 to get two pushes
                     hu.Pose(1.1, 0.4, tZ, 0.0), # in the way
@@ -535,7 +585,7 @@ def testPush5(objName = 'bigA', **args):
     return doTest('testPush5', exp, goal, skel, args)
 
 ######################################################################
-# Push objects out of the way to gras bigA
+# Push objects out of the way to gras objA
 ######################################################################
 
 def testPush6(objName = 'objA', **args):

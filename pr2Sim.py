@@ -43,7 +43,7 @@ simulateError = False
 
 animateSleep = 0.01
 
-maxOpenLoopDist = 2.0
+maxOpenLoopDist = 4.0
 
 simOdoErrorRate = 0.0                   # was 0.02
 

@@ -1502,7 +1502,7 @@ place = Operator('Place', placeArgs,
         argsToPrint = range(4),
         ignorableArgs = range(1, 19),   # all place of same obj at same level
         ignorableArgsForHeuristic = range(4, 19),
-        rebindPenalty = 10)
+        rebindPenalty = 30)
         
 
 pushArgs = ['Obj', 'Hand', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta',
@@ -1618,7 +1618,7 @@ pick = Operator(
         argsToPrint = [0, 1, 5, 3, 9],
         ignorableArgs = range(1, 18),
         ignorableArgsForHeuristic = range(4, 18),
-        rebindPenalty = 10)
+        rebindPenalty = 30)
 
 # We know that the resulting variance will always be less than obsVar.
 # Would like the result to be the min of PoseVarAfter (which is in the

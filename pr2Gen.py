@@ -778,6 +778,7 @@ placeVarIncreaseFactor = 3 # was 2
 lookVarIncreaseFactor = 2
 
 def dropIn(pbs, prob, obj, regShapes):
+    return
     hand = None
     for h in ('left', 'right'):
         minConf = minimalConf(pbs.conf, h)
@@ -806,6 +807,7 @@ def dropIn(pbs, prob, obj, regShapes):
                     return ppr
 
 def drop(pbs, prob, obj, hand, placeB):
+    return
     minConf = minimalConf(pbs.conf, hand)
     if minConf in PPRCache:
         ppr = PPRCache[minConf]

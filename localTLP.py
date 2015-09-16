@@ -84,7 +84,10 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['noWriteSearch', 'noTrace', 'noPlayback'] 
+debugOn = usualTags + ['animate'] + ['canPickPlaceTest', 'placeInGen']
+# + ['noWriteSearch', 'noTrace', 'noPlayback'] 
+# + ['animate']
+# + ['noWriteSearch', 'noTrace', 'noPlayback'] 
 #+ ['canReachGen', 'pushPath', 'pushGen', 'debugInHeuristic', 'sim']
 #+ ['pickGen', 'debugInHeuristic', 'potentialGraspConfs', 'potentialGraspConfsWin', 'potentialGraspConfsLose']
 # + ['noWriteSearch', 'noTrace', 'noPlayback'] 
