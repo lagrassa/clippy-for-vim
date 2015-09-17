@@ -357,8 +357,6 @@ def graspGen(pbs, obj, graspB, placeB=None, conf=None, hand=None, prob=None):
                        delta=graspB.delta)
         yield gB
 
-graspConfHistory = []
-
 graspConfGenCache = {}
 graspConfGenCacheStats = [0,0]
 
@@ -935,7 +933,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         pose = hu.Pose(x,y,z, 0.)     # shRotations is already rotated
         sh = shRotations[angle].applyTrans(pose)
         if debug('potentialRegionPoseGen'):
-            sh.draw('W', 'orange')
+            pbs.draw(prob, 'W'); sh.draw('W', 'orange')
             print x,y,z,angle
             raw_input('Go?')
         pose = hu.Pose(x,y,z,angle)

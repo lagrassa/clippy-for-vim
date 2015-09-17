@@ -49,7 +49,7 @@ useHandTiltForPush = False              # Use for real robot
 
 inHeuristic = False
 
-useCC = True                            # Use compiled chains collision checks
+useCC = False                            # Use compiled chains collision checks
 skipSearch = False                       # Don't plan paths except for prims
 useMathematica = False
 
@@ -92,7 +92,7 @@ baseGrowthY = 0.1
 # FBCH
 ########################################
 
-maxNodesHPN = 1000
+savedMaxNodesHPN = maxNodesHPN = 100
 rebindPenalty = 30
 monotonicFirst = True
 monotonicNow = True

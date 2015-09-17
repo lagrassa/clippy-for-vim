@@ -346,7 +346,7 @@ def test10(**args):
 def test11(**args):
     glob.rebindPenalty = 150
     front1 = hu.Pose(1.1, 0.0, tZ, 0.)
-    front2 = hu.Pose(1.1, 0.13, tZ, -math.pi/2)
+    front2 = hu.Pose(1.1, 0.11, tZ, -math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    },
                   {'objA' : (front1, medVar),
@@ -465,7 +465,8 @@ def testShelvesGrasp(**args):
                   [region, 'table1Top'], easy=easy)
 
     goal1 = inRegion('objA', region)
-    # goal1 = holding('objA', 'left', 0)
+    goal2 = holding('objA', 'left', 0)
+    goal3 = inRegion('objC', 'table1Right')
     skel = None
     return doTest('testShelvesGrasp', exp, goal1, skel, args)
 

@@ -238,6 +238,9 @@ cdef class Violations(Hash):
                                    [x.name() for x in self.shadows],
                                    [[x.name() for x in ho] for ho in self.heldObstacles],
                                    [[x.name() for x in hs] for hs in self.heldShadows]))
+    def draw(self, window, color='magenta'):
+        for x in (self.obstacles, self.shadows, self.heldObstacles, self.heldShadows):
+            x.draw(window, color)
     def __str__(self):
         return self.__repr__()
 
@@ -280,6 +283,13 @@ class PPResponse:
         pg = (self.pB.support.mode(), grasp)
         w = self.viol.weight() if self.viol else None
         return '%s %s v=%s (p,g)=%s, pose=%s'%(obj, self.hand, w, pg, pose)
+    def draw(self, window, pbs, prob=0.9):
+        print 'Drawing', str(self)
+        shWorld = pbs.getShadowWorld(prob)
+        if self.c: self.c.draw(window, color='blue', attached=shWorld.attached)
+        if self.ca: self.ca.draw(window, 'pink', attached=shWorld.attached)
+        if self.PB: self.pB.shape(shWorld).draw('magenta')
+        if self.viol: self.viol.draw(window, 'magenta')
     def __repr__(self):
         return str(self)
     
@@ -310,6 +320,14 @@ class PushResponse:
         pose = self.prePB.poseD.mode().xyztTuple() if self.prePB else None
         w = self.viol.weight() if self.viol else None
         return '%s %s v=%s pose=%s'%(obj, self.hand, w,  pose)
+    def draw(self, window, pbs, prob=0.9):
+        print 'Drawing', str(self)
+        shWorld = pbs.getShadowWorld(prob)
+        for conf,color in ((self.preConf, 'blue'), (self.pushConf, 'pink'), (self.postConf, 'green')):
+            if conf: conf.draw(window, color=color)
+        if self.prePB: self.prePB.shape(shWorld).draw('blue')
+        if self.postPB: self.postPB.shape(shWorld).draw('pink')
+        if self.viol: self.viol.draw(window, 'magenta')
     def __repr__(self):
         return str(self)
     

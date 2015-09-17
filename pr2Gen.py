@@ -281,7 +281,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
             if not onlyCurrent:
                 tr(tag, 'No potential grasp confs, will need to regrasp',
                    draw=[(pbs, prob, 'W')], snap=['W'])
-                if debug(tag):
+                if True: # debug(tag):
                     raw_input('pickGen: Cannot find grasp conf for current pose of ' + obj)
                 else: print 'pickGen: Cannot find graspconf for current pose of', obj
         else:
@@ -557,6 +557,10 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
             if nextGr and nextGr[0]:
                 return 1
             else:
+                if gB.grasp.mode() == 0:
+                    pbsOrig.draw(prob, 'W')
+                    print 'cannot use grasp 0'
+                    pdb.set_trace()
                 return 2
         else:
             return 1
@@ -619,7 +623,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
     allGrasps = [(checkOrigGrasp(gB), gB) for gB in graspGen(pbs, obj, graspB)]
     gClasses, gCosts = groupByCost(allGrasps)
 
-    tr(tag, 'Top grasps', [g.grasp.mode() for g in gClasses[0]], 'costs', gCosts[0])
+    tr(tag, 'Top grasps', [g.grasp.mode() for g in gClasses[0]], 'costs', gCosts)
 
     for grasps, gCost in zip(gClasses, gCosts):
         targetConfs = placeApproachConfGen(grasps)
@@ -778,7 +782,6 @@ placeVarIncreaseFactor = 3 # was 2
 lookVarIncreaseFactor = 2
 
 def dropIn(pbs, prob, obj, regShapes):
-    return
     hand = None
     for h in ('left', 'right'):
         minConf = minimalConf(pbs.conf, h)
@@ -807,7 +810,6 @@ def dropIn(pbs, prob, obj, regShapes):
                     return ppr
 
 def drop(pbs, prob, obj, hand, placeB):
-    return
     minConf = minimalConf(pbs.conf, hand)
     if minConf in PPRCache:
         ppr = PPRCache[minConf]
@@ -840,8 +842,8 @@ def placeInGenAway(args, goalConds, pbs):
                                    goalConds, pbs, away=True, update=False):
         yield ans
 
-placeInGenMaxPoses  = 300
-placeInGenMaxPosesH = 300
+placeInGenMaxPoses  = 100
+placeInGenMaxPosesH = 100
 
 def placeInGenTop(args, goalConds, pbs,
                   regrasp=False, away = False, update=True):

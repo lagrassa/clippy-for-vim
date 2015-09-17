@@ -387,6 +387,11 @@ class PlanTest:
         randomizedInitialPoses = rip
         global heuristicTime
         glob.inHeuristic = False
+        if not hierarchical:
+            glob.maxNodesHPN = 1000
+            print 'Not hierarchical, setting glob.maxNodesHPN =', glob.maxNodesHPN
+        else:
+            glob.maxNodesHPN = glob.savedMaxNodesHPN
         if skeleton:
             fbch.dotSearchId = 0
             glob.debugOn = list(set(list(glob.debugOn) + list(glob.skeletonTags)))
@@ -511,7 +516,7 @@ class PlanTest:
             elif ans in ('q', 'Q'):
                 print 'Done playback'
                 return
-            elif ans[0] in ('m', 'M') and len(ans.split()) == 2: 
+            elif ans and ans[0] in ('m', 'M') and len(ans.split()) == 2: 
                 name = ans.split()[1]
                 print 'Writing mathematica movies for', name
                 mathematica.mathMovie(wm.getWindow('Belief').capture,

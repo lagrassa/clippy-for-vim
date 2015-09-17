@@ -1789,6 +1789,10 @@ class AchCanPickPlaceGen(Function):
                                       op, cond]), True, prob], True)
         poseFluent = B([Pose([obj, poseFace]), pose, realPoseVar,
                         poseDelta, prob], True)
+        
+        # cppFluent is here so we can get the right reachObsts
+        # for picking, we have to nail down the obj at the pose we want to pick from
+        addedConditions = [cppFluent, poseFluent] if op == 'pick' else [cppFluent]
 
         world = start.pbs.getWorld()
         graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace, poseFace,
@@ -1800,7 +1804,7 @@ class AchCanPickPlaceGen(Function):
             v, r = canPickPlaceTest(pbs, preconf, ppconf, hand,
                                     graspB, placeB, prob, op=op)
             return v
-        return achCanXGen(start.pbs, goal, cond, [cppFluent, poseFluent],
+        return achCanXGen(start.pbs, goal, cond, addedConditions,
                           violFn, prob, tag)
 
 class AchCanPushGen(Function):
