@@ -594,7 +594,8 @@ typicalErrProbs = DomainProbs(
             #maxPushVar = (0.001**2, .001**2, .0001**2, .002**2),
             #maxPushVar = (0.005**2, .005**2, .0001**2, .01**2),
             maxPushVar = (0.01**2, .01**2, .0001**2, .1**2),
-            moveConfDelta = (0.001, 0.001, 1e-6, 0.002),
+            # moveConfDelta = (0.001, 0.001, 1e-6, 0.002),
+            moveConfDelta = (0.005, 0.005, 1e-6, 0.01),
             #shadowDelta = (0.01, 0.01, 1.0e-8, 0.05),
             #shadowDelta = (0.001, 0.001, 1e-11, 0.002),
 

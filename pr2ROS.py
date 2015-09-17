@@ -207,6 +207,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         prevXYT = path[0]['pr2Base']
         for (i, conf) in enumerate(path):
             debugMsg('robotEnvCareful', '    conf[%d]'%i)
+            if debug('robotEnvCareful'): conf.prettyPrint()
             newXYT = conf['pr2Base']
             result, outConf, _ = pr2GoToConf(conf, 'move')
 
@@ -714,6 +715,9 @@ def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0,
     if debug('invkin'):
         if nearTo: nearTo.prettyPrint('nearTo conf:')
     nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
+    if nConf['pr2Head'] is None:
+        # Catch an apparent asymmetry in forward/inverse kin.
+        nConf.conf['pr2Head'] = conf.conf['pr2Head']
     nConf.prettyPrint('displaceHand Conf:')
     if nConf.conf[handFrameName]:
         return nConf

@@ -1074,6 +1074,7 @@ class CanSeeFrom(Fluent):
             self.hviols[key] = ans, occluders
         else:
             self.viols[key] = ans, occluders
+        debugMsg('CanSee', 'ans', ans, 'occluders', occluders)
         return ans, occluders
     
     def heuristicVal(self, details, v, p):

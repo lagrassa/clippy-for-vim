@@ -277,7 +277,8 @@ def canView(pbs, prob, conf, hand, shape,
         for h in ['left', 'right']:     # try both hands
             chainName = robot.armChainNames[h]
             armChains = [chainName, robot.gripperChainNames[h]]
-            if not collides(conf, vc, attached=attached, selectedChains=armChains):  # vc.collides(armShape(conf, h)):
+            if not (collides(conf, vc, attached=attached, selectedChains=armChains) \
+                   if glob.useCC else vc.collides(armShape(conf, h))):
                 continue
             if debug('canView'):
                 print 'canView collision with', h, 'arm', conf['pr2Base']
