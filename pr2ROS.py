@@ -210,6 +210,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             if debug('robotEnvCareful'): conf.prettyPrint()
             newXYT = conf['pr2Base']
             result, outConf, _ = pr2GoToConf(conf, 'move')
+            # Use commanded value to avoid problems with moveDelta
+            # TODO: Fix this
+            outConf = conf
 
             # !! Do some looking and update the belief state.
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
