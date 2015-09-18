@@ -315,10 +315,13 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                      if 'table' in shape.name()]
         visShelves = [shape.name() for shape in visShapes \
                      if 'coolShelves' in shape.name()]
+        print 'Predicted visible shapes', [x.name() for x in visShapes]
         obs = []
 
         debugMsg('robotEnv', 'executeLookAt', lookConf.conf)
         result, outConf, _ = pr2GoToConf(lookConf, 'look')
+        # TODO: Check this - assuming we went to the right place.
+        outConf = lookConf
         outConfCart = lookConf.robot.forwardKin(outConf)
         if visTables:
             assert len(visTables) == 1
@@ -346,12 +349,13 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                     obsPose = trans.pose()
                     obsShape.draw('MAP', 'cyan')
                     shelvesRob = obsShape.applyTrans(basePose.inverse())
-                    shelvesPose = getSupportPose(obsShape, trueFace).pose()
-                    print 'placeB.poseD.mode()', placeB.poseD.mode()
-                    print ' obsPose', obsPose
-                    print 'shelvesPose', shelvesPose
+                    # shelvesPose = getSupportPose(obsShape, trueFace).pose()
+                    # shelvesPose = obsPose.compose(basePose.inverse()).pose()
+                    print '** placeB.poseD.mode()', placeB.poseD.mode()
+                    print '** obsPose', obsPose
+                    # print '** shelvesPose', shelvesPose
                     raw_input('Go?')
-                    obs.append((self.world.getObjType(shelvesName), trueFace, shelvesPose))
+                    obs.append((self.world.getObjType(shelvesName), trueFace, obsPose))
                 else:
                     print 'Object', shelvesName, 'is not visible'
                     raw_input('Go?')

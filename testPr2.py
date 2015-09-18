@@ -213,7 +213,7 @@ def test3(**args):
     region = 'coolShelves_space_2'
     easy=args.get('easy', False)
     exp = makeExp({'table1' : (table1Pose, smallVar),
-                   'coolShelves' : (coolShelvesPose , smallVar)},  # was medVar
+                   'coolShelves' : (coolShelvesPose , bigVar)}, 
                   {'objA' : (right1, medVar),
                    'objB' : (left1, medVar)},
                   [region, 'table1Top'], easy=easy)
@@ -446,7 +446,8 @@ def testBusy(hardSwap = False, **args):
 
 def testShelvesGrasp(**args):
     glob.rebindPenalty = 700
-    front = hu.Pose(1.1, 0.475, tZ, 0.0)
+    front = hu.Pose(1.1, 0.475, tZ, 0)
+    front = hu.Pose(1.15, 0.475, tZ, -math.pi/2)
     # -pi/2 works ok for grasp 0.  Why doesn't this work as well for for pi/2 and grasp 1??
     mid = hu.Pose(1.15, 0.35, tZ, 0.0)
     sh1 = hu.Pose(1.3, -0.1, 1.170, 0.0)
@@ -459,8 +460,8 @@ def testShelvesGrasp(**args):
                   {'objA' : (mid, medVar),
                    'objD' : (front, medVar), # or objD
                    # 'bigB' : (back, medVar),
-                   'objB' : (sh1, medVar),
-                   'objC' : (sh2, medVar),
+                   # 'objB' : (sh1, medVar),
+                   # 'objC' : (sh2, medVar),
                    },
                   [region, 'table1Top'], easy=easy)
 

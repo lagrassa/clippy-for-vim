@@ -560,7 +560,6 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                 if gB.grasp.mode() == 0:
                     pbsOrig.draw(prob, 'W')
                     print 'cannot use grasp 0'
-                    pdb.set_trace()
                 return 2
         else:
             return 1

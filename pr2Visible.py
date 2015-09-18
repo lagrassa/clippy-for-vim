@@ -148,7 +148,9 @@ def countContacts(contacts, id):
 
 def lookAtConf(conf, shape):
     center = bboxCenter(shape.bbox())   # base=True?
-    z = shape.bbox()[1,2]       # at the top
+    z = shape.bbox()[1,2]               # at the top
+    z = 0.5*(shape.bbox()[0,2] + shape.bbox()[1,2])       # at the middle
+    z = shape.bbox()[0,2]               # at the bottom
     for dz in (0, 0.02, 0.04, 0.06):
         center[2] = z + dz
         cartConf = conf.cartConf()

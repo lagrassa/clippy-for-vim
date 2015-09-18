@@ -84,7 +84,7 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['animate'] + ['canView', 'visible', 'CanSee']
+debugOn = usualTags + ['animate']
 # + ['noWriteSearch', 'noTrace', 'noPlayback'] 
 # + ['animate']
 # + ['noWriteSearch', 'noTrace', 'noPlayback'] 
