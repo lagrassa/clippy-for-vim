@@ -446,7 +446,7 @@ def testBusy(hardSwap = False, **args):
 
 def testShelvesGrasp(**args):
     glob.rebindPenalty = 700
-    front = hu.Pose(1.1, 0.475, tZ, 0)
+    front = hu.Pose(1.1, 0.475, tZ, 0.0)
     front = hu.Pose(1.15, 0.475, tZ, -math.pi/2)
     # -pi/2 works ok for grasp 0.  Why doesn't this work as well for for pi/2 and grasp 1??
     mid = hu.Pose(1.15, 0.35, tZ, 0.0)
@@ -469,7 +469,7 @@ def testShelvesGrasp(**args):
     goal2 = holding('objA', 'left', 0)
     goal3 = inRegion('objC', 'table1Right')
     skel = None
-    return doTest('testShelvesGrasp', exp, goal1, skel, args)
+    return doTest('testShelvesGrasp', exp, goal2, skel, args)
 
 def testShelvesPush(**args):
     glob.rebindPenalty = 700
