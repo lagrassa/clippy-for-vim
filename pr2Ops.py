@@ -1101,6 +1101,11 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
     w = details.pbs.beliefContext.world
 
     if obsPose is None:
+
+        print '*****  Big hack until we get observation prediction right ****'
+        print 'Expected to see', objName, 'but did not'
+        return
+        
         # Update modeprob if we don't get a good score
         oldP = details.poseModeProbs[objName]
         obsGivenH = details.domainProbs.obsTypeErrProb
