@@ -1,0 +1,17 @@
+digraph G {
+    ordering=out;
+    node [fontname=HelveticaBold];
+    "342" [shape=box, label="cost=0 h=78.92055958\n* B[Pose[objA, 4],(1.506, 0.025, 1.170, 0.000), (0.005, 0.005, 0.005, 0.010), (0.010, 0.010, 0.000, 0.020), 0.975] = True\nBLoc[coolShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.975] = True\n"];
+    "1055" [shape=box, label="cost=1 h=71.47050888\n* B[Pose[objA, 4],(1.506, 0.025, 1.170, 0.000), (0.030, 0.030, 0.030, 0.050), (0.010, 0.010, 0.000, 0.020), 0.775] = True\nBLoc[coolShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.775] = True\n"];
+    "342" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=0 h=78.92055958\n* B[Pose[objA, 4],(1.506, 0.025, 1.170, 0.000), (0.005, 0.005, 0.005, 0.010), (0.010, 0.010, 0.000, 0.020), 0.975] = True\nBLoc[coolShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.975] = True\n"];
+    "342" -> "1055"[label="LookAt(objA, JointConf([0.333, 0.000, 0.000]), (1.506, 0.025, 1.170, 0.000)):0"];
+    "1063" [shape=box, label="cost=61.39129469 h=3.07921419\n* Bd[CanPickPlace [objA, right, (1.506, 0.025, 1.170, 0.000), []], True, 0.900] = True\nBLoc[coolShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nGraspable[objA] = True\n"];
+    "1055" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=1 h=71.47050888\n* B[Pose[objA, 4],(1.506, 0.025, 1.170, 0.000), (0.030, 0.030, 0.030, 0.050), (0.010, 0.010, 0.000, 0.020), 0.775] = True\nBLoc[coolShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.775] = True\n"];
+    "1055" -> "1063"[label="Place(objA, right, 4, (1.506, 0.025, 1.170, 0.000)):1"];
+    "1067" [shape=box, label="cost=72.47050888 h=0\nBLoc[coolShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[CanPickPlace [objA, right, (1.506, 0.025, 1.170, 0.000), []], True, 0.900] = True\nGraspable[objA] = True\n"];
+    "1055" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=1 h=71.47050888\n* B[Pose[objA, 4],(1.506, 0.025, 1.170, 0.000), (0.030, 0.030, 0.030, 0.050), (0.010, 0.010, 0.000, 0.020), 0.775] = True\nBLoc[coolShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.775] = True\n"];
+    "1055" -> "1067"[label="Place(objA, right, 4, (1.506, 0.025, 1.170, 0.000)):1"];
+    "342" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "1055" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "1067" [shape=box, style=filled, colorscheme=pastel16,color=3];
+}

@@ -470,7 +470,7 @@ def testShelvesGrasp(**args):
     goal2 = holding('objA', 'left', 0)
     goal3 = inRegion('objC', 'table1Right')
     skel = None
-    return doTest('testShelvesGrasp', exp, goal2, skel, args)
+    return doTest('testShelvesGrasp', exp, goal1, skel, args)
 
 def testShelvesPush(**args):
     front = hu.Pose(1.1, 0.5, tZ, 0.0)

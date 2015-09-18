@@ -712,7 +712,6 @@ def displaceHand(conf, hand, dx=0.0, dy=0.0, dz=0.0,
         print 'trans\n', trans.matrix
         print 'zFrom\n', zFrom.cartConf()[handFrameName].matrix
         print 'dz', dz
-        raw_input('Ok?')
     if maxTarget:
         diff = trans.inverse().compose(maxTarget.cartConf()[handFrameName])
         max_dx = diff.matrix[0,3]
