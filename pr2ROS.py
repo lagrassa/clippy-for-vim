@@ -158,6 +158,7 @@ def enforceLimits(conf):
     return JointConf(outConfDict, conf.robot)
 
 maxOpenLoopDist = 2.0                   # How far to move between looks
+maxOpenLoopDist = 10.0                   # How far to move between looks
 
 # The key interface spec...
 # obs = env.executePrim(op, params)
@@ -250,7 +251,11 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             assert targetConf['pr2Base'] == \
                    startConf if isinstance(startConf, list) else startConf['pr2Base']
             actualConf = pr2GetConf()
-            assert baseNear(actualConf, targetConf, 0.01), 'Actual base should match'
+            if not baseNear(actualConf, targetConf, 0.01):
+                print 'actual base', actualConf['pr2Base']
+                print 'target base', targetConf['pr2Base']
+                print 'Actual base on robot should match target in moveNB'
+                raw_input('Continue?')
         if params:
             path, interpolated, placeBs = params
             debugMsg('robotEnvCareful', 'executeMove: path len = ', len(path))
