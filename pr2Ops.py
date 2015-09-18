@@ -988,7 +988,8 @@ def lookAtBProgress(details, args, obs):
     details.pbs.internalCollisionCheck()
     debugMsg('beliefUpdate', 'look')
 
-llMatchThreshold = -100.0
+#llMatchThreshold = -100.0
+llMatchThreshold = -200.0
 
 def objectObsUpdate(details, lookConf, obsList):
     def rem(l,x): return [y for y in l if y != x]
@@ -1058,8 +1059,10 @@ def greedyBestAssignment(scores):
                                               lambda ((oj, os), (v, o, f)): v)
         if val < llMatchThreshold:
             result.append((obj, None, None))
+            tr('assign', 'Fail', val, obj.name(), tobs)
             return result
-        tr('assign', prettyString(val), obj.name(), tobs, old = True)
+        else:
+            tr('assign', prettyString(val), obj.name(), tobs, old = True)
         result.append((obj, tobs, face))
         # Better not to copy so much
         scoresLeft = [((oj, os), stuff) for ((oj, os), stuff) in scoresLeft \
