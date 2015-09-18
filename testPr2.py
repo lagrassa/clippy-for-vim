@@ -122,7 +122,6 @@ def doTest(name, exp, goal, skel, args):
 # Use domainProbs.odoError as the stdev of any object.
 
 def test0(**args):
-    glob.rebindPenalty = 10
     exp = makeExp({'table1' : (table1Pose, medVar)},
                   {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
@@ -152,7 +151,6 @@ def test0(**args):
 ######################################################################
 
 def test1(**args):
-    glob.rebindPenalty = 700
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    'table2' : (table2Pose, smallVar)},
                   {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
@@ -169,7 +167,6 @@ def test1(**args):
 
 # pick and place into region.  2 tables
 def test1Point5(**args):
-    glob.rebindPenalty = 700
     exp = makeExp({'table1' : (table1Pose, medVar),
                    'table2' : (table2Pose, tinyVar)},
                   {'objA' : (hu.Pose(1.2, 0.0, tZ, 0.0), medVar)},
@@ -190,7 +187,6 @@ def test1Point5(**args):
 ######################################################################
 
 def test2(**args):
-    glob.rebindPenalty = 700
     exp = makeExp({'table1' : (table1Pose, smallVar)},
                   {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar),
                    'objB' : (hu.Pose(1.1, -0.4, tZ, 0.0), medVar)},
@@ -199,12 +195,25 @@ def test2(**args):
     skel = None
     return doTest('test2', exp, goal, skel, args)
 
+def test2h(**args):
+    front = hu.Pose(1.15, 0.475, tZ, -math.pi/2)
+    mid = hu.Pose(1.15, 0.35, tZ, 0.0)
+    easy=args.get('easy', False)
+    region = 'table1Left'
+    exp = makeExp({'table1' : (table1Pose, smallVar)},
+                  {'objA' : (mid, medVar),
+                   'objD' : (front, medVar), # or objD
+                   },
+                  [region, 'table1Top'], easy=easy)
+    goal1 = inRegion('objA', region)
+    skel = None
+    return doTest('test2h', exp, goal1, skel, args)
+
 ######################################################################
 # Test 3: Put object in shelves
 ######################################################################
 
 def test3(**args):
-    glob.rebindPenalty = 700
     right1 = hu.Pose(1.1, 0.0, tZ, 0.0) 
     right2 = hu.Pose(1.5, -0.5, tZ, 0.0)
     left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
@@ -242,7 +251,6 @@ def test3(**args):
 ######################################################################
 
 def test4(gt=0, **args):
-    glob.rebindPenalty = 100
     front = hu.Pose(1.2, 0.0, tZ, 0.0)
     side = hu.Pose(1.25, 0.5, tZ, -math.pi/2) # works for grasp 0
     pose = side                               # select start pose
@@ -259,7 +267,6 @@ def test4(gt=0, **args):
 ######################################################################
 
 def testWithBInHand(name, goal, args):
-    glob.rebindPenalty = 150
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     back = hu.Pose(1.4, 0.0, tZ, 0.0)
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -311,7 +318,6 @@ def test8(**args):
 ######################################################################
 
 def test9(**args):
-    glob.rebindPenalty = 150
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     back = hu.Pose(1.4, 0.0, tZ, 0.0)
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -325,7 +331,6 @@ def test9(**args):
     return doTest('test9', exp, goal1, skel, args)
 
 def test10(**args):
-    glob.rebindPenalty = 150
     front = hu.Pose(1.3, 0.0, tZ, math.pi/2)
     back1 = hu.Pose(1.45, -0.075, tZ, math.pi)
     back2 = hu.Pose(1.5, 0.075, tZ, math.pi)
@@ -344,7 +349,6 @@ def test10(**args):
     return doTest('test10', exp, goal1, skel, args)
 
 def test11(**args):
-    glob.rebindPenalty = 150
     front1 = hu.Pose(1.1, 0.0, tZ, 0.)
     front2 = hu.Pose(1.1, 0.11, tZ, -math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -376,7 +380,6 @@ def changePose(bs, rw, obj, pose):
 ######################################################################
 
 def testSwap(hardSwap = False, **args):
-    glob.rebindPenalty = 150
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     back = hu.Pose(1.4, 0.0, tZ, 0.0)
     parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
@@ -409,7 +412,6 @@ def testHardSwap(**keys):
 ######################################################################
 
 def testBusy(hardSwap = False, **args):
-    glob.rebindPenalty = 150
     # Put this back to make the problem harder
     #back = hu.Pose(1.1, 0.0, tZ, 0.0)
     back = hu.Pose(1.45, 0.0, tZ, 0.0)
@@ -445,7 +447,6 @@ def testBusy(hardSwap = False, **args):
 ######################################################################
 
 def testShelvesGrasp(**args):
-    glob.rebindPenalty = 700
     front = hu.Pose(1.1, 0.475, tZ, 0)
     front = hu.Pose(1.15, 0.475, tZ, -math.pi/2)
     # -pi/2 works ok for grasp 0.  Why doesn't this work as well for for pi/2 and grasp 1??
@@ -472,7 +473,6 @@ def testShelvesGrasp(**args):
     return doTest('testShelvesGrasp', exp, goal1, skel, args)
 
 def testShelvesPush(**args):
-    glob.rebindPenalty = 700
     front = hu.Pose(1.1, 0.5, tZ, 0.0)
     # -pi/2 works ok for grasp 0.  Why doesn't this work as well for for pi/2 and grasp 1??
     mid = hu.Pose(1.15, 0.35, tZ, 0.0)
@@ -500,7 +500,6 @@ def testShelvesPush(**args):
 ######################################################################
 
 def testPush(name, objName, startPose, targetPose, **args):
-    glob.rebindPenalty = 50
     exp = makeExp({'table1' : (table1Pose, smallVar)},
                   {objName : (startPose, medVar)},
                   ['table1Top'], easy=args.get('easy', False))
@@ -539,7 +538,6 @@ def testPush2(objName='bigA', **args):
 
 def testPushShelves(name, objName, startPose, targetPose,
                     startPoseB, **args):
-    glob.rebindPenalty = 50
     coolShelvesPose = hu.Pose(1.4, 0.03, tZ, math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    'coolShelves' : (coolShelvesPose, smallVar)},
@@ -578,7 +576,6 @@ def testPush4(objName='bigA', **args):
 ######################################################################
 
 def testPush5(objName = 'bigA', **args):
-    glob.rebindPenalty = 50
     exp = makeExp({'table1' : (table1Pose, smallVar)},
                   {objName : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
@@ -591,7 +588,6 @@ def testPush5(objName = 'bigA', **args):
 ######################################################################
 
 def testPush6(objName = 'objA', **args):
-    glob.rebindPenalty = 50
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     back = hu.Pose(1.4, 0.0, tZ, 0.0)
     right = hu.Pose(1.25, -0.16, tZ, 0.0)

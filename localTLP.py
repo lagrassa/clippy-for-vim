@@ -92,8 +92,9 @@ debugOn = usualTags + ['animate']
 #+ ['pickGen', 'debugInHeuristic', 'potentialGraspConfs', 'potentialGraspConfsWin', 'potentialGraspConfsLose']
 # + ['noWriteSearch', 'noTrace', 'noPlayback'] 
 
+# tables, obsUpdate
 if platform.system() == 'Linux':
-    for x in ['robotEnv', 'tables', 'obsUpdate', 'bigAngleChange']:
+    for x in ['robotEnv']:
         if not x in debugOn: debugOn.append(x)
 
 #------------------------------------

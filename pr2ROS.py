@@ -2,6 +2,7 @@ import numpy as np
 import math
 import time
 import transformations as transf
+import windowManager3D as wm
 
 import pointClouds as pc
 import planGlobals as glob
@@ -252,7 +253,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             assert baseNear(actualConf, targetConf, 0.01), 'Actual base should match'
         if params:
             path, interpolated, placeBs = params
-            debugMsg('robotEnv', 'executeMove: path len = ', len(path))
+            debugMsg('robotEnvCareful', 'executeMove: path len = ', len(path))
             if noBase:
                 for conf in path:
                     assert baseNear(conf, targetConf, 0.01), 'Base should not move'
@@ -295,14 +296,14 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 
     def doLook(self, lookConf, placeBs):
         def lookAtTable(scan, placeB):
-            debugMsg('robotEnv', 'Get table detection?')
+            debugMsg('robotEnvCareful', 'Get table detection?')
             ans = tables.getTableDetections(self.world, [placeB], scan)
             if ans:
                 score, table = ans[0]
                 if debug('robotEnv'):
                     print 'score=', score, 'table=', table.name()
                     table.draw('W', 'red')
-                    raw_input(table.name())
+                    debugMsg('robotEnvCareful', table.name())
                 return table
             else:
                 print 'No table found'
@@ -327,7 +328,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             assert len(visTables) == 1
             tableName = visTables[0]
             basePose = outConfCart['pr2Base']
-            debugMsg('robotEnv', 'Get cloud?')
+            debugMsg('robotEnvCareful', 'Get cloud?')
             scan = getPointCloud(basePose)
             # Table is in world coordinates
             print 'Looking at table', tableName
@@ -399,7 +400,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                     print 'Obs', objType, objPlace.name(), 'score=', score,
                     print 'face=', trueFace, 'pose=', npose
                     objPlace.draw('W', 'cyan')
-                    raw_input(objType)
+                    wm.getWindow('W').update()
+                    debugMsg('robotEnvCareful', objType)
         if debug('robotEnv') and not obs:
             raw_input('Got no observations for %s'%([shape.name() for shape in visShapes]))
         return obs
@@ -421,15 +423,15 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
 
         gripper = 'pr2LeftGripper' if hand=='left' else 'pr2RightGripper'
 
-        debugMsg('robotEnv', 'executePick - open')
+        debugMsg('robotEnvCareful', 'executePick - open')
         result, outConf, _ = pr2GoToConf(approachConf, 'move')
         result, outConf, _ = pr2GoToConf(lookAtConf(approachConf, self.lookObjShape(placeBs[obj])),
                                       'look')
         
-        debugMsg('robotEnv', 'executePick - move to pickConf')
+        debugMsg('robotEnvCareful', 'executePick - move to pickConf')
         reactiveApproach(approachConf, pickConf, 0.06, hand)
 
-        debugMsg('robotEnv', 'executePick - close')
+        debugMsg('robotEnvCareful', 'executePick - close')
         result, outConf, _ = pr2GoToConf(pickConf, 'close', arm=hand[0]) # 'l' or 'r'
         # g = confGrip(outConf, hand)
         # gripConf = gripOpen(outConf, hand, g-0.03)
@@ -437,10 +439,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         # result, outConf, _ = pr2GoToConf(gripConf, 'open')
         # result, outConf, _ = pr2GoToConf(gripConf, 'grab', arm=hand[0])
         result, outConf, _ = closeFirmly(outConf, hand)
-        if debug('robotEnv'):
-            raw_input('Closed?')
+        debugMsg('robotEnvCareful', 'Closed?')
 
-        debugMsg('robotEnv', 'executePick - move to approachConf')
+        debugMsg('robotEnvCareful', 'executePick - move to approachConf')
         result, outConf, _ = pr2GoToConf(approachConf, 'move')
 
         return None
@@ -449,17 +450,17 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         (hand, placeConf, approachConf) = \
                (op.args[1], op.args[-6], op.args[-8])
 
-        debugMsg('robotEnv', 'executePlace - move to approachConf')
+        debugMsg('robotEnvCareful', 'executePlace - move to approachConf')
         result, outConf, _ = pr2GoToConf(approachConf, 'move')
         
-        debugMsg('robotEnv', 'executePlace - move to placeConf')
+        debugMsg('robotEnvCareful', 'executePlace - move to placeConf')
         result, outConf, _ = pr2GoToConf(placeConf, 'move')
 
-        debugMsg('robotEnv', 'executePlace - open')
+        debugMsg('robotEnvCareful', 'executePlace - open')
         placeConf = gripOpen(outConf, hand, 0.08) # keep height
         result, outConf, _ = pr2GoToConf(placeConf, 'open')
 
-        debugMsg('robotEnv', 'executePlace - move to approachConf')
+        debugMsg('robotEnvCareful', 'executePlace - move to approachConf')
         result, outConf, _ = pr2GoToConf(approachConf, 'move')
         
         return None
@@ -468,7 +469,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         # Execute the push prim
         if params:
             path, revPath, placeBs  = params
-            debugMsg('robotEnv', 'executePush: path len = ', len(path))
+            debugMsg('robotEnvCareful', 'executePush: path len = ', len(path))
             obs = self.executePath(path, placeBs)
             obs = self.executePath(revPath, placeBs)
         else:
@@ -796,8 +797,7 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
         contacts = 4*[False]
     for i, p in enumerate(path):
         print i,  handTrans(p, hand).point()
-    if debug('robotEnv'):
-        raw_input('Go?')
+    debugMsg('robotEnvCareful', 'Go?')
     prevConf = None
     for i, conf in enumerate(path):
         conf.prettyPrint('tryGrasp conf %d'%i)
