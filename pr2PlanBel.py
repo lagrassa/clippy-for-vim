@@ -110,6 +110,7 @@ class PBS:
             raise Exception, 'Failed to move robot out of collision'
 
     def findSupportRegion(self, prob, shape, strict=False, fail=True):
+        # This calls the procedure defined at the end of the file
         return findSupportRegion(shape, self.getShadowWorld(prob).regionShapes,
                                  strict=strict, fail=fail)
 
@@ -117,7 +118,7 @@ class PBS:
         placeB = self.getPlaceB(obj, default=False)
         if not placeB: return
         shape = placeB.shape(self.getWorld())
-        return findSupportRegion(shape, self.getShadowWorld(prob).regionShapes,
+        return findSupportingRegion(shape, self.getShadowWorld(prob).regionShapes,
                                  strict=strict, fail=fail)
 
     def ditherObjectToSupport(self, obj, p):

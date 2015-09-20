@@ -9,8 +9,6 @@ import planGlobals as glob
 from traceFile import debug, debugMsg
 from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn, objectName
 from pr2Visible import lookAtConf, findSupportTable, visible
-# import pr2Robot
-# reload(pr2Robot)
 from pr2Robot import cartInterpolators, JointConf
 from pr2Ops import lookAtBProgress
 
@@ -330,70 +328,67 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         # TODO: Check this - assuming we went to the right place.
         outConf = lookConf
         outConfCart = lookConf.robot.forwardKin(outConf)
-        if visTables:
-            assert len(visTables) == 1
-            tableName = visTables[0]
+        tableNames = {}
+        debugMsg('robotEnvCareful', 'Get cloud?')
+        scan = getPointCloud(basePose)
+        for tableName in visTables:
             basePose = outConfCart['pr2Base']
-            debugMsg('robotEnvCareful', 'Get cloud?')
-            scan = getPointCloud(basePose)
             # Table is in world coordinates
             print 'Looking at table', tableName
             table = lookAtTable(scan, placeBs[tableName])
             if not table: return []
             basePose = outConfCart['pr2Base']
             tableRob = table.applyTrans(basePose.inverse())
+            tableNames[tableName] = tableRob
             trueFace = supportFaceIndex(table)
             tablePose = getSupportPose(table, trueFace)
             obs.append((self.world.getObjType(tableName), trueFace, tablePose))
-
-            if visShelves:
-                shelvesName = visShelves[0]
-                placeB = placeBs[shelvesName]
-                (score, trans, obsShape) =\
-                        locate.getObjectDetections(lookConf, placeB, self.bs.pbs, scan)
-                if score is not None:
-                    print 'Object', shelvesName, 'is visible'
-                    obsPose = trans.pose()
-                    obsShape.draw('MAP', 'cyan')
-                    shelvesRob = obsShape.applyTrans(basePose.inverse())
-                    # shelvesPose = getSupportPose(obsShape, trueFace).pose()
-                    # shelvesPose = obsPose.compose(basePose.inverse()).pose()
-                    print '** placeB.poseD.mode()', placeB.poseD.mode()
-                    print '** obsPose', obsPose
-                    # print '** shelvesPose', shelvesPose
-                    raw_input('Go?')
-                    obs.append((self.world.getObjType(shelvesName), trueFace, obsPose))
-                else:
-                    print 'Object', shelvesName, 'is not visible'
-                    raw_input('Go?')
-        else:
+        if not tableNames:
+            # TODO: This is not really necessary, we can use regions
             raw_input('No tables visible... returning null obs')
             return []
-        targets = []
+        for shelvesName in visShapes:
+            placeB = placeBs[shelvesName]
+            (score, trans, obsShape) =\
+                    locate.getObjectDetections(lookConf, placeB, self.bs.pbs, scan)
+            if score is not None:
+                print 'Object', shelvesName, 'is visible'
+                obsPose = trans.pose()
+                obsShape.draw('MAP', 'cyan')
+                shelvesRob = obsShape.applyTrans(basePose.inverse())
+                print '** placeB.poseD.mode()', placeB.poseD.mode()
+                print '** obsPose', obsPose
+                raw_input('Go?')
+                obs.append((self.world.getObjType(shelvesName), trueFace, obsPose))
+            else:
+                print 'Object', shelvesName, 'is not visible'
+                    raw_input('Go?')
+        targets = {}
         for shape in visShapes:
             if 'table' in shape.name(): continue
             if 'coolShelves' in shape.name(): continue
             targetObj = shape.name()
             supportTableB = findSupportTable(targetObj, self.world, placeBs)
             assert supportTableB
-            if not supportTableB.obj == tableName:
-                print 'Skipping obj', targetObj, 'not supported by', tableName
+            if not supportTableB.obj in tableNames:
+                print 'Skipping obj', targetObj, 'not supported by', tableNames
                 continue
             placeB = placeBs[supportTableB.obj]
-            targets.append((targetObj, placeBs[targetObj]))
+            targets[targetObj] = (placeBs[targetObj], supportTableB)
 
         if targets:
-            surfacePoly = makeROSPolygon(tableRob) # from perceived table
+            surfacePolys = [makeROSPolygon(tableRob) for tableRob in tableNames.values()]
             ans = getObjDetections(self.world,
-                                   dict(targets),
+                                   dict(targets.keys()),
                                    outConf, # the lookConf actually achieved
-                                   [surfacePoly])
+                                   surfacePolys)
             for (score, objType, objPlaceRobot) in ans:
                 if not objPlaceRobot:
                     continue
                 trueFace = supportFaceIndex(objPlaceRobot)
                 objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
                 pose = getSupportPose(objPlace, trueFace)
+                tableRob = tableNames[targets[objPlace.obj][1]]
                 tablez0, tablez1 = tableRob.zRange()
                 objz0, objz1 = objPlace.zRange()
                 print 'table z', (tablez0, tablez1), 'object z', (objz0, objz1)
@@ -571,14 +566,15 @@ def getPointCloud(basePose, resolution = glob.cloudPointsResolution):
         raw_input('Continue?')
         return []
 
-def makeROSPolygon(obj, zPlane=None):
+# zIndex = 1 means 'top' (max z), = 0 means 'bottom' (min z)
+def makeROSPolygon(obj, zIndex = 1):
     points = []
     verts = obj.xyPrim().vertices()
-    zhi = obj.zRange()[1]
+    zhi = obj.zRange()[zIndex]
     for p in range(verts.shape[1]):
         (x, y, z) = verts[0:3,p]
         if abs(z - zhi) < 0.001:
-            points.append(gm.Point(x, y, zPlane or z))
+            points.append(gm.Point(x, y, z))
     return gm.Polygon(points)
 
 def makeROSPose2D(pose):
