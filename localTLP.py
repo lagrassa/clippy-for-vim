@@ -71,7 +71,7 @@ drawRebindNodes = True
 usualTags = ['nonmon']
 flags = ['simpleAbstractCostEstimates',
          'primitiveHeuristicAlways',
-          'pushSim', 'helpfulActions']
+          'pushSim']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
                  'debugInHeuristic', 'h', 'hAddBack']
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',

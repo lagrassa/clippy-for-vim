@@ -1021,7 +1021,7 @@ class CanSeeFrom(Fluent):
 
     def bTest(self, details, v, p):
         assert v == True
-        ans, occluders = self.getViols(details, v, p)
+        ans, occluders = self.getViols(details, v, p, strict=True)
         return ans
 
     def update(self):
@@ -1029,7 +1029,7 @@ class CanSeeFrom(Fluent):
         self.viols = {}
         self.hviols = {}
 
-    def getViols(self, bState, v, p):
+    def getViols(self, bState, v, p, strict=False):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
         key = (hash(bState.pbs), p)
@@ -1064,12 +1064,15 @@ class CanSeeFrom(Fluent):
             shWorld = newPBS.getShadowWorld(p)
             shName = shadowName(obj)
             sh = shWorld.objectShapes[shName]
+            fixed = []
             obstacles = [s for s in shWorld.getNonShadowShapes() if \
                         s.name() != obj ] + \
                         [conf.placement(shWorld.attached)]
+            if strict:
+                fixed = obstacles
+                obstacles = []
             ans, occluders = visible(shWorld, conf, sh, obstacles,
-                                     p, moveHead=False)
-
+                                     p, moveHead=False, fixed=fixed)
             debugMsg('CanSeeFrom',
                     ('obj', obj, pose), ('conf', conf),
                     ('->', occluders))
@@ -1381,7 +1384,7 @@ pushPathCache = {}
 
 if glob.useHandTiltForPush:
     handTiltOffset = 0.0375                 # 0.18*math.sin(math.pi/15)
-    handTiltOffset = 0.0560                 # 0.18*math.sin(math.pi/10)
+    # handTiltOffset = 0.0560                 # 0.18*math.sin(math.pi/10)
 else:
     handTiltOffset = 0.0
 
@@ -1643,7 +1646,8 @@ def handTiltAndDir(conf, hand, direction):
         # Because of the wrist orientation, the sign is negative
         if glob.useHandTiltForPush:
             print 'Tilting the hand causes a discontinuity at the end of the push'
-            rot = hu.Transform(rotation_matrix(-sign*math.pi/10., (0,1,0)))
+            # rot = hu.Transform(rotation_matrix(-sign*math.pi/10., (0,1,0)))
+            rot = hu.Transform(rotation_matrix(-sign*math.pi/15., (0,1,0)))
         else:
             rot = hu.Pose(0,0,0,0)
         return rot, direction
