@@ -879,8 +879,10 @@ def moveBProgress(details, args, obs=None):
               (xyDisp * odoError[1])**2,
               0.0,
               (angDisp * odoError[2])**2)
+
+    increaseFactor = 4
         
-    odoVar = tuple([((b1 - b2) * oe)**2 for (b1, b2, oe) in \
+    odoVar = tuple([((b1 - b2) * oe * increaseFactor)**2 for (b1, b2, oe) in \
                     zip(bp1, bp2, odoError)])
 
     tr('beliefUpdate', 'About to move B progress', 
