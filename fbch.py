@@ -2114,7 +2114,8 @@ def planBackward(startState, goal, ops, ancestors = [],
     
     if h:
         heuristic = lambda g: h(startState, g, ops, ancestors)[0]
-        usefulActions = lambda g: h(startState, g, ops, ancestors)[1]
+        usefulActions = lambda g: h(startState, g, ops, ancestors)[1] \
+                  if debug('helpfulActions') else None
     else:
         heuristic = lambda g: 0
         usefulActions = None

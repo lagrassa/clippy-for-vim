@@ -88,11 +88,11 @@ visibleEx (show visibility stuff during execution even if visible is false)
 
 '''
 
+# turned off helpful actions
 
 usualTags = ['nonmon', 'nagLeslie']
 flags = ['simpleAbstractCostEstimates',
           'primitiveHeuristicAlways',
-          'helpfulActions',
           'pushSim']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack', 
                  'debugInHeuristic', 'h'] #, 'hv'] 
