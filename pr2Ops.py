@@ -1012,7 +1012,7 @@ def objectObsUpdate(details, lookConf, obsList):
         trAlways('Do not expect to see any objects!')
     scores = {}
     for obj in objList:
-        scores[(obj, None)] = (llMatchThreshold, None, None)
+        scores[(obj, None)] = (-float('inf'), None, None)
         for obs in obsList:
             (oType, obsFace, obsPose) = obs
             if world.getObjType(obj.name()) != oType: continue
