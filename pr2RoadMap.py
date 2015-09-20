@@ -472,6 +472,7 @@ class RoadMap:
                 viol = viol.update(initViol)
             else:
                 trAlways('RRT failed')
+                raw_input('RRT failed')
             if not viol:
                 pass
             elif ans is None or \

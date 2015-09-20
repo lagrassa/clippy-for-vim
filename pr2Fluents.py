@@ -34,6 +34,9 @@ pushObstCost = 75  # Heuristic cost of moving an object
 
 def graspable(thingName):
     # These global lists are defined when obhects are defined
+
+    if thingName == 'objHeavy': return False
+
     for prefix in glob.graspableNames:
         if thingName[0:len(prefix)] == prefix:
             return True
@@ -1531,7 +1534,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
                 d = nconf.cartConf()[ac].point().distance(conf.cartConf()[ac].point())
                 if d > 2*delta:
                     print 'Unexpectedly large hand step, probably due to hand tilt'
-                    pdb.set_trace()
+                    # pdb.set_trace()
             nconf = conf
         if not nconf:
             reason = 'invkin'

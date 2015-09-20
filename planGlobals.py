@@ -45,7 +45,7 @@ mergeShadows = False
 approachBackoff = 0.1
 approachPerpBackoff = 0.025
 
-useHandTiltForPush = False              # Use for real robot
+useHandTiltForPush = True              # Use for real robot
 
 inHeuristic = False
 
