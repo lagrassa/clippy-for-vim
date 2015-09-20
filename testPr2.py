@@ -449,8 +449,10 @@ def testBusy(hardSwap = False, **args):
 def testShelvesGrasp(**args):
     front = hu.Pose(1.1, 0.475, tZ, 0)
     front = hu.Pose(1.15, 0.475, tZ, -math.pi/2)
+    front = hu.Pose(1.05, 0.125, tZ, -math.pi/4)
     # -pi/2 works ok for grasp 0.  Why doesn't this work as well for for pi/2 and grasp 1??
     mid = hu.Pose(1.15, 0.35, tZ, 0.0)
+    mid = hu.Pose(1.05, 0.0, tZ, 0.0)
     sh1 = hu.Pose(1.3, -0.1, 1.170, 0.0)
     sh2 = hu.Pose(1.3, 0.1, 1.170, 0.0)
     coolShelvesPose = hu.Pose(1.35, 0.03, tZ, math.pi/2)

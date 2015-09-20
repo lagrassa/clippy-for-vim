@@ -158,7 +158,6 @@ def enforceLimits(conf):
     return JointConf(outConfDict, conf.robot)
 
 maxOpenLoopDist = 2.0                   # How far to move between looks
-maxOpenLoopDist = 10.0                   # How far to move between looks
 
 # The key interface spec...
 # obs = env.executePrim(op, params)
