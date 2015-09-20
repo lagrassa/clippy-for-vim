@@ -161,20 +161,20 @@ class RealWorld(WorldState):
                 # raw_input('Exceeded max distance')
                 print 'Exceeded max distance - exiting'
                 return self.robotConf, (distSoFar, angleSoFar)
-                obj = self.visibleObj(objShapes)
-                if obj:
-                    lookConf = lookAtConf(self.robotConf, obj)
-                    if lookConf:
-                        obs = self.doLook(lookConf)
-                        if obs:
-                            args[1] = lookConf
-                            lookAtBProgress(self.bs, args, obs)
-                        else:
-                            tr('sim', 'No observation')
-                    else:
-                        tr('sim', 'No lookConf for %s'%obj.name())
-                else:
-                    tr('sim', 'No visible object')
+                # obj = self.visibleObj(objShapes)
+                # if obj:
+                #     lookConf = lookAtConf(self.robotConf, obj)
+                #     if lookConf:
+                #         obs = self.doLook(lookConf)
+                #         if obs:
+                #             args[1] = lookConf
+                #             lookAtBProgress(self.bs, args, obs)
+                #         else:
+                #             tr('sim', 'No observation')
+                #     else:
+                #         tr('sim', 'No lookConf for %s'%obj.name())
+                # else:
+                #     tr('sim', 'No visible object')
             noisyXYT = [c + 2 * (random.random() - 0.5) * c * simOdoErrorRate \
                                  for c in newXYT]
             #prevXYT = newXYT
