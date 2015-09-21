@@ -2,7 +2,7 @@ import os
 import platform
 libkinDir = './IK/'
 if platform.system() == 'Linux':
-    outDir = '/mit/tlp/search/'
+    outDir = '/mit/tlp/ros/redux/search/'
     genDir = '/mit/tlp/gen/'
 else:
     outDir = '/Users/tlp/Documents/search/'
