@@ -86,7 +86,7 @@ def pr2GoToConf(cnfIn,                  # could be partial...
             assert cnfIn.get('pr2Head', None)
             gaze = gazeCoords(cnfIn)
             conf.head = map(float, gaze) # a look point relative to robot
-            raw_input('Looking at %s'%gaze)
+            debugMsg('robotEnvCareful', 'Looking at %s'%gaze)
             operation = 'move'
         else:
             conf.head = []
@@ -199,22 +199,28 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         objShapes = shWorld.getObjectShapes()
 
         if debug('robotEnv'):
+            self.bs.pbs.draw(0.95, 'W')
             for conf in path:
                 conf.draw('W', 'blue')
+                wm.getWindow('W').update()
         debugMsg('robotEnv', 'executePath')
 
         distSoFar = 0.0
         angleSoFar = 0.0
         prevXYT = path[0]['pr2Base']
         for (i, conf) in enumerate(path):
-            debugMsg('robotEnvCareful', '    conf[%d]'%i)
-            if debug('robotEnvCareful'): conf.prettyPrint()
+            if debug('robotPathCareful') or debug('robotEnvCareful'):
+                conf.prettyPrint('Commanded conf')
+                self.bs.pbs.draw(0.95, 'W')
+                conf.draw('W', 'blue')
+                debugMsg('robotPathCareful', '    conf[%d]'%i)
             newXYT = conf['pr2Base']
             result, outConf, _ = pr2GoToConf(conf, 'move')
             # Use commanded value to avoid problems with moveDelta
             # TODO: Fix this
+            if debug('robotPathCareful') or debug('robotEnvCareful'):
+                outConf.prettyPrint('Actual conf')
             outConf = conf
-
             # !! Do some looking and update the belief state.
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
             # approx pi => 1 meter
@@ -225,21 +231,6 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             if distSoFar + 0.33 * angleSoFar >= maxOpenLoopDist:
                 print 'Exceeded max distance - exiting'
                 return outConf, (distSoFar, angleSoFar)
-                # distSoFar = 0           #  reset
-                # obj = next(self.visibleShapes(conf, objShapes), None)
-                # if obj:
-                #     lookConf = lookAtConf(conf, obj)
-                #     if lookConf:
-                #         obs = self.doLook(lookConf, placeBs)
-                #         if obs:
-                #             args[1] = lookConf
-                #             lookAtBProgress(self.bs, args, obs)
-                #         else:
-                #             raw_input('No observation')
-                #     else:
-                #         raw_input('No lookConf for %s'%obj.name())
-                # else:
-                #     raw_input('No visible object')
             prevXYT = newXYT
         return outConf, (distSoFar, angleSoFar)
 
@@ -320,7 +311,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         visTables = [shape.name() for shape in visShapes \
                      if 'table' in shape.name()]
         visShelves = [shape.name() for shape in visShapes \
-                     if 'coolShelves' in shape.name()]
+                     if 'Shelves' in shape.name()]
         print 'Predicted visible shapes', [x.name() for x in visShapes]
         obs = []
 
@@ -355,16 +346,13 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                     obsPose = trans.pose()
                     obsShape.draw('MAP', 'cyan')
                     shelvesRob = obsShape.applyTrans(basePose.inverse())
-                    # shelvesPose = getSupportPose(obsShape, trueFace).pose()
-                    # shelvesPose = obsPose.compose(basePose.inverse()).pose()
                     print '** placeB.poseD.mode()', placeB.poseD.mode()
                     print '** obsPose', obsPose
-                    # print '** shelvesPose', shelvesPose
-                    raw_input('Go?')
+                    debugMsg('robotEnvCareful', 'Go?')
                     obs.append((self.world.getObjType(shelvesName), trueFace, obsPose))
                 else:
                     print 'Object', shelvesName, 'is not visible'
-                    raw_input('Go?')
+                    debugMsg('robotEnvCareful', 'Go?')
         else:
             raw_input('No tables visible... returning null obs')
             return []
@@ -563,7 +551,7 @@ def getPointCloud(basePose, resolution = glob.cloudPointsResolution):
                        verts=points, name='ROS')
         scan = scan.applyTrans(basePose)
         scan.draw('W', 'red')
-        raw_input('Scan')
+        wm.getWindow('W').update()
         return scan
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e

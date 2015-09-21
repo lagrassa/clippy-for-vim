@@ -130,8 +130,6 @@ glob.constructor['solidTable'] = makeSolidTable
 
 tZ = 0.68                               # table height + 0.01
 def makeLegTable(dx=0.603, dy=0.298, dz=0.67, name='table1', width=0.1, color = 'orange'):
-    legInset = 0.02
-    legOver = 0.02
     reg = [Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name+'Top', color=color),
            Ba([(0.2, -dy, 0.), (dx, dy, dz)], name=name+'Left', color=color),
            Ba([(-dx, -dy, 0.), (-0.2, dy, dz)], name=name+'Right', color=color),
@@ -153,15 +151,37 @@ glob.objectSymmetries['table'] = sym2
 glob.objectTypes['table'] = 'table'
 glob.constructor['table'] = makeLegTable
 
-eps = 0.01
-epsz = 0.02
-shelfDepth = 0.3
-shelfWidth = 0.02
-coolerZ = 0.225
-
-def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
-                width = shelfWidth, nshelf = 2,
-                name='shelves', color='orange'):
+tZ = 0.74                               # table height + 0.01
+def makeIkeaTable(dx=0.50, dy=0.30, dz=0.73, name='tableIkea', width=0.1, color = 'brown'):
+    reg = [Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name+'Top', color=color),
+           Ba([(0.2, -dy, 0.), (dx, dy, dz)], name=name+'Left', color=color),
+           Ba([(-dx, -dy, 0.), (-0.2, dy, dz)], name=name+'Right', color=color),
+           Ba([(-0.2*dx, 0, 0.), (0.2*dx, dy, dz)], name=name+'MidFront', color=color),
+           Ba([(-0.2*dx, -dy, 0.), (0.2*dx, 0, dz)], name=name+'MidRear', color=color)]
+    regions = [(r, hu.Pose(0.,0.,dz/2,0.)) for r in reg]
+    table = [\
+        Ba([(-dx, -dy, dz-width), (dx, dy, dz)],
+           name=name+ 'top', color=color),
+        Ba([(-dx,      -dy, 0.0),
+            (-dx+width, -dy+width, dz-width)],
+           name=name+' leg 1', color=color),
+        Ba([(dx-width, -dy, 0.0),
+            (dx,       -dy+width, dz-width)],
+           name=name+' leg 2', color=color),
+        Ba([(-dx,      dy-width, 0.0),
+            (-dx+width, dy, dz-width)],
+           name=name+' leg 3', color=color),
+        Ba([(dx-width,  dy-width, 0.0),
+            (dx,        dy, dz-width)],
+           name=name+' leg 4', color=color)
+        ]
+    return (Sh(table, name = name, color=color), regions)
+glob.objectSymmetries['tableIkea'] = sym2
+glob.objectTypes['tableIkea'] = 'tableIkea'
+glob.constructor['tableIkea'] = makeIkeaTable
+def makeIkeaShelves(dx=0.185, dy=0.305, dz=0.51,
+                width = 0.02, nshelf = 2,
+                name='ikeaShelves', color='brown'):
     sidePrims = [\
         Ba([(-dx, -dy-width, 0), (dx, -dy, dz)],
            name=name+'_side_A', color=color),
@@ -187,31 +207,38 @@ def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                    color='green', name=spaceName)
         space = Sh([space], name=spaceName, color='green')
         shelfSpaces.append((space, hu.Pose(0,0,bot+eps-(dz/2),0)))
-    shelves = Sh(sidePrims + shelfRungs, name = name+'Body', color=color)
+    shelves = Sh(sidePrims + shelfRungs, name = name, color=color)
     return (shelves, shelfSpaces)
-glob.objectSymmetries['shelves'] = sym0
-glob.objectTypes['shelves'] = 'shelves'
+glob.objectSymmetries['ikeaShelves'] = sym0
+glob.objectTypes['ikeaShelves'] = 'ikeaShelves'
+glob.constructor['ikeaShelves'] = makeIkeaShelves
 
-def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
-                width = shelfWidth, nshelf = 2,
-                name='tableShelves', color='orange'):
-    coolerPose = hu.Pose(0.0, 0.0, tZ, -math.pi/2)
-    shelvesPose = hu.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
-    tH = 0.67                           # table height
-    cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
-                    name='cooler', color=color)],
-                name='cooler', color=color)
-    table = makeTable(0.603, 0.298, tH, name = 'table1', color=color)
-    shelves, shelfSpaces = makeShelves(dx, dy, dz, width, nshelf, name='tableShelves', color=color)
-    offset = shelvesPose.compose(hu.Pose(0.,0.,-(tH/2+coolerZ/2),0.))
-    shelfSpaces = [(s, pose.compose(offset)) for (s, pose) in shelfSpaces]
-    obj = Sh( shelves.applyTrans(shelvesPose).parts() \
-              + cooler.applyTrans(coolerPose).parts() \
-              + table.parts(),
-              name=name, color=color)
-    return (obj, shelfSpaces)
-glob.objectSymmetries['shelves'] = sym0
-glob.objectTypes['shelves'] = 'shelves'
+# def makeTableShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
+#                 width = shelfWidth, nshelf = 2,
+#                 name='tableShelves', color='orange'):
+#     coolerPose = hu.Pose(0.0, 0.0, tZ, -math.pi/2)
+#     shelvesPose = hu.Pose(0.0, 0.0, tZ+coolerZ, -math.pi/2)
+#     tH = 0.67                           # table height
+#     cooler = Sh([Ba([(-0.12, -0.165, 0), (0.12, 0.165, coolerZ)],
+#                     name='cooler', color=color)],
+#                 name='cooler', color=color)
+#     table = makeTable(0.603, 0.298, tH, name = 'table1', color=color)
+#     shelves, shelfSpaces = makeShelves(dx, dy, dz, width, nshelf, name='tableShelves', color=color)
+#     offset = shelvesPose.compose(hu.Pose(0.,0.,-(tH/2+coolerZ/2),0.))
+#     shelfSpaces = [(s, pose.compose(offset)) for (s, pose) in shelfSpaces]
+#     obj = Sh( shelves.applyTrans(shelvesPose).parts() \
+#               + cooler.applyTrans(coolerPose).parts() \
+#               + table.parts(),
+#               name=name, color=color)
+#     return (obj, shelfSpaces)
+# glob.objectSymmetries['shelves'] = sym0
+# glob.objectTypes['shelves'] = 'shelves'
+
+eps = 0.01
+epsz = 0.02
+shelfDepth = 0.3
+shelfWidth = 0.02
+coolerZ = 0.225
 
 def makeCoolShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                       width = shelfWidth, nshelf = 2,
