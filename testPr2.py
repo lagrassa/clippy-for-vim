@@ -46,8 +46,8 @@ table2Pose = hu.Pose(1.0, -1.2, 0.0, 0.0)
 table3Pose = hu.Pose(1.6,0.0,0.0, math.pi/2.0),
 
 bigVar = (0.1**2, 0.1**2, 1e-10, 0.3**2)
-medVar = (0.05**2, 0.05**2, 1e-10, 0.1**2)
-smallVar = (0.03**2, 0.03**2, 1e-10, 0.06**2)
+medVar = (0.1**2, 0.05**2, 1e-10, 0.1**2)
+smallVar = (0.1**2, 0.03**2, 1e-10, 0.06**2)
 tinyVar = (0.001**2, 0.001**2, 1e-10, 0.002**2)
 
 targetSmallVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2)
@@ -463,8 +463,8 @@ def testShelvesGrasp(**args):
                   {'objA' : (mid, medVar),
                    'objD' : (front, medVar), # or objD
                    # 'bigB' : (back, medVar),
-                   # 'objB' : (sh1, medVar),
-                   # 'objC' : (sh2, medVar),
+                   'objB' : (sh1, medVar),
+                   'objC' : (sh2, medVar),
                    },
                   [region, 'table1Top'], easy=easy)
 

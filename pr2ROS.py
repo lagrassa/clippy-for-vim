@@ -57,7 +57,8 @@ def pr2GoToConf(cnfIn,                  # could be partial...
                 operation,              # a string
                 arm = 'both',
                 speedFactor = glob.speedFactor,
-                args = tuple()):
+                args = tuple(),
+                path = []):
     if not glob.useROS: return None, None
     rospy.wait_for_service('pr2_goto_configuration')
     try:
@@ -90,6 +91,15 @@ def pr2GoToConf(cnfIn,                  # could be partial...
             operation = 'move'
         else:
             conf.head = []
+
+        if path:
+            points = 
+            if arm == 'l':
+                traj = JointTrajectory(joint_names=[], points=points)
+                conf.left_path = traj
+            elif arm == 'r':
+                traj = JointTrajectory(joint_names=[], points=points)
+                conf.right_path = traj
 
         if debug('pr2GoToConf'): print operation, conf
         
@@ -212,7 +222,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             if debug('robotPathCareful') or debug('robotEnvCareful'):
                 conf.prettyPrint('Commanded conf')
                 self.bs.pbs.draw(0.95, 'W')
-                conf.draw('W', 'blue')
+                # Moving from blue to pink
+                if i > 0: path[i-1].draw('W', 'blue')
+                conf.draw('W', 'pink')
                 debugMsg('robotPathCareful', '    conf[%d]'%i)
             newXYT = conf['pr2Base']
             result, outConf, _ = pr2GoToConf(conf, 'move')
@@ -622,10 +634,10 @@ xoffset = 0.05
 yoffset = 0.01
 fingerLength = 0.06
 
-def pr2GoToConfNB(conf, op, arm='both', args=[], speedFactor=glob.speedFactor):
+def pr2GoToConfNB(conf, op, arm='both', args=[], speedFactor=glob.speedFactor, path=[]):
     c = conf.conf.copy()
     if 'pr2Base' in c: del c['pr2Base']
-    return pr2GoToConf(conf, op, arm=arm, args=args, speedFactor=speedFactor)
+    return pr2GoToConf(conf, op, arm=arm, args=args, speedFactor=speedFactor, path=[])
 
 def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
     result, curConf, _ = pr2GoToConfNB(startConf, 'resetForce', args=[750, 750], arm=hand[0])

@@ -875,16 +875,13 @@ def moveBProgress(details, args, obs=None):
     bp1 = (s['pr2Base'][0], s['pr2Base'][1], 0, s['pr2Base'][2])
     bp2 = (obsConf['pr2Base'][0], obsConf['pr2Base'][1], 0,
            obsConf['pr2Base'][2])
-    odoVar = ((xyDisp * odoError[0])**2,
-              (xyDisp * odoError[1])**2,
-              0.0,
-              (angDisp * odoError[2])**2)
-
     increaseFactor = 4
-        
-    odoVar = tuple([((b1 - b2) * oe * increaseFactor)**2 for (b1, b2, oe) in \
-                    zip(bp1, bp2, odoError)])
-
+    # xyDisp is the total xy displacement along path
+    # angDisp is the total angular displacement along path
+    odoVar = ((xyDisp * increaseFactor * odoError[0])**2,
+              (xyDisp * increaseFactor * odoError[1])**2,
+              0.0,
+              (angDisp * increaseFactor * odoError[2])**2)
     tr('beliefUpdate', 'About to move B progress', 
         'start base', bp1, 'end base ', bp2, 
         'odo error rate', odoError, 'added odo var', odoVar, 
@@ -917,7 +914,11 @@ def pickBProgress(details, args, obs=None):
     # Assume robot ends up at preconf, so no conf change
     (o,h,pf,p,pd,gf,gm,gv,gd,prc,cd,pc,rgv,pv,p1,pr1,pr2,pr3) = args
     pickVar = details.domainProbs.pickVar
-    failProb = details.domainProbs.pickFailProb
+    # TODO: Is this good?
+    if obs == 'failure':
+        failProb = 0.99
+    else:
+        failProb = details.domainProbs.pickFailProb
     # !! This is wrong!  The coordinate frames of the variances don't match.
     v = [x+y for x,y in zip(details.pbs.getPlaceB(o).poseD.var, pickVar)]
     v[2] = 1e-20

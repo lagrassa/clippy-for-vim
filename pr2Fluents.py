@@ -1396,6 +1396,7 @@ else:
 def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
              reachObsts=[]):
     tag = 'pushPath'
+    warn = True
     rm = pbs.getRoadMap()
     prePose = hu.Pose(*prePose) if isinstance(prePose, (tuple, list)) else prePose
     baseSig = "%.6f, %.6f, %.6f"%tuple(conf['pr2Base'])
@@ -1535,9 +1536,9 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
             if nconf and conf:
                 ac = conf.robot.armChainNames[hand]
                 d = nconf.cartConf()[ac].point().distance(conf.cartConf()[ac].point())
-                if d > 2*delta:
+                if d > 2*delta and warn:
                     print 'Unexpectedly large hand step, probably due to hand tilt'
-                    # pdb.set_trace()
+                    warn = False
             nconf = conf
         if not nconf:
             reason = 'invkin'

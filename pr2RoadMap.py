@@ -465,7 +465,7 @@ class RoadMap:
             startTime = time.time()
             trAlways('Calling RRT')
             path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
-                                              maxIter=50, failIter=10)
+                                              maxIter=50, failIter=20)
             runningTime = time.time() - startTime
             tr('CRH', 'RRT time', runningTime)
             if viol:
