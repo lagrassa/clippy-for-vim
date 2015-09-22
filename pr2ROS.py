@@ -93,7 +93,7 @@ def pr2GoToConf(cnfIn,                  # could be partial...
             conf.head = []
 
         if path:
-            points = 
+            #points = 
             if arm == 'l':
                 traj = JointTrajectory(joint_names=[], points=points)
                 conf.left_path = traj

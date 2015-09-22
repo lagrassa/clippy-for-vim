@@ -724,3 +724,4 @@ def testIt():
 
 
 
+print 'Loaded testPr2.py'

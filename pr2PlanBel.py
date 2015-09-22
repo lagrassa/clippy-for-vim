@@ -895,6 +895,8 @@ def getHeldAndGraspBel(overrides, getGraspDesc):
 
     return (held, graspB)
 
+# If strict is True then ?? (it is passed into the inside test)
+# If fail is True, then raise exception if this test fails
 def findSupportRegion(shape, regions, strict=False, fail=True):
     tag = 'findSupportRegion'
     bbox = shape.bbox()
