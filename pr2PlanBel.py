@@ -656,11 +656,15 @@ class PBS:
         frame = faceFrame.inverse()     # pose is identity
         sh = shape.applyLoc(frame)      # the shape with the specified support
         # Now, we need to rotate it as in poseBel
-        rotAngle = poseBel.poseD.mode().pose().theta
-        sh = sh.applyTrans(hu.Pose(0., 0., 0., rotAngle))
-        shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName, color=color)
-        # Then, rotate it back
-        shadow = shadow.applyTrans(hu.Pose(0., 0., 0., -rotAngle))
+        trans = poseBel.poseD.mode()
+        if trans:
+            rotAngle = trans.pose().theta
+            sh = sh.applyTrans(hu.Pose(0., 0., 0., rotAngle))
+            shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName, color=color)
+            # Then, rotate it back
+            shadow = shadow.applyTrans(hu.Pose(0., 0., 0., -rotAngle))
+        else:
+            shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName, color=color)
         self.beliefContext.objectShadowCache[key] = shadow
         if debug('getShadowWorld'):
             shadow.draw('W', 'red')
