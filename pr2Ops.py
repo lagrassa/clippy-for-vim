@@ -881,7 +881,7 @@ def moveBProgress(details, args, obs=None):
     odoVar = ((xyDisp * increaseFactor * odoError[0])**2,
               (xyDisp * increaseFactor * odoError[1])**2,
               0.0,
-              (angDisp * increaseFactor * odoError[2])**2)
+              (angDisp * increaseFactor * odoError[3])**2)
     tr('beliefUpdate', 'About to move B progress', 
         'start base', bp1, 'end base ', bp2, 
         'odo error rate', odoError, 'added odo var', odoVar, 

@@ -234,7 +234,6 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             if debug('robotPathCareful') or debug('robotEnvCareful'):
                 outConf.prettyPrint('Actual conf')
             outConf = conf
-            # !! Do some looking and update the belief state.
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
             # approx pi => 1 meter
             angleSoFar += abs(hu.angleDiff(prevXYT[2],newXYT[2]))
@@ -459,11 +458,14 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         # result, outConf, _ = pr2GoToConf(gripConf, 'grab', arm=hand[0])
         result, outConf, _ = closeFirmly(outConf, hand)
         debugMsg('robotEnvCareful', 'Closed?')
-
-        debugMsg('robotEnvCareful', 'executePick - move to approachConf')
-        result, outConf, _ = pr2GoToConf(approachConf, 'move')
-
-        return None
+        g = confGrip(outConf, hand)
+        if g < 0.005:                   # Missed
+            raw_input('Missed pick - returning failure obs')
+            return 'failure'
+        else:
+            debugMsg('robotEnvCareful', 'executePick - move to approachConf')
+            result, outConf, _ = pr2GoToConf(approachConf, 'move')
+            return 'success'
 
     def executePlace(self, op, params):
         (hand, placeConf, approachConf) = \
@@ -489,8 +491,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         if params:
             path, revPath, placeBs  = params
             debugMsg('robotEnvCareful', 'executePush: path len = ', len(path))
-            obs = self.executeSinglePath(path, placeBs)
-            obs = self.executeSinglePath(revPath, placeBs)
+            obs = self.executeSinglePath(path[:-1], placeBs) # ignore last point
+            obs = self.executeSinglePath(revPath[1:], placeBs)   # ignore first point
         else:
             print op
             raw_input('No path given')

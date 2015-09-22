@@ -41,7 +41,7 @@ crashIsError = False
 
 simulateError = False
 
-animateSleep = 0.01
+animateSleep = 0.05
 
 maxOpenLoopDist = 4.0
 
@@ -102,23 +102,29 @@ class RealWorld(WorldState):
         odoError = self.domainProbs.odoError
         prevXYT = self.robotConf.conf['pr2Base']
         for (i, conf) in enumerate(path):
-            prevBasePose = self.robotConf.basePose()
-            newBasePose = conf.basePose()
+            originalConf = conf
             newXYT = conf['pr2Base']
             print 'Initial base conf', newXYT
-            # !! Add noise to conf
+            prevBasePose = path[max(0, i-1)].basePose()
+            newBasePose = path[i].basePose()
+            # Compute the nominal displacement along the original path
             disp = prevBasePose.inverse().compose(newBasePose).pose()
+            # Variance based on magnitude of original displacement
             dispXY = math.sqrt(disp.x**2 + disp.y**2)
             dispAngle = disp.theta
-            odoVar = ((dispXY * odoError[0])**2,
-                      (dispXY * odoError[1])**2,
+            odoVar = ((dispXY *  odoError[0])**2,
+                      (dispXY *  odoError[1])**2,
                       0.0,
-                      (dispAngle * odoError[2])**2)
+                      (dispAngle * odoError[3])**2)
+            # Draw the noise with zero mean and this variance
             baseOff = hu.Pose(*MVG((0.,0.,0.,0.), np.diag(odoVar)).draw())
             print 'draw', baseOff.xyztTuple()
+            # Apply the noise to the nominal displacement
             dispNoisy = baseOff.compose(disp)
             print '+++', dispNoisy.pose().xyztTuple()
-            bc = prevBasePose.compose(dispNoisy).pose().xyztTuple()
+            # Apply the noisy displacement to the "actual" robot location
+            bc = self.robotConf.basePose().compose(dispNoisy).pose().xyztTuple()
+            # This is the new conf to move to
             conf = conf.set('pr2Base', tuple([bc[i] for i in (0,1,3)]))
             print '--> modified base conf', conf['pr2Base']
             if action:
@@ -128,6 +134,7 @@ class RealWorld(WorldState):
             pathTraveled.append(conf)
             if debug('animate'):
                 self.draw('World');
+                originalConf.draw('World', 'pink')
                 self.bs.pbs.draw(0.95, 'Belief', drawRobot=False)
                 self.robotPlace.draw('Belief', 'gold')
                 sleep(animateSleep)
@@ -182,7 +189,6 @@ class RealWorld(WorldState):
             if distSoFar + 0.33*angleSoFar >= maxOpenLoopDist:
                 distSoFar = 0.0           #  reset
                 angleSoFar = 0.0
-                # raw_input('Exceeded max distance')
                 print 'Exceeded max distance - exiting'
                 return self.robotConf, (distSoFar, angleSoFar)
             prevXYT = newXYT
@@ -194,7 +200,13 @@ class RealWorld(WorldState):
         wm.getWindow('World').update()
         wm.getWindow('Belief').update()
         tr('sim', 'Admire the path', snap=['World'])
-        return self.robotConf, (distSoFar, angleSoFar)
+
+        # What should the observation be?
+        # actual + noise?
+        # commanded + noise?
+        # commanded?  -- This is the hack we use on actual robot
+        
+        return path[-1], (distSoFar, angleSoFar)
 
     def visibleObj(self, objShapes):
         def rem(l,x): return [y for y in l if y != x]
@@ -394,7 +406,8 @@ class RealWorld(WorldState):
                 obs = 'failure'
         else:
             tr('sim', ('Tried to pick but missed', o, oDist, pickSuccessDist))
-        return None
+            obs = 'failure'
+        return obs
 
     def executePlace(self, op, params):
         failProb = self.domainProbs.placeFailProb
