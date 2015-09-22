@@ -84,6 +84,7 @@ def diagToSq(d):
     return [[(d[i] if i==j else 0.0) \
              for i in range(len(d))] for j in range(len(d))]
 
+attempts = 50
 def locateByFmin(model_verts, data_verts, variance, shape=None):
     win = wm.getWindow('W')
     data = data_verts.T[:,:3]
@@ -106,7 +107,7 @@ def locateByFmin(model_verts, data_verts, variance, shape=None):
     best_score = None
     best_trans = None
     no_improvement = 0
-    for attempt in xrange(30):
+    for attempt in xrange(attempts):
         initial = mvg.draw()
         print 'initial', initial
         final = fmin_powell(poseScore, initial,

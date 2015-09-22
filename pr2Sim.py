@@ -344,7 +344,7 @@ class RealWorld(WorldState):
                  (op.args[1], op.args[11], op.args[9])
         bigAngleWarn(approachConf, pickConf)
         self.setRobotConf(pickConf)
-        self.robotPlace.draw('World', 'orchid')
+        # self.robotPlace.draw('World', 'orchid')
         oDist = None
         o = None
         robot = self.robot
@@ -375,13 +375,15 @@ class RealWorld(WorldState):
                 self.setRobotConf(self.robotConf)
                 self.robotPlace.draw('World', 'black')
                 self.setRobotConf(approachConf)
-                self.robotPlace.draw('World', 'orchid')
-                #print 'retracted'
+                # self.robotPlace.draw('World', 'orchid')
+                # print 'retracted'
+                obs = 'success'
             else:
                 # Failed to pick.  Move the object a little.
                 newObjPose = opose.pose().corruptGauss(0.0,
                                            self.domainProbs.placeStdev)
                 self.setObjectPose(o, newObjPose)
+                obs = 'failure'
         else:
             tr('sim', ('Tried to pick but missed', o, oDist, pickSuccessDist))
         return None
@@ -397,7 +399,7 @@ class RealWorld(WorldState):
             approachConf = op.args[-8]
             bigAngleWarn(approachConf, placeConf)
             self.setRobotConf(placeConf)
-            self.robotPlace.draw('World', 'orchid')            
+            # self.robotPlace.draw('World', 'orchid')            
             if not self.attached[hand]:
                 raw_input('No object is attached')
                 tr('sim', 'No object is attached')
@@ -423,7 +425,7 @@ class RealWorld(WorldState):
                 self.held[hand] = None
                 # print 'placed', obj, actualObjPose
             self.setRobotConf(approachConf)
-            self.robotPlace.draw('World', 'orchid')
+            # self.robotPlace.draw('World', 'orchid')
             # print 'retracted'
         return None
 

@@ -631,7 +631,11 @@ class PBS:
         cache[key][prob] = sw
         return sw
 
-    # Shadow over POSE variation.  Should only do finite number of poseVar/poseDelta values.
+    # Shadow over POSE variation.  The variance is in absolute coordinates, so
+    # it needs to be applied to the object already placed.  But, this returns
+    # the resulting shadow at the object origin.  So, we need to transform it
+    # there and back again.
+    # TODO: Should only do finite number of poseVar/poseDelta values.
     def objShadow(self, obj, shName, prob, poseBel, faceFrame):
         shape = self.getObjectShapeAtOrigin(obj)
         color = shape.properties.get('color', None) or \
@@ -643,7 +647,7 @@ class PBS:
         poseVar = poseBel.poseD.variance()
         poseDelta = poseBel.delta
         objShadowStats[0] += 1
-        key = (shape, shName, prob, poseVar, poseDelta, faceFrame)
+        key = (shape, shName, prob, poseBel, faceFrame)
         shadow = self.beliefContext.objectShadowCache.get(key, None)
         if shadow:
             objShadowStats[1] += 1
@@ -651,7 +655,16 @@ class PBS:
         # Origin * Support = Pose => Origin = Pose * Support^-1
         frame = faceFrame.inverse()     # pose is identity
         sh = shape.applyLoc(frame)      # the shape with the specified support
-        shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName, color=color)
+        # Now, we need to rotate it as in poseBel
+        trans = poseBel.poseD.mode()
+        if trans:
+            rotAngle = trans.pose().theta
+            sh = sh.applyTrans(hu.Pose(0., 0., 0., rotAngle))
+            shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName, color=color)
+            # Then, rotate it back
+            shadow = shadow.applyTrans(hu.Pose(0., 0., 0., -rotAngle))
+        else:
+            shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName, color=color)
         self.beliefContext.objectShadowCache[key] = shadow
         if debug('getShadowWorld'):
             shadow.draw('W', 'red')
@@ -886,6 +899,8 @@ def getHeldAndGraspBel(overrides, getGraspDesc):
 
     return (held, graspB)
 
+# If strict is True then ?? (it is passed into the inside test)
+# If fail is True, then raise exception if this test fails
 def findSupportRegion(shape, regions, strict=False, fail=True):
     tag = 'findSupportRegion'
     bbox = shape.bbox()
