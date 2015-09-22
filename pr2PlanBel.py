@@ -670,9 +670,9 @@ class PBS:
             shadow.draw('W', 'red')
         return shadow
 
-    def draw(self, p = 0.9, win = 'W', clear=True):
+    def draw(self, p = 0.9, win = 'W', clear=True, drawRobot=True):
         if clear: wm.getWindow(win).clear()
-        self.getShadowWorld(p).draw(win)
+        self.getShadowWorld(p).draw(win, drawRobot=drawRobot)
 
     def items(self):
         return (frozenset(self.held.items()),

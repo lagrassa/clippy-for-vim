@@ -31,7 +31,7 @@ class BeliefState:
         self.poseModeProbs = dict([(name , 0.99) \
                for name in (pbs.moveObjBs.keys() + pbs.fixObjBs.keys())])
         self.graspModeProb = {'left' : 0.99, 'right' : 0.99}
-        wm.getWindow('Belief').startCapture()
+        # wm.getWindow('Belief').startCapture()
 
     # Temporary hacks to keep all the types right
     def graspModeDist(self, obj, hand, face):
@@ -79,13 +79,13 @@ class BeliefState:
             s += '   pose: %s\n'%prettyString(stuff.poseD.meanTuple())
             s += '  stdev: %s\n'%prettyStdev(stuff.poseD.varTuple())
         s += '------------  Belief -------------\n'
-        wm.getWindow('Belief').capturing = True
+        # wm.getWindow('Belief').capturing = True
         if debug('noTrace'):            # really always
             self.pbs.draw(0.9, w)
         trAlways(s, pause = False, draw=[(self.pbs, 0.9, w)], snap=[w])
         wm.getWindow('Belief').update()
         wm.getWindow('Belief').pause()
-        wm.getWindow('Belief').capturing = False
+        # wm.getWindow('Belief').capturing = False
 
 def diagToSq(d):
     return [[(d[i] if i==j else 0.0) \

@@ -73,7 +73,7 @@ pr2_arm_joints = ['_shoulder_pan_joint',
                   '_wrist_flex_joint',
                   '_wrist_roll_joint']
 
-def armJointNames(arm, joint_names):
+def armJointNames(arm, joint_names=pr2_arm_joints):
     return [arm+j for j in joint_names]
 
 pr2_head_joints = ['head_pan_joint',

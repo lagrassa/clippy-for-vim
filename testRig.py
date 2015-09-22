@@ -5,6 +5,7 @@ import string
 import windowManager3D as wm
 from geom import bboxGrow
 from objects import World
+from miscUtil import timeString
 
 import planGlobals as glob
 reload(glob)
@@ -450,6 +451,8 @@ class PlanTest:
             if initWorld: initWorld(self.bs, self.realWorld)
 
         # Draw
+        wm.getWindow('Belief').startCapture()
+        wm.getWindow('World').startCapture()
         self.bs.pbs.draw(0.9, 'Belief')
         self.bs.pbs.draw(0.9, 'W')
         if not glob.useROS:
@@ -507,8 +510,14 @@ class PlanTest:
         # Remove the skeleton tags
         glob.debugOn = [x for x in glob.debugOn if x not in glob.skeletonTags]
         glob.pauseOn = [x for x in glob.pauseOn if x not in glob.skeletonTags]
+        name = self.name+'_'+timeString()
+        print 'Writing mathematica movies for', name
+        mathematica.mathMovie(wm.getWindow('Belief').capture,
+                              './mathMovies/'+name+'_bel.m')
+        mathematica.mathMovie(wm.getWindow('World').capture,
+                              './mathMovies/'+name+'.m')
         while not debug('noPlayback'):
-            ans = raw_input('Playback? w = world, b = belief, m name = math movie, q = no: ')
+            ans = raw_input('Playback? w = world, b = belief, q = no: ')
             if ans in ('w', 'W'):
                 wm.getWindow('World').playback(delay=0.01)
             elif ans in ('b', 'B'):
@@ -516,15 +525,8 @@ class PlanTest:
             elif ans in ('q', 'Q'):
                 print 'Done playback'
                 return
-            elif ans and ans[0] in ('m', 'M') and len(ans.split()) == 2: 
-                name = ans.split()[1]
-                print 'Writing mathematica movies for', name
-                mathematica.mathMovie(wm.getWindow('Belief').capture,
-                                      './'+name+'_bel.m')
-                mathematica.mathMovie(wm.getWindow('World').capture,
-                                      './'+name+'.m')
             else:
-                print 'Please enter w, b, m name, or q'
+                print 'Please enter w, b, or q'
 
 def getSupportedPose(realWorld, obj, meanObjPose, variance):
     stDev = tuple([math.sqrt(v) for v in variance])

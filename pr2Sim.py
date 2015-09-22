@@ -57,7 +57,7 @@ class RealWorld(WorldState):
         WorldState.__init__(self, world, robot)
         self.bs = bs
         self.domainProbs = probs
-        wm.getWindow('World').startCapture()
+        # wm.getWindow('World').startCapture()
 
     # dispatch on the operators...
     def executePrim(self, op, params = None):
@@ -66,9 +66,10 @@ class RealWorld(WorldState):
             tr('sim', 'Executed %s got obs= %s'%(op.name, obs),
                snap=['World'])
             wm.getWindow('World').pause()
-            wm.getWindow('World').capturing = False
+            wm.getWindow('Belief').pause()
+            # wm.getWindow('World').capturing = False
             return obs
-        wm.getWindow('World').capturing = True
+        # wm.getWindow('World').capturing = True
         if op.name == 'Move':
             return endExec(self.executeMove(op, params))
         if op.name == 'MoveNB':
@@ -126,7 +127,9 @@ class RealWorld(WorldState):
                 self.setRobotConf(conf)
             pathTraveled.append(conf)
             if debug('animate'):
-                self.draw('World'); self.draw('Belief')
+                self.draw('World');
+                self.bs.pbs.draw(0.95, 'Belief', drawRobot=False)
+                self.robotPlace.draw('Belief', 'gold')
                 sleep(animateSleep)
             else:
                 self.robotPlace.draw('World', 'pink')

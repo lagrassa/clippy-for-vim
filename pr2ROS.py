@@ -11,7 +11,7 @@ from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn, objectName
 from pr2Visible import lookAtConf, findSupportTable, visible
 # import pr2Robot
 # reload(pr2Robot)
-from pr2Robot import cartInterpolators, JointConf
+from pr2Robot import cartInterpolators, JointConf, armJointNames
 from pr2Ops import lookAtBProgress
 
 import hu
@@ -93,12 +93,13 @@ def pr2GoToConf(cnfIn,                  # could be partial...
             conf.head = []
 
         if path:
-            #points = 
             if arm == 'l':
-                traj = JointTrajectory(joint_names=[], points=points)
+                points = [JointTrajectoryPoint(position=c['pr2LeftArm']) for c in path]
+                traj = JointTrajectory(joint_names=armJointNames(arm), points=points)
                 conf.left_path = traj
             elif arm == 'r':
-                traj = JointTrajectory(joint_names=[], points=points)
+                points = [JointTrajectoryPoint(position=c['pr2RightArm']) for c in path]
+                traj = JointTrajectory(joint_names=armJointNames(arm), points=points)
                 conf.right_path = traj
 
         if debug('pr2GoToConf'): print operation, conf
@@ -245,6 +246,19 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                 return outConf, (distSoFar, angleSoFar)
             prevXYT = newXYT
         return outConf, (distSoFar, angleSoFar)
+
+    def executeSinglePath(self, path, placeBs):
+        shWorld = self.bs.pbs.getShadowWorld(0.95)
+        objShapes = shWorld.getObjectShapes()
+
+        if debug('robotEnv'):
+            self.bs.pbs.draw(0.95, 'W')
+            for conf in path:
+                conf.draw('W', 'blue')
+                wm.getWindow('W').update()
+        debugMsg('robotEnv', 'executePath')
+        result, outConf, _ = pr2GoToConf(conf, 'move', path=path)
+        return outConf, (0.0, 0.0)
 
     def executeMove(self, op, params, noBase=False):
         if noBase:
@@ -475,8 +489,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         if params:
             path, revPath, placeBs  = params
             debugMsg('robotEnvCareful', 'executePush: path len = ', len(path))
-            obs = self.executePath(path, placeBs)
-            obs = self.executePath(revPath, placeBs)
+            obs = self.executeSinglePath(path, placeBs)
+            obs = self.executeSinglePath(revPath, placeBs)
         else:
             print op
             raw_input('No path given')
