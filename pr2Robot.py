@@ -216,6 +216,9 @@ class JointConf:
         c = self.copy()
         c.conf[name] = value
         return c
+    def basePose(self):
+        base = self.conf['pr2Base']
+        return hu.Pose(base[0], base[1], 0.0, base[2])
     def cartConf(self):
         return self.robot.forwardKin(self)
     def placement(self, attached=None, getShapes=True):

@@ -655,9 +655,9 @@ class PBS:
         # Origin * Support = Pose => Origin = Pose * Support^-1
         frame = faceFrame.inverse()     # pose is identity
         sh = shape.applyLoc(frame)      # the shape with the specified support
-        # Now, we need to rotate it as in poseBel
         trans = poseBel.poseD.mode()
         if trans:
+            # Now, we need to rotate it as in poseBel
             rotAngle = trans.pose().theta
             sh = sh.applyTrans(hu.Pose(0., 0., 0., rotAngle))
             shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName, color=color)

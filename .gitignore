@@ -79,7 +79,6 @@ prof
 
 .idea/*
 *.lprof
-*.m
 *Old.py
 
 .#localLPK.py

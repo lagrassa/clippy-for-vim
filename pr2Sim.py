@@ -98,20 +98,41 @@ class RealWorld(WorldState):
         angleSoFar = 0.0
         backSteps = []
         pathTraveled = []
+        odoError = self.domainProbs.odoError
         prevXYT = self.robotConf.conf['pr2Base']
         for (i, conf) in enumerate(path):
+            prevBasePose = self.robotConf.basePose()
+            newBasePose = conf.basePose()
+            newXYT = conf['pr2Base']
+            print 'Initial base conf', newXYT
             # !! Add noise to conf
+            disp = prevBasePose.inverse().compose(newBasePose).pose()
+            dispXY = math.sqrt(disp.x**2 + disp.y**2)
+            dispAngle = disp.theta
+            odoVar = ((dispXY * odoError[0])**2,
+                      (dispXY * odoError[1])**2,
+                      0.0,
+                      (dispAngle * odoError[2])**2)
+            baseOff = hu.Pose(*MVG((0.,0.,0.,0.), np.diag(odoVar)).draw())
+            print 'draw', baseOff.xyztTuple()
+            dispNoisy = baseOff.compose(disp)
+            print '+++', dispNoisy.pose().xyztTuple()
+            bc = prevBasePose.compose(dispNoisy).pose().xyztTuple()
+            conf = conf.set('pr2Base', tuple([bc[i] for i in (0,1,3)]))
+            print '--> modified base conf', conf['pr2Base']
             if action:
                 action(path, i) # do optional action
             else:
                 self.setRobotConf(conf)
             pathTraveled.append(conf)
             if debug('animate'):
-                self.draw('World')
+                self.draw('World'); self.draw('Belief')
                 sleep(animateSleep)
             else:
                 self.robotPlace.draw('World', 'pink')
+                self.robotPlace.draw('Belief', 'pink')
             wm.getWindow('World').pause()
+            wm.getWindow('Belief').pause()
             cart = conf.cartConf()
             leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3]).tolist()[0][:-1]
             rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3]).tolist()[0][:-1]
@@ -140,13 +161,13 @@ class RealWorld(WorldState):
                 c = path[i-1]
                 self.setRobotConf(c)  # LPK: was conf
                 self.robotPlace.draw('World', 'orange')
+                self.robotPlace.draw('Belief', 'orange')
                 cart = conf.cartConf()
                 leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
                 rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
                 tr('sim',
                    ('base', conf['pr2Base'], 'left', leftPos, 'right', rightPos))
                 break
-            newXYT = self.robotConf.conf['pr2Base']
             if debug('backwards') and not validEdgeTest(prevXYT, newXYT):
                 backSteps.append((prevXYT, newXYT))
             # Integrate the displacement
@@ -161,30 +182,14 @@ class RealWorld(WorldState):
                 # raw_input('Exceeded max distance')
                 print 'Exceeded max distance - exiting'
                 return self.robotConf, (distSoFar, angleSoFar)
-                # obj = self.visibleObj(objShapes)
-                # if obj:
-                #     lookConf = lookAtConf(self.robotConf, obj)
-                #     if lookConf:
-                #         obs = self.doLook(lookConf)
-                #         if obs:
-                #             args[1] = lookConf
-                #             lookAtBProgress(self.bs, args, obs)
-                #         else:
-                #             tr('sim', 'No observation')
-                #     else:
-                #         tr('sim', 'No lookConf for %s'%obj.name())
-                # else:
-                #     tr('sim', 'No visible object')
-            noisyXYT = [c + 2 * (random.random() - 0.5) * c * simOdoErrorRate \
-                                 for c in newXYT]
-            #prevXYT = newXYT
-            prevXYT = noisyXYT
+            prevXYT = newXYT
         if debug('backwards') and backSteps:
             print 'Backward steps:'
             for prev, next in backSteps:
                 print prev, '->', next
             raw_input('Backwards')
         wm.getWindow('World').update()
+        wm.getWindow('Belief').update()
         tr('sim', 'Admire the path', snap=['World'])
         return self.robotConf, (distSoFar, angleSoFar)
 
