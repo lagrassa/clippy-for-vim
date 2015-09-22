@@ -1396,7 +1396,6 @@ else:
 def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
              reachObsts=[]):
     tag = 'pushPath'
-    warn = True
     rm = pbs.getRoadMap()
     prePose = hu.Pose(*prePose) if isinstance(prePose, (tuple, list)) else prePose
     baseSig = "%.6f, %.6f, %.6f"%tuple(conf['pr2Base'])
@@ -1536,9 +1535,9 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
             if nconf and conf:
                 ac = conf.robot.armChainNames[hand]
                 d = nconf.cartConf()[ac].point().distance(conf.cartConf()[ac].point())
-                if d > 2*delta and warn:
-                    print 'Unexpectedly large hand step, probably due to hand tilt'
-                    warn = False
+                if d > 2*delta:
+                    if debug(tag):
+                        print 'Unexpectedly large hand step, probably due to hand tilt'
             nconf = conf
         if not nconf:
             reason = 'invkin'
@@ -1646,7 +1645,7 @@ def handTiltAndDir(conf, hand, direction):
         # if debug('pushPath'): print hdir, '->', sign, hdir
         # Because of the wrist orientation, the sign is negative
         if glob.useHandTiltForPush:
-            print 'Tilting the hand causes a discontinuity at the end of the push'
+            # Tilting the hand causes a discontinuity at the end of the push
             # rot = hu.Transform(rotation_matrix(-sign*math.pi/10., (0,1,0)))
             rot = hu.Transform(rotation_matrix(-sign*math.pi/15., (0,1,0)))
         else:

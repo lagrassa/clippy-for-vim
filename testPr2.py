@@ -46,8 +46,8 @@ table2Pose = hu.Pose(1.0, -1.2, 0.0, 0.0)
 table3Pose = hu.Pose(1.6,0.0,0.0, math.pi/2.0),
 
 bigVar = (0.1**2, 0.1**2, 1e-10, 0.3**2)
-medVar = (0.1**2, 0.05**2, 1e-10, 0.1**2)
-smallVar = (0.1**2, 0.03**2, 1e-10, 0.06**2)
+medVar = (0.05**2, 0.05**2, 1e-10, 0.1**2)
+smallVar = (0.03**2, 0.03**2, 1e-10, 0.06**2)
 tinyVar = (0.001**2, 0.001**2, 1e-10, 0.002**2)
 
 targetSmallVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2)
@@ -475,15 +475,15 @@ def testShelvesGrasp(**args):
     return doTest('testShelvesGrasp', exp, goal1, skel, args)
 
 def testIkeaShelvesGrasp(**args):
-    front = hu.Pose(1.1, 0.475, tZ, 0)
-    front = hu.Pose(1.15, 0.475, tZ, -math.pi/2)
-    front = hu.Pose(1.05, 0.125, tZ, -math.pi/4)
+    front = hu.Pose(1.1, 0.475, ikZ, 0)
+    front = hu.Pose(1.15, 0.475, ikZ, -math.pi/2)
+    front = hu.Pose(1.05, 0.125, ikZ, -math.pi/4)
     # -pi/2 works ok for grasp 0.  Why doesn't this work as well for for pi/2 and grasp 1??
-    mid = hu.Pose(1.15, 0.35, tZ, 0.0)
-    # mid = hu.Pose(1.05, 0.0, tZ, 0.0)
+    mid = hu.Pose(1.15, 0.35, ikZ, 0.0)
+    # mid = hu.Pose(1.05, 0.0, ikZ, 0.0)
     sh1 = hu.Pose(1.3, -0.1, 1.170, 0.0)
     sh2 = hu.Pose(1.3, 0.1, 1.170, 0.0)
-    ikeaShelvesPose = hu.Pose(1.25, -0.2, tZ, 0.0)
+    ikeaShelvesPose = hu.Pose(1.25, -0.2, ikZ, 0.0)
     region = 'ikeaShelves_space_2'
     easy=args.get('easy', False)
     exp = makeExp({'tableIkea1' : (table1Pose, smallVar),

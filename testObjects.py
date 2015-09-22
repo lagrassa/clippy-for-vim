@@ -151,7 +151,7 @@ glob.objectSymmetries['table'] = sym2
 glob.objectTypes['table'] = 'table'
 glob.constructor['table'] = makeLegTable
 
-tZ = 0.74                               # table height + 0.01
+ikZ = 0.74                               # table height + 0.01
 def makeIkeaTable(dx=0.50, dy=0.30, dz=0.73, name='tableIkea', width=0.1, color = 'brown'):
     reg = [Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name+'Top', color=color),
            Ba([(0.2, -dy, 0.), (dx, dy, dz)], name=name+'Left', color=color),
