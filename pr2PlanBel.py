@@ -102,7 +102,8 @@ class PBS:
             base = self.conf['pr2Base']
             # Should consider motions in both positive and negative directions
             # It won't wonder away too far... TLP
-            newBase = tuple([b + (random.random() - 0.5) * 0.05 for b in base])
+            newBase = tuple([b + (random.random() - 0.5) * 0.01 * count\
+                              for b in base])
             newConf = self.conf.set('pr2Base', newBase)
             self.updateConf(newConf)
             confViols = rm.confViolations(self.conf, self, p)

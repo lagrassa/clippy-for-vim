@@ -534,6 +534,7 @@ def testPush(name, objName, startPose, targetPose, **args):
                   {objName : (startPose, medVar)},
                   ['table1Top'], easy=args.get('easy', False))
     goal = placed(objName, targetPose, targetDelta = (0.1, .1, .1, .5))
+    skel = args.get('skeleton', None)
     return doTest(name, exp, goal, args['skeleton'], args)
 
 def testPush0(objName='bigA', **args):
@@ -555,6 +556,9 @@ def testPush1(objName='bigA', **args):
 ######################################################################
 # Test TWo Pushes, harder
 ######################################################################
+
+# Does not work with odo error .02
+# Seems to need helpful actions or bigger search space
 
 def testPush2(objName='bigA', **args):
     testPush('testPush2', objName,
