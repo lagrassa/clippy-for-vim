@@ -122,7 +122,8 @@ class PBS:
                                  strict=strict, fail=fail)
 
     def ditherObjectToSupport(self, obj, p):
-        def delta(x): return x + (random.random() - 0.5)*0.01
+        ditherCount = 200
+        def delta(x, c = 1): return x + (random.random() - 0.5)*0.01*c
         count = 0
         rm = self.beliefContext.roadMap
         world = self.getWorld()
@@ -130,7 +131,7 @@ class PBS:
         shape = pB.shape(world)
         supported = self.findSupportRegion(p, shape,
                                            strict=True, fail=False)
-        while count < 100 and not supported:
+        while count < ditherCount and not supported:
             count += 1
             pB = self.getPlaceB(obj)
             poseList = list(pB.poseD.modeTuple())
@@ -139,7 +140,7 @@ class PBS:
                 print obj, poseList
                 raw_input('go?')
             for i in (0,1):
-                poseList[i] = delta(poseList[i])
+                poseList[i] = delta(poseList[i], count)
             newPose = hu.Pose(*poseList)
             self.resetPlaceB(obj, pB.modifyPoseD(newPose))
             self.reset()
@@ -474,7 +475,9 @@ class PBS:
             objBMinDelta = self.domainProbs.shadowDelta
             # 2 looks
             objBMinVarGrasp = tuple([x/2 for x in self.domainProbs.obsVarTuple])
-        objBMinVarStatic = tuple([o**2 for o in self.domainProbs.odoError])
+        # Error on a .5 meter move
+        objBMinVarStatic = tuple([(o/2.0)**2 \
+                                  for o in self.domainProbs.odoError])
         objBMinProb = 0.95
         # The irreducible shadow
         objBMinVar = objBMinVarGrasp if graspable else objBMinVarStatic

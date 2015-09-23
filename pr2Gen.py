@@ -480,7 +480,8 @@ def placeGenTop(args, goalConds, pbs, regrasp=False, away=False, update=True):
     placeGenCacheStats[0] += 1
     if val is not None:
         placeGenCacheStats[1] += 1
-        memo = val
+        # Will restart the generator when it is retrieved
+        memo = val.copy()
     else:
         if isinstance(placeBs, frozenset):
             def placeBGen():
