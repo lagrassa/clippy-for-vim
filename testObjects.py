@@ -179,6 +179,40 @@ def makeIkeaTable(dx=0.50, dy=0.30, dz=0.73, name='tableIkea', width=0.1, color 
 glob.objectSymmetries['tableIkea'] = sym2
 glob.objectTypes['tableIkea'] = 'tableIkea'
 glob.constructor['tableIkea'] = makeIkeaTable
+
+def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
+                width = shelfWidth, nshelf = 2,
+                name='shelves', color='orange'):
+    sidePrims = [\
+        Ba([(-dx, -dy-width, 0), (dx, -dy, dz)],
+           name=name+'_side_A', color=color),
+        Ba([(-dx, dy, 0), (dx, dy+width, dz)],
+           name=name+'_side_B', color=color),
+        Ba([(dx, -dy, 0), (dx+width, dy, dz)],
+           name=name+'_backside', color=color),
+        ]
+    shelfSpaces = []
+    shelfRungs = []
+    for i in xrange(nshelf+1):
+        frac = i/float(nshelf)
+        bot = dz*frac
+        top = dz*frac+width
+        shelf = Ba([(-dx, -dy-width, bot),
+                    (dx, dy+width, bot+width)],
+                   color=color,
+                   name=name+'_shelf_'+string.ascii_uppercase[i])
+        shelfRungs.append(shelf)
+        spaceName = name+'_space_'+str(i+1)
+        space = Ba([(-dx+eps, -dy-width+eps, eps),
+                    (dx-eps, dy+width-eps, (dz/nshelf) - width - eps)],
+                   color='green', name=spaceName)
+        space = Sh([space], name=spaceName, color='green')
+        shelfSpaces.append((space, hu.Pose(0,0,bot+eps-(dz/2),0)))
+    shelves = Sh(sidePrims + shelfRungs, name = name+'Body', color=color)
+    return (shelves, shelfSpaces)
+glob.objectSymmetries['shelves'] = sym0
+glob.objectTypes['shelves'] = 'shelves'
+
 def makeIkeaShelves(dx=0.185, dy=0.305, dz=0.51,
                 width = 0.02, nshelf = 2,
                 name='ikeaShelves', color='brown'):

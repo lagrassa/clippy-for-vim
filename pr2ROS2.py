@@ -9,7 +9,9 @@ import planGlobals as glob
 from traceFile import debug, debugMsg
 from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn, objectName
 from pr2Visible import lookAtConf, findSupportTable, visible
-from pr2Robot import cartInterpolators, JointConf
+# import pr2Robot
+# reload(pr2Robot)
+from pr2Robot import cartInterpolators, JointConf, armJointNames
 from pr2Ops import lookAtBProgress
 
 import hu
@@ -55,7 +57,8 @@ def pr2GoToConf(cnfIn,                  # could be partial...
                 operation,              # a string
                 arm = 'both',
                 speedFactor = glob.speedFactor,
-                args = tuple()):
+                args = tuple(),
+                path = []):
     if not glob.useROS: return None, None
     rospy.wait_for_service('pr2_goto_configuration')
     try:
@@ -84,10 +87,20 @@ def pr2GoToConf(cnfIn,                  # could be partial...
             assert cnfIn.get('pr2Head', None)
             gaze = gazeCoords(cnfIn)
             conf.head = map(float, gaze) # a look point relative to robot
-            raw_input('Looking at %s'%gaze)
+            debugMsg('robotEnvCareful', 'Looking at %s'%gaze)
             operation = 'move'
         else:
             conf.head = []
+
+        if path:
+            if arm == 'l':
+                points = [JointTrajectoryPoint(position=c['pr2LeftArm']) for c in path]
+                traj = JointTrajectory(joint_names=armJointNames(arm), points=points)
+                conf.left_path = traj
+            elif arm == 'r':
+                points = [JointTrajectoryPoint(position=c['pr2RightArm']) for c in path]
+                traj = JointTrajectory(joint_names=armJointNames(arm), points=points)
+                conf.right_path = traj
 
         if debug('pr2GoToConf'): print operation, conf
         
@@ -156,7 +169,6 @@ def enforceLimits(conf):
     return JointConf(outConfDict, conf.robot)
 
 maxOpenLoopDist = 2.0                   # How far to move between looks
-maxOpenLoopDist = 10.0                   # How far to move between looks
 
 # The key interface spec...
 # obs = env.executePrim(op, params)
@@ -198,23 +210,30 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         objShapes = shWorld.getObjectShapes()
 
         if debug('robotEnv'):
+            self.bs.pbs.draw(0.95, 'W')
             for conf in path:
                 conf.draw('W', 'blue')
+                wm.getWindow('W').update()
         debugMsg('robotEnv', 'executePath')
 
         distSoFar = 0.0
         angleSoFar = 0.0
         prevXYT = path[0]['pr2Base']
         for (i, conf) in enumerate(path):
-            debugMsg('robotEnvCareful', '    conf[%d]'%i)
-            if debug('robotEnvCareful'): conf.prettyPrint()
+            if debug('robotPathCareful') or debug('robotEnvCareful'):
+                conf.prettyPrint('Commanded conf')
+                self.bs.pbs.draw(0.95, 'W')
+                # Moving from blue to pink
+                if i > 0: path[i-1].draw('W', 'blue')
+                conf.draw('W', 'pink')
+                debugMsg('robotPathCareful', '    conf[%d]'%i)
             newXYT = conf['pr2Base']
             result, outConf, _ = pr2GoToConf(conf, 'move')
             # Use commanded value to avoid problems with moveDelta
             # TODO: Fix this
+            if debug('robotPathCareful') or debug('robotEnvCareful'):
+                outConf.prettyPrint('Actual conf')
             outConf = conf
-
-            # !! Do some looking and update the belief state.
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
             # approx pi => 1 meter
             angleSoFar += abs(hu.angleDiff(prevXYT[2],newXYT[2]))
@@ -224,23 +243,21 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             if distSoFar + 0.33 * angleSoFar >= maxOpenLoopDist:
                 print 'Exceeded max distance - exiting'
                 return outConf, (distSoFar, angleSoFar)
-                # distSoFar = 0           #  reset
-                # obj = next(self.visibleShapes(conf, objShapes), None)
-                # if obj:
-                #     lookConf = lookAtConf(conf, obj)
-                #     if lookConf:
-                #         obs = self.doLook(lookConf, placeBs)
-                #         if obs:
-                #             args[1] = lookConf
-                #             lookAtBProgress(self.bs, args, obs)
-                #         else:
-                #             raw_input('No observation')
-                #     else:
-                #         raw_input('No lookConf for %s'%obj.name())
-                # else:
-                #     raw_input('No visible object')
             prevXYT = newXYT
         return outConf, (distSoFar, angleSoFar)
+
+    def executeSinglePath(self, path, placeBs):
+        shWorld = self.bs.pbs.getShadowWorld(0.95)
+        objShapes = shWorld.getObjectShapes()
+
+        if debug('robotEnv'):
+            self.bs.pbs.draw(0.95, 'W')
+            for conf in path:
+                conf.draw('W', 'blue')
+                wm.getWindow('W').update()
+        debugMsg('robotEnv', 'executePath')
+        result, outConf, _ = pr2GoToConf(conf, 'move', path=path)
+        return outConf, (0.0, 0.0)
 
     def executeMove(self, op, params, noBase=False):
         if noBase:
@@ -319,7 +336,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         visTables = [shape.name() for shape in visShapes \
                      if 'table' in shape.name()]
         visShelves = [shape.name() for shape in visShapes \
-                     if 'coolShelves' in shape.name()]
+                     if 'Shelves' in shape.name()]
         print 'Predicted visible shapes', [x.name() for x in visShapes]
         obs = []
 
@@ -441,11 +458,14 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         # result, outConf, _ = pr2GoToConf(gripConf, 'grab', arm=hand[0])
         result, outConf, _ = closeFirmly(outConf, hand)
         debugMsg('robotEnvCareful', 'Closed?')
-
-        debugMsg('robotEnvCareful', 'executePick - move to approachConf')
-        result, outConf, _ = pr2GoToConf(approachConf, 'move')
-
-        return None
+        g = confGrip(outConf, hand)
+        if g < 0.005:                   # Missed
+            raw_input('Missed pick - returning failure obs')
+            return 'failure'
+        else:
+            debugMsg('robotEnvCareful', 'executePick - move to approachConf')
+            result, outConf, _ = pr2GoToConf(approachConf, 'move')
+            return 'success'
 
     def executePlace(self, op, params):
         (hand, placeConf, approachConf) = \
@@ -471,8 +491,8 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         if params:
             path, revPath, placeBs  = params
             debugMsg('robotEnvCareful', 'executePush: path len = ', len(path))
-            obs = self.executePath(path, placeBs)
-            obs = self.executePath(revPath, placeBs)
+            obs = self.executeSinglePath(path[:-1], placeBs) # ignore last point
+            obs = self.executeSinglePath(revPath[1:], placeBs)   # ignore first point
         else:
             print op
             raw_input('No path given')
@@ -559,15 +579,14 @@ def getPointCloud(basePose, resolution = glob.cloudPointsResolution):
                        verts=points, name='ROS')
         scan = scan.applyTrans(basePose)
         scan.draw('W', 'red')
-        raw_input('Scan')
+        wm.getWindow('W').update()
         return scan
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
         raw_input('Continue?')
         return []
 
-# zIndex = 1 means 'top' (max z), = 0 means 'bottom' (min z)
-def makeROSPolygon(obj, zIndex = 1):
+def makeROSPolygon(obj, zIndex=1):
     points = []
     verts = obj.xyPrim().vertices()
     zhi = obj.zRange()[zIndex]
@@ -631,10 +650,10 @@ xoffset = 0.05
 yoffset = 0.01
 fingerLength = 0.06
 
-def pr2GoToConfNB(conf, op, arm='both', args=[], speedFactor=glob.speedFactor):
+def pr2GoToConfNB(conf, op, arm='both', args=[], speedFactor=glob.speedFactor, path=[]):
     c = conf.conf.copy()
     if 'pr2Base' in c: del c['pr2Base']
-    return pr2GoToConf(conf, op, arm=arm, args=args, speedFactor=speedFactor)
+    return pr2GoToConf(conf, op, arm=arm, args=args, speedFactor=speedFactor, path=path)
 
 def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
     result, curConf, _ = pr2GoToConfNB(startConf, 'resetForce', args=[750, 750], arm=hand[0])

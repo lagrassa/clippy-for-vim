@@ -557,7 +557,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
             if nextGr and nextGr[0]:
                 return 1
             else:
-                if gB.grasp.mode() == 0:
+                if debug(tag) and gB.grasp.mode() == 0:
                     pbsOrig.draw(prob, 'W')
                     print 'cannot use grasp 0'
                 return 2
@@ -841,8 +841,8 @@ def placeInGenAway(args, goalConds, pbs):
                                    goalConds, pbs, away=True, update=False):
         yield ans
 
-placeInGenMaxPoses  = 100
-placeInGenMaxPosesH = 100
+placeInGenMaxPoses  = 300
+placeInGenMaxPosesH = 300
 
 def placeInGenTop(args, goalConds, pbs,
                   regrasp=False, away = False, update=True):

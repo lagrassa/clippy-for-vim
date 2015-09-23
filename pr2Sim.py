@@ -104,7 +104,6 @@ class RealWorld(WorldState):
         for (i, conf) in enumerate(path):
             originalConf = conf
             newXYT = conf['pr2Base']
-            print 'Initial base conf', newXYT
             prevBasePose = path[max(0, i-1)].basePose()
             newBasePose = path[i].basePose()
             # Compute the nominal displacement along the original path
@@ -118,15 +117,17 @@ class RealWorld(WorldState):
                       (dispAngle * odoError[3])**2)
             # Draw the noise with zero mean and this variance
             baseOff = hu.Pose(*MVG((0.,0.,0.,0.), np.diag(odoVar)).draw())
-            print 'draw', baseOff.xyztTuple()
             # Apply the noise to the nominal displacement
             dispNoisy = baseOff.compose(disp)
-            print '+++', dispNoisy.pose().xyztTuple()
             # Apply the noisy displacement to the "actual" robot location
             bc = self.robotConf.basePose().compose(dispNoisy).pose().xyztTuple()
             # This is the new conf to move to
             conf = conf.set('pr2Base', tuple([bc[i] for i in (0,1,3)]))
-            print '--> modified base conf', conf['pr2Base']
+            if debug('sim'):
+                print 'Initial base conf', newXYT
+                print 'draw', baseOff.xyztTuple()
+                print '+++', dispNoisy.pose().xyztTuple()
+                print '--> modified base conf', conf['pr2Base']
             if action:
                 action(path, i) # do optional action
             else:

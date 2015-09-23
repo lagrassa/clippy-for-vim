@@ -118,7 +118,7 @@ class PBS:
         placeB = self.getPlaceB(obj, default=False)
         if not placeB: return
         shape = placeB.shape(self.getWorld())
-        return findSupportingRegion(shape, self.getShadowWorld(prob).regionShapes,
+        return findSupportRegion(shape, self.getShadowWorld(prob).regionShapes,
                                  strict=strict, fail=fail)
 
     def ditherObjectToSupport(self, obj, p):
