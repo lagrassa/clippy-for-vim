@@ -180,6 +180,12 @@ glob.objectSymmetries['tableIkea'] = sym2
 glob.objectTypes['tableIkea'] = 'tableIkea'
 glob.constructor['tableIkea'] = makeIkeaTable
 
+eps = 0.01
+epsz = 0.02
+shelfDepth = 0.3
+shelfWidth = 0.02
+coolerZ = 0.225
+
 def makeShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                 width = shelfWidth, nshelf = 2,
                 name='shelves', color='orange'):
@@ -267,12 +273,6 @@ glob.constructor['ikeaShelves'] = makeIkeaShelves
 #     return (obj, shelfSpaces)
 # glob.objectSymmetries['shelves'] = sym0
 # glob.objectTypes['shelves'] = 'shelves'
-
-eps = 0.01
-epsz = 0.02
-shelfDepth = 0.3
-shelfWidth = 0.02
-coolerZ = 0.225
 
 def makeCoolShelves(dx=shelfDepth/2.0, dy=0.305, dz=0.45,
                       width = shelfWidth, nshelf = 2,

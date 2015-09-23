@@ -16,9 +16,9 @@ import windowManager3D as wm
 # For now, use configurations until they are added to the tree as Nodes.
 
 class RRT:
-    def __init__(self, pbs, prob, initConf, goalConf, allowedViol, moveChains):
+    def __init__(self, pbs, prob, initConf, goalConf, allowedViol, moveChains, inflate=False):
         if debug('rrt'): print 'Setting up RRT'
-        self.pbs = pbs
+        self.pbs = pbsInflate(pbs, prob, initConf, goalConf) if inflate else pbs
         self.prob = prob
         self.robot = pbs.getRobot()
         self.moveChains = moveChains
@@ -357,8 +357,13 @@ def interpolatePath(path, stepSize = 0.25):
         interpolated.extend(confs)
     return interpolated
 
-
-
+def pbsInflate(pbs, prob, initConf, goalConf):
+    newBS = pbs.copy()
+    newBS.conf = initConf
+    for objBs in (newBS.fixObjBs, newBS.moveObjBs):
+        for obj in objBs:
+            objB = objBs[obj]
+            objBs[obj] = objB.modify
 
 
 

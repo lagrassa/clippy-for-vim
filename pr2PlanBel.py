@@ -151,15 +151,16 @@ class PBS:
         if count == 100:
             raise Exception, 'Failed to move object to support'
 
-    def internalCollisionCheck(self):
+    def internalCollisionCheck(self, dither=True, objChecks=True):
         ws = self.getShadowWorld(0.0)   # minimal shadow
         rm = self.beliefContext.roadMap
         # First check the robot for hard collisions.  Increase this to
         # give some boundary
         shProb = 0.1
         confViols = rm.confViolations(self.conf, self, shProb)
-        if confViols is None or confViols.obstacles or \
-          confViols.heldObstacles[0] or confViols.heldObstacles[1]:
+        if dither and \
+               confViols is None or confViols.obstacles or \
+               confViols.heldObstacles[0] or confViols.heldObstacles[1]:
             tr('dither', 'Robot in collision.  Will try to fix.',
                      draw=[(self, 0.0, 'W')], snap=['W'])
             self.ditherRobotOutOfCollision(shProb)
@@ -211,6 +212,8 @@ class PBS:
             self.reset()
             confViols = rm.confViolations(self.conf, self, shProb)
             shadows = confViols.allShadows()
+
+        if not objChecks: return
 
         # Finally, look for object-object collisions
         objShapes = [o for o in ws.getObjectShapes() \
