@@ -204,33 +204,41 @@ class Tree:
         return 'TREE:['+str(len(self.size))+']'
 
 def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
-                  maxIter = None, failIter = None, safeCheck = True):
+                  maxIter = None, failIter = None, safeCheck = True, inflate = False):
     startTime = time.time()
+    if inflate:
+        glob.ignoreShadowZ = False
+    else:
+        glob.ignoreShadowZ = True
     if allowedViol==None:
         v1 = pbs.getRoadMap().confViolations(destConf, pbs, prob)
         v2 = pbs.getRoadMap().confViolations(initConf, pbs, prob)
         if v1 and v2:
             allowedViol = v1.update(v2)
         else:
+            glob.ignoreShadowZ = True
             return [], None
     if safeCheck:
         if not safeConf(initConf, pbs, prob, allowedViol):
             if debug('rrt'):
                 print 'RRT: not safe enough at initial position... continuing'
+            glob.ignoreShadowZ = True
             return [], None
         if not safeConf(destConf, pbs, prob, allowedViol):
             if debug('rrt'):
                 print 'RRT: not safe enough at final position... continuing'
+            glob.ignoreShadowZ = True
             return [], None
     nodes = 'FAILURE'
     failCount = -1                      # not really a failure the first time
     while nodes == 'FAILURE' and failCount < (failIter or glob.failRRTIter):
-        rrt = RRT(pbs, prob, initConf, destConf, allowedViol, moveChains)
+        rrt = RRT(pbs, prob, initConf, destConf, allowedViol, moveChains, inflate=inflate)
         nodes = rrt.findPath(K = maxIter or glob.maxRRTIter)
         failCount += 1
         if debug('rrt'):
             if failCount > 0: print 'Failed', failCount, 'times'
     if failCount == (failIter or glob.failRRTIter):
+        glob.ignoreShadowZ = True
         return [], None
     rrtTime = time.time() - startTime
     if debug('rrt'):
@@ -250,15 +258,17 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
             #             for (x, y) in zip(initConf.conf[chain], c.conf[chain])]) for \
             #               c in path])
             #assert all(initConf.conf[chain] == c.conf[chain] for c in path)
+
+    glob.ignoreShadowZ = True
     return path, allowedViol
 
 def planRobotPathSeq(pbs, prob, initConf, destConf, allowedViol,
-                     maxIter = None, failIter = None):
+                     maxIter = None, failIter = None, inflate = False):
     chains = [chain for chain in destConf.conf \
               if chain in initConf.conf \
               and max([abs(x-y) > 1.0e-6 for (x,y) in zip(initConf.conf[chain], destConf.conf[chain])])]
     return planRobotPath(pbs, prob, initConf, destConf, allowedViol, chains,
-                  maxIter = maxIter, failIter = failIter, safeCheck = False)
+                  maxIter = maxIter, failIter = failIter, safeCheck = False, inflate = inflate)
 
 
 def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
@@ -358,16 +368,17 @@ def interpolatePath(path, stepSize = 0.25):
     return interpolated
 
 def pbsInflate(pbs, prob, initConf, goalConf):
+    if not glob.useInflation: return pbs
     newBS = pbs.copy()
     newBS.conf = initConf
     for objBs in (newBS.fixObjBs, newBS.moveObjBs):
         for obj in objBs:
             objB = objBs[obj]
-            objBs[obj] = objB.modify
-
-
-
-
-
-
-
+            inflatedVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
+            objBs[obj] = objB.modifyPoseD(var=inflatedVar)
+    newBS.internalCollisionCheck(dither=False, objChecks=False)
+    newBS.conf = goalConf
+    newBS.internalCollisionCheck(dither=False, objChecks=False)
+    newBS.draw(prob, 'W')
+    raw_input('Inflation')
+    return newBS

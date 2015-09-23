@@ -53,6 +53,9 @@ useCC = False                            # Use compiled chains collision checks
 skipSearch = False                       # Don't plan paths except for prims
 useMathematica = False
 
+ignoreShadowZ = True
+useInflation = False
+
 ########################################
 # Name prefixes for objects that are graspable, pushable, etc.
 # These are set when defining objects.

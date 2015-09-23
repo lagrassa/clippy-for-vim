@@ -70,10 +70,10 @@ drawRebindNodes = True
 'visible'
 '''
 
-usualTags = ['nonmon']
+usualTags = ['nonmon', 'animate']
 flags = ['simpleAbstractCostEstimates',
          'primitiveHeuristicAlways',
-          'pushSim']
+         'pushSim']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
                  'debugInHeuristic', 'h', 'hAddBack']
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
@@ -86,7 +86,7 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['animate']
+debugOn = usualTags + ['pickGen']
 # + ['visible', 'CanSeeFrom', 'canView', 'pickGen', 'achCanPush', 'lookAchGen', 'canPush']
 # + ['noWriteSearch', 'noTrace', 'noPlayback'] 
 # + ['animate']
