@@ -407,7 +407,7 @@ def hCost(violations, details):
         vb = details.pbs.getPlaceB(obj).poseD.variance()
         deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
         c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
-        o.instanceCost = c
+        o.instanceCost = c + 2 # look and move
     ops = obstOps.union(shadowOps)
 
     # look at hand or drop an object

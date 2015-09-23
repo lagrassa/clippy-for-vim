@@ -535,7 +535,7 @@ def testPush(name, objName, startPose, targetPose, **args):
                   ['table1Top'], easy=args.get('easy', False))
     goal = placed(objName, targetPose, targetDelta = (0.1, .1, .1, .5))
     skel = args.get('skeleton', None)
-    return doTest(name, exp, goal, args['skeleton'], args)
+    return doTest(name, exp, goal, skel, args)
 
 def testPush0(objName='bigA', **args):
     skel = [[lookAt, move, push, moveNB, lookAt, moveNB, achCanPush, move, achCanReach, move]]

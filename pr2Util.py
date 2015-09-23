@@ -354,11 +354,15 @@ class DomainProbs:
 
     def objBMinVar(self, objName, specialG = None):
         movable = not permanent(objName)
-        # Error on a .5 meter move;  should do the degrees-of-freedom computation
+        # Error on a .5 meter move;  should do the degrees-of-freedom comp
         objBMinVarStatic = tuple([(o/2.0)**2 for o in self.odoError])
         # Error after two looks
-        objBMinVarGrasp = specialG if specialG else tuple([x/2 for x in self.obsVarTuple])
-        return objBMinVarGrasp if movable else objBMinVarStatic
+        objBMinVarGrasp = specialG if specialG \
+                       else tuple([x/2 for x in self.obsVarTuple])
+        # take the max for static objects
+        static = tuple([max(a, b) for (a, b) in zip(objBMinVarGrasp,
+                                                    objBMinVarStatic)])
+        return objBMinVarGrasp if movable else static
 
 ######################################################################
         

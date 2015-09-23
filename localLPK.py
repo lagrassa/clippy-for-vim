@@ -92,7 +92,7 @@ visibleEx (show visibility stuff during execution even if visible is false)
 
 # turned off helpful actions
 
-usualTags = ['nonmon', 'nagLeslie', 'helpfulActions']
+usualTags = ['nonmon', 'nagLeslie', 'animate'] # 'helpfulActions'
 flags = ['simpleAbstractCostEstimates',
           'primitiveHeuristicAlways',
           'pushSim']
