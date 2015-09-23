@@ -2,11 +2,13 @@ import os
 import platform
 libkinDir = './IK/'
 if platform.system() == 'Linux':
-    outDir = '/mit/tlp/ros/redux/search/'
+    outDir = '/mit/tlp/search/'
     genDir = '/mit/tlp/gen/'
+    movieDir = '/mit/tlp/mathMovies/'
 else:
     outDir = '/Users/tlp/Documents/search/'
     genDir = '/Users/tlp/Documents/gen/'
+    movieDir = '/Users/tlp/Documents/mathMovies/'
 dotSearch = outDir + 's%s%s.dot'
 dotSearchX = outDir + 'sX%s%s.dot'
 pngGen = '%s/g%s.png'
@@ -84,7 +86,7 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['animate'] 
+debugOn = usualTags + ['animate']
 # + ['noWriteSearch', 'noTrace', 'noPlayback'] 
 # + ['animate']
 # + ['noWriteSearch', 'noTrace', 'noPlayback'] 

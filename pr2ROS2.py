@@ -344,26 +344,18 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         result, outConf, _ = pr2GoToConf(lookConf, 'look')
         # TODO: Check this - assuming we went to the right place.
         outConf = lookConf
-        outConfCart = lookConf.robot.forwardKin(outConf)
-        tableNames = {}
+        basePose = lookConf.basePose()
         debugMsg('robotEnvCareful', 'Get cloud?')
         scan = getPointCloud(basePose)
         for tableName in visTables:
-            basePose = outConfCart['pr2Base']
             # Table is in world coordinates
             print 'Looking at table', tableName
             table = lookAtTable(scan, placeBs[tableName])
             if not table: return []
-            basePose = outConfCart['pr2Base']
             tableRob = table.applyTrans(basePose.inverse())
-            tableNames[tableName] = tableRob
             trueFace = supportFaceIndex(table)
             tablePose = getSupportPose(table, trueFace)
             obs.append((self.world.getObjType(tableName), trueFace, tablePose))
-        if not tableNames:
-            # TODO: This is not really necessary, we can use regions
-            raw_input('No tables visible... returning null obs')
-            return []
         for shelvesName in visShapes:
             placeB = placeBs[shelvesName]
             (score, trans, obsShape) =\
@@ -383,18 +375,14 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         targets = {}
         for shape in visShapes:
             if 'table' in shape.name(): continue
-            if 'coolShelves' in shape.name(): continue
+            if 'Shelves' in shape.name(): continue
             targetObj = shape.name()
-            supportTableB = findSupportTable(targetObj, self.world, placeBs)
-            assert supportTableB
-            if not supportTableB.obj in tableNames:
-                print 'Skipping obj', targetObj, 'not supported by', tableNames
-                continue
-            placeB = placeBs[supportTableB.obj]
-            targets[targetObj] = (placeBs[targetObj], supportTableB)
-
+            placeB = placeBs[shape.name()]
+            support = self.bs.pbs.findSupportRegion(0.9, shape)
+            assert support
+            targets[targetObj] = (placeBs[targetObj], support)
         if targets:
-            surfacePolys = [makeROSPolygon(tableRob) for tableRob in tableNames.values()]
+            surfacePolys = [makeROSPolygon(regShape, 0) for regShape in targets.values()]
             ans = getObjDetections(self.world,
                                    dict(targets.keys()),
                                    outConf, # the lookConf actually achieved
@@ -405,11 +393,12 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                 trueFace = supportFaceIndex(objPlaceRobot)
                 objPlace = objPlaceRobot.applyTrans(outConfCart['pr2Base'])
                 pose = getSupportPose(objPlace, trueFace)
-                tableRob = tableNames[targets[objPlace.obj][1]]
-                tablez0, tablez1 = tableRob.zRange()
+                support = targets[objPlace.obj][1]
+                supz0, supz1 = support.zRange()
                 objz0, objz1 = objPlace.zRange()
-                print 'table z', (tablez0, tablez1), 'object z', (objz0, objz1)
-                offset = hu.Pose(0.0, 0.0, tablez1+0.01-objz0, 0.0)
+                print 'support z', (supz0, supz1), 'object z', (objz0, objz1)
+                # Align the bottom of the object with the bottom of the support region
+                offset = hu.Pose(0.0, 0.0, supz0-objz0, 0.0)
                 npose = offset.compose(pose)
                 print 'npose\n', npose.matrix
                 obs.append((self.world.getObjType(objPlace.name()),

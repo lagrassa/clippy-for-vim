@@ -461,7 +461,7 @@ class PBS:
         return bs
 
     # arg can also be a graspB since they share relevant methods
-    def shadowPair(self, objB, faceFrame, prob):
+    def shadowPair(self, objB, faceFrame, prob, buffer=0.):
         def shLE(w1, w2):
             return all([w1[i] <= w2[i] for i in (0,1,3)])
         obj = objB.obj
@@ -494,7 +494,7 @@ class PBS:
             print 'minShWidth', minShWidth
 
         # Shadows relative to Identity pose
-        shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame)
+        shadow = self.objShadow(obj, shadowName(obj), prob, objB, faceFrame, buffer=buffer)
         shadowMin = self.objShadow(obj, obj, objBMinProb, objBMin, faceFrame) # use obj name
 
         if debug('getShadowWorld'):
@@ -513,7 +513,7 @@ class PBS:
 
         return shadowMin, shadow
     
-    def getShadowWorld(self, prob):
+    def getShadowWorld(self, prob, buffer=0.):
         # total count, current, cache hits, cache misses, new
         shadowWorldStats[0] += 1
         if self.shadowWorld and self.shadowProb == prob:
@@ -548,7 +548,7 @@ class PBS:
             # The pose in the world is for the origin frame.
             objPose = objB.objFrame()
             faceFrame = objB.faceFrames[objB.support.mode()]
-            shadowMin, shadow = self.shadowPair(objB, faceFrame, prob)
+            shadowMin, shadow = self.shadowPair(objB, faceFrame, prob, buffer=buffer)
 
             w.addObjectShape(shadow)
             w.addObjectShape(shadowMin)
@@ -579,7 +579,8 @@ class PBS:
                     support = self.graspB[hand].support
                     supportFrame = w.getFaceFrames(heldObj)[support]
                     # Create shadow pair and attach both to robot
-                    shadowMin, shadow = self.shadowPair(self.graspB[hand], supportFrame, prob)
+                    shadowMin, shadow = self.shadowPair(self.graspB[hand], supportFrame,
+                                                        prob, buffer=buffer)
 
                     shadow = shadow.applyTrans(supportFrame)
                     shadowMin = shadowMin.applyTrans(supportFrame)
@@ -600,7 +601,8 @@ class PBS:
                         raw_input('Grasped shadow')
                 else:  # normal grasp
                     # Create shadow pair and attach both to robot
-                    shadowMin, shadow = self.shadowPair(self.graspB[hand], faceFrame, prob)
+                    shadowMin, shadow = self.shadowPair(self.graspB[hand], faceFrame, prob,
+                                                        buffer=buffer)
                     # shadow is expressed in face frame, now we need
                     # to express it relative to wrist.
                     # fingerFrame maps from wrist to inner face of finger
@@ -636,7 +638,7 @@ class PBS:
     # the resulting shadow at the object origin.  So, we need to transform it
     # there and back again.
     # TODO: Should only do finite number of poseVar/poseDelta values.
-    def objShadow(self, obj, shName, prob, poseBel, faceFrame):
+    def objShadow(self, obj, shName, prob, poseBel, faceFrame, buffer=0.):
         shape = self.getObjectShapeAtOrigin(obj)
         color = shape.properties.get('color', None) or \
                 (shape.parts() and [s.properties.get('color', None) for s in shape.parts()][0]) or \
@@ -660,11 +662,13 @@ class PBS:
             # Now, we need to rotate it as in poseBel
             rotAngle = trans.pose().theta
             sh = sh.applyTrans(hu.Pose(0., 0., 0., rotAngle))
-            shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName, color=color)
+            shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName,
+                                      color=color, buffer=buffer)
             # Then, rotate it back
             shadow = shadow.applyTrans(hu.Pose(0., 0., 0., -rotAngle))
         else:
-            shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName, color=color)
+            shadow = makeShadowOrigin(sh, prob, poseVar, poseDelta, name=shName,
+                                      color=color, buffer=buffer)
         self.beliefContext.objectShadowCache[key] = shadow
         if debug('getShadowWorld'):
             shadow.draw('W', 'red')
@@ -757,7 +761,7 @@ def makeShadow(shape, prob, bel, name=None, color='gray'):
         raw_input('input shape (blue), final shadow (pink), Ok?')
     return final
 
-def sigmaPosesOrigin(prob, poseVar, poseDelta):
+def sigmaPosesOrigin(prob, poseVar, poseDelta, buffer):
     interpStep = math.pi/16
     def interpAngle(lo, hi):
         if hi - lo <= interpStep:
@@ -769,23 +773,27 @@ def sigmaPosesOrigin(prob, poseVar, poseDelta):
     n = len(widths)
     offsets = []
     (wx, wy, _, wt) = widths
+    wz = 0.
+    if buffer:
+        wz = buffer
+        wx += buffer; wy += buffer
     angles = interpAngle(-wt, wt)
     if debug('getShadowWorld'):
         print 'shadowWidths', widths
         print 'angles', angles
-    for a in angles: offsets.append([-wx, 0, 0, a])
-    for a in angles: offsets.append([wx, 0, 0, a])
-    for a in angles: offsets.append([0, -wy, 0, a])
-    for a in angles: offsets.append([0, wy, 0, a])
+    for a in angles: offsets.append([-wx, 0, -wz, a])
+    for a in angles: offsets.append([wx, 0, wz, a])
+    for a in angles: offsets.append([0, -wy, -wz, a])
+    for a in angles: offsets.append([0, wy, wz, a])
     poses = []
     for offset in offsets:
         offPoseTuple = offset
         poses.append(hu.Pose(*offPoseTuple))
     return poses
 
-def makeShadowOrigin(shape, prob, var, delta, name=None, color='gray'):
+def makeShadowOrigin(shape, prob, var, delta, name=None, color='gray', buffer=0.):
     shParts = []
-    poses = sigmaPosesOrigin(prob, var, delta)
+    poses = sigmaPosesOrigin(prob, var, delta, buffer)
     if debug('getShadowWorld'):
         print 'sigma poses for', shape.name()
     shColor = shape.properties.get('color', color)

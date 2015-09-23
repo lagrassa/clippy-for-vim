@@ -5,11 +5,13 @@ parent = path[:path.rfind('/')] + '/../'
 libkinDir = './IK/'
 
 if platform.system() == 'Linux':
-   outDir = '/mit/tlp/search/'
-   genDir = '/mit/tlp/gen/'
+   outDir = '/mit/lpk/search/'
+   genDir = '/mit/lpk/gen/'
+   movieDir = '/mit/lpk/mathMovies/'
 else:
    outDir = '/Users/lpk/Desktop/search/'
    genDir = '/Users/lpk/Desktop/genFiles/'
+   movieDir = '/Users/lpk/Desktop/mathMovies/'
 dotSearch = outDir + 's%s%s.dot'
 dotSearchX = outDir + 'sX%s%s.dot'
 

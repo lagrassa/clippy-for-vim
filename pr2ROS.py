@@ -384,7 +384,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         targets = []
         for shape in visShapes:
             if 'table' in shape.name(): continue
-            if 'coolShelves' in shape.name(): continue
+            if 'Shelves' in shape.name(): continue
             targetObj = shape.name()
             supportTableB = findSupportTable(targetObj, self.world, placeBs)
             assert supportTableB

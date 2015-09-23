@@ -480,7 +480,8 @@ def placeGenTop(args, goalConds, pbs, regrasp=False, away=False, update=True):
     placeGenCacheStats[0] += 1
     if val is not None:
         placeGenCacheStats[1] += 1
-        memo = val
+        memo = val.copy()
+        tr(tag, 'Found generator in cache')
     else:
         if isinstance(placeBs, frozenset):
             def placeBGen():
@@ -493,6 +494,7 @@ def placeGenTop(args, goalConds, pbs, regrasp=False, away=False, update=True):
                                     graspB, hand, base, prob,
                                     regrasp=regrasp, pbsOrig = pbs))
         placeGenCache[key] = memo
+        tr(tag, 'Created new generator')
     for ans in memo:
         tr(tag, str(ans) +' (t=%s)'%(time.clock()-startTime))
         yield ans

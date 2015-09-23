@@ -513,9 +513,9 @@ class PlanTest:
         name = self.name+'_'+timeString()
         print 'Writing mathematica movies for', name
         mathematica.mathMovie(wm.getWindow('Belief').capture,
-                              './mathMovies/'+name+'_bel.m')
+                              glob.movieDir+name+'_bel.m')
         mathematica.mathMovie(wm.getWindow('World').capture,
-                              './mathMovies/'+name+'.m')
+                              glob.movieDir+name+'.m')
         while not debug('noPlayback'):
             ans = raw_input('Playback? w = world, b = belief, q = no: ')
             if ans in ('w', 'W'):
