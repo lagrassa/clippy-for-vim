@@ -574,7 +574,7 @@ def checkLogLikelihood(pbs, objPose, meanObjPose, variance):
 typicalErrProbs = DomainProbs(
             # stdev, constant, assuming we control it by tracking while moving
             # odoError = (0.04, 0.04, 1e-5, 0.1),
-            #odoError = (0.02, 0.02, 1e-5, 0.05),
+            # odoError = (0.02, 0.02, 1e-5, 0.05),
             odoError = (0.01, 0.01, 1e-5, 0.03),
             #odoError = (0.005, 0.005, 1e-5, 0.01),
             # variance in observations; diagonal for now
