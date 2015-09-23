@@ -42,10 +42,16 @@ def graspable(thingName):
             return True
 
 def pushable(thingName):
+
+    if thingName == 'objHeavy': return True
+        
     # These global lists are defined when objects are defined
     for prefix in glob.pushableNames:
         if thingName[0:len(prefix)] == prefix:
             return True
+
+def permanent(thingName):
+    return not (graspable(thingName) or pushable(thingName))
 
 class Graspable(Fluent):
     predicate = 'Graspable'

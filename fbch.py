@@ -2151,6 +2151,9 @@ def planBackward(startState, goal, ops, ancestors = [],
                 return p
             if f1:  writeSearchCoda(f1, f2)
             tr('nonmon', 'Monotonic failed')
+        print 'Automatically skipping non-mon'
+        return None
+    
         # Now try non-monotonic
         if fileTag:
             (f1, f2) = writeSearchPreamble(goal.planNum, fileTag+'NonMon')

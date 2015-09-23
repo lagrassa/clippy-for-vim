@@ -12,7 +12,7 @@ from objects import World, WorldState
 #from pr2Robot import PR2, pr2Init, makePr2Chains
 from traceFile import debugMsg, debug
 import planGlobals as glob
-from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
+from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose, permanent, pushable, graspable
 from planUtil import ObjGraspB, ObjPlaceB
 from pr2Util import shadowName, shadowWidths, objectName, supportFaceIndex, PoseD, inside
 #import fbch
@@ -122,7 +122,8 @@ class PBS:
                                  strict=strict, fail=fail)
 
     def ditherObjectToSupport(self, obj, p):
-        def delta(x): return x + (random.random() - 0.5)*0.01
+        ditherCount = 200
+        def delta(x, c = 1): return x + (random.random() - 0.5)*0.01*c
         count = 0
         rm = self.beliefContext.roadMap
         world = self.getWorld()
@@ -130,7 +131,7 @@ class PBS:
         shape = pB.shape(world)
         supported = self.findSupportRegion(p, shape,
                                            strict=True, fail=False)
-        while count < 100 and not supported:
+        while count < ditherCount and not supported:
             count += 1
             pB = self.getPlaceB(obj)
             poseList = list(pB.poseD.modeTuple())
@@ -139,7 +140,7 @@ class PBS:
                 print obj, poseList
                 raw_input('go?')
             for i in (0,1):
-                poseList[i] = delta(poseList[i])
+                poseList[i] = delta(poseList[i], count)
             newPose = hu.Pose(*poseList)
             self.resetPlaceB(obj, pB.modifyPoseD(newPose))
             self.reset()
@@ -465,7 +466,7 @@ class PBS:
         def shLE(w1, w2):
             return all([w1[i] <= w2[i] for i in (0,1,3)])
         obj = objB.obj
-        graspable = bool(self.getWorld().getGraspDesc(obj))
+        movable = not permanent(obj)
         # We set these to zero for canPickPlaceTest.
         if sum(objB.poseD.var) == 0.0 and sum(objB.delta) == 0.0:
             objBMinDelta = objB.delta
@@ -474,10 +475,12 @@ class PBS:
             objBMinDelta = self.domainProbs.shadowDelta
             # 2 looks
             objBMinVarGrasp = tuple([x/2 for x in self.domainProbs.obsVarTuple])
-        objBMinVarStatic = tuple([o**2 for o in self.domainProbs.odoError])
+        # Error on a .5 meter move
+        objBMinVarStatic = tuple([(o/2.0)**2 \
+                                  for o in self.domainProbs.odoError])
         objBMinProb = 0.95
         # The irreducible shadow
-        objBMinVar = objBMinVarGrasp if graspable else objBMinVarStatic
+        objBMinVar = objBMinVarGrasp if movable else objBMinVarStatic
         objBMin = objB.modifyPoseD(var=objBMinVar)
         objBMin.delta = objBMinDelta
 
@@ -489,7 +492,7 @@ class PBS:
             prob = objBMinProb
 
         if debug('shadowWidths'):
-            print 'obj', obj, 'graspable', graspable, 'objB == objBMin', objB == objBMin
+            print 'obj', obj, 'movable', movable, 'objB == objBMin', objB == objBMin
             print 'shWidth', shWidth
             print 'minShWidth', minShWidth
 

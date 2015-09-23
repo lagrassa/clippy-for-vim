@@ -198,8 +198,6 @@ def search(initialState, goalTest, actions, successor,
 
         if somewhatVerbose or verbose or count >= maxNodes:
             print "Search failed after visiting ", count, " states."
-            if fail: pdb.set_trace()
-
         return None, None
 
 # This is a generator version of search... it has multiple explicit
