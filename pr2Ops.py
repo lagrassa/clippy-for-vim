@@ -1110,10 +1110,11 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
 
     if obsPose is None:
 
-        print '*****  Big hack until we get observation prediction right ****'
+        # print '*****  Big hack until we get observation prediction right ****'
+        # print 'Expected to see', objName, 'but did not'
+        # return
+
         print 'Expected to see', objName, 'but did not'
-        return
-        
         # Update modeprob if we don't get a good score
         oldP = details.poseModeProbs[objName]
         obsGivenH = details.domainProbs.obsTypeErrProb
@@ -1826,6 +1827,9 @@ class AchCanPushGen(Function):
         tag = 'canPushGen'
         (obj, hand, poseFace, prePose, pose, preConf, pushConf, postConf,
          poseVar, prePoseVar, poseDelta, prob, cond) = args
+
+        tr(tag, 'args', args)
+
         # Preconditions
         cpFluent = Bd([CanPush([obj, hand, poseFace, prePose, pose, preConf,
                                 pushConf, postConf, poseVar, prePoseVar,
@@ -1878,18 +1882,16 @@ def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
                         if (not sh.name() in shWorld.fixedObjects) and \
                         (not objectName(sh.name()) in \
                           [obst.name() for obst in initViol.allObstacles()])]
+
     if not reducibleShadows:
         tr(tag, '=> No shadows to fix')
         return       # nothing available
 
     obsVar = newBS.domainProbs.obsVarTuple
-    objBMinVarGrasp = tuple([x/2 for x in obsVar])
-    objBMinVarStatic = tuple([x**2 for x in newBS.domainProbs.odoError])
     lookDelta = newBS.domainProbs.shadowDelta
     for shadowName in reducibleShadows:
         obst = objectName(shadowName)
-        graspable = bool(newBS.getWorld().getGraspDesc(obst))
-        objBMinVar = objBMinVarGrasp if graspable else objBMinVarStatic
+        objBMinVar = newBS.domainProbs.objBMinVar(obst)
         placeB = newBS.getPlaceB(obst)
         tr(tag, '=> reduce shadow %s (in red):'%obst,
            draw=[(newBS, prob, 'W'),

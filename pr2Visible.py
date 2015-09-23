@@ -62,7 +62,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     fix = [obj for obj in obstacles if obj.name() in fixed]
     move = [obj for obj in obstacles if obj.name() not in fixed]
     for objShape in fix+move:
-        if objShape.name() == 'PR2': continue # already handled
+        # if objShape.name() == 'PR2': continue # already handled
         if objShape.collides(vc):
             potentialOccluders.append(objShape)
     if debug('visible'):

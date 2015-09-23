@@ -534,12 +534,11 @@ def testPush(name, objName, startPose, targetPose, **args):
                   {objName : (startPose, medVar)},
                   ['table1Top'], easy=args.get('easy', False))
     goal = placed(objName, targetPose, targetDelta = (0.1, .1, .1, .5))
-    # One push, no uncertainty
-    skel = [[lookAt, move, push, moveNB, lookAt,
-             move, lookAt, moveNB]]
-    return doTest(name, exp, goal, skel, args)
+    return doTest(name, exp, goal, args['skeleton'], args)
 
 def testPush0(objName='bigA', **args):
+    skel = [[lookAt, move, push, moveNB, lookAt, moveNB, achCanPush, move, achCanReach, move]]
+    args['skeleton'] = skel if 'skeleton' in args else None
     testPush('testPush0', objName,
              hu.Pose(1.2, 0.0, tZ, 0.0),
              hu.Pose(1.2, 0.4, tZ, 0.0), **args)

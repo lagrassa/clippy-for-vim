@@ -7,6 +7,7 @@ from dist import chiSqFromP
 import numpy as np
 from traceFile import debug, debugMsg, tr
 from planUtil import PoseD, Violations
+import planGlobals as glob
 
 class Hashable:
     def __init__(self):
@@ -284,6 +285,29 @@ def drawPath(path, viol=None, attached=None):
         for v in viol.shadows:
             v.draw('W', 'orange')
 
+
+def graspable(thingName):
+    # These global lists are defined when obhects are defined
+
+    if thingName == 'objHeavy': return False
+
+    for prefix in glob.graspableNames:
+        if thingName[0:len(prefix)] == prefix:
+            return True
+
+def pushable(thingName):
+
+    if thingName == 'objHeavy': return True
+        
+    # These global lists are defined when objects are defined
+    for prefix in glob.pushableNames:
+        if thingName[0:len(prefix)] == prefix:
+            return True
+
+def permanent(thingName):
+    return not (graspable(thingName) or pushable(thingName))
+
+
 ######################################################################
 # Store probabilities to describe the domain
 ######################################################################
@@ -327,6 +351,14 @@ class DomainProbs:
         minDelta = [2*x for x in self.placeStdev]
         minDelta[2] = 1e-3
         self.minDelta = tuple(minDelta)
+
+    def objBMinVar(self, objName, specialG = None):
+        movable = not permanent(objName)
+        # Error on a .5 meter move;  should do the degrees-of-freedom computation
+        objBMinVarStatic = tuple([(o/2.0)**2 for o in self.odoError])
+        # Error after two looks
+        objBMinVarGrasp = specialG if specialG else tuple([x/2 for x in self.obsVarTuple])
+        return objBMinVarGrasp if movable else objBMinVarStatic
 
 ######################################################################
         

@@ -20,7 +20,7 @@ import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
 from pr2Fluents import CanReachHome, canReachHome, In, Pose, CanPickPlace, \
-    BaseConf, Holding, CanReachNB, Conf, CanPush, canPush, pushGraspB
+    BaseConf, Holding, CanReachNB, Conf, CanPush, canPush, pushGraspB, permanent
 from transformations import rotation_matrix
 from cspace import xyCI, CI, xyCOParts
 from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
@@ -263,7 +263,7 @@ def canView(pbs, prob, conf, hand, shape,
     elif not findPath:
         return []
     # !! don't move arms to clear view of fixed objects
-    if pbs.getWorld().getGraspDesc(objectName(shape.name())):
+    if not permanent(objectName(shape.name())):
         if debug('canView'):
             vc.draw('W', 'red')
             conf.draw('W', attached=attached)
@@ -306,7 +306,7 @@ def canView(pbs, prob, conf, hand, shape,
         return pathFull
     else:
         if debug('canView'):
-            print 'canView - ignore view cone collision for perm object'
+            print 'canView - ignore view cone collision for perm object', shape
         return [conf]
 
 ################

@@ -1321,3 +1321,96 @@ class KDTreeFull:
         else:
             assert None
 
+
+'''
+# returns
+# ['Occ', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta']
+# obj, pose, face, var, delta
+class CanReachGen(Function):
+    def fun(self, args, goalConds, bState):
+        (conf, fcp, prob, cond) = args
+        pbs = bState.pbs.copy()
+        # Don't make this infeasible
+        goalFluent = Bd([CanReachHome([conf, fcp, cond]), True, prob], True)
+        goalConds = goalConds + [goalFluent]
+        # Set up PBS
+        newBS = pbs.copy()
+        newBS = newBS.updateFromGoalPoses(goalConds)
+        newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
+        shWorld = newBS.getShadowWorld(prob)
+        tr('canReachGen', draw=[(newBS, prob, 'W'),
+                     (conf, 'W', 'pink', shWorld.attached)], snap=['W'])
+        tr('canReachGen', zip(('conf', 'fcp', 'prob', 'cond'),args))
+        # Call
+        def violFn(pbs):
+            path, viol = canReachHome(pbs, conf, prob, Violations())
+            return viol
+        lookVar = tuple([lookVarIncreaseFactor * x \
+                        for x in pbs.domainProbs.obsVarTuple])
+        for ans in canXGenTop(violFn, (cond, prob, lookVar),
+                                    goalConds, newBS, 'canReachGen'):
+            tr('canReachGen', ('->', ans))
+            yield ans.canXGenTuple()
+            tr('canReachGen', 'exhausted')
+
+# Preconditions (for R1):
+
+# 1. CanPickPlace(...) - new Pose fluent should not make the
+# canPickPlace infeasible.  new Pose fluent should not already be in
+# conditions.
+
+# 2. Pose(obj) - new Pose has to be consistent with the goal (ok to
+# reduce variance wrt goal but not cond)
+
+# LPK!! More efficient if we notice right away that we cannot ask to
+# change the pose of an object that is in the hand in goalConds
+class CanPickPlaceGen(Function):
+    #@staticmethod
+    def fun(self, args, goalConds, bState):
+        (preconf, ppconf, hand, obj, pose, realPoseVar, poseDelta, poseFace,
+         graspFace, graspMu, graspVar, graspDelta, op, prob, cond) = args
+        pbs = bState.pbs.copy()
+        # Don't make this infeasible
+        cppFluent = Bd([CanPickPlace([preconf, ppconf, hand, obj, pose,
+                                      realPoseVar, poseDelta, poseFace,
+                                      graspFace, graspMu, graspVar, graspDelta,
+                                      op, cond]), True, prob], True)
+        poseFluent = B([Pose([obj, poseFace]), pose, realPoseVar, poseDelta, prob],
+                        True)
+        # Augment with conditions to maintain
+        goalConds = goalConds + [cppFluent, poseFluent]
+        
+        world = pbs.getWorld()
+        lookVar = tuple([lookVarIncreaseFactor * x \
+                                for x in pbs.domainProbs.obsVarTuple])
+        graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace, poseFace,
+                           PoseD(graspMu, graspVar), delta= graspDelta)
+        placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
+                           PoseD(pose, realPoseVar), delta=poseDelta)
+        # Set up PBS
+        newBS = pbs.copy()
+        newBS = newBS.updateFromGoalPoses(goalConds)
+        newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
+        # Debug
+        shWorld = newBS.getShadowWorld(prob)
+        tr('canPickPlaceGen',
+           draw=[(newBS, prob, 'W'),
+                 (preconf, 'W', 'blue', shWorld.attached),
+                 (ppconf, 'W', 'pink', shWorld.attached),
+                 (placeB.shape(shWorld), 'W', 'pink')],
+           snap=['W'])
+        tr('canPickPlaceGen',
+           zip(('preconf', 'ppconf', 'hand', 'obj', 'pose', 'realPoseVar', 'poseDelta', 'poseFace',
+                'graspFace', 'graspMu', 'graspVar', 'graspDelta', 'prob', 'cond', 'op'),
+               args))
+        # Initial test
+        def violFn(pbs):
+            v, r = canPickPlaceTest(pbs, preconf, ppconf, hand,
+                                    graspB, placeB, prob, op=op)
+            return v
+        for ans in canXGenTop(violFn, (cond, prob, lookVar),
+                              goalConds, newBS, 'canPickPlaceGen'):
+            tr('canPickPlaceGen', ('->', ans))
+            yield ans.canXGenTuple()
+        tr('canPickPlaceGen', 'exhausted')
+'''        

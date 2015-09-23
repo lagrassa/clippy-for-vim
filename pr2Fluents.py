@@ -5,7 +5,7 @@ import hu
 import numpy as np
 from planUtil import Violations, ObjPlaceB, ObjGraspB
 from pr2Util import shadowName, drawPath, objectName, PoseD, \
-     supportFaceIndex, GDesc, inside, otherHand
+     supportFaceIndex, GDesc, inside, otherHand, graspable, pushable, permanent
 from dist import DeltaDist, probModeMoved
 from traceFile import debugMsg, debug
 import planGlobals as glob
@@ -31,27 +31,6 @@ pushObstCost = 75  # Heuristic cost of moving an object
 ################################################################
 ## Fluent definitions
 ################################################################
-
-def graspable(thingName):
-    # These global lists are defined when obhects are defined
-
-    if thingName == 'objHeavy': return False
-
-    for prefix in glob.graspableNames:
-        if thingName[0:len(prefix)] == prefix:
-            return True
-
-def pushable(thingName):
-
-    if thingName == 'objHeavy': return True
-        
-    # These global lists are defined when objects are defined
-    for prefix in glob.pushableNames:
-        if thingName[0:len(prefix)] == prefix:
-            return True
-
-def permanent(thingName):
-    return not (graspable(thingName) or pushable(thingName))
 
 class Graspable(Fluent):
     predicate = 'Graspable'
@@ -1035,7 +1014,7 @@ class CanSeeFrom(Fluent):
         self.viols = {}
         self.hviols = {}
 
-    def getViols(self, bState, v, p, strict=False):
+    def getViols(self, bState, v, p, strict=True):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
         key = (hash(bState.pbs), p)
@@ -1081,7 +1060,7 @@ class CanSeeFrom(Fluent):
                                      p, moveHead=False, fixed=fixed)
             debugMsg('CanSeeFrom',
                     ('obj', obj, pose), ('conf', conf),
-                    ('->', occluders))
+                    ('->', ans, 'occluders', occluders))
         if glob.inHeuristic:
             self.hviols[key] = ans, occluders
         else:

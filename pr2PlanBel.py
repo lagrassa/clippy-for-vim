@@ -12,9 +12,9 @@ from objects import World, WorldState
 #from pr2Robot import PR2, pr2Init, makePr2Chains
 from traceFile import debugMsg, debug
 import planGlobals as glob
-from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose, permanent, pushable, graspable
+from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
 from planUtil import ObjGraspB, ObjPlaceB
-from pr2Util import shadowName, shadowWidths, objectName, supportFaceIndex, PoseD, inside
+from pr2Util import shadowName, shadowWidths, objectName, supportFaceIndex, PoseD, inside, permanent, pushable, graspable
 #import fbch
 from fbch import getMatchingFluents
 from belief import B, Bd
@@ -466,21 +466,15 @@ class PBS:
         def shLE(w1, w2):
             return all([w1[i] <= w2[i] for i in (0,1,3)])
         obj = objB.obj
-        movable = not permanent(obj)
         # We set these to zero for canPickPlaceTest.
-        if sum(objB.poseD.var) == 0.0 and sum(objB.delta) == 0.0:
+        cpp = sum(objB.poseD.var) == 0.0 and sum(objB.delta) == 0.0
+        if cpp:
             objBMinDelta = objB.delta
-            objBMinVarGrasp = objB.poseD.var
         else:
             objBMinDelta = self.domainProbs.shadowDelta
-            # 2 looks
-            objBMinVarGrasp = tuple([x/2 for x in self.domainProbs.obsVarTuple])
-        # Error on a .5 meter move
-        objBMinVarStatic = tuple([(o/2.0)**2 \
-                                  for o in self.domainProbs.odoError])
         objBMinProb = 0.95
         # The irreducible shadow
-        objBMinVar = objBMinVarGrasp if movable else objBMinVarStatic
+        objBMinVar = self.domainProbs.objBMinVar(obj, objB.poseD.var if cpp else None)
         objBMin = objB.modifyPoseD(var=objBMinVar)
         objBMin.delta = objBMinDelta
 

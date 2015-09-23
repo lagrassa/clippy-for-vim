@@ -101,6 +101,7 @@ class RealWorld(WorldState):
         pathTraveled = []
         odoError = self.domainProbs.odoError
         prevXYT = self.robotConf.conf['pr2Base']
+        prevConf = self.robotConf
         for (i, conf) in enumerate(path):
             originalConf = conf
             newXYT = conf['pr2Base']
@@ -129,7 +130,7 @@ class RealWorld(WorldState):
                 print '+++', dispNoisy.pose().xyztTuple()
                 print '--> modified base conf', conf['pr2Base']
             if action:
-                action(path, i) # do optional action
+                action(prevConf, conf) # do optional action
             else:
                 self.setRobotConf(conf)
             pathTraveled.append(conf)
@@ -455,36 +456,22 @@ class RealWorld(WorldState):
         place = c2.placement()
         shape = self.objectShapes[obj]
         if not place.collides(shape):   # obj at current pose
+            print 'No contact with', obj
+            self.setRobotConf(c2)           # move robot and objectShapes update
             return
         # There is contact, step the object along
         deltaPose = objectDisplacement(shape, c1, c2, hand, deltaPose)
         self.setObjectPose(obj, deltaPose.compose(self.getObjectPose(obj)))
-        self.setRobotConf(c2)           # move robot and objectShapes update
         shape = self.objectShapes[obj]
+        self.setRobotConf(c2)           # move robot and objectShapes update
         if self.robotPlace.collides(shape):
             print 'Push left object in collision'
             pdb.set_trace()
         print 'Touching', obj, 'in push, moved it to', self.getObjectPose(obj).pose()
 
     def executePush(self, op, params, noBase = True):
-        # TODO: compute the cartConfs once.
-        def moveObjRigid(path, i):
-            # There's a lot of noise in the interpolation, so use the
-            # whole path to get displacement.  Could do it once.
-            w1 = path[0].cartConf()[robot.armChainNames[hand]]
-            w2 = path[-1].cartConf()[robot.armChainNames[hand]]
-            delta = w2.compose(w1.inverse()).pose(0.1) # from w1 to w2
-            mag = (delta.x**2 + delta.y**2 + delta.z**2)**0.5
-            deltaPose = hu.Pose(0.005*(delta.x/mag), 0.005*(delta.y/mag), 0.0, 0.0)
-            if i > 0:
-                place = path[i].placement()
-                while place.collides(self.objectShapes[obj]):
-                    self.setObjectPose(obj, deltaPose.compose(self.getObjectPose(obj)))
-                    print i, 'Touching', obj, 'in push, moved it to', self.getObjectPose(obj).pose()
-
-        def moveObjSim(path, i):
-            if i > 0:
-                self.pushObject(obj, path[i-1], path[i], hand, deltaPose)
+        def moveObjSim(prevConf, conf):
+            self.pushObject(obj, prevConf, conf, hand, deltaPose)
 
         failProb = self.domainProbs.pushFailProb
         success = DDist({True : 1 - failProb, False : failProb}).draw()
