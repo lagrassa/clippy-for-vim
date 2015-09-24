@@ -474,6 +474,29 @@ def testShelvesGrasp(**args):
     skel = None
     return doTest('testShelvesGrasp', exp, goal1, skel, args)
 
+def testShelvesGraspSide(ng=0, **args):
+    front = hu.Pose(1.05, 0.475, tZ, -math.pi/2)
+    mid = hu.Pose(1.1, 0.35, tZ, 0.0)
+    sh1 = hu.Pose(1.2, -0.3, 1.170, 0.0)
+    sh2 = hu.Pose(1.2, -0.1, 1.170, 0.0)
+    coolShelvesPose = hu.Pose(1.25, -0.2, tZ, math.pi/2)
+    region = 'coolShelves_space_2'
+    easy=args.get('easy', False)
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   'coolShelves' : (coolShelvesPose , smallVar)},  # was medVar
+                  {'objA' : (mid, medVar),
+                   'objD' : (front, medVar), # or objD
+                   'objB' : (sh1, medVar),
+                   # 'objC' : (sh2, medVar),
+                   },
+                  [region, 'table1Top'], easy=easy)
+
+    goals =[ inRegion('objA', region),
+             holding('objA', 'right', 0),
+             holding('objD', 'left', 0) ]
+    skel = None
+    return doTest('testShelvesGrasp', exp, goals[ng], skel, args)
+
 def testIkeaShelvesGrasp(**args):
     front = hu.Pose(1.1, 0.475, ikZ, 0)
     front = hu.Pose(1.15, 0.475, ikZ, -math.pi/2)
@@ -571,7 +594,7 @@ def testPush2(objName='bigA', **args):
 
 def testPushShelves(name, objName, startPose, targetPose,
                     startPoseB, **args):
-    coolShelvesPose = hu.Pose(1.4, 0.03, tZ, math.pi/2)
+    coolShelvesPose = hu.Pose(1.45, 0.03, tZ, math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    'coolShelves' : (coolShelvesPose, smallVar)},
                   {objName : (startPose, medVar),
@@ -599,9 +622,9 @@ def testPush3(objName='bigA', **args):
 
 def testPush4(objName='bigA', **args):
     testPushShelves('testPush4', objName,
-                    hu.Pose(1.05, 0.0, tZ, 0.0),
-                    hu.Pose(1.05, 0.25, tZ, 0.0), # x = 1.5 to get two pushes
-                    hu.Pose(1.05, 0.2, tZ, 0.0), # in the way
+                    hu.Pose(1.1, 0.0, tZ, 0.0),
+                    hu.Pose(1.1, 0.25, tZ, 0.0), # x = 1.5 to get two pushes
+                    hu.Pose(1.1, 0.2, tZ, 0.0), # in the way
                     **args)
 
 ######################################################################

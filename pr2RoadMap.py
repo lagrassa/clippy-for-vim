@@ -422,9 +422,18 @@ class RoadMap:
         initNode = makeNode(initConf)
         attached = pbs.getShadowWorld(prob).attached
 
+        finalConf = None
+        if not glob.inHeuristic and targetConf in self.approachConfs:
+            finalConf = targetConf
+            targetConf = self.approachConfs[targetConf]
+            if debug('traceCRH'): print '    using approach conf',
+
         cv1 = self.confViolations(targetConf, pbs, prob)
         cv2 = self.confViolations(initConf, pbs, prob)
         endPtViol = combineViols(cv1, cv2)
+        if finalConf:
+            cv3 = self.confViolations(finalConf, pbs, prob)
+            endPtViol = combineViols(endPtViol, cv3)
         if endPtViol is None:
             if debug('endPoint:collision'):
                 pbs.draw(prob, 'W')
@@ -435,17 +444,13 @@ class RoadMap:
             return confAns(None)
         if glob.inHeuristic or (glob.skipSearch and not optimize):
             return (endPtViol, 0, (targetConf, initConf))
-        finalConf = None
-        if not glob.inHeuristic and targetConf in self.approachConfs:
-            finalConf = targetConf
-            targetConf = self.approachConfs[targetConf]
-            if debug('traceCRH'): print '    using approach conf',
-        targetNode = makeNode(targetConf)
+
         cached = checkFullCache()
         if cached:
             return confAns(cached)
         ans = None
         if not glob.useRRT:
+            targetNode = makeNode(targetConf)
             targetCluster = self.addToCluster(targetNode, connect=False)
             startCluster = self.addToCluster(initNode)
             graph = combineNodeGraphs(self.clusterGraph,
@@ -472,7 +477,12 @@ class RoadMap:
                 viol = viol.update(initViol)
             else:
                 trAlways('RRT failed')
+
+                print 'endPtViol', endPtViol
+                print 'shadowWorld', id(pbs.getShadowWorld(prob)), hash(pbs.getShadowWorld(prob))
+                for x in pbs.getShadowWorld(prob).objectShapes.values(): print x
                 raw_input('RRT failed')
+
             if not viol:
                 pass
             elif ans is None or \
@@ -1140,6 +1150,7 @@ class RoadMap:
                               draw=debug('confViolations')) is None:
             if debug('confViolations'):
                 conf.draw('W')
+                raw_input('confViolations -> None')
             return None
         return makeViolations(shWorld, (aColl, hColl, hsColl))
 
@@ -1391,7 +1402,12 @@ class RoadMap:
         n = len(path)
         if n < 3: return path
         if verbose: print 'Path has %s points'%str(n), '... smoothing'
-        input = path[:]
+        input = []
+        for p in path:
+            if not input or input[-1] != p:
+                input.append(p)
+        if len(input) < 3:
+            return path
         checked = set([])
         outer = 0
         count = 0
@@ -1399,7 +1415,7 @@ class RoadMap:
         if verbose: print 'Smoothing...'
         while outer < npasses:
             if verbose:
-                print '  Start smoothing pass', outer, 'dist=', basePathLength(input)
+                print '  Start smoothing pass', outer, 'len=', len(input), 'dist=', basePathLength(input)
             smoothed = []
             for p in input:
                 if not smoothed or smoothed[-1] != p:
@@ -1408,7 +1424,8 @@ class RoadMap:
             while count < nsteps:
                 if verbose: print 'step', step, ':', 
                 if n < 1:
-                    print 'Path is empty!'
+                    debugMsg('smooth', 'Path is empty!')
+                    pdb.set_trace()
                     return path
                 i = random.randrange(n)
                 j = random.randrange(n)
@@ -1425,15 +1442,15 @@ class RoadMap:
                     pbs.draw(prob, 'W')
                     for k in range(i, j+1):
                         smoothed[k].draw('W', 'blue')
-                    raw_input('Testing')
+                    debugMsg('smooth', 'Testing')
                 if self.safePath(smoothed[j], smoothed[i], pbs, prob):
                     count = 0
                     if debug('smooth'):
-                        raw_input('Safe')
+                        debugMsg('smooth', 'Safe')
                         pbs.draw(prob, 'W')
                         for k in range(i+1)+range(j,len(smoothed)):
                             smoothed[k].draw('W', 'blue')
-                        raw_input('remaining')
+                        debugMsg('smooth', 'remaining')
                     smoothed[i+1:j] = []
                     n = len(smoothed)
                     if verbose: print 'Smoothed path length is', n

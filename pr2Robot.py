@@ -201,7 +201,7 @@ class JointConf:
         self.robot = robot
         self.items = None
     def copy(self):
-        return JointConf(self.conf.copy(), self.robot)
+        return JointConf(copy.deepcopy(self.conf), self.robot)
     def values(self):
         return self.conf.values()
     def keys(self):

@@ -15,7 +15,7 @@ from belief import B, Bd, ActSet
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from pr2RoadMap import validEdgeTest
-from pr2Robot import gripperFaceFrame
+from pr2Robot import gripperFaceFrame, pr2BaseLink
 from traceFile import tr, trAlways
 import mathematica
 import windowManager3D as wm
@@ -524,7 +524,18 @@ class CanReachNB(Fluent):
                ('violations', violations),
                draw = [(startConf, 'W', 'black'),(endConf, 'W', 'blue')],
                snap = ['W'])
-        return bool(path and violations.empty())
+
+        if not path:
+            return False
+        elif violations.empty():
+            return True
+        elif not (violations.obstacles or violations.heldShadows or violations.heldObstacles):
+            assert violations.shadows
+            (startConf, endConf, cond) = self.args
+            return onlyBaseCollides(startConf, violations.shadows) and \
+                       onlyBaseCollides(endConf, violations.shadows)
+        else:
+            return False
 
     def getGrounding(self, bstate):
         assert self.value == True
@@ -571,6 +582,15 @@ class CanReachNB(Fluent):
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
 
+def onlyBaseCollides(conf, shadows):
+    parts = dict([(part.name(), part) for part in conf.placement().parts()])
+    collide = any(any(parts[p].collides(sh) for sh in shadows) for p in parts if p != 'pr2Base')
+    print parts, collide
+    raw_input('onlyBaseCollides')
+    if not collide:
+        assert any(parts['pr2Base'].collides(sh) for sh in shadows)
+        return True
+    return False
 
 zeroPose = zeroVar = (0.0,)*4
 tinyDelta = (1e-8,)*4

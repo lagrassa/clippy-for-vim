@@ -85,6 +85,8 @@ maxRRTIter = 200
 failRRTIter = 20
 smoothPathObst = True
 
+maxOpenLoopDist = 2.0
+
 ########################################
 # Obstacle growing, should be determined by uncertainty
 ########################################

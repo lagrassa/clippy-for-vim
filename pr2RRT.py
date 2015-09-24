@@ -18,14 +18,15 @@ import windowManager3D as wm
 class RRT:
     def __init__(self, pbs, prob, initConf, goalConf, allowedViol, moveChains, inflate=False):
         if debug('rrt'): print 'Setting up RRT'
-        self.pbs = pbsInflate(pbs, prob, initConf, goalConf) if inflate else pbs
+        ic = initConf; gc = goalConf
+        self.pbs = pbsInflate(pbs, prob, ic, gc) if inflate else pbs
         self.prob = prob
         self.robot = pbs.getRobot()
         self.moveChains = moveChains
         self.allowedViol = allowedViol
-        self.Ta = Tree(initConf, pbs, prob, True, allowedViol, moveChains)
+        self.Ta = Tree(ic, pbs, prob, True, allowedViol, moveChains)
         if goalConf:
-            self.Tb = Tree(goalConf, pbs, prob, False, allowedViol, moveChains)
+            self.Tb = Tree(gc, pbs, prob, False, allowedViol, moveChains)
 
     def randConf(self):
         return self.robot.randomConf(self.moveChains)
@@ -122,11 +123,19 @@ class RRT:
 
 def safeConf(conf, pbs, prob, allowedViol):
     viol = pbs.getRoadMap().confViolations(conf, pbs, prob)
-    return viol \
+    ans =  viol \
            and viol.obstacles <= allowedViol.obstacles \
            and viol.shadows <= allowedViol.shadows \
            and all(viol.heldObstacles[h] <= allowedViol.heldObstacles[h] for h in (0,1)) \
            and all(viol.heldShadows[h] <= allowedViol.heldShadows[h] for h in (0,1))
+    if debug('safeConf'):
+        if not ans:
+            pbs.draw(prob, 'W')
+            conf.draw('W', 'blue')
+            print 'viol', viol
+            print 'allowedViol', allowedViol
+            raw_input('safeConf')
+    return ans
 
 def eqChains(conf1, conf2, moveChains):
     return all([conf1.conf[c]==conf2.conf[c] for c in moveChains])

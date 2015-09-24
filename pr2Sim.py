@@ -43,8 +43,6 @@ simulateError = False
 
 animateSleep = 0.05
 
-maxOpenLoopDist = 4.0
-
 simOdoErrorRate = 0.0                   # was 0.02
 
 pickSuccessDist = 0.1  # pretty big for now
@@ -188,7 +186,7 @@ class RealWorld(WorldState):
             angleSoFar += abs(hu.angleDiff(prevXYT[2],newXYT[2]))
             # Check whether we should look
             args = 14*[None]
-            if distSoFar + 0.33*angleSoFar >= maxOpenLoopDist:
+            if distSoFar + 0.33*angleSoFar >= glob.maxOpenLoopDist:
                 distSoFar = 0.0           #  reset
                 angleSoFar = 0.0
                 print 'Exceeded max distance - exiting'

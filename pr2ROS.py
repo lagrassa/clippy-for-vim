@@ -168,8 +168,6 @@ def enforceLimits(conf):
                                   for (v, (lo, hi)) in zip(conf.conf[chain], limits)]
     return JointConf(outConfDict, conf.robot)
 
-maxOpenLoopDist = 2.0                   # How far to move between looks
-
 # The key interface spec...
 # obs = env.executePrim(op, params)
 class RobotEnv:                         # plug compatible with RealWorld (simulator)
@@ -240,7 +238,7 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
             print 'distSoFar', distSoFar
             # Check whether we should look
             args = 14*[None]
-            if distSoFar + 0.33 * angleSoFar >= maxOpenLoopDist:
+            if distSoFar + 0.33 * angleSoFar >= glob.maxOpenLoopDist:
                 print 'Exceeded max distance - exiting'
                 return outConf, (distSoFar, angleSoFar)
             prevXYT = newXYT
