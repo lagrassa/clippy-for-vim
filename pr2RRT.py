@@ -385,7 +385,7 @@ def pbsInflate(pbs, prob, initConf, goalConf):
             objB = objBs[obj]
             inflatedVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
             objBs[obj] = objB.modifyPoseD(var=inflatedVar)
-    newBS.internalCollisionCheck(dither=False, objChecks=False)
+    newBS.internalCollisionCheck(dither=False, objChecks=False, factor=1.1)
     newBS.conf = goalConf
     newBS.internalCollisionCheck(dither=False, objChecks=False)
     newBS.draw(prob, 'W')

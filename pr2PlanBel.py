@@ -151,7 +151,7 @@ class PBS:
         if count == 100:
             raise Exception, 'Failed to move object to support'
 
-    def internalCollisionCheck(self, dither=True, objChecks=True):
+    def internalCollisionCheck(self, dither=True, objChecks=True, factor=2.0):
         ws = self.getShadowWorld(0.0)   # minimal shadow
         rm = self.beliefContext.roadMap
         # First check the robot for hard collisions.  Increase this to
@@ -184,7 +184,7 @@ class PBS:
                     assert None, 'Could not reduce grasp shadow after 10 attempts'
                 gB = self.getGraspB(self.held[hand].mode(), hand)
                 var = gB.poseD.variance()
-                newVar = tuple(v/2.0 for v in var)
+                newVar = tuple(v/factor for v in var)
                 self.resetGraspB(obj, hand, gB.modifyPoseD(var=newVar))
                 self.reset()
                 confViols = rm.confViolations(self.conf, self, .98)
@@ -207,7 +207,7 @@ class PBS:
                 obj = objectName(sh)
                 pB = self.getPlaceB(obj)
                 var = pB.poseD.variance()
-                newVar = tuple(v/2.0 for v in var)
+                newVar = tuple(v/factor for v in var)
                 self.resetPlaceB(obj, pB.modifyPoseD(var=newVar))
             self.reset()
             confViols = rm.confViolations(self.conf, self, shProb)

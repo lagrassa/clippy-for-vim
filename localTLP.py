@@ -97,7 +97,7 @@ debugOn = usualTags
 
 # tables, obsUpdate
 if platform.system() == 'Linux':
-    for x in ['robotEnv', 'robotPathCareful']:
+    for x in ['robotEnv']:
         if not x in debugOn: debugOn.append(x)
 
 #------------------------------------

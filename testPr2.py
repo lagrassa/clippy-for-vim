@@ -596,7 +596,8 @@ def testPushShelves(name, objName, startPose, targetPose,
                     startPoseB, **args):
     coolShelvesPose = hu.Pose(1.45, 0.03, tZ, math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
-                   'coolShelves' : (coolShelvesPose, smallVar)},
+                   'coolShelves' : (coolShelvesPose, smallVar)
+                   },
                   {objName : (startPose, medVar),
                    'objB' : (startPoseB, medVar)},
                   ['table1Top'], easy=args.get('easy', False))

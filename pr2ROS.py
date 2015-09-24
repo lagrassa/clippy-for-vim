@@ -254,15 +254,15 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
                 conf.draw('W', 'blue')
                 wm.getWindow('W').update()
         debugMsg('robotEnv', 'executePath')
-        result, outConf, _ = pr2GoToConf(conf, 'move', path=path)
+        result, outConf, _ = pr2GoToConf(conf, 'move', path=path, speedFactor=0.25)
         return outConf, (0.0, 0.0)
 
     def executeMove(self, op, params, noBase=False):
         if noBase:
             startConf = op.args[0]
             targetConf = op.args[1]
-            assert targetConf['pr2Base'] == \
-                   startConf if isinstance(startConf, list) else startConf['pr2Base']
+            assert list(targetConf['pr2Base']) == \
+                   startConf if isinstance(startConf, list) else list(startConf['pr2Base'])
             actualConf = pr2GetConf()
             if not baseNear(actualConf, targetConf, 0.01):
                 print 'actual base', actualConf['pr2Base']

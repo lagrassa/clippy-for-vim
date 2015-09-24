@@ -54,7 +54,7 @@ skipSearch = False                       # Don't plan paths except for prims
 useMathematica = False
 
 ignoreShadowZ = True
-useInflation = False
+useInflation = True
 
 ########################################
 # Name prefixes for objects that are graspable, pushable, etc.
