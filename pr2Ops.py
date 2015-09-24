@@ -31,7 +31,7 @@ maxVarianceTuple = (.1,)*4
 # If it's bigger than this, we can't just plan to look and see it
 # Should be more subtle than this...
 maxPoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
-maxPoseVar = (0.03**2, 0.03**2, 0.03**2, 0.05**2)
+#maxPoseVar = (0.03**2, 0.03**2, 0.03**2, 0.05**2)
 
 # Don't allow delta smaller than this
 minDelta = .0001
@@ -1701,7 +1701,7 @@ lookAt = Operator(
     f = lookAtBProgress,
     prim = lookPrim,
     argsToPrint = [0, 1, 3],
-    ignorableArgs = [1, 2] + range(4, 14),
+    ignorableArgs = [1, 2] + range(5, 14),   # change 5 to 4 to ignore var
     ignorableArgsForHeuristic = [1, 2] + range(4, 14),
     rebindPenalty = 100)
     
