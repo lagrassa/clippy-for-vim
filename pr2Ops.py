@@ -758,6 +758,7 @@ def moveSpecialRegress(f, details, abstractionLevel):
                f.args[2], odoVar, newVar)
             return None
         fNew.args[2] = newVar
+        fNew.update()
         return fNew
         
         # Do something like this if odo error compounds
@@ -896,9 +897,12 @@ def moveBProgress(details, args, obs=None):
               0.0,
               (angDisp * increaseFactor * odoError[3])**2)
     tr('beliefUpdate', 'About to move B progress', 
-        'start base', bp1, 'end base ', bp2, 
-        'odo error rate', odoError, 'added odo var', odoVar, 
-        'added odo stdev', [sqrt(v) for v in odoVar])
+        ('start base', bp1),
+        ('end base ', bp2), 
+        ('odo error rate', odoError),
+        ('xyDisp', xyDisp),
+        ('added odo var', odoVar), 
+        ('added odo stdev', [sqrt(v) for v in odoVar]), ol = False)
     
     # Change robot conf.  For now, trust the observation completely
     details.pbs.updateConf(endConf)
