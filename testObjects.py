@@ -74,6 +74,7 @@ def makeSoda(dx=0.0445, dy=0.027, dz=0.1175, name='objA', color=None):
     return (Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)])], name=name, color=color), [])
 glob.graspableNames.append('obj'); glob.pushableNames.append('obj')
 glob.graspableNames.append('soda'); glob.pushableNames.append('soda')
+glob.crashableNames.append('table')
 glob.objectSymmetries['soda'] = sym2
 glob.objectTypes['obj'] = 'soda'
 glob.objectTypes['soda'] = 'soda'

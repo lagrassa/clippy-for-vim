@@ -122,8 +122,8 @@ def doTest(name, exp, goal, skel, args):
 # Use domainProbs.odoError as the stdev of any object.
 
 def test0(**args):
-    exp = makeExp({'table1' : (table1Pose, bigVar)},
-                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), bigVar)},
+    exp = makeExp({'table1' : (table1Pose, medVar)},
+                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
     goal = inRegion(['objA'], 'table1Left')
     # pick/place, flat

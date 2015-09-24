@@ -307,6 +307,12 @@ def pushable(thingName):
 def permanent(thingName):
     return not (graspable(thingName) or pushable(thingName))
 
+def crashable(thingName):
+    for prefix in glob.crashableNames:
+        if thingName[0:len(prefix)] == prefix:
+            return True
+
+
 
 ######################################################################
 # Store probabilities to describe the domain
@@ -353,7 +359,7 @@ class DomainProbs:
         self.minDelta = tuple(minDelta)
 
     def objBMinVar(self, objName, specialG = None):
-        movable = not permanent(objName)
+        notCrashable = not crashable(objName)
         # Error on a 1 meter move
         objBMinVarStatic = tuple([o**2 for o in self.odoError])
         # Error after two looks
@@ -362,7 +368,7 @@ class DomainProbs:
         # take the max for static objects
         static = tuple([max(a, b) for (a, b) in zip(objBMinVarGrasp,
                                                     objBMinVarStatic)])
-        return objBMinVarGrasp if movable else static
+        return objBMinVarGrasp if notCrashable else static
 
 ######################################################################
         

@@ -64,6 +64,7 @@ useInflation = False
 objectTypes = {}
 graspableNames = []
 pushableNames = []
+crashableNames = []
 objectSymmetries = {}
 graspDesc = {}
 constructor = {}
