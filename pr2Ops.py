@@ -746,16 +746,27 @@ def moveSpecialRegress(f, details, abstractionLevel):
     # Assume that odometry error is controlled during motion, so not more than 
     # this.  It's a stdev
     odoError = details.domainProbs.odoError
-    odoVar = [e * e for e in odoError]    # Variance due to odometry after move
+    # Variance due to odometry after move of a meter
+    odoVar = [e * e for e in odoError]
 
     if f.predicate == 'B' and f.args[0].predicate == 'Pose':
+        fNew = f.copy()
+        newVar = tuple([v - e for (v, e) in zip(f.args[2], odoVar)])
+        if any([nv <= 0.0 for nv in newVar]):
+            tr('specialRegress',
+               'Move special regress failing; cannot regress', f,
+               f.args[2], odoVar, newVar)
+            return None
+        fNew.args[2] = newVar
+        return fNew
+        
         # Do something like this if odo error compounds
         # newVar = tuple([v - e for (v, e) in zip(f.args[2], totalOdoErr)])
-        targetVar = f.args[2]
-        if any([tv < ov for (tv, ov) in zip(targetVar, odoVar)]):
-            tr('specialRegress',
-               'Move special regress failing; target var less than odo', f)
-            return None
+        # targetVar = f.args[2]
+        # if any([tv < ov for (tv, ov) in zip(targetVar, odoVar)]):
+        #     tr('specialRegress',
+        #        'Move special regress failing; target var less than odo', f)
+        #     return None
     elif f.predicate == 'BLoc':
         targetVar = f.args[1]
         if any([tv < ov for (tv, ov) in zip(targetVar, odoVar)]):
