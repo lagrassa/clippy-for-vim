@@ -928,6 +928,7 @@ def moveNBBProgress(details, args, obs=None):
 
 # noinspection PyUnusedLocal
 def pickBProgress(details, args, obs=None):
+    assert obs in ('success', 'failure')
     # Assume robot ends up at preconf, so no conf change
     (o,h,pf,p,pd,gf,gm,gv,gd,prc,cd,pc,rgv,pv,p1,pr1,pr2,pr3) = args
     pickVar = details.domainProbs.pickVar

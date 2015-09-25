@@ -475,8 +475,8 @@ def testShelvesGrasp(**args):
     return doTest('testShelvesGrasp', exp, goal1, skel, args)
 
 def testShelvesGraspSide(ng=0, **args):
-    front = hu.Pose(1.05, 0.475, tZ, -math.pi/2)
-    mid = hu.Pose(1.1, 0.35, tZ, 0.0)
+    front = hu.Pose(1.1, 0.48, tZ, -math.pi/2)  # was y = .475
+    mid = hu.Pose(1.15, 0.35, tZ, 0.0)
     sh1 = hu.Pose(1.2, -0.3, 1.170, 0.0)
     sh2 = hu.Pose(1.2, -0.1, 1.170, 0.0)
     coolShelvesPose = hu.Pose(1.25, -0.2, tZ, math.pi/2)
@@ -493,8 +493,13 @@ def testShelvesGraspSide(ng=0, **args):
 
     goals =[ inRegion('objA', region),
              holding('objA', 'right', 0),
-             holding('objD', 'left', 0) ]
-    skel = None
+             holding('bigD', 'left', 0) ]
+    skel = [[poseAchIn,
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'coolShelves'}), move,
+             place.applyBindings({'Obj' : 'objA'}),
+             move, pick, moveNB, lookAt, move,
+             achCanPickPlace, lookAt, move]]
     return doTest('testShelvesGrasp', exp, goals[ng], skel, args)
 
 def testIkeaShelvesGrasp(**args):
@@ -526,10 +531,10 @@ def testIkeaShelvesGrasp(**args):
     return doTest('testIkeaShelvesGrasp', exp, goal1, skel, args)
 
 def testShelvesPush(**args):
-    front = hu.Pose(1.1, 0.5, tZ, 0.0)
+    front = hu.Pose(1.05, 0.5, tZ, 0.0) # 1.1
     # -pi/2 works ok for grasp 0.  Why doesn't this work as well for for pi/2 and grasp 1??
-    mid = hu.Pose(1.15, 0.35, tZ, 0.0)
-    sh1 = hu.Pose(1.3, -0.1, 1.170, 0.0)
+    mid = hu.Pose(1.1, 0.35, tZ, 0.0)  # 1.15
+    sh1 = hu.Pose(1.3, -0.1, 1.170, 0.0) 
     sh2 = hu.Pose(1.3, 0.1, 1.170, 0.0)
     coolShelvesPose = hu.Pose(1.35, 0.03, tZ, math.pi/2)
     region = 'coolShelves_space_2'

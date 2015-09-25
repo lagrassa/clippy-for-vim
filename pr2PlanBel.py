@@ -175,7 +175,7 @@ class PBS:
             count = 0
             while colls:
                 count += 1
-                tr('beliefUpdate',
+                tr('dither',
                    'Shadow of obj in hand.  Will try to fix', hand, colls,
                     draw = [(self, shProb, 'W')], snap = ['W'])
                 # Divide variance in half.  Very crude.  Should find the
@@ -196,7 +196,7 @@ class PBS:
         count = 0
         while shadows:
             count += 1
-            tr('beliefUpdate',
+            tr('dither',
                    'Robot collides with shadows.  Will try to fix', shadows,
                     draw = [(self, shProb, 'W')], snap = ['W'])
             # Divide variance in half.  Very crude.  Should find the
