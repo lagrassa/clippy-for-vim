@@ -592,7 +592,7 @@ def testPush2(objName='bigA', **args):
 # Test TWo Pushes around shelves
 ######################################################################
 
-def testPushShelves(name, objName, startPose, targetPose,
+def testPushShelves(name, objName, startPose, targetReg,
                     startPoseB, **args):
     coolShelvesPose = hu.Pose(1.45, 0.03, tZ, math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -600,8 +600,8 @@ def testPushShelves(name, objName, startPose, targetPose,
                    },
                   {objName : (startPose, medVar),
                    'objB' : (startPoseB, medVar)},
-                  ['table1Top'], easy=args.get('easy', False))
-    goal = placed(objName, targetPose, targetDelta = (0.1, .1, .1, .5))
+                  ['table1Top', targetReg], easy=args.get('easy', False))
+    goal = inRegion(objName, targetReg)
     # pick and place!
     skel = [[lookAt, move, place, move, 
              pick, moveNB, lookAt, moveNB, lookAt, move]]
@@ -613,7 +613,7 @@ def testPushShelves(name, objName, startPose, targetPose,
 def testPush3(objName='bigA', **args):
     testPushShelves('testPush3', objName,
                     hu.Pose(1.1, 0.0, tZ, 0.0),
-                    hu.Pose(1.5, 0.5, tZ, 0.0),
+                    'table1FLL',
                     hu.Pose(1.1, -0.4, tZ, 0.0), # out of the way
                     **args)
 
@@ -624,7 +624,7 @@ def testPush3(objName='bigA', **args):
 def testPush4(objName='bigA', **args):
     testPushShelves('testPush4', objName,
                     hu.Pose(1.1, 0.0, tZ, 0.0),
-                    hu.Pose(1.1, 0.25, tZ, 0.0), # x = 1.5 to get two pushes
+                    'table1FLL',
                     hu.Pose(1.1, 0.2, tZ, 0.0), # in the way
                     **args)
 
