@@ -489,7 +489,7 @@ def testShelvesGraspSide(ng=0, **args):
                    # 'objB' : (sh1, medVar),
                    # 'objC' : (sh2, medVar),
                    },
-                  [region, 'table1Top'], easy=easy)
+                  [region, 'table1FRR'], easy=easy)
 
     goals =[ inRegion('objA', region),
              holding('objA', 'right', 0),
