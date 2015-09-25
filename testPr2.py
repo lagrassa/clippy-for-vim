@@ -613,7 +613,7 @@ def testPushShelves(name, objName, startPose, targetReg,
 def testPush3(objName='bigA', **args):
     testPushShelves('testPush3', objName,
                     hu.Pose(1.1, 0.0, tZ, 0.0),
-                    'table1FLL',
+                    'table1BRR',
                     hu.Pose(1.1, -0.4, tZ, 0.0), # out of the way
                     **args)
 
@@ -624,7 +624,7 @@ def testPush3(objName='bigA', **args):
 def testPush4(objName='bigA', **args):
     testPushShelves('testPush4', objName,
                     hu.Pose(1.1, 0.0, tZ, 0.0),
-                    'table1FLL',
+                    'table1BRR',
                     hu.Pose(1.1, 0.2, tZ, 0.0), # in the way
                     **args)
 
