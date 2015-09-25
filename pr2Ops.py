@@ -116,7 +116,7 @@ def primNBPath(bs, cs, ce, p):
     if not path:
         print 'NB Path failed, trying RRT'
         path, v = rrt.planRobotPathSeq(bs, p, cs, ce, None,
-                                       maxIter=50, failIter=10)
+                                       maxIter=50, failIter=10, inflate=True)
     assert path
     if v.weight() > 0:
         raw_input('Potential collision in primitive path')

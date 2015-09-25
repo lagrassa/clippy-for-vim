@@ -261,8 +261,6 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         if noBase:
             startConf = op.args[0]
             targetConf = op.args[1]
-            assert list(targetConf['pr2Base']) == \
-                   startConf if isinstance(startConf, list) else list(startConf['pr2Base'])
             actualConf = pr2GetConf()
             if not baseNear(actualConf, targetConf, 0.01):
                 print 'actual base', actualConf['pr2Base']
@@ -660,7 +658,7 @@ def reactiveApproach(startConf, targetConf, gripDes, hand, tries = 10):
     pr2GoToConfNB(startConfClose, 'move')
     pr2GoToConfNB(startConfClose, 'open')
     targetConfClose = gripOpen(targetConf, hand, 0.01)
-    (obs, traj) = tryGrasp(startConfClose, targetConfClose, hand)
+    (obs, traj) = tryGrasp(startConfClose, targetConfClose, hand, initial=True)
     print 'obs after tryGrasp', obs
     curConf = obs[obsConf]
     print '***Contact'
@@ -771,7 +769,7 @@ def handTrans(conf, hand):
 cartInterpolationSteps = 6
 
 def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
-             maxSteps = cartInterpolationSteps, verbose = False):
+             maxSteps = cartInterpolationSteps, verbose = False, initial = False):
     def parseContacts(result):
         if result == 'LR_pad':
             contacts = [False, True, False, True]
@@ -827,6 +825,9 @@ def tryGrasp(approachConf, graspConf, hand, stepSize = 0.05,
         if result in ('LR_tip', 'L_tip', 'R_tip',
                       'LR_pad', 'L_pad', 'R_pad'):
             contacts = parseContacts(result)
+            if initial and i < len(path)/2:
+                raw_input('Fishy contact - continue?')
+                continue
             break
         elif result == 'Acc':
             contacts = 4*[False]

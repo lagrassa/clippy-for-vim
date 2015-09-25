@@ -16,10 +16,10 @@ import windowManager3D as wm
 # For now, use configurations until they are added to the tree as Nodes.
 
 class RRT:
-    def __init__(self, pbs, prob, initConf, goalConf, allowedViol, moveChains, inflate=False):
+    def __init__(self, pbs, prob, initConf, goalConf, allowedViol, moveChains):
         if debug('rrt'): print 'Setting up RRT'
         ic = initConf; gc = goalConf
-        self.pbs = pbsInflate(pbs, prob, ic, gc) if inflate else pbs
+        self.pbs = pbs
         self.prob = prob
         self.robot = pbs.getRobot()
         self.moveChains = moveChains
@@ -240,8 +240,9 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
             return [], None
     nodes = 'FAILURE'
     failCount = -1                      # not really a failure the first time
+    inflated = pbsInflate(pbs, prob, initConf, destConf) if inflate else pbs
     while nodes == 'FAILURE' and failCount < (failIter or glob.failRRTIter):
-        rrt = RRT(pbs, prob, initConf, destConf, allowedViol, moveChains, inflate=inflate)
+        rrt = RRT(inflated, prob, initConf, destConf, allowedViol, moveChains)
         nodes = rrt.findPath(K = maxIter or glob.maxRRTIter)
         failCount += 1
         if debug('rrt'):

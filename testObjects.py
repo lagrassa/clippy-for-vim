@@ -80,6 +80,7 @@ glob.objectTypes['obj'] = 'soda'
 glob.objectTypes['soda'] = 'soda'
 glob.constructor['soda'] = makeSoda
 
+# dz should be 0.1175
 def makeBig(dx=0.0445, dy=0.055, dz=0.1175, name='bigA', color=None):
     color = color or pickColor(name)
     return (Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)])],
