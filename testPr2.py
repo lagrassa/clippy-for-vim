@@ -485,15 +485,15 @@ def testShelvesGraspSide(ng=0, **args):
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    'coolShelves' : (coolShelvesPose , smallVar)},  # was medVar
                   {'objA' : (mid, medVar),
-                   'objD' : (front, medVar), # or objD
-                   'objB' : (sh1, medVar),
+                   'bigD' : (front, medVar), # or objD
+                   # 'objB' : (sh1, medVar),
                    # 'objC' : (sh2, medVar),
                    },
                   [region, 'table1Top'], easy=easy)
 
     goals =[ inRegion('objA', region),
              holding('objA', 'right', 0),
-             holding('objD', 'left', 0) ]
+             holding('bigD', 'left', 0) ]
     skel = None
     return doTest('testShelvesGrasp', exp, goals[ng], skel, args)
 
