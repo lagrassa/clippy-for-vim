@@ -472,7 +472,7 @@ class RoadMap:
             path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
                                               maxIter=50, failIter=20, inflate=optimize)
             runningTime = time.time() - startTime
-            tr('CRH', 'RRT time', runningTime)
+            trAlways('RRT time', runningTime)
             if viol:
                 viol = viol.update(initViol)
             else:
