@@ -552,11 +552,11 @@ def testShelvesPush(**args):
 # Test One Push
 ######################################################################
 
-def testPush(name, objName, startPose, targetPose, **args):
+def testPush(name, objName, startPose, targetReg, **args):
     exp = makeExp({'table1' : (table1Pose, smallVar)},
                   {objName : (startPose, medVar)},
-                  ['table1Top'], easy=args.get('easy', False))
-    goal = placed(objName, targetPose, targetDelta = (0.1, .1, .1, .5))
+                  ['table1Top', targetReg], easy=args.get('easy', False))
+    goal = inRegion(objName, targetReg)
     skel = args.get('skeleton', None)
     return doTest(name, exp, goal, skel, args)
 
@@ -564,8 +564,8 @@ def testPush0(objName='bigA', **args):
     skel = [[lookAt, move, push, moveNB, lookAt, moveNB, achCanPush, move, achCanReach, move]]
     args['skeleton'] = skel if 'skeleton' in args else None
     testPush('testPush0', objName,
-             hu.Pose(1.2, 0.0, tZ, 0.0),
-             hu.Pose(1.2, 0.4, tZ, 0.0), **args)
+             hu.Pose(1.1, 0.0, tZ, 0.0),
+             'table1BRR', **args)
 
 ######################################################################
 # Test Two Pushes, easier
@@ -573,20 +573,17 @@ def testPush0(objName='bigA', **args):
 
 def testPush1(objName='bigA', **args):
     testPush('testPush1', objName,
-             hu.Pose(1.2, 0.0, tZ, 0.0),
-             hu.Pose(1.4, 0.4, tZ, 0.0), **args)
+             hu.Pose(1.1, 0.0, tZ, 0.0),
+             'table1FR', **args)
     
 ######################################################################
-# Test TWo Pushes, harder
+# Test TWo Pushes, harder?
 ######################################################################
-
-# Does not work with odo error .02
-# Seems to need helpful actions or bigger search space
 
 def testPush2(objName='bigA', **args):
     testPush('testPush2', objName,
              hu.Pose(1.2, 0.0, tZ, 0.0),
-             hu.Pose(1.5, 0.4, tZ, 0.0), **args)
+             'table1FRR', **args)
 
 ######################################################################
 # Test TWo Pushes around shelves
