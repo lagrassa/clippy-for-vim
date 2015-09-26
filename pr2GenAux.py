@@ -480,6 +480,9 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
     for perm in shWorld.fixedObjects:
         obst = shWorld.objectShapes[perm]
         if obst.collides(gripperShape):
+            if debug(tag):
+                pbs.draw(prob, 'W')
+                obst.draw('W', 'magenta'); gripperShape.draw('W', 'magenta')
             tr(tag, 'Hand collides with permanent', perm)
             return
 
@@ -1044,18 +1047,11 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                 for co in coShadow:
                     if np.all(np.dot(co.planes(), pt) <= tiny): cost += 0.5*obstCost
                 points.append((angle, point.tolist()))
-
-                # Randomized
-                # hyp = (count, 1./cost if cost else 1.)
                 hyp = (cost, rs, count)
-
                 hyps.append(hyp)
                 count += 1
 
     if hyps:
-        # Randomized
-        # pointDist = DDist(dict(hyps))
-        # pointDist.normalize()
         hyps = sorted(hyps)
         # Randomize by regions
         levels = []
@@ -1075,66 +1071,52 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     else:
         debugMsg(tag, 'Invalid points in blue, no valid points in region')
         return
-    count = 0
     maxTries = min(2*maxPoses, len(pointDist))
-    if False: # glob.inHeuristic:
-        tries = 0
-        while count < maxPoses and tries < maxTries:
-            tries += 1
-            # Randomized
-            # index = pointDist.draw()
-            cost, rs, index = pointDist[tries]
-            angle, point = points[index]
-            pose = genPose(rs, angle, point)
-            if not pose: continue
-            count += 1
-            if debug(tag):
-                print '->', pose, 'cost=', cost
-                # shRotations is already rotated
-                (x,y,z,_) = pose.xyztTuple()
-                shRotations[angle].applyTrans(hu.Pose(x,y,z, 0.)).draw('W', 'green')
-            yield pose
-    else:
-        costHistory = []
-        poseHistory = []
-        historySize = 20                # used to be 5
-        tries = 0
-        while count < maxPoses and tries < maxTries:
-            # Randomized
-            # index = pointDist.draw()
-            hcost, rs, index = pointDist[tries]
-            angle, point = points[index]
-            tries += 1
-            p = genPose(rs, angle, point)
-            if not p: continue
-            cost = poseViolationWeight(p)
-            if cost is None: continue
-            if len(costHistory) < historySize:
-                costHistory.append(cost)
-                poseHistory.append(p)
-                continue
-            elif cost > min(costHistory):
-                minIndex = costHistory.index(min(costHistory))
-                pose = poseHistory[minIndex]
-                poseCost = costHistory[minIndex]
-                if debug(tag):
-                    print 'pose cost', costHistory[minIndex]
-                costHistory[minIndex] = cost
-                poseHistory[minIndex] = p
-            else:                           # cost <= min(costHistory)
-                pose = p
-                poseCost = cost
-                if debug(tag): print 'pose cost', cost
-            count += 1
-            if debug(tag):
-                print '->', pose, 'cost=', poseCost
-                # shRotations is already rotated
-                (x,y,z,_) = pose.xyztTuple()
-                shRotations[angle].applyTrans(hu.Pose(x,y,z, 0.)).draw('W', 'green')
-            yield pose
+
+    def poseCost(tries):
+        hcost, rs, index = pointDist[tries]
+        angle, point = points[index]
+        p = genPose(rs, angle, point)
+        if not p: return (None, None)
+        cost = poseViolationWeight(p)
+        if debug(tag):
+            print '->', pose, 'cost=', cost
+            # shRotations is already rotated
+            (x,y,z,_) = pose.xyztTuple()
+            shRotations[angle].applyTrans(hu.Pose(x,y,z, 0.)).draw('W', 'green')
+        return (p, cost)
+
+    for pose, poseCost in leastCostGen(poseCost, maxPoses, maxTries):
+        yield pose
     if True: # debug(tag):
         print 'Tried', tries, 'with', hand, 'returned', count, 'for regions', [r.name() for r in regShapes]
+        pdb.set_trace()
     return
+
+def leastCostGen(candidateScoreFn, maxCount, maxTries):
+    costHistory = []
+    poseHistory = []
+    historySize = 20                # used to be 5
+    tries = 0
+    count = 0
+    while count < maxCount and tries < maxTries:
+        pose, cost = candidateScoreFn(tries)
+        tries += 1
+        if not (pose and cost): continue
+        if len(costHistory) < historySize:
+            costHistory.append(cost)
+            poseHistory.append(pose)
+            continue
+        elif cost > min(costHistory):
+            minIndex = costHistory.index(min(costHistory))
+            pose = poseHistory[minIndex]
+            poseCost = costHistory[minIndex]
+            costHistory[minIndex] = cost
+            poseHistory[minIndex] = pose
+        else:                           # cost <= min(costHistory)
+            poseCost = cost
+        count += 1
+        yield pose, poseCost
 
 def baseDist(c1, c2):
     (x1,y1,th1) = c1['pr2Base']

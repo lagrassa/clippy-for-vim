@@ -21,55 +21,6 @@ monotonicFirst = True
 drawFailedNodes = False
 drawRebindNodes = True
 
-# Dictionary of common trace keyworrds
-'''
-'applicableOps'
-'canPickPlaceGen'
-'canPickPlaceTest'
-'canReachGen'
-'canReachHome'
-'canReachNB'
-'canViewFail'
-'checkCRH'
-'colliders:collision'
-'confReachViol'
-'confReachViolCache'
-'confReachViolGen'
-'confViolations'
-'drawInHeuristic'
-'easyGraspGen'
-'executePath'
-'executionFail'
-'getShadowWorld'
-'getShadowWorldGrasp'
-'hAddBackV'
-'infeasible'
-'lookGen'
-'lookHandGen'
-'minViolPath'
-'nonmon'
-'pathObst'
-'pickGen'
-'placeGen'
-'placeInGen'
-'potentialGraspConfs'
-'potentialGraspConfsWin'
-'potentialLookHandConfs'
-'potentialRegionPoseGen'
-'potentialRegionPoseGenWeight'
-'path'
-'prim'
-'regrasping'
-'regression:fail'
-'regression:inconsistent'
-'simpleAbstractCostEstimates'
-'skeleton'
-'successors'
-'traceCRH'
-'traceGen'
-'visible'
-'''
-
 usualTags = ['nonmon', 'animate']
 flags = ['simpleAbstractCostEstimates',
          'primitiveHeuristicAlways',
@@ -86,7 +37,8 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['noWriteSearch', 'noTrace', 'noPlayback'] 
+debugOn = usualTags 
+# + ['pickGen', 'placeGen', 'placeInGen', 'lookGen']
 # + ['visible', 'CanSeeFrom', 'canView', 'pickGen', 'achCanPush', 'lookAchGen', 'canPush']
 # + ['noWriteSearch', 'noTrace', 'noPlayback'] 
 # + ['animate']

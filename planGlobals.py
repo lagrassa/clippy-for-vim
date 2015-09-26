@@ -49,7 +49,7 @@ useHandTiltForPush = True              # Use for real robot
 
 inHeuristic = False
 
-useCC = False                            # Use compiled chains collision checks
+useCC = True                            # Use compiled chains collision checks
 skipSearch = False                       # Don't plan paths except for prims
 useMathematica = False
 

@@ -245,8 +245,8 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
         rrt = RRT(inflated, prob, initConf, destConf, allowedViol, moveChains)
         nodes = rrt.findPath(K = maxIter or glob.maxRRTIter)
         failCount += 1
-        if debug('rrt'):
-            if failCount > 0: print 'Failed', failCount, 'times'
+        if True:
+            if failCount > 0: print '    RRT has failed', failCount, 'times'
     if failCount == (failIter or glob.failRRTIter):
         glob.ignoreShadowZ = True
         return [], None

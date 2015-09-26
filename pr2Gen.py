@@ -259,6 +259,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
     approached = {}
     rm = pbs.getRoadMap()
     failureReasons = []
+    regrasp = False
     if placeB.poseD.mode() is not None: # otherwise go to regrasp
         if not base:
             # Try current conf
@@ -318,16 +319,17 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                              (c, 'W', 'navy', shWorld.attached)],
                        snap=['W'])
                     yield ans
+            regrasp = True
     else:
-        if debug(tag): raw_input('Current pose is not known, need to regrasp')
-        else: print 'Current pose is not known, need to regrasp'
+        if debug(tag): raw_input('Pose is not specified, need to place')
+        else: print 'Pose is not specified, need to place'
 
     if onlyCurrent:
         tr(tag, 'onlyCurrent: out of values')
         return
         
     # Try a regrasp... that is place the object somewhere else where it can be grasped.
-    if glob.inHeuristic:
+    if regrasp and glob.inHeuristic:
         return
     if failureReasons and all(['visibility' in reason for reason in failureReasons]):
         tr(tag, 'There were valid targets that failed due to visibility')

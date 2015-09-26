@@ -838,9 +838,15 @@ class RoadMap:
                 ans = self.confCollidersPlace(pbs, prob, conf, aColl1, hColl1, hsColl1,
                                               edge, ignoreAttached, draw)
                 if ans != ansCC or (aColl, hColl, hsColl) != (aColl1, hColl1, hsColl1):
-                    pdb.set_trace()
+
                     ansCC2 = self.confCollidersCC(pbs, prob, conf, aColl2, hColl2, hsColl2,
-                                                  edge, ignoreAttached, clearance, draw)
+                                                  edge, ignoreAttached, 0., draw)
+                    if ansCC2 != ans:
+
+                        print 'ansCC', ansCC, 'ansCC2', ansCC2, 'ans', ans
+                        pbs.draw(prob, 'W'); conf.draw('W', 'blue')
+                        pdb.set_trace()
+
             return ansCC
         else:
             return self.confCollidersPlace(pbs, prob, conf, aColl, hColl, hsColl,
@@ -1422,7 +1428,7 @@ class RoadMap:
                     smoothed.append(p)
             n = len(smoothed)
             while count < nsteps:
-                if verbose: print 'step', step, ':', 
+                if debug('smooth'): print 'step', step, ':', 
                 if n < 1:
                     debugMsg('smooth', 'Path is empty!')
                     pdb.set_trace()
@@ -1431,7 +1437,7 @@ class RoadMap:
                 j = random.randrange(n)
                 if j < i: i, j = j, i 
                 step += 1
-                if verbose: print i, j, len(checked)
+                if debug('smooth'): print i, j, len(checked)
                 if j-i < 2 or \
                     (smoothed[j], smoothed[i]) in checked:
                     count += 1
@@ -1485,7 +1491,8 @@ class RoadMap:
                         break
             if debug('testCC'):
                 placement = conf.placement(attached=attached)
-                ans = placement.collides(obj)
+                # should be limited to the relevant chains
+                ans = placement.collides(obj) 
                 if ans != ansCC:
                     conf.draw('W'); obj.draw('W', 'blue')
                     for fr in rcc[0].values():
