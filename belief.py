@@ -707,5 +707,4 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         debugMsg('hAddBack', 'final')
 
     glob.inHeuristic = False
-    tr('h', prettyString(totalCost))
     return totalCost, totalActSet.elts

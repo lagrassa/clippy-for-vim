@@ -168,7 +168,7 @@ class PBS:
 
         # Now, see if the shadow of the object in the hand is colliding.
         # If so, reduce it.
-        shProb = 0.999
+        shProb = 0.98
         for h in (0, 1):
             colls = confViols.heldShadows[h]
             hand = ('left', 'right')[h]
@@ -202,7 +202,7 @@ class PBS:
             # Divide variance in half.  Very crude.  Should find the
             # max variance that does not result in a shadow colliion.
             if count > 50:
-                assert None, 'Could not reduce shadow after 10 attempts'
+                assert None, 'Could not reduce shadow after 50 attempts'
             for sh in shadows:
                 obj = objectName(sh)
                 pB = self.getPlaceB(obj)

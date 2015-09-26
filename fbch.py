@@ -2094,7 +2094,8 @@ def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
                            greedy = plannerGreedy,
                            verbose = False,
                            printFinal = False,
-                           maxCost = maxCost)
+                           maxCost = maxCost,
+                           returnFirstGoal = True)
     if p: return p, c
     if not skeleton: return None, None
     # If we failed and had a skeleton, try without it

@@ -475,8 +475,8 @@ def testShelvesGrasp(**args):
     return doTest('testShelvesGrasp', exp, goal1, skel, args)
 
 def testShelvesGraspSide(ng=0, **args):
-    front = hu.Pose(1.1, 0.48, tZ, -math.pi/2)  # was y = .475
-    mid = hu.Pose(1.15, 0.35, tZ, 0.0)
+    front = hu.Pose(1.05, 0.48, tZ, -math.pi/2)  # was y = .475
+    mid = hu.Pose(1.1, 0.35, tZ, 0.0)
     sh1 = hu.Pose(1.2, -0.3, 1.170, 0.0)
     sh2 = hu.Pose(1.2, -0.1, 1.170, 0.0)
     coolShelvesPose = hu.Pose(1.25, -0.2, tZ, math.pi/2)
@@ -492,14 +492,21 @@ def testShelvesGraspSide(ng=0, **args):
                   [region, 'table1FRR'], easy=easy)
 
     goals =[ inRegion('objA', region),
+             inRegion('objD', 'table1Right'),    # trouble placing D
              holding('objA', 'right', 0),
              holding('bigD', 'left', 0) ]
+    # skel for pickable obstacle, easy case
     skel = [[poseAchIn,
              lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'coolShelves'}), move,
              place.applyBindings({'Obj' : 'objA'}),
-             move, pick, moveNB, lookAt, move,
-             achCanPickPlace, lookAt, move]]
+             move, pick, moveNB,
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'objA'}), move,
+             achCanPickPlace, move, pick, moveNB,
+             lookAt.applyBindings({'Obj' : 'objD'}),
+             moveNB, lookAt.applyBindings({'Obj' : 'objD'}),
+             move]]
     return doTest('testShelvesGrasp', exp, goals[ng], skel, args)
 
 def testIkeaShelvesGrasp(**args):

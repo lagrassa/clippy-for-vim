@@ -390,5 +390,6 @@ def pbsInflate(pbs, prob, initConf, goalConf):
     newBS.conf = goalConf
     newBS.internalCollisionCheck(dither=False, objChecks=False)
     newBS.draw(prob, 'W')
-    raw_input('Inflation')
+    print 'Inflation!'
+    #raw_input('Inflation')
     return newBS

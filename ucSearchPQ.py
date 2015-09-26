@@ -73,7 +73,8 @@ def search(initialState, goalTest, actions, successor,
            greedy = 0.5,
            verbose = False, printFinal = True, maxHDelta = None,
            maxCost = float('inf'),
-           fail = True):
+           fail = True,
+           returnFirstGoal = False):
         """
         @param initialState: root of the search
         @param goalTest: function from state to Boolean
@@ -95,7 +96,6 @@ def search(initialState, goalTest, actions, successor,
             if not state in hVals:
                 hv = heuristic(state)
                 hVals[state] = hv
-                tr('h', hv)
             return hVals[state]
 
         startNode = SearchNode(None, initialState, None, 0,
@@ -166,9 +166,9 @@ def search(initialState, goalTest, actions, successor,
                     else: successors.add(newS)
                     if verbose or somewhatVerbose:
                         print '           ', cost, newS
+                    hValue = getH(newS)
                     if newS in expanded:
                         if prevExpandF and visitF:
-                            hValue = getH(newS)
                             newN = SearchNode(a, newS, n, cost, hValue)
                             visitF(n.state, n.cost, n.heuristicCost, a,
                                    newS, newN.cost, hValue)
@@ -182,8 +182,7 @@ def search(initialState, goalTest, actions, successor,
                                 raw_input('okay?')
                     else:
                         count += 1
-                        hValue = getH(newS)
-                        if verbose: print '        h', hValue
+                        tr('h', hValue)
                         if hValue >= hmax: continue
                         newN = SearchNode(a, newS, n, cost, hValue)
                         if visitF: visitF(n.state, n.cost, n.heuristicCost, 
@@ -192,6 +191,8 @@ def search(initialState, goalTest, actions, successor,
                             print 'current h =', n.heuristicCost, \
                               'new h =', hValue
                             raw_input('H delta exceeded')
+                        if returnFirstGoal and goalTest(newS):
+                            return newN.path(), newN.costs()
                         heappush(agenda,
                                  ((1 - greedy) * newN.cost + \
                                   greedy * hValue, count, newN))

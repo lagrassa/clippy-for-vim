@@ -48,9 +48,12 @@ movePreProb = 0.8
 # Prob for generators.  Keep it high.   Should this be = maxProbValue?
 probForGenerators = 0.98
 
-# Generic large values for the purposes of planning
-planVar = (0.08**2, 0.08**2, 0.04**2, 0.16**2)
-#planVar = (0.04**2, 0.04**2, 0.04**2, 0.08**2)
+# Generic large values for the purposes of planning If they're small,
+# it has to keep looking to maintain them.  If they're large, the
+# plans become invalidated all the time.
+
+#planVar = (0.08**2, 0.08**2, 0.04**2, 0.16**2)
+planVar = (0.04**2, 0.04**2, 0.04**2, 0.08**2)
 planP = 0.95
 
 hands = (0, 1)
@@ -490,8 +493,8 @@ class PlaceInPoseVar(Function):
     # noinspection PyUnusedLocal
     @staticmethod
     def fun(args, goal, start):
-        #pv = [v * 2 for v in start.domainProbs.obVarTuple]
-        pv = list(start.domainProbs.obsVarTuple)
+        pv = [v * 2 for v in start.domainProbs.obsVarTuple]
+        #pv = list(start.domainProbs.obsVarTuple)
         pv[2] = pv[0]
         return [[tuple(pv)]]
 
