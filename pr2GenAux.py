@@ -1072,6 +1072,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         debugMsg(tag, 'Invalid points in blue, no valid points in region')
         return
     maxTries = min(2*maxPoses, len(pointDist))
+    count = 0
 
     def poseCost(tries):
         hcost, rs, index = pointDist[tries]
@@ -1087,10 +1088,10 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         return (p, cost)
 
     for pose, poseCost in leastCostGen(poseCost, maxPoses, maxTries):
+        count += 1
         yield pose
     if True: # debug(tag):
-        print 'Tried', tries, 'with', hand, 'returned', count, 'for regions', [r.name() for r in regShapes]
-        pdb.set_trace()
+        print 'Tried', maxTries, 'with', hand, 'returned', count, 'for regions', [r.name() for r in regShapes]
     return
 
 def leastCostGen(candidateScoreFn, maxCount, maxTries):
