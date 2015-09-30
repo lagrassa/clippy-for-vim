@@ -41,7 +41,7 @@ crashIsError = False
 
 simulateError = False
 
-animateSleep = 0.05
+animateSleep = 0.02
 
 simOdoErrorRate = 0.0                   # was 0.02
 
@@ -134,7 +134,8 @@ class RealWorld(WorldState):
             pathTraveled.append(conf)
             if debug('animate'):
                 self.draw('World');
-                originalConf.draw('World', 'pink')
+                # This is the original commanded conf, draw to see accumulated error
+                # originalConf.draw('World', 'pink')
                 self.bs.pbs.draw(0.95, 'Belief', drawRobot=False)
                 self.robotPlace.draw('Belief', 'gold')
                 sleep(animateSleep)

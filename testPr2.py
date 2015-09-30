@@ -680,7 +680,11 @@ def prof(test, n=100):
     cProfile.run(test, 'prof')
     p = pstats.Stats('prof')
     p.sort_stats('cumulative').print_stats(n)
-    # p.sort_stats('cumulative').print_callers(n)
+    p.sort_stats('cumulative').print_callers(n)
+
+    from pr2GenAux import graspConfGenCacheStats, graspConfStats
+    print 'graspConfGenCacheStats', graspConfGenCacheStats
+    print 'graspConfCacheStats', graspConfStats
 
 def profPrint(n=100):
     import pstats

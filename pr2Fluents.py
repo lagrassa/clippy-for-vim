@@ -1515,8 +1515,8 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
     shape = pbs.getPlaceB(pB.obj).shadow(pbs.getShadowWorld(0.0)) or \
             pbs.getPlaceB(pB.obj).shape(pbs.getWorld())
     # For heuristic, just do (start, contact, end)
-    # We keep paths computed in heuristic, so do the full simulation.
-    if False:  # glob.inHeuristic:
+    # We keep paths computed in heuristic, so do the full simulation.?
+    if glob.inHeuristic:
         stepVals = [0, int(math.ceil(pushBuffer/delta)), nsteps]
     else:
         stepVals = xrange(nsteps+1)

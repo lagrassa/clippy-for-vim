@@ -980,7 +980,6 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     tag = 'potentialRegionPoseGen'
     debugMsg(tag, placeB, shadowWidths(placeB.poseD.var, placeB.delta, prob))
 
-    clearance = 0.01
     if debug(tag):
         pbs.draw(prob, 'W')
         for rs in regShapes: rs.draw('W', 'purple')
@@ -1004,53 +1003,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
 
     shRotations = dict([(angle, objShadow.applyTrans(hu.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
-    obstCost = 10.
-    hyps = []                         # (index, cost)
-    points = []                       # [(angle, xyz1)]
-    count = 0
-    world = pbs.getWorld()
-    for rs in regShapes:
-        tr(tag, obj, rs.name(), hand, ol = True)
-        if debug(tag):
-            print 'Considering region', rs.name()
-        for (angle, shRot) in shRotations.items():
-            bI = CI(shRot, rs.prim())
-            if bI is None:
-                if debug(tag):
-                    print 'bI is None for angle', angle
-                    raw_input('bI')
-                continue
-            elif debug(tag):
-                bI.draw('W', 'cyan')
-                debugMsg(tag, 'Region interior in cyan for angle', angle)
-            coFixed = squashOne([xyCOParts(shRot, o) for o in shWorld.getObjectShapes() \
-                                 if o.name() in shWorld.fixedObjects])
-            coObst = squashOne([xyCOParts(shRot, o) for o in shWorld.getNonShadowShapes() \
-                                if o.name() not in shWorld.fixedObjects])
-            coShadow = squashOne([xyCOParts(shRot, o) for o in shWorld.getShadowShapes() \
-                                  if o.name() not in shWorld.fixedObjects])
-            if debug(tag):
-                for co in coFixed: co.draw('W', 'red')
-                for co in coObst: co.draw('W', 'brown')
-                for co in coShadow: co.draw('W', 'orange')
-            z0 = bI.bbox()[0,2] + clearance
-            # for point in bboxGridCoords(bI.bbox(), res = 0.01, z=z0):
-            for point in bboxRandomCoords(bI.bbox(), n=maxPoses, z=z0):
-                pt = point.reshape(4,1)
-                if any(np.all(np.dot(co.planes(), pt) <= tiny) for co in coFixed):
-                    if debug(tag):
-                        shapes.pointBox(pt.T[0]).draw('W', 'blue')
-                    continue
-                cost = 0
-                for co in coObst:
-                    if np.all(np.dot(co.planes(), pt) <= tiny): cost += obstCost
-                for co in coShadow:
-                    if np.all(np.dot(co.planes(), pt) <= tiny): cost += 0.5*obstCost
-                points.append((angle, point.tolist()))
-                hyp = (cost, rs, count)
-                hyps.append(hyp)
-                count += 1
-
+    hyps, points = regionPoseHyps(pbs, prob, regShapes, shRotations, maxPoses)
     if hyps:
         hyps = sorted(hyps)
         # Randomize by regions
@@ -1094,10 +1047,61 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         print 'Tried', maxTries, 'with', hand, 'returned', count, 'for regions', [r.name() for r in regShapes]
     return
 
+def regionPoseHyps(pbs, prob, regShapes, shRotations, maxPoses):
+    tag = 'regionPoseHyps'
+    clearance = 0.01
+    obstCost = 10.
+    hyps = []                         # (index, cost)
+    points = []                       # [(angle, xyz1)]
+    count = 0
+    shWorld = pbs.getShadowWorld(prob)
+    for rs in regShapes:
+        tr(tag, rs.name(), ol = True)
+        if debug(tag):
+            print 'Considering region', rs.name()
+        for (angle, shRot) in shRotations.items():
+            bI = CI(shRot, rs.prim())
+            if bI is None:
+                if debug(tag):
+                    print 'bI is None for angle', angle
+                    raw_input('bI')
+                continue
+            elif debug(tag):
+                bI.draw('W', 'cyan')
+                debugMsg(tag, 'Region interior in cyan for angle', angle)
+            coFixed = squashOne([xyCOParts(shRot, o) for o in shWorld.getObjectShapes() \
+                                 if o.name() in shWorld.fixedObjects])
+            coObst = squashOne([xyCOParts(shRot, o) for o in shWorld.getNonShadowShapes() \
+                                if o.name() not in shWorld.fixedObjects])
+            coShadow = squashOne([xyCOParts(shRot, o) for o in shWorld.getShadowShapes() \
+                                  if o.name() not in shWorld.fixedObjects])
+            if debug(tag):
+                for co in coFixed: co.draw('W', 'red')
+                for co in coObst: co.draw('W', 'brown')
+                for co in coShadow: co.draw('W', 'orange')
+            z0 = bI.bbox()[0,2] + clearance
+            # for point in bboxGridCoords(bI.bbox(), res = 0.01, z=z0):
+            for point in bboxRandomCoords(bI.bbox(), n=maxPoses, z=z0):
+                pt = point.reshape(4,1)
+                if any(np.all(np.dot(co.planes(), pt) <= tiny) for co in coFixed):
+                    if debug(tag):
+                        shapes.pointBox(pt.T[0]).draw('W', 'blue')
+                    continue
+                cost = 0
+                for co in coObst:
+                    if np.all(np.dot(co.planes(), pt) <= tiny): cost += obstCost
+                for co in coShadow:
+                    if np.all(np.dot(co.planes(), pt) <= tiny): cost += 0.5*obstCost
+                points.append((angle, point.tolist()))
+                hyp = (cost, rs, count)
+                hyps.append(hyp)
+                count += 1
+    return hyps, points
+
 def leastCostGen(candidateScoreFn, maxCount, maxTries):
     costHistory = []
     poseHistory = []
-    historySize = 20                # used to be 5
+    historySize = 10                # used to be 5 or 20
     tries = 0
     count = 0
     while count < maxCount and tries < maxTries:

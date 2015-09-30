@@ -159,17 +159,17 @@ def pushGenTop(args, goalConds, pbs,
         (hand, prePoseTuple, preConf, pushConf, postConf) = ans.pushTuple()
         prePose = hu.Pose(*prePoseTuple)
         # Double check that preConf is safe - this should not be necessary...
-        testBS = newBS.copy()
-        testBS.updatePermObjPose(placeB.modifyPoseD(prePose)) # obj at prePose
-        testBS.draw(prob, 'W'); preConf.draw('W')
-        viol = rm.confViolations(preConf, testBS, prob)
-
-        if not glob.inHeuristic and debug(tag):
-            print 'pushGen violations', viol
-        if not viol:
-            if debug(tag):
-                raw_input('Collision in pushPath')
-            continue
+        if debug(tag):
+            testBS = newBS.copy()
+            testBS.updatePermObjPose(placeB.modifyPoseD(prePose)) # obj at prePose
+            testBS.draw(prob, 'W'); preConf.draw('W')
+            viol = rm.confViolations(preConf, testBS, prob)
+            if not glob.inHeuristic and debug(tag):
+                print 'pushGen violations', viol
+            if not viol:
+                if debug(tag):
+                    raw_input('Collision in pushPath')
+                continue
         # End double check
         yield ans
     tr(tag, '=> pushGenTop exhausted for', hand)
