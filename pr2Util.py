@@ -481,29 +481,63 @@ def bboxGridCoords(bb, n=5, z=None, res=None):
         nx = int(float(x1 - x0)/res)
         ny = int(float(y1 - y0)/res)
         if nx*ny > n*n:
-            return bboxGridCoords(bb, n=n, z=z, res=None)
+            for point in bboxGridCoords(bb, n=n, z=z, res=None):
+                yield point
     else:
         dx = float(x1 - x0)/n
         dy = float(y1 - y0)/n
         nx = ny = n
     if z is None: z = z0
-    points = []
     for i in range(nx+1):
         x = x0 + i*dx
         for j in range(ny+1):
             y = y0 + j*dy
-            points.append(np.array([x, y, z, 1.]))
-    return points
+            yield np.array([x, y, z, 1.])
+
+# Assume an implicit grid 0.01 on a side
+def bboxRandomGridCoords(bb, n=5, z=None):
+    ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)
+    x0 = round(x0, 2)
+    y0 = round(y0, 2)
+    x1 = round(x1, 2)
+    y1 = round(y1, 2)
+    if z is None: z = z0
+    nx = int(round((x1-x0)/0.01))
+    ny = int(round((y1-y0)/0.01))
+    maxn = nx*ny
+    vals = set([])
+    count = 0
+    while count < n and len(vals) < maxn:
+        i = random.randint(0, nx)
+        j = random.randint(0, ny)
+        if (i, j) in vals: continue
+        else:
+            vals.add((i,j))
+            count += 1
+            x = round(x0 + i*0.01, 2)
+            y = round(y0 + j*0.01, 2)
+            yield np.array([x, y, z, 1.])
 
 def bboxRandomCoords(bb, n=20, z=None):
     ((x0, y0, z0), (x1, y1, z1)) = tuple(bb)
     if z is None: z = z0
-    points = []
     for i in xrange(n):
         x = random.uniform(x0, x1)
         y = random.uniform(y0, y1)
-        points.append(np.array([x, y, z, 1.]))
-    return points
+        yield np.array([x, y, z, 1.])
+
+# prob is probability of generatng a grid point, 1-prob is for random
+def bboxMixedCoords(bb, prob, n=20, z=None):
+    grid = bboxRandomGridCoords(bb, n=n, z=z)
+    rand = bboxRandomCoords(bb, n=n, z=z)
+    for i in xrange(n):
+        if random.random() <= prob:
+            try:
+                yield next(grid)
+            except:
+                yield next(rand)
+        else:
+            yield next(rand)
 
 def trArgs(tag, names, args, goalConds, pbs):
     tr(tag, 

@@ -2,7 +2,7 @@ import time
 import pdb
 from fbch import Function
 from dist import DeltaDist
-from pr2Util import supportFaceIndex, shadowWidths, trArgs, inside, graspable
+from pr2Util import supportFaceIndex, shadowWidths, trArgs, inside, graspable, objectName
 from pr2PlanBel import getConf, getGoalPoseBels
 from shapes import Box
 from pr2Fluents import baseConfWithin
@@ -283,7 +283,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                 tr(tag, 'No potential grasp confs, will need to regrasp',
                    draw=[(pbs, prob, 'W')], snap=['W'])
                 if True: # debug(tag):
-                    raw_input('pickGen: Cannot find grasp conf for current pose of ' + obj)
+                    print 'pickGen: Cannot find grasp conf for current pose of ' + obj
                 else: print 'pickGen: Cannot find graspconf for current pose of', obj
         else:
             targetConfs = graspApproachConfGen(firstConf)
@@ -338,7 +338,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
     tr(tag, 'Calling for regrasping... h=%s'%glob.inHeuristic)
 
     # !! Needs to look for plausible regions...
-    regShapes = regShapes = [shWorld.regionShapes[region] for region in pbs.awayRegions()]
+    regShapes = [shWorld.regionShapes[region] for region in pbs.awayRegions()]
     plGen = placeInGenTop((obj, regShapes, graspB, placeB, None, prob),
                           goalConds, pbs, regrasp = True)
     for ans in plGen:
@@ -680,10 +680,47 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
 class PoseInRegionGen(Function):
     # Return objPose, poseFace.
     def fun(self, args, goalConds, bState):
+        for ans in lookInRegionGenGen(args, goalConds, bState, away = False):
+            yield ans
         for ans in roundrobin(placeInRegionGenGen(args, goalConds, bState, away = False),
                               pushInRegionGenGen(args, goalConds, bState, away = False)):
             if ans:
                 yield ans.poseInTuple()
+
+def lookInRegionGenGen(args, goalConds, bState, away = False, update=True):
+    (obj, region, var, delta, prob) = args
+    tag = 'lookInGen'
+    pbs = bState.pbs.copy()
+    world = pbs.getWorld()
+
+    tr(tag, args)
+
+    # Get the regions
+    regions = getRegions(region)
+    shWorld = pbs.getShadowWorld(prob)
+    regShapes = [shWorld.regionShapes[region] for region in regions]
+    tr(tag, 'Target region in purple',
+       draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
+       snap=['W'])
+    pose, support = getPoseAndSupport(obj, pbs, prob)
+
+    # Check if object pose is specified in goalConds
+    poseBels = getGoalPoseBels(goalConds, world.getFaceFrames)
+    if obj in poseBels:
+        pB = poseBels[obj]
+        pose = pB.poseD.mode()
+        var = pB.poseD.var
+
+    lookVar = bState.domainProbs.objBMinVar(objectName(obj))
+    lookDelta = bState.domainProbs.shadowDelta
+    placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
+                       PoseD(pose, lookVar), delta=lookDelta)
+    if pose and any(inside(placeB.makeShadow(pbs, prob), regShape, strict=True) \
+           for regShape in regShapes):
+        ans = (pose.xyztTuple(), support)
+        tr(tag, '=>', ans)
+        yield ans
+    tr(tag, '=> Look will not achieve In')
 
 def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
     (obj, region, var, delta, prob) = args
@@ -697,37 +734,13 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
     if not graspable(obj): return
 
     # Get the regions
-    if not isinstance(region, (list, tuple, frozenset)):
-        regions = frozenset([region])
-    elif len(region) == 0:
-        raise Exception, 'need a region to place into'
-    else:
-        regions = frozenset(region)
+    regions = getRegions(region)
     shWorld = pbs.getShadowWorld(prob)
     regShapes = [shWorld.regionShapes[region] for region in regions]
     tr(tag, 'Target region in purple',
        draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
        snap=['W'])
-    # Set pose and support from current state
-    pose = None
-    if pbs.getPlaceB(obj, default=False):
-        # If it is currently placed, use that support
-        support = pbs.getPlaceB(obj).support.mode()
-        pose = pbs.getPlaceB(obj).poseD.mode()
-    elif obj == pbs.held['left'].mode():
-        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
-                                                   'left')
-        shape = pbs.getObjectShapeAtOrigin(obj).\
-                applyLoc(attachedShape.origin())
-        support = supportFaceIndex(shape)
-    elif obj == pbs.held['right'].mode():
-        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
-                                                   'right')
-        shape = pbs.getObjectShapeAtOrigin(obj).\
-                applyLoc(attachedShape.origin())
-        support = supportFaceIndex(shape)
-    else:
-        raise Exception('Cannot determine support')
+    pose, support = getPoseAndSupport(obj, pbs, prob)
 
     graspV = bState.domainProbs.maxGraspVar
     graspDelta = bState.domainProbs.graspDelta
@@ -1324,7 +1337,7 @@ def canXGenTop(violFn, args, goalConds, newBS, tag):
     if shadows:
         shadowName = shadows[0]
         obst = objectName(shadowName)
-        objBMinVar = newBS.domainProbs.objBMinVar(objName(obst))
+        objBMinVar = newBS.domainProbs.objBMinVar(objectName(obst))
         placeB = newBS.getPlaceB(obst)
         tr(tag, '=> reduce shadow %s (in red):'%obst,
            draw=[(newBS, prob, 'W'),

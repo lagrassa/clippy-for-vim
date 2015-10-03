@@ -15,7 +15,7 @@ from dist import UniformDist, DDist
 from geom import bboxCenter
 from pr2Robot import CartConf, gripperFaceFrame, pr2BaseLink
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
-from pr2Util import shadowName, objectName, Memoizer, inside, otherHand, bboxRandomCoords, bboxGridCoords, shadowWidths
+from pr2Util import shadowName, objectName, Memoizer, inside, otherHand, bboxMixedCoords, shadowWidths
 import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
@@ -365,7 +365,8 @@ graspConfClear = 0.001
 
 def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None):
     tag = 'potentialGraspConfs'
-    key = (pbs, placeB, graspB, conf, hand, tuple(base) if base else None, prob, nMax)
+    key = (pbs, placeB, graspB.grasp.mode(), conf, hand, tuple(base) if base else None, prob, nMax)
+    args = (pbs, placeB, graspB, conf, hand, tuple(base) if base else None, prob, nMax)
     cache = graspConfGenCache
     val = cache.get(key, None)
     graspConfGenCacheStats[0] += 1
@@ -376,7 +377,7 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None
         if debug(tag): print tag, 'cached gen with len(values)=', memo.values
     else:
         memo = Memoizer('potentialGraspConfGen',
-                        potentialGraspConfGenAux(*key))
+                        potentialGraspConfGenAux(*args))
         cache[key] = memo
         if debug(tag): print tag, 'new gen'
     for x in memo:
@@ -1081,7 +1082,9 @@ def regionPoseHyps(pbs, prob, regShapes, shRotations, maxPoses):
                 for co in coShadow: co.draw('W', 'orange')
             z0 = bI.bbox()[0,2] + clearance
             # for point in bboxGridCoords(bI.bbox(), res = 0.01, z=z0):
-            for point in bboxRandomCoords(bI.bbox(), n=maxPoses, z=z0):
+            # for point in bboxRandomCoords(bI.bbox(), n=maxPoses, z=z0):
+            # p = 0.75 chance of generating a grid point.
+            for point in bboxMixedCoords(bI.bbox(), 0.9, n=(maxPoses/len(shRotations.keys())), z=z0):
                 pt = point.reshape(4,1)
                 if any(np.all(np.dot(co.planes(), pt) <= tiny) for co in coFixed):
                     if debug(tag):
@@ -1184,3 +1187,36 @@ def minimalConf(conf, hand):
         return (tuple(conf['pr2Base']), tuple(conf['pr2LeftArm']))
     else:
         return (tuple(conf['pr2Base']), tuple(conf['pr2RightArm']))
+
+###### Helpers for XinGen
+
+def getRegions(region):
+    if not isinstance(region, (list, tuple, frozenset)):
+        return frozenset([region])
+    elif len(region) == 0:
+        raise Exception, 'need a region to place into'
+    else:
+        return frozenset(region)
+
+def getPoseAndSupport(obj, pbs, prob):
+    # Set pose and support from current state
+    pose = None
+    if pbs.getPlaceB(obj, default=False):
+        # If it is currently placed, use that support
+        support = pbs.getPlaceB(obj).support.mode()
+        pose = pbs.getPlaceB(obj).poseD.mode()
+    elif obj == pbs.held['left'].mode():
+        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
+                                                   'left')
+        shape = pbs.getObjectShapeAtOrigin(obj).\
+                applyLoc(attachedShape.origin())
+        support = supportFaceIndex(shape)
+    elif obj == pbs.held['right'].mode():
+        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
+                                                   'right')
+        shape = pbs.getObjectShapeAtOrigin(obj).\
+                applyLoc(attachedShape.origin())
+        support = supportFaceIndex(shape)
+    else:
+        raise Exception('Cannot determine support')
+    return pose, support

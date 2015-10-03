@@ -8,7 +8,7 @@ from traceFile import debug, debugMsg, tr, trAlways
 from shapes import thingFaceFrames, drawFrame
 import hu
 from planUtil import ObjGraspB, PoseD, PushResponse
-from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords, supportFaceIndex
+from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords, bboxRandomCoords, supportFaceIndex
 from pr2GenAux import *
 from pr2PlanBel import getConf
 from pr2Fluents import pushPath
@@ -561,36 +561,12 @@ def pushInRegionGenGen(args, goalConds, bState, away = False, update=True):
     pbs = bState.pbs.copy()
     world = pbs.getWorld()
     # Get the regions
-    if not isinstance(region, (list, tuple, frozenset)):
-        regions = frozenset([region])
-    elif len(region) == 0:
-        raise Exception, 'Need a region to push into'
-    else:
-        regions = frozenset(region)
+    regions = getRegions(region)
     shWorld = pbs.getShadowWorld(prob)
-    regShapes = [shWorld.regionShapes[region] for region in regions]
+    regShapes = [shWorld.regionShapes[r] for r in regions]
     tr(tag, 'Target region in purple',
        draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes], snap=['W'])
-    # Set pose and support from current state
-    pose = None
-    if pbs.getPlaceB(obj, default=False):
-        # If it is currently placed, use that support
-        support = pbs.getPlaceB(obj).support.mode()
-        pose = pbs.getPlaceB(obj).poseD.mode()
-    elif obj == pbs.held['left'].mode():
-        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
-                                                   'left')
-        shape = pbs.getObjectShapeAtOrigin(obj).\
-                applyLoc(attachedShape.origin())
-        support = supportFaceIndex(shape)
-    elif obj == pbs.held['right'].mode():
-        attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
-                                                   'right')
-        shape = pbs.getObjectShapeAtOrigin(obj).\
-                applyLoc(attachedShape.origin())
-        support = supportFaceIndex(shape)
-    else:
-        raise Exception('Cannot determine support')
+    pose, support = getPoseAndSupport(obj, pbs, prob)
 
     # Check if object pose is specified in goalConds
     poseBels = getGoalPoseBels(goalConds, world.getFaceFrames)
@@ -610,6 +586,7 @@ def pushInRegionGenGen(args, goalConds, bState, away = False, update=True):
             return
         else:
             # If pose is specified and variance is small, return
+            tr(tag, '=> Pose is specified and variance is small - fail')
             return
 
     # The normal case
@@ -623,7 +600,9 @@ def pushInRegionGenGen(args, goalConds, bState, away = False, update=True):
     gen = pushInGenTop((obj, regShapes, placeB, prob),
                           goalConds, pbs, away = away, update=update)
     for ans in gen:
+        tr(tag, ans)
         yield ans
+    tr(tag, 'No answers remaining')
 
 pushVarIncreaseFactor = 3 # was 2
 
@@ -712,6 +691,7 @@ def pushInGenTop(args, goalConds, pbs, away = False, update=True):
 # reachObsts are regions where placements are forbidden
 def pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, hand,
                  away=False, update=True):
+    tag = 'pushInGen'
     shWorld = pbs.getShadowWorld(prob)
     for pB in awayTargetPB(pbs, prob, placeB, regShapes):
         for ans in pushGenTop((placeB.obj, pB, hand, prob),
@@ -720,7 +700,7 @@ def pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, hand,
                               partialPaths=True, reachObsts=reachObsts,
                               update=update, away=away):
 
-            tr('pushInGen', ('->', str(ans)),
+            tr(tag, '->', str(ans),
                draw=[(pbs, prob, 'W'),
                      (ans.prePB.shape(shWorld), 'W', 'blue'),
                      (ans.postPB.shape(shWorld), 'W', 'pink'),
@@ -730,17 +710,15 @@ def pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, hand,
                snap=['W'])
 
             yield ans
-        # pdb.set_trace()
+    tr(tag, 'No targets left')
 
 # Find target placements in region.  Object starts out in placeB.
-def regionPB(pbs, prob, placeB, regShapes):
+def regionPB(pbs, prob, placeB, regShape):
     shWorld = pbs.getShadowWorld(prob)
     shape = pbs.getObjectShapeAtOrigin(placeB.obj)
-    regShape = regShapes[0]
     mode = placeB.poseD.mode().pose()
     bbox = bboxInterior(shape.bbox(), regShape.bbox())
-    n = len(bboxGridCoords(bbox, res=0.2))
-    targets = sortedTargets(pbs, prob, placeB, bboxRandomCoords(bbox, n=n))
+    targets = sortedTargets(pbs, prob, placeB, bboxRandomCoords(bbox, n=20))
     for point in targets:
         newMode = hu.Pose(point[0], point[1], mode.z, mode.theta)
         newPB = placeB.modifyPoseD(newMode, var=4*(0.02**2,))
@@ -795,33 +773,60 @@ def removeDuplicates(pointList):
 
 def awayTargetPB(pbs, prob, placeB, regShapes):
     shape = placeB.shape(pbs.getWorld())
-    regShape = regShapes[0]
     prim = choosePrim(shape)
     xyPrim = shape.xyPrim()
     center =  np.average(xyPrim.vertices(), axis=1)
     potentialContacts = []
     for vertical in (True, False):
         potentialContacts.extend(handContactFrames(prim, center, vertical))
-    targets = []
-    for (vertical, contactFrame, width) in potentialContacts:
-        # This is z axis of face, push will be in that direction 
-        direction = contactFrame.matrix[:3,2].reshape(3).copy()
-        direction[2] = 0.0            # we want z component exactly 0.
-        for newPB in maxDistInRegionPB(pbs, prob, placeB, direction, regShape):
-            if newPB not in targets:
-                targets.append(newPB)
-                if debug('pushGen'):
-                    print 'direction', direction, 'newPB', newPB
+    for regShape in regShapes:
+        for (vertical, contactFrame, width) in potentialContacts:
+            # This is z axis of face, push will be in that direction 
+            direction = contactFrame.matrix[:3,2].reshape(3).copy()
+            direction[2] = 0.0            # we want z component exactly 0.
+            for newPB in minDistInRegionPB(pbs, prob, placeB, direction, regShape):
+                if debug('pushInGen'):
+                    print 'pushInGen', 'direction', direction, 'newPB', newPB
                     newShape = newPB.makeShadow(pbs, prob)
                     pbs.draw(prob, 'W'); drawFrame(contactFrame); newShape.draw('W', 'magenta')
                     raw_input('Go?')
-    return targets
+                yield newPB
+        if useDirectPush:
+            for newPB in regionPB(pbs, prob, placeB, regShape):
+                if debug('pushInGen'):
+                    print 'pushInGen', 'directPush newPB', newPB
+                    newShape = newPB.makeShadow(pbs, prob)
+                    pbs.draw(prob, 'W'); newShape.draw('W', 'magenta')
+                    raw_input('Go?')
+                yield newPB
 
-def maxDistInRegionPB(pbs, prob, placeB, direction, regShape,
+# def maxDistInRegionPB(pbs, prob, placeB, direction, regShape,
+#                       mind = 0.0, maxd = 1.0, count = 0):
+#     if count > 10:
+#         debugMsg('pushGen', 'maxDistInRegionPB failed to converge')
+#         return [placeB]
+#     dist = 0.5*(mind+maxd)
+#     postPoseOffset = hu.Pose(*(dist*direction).tolist()+[0.0])
+#     postPose = postPoseOffset.compose(placeB.poseD.mode())
+#     newPB = placeB.modifyPoseD(postPose.pose(), var=4*(0.01**2,))
+#     newPB.delta = delta=4*(0.001,)
+#     if inside(newPB.makeShadow(pbs, prob), regShape, strict=True):
+#         if maxd-mind < 0.01:
+#             postPoseOffset = hu.Pose(*((dist*0.5)*direction).tolist()+[0.0])
+#             postPose = postPoseOffset.compose(placeB.poseD.mode())
+#             newPB2 = placeB.modifyPoseD(postPose.pose(), var=4*(0.01**2,))
+#             newPB2.delta = delta=4*(0.001,)
+#             return [newPB2, newPB]
+#         else:
+#             return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, dist, maxd, count+1)
+#     else:
+#         return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, mind, dist, count+1)
+
+def minDistInRegionPB(pbs, prob, placeB, direction, regShape,
                       mind = 0.0, maxd = 1.0, count = 0):
     if count > 10:
-        debugMsg('pushGen', 'maxDistInRegionPB failed to converge')
-        return [placeB]
+        debugMsg('minDistInRegionPB', ('minDistInRegionPB failed to converge for direction', direction))
+        return []
     dist = 0.5*(mind+maxd)
     postPoseOffset = hu.Pose(*(dist*direction).tolist()+[0.0])
     postPose = postPoseOffset.compose(placeB.poseD.mode())
@@ -829,15 +834,12 @@ def maxDistInRegionPB(pbs, prob, placeB, direction, regShape,
     newPB.delta = delta=4*(0.001,)
     if inside(newPB.makeShadow(pbs, prob), regShape, strict=True):
         if maxd-mind < 0.01:
-            postPoseOffset = hu.Pose(*((dist*0.5)*direction).tolist()+[0.0])
-            postPose = postPoseOffset.compose(placeB.poseD.mode())
-            newPB2 = placeB.modifyPoseD(postPose.pose(), var=4*(0.01**2,))
-            newPB2.delta = delta=4*(0.001,)
-            return [newPB2, newPB]
+            return [newPB]
         else:
-            return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, dist, maxd, count+1)
+            return minDistInRegionPB(pbs, prob, placeB, direction, regShape, mind, dist, count+1)
     else:
-        return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, mind, dist, count+1)
+        return minDistInRegionPB(pbs, prob, placeB, direction, regShape, mind, dist, count+1) \
+               + minDistInRegionPB(pbs, prob, placeB, direction, regShape, dist, maxd, count+1)
 
 PushCache = {}
 def cachePushResponse(pr):
