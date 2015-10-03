@@ -731,7 +731,9 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
     tr(tag, args)
 
     # If there are no grasps, just fail
-    if not graspable(obj): return
+    if not graspable(obj):
+        tr(tag, 'XXX not graspable')
+        return
 
     # Get the regions
     regions = getRegions(region)
@@ -763,10 +765,13 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
                 tr(tag, str(ans), 'regions=%s'%regions,
                    draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
                    snap=['W'])
+                tr(tag, '-> pose already specified', ans)
                 yield ans
+            tr(tag, 'XXX pose already specified')
             return
         else:
             # If pose is specified and variance is small, return
+            tr(tag, 'XXX pose already specified, small variance')
             return
 
     # Check whether just "dropping" the object achieves the result
@@ -778,6 +783,7 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
                  (ans.pB.shape(shWorld), 'W', 'magenta'),
                  (ans.c, 'W', 'magenta', shWorld.attached)],
            snap=['W'])
+        tr(tag, '-> dropping obj', ans)
         yield ans
     else:
         tr(tag, 'Drop in is not applicable')
@@ -793,7 +799,10 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
     gen = placeInGenTop((obj, regShapes, graspB, placeB, None, prob),
                           goalConds, pbs, away = away, update=update)
     for ans in gen:
+        tr(tag, '-> ', ans)
         yield ans
+    tr(tag, 'XXX', ans)
+        
 
 placeVarIncreaseFactor = 3 # was 2
 lookVarIncreaseFactor = 2

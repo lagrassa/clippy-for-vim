@@ -762,6 +762,4 @@ def testIt():
         fizz.draw('W'); f.draw('W', 'red')
         raw_input('Ok')
 
-
-
 print 'Loaded testPr2.py'

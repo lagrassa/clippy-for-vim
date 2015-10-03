@@ -673,7 +673,8 @@ class Operator(object):
                  specialRegress = None,
                  metaGenerator = False,
                  rebindPenalty = glob.rebindPenalty,
-                 costAdjustment = 0):
+                 costAdjustment = 0,
+                 delayBinding = False):
         self.name = name # string
         self.args = args # list of vars or constants
         self.preconditions = preconditions
@@ -710,6 +711,7 @@ class Operator(object):
         self.rebindPenalty = rebindPenalty
         self.costAdjustment = costAdjustment
         self.subPlans = []
+        self.delayBinding = delayBinding
 
     def verifyArgs(self):
         varsUsed = set({})
@@ -917,7 +919,8 @@ class Operator(object):
                       self.specialRegress,
                       self.metaGenerator,
                       self.rebindPenalty,
-                      self.costAdjustment)
+                      self.costAdjustment,
+                      self.delayBinding)
 
         op.abstractionLevel = self.abstractionLevel
         op.instanceCost = self.instanceCost
@@ -965,6 +968,11 @@ class Operator(object):
     def regress(self, goal, startState = None, heuristic = None,
                 operators = (), ancestors = (), numResults = 1):
         tag = 'regression'
+
+        # Maybe we want to delay binding
+        if self.delayBinding:
+            return [self.makeRebindNode(goal, [], 0)]
+        
         # Stop right away if an immutable precond is false
         if any([(p.immutable and p.isGround() and\
                  not startState.fluentValue(p) == p.getValue()) \
@@ -1023,24 +1031,26 @@ class Operator(object):
 
         # Make another result, which is a place-holder for rebinding
         if len(newBindingsList) > 0:
-            rebindLater = goal.copy()
-            rebindLater.suspendedOperator = self.copy()
-            rebindLater.operator = rebindLater.suspendedOperator
-            rebindLater.bindingsAlreadyTried.extend(newBindingsList)
-            rebindLater.rebind = True
             if len(resultList) == 0:
+                # not clear what this cost should be
                 c = 0
-                # max([self.cost(self.abstractionLevel,
-                #              [lookup(arg, nb) for arg in self.args],
-                #              startState.details) for nb in newBindingsList])
             else: 
                 c =  max([cc for (gg, cc) in resultList])
-            rebindCost = self.rebindPenalty + c
-            rebindLater.suspendedOperator.instanceCost = rebindCost
-            resultList.append([rebindLater, rebindCost])
+            resultList.append(self.makeRebindNode(goal, newBindingsList, c))
 
         tr(tag, 'Final regression result', ('Op', self), resultList)
         return resultList
+
+    def makeRebindNode(self, goal, alreadyTried, cost):
+        rebindLater = goal.copy()
+        rebindLater.suspendedOperator = self.copy()
+        rebindLater.suspendedOperator.delayBinding = False
+        rebindLater.operator = rebindLater.suspendedOperator
+        rebindLater.bindingsAlreadyTried.extend(alreadyTried)
+        rebindLater.rebind = True
+        rebindCost = self.rebindPenalty + cost
+        rebindLater.suspendedOperator.instanceCost = rebindCost
+        return [rebindLater, rebindCost]
 
     def mopFromBindings(self, newBindings, results, newGoal, startState,
                         heuristic,
@@ -1127,6 +1137,7 @@ class Operator(object):
                         resultsFromSpecialRegression.append(gf)
                 else:
                     nf = gf.copy()
+                # Can this happen earlier?
                 if nf == None:
                     tr('regression:fail', 'special regress failure',
                        self.name, gf)
@@ -1513,9 +1524,11 @@ def HPNAux(s, g, ops, env, h = None, f = None, fileTag = None,
             sk = (oldSkel and oldSkel[0]) or (skeleton and \
                  len(skeleton)>subgoal.planNum and skeleton[subgoal.planNum])
             # Ignore last operation if we popped to get here.
+            # Trying an experiment where we don't ignore it.
             planStartTime = time.time()
             p = planBackward(s, subgoal, ops, ancestors, h, fileTag,
-                                 lastOp = op if oldSkel == None else None,
+                             #lastOp = op if oldSkel == None else None,
+                                 lastOp = op,
                                  skeleton = sk,
                                  nonMonOps = nonMonOps,
                                  maxNodes = maxNodes)
@@ -1920,7 +1933,6 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         debugMsg(tag, 'Doing rebind op')
         return [RebindOp()]
 
-    result = set([])
     if skeleton:
         #monotonic = False
         if g.depth < len(skeleton):
@@ -1934,30 +1946,59 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                 debugMsg('skeleton', 'Skeleton exhausted', g.depth)
                 glob.debugOn = glob.debugOn[:-1]
             return []
-    elif lastOp and g.depth == 0:
-        # At least ensure we try these bindings at the top node of the plan
-        ops = [lastOp] + [o for o in operators if o.name != lastOp.name]
-        lastOp.costAdjustment = -20 # encourage it to use this !
     else:
         ops = operators
 
-    result = set()
+    # default method of getting possibly useful operators
+    possiblyUsefulOps = set()
     for o in ops:
-        result.update(appOpInstances(o, g, startState, ancestors, monotonic,
+        possiblyUsefulOps.update(appOpInstances(o, g, startState,
+                                                ancestors, monotonic,
                                      nonMonOps))
 
+    # Now, figure out which pre-bound ops we have
+    # It looks like we're not getting bindings from above?
+    preBoundOps= set()
+    if lastOp and g.depth == 0:
+        # At least ensure we try these bindings at the top node of the plan
+        lastOp.costAdjustment = -20 # encourage it to use this !
+        preBoundOps = appOpInstances(lastOp, g, startState, ancestors,
+                                         monotonic, nonMonOps)
+
+
+    if not glob.inHeuristic:
+        print 'HA?', skeleton is None, hOps is not None, debug('helpfulActions')
+        if hOps is not None:
+            print hOps(g)
+
     if skeleton is None and hOps is not None and debug('helpfulActions'):
-        # take non-dummy hOps that are instances of applicable ops
-        oNames = [o.name for o in result]
-        helpfulActions = [o for o in hOps(g) if o.name in oNames]
+        helpfulActions = hOps(g)
         for o in helpfulActions:
             if not flatPlan: 
-                o.abstractionLevel = 0  # Will be set appropriately below
+                o.setAbstractionLevel(ancestors)
             o.costAdjustment = -8
-            result.update(appOpInstances(o, g, startState, ancestors,
-                                         monotonic, nonMonOps))
+            preBoundOps.add(o)
+                                         
+    possiblyUsefulNames = set([o.name for o in possiblyUsefulOps])
+    result = []
+    # Take preBound ops if their name is in possiblyUsefulNames
+    for o in preBoundOps:
+        if o.name in possiblyUsefulNames:
+            result.append(o)
+            # print 'added pre bound op', o
+            # raw_input('gogo')
 
-    resultNames = [o.name for o in result]
+    # These are the preBoundOps that we are actually going to recommend
+    preBoundNames = set([o.name for o in result])
+
+    # Add possibly useful ops.  If we have a prebound version, then
+    # delay binding.  Should we delay binding on *all* other ops if we
+    # have some possibly useful ones?
+    for o in possiblyUsefulOps:
+        if len(preBoundNames) > 0: #o.name in preBoundNames:
+            o.delayBinding = True
+        result.append(o)
+
     if len(result) == 0:
         debugMsg('appOp:number', ('h', glob.inHeuristic, 'number', len(result)))
     debugMsg(tag, ('h', glob.inHeuristic, 'number', len(result)),
@@ -2095,7 +2136,7 @@ def planBackwardAux(goal, startState, ops, ancestors, skeleton, monotonic,
                            verbose = False,
                            printFinal = False,
                            maxCost = maxCost,
-                           returnFirstGoal = True)
+                           returnFirstGoal = False)
     if p: return p, c
     if not skeleton: return None, None
     # If we failed and had a skeleton, try without it

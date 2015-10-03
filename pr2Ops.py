@@ -310,6 +310,19 @@ class GenNone(Function):
     def fun(args, goal, start):
         return None
 
+class GenList(Function):
+    def __init__(self, outVars, inVars, listVals = [], isNecessary = None):
+        super(GenList, self).__init__(outVars, inVars, isNecessary)
+        self.listVals = listVals
+
+    def fun(self, args, goal, start):
+        return self.listVals
+
+    def applyBindings(self, bindings):
+        res = super(GenList, self).applyBindings(bindings)
+        res.listVals = self.listVals
+        return res
+
 class Assign(Function):
     # noinspection PyUnusedLocal
     @staticmethod
@@ -764,13 +777,6 @@ def moveSpecialRegress(f, details, abstractionLevel):
         fNew.update()
         return fNew
         
-        # Do something like this if odo error compounds
-        # newVar = tuple([v - e for (v, e) in zip(f.args[2], totalOdoErr)])
-        # targetVar = f.args[2]
-        # if any([tv < ov for (tv, ov) in zip(targetVar, odoVar)]):
-        #     tr('specialRegress',
-        #        'Move special regress failing; target var less than odo', f)
-        #     return None
     elif f.predicate == 'BLoc':
         targetVar = f.args[1]
         if any([tv < ov for (tv, ov) in zip(targetVar, odoVar)]):
@@ -1394,7 +1400,7 @@ moveNB = Operator(
 # All this work to say you can know the location of something by knowing its
 # pose or its grasp
 bLoc1 = Operator(
-         'BLoc1', ['Obj', 'Var', 'P'],
+         'BLocPose', ['Obj', 'Var', 'P'],
          {0 : {B([Pose(['Obj', '*']), '*', 'Var', '*', 'P'], True),
                Bd([SupportFace(['Obj']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
@@ -1403,25 +1409,16 @@ bLoc1 = Operator(
          rebindPenalty = 100)
 
 bLoc2 = Operator(
-         'BLoc2', ['Obj', 'Var', 'P'],
+         'BLocGrasp', ['Obj', 'Var', 'Hand', 'P'],
          {0 : {Graspable(['Obj'], True),
-               B([Grasp(['Obj', 'left', '*']), '*', 'Var', '*', 'P'], True),
-               Bd([Holding(['left']), 'Obj', 'P'], True),
-               Bd([GraspFace(['Obj', 'left']), '*', 'P'], True)}},
+               B([Grasp(['Obj', 'Hand', '*']), '*', 'Var', '*', 'P'], True),
+               Bd([Holding(['Hand']), 'Obj', 'P'], True),
+               Bd([GraspFace(['Obj', 'Hand']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
-         ignorableArgs = (1, 2),
-         ignorableArgsForHeuristic = (1, 2),
-         rebindPenalty = 100)
-
-bLoc3 = Operator(
-         'BLoc3', ['Obj', 'Var', 'P'],
-         {0 : {Graspable(['Obj'], True),
-               B([Grasp(['Obj', 'right', '*']), '*', 'Var', '*', 'P'], True),
-               Bd([Holding(['right']), 'Obj', 'P'], True),
-               Bd([GraspFace(['Obj', 'right']), '*', 'P'], True)}},
-         [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
-         ignorableArgs = (1, 2),
-         ignorableArgsForHeuristic = (1, 2),
+         functions = [GenList(['Hand'], [],
+                              listVals = [['left'], ['right']])],
+         ignorableArgs = (1, 3),
+         ignorableArgsForHeuristic = (1, 3),
          rebindPenalty = 100)
 
 poseAchIn = Operator(
@@ -1651,7 +1648,7 @@ pick = Operator(
         argsToPrint = [0, 1, 5, 3, 9],
         ignorableArgs = range(1, 18),
         ignorableArgsForHeuristic = range(4, 18),
-        rebindPenalty = 30)
+        rebindPenalty = 40)
 
 # We know that the resulting variance will always be less than obsVar.
 # Would like the result to be the min of PoseVarAfter (which is in the

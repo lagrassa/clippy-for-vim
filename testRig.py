@@ -640,7 +640,7 @@ typicalErrProbs = DomainProbs(
 
 allOperators = [move, push, lookAt, moveNB,
                 achCanReach, achCanReachNB, achCanPickPlace, achCanPush,
-                poseAchIn, bLoc1, bLoc2, bLoc3]
+                poseAchIn, bLoc1, bLoc2]
 
 if not debug('disablePickPlace'):
     allOperators.extend([pick, place])
