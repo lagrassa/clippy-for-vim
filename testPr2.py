@@ -266,7 +266,7 @@ def test4(gt=0, **args):
 #       Start with something in the hand
 ######################################################################
 
-def testWithBInHand(name, goal, args):
+def testWithBInHand(name, goal, gf = 0, args = {}):
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     back = hu.Pose(1.4, 0.0, tZ, 0.0)
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -275,7 +275,7 @@ def testWithBInHand(name, goal, args):
                    'objB' : (front, medVar)},
                   ['table1Left'], easy=args.get('easy', False))
     grasped = 'objB'; hand = 'left'
-    args['initBelief'] = lambda bs: makeInitBel(bs, grasped, hand, gf=0)
+    args['initBelief'] = lambda bs: makeInitBel(bs, grasped, hand, gf=gf)
     args['initWorld'] = lambda bs,rw: makeAttachedWorldFromPBS(bs.pbs, rw, grasped, hand)
     skel = None
     return doTest(name, exp, goal, skel, args)
@@ -290,7 +290,8 @@ def test5(**args):
 ######################################################################
 
 def test6(**args):
-    goal = holding('objA', 'left', 2)
+    # Can't have higher target prob unless we can look at hand
+    goal = holding('objA', 'left', 2, goalProb=0.7)
     testWithBInHand('test6', goal, args)
     
 ######################################################################
@@ -309,8 +310,10 @@ def test7(**args):
 ######################################################################
 
 def test8(**args):
+    #initG = 0
+    initG = 3
     goal = holding('objB', 'left', 1, goalProb=0.7)
-    testWithBInHand('test8', goal, args)
+    testWithBInHand('test8', goal, initG, args)
 
 ######################################################################
 #       Another test.  Picking something up from the back.

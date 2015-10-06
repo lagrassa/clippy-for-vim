@@ -2039,24 +2039,20 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
     if len(preBoundNames) > 0 and debug('preBoundOps'):
         raw_input('look at dem ops')
 
-    if not glob.inHeuristic and len(result) > 0:
-        print '*******  returning from app op ******'
-        for oo in result:
-            if oo.name == 'Place':
-                print '*************', oo.name
-                print '    args', oo.args
-                print '   results of this operator'
-                for xx in oo.results:
-                    print 'Delayed:', oo.delayBinding
-                    for yy in xx[0]: print '     ', yy
-                print '*************'
-        for o1 in result:
-            for o2 in result:
-                if opRenamed(o1, o2) and o1 != o2:
-                    print 'renaming'
-                    print '     ', o1
-                    print '     ', o2
-        raw_input('gogogo')
+    # if not glob.inHeuristic and len(result) > 0:
+    #     print '*******  returning from app op ******'
+    #     pp = False
+    #     for oo in result:
+    #         if oo.name == 'Place' and oo.delayBinding == False:
+    #             print '*************', oo.name
+    #             print '    args', oo.args
+    #             print '   results of this operator'
+    #             for xx in oo.results:
+    #                 for yy in xx[0]: print '     ', yy
+    #             print '*************'
+    #             pp = True
+    #     if pp:
+    #         raw_input('gogogo')
 
     if len(result) == 0:
         debugMsg('appOp:number', ('h', glob.inHeuristic, 'number', len(result)))
@@ -2067,14 +2063,15 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
 def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):
     debugMsg('appOp:detail', 'Operator', o)
     sharedPreconds = o.preconditions
+    # All the combinations of results.
     resultSets = powerset(o.results, includeEmpty = False)
     result = set()
+    usedOneResultSet = 0
     for resultSet in resultSets:
         debugMsg('appOp:result', 'result set', resultSet)
         preConds = mergeDicts([sharedPreconds] + [ps for (r, ps) in resultSet])
-       # List of sets of result fluents
-        resultSetList = [r for (r, ps) in resultSet]
-        results = squashSets(resultSetList)
+       # Set of result fluents
+        results = squashSets([r for (r, ps) in resultSet])
         # Operator just involving the results we need
         newOp = o.reconfigure(preConds, results)
         bigBindingSet = getBindingsBetween(list(results), list(g.fluents),
@@ -2104,21 +2101,41 @@ def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):
                                    for f in o.allResultFluents()])
             # Require these to be ground?  Or, definitely, not all
             # variables
-            extraRfs = allBoundRfs.difference(boundRFs)
+            extraRFs = allBoundRfs.difference(boundRFs)
             # Asking this question backward.  We want to know whether there
             # are bindings that would make rf entail gf.
-            dup = any([(rf.isPartiallyBound() and \
-                        gf.entails(rf, startState) != False) \
-                           for rf in extraRfs for gf in g.fluents])
+            dup = any([(gf.entails(rf, startState) != False) \
+                           for rf in extraRFs for gf in g.fluents])
+            # dup = any([(rf.isPartiallyBound() and \
+            #             gf.entails(rf, startState) != False) \
+            #                for rf in extraRFs for gf in g.fluents])
 
             if allUseful and not dup and \
                 (mono or not monotonic or o.name in nonMonOps):
+
                 debugMsg('appOp:detail', 'adding binding', b, boundRFs)
+                if debug('appOp:detail'):
+                    print 'boundRFs'
+                    for thing in boundRFs: print '    ', thing
+                    print 'all Useful', allUseful
+                    print 'results not used'
+                    for thing in extraRFs: print '    ', thing
+                    print 'goal fluents'
+                    for thing in g.fluents: print '    ', thing
+                    print 'Entailments between goal and extra rfs'
+                    for gf in g.fluents:
+                        for rf in extraRFs:
+                            print 'f1', gf
+                            print 'f2', rf
+                            print 'f1 entails f2', gf.entails(rf, startState)
+                            print 'f2 entails f1', rf.entails(gf, startState)
+                    raw_input('Really okay?')
+                
                 bindingSet.append(b)
             elif not allUseful:
                 debugMsg('appOp:detail', 'all results not useful', b, boundRFs)
             elif dup:
-                debugMsg('appOp:detail', 'some extra result in goal',b,extraRfs)
+                debugMsg('appOp:detail', 'some extra result in goal',b,extraRFs)
             elif monotonic:
                 debugMsg('appOp:detail', 'nonmon: skipping binding', b,boundRFs)
             else:
@@ -2138,6 +2155,11 @@ def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):
                     debugMsg('appOp:detail', 'added bound op', newOpBound)
                 else:
                     debugMsg('appOp:detail', 'redundant op', newOpBound)
+
+        if len(result) > 0:
+            if usedOneResultSet > 0 and len(result) > usedOneResultSet:
+                raw_input('Seem to have used two different result sets')
+            usedOneResultSet = len(result)
 
     return result
 
