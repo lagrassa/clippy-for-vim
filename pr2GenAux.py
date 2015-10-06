@@ -15,7 +15,7 @@ from dist import UniformDist, DDist
 from geom import bboxCenter
 from pr2Robot import CartConf, gripperFaceFrame, pr2BaseLink
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
-from pr2Util import shadowName, objectName, Memoizer, inside, otherHand, bboxMixedCoords, shadowWidths
+from pr2Util import shadowName, objectName, Memoizer, inside, otherHand, bboxMixedCoords, shadowWidths, supportFaceIndex
 import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B

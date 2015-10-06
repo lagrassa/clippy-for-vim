@@ -1186,6 +1186,12 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
                                      DeltaDist(oldPlaceB.support.mode()),
                                      PoseD(hu.Pose(*newMu), newSigma)))
 
+    if newP < 0.3:
+        print 'Object has gotten lost and has very low probability in'
+        print 'the current mode!!!!'
+        print objName
+        raw_input('Woe.')
+
     
 missedObsLikelihoodPenalty = llMatchThreshold
 
@@ -1590,6 +1596,9 @@ push = Operator('Push', pushArgs,
 
 # Debate about level 2 vs level 1 preconds.
 
+# We want the holding none precond at the same level as pose, if the
+# object is currently in the hand.
+
 pick = Operator(
         'Pick',
         ['Obj', 'Hand', 'PoseFace', 'Pose', 'PoseDelta',
@@ -1601,13 +1610,14 @@ pick = Operator(
               BLoc(['Obj', planVar, 'P1'], True)},    # was planP
          2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
               B([Pose(['Obj', 'PoseFace']), 'Pose', planVar, 'PoseDelta',
-                 'P1'], True)},
+                 'P1'], True),
+              Bd([Holding(['Hand']), 'none', 'P1'], True)},
          1 : {Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
                                'PoseVar', 'PoseDelta', 'PoseFace',
                                'GraspFace', 'GraspMu', 'RealGraspVar',
                                'GraspDelta', 'pick', []]), True, canPPProb],
-                               True),
-              Bd([Holding(['Hand']), 'none', canPPProb], True)},
+                               True)},
+#              Bd([Holding(['Hand']), 'none', canPPProb], True)},
          3 : {Conf(['PreConf', 'ConfDelta'], True),
               B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta',
                  'P1'], True)              

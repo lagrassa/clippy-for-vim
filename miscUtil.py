@@ -370,6 +370,18 @@ def matchTerms(t1, t2, bindings = 'empty', starIsWild = True):
         
     return bindings
 
+# Find variable renaming only
+# Returns True or False
+def matchListsVV(s1, s2):
+    if len(s1) != len(s2):
+        return False
+    return all([matchTermsVV(a1, a2) for (a1, a2) in zip(s1, s2)])
+
+# Find variable renaming only
+# Returns True or False
+def matchTermsVV(t1, t2):
+    return t1 == t2 or (isVar(t1) and isVar(t2))
+
 def extendBindings(b, k, v):
     newB = copy.copy(b)
     newB[k] = v

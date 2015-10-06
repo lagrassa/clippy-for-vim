@@ -14,7 +14,7 @@ from traceFile import tr, trAlways, traceHeader
 import miscUtil
 reload(miscUtil)
 from miscUtil import applyBindings, timeString, prettyString,\
-     isVar, squash, Stack, tuplify, matchLists, makeVar,\
+     isVar, squash, Stack, tuplify, matchLists, matchListsVV, makeVar,\
      matchTerms, isGround, isStruct, customCopy, lookup, squashSets, powerset, \
      mergeDicts, squashOne
 
@@ -674,7 +674,8 @@ class Operator(object):
                  metaGenerator = False,
                  rebindPenalty = glob.rebindPenalty,
                  costAdjustment = 0,
-                 delayBinding = False):
+                 delayBinding = False,
+                 parent = None):
         self.name = name # string
         self.args = args # list of vars or constants
         self.preconditions = preconditions
@@ -712,6 +713,7 @@ class Operator(object):
         self.costAdjustment = costAdjustment
         self.subPlans = []
         self.delayBinding = delayBinding
+        self.parent = parent
 
     def verifyArgs(self):
         varsUsed = set({})
@@ -856,10 +858,12 @@ class Operator(object):
             self.abstractionLevel = level
 
     def uniqueStr(self):
-        return self.name + str(self.num)
+        dStr = 'Delayed:' if self.delayBinding else ''
+        return dStr + self.name + str(self.num)
         #return self.name + prettyString(self.allArgs(), eq =True)+str(self.num)
     def __str__(self):
-        return self.name + prettyString(self.allArgs(), eq = True)
+        dStr = 'Delayed:' if self.delayBinding else ''
+        return dStr + self.name + prettyString(self.allArgs(), eq = True)
     __repr__ = __str__
 
     def __eq__(self, other):
@@ -920,11 +924,19 @@ class Operator(object):
                       self.metaGenerator,
                       self.rebindPenalty,
                       self.costAdjustment,
-                      self.delayBinding)
+                      self.delayBinding,
+                      self.parent if self.parent else self)
 
         op.abstractionLevel = self.abstractionLevel
         op.instanceCost = self.instanceCost
         return op
+
+    def parentWithNewBindings(self):
+        pa = self.parent if self.parent else self
+        assert all([isVar(a) for a in pa.args])
+        b = dict([(p, a) for (p, a) in zip(pa.args, self.args) \
+                  if not isVar(a)])
+        return pa.applyBindings(b)
 
     def applyBindingsSideEffect(self, rb):
         self.args = [lookup(a, rb) for a in self.args]
@@ -971,6 +983,7 @@ class Operator(object):
 
         # Maybe we want to delay binding
         if self.delayBinding:
+            tr('regression', 'delaying binding', self)
             return [self.makeRebindNode(goal, [], 0)]
         
         # Stop right away if an immutable precond is false
@@ -1245,9 +1258,9 @@ class Operator(object):
             tr('regression:fail', 'infinite cost for bindings', newBindings)
             return None
         newGoal.operator.instanceCost = cost
-        tr('regression', self.name,
-           '\n', 'result for bindings', newBindings,
-           '\n', cost, newGoal)
+        # tr('regression', self.name,
+        #    '\n', 'result for bindings', newBindings,
+        #    '\n', cost, newGoal)
         return (newGoal, cost)
 
     def regressionConsistent(self, results, ndSideEffects, goal, startState):
@@ -1955,38 +1968,46 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         possiblyUsefulOps.update(appOpInstances(o, g, startState,
                                                 ancestors, monotonic,
                                      nonMonOps))
+    possiblyUsefulNames = set([o.name for o in possiblyUsefulOps])
+        
 
     # Now, figure out which pre-bound ops we have
     # It looks like we're not getting bindings from above?
-    preBoundOps= set()
+    preBoundOps = []
     if lastOp and g.depth == 0:
-        # At least ensure we try these bindings at the top node of the plan
-        lastOp.costAdjustment = -20 # encourage it to use this !
-        preBoundOps = appOpInstances(lastOp, g, startState, ancestors,
-                                         monotonic, nonMonOps)
+        preBoundOps.append(lastOp)
 
-
-    if not glob.inHeuristic:
-        print 'HA?', skeleton is None, hOps is not None, debug('helpfulActions')
-        if hOps is not None:
-            print hOps(g)
-
-    if skeleton is None and hOps is not None and debug('helpfulActions'):
-        helpfulActions = hOps(g)
-        for o in helpfulActions:
-            if not flatPlan: 
-                o.setAbstractionLevel(ancestors)
-            o.costAdjustment = -8
-            preBoundOps.add(o)
+    if skeleton is None and hOps:
+        hopsg = hOps(g)
+        if hopsg: 
+            for o in hopsg:
+                if o.name in possiblyUsefulNames:
+                    preBoundOps.append(o)
                                          
-    possiblyUsefulNames = set([o.name for o in possiblyUsefulOps])
     result = []
-    # Take preBound ops if their name is in possiblyUsefulNames
+    # For each pre-bound operator, make a fresh new instance with
+    # those same bindings and add them to the result.
     for o in preBoundOps:
-        if o.name in possiblyUsefulNames:
-            result.append(o)
-            # print 'added pre bound op', o
-            # raw_input('gogo')
+        newO = o.parentWithNewBindings()
+        newIs = appOpInstances(newO, g, startState, ancestors,
+                                         monotonic, nonMonOps)
+        for oo in newIs:
+            if not redundant(oo, result):
+                result.append(oo)
+        if debug('preBoundOps'):
+            print 'prebound op', o
+            print '   has', len(newIs), 'applicable instances'
+            if len(newIs) == 0:
+                raw_input('look at this?')
+
+    if debug('preBoundOps'):
+        print 'Pre bound ops'
+        for o in result:
+            print '    ', o.name
+            for r in o.results:
+                for rr in r[0]:
+                    print '        ', rr
+        raw_input('okay?')
 
     # These are the preBoundOps that we are actually going to recommend
     preBoundNames = set([o.name for o in result])
@@ -1994,10 +2015,48 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
     # Add possibly useful ops.  If we have a prebound version, then
     # delay binding.  Should we delay binding on *all* other ops if we
     # have some possibly useful ones?
+
+    if debug('preBoundOps'): print 'Delayed ops worth trying'
+
     for o in possiblyUsefulOps:
-        if len(preBoundNames) > 0: #o.name in preBoundNames:
+        # Todo: LPK; horrible domain-dependent hack.
+        # If Move is helpful, alway also consider moveNB
+        # If LookAt is helpful, always consider the unbound version
+        if len(preBoundNames) > 0 and \
+            not (o.name == 'MoveNB' and ('Move' in preBoundNames)) and \
+            not (o.name == 'LookAt' and ('LookAt' in preBoundNames)):
             o.delayBinding = True
-        result.append(o)
+            if debug('preBoundOps'):
+                print '    ', o
+        if not renaming(o, result):
+            result.append(o)
+        else:
+            if debug('preBoundOps'):
+                print 'not appending renamed result'
+                print o
+                raw_input('really okay?')
+
+    if len(preBoundNames) > 0 and debug('preBoundOps'):
+        raw_input('look at dem ops')
+
+    if not glob.inHeuristic and len(result) > 0:
+        print '*******  returning from app op ******'
+        for oo in result:
+            if oo.name == 'Place':
+                print '*************', oo.name
+                print '    args', oo.args
+                print '   results of this operator'
+                for xx in oo.results:
+                    print 'Delayed:', oo.delayBinding
+                    for yy in xx[0]: print '     ', yy
+                print '*************'
+        for o1 in result:
+            for o2 in result:
+                if opRenamed(o1, o2) and o1 != o2:
+                    print 'renaming'
+                    print '     ', o1
+                    print '     ', o2
+        raw_input('gogogo')
 
     if len(result) == 0:
         debugMsg('appOp:number', ('h', glob.inHeuristic, 'number', len(result)))
@@ -2079,19 +2138,29 @@ def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):
                     debugMsg('appOp:detail', 'added bound op', newOpBound)
                 else:
                     debugMsg('appOp:detail', 'redundant op', newOpBound)
+
     return result
 
+# o1 can be unified with some operator in opList.
+# todo: LPk: check that this is what we really want
 def redundant(o1, opList):
-    for o2 in opList:
-        if opEquiv(o1, o2):
-            return True
-    return False
+    return any([opEquiv(o1, o2) for o2 in opList])
+
+# o1 is just a variable renaming of an operator on the list
+def renaming(o1, opList):
+    return any([opRenamed(o1, o2) for o2 in opList])
+
+def opRenamed(o1, o2):
+    return o1.name == o2.name and \
+      matchListsVV(o1.args, o2.args) and \
+            len(o1.results[0][0]) == len(o2.results[0][0])
 
 # Check to see if two operators are renamings of one another
 def opEquiv(o1, o2):
     m1 = matchLists(o1.args, o2.args)
     m2 = matchLists(o2.args, o1.args)
     return m1 != None and m2 != None and \
+      len(o1.results[0][0]) == len(o2.results[0][0]) and \
         o1.name == o2.name and \
         len(m1.keys()) == len(set(tuplify(m1.values()))) and \
         len(m2.keys()) == len(set(tuplify(m2.values())))

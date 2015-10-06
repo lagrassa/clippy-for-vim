@@ -72,7 +72,7 @@ reload(pr2Ops)
 # lookAtHand
 from pr2Ops import move, push, pick, place, lookAt, achCanReach, achCanReachNB,\
    achCanPickPlace, achCanPush, \
-   hRegrasp, poseAchIn, moveNB, bLoc1, bLoc2, bLoc3
+   hRegrasp, poseAchIn, moveNB, bLoc1, bLoc2
 
 import pr2Sim
 reload(pr2Sim)
@@ -480,7 +480,8 @@ class PlanTest:
                     h = heuristic,
                     verbose = False,
                     fileTag = self.name if not debug('noWriteSearch') else None,
-                    nonMonOps = ['Move', 'MoveNB', 'LookAt', 'Place'],
+                    #nonMonOps = ['Move', 'MoveNB', 'LookAt', 'Place'],
+                    nonMonOps = ['Move', 'MoveNB', 'LookAt'],
                     maxNodes = glob.maxNodesHPN,
                     clearCaches = clearCaches,
                     alwaysReplan = alwaysReplan)
@@ -586,7 +587,7 @@ typicalErrProbs = DomainProbs(
             # fail to pick or place in the way characterized by the Gaussian
             pickFailProb = 0.02,
             placeFailProb = 0.02,
-            pushFailProb = 0.02,
+            pushFailProb = 0.1,
             # variance in grasp after picking
             pickVar = (0.001**2, 0.001**2, 1e-11, 0.002**2),
             # variance in pose after placing
