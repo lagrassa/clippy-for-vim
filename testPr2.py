@@ -473,7 +473,7 @@ def testShelvesGrasp(**args):
     skel = None
     return doTest('testShelvesGrasp', exp, goal1, skel, args)
 
-def testShelvesGraspSide(ng=0, **args):
+def testShelvesGraspSide(ng=0, objD=True, **args):
     front = hu.Pose(1.05, 0.48, tZ, -math.pi/2)  # was y = .475
     mid = hu.Pose(1.1, 0.35, tZ, 0.0)
     sh1 = hu.Pose(1.2, -0.3, 1.170, 0.0)
@@ -487,7 +487,7 @@ def testShelvesGraspSide(ng=0, **args):
                    'objD' : (front, medVar), # or objD
                    # 'objB' : (sh1, medVar),
                    # 'objC' : (sh2, medVar),
-                   },
+                   } if objD else {'objA' : (mid, medVar)},
                   [region, 'table1FRR'], easy=easy)
 
     goals =[ inRegion('objA', region),
