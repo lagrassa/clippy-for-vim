@@ -2063,7 +2063,6 @@ def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):
     # All the combinations of results.
     resultSets = powerset(o.results, includeEmpty = False)
     result = set()
-    usedOneResultSet = 0
     for resultSet in resultSets:
         debugMsg('appOp:result', 'result set', resultSet)
         preConds = mergeDicts([sharedPreconds] + [ps for (r, ps) in resultSet])
@@ -2101,11 +2100,13 @@ def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):
             extraRFs = allBoundRfs.difference(boundRFs)
             # Asking this question backward.  We want to know whether there
             # are bindings that would make rf entail gf.
-            dup = any([(gf.entails(rf, startState) != False) \
-                           for rf in extraRFs for gf in g.fluents])
-            # dup = any([(rf.isPartiallyBound() and \
-            #             gf.entails(rf, startState) != False) \
-            #                for rf in extraRFs for gf in g.fluents])
+
+            # It is okay if all of the duplicated fluents are also
+            # true in the starting state.   This is a kind of monotonicity. 
+            falseFluents = [gf for gf in g.fluents if \
+                       not gf.isGround() or startState.fluentValue(gf) == False]
+            dup = any([(gf.entails(rf, startState) != False) 
+                           for rf in extraRFs for gf in falseFluents])
 
             if allUseful and not dup and \
                 (mono or not monotonic or o.name in nonMonOps):
@@ -2152,11 +2153,6 @@ def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):
                     debugMsg('appOp:detail', 'added bound op', newOpBound)
                 else:
                     debugMsg('appOp:detail', 'redundant op', newOpBound)
-
-        if len(result) > 0:
-            if usedOneResultSet > 0 and len(result) > usedOneResultSet:
-                raw_input('Seem to have used two different result sets')
-            usedOneResultSet = len(result)
 
     return result
 

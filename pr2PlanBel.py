@@ -202,7 +202,7 @@ class PBS:
                     draw = [(self, shProb, 'W')], snap = ['W'])
             # Divide variance in half.  Very crude.  Should find the
             # max variance that does not result in a shadow colliion.
-            if count > 50:
+            if count > 100:
                 assert None, 'Could not reduce shadow after 50 attempts'
             for sh in shadows:
                 obj = objectName(sh)

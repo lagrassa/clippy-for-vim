@@ -62,7 +62,7 @@ def makeExp(fix, move, reg, easy=False):
     return exp
 
 # Goals
-def holding(obj, hand='left', graspType=2, goalProb=0.95,
+def holding(obj, hand='left', graspType=2, goalProb=0.7,
             targetVar=targetSmallVar, targetDelta=(0.01, 0.01, 0.01, 0.05)):
     return State([Bd([Holding([hand]), obj, goalProb], True),
                   Bd([GraspFace([obj, hand]), graspType, goalProb], True),
