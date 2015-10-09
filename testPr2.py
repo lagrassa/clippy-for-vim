@@ -310,8 +310,8 @@ def test7(**args):
 ######################################################################
 
 def test8(**args):
-    # initG = 0
-    initG = 3
+    initG = 0
+    #initG = 3
     goal = holding('objB', 'left', 1, goalProb=0.7)
     testWithBInHand('test8', goal, initG, args)
 
@@ -346,8 +346,8 @@ def test10(**args):
     goal1 = holding('objA', 'left', 2)
     skel = None
     def moveObjects(bs, rw):
-        changePose(bs, rw, 'objA', hu.Pose(1.5, -0.075, tZ, math.pi))
-        changePose(bs, rw, 'objB', hu.Pose(1.45, 0.075, tZ, math.pi))
+        changePose(bs, rw, 'objA', back1)
+        changePose(bs, rw, 'objB', back2)
     args['initWorld'] = moveObjects
     return doTest('test10', exp, goal1, skel, args)
 
@@ -359,7 +359,7 @@ def test11(**args):
                   {'objA' : (front1, medVar),
                    'objB' : (front2, medVar)},
                   ['table1Left'], easy=args.get('easy', False))
-    goal1 = holding('objA', 'left', 2)
+    goal1 = holding('objA', 'left', 2, goalProb = 0.7)
 
     skel = [[
         pick, moveNB,
@@ -368,10 +368,6 @@ def test11(**args):
         move, pick, moveNB,
         lookAt.applyBindings({'Obj' : 'objB'}),
         move]]
-    # def moveObjects(bs, rw):
-    #     changePose(bs, rw, 'objA', hu.Pose(1.1, 0.0, tZ, 0.))
-    #     changePose(bs, rw, 'objB', hu.Pose(1.1, 0.1, tZ, -math.pi/2))
-    # args['initWorld'] = moveObjects
     return doTest('test11', exp, goal1, skel, args)
 
 def changePose(bs, rw, obj, pose):

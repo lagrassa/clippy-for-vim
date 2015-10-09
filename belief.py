@@ -614,7 +614,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             if primitiveHeuristicAlways:
                 o.abstractionLevel = o.concreteAbstractionLevel
             # TODO : LPK : domain-dependent hack
-            n = glob.numOpInstances if o.name in ['Push'] else 1
+            n = glob.numOpInstances if o.name in ['Push', 'Place'] else 1
             pres = o.regress(g, start, numResults = n)
             if len(pres) > 0:
                 pres = pres[:-1] # Last one is rebind

@@ -152,11 +152,11 @@ class PBS:
             raise Exception, 'Failed to move object to support'
 
     def internalCollisionCheck(self, dither=True, objChecks=True, factor=2.0):
-        ws = self.getShadowWorld(0.0)   # minimal shadow
+        shProb = 0.1
+        ws = self.getShadowWorld(shProb)   # minimal shadow
         rm = self.beliefContext.roadMap
         # First check the robot for hard collisions.  Increase this to
         # give some boundary
-        shProb = 0.1
         confViols = rm.confViolations(self.conf, self, shProb)
         if dither and \
                confViols is None or confViols.obstacles or \
