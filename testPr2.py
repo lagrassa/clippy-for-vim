@@ -218,7 +218,7 @@ def test3(**args):
     right2 = hu.Pose(1.5, -0.5, tZ, 0.0)
     left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
     left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
-    coolShelvesPose = hu.Pose(1.45, 0.03, tZ, math.pi/2)
+    coolShelvesPose = hu.Pose(1.4, 0.03, tZ, math.pi/2)
     region = 'coolShelves_space_2'
     easy=args.get('easy', False)
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -310,7 +310,7 @@ def test7(**args):
 ######################################################################
 
 def test8(**args):
-    #initG = 0
+    # initG = 0
     initG = 3
     goal = holding('objB', 'left', 1, goalProb=0.7)
     testWithBInHand('test8', goal, initG, args)

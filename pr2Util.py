@@ -25,195 +25,6 @@ class Hashable:
         return self.__class__.__name__+str(self.desc())
     __repr__ = __str__
 
-# MOVED TO planUtil.pyx
-
-# # Ultimately, we will also need a discrete value to indicate which
-# # stable face the object is resting on.
-# class PoseD(Hashable):
-#     def __init__(self, mu, var):
-#         if isinstance(mu, tuple):
-#             mu = hu.Pose(*mu)
-#         # assert isinstance(mu, hu.Pose)
-#         self.mu = mu
-#         self.muTuple = self.mu.xyztTuple() if mu else None
-#         assert isinstance(var, tuple)
-#         self.var = var
-#         Hashable.__init__(self)
-        
-#     def mean(self):
-#         return self.mu
-#     mode = mean
-
-#     def meanTuple(self):
-#         return self.mu.xyztTuple()
-#     modeTuple = meanTuple
-
-#     def variance(self):
-#         return self.var
-#     varTuple = variance
-
-#     def desc(self):
-#         return (self.muTuple, self.var)
-
-# # This represent poses for the finger tip in the contact face.
-# class ObjGraspB(Hashable):
-#     def __init__(self, obj, graspDesc, grasp, poseD, var = None, delta = None):
-#         self.obj = obj
-#         self.graspDesc = graspDesc
-#         # grasp is an index into the graspDesc
-#         if isinstance(grasp, dist.DDist):
-#             self.grasp = grasp                # this is a DDist for index
-#         elif grasp == None:
-#             self.grasp = dist.UniformDist(range(len(self.graspDesc)))
-#         else:
-#             self.grasp = dist.DeltaDist(grasp)
-#         # This is PoseD for the mode of the grasp
-#         if isinstance(poseD, (hu.Pose, hu.Transform)):
-#             self.poseD = PoseD(poseD.pose(), var or 4*(0.0,))
-#         elif poseD == None or hasattr(poseD, 'muTuple'):
-#             self.poseD = poseD
-#         else:
-#             print 'Unknown poseD type'
-#             assert None
-#         self.delta = delta or 4*(0.0,)
-#         Hashable.__init__(self)
-#     def modifyPoseD(self, mu=None, var=None):
-#         gB = copy.copy(self)
-#         gB.poseD = PoseD(mu or self.poseD.mu,
-#                          var or self.poseD.var)
-#         return gB
-#     def desc(self):
-#         if not self.descValue:
-#             self.descValue = (self.obj, self.grasp, self.poseD, self.delta) # .mode() for grasp?
-#         return self.descValue
-#     def __eq__(self, other):
-#         if other is None and self.obj == 'none': return True
-#         return hasattr(other, 'desc') and self.desc() == other.desc()
-#     def __neq__(self, other):
-#         return not self == other
-    
-# # This represents poses for the face frame of the support face
-# class ObjPlaceB(Hashable):
-#     def __init__(self, obj, faceFrames, support, poseD, var = None, delta = None):
-#         self.obj = obj
-#         self.faceFrames = faceFrames
-#         # support is an index into the faceFrames
-#         if isinstance(support, dist.DDist):
-#             self.support = support            # this is a DDist for index
-#         else:
-#             self.support = dist.DeltaDist(support)
-#         # This is PoseD for the mode of the support
-#         if isinstance(poseD, (hu.Pose, hu.Transform)):
-#             self.poseD = PoseD(poseD.pose(), var or 4*(0.0,))
-#         elif poseD == None or hasattr(poseD, 'muTuple'):
-#             self.poseD = poseD
-#         else:
-#             print 'Unknown poseD type'
-#             assert None
-#         self.delta = delta or 4*(0.0,)
-#         Hashable.__init__(self)
-#     # get the origin pose for the object corresponding to mode of poseD.
-#     def objFrame(self):
-#         faceFrame = self.faceFrames[self.support.mode()]
-#         return self.poseD.mode().compose(faceFrame.inverse())
-#     def modifyPoseD(self, mu=None, var=None):
-#         pB = copy.copy(self)
-#         pB.poseD = PoseD(mu or self.poseD.mu,
-#                          var or self.poseD.var)
-#         return pB
-#     def desc(self):
-#         if not self.descValue:
-#             self.descValue = (self.obj, self.support, self.poseD, self.delta) # .mode() for support
-#         return self.descValue
-#     def shape(self, ws):                # in WorldState, e.g. shadow world
-#         return ws.world.getObjectShapeAtOrigin(self.obj).applyLoc(self.objFrame())
-#     def shadow(self, ws):
-#         if shadowName(self.obj) in ws.objectShapes:
-#             return ws.objectShapes[shadowName(self.obj)].applyLoc(self.objFrame())
-
-# # represent the "removable" collisions wth obstacles and shadows.
-# # This has to be hashable so use tuples and frozensets
-# class Violations(Hashable):
-#     def __init__(self, obstacles=[], shadows=[],
-#                  heldObstacles=None, heldShadows=None):
-#         obst = obstacles[:]
-#         sh = shadows[:]
-#         if not heldObstacles: heldObstacles = ([], [])
-#         if not heldShadows: heldShadows = ([], [])
-#         self.obstacles = frozenset(obst)
-#         # Collisions with only shadows, remove collisions with objects as well
-#         self.shadows = frozenset([o for o in sh if not o in self.obstacles])
-#         ao = self.obstacles.union(self.shadows)
-#         ho = ([],[])
-#         if heldObstacles:
-#             for h in (0,1):
-#                 for o in heldObstacles[h]:
-#                     if o not in ao: ho[h].append(o)
-#         hs = ([],[])
-#         if heldShadows:
-#             for h in (0,1):
-#                 for o in heldShadows[h]:
-#                     if o not in ao: hs[h].append(o)
-#         self.heldObstacles = tuple([frozenset(ho[h]) for h in (0,1)])
-#         # Collisions only with heldShadow, remove collisions with heldObject as well
-#         self.heldShadows = tuple([frozenset([o for o in hs[h] \
-#                                              if not o in self.heldObstacles[h]]) \
-#                                   for h in (0,1)])
-#         Hashable.__init__(self)
-#     def allObstacles(self):
-#         obst = list(self.obstacles)
-#         for h in (0,1):
-#             for o in self.heldObstacles[h].union(self.heldShadows[h]):
-#                 if not shadowp(o): obst.append(o)
-#         return obst
-#     def allShadows(self):
-#         shad = list(self.shadows)
-#         for h in (0,1):
-#             for o in self.heldObstacles[h].union(self.heldShadows[h]):
-#                 if shadowp(o): shad.append(o)
-#         return shad
-#     def empty(self):
-#         return (not self.obstacles) and (not self.shadows) \
-#                and (not any(x for x in self.heldObstacles)) \
-#                and (not any(x for x in self.heldShadows))
-#     def combine(self, obstacles, shadows, heldObstacles=None, heldShadows=None):
-#         return self.update(Violations(obstacles, shadows, heldObstacles, heldShadows))
-#     def update(self, viol):
-#             return Violations(upd(self.obstacles, viol.obstacles),
-#                               upd(self.shadows, viol.shadows),
-#                               (upd(self.heldObstacles[0], viol.heldObstacles[0]),
-#                                upd(self.heldObstacles[1], viol.heldObstacles[1])),
-#                               (upd(self.heldShadows[0], viol.heldShadows[0]),
-#                                upd(self.heldShadows[1], viol.heldShadows[1])))
-#     def weight(self, weights=(1.0, 0.5, 1.0, 0.5)):
-#         return weights[0]*len(self.obstacles) + \
-#                weights[1]*len(self.shadows) + \
-#                weights[2]*sum([1 if ho else 0 for ho in self.heldObstacles]) +\
-#                weights[3]*sum([1 if hs else 0 for hs in self.heldShadows])
-#     def LEQ(self, other):
-#         return self.weight() <= other.weight()
-#     def desc(self):
-#         return (self.obstacles, self.shadows, self.heldObstacles, self.heldShadows)
-#     def names(self):
-#         return (frozenset([x.name() for x in self.obstacles]),
-#                 frozenset([x.name() for x in self.shadows]),
-#                 tuple([frozenset([x.name() for x in ho]) for ho in self.heldObstacles]),
-#                 tuple([frozenset([x.name() for x in hs]) for hs in self.heldShadows]))
-#     def __repr__(self):
-#         return 'Violations%s'%str(([x.name() for x in self.obstacles],
-#                                    [x.name() for x in self.shadows],
-#                                    [[x.name() for x in ho] for ho in self.heldObstacles],
-#                                    [[x.name() for x in hs] for hs in self.heldShadows]))
-#     __str__ = __repr__
-
-# def upd(curShapes, newShapes):
-#     curDict = dict([(o.name(), o) for o in curShapes])
-#     newDict = dict([(o.name(), o) for o in newShapes])
-#     curDict.update(newDict)
-#     return curDict.values()
-
-# ========================
-
 # Useful as a default
 defaultPoseD = PoseD(hu.Pose(0.0, 0.0, 0.0, 0.0),
                      (0.0, 0.0, 0.0, 0.0))
@@ -429,6 +240,8 @@ class Memoizer:
         return self
     def copy(self):
         # shares the generator and values list, only index differs.
+        if glob.traceGen:
+            print '  * Initializing gen =', self.name
         new = Memoizer(self.name, self.generator, self.values)
         return new
     def next(self):
@@ -532,10 +345,7 @@ def bboxMixedCoords(bb, prob, n=20, z=None):
     rand = bboxRandomCoords(bb, n=n, z=z)
     for i in xrange(n):
         if random.random() <= prob:
-            try:
-                yield next(grid)
-            except:
-                yield next(rand)
+            yield next(grid, next(rand))
         else:
             yield next(rand)
 

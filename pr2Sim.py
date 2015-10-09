@@ -188,8 +188,6 @@ class RealWorld(WorldState):
             # Check whether we should look
             args = 14*[None]
             if distSoFar + 0.33*angleSoFar >= glob.maxOpenLoopDist:
-                distSoFar = 0.0           #  reset
-                angleSoFar = 0.0
                 print 'Exceeded max distance - exiting'
                 return self.robotConf, (distSoFar, angleSoFar)
             prevXYT = newXYT
@@ -315,7 +313,7 @@ class RealWorld(WorldState):
                 vis, _ = visible(self, self.robotConf,
                                  self.objectShapes[curObj],
                                  obstacles, 0.75, moveHead=False,
-                                 fixed=[self.robotPlace.name()])
+                                 fixed=[self.robotPlace])
                 if not deb and debug('visibleEx'): glob.debugOn.remove('visible')
                 if not vis:
                     tr('sim', 'Object %s is not visible'%curObj)

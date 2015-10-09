@@ -71,43 +71,22 @@ tryDirectPath = True
 # canReachHome(conf) returns a path from conf to home!
 
 def primPath(bs, cs, ce, p):
+    def onlyShadows(viols):
+        return viols and not (viols.obstacles or any(viols.heldObstacles))
     home = bs.getRoadMap().homeConf
-    if tryDirectPath:
-        path, viols = canReachHome(bs, cs, p, Violations(),
-                                   homeConf=ce, optimize=True)
-    else:
-        pdb.set_trace()
-        path, viols = None, None
-    if (not path) or viols.weight() > 0:
-        path1, v1 = canReachHome(bs, cs, p, Violations(), optimize=True)
-        if (not path1) or v1.weight() > 0:
-            print 'Path1 failed, trying RRT'
-            path1, v1 = rrt.planRobotPathSeq(bs, p, home, cs, None,
-                                             maxIter=50, failIter=10)
-            if (not path1) or v1.weight() > 0:
-                print 'Path1 RRT failed, trying full RRT'
-                path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
-                                                   maxIter=50, failIter=10)            
-                assert path and viols.weight() == 0
-        if (not path) and path1:
-            path2, v2 = canReachHome(bs, ce, p, Violations(),
-                                     optimize=True, reversePath=True)
-            if (not path2) or v2.weight() > 0:
-                print 'Path2 failed, trying RRT'
-                path2, v2 = rrt.planRobotPathSeq(bs, p, home, ce, None,
-                                                 maxIter=50, failIter=10)                
-            if (not path2) or v2.weight() > 0:
-                print 'Path2 RRT failed, trying full RRT'
-                path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
-                                                   maxIter=50, failIter=10)            
-                assert path and viols.weight() == 0
-        else:
-            path2, v2 = None, None
-        if (not path) and path1 and path2:
-            # make sure to interpolate paths in their original directions.
-            path = rrt.interpolatePath(path1) + rrt.interpolatePath(path2)[::-1]
-    else:
+    path, viols = canReachHome(bs, cs, p, Violations(),
+                               homeConf=ce, optimize=True)
+    if not(path):
+        path, viols = canReachHome(bs, ce, p, Violations(),
+                                   homeConf=cs, optimize=True)
+        path = path[::-1]               # reverse path
+    if path:
+        if viols.weight() > 0 and onlyShadows(viols):
+            print 'Shadow collision in primPath', viols
+            raw_input('Shadow collisions - continue?')
         trAlways('Direct path succeeded')
+    else:
+        assert 'primPath failed'
 
     smoothed = bs.getRoadMap().smoothPath(path, bs, p)
     interpolated = rrt.interpolatePath(smoothed)
@@ -919,7 +898,8 @@ def moveBProgress(details, args, obs=None):
     for ob in details.pbs.moveObjBs.values() + \
                details.pbs.fixObjBs.values():
         oldVar = ob.poseD.var
-        ob.poseD.var = tuple([a + b for (a, b) in zip(oldVar, odoVar)])
+        newVar = tuple([a + b for (a, b) in zip(oldVar, odoVar)])
+        details.pbs.resetPlaceB(ob.modifyPoseD(var=newVar))
     details.pbs.reset()
     details.pbs.getShadowWorld(0)
     details.pbs.internalCollisionCheck()
@@ -1028,7 +1008,7 @@ def objectObsUpdate(details, lookConf, obsList):
     shWorld = details.pbs.getShadowWorld(prob)
     rob = details.pbs.getRobot().placement(lookConf,
                                            attached=shWorld.attached)[0]
-    fixed = [s.name() for s in shWorld.getNonShadowShapes()] + [rob.name()]
+    fixed = shWorld.getNonShadowShapes() + [rob]
     obstacles = shWorld.getNonShadowShapes()
     # Objects that we expect to be visible
     heldLeft = details.pbs.held['left'].mode()
@@ -1182,9 +1162,9 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
                          'Belief', 'magenta')],
                snap = ['Belief'])
 
-    details.pbs.updateObjB(ObjPlaceB(objName, w.getFaceFrames(objName),
-                                     DeltaDist(oldPlaceB.support.mode()),
-                                     PoseD(hu.Pose(*newMu), newSigma)))
+    details.pbs.resetPlaceB(ObjPlaceB(objName, w.getFaceFrames(objName),
+                                      DeltaDist(oldPlaceB.support.mode()),
+                                      PoseD(hu.Pose(*newMu), newSigma)))
 
     if newP < 0.3:
         print 'Object has gotten lost and has very low probability in'

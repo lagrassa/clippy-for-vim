@@ -1414,3 +1414,31 @@ class CanPickPlaceGen(Function):
             yield ans.canXGenTuple()
         tr('canPickPlaceGen', 'exhausted')
 '''        
+
+    elif (not path) or viols.weight() > 0:
+        path1, v1 = canReachHome(bs, cs, p, Violations(), optimize=True)
+        if (not path1) or v1.weight() > 0:
+            print 'Path1 failed, trying RRT'
+            path1, v1 = rrt.planRobotPathSeq(bs, p, home, cs, None,
+                                             maxIter=50, failIter=10)
+            if path1 and v1.weight() > 0:
+                raw_input('Potential collision in path1')
+            if (not path1):
+                raw_input('Path1 RRT failed')
+        if (not path) and path1:
+            path2, v2 = canReachHome(bs, ce, p, Violations(),
+                                     optimize=True, reversePath=True)
+            if (not path2) or v2.weight() > 0:
+                print 'Path2 failed, trying RRT'
+                path2, v2 = rrt.planRobotPathSeq(bs, p, home, ce, None,
+                                                 maxIter=50, failIter=10)                
+            if (not path2) or v2.weight() > 0:
+                print 'Path2 RRT failed, trying full RRT'
+                path, viols = rrt.planRobotPathSeq(bs, p, cs, ce, None,
+                                                   maxIter=50, failIter=10)            
+                assert path and viols.weight() == 0
+        else:
+            path2, v2 = None, None
+        if (not path) and path1 and path2:
+            # make sure to interpolate paths in their original directions.
+            path = rrt.interpolatePath(path1) + rrt.interpolatePath(path2)[::-1]

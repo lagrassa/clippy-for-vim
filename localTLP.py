@@ -25,7 +25,8 @@ usualTags = ['nonmon', 'animate']
 flags = ['simpleAbstractCostEstimates',
          'primitiveHeuristicAlways',
          'pushSim',
-         'helpfulActions']
+         # 'helpfulActions'
+         ]
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
                  'debugInHeuristic', 'h', 'hAddBack']
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
@@ -38,7 +39,9 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['pushInGen', 'pushGen', 'debugInHeuristic']
+debugOn = usualTags 
+# + ['debugInHeuristic', 'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'visible', 'CanSeeFrom', 'canView']
+# + ['potentialRegionPoseGen', 'regionPoseHyps', 'debugInHeuristic', 'potentialGraspConfs', 'potentialGraspConfsWin', 'potentialGraspConfsLose']
 # + ['pickGen', 'placeGen', 'placeInGen', 'lookGen']
 # + ['visible', 'CanSeeFrom', 'canView', 'pickGen', 'achCanPush', 'lookAchGen', 'canPush']
 # + ['noWriteSearch', 'noTrace', 'noPlayback'] 

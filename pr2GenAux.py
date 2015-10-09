@@ -8,14 +8,14 @@ import copy
 import windowManager3D as wm
 import shapes
 import planGlobals as glob
-from planGlobals import torsoZ
+from planGlobals import torsoZ, traceGen
 from traceFile import debugMsg, debug
 from miscUtil import argmax, isGround, isVar, argmax, squashOne
 from dist import UniformDist, DDist
 from geom import bboxCenter
 from pr2Robot import CartConf, gripperFaceFrame, pr2BaseLink
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
-from pr2Util import shadowName, objectName, Memoizer, inside, otherHand, bboxMixedCoords, shadowWidths, supportFaceIndex
+from pr2Util import shadowName, objectName, Memoizer, inside, otherHand, bboxMixedCoords, bboxRandomCoords, shadowWidths, supportFaceIndex
 import fbch
 from fbch import getMatchingFluents
 from belief import Bd, B
@@ -267,8 +267,7 @@ def canView(pbs, prob, conf, hand, shape,
         if debug('canView'):
             vc.draw('W', 'red')
             conf.draw('W', attached=attached)
-            print 'ViewCone collision'
-            pdb.set_trace()
+            debugMsg('canView', 'ViewCone collision')
         if shapeShadow:
             avoid = shapes.Shape([vc, shape, shapeShadow], None)
         else:
@@ -292,7 +291,7 @@ def canView(pbs, prob, conf, hand, shape,
                     for c in path: c.draw('W', 'blue', attached=attached)
                     path[-1].draw('W', 'orange', attached=attached)
                     vc.draw('W', 'green')
-                    raw_input('canView - Retract arm')
+                    debugMsg('canView', 'Retract arm')
             if debug('canView') or debug('canViewFail'):
                 if not path:
                     pbs.draw(prob, 'W')
@@ -900,8 +899,11 @@ def bboxInterior(bb1, bb2):
         if di1 > di2: return None
     return np.array([[bb2[i,j] - bb1[i,j] for j in range(3)] for i in range(2)])
 
-# !! Should pick relevant orientations... or more samples.
+# TODO: Should pick relevant orientations... or more samples.
 angleList = [-math.pi/2. -math.pi/4., 0.0, math.pi/4, math.pi/2]
+
+# (regShapeName, obj, hand, grasp) : (n_attempts, [relPose, ...])
+regionPoseCache = {}
 
 def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, reachObsts, hand, base,
                            maxPoses = 30):
@@ -913,7 +915,10 @@ def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, reachObsts
         for j in range(n):
             Vs.append(tuple([maxV[i]-j*deltaV[i] for i in range(4)]))
         return Vs
-        
+
+    if traceGen:
+        print ' **', 'potentialRegionPoseGen', placeB.poseD.mode(), graspB.grasp.mode(), hand
+
     maxVar = placeB.poseD.var
     minVar = pbs.domainProbs.obsVarTuple
     count = 0
@@ -972,11 +977,16 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                     pbs.draw(prob, 'W'); c.draw('W', 'green')
                     debugMsg(tag, 'v=%s'%v, 'weight=%s'%str(v.weight()),
                              'pose=%s'%pose, 'grasp=%s'%grasp)
-                return v.weight() + baseDist(pbs.conf, ca)
+                
+                return v.weight() # + baseDist(pbs.conf, ca)
+
             else:
                 if debug(tag):
                     debugMsg(tag, 'v=%s'%v, 'pose=%s'%pose, 'grasp=%s'%grasp)
         return None
+
+    if traceGen:
+        print ' **', 'potentialRegionPoseGenAux', placeB.poseD.mode(), graspB.grasp.mode(), hand
 
     tag = 'potentialRegionPoseGen'
     debugMsg(tag, placeB, shadowWidths(placeB.poseD.var, placeB.delta, prob))
@@ -984,6 +994,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     if debug(tag):
         pbs.draw(prob, 'W')
         for rs in regShapes: rs.draw('W', 'purple')
+
     ff = placeB.faceFrames[placeB.support.mode()]
     shWorld = pbs.getShadowWorld(prob)
     
@@ -1002,9 +1013,22 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         else:
             tr(tag, 'pose specified and not safely in region')
 
+    if not base:
+        cacheResults = checkRegionPoseCache(obj, graspB.grasp.mode(), regShapes, hand)
+        if cacheResults is None:
+            tr(tag, 'Losing proposition')
+            return
+        else:
+            for pose in cacheResults:
+                cost = poseViolationWeight(pose)
+                if cost is not None:
+                    print 'Cached ->', pose, 'cost=', cost
+                yield pose
+
     shRotations = dict([(angle, objShadow.applyTrans(hu.Pose(0,0,0,angle)).prim()) \
                         for angle in angleList])
     hyps, points = regionPoseHyps(pbs, prob, regShapes, shRotations, maxPoses)
+
     if hyps:
         hyps = sorted(hyps)
         # Randomize by regions
@@ -1027,26 +1051,59 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         return
     maxTries = min(2*maxPoses, len(pointDist))
     count = 0
+    graspMode = graspB.grasp.mode()
 
     def poseCost(tries):
         hcost, rs, index = pointDist[tries]
+        if not base:
+            key = (rs.name(), obj, hand, graspMode)
+            entry = regionPoseCache[key]
+            entry[0] += 1
         angle, point = points[index]
         p = genPose(rs, angle, point)
-        if not p: return (None, None)
+        if not p: return None
         cost = poseViolationWeight(p)
-        if debug(tag):
+        if not base and cost is not None:
+            entry[1].append(rs.origin().inverse().compose(p).pose())
+        return (p, rs, cost)
+
+    for pose, cost in leastCostGen(poseCost, maxPoses, maxTries):
+        count += 1
+        if True: # debug(tag):
             print '->', pose, 'cost=', cost
             # shRotations is already rotated
-            (x,y,z,_) = pose.xyztTuple()
+            (x,y,z,angle) = pose.xyztTuple()
             shRotations[angle].applyTrans(hu.Pose(x,y,z, 0.)).draw('W', 'green')
-        return (p, cost)
-
-    for pose, poseCost in leastCostGen(poseCost, maxPoses, maxTries):
-        count += 1
         yield pose
     if True: # debug(tag):
         print 'Tried', maxTries, 'with', hand, 'returned', count, 'for regions', [r.name() for r in regShapes]
+        pdb.set_trace()
     return
+
+maxRegionPoseAttempts = 100
+def checkRegionPoseCache(obj, graspMode, regShapes, hand):
+    ans = None
+    for rs in regShapes:
+        key = (rs.name(), obj, hand, graspMode)
+        if key in regionPoseCache:
+            (tried, poses) = regionPoseCache[key]
+            if not poses:
+                if tried > maxRegionPoseAttempts:
+                    print 'Giving up on', key
+                    continue
+                ans = []      # if any subregion has not failed, then don't fail.
+            else:
+                # return []
+                origin = rs.origin()
+                # convert relative poses to global poses
+                poses = [origin.compose(p).pose() for p in poses]
+                random.shuffle(poses)
+                print '... Found', len(poses), 'poses in cache for', hand
+                return poses
+        else:
+            regionPoseCache[key] = list((0., list()))
+            ans = []
+    return ans
 
 def regionPoseHyps(pbs, prob, regShapes, shRotations, maxPoses):
     tag = 'regionPoseHyps'
@@ -1083,8 +1140,11 @@ def regionPoseHyps(pbs, prob, regShapes, shRotations, maxPoses):
             z0 = bI.bbox()[0,2] + clearance
             # for point in bboxGridCoords(bI.bbox(), res = 0.01, z=z0):
             # for point in bboxRandomCoords(bI.bbox(), n=maxPoses, z=z0):
-            # p = 0.75 chance of generating a grid point.
-            for point in bboxMixedCoords(bI.bbox(), 0.9, n=(maxPoses/len(shRotations.keys())), z=z0):
+            # p = 0.x chance of generating a grid point.
+            icount = 0
+            nc = (maxPoses/len(shRotations.keys()))
+            # for point in bboxMixedCoords(bI.bbox(), 0.5, n=maxPoses, z=z0):
+            for point in bboxRandomCoords(bI.bbox(), n=maxPoses, z=z0):
                 pt = point.reshape(4,1)
                 if any(np.all(np.dot(co.planes(), pt) <= tiny) for co in coFixed):
                     if debug(tag):
@@ -1099,6 +1159,8 @@ def regionPoseHyps(pbs, prob, regShapes, shRotations, maxPoses):
                 hyp = (cost, rs, count)
                 hyps.append(hyp)
                 count += 1
+                icount += 1
+                if icount > nc: break
     return hyps, points
 
 def leastCostGen(candidateScoreFn, maxCount, maxTries):
@@ -1108,9 +1170,11 @@ def leastCostGen(candidateScoreFn, maxCount, maxTries):
     tries = 0
     count = 0
     while count < maxCount and tries < maxTries:
-        pose, cost = candidateScoreFn(tries)
+        score = candidateScoreFn(tries)
         tries += 1
-        if not (pose and cost): continue
+        if not score: continue
+        pose, rs, cost = score
+        if cost is None: continue
         if len(costHistory) < historySize:
             costHistory.append(cost)
             poseHistory.append(pose)
@@ -1178,8 +1242,11 @@ def chooseHandGen(pbs, goalConds, obj, hand, leftGen, rightGen):
     elif rightHeldTargetObjNow or (leftHeldNow and not leftHeldTargetObjNow):
         # Try right hand first if we're holding something in the left
         gen = roundrobin(rightGen, leftGen)
-    else:
+    elif leftHeldTargetObjNow or (rightHeldNow and not rightHeldTargetObjNow):
+        # Try right hand first if we're holding something in the left
         gen = roundrobin(leftGen, rightGen)
+    else:
+        gen = roundrobin(rightGen, leftGen)
     return gen
 
 def minimalConf(conf, hand):

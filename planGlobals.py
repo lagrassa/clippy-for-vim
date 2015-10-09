@@ -37,6 +37,8 @@ if useROS:
 # HACKS
 ########################################
 
+traceGen = False
+
 realWorld = None
 horizontal = None
 vertical = None

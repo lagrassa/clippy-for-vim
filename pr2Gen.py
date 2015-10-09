@@ -160,6 +160,10 @@ class PickGen(Function):
 
 def pickGenTop(args, goalConds, pbs, onlyCurrent = False):
     (obj, graspB, placeB, hand, base, prob) = args
+
+    if traceGen:
+        print '***', 'pickGenAux', obj, placeB.poseD.mode(), graspB.grasp.mode(), hand
+
     tag = 'pickGen'
     graspDelta = pbs.domainProbs.pickStdev
     tr(tag, '(%s,%s,%d) b=%s h=%s'%(obj,hand,graspB.grasp.mode(),base,glob.inHeuristic))
@@ -178,7 +182,7 @@ def pickGenTop(args, goalConds, pbs, onlyCurrent = False):
     if placeB.poseD.mode() is not None: # specified by, e.g. lookGen
         pose = placeB.poseD.mode()
         sup =  placeB.support.mode()
-        newBS.resetPlaceB(obj, placeB)
+        newBS.resetPlaceB(placeB)
         tr(tag, 'Setting placeB, support=%s, pose=%s'%(sup, pose.xyztTuple()))
     if obj == newBS.held[hand].mode():
         attachedShape = newBS.getRobot().attachedObj(newBS.getShadowWorld(prob),
@@ -245,6 +249,9 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
 
     def currentGraspFeasible():
         wrist = objectGraspFrame(pbs, graspB, placeB, hand)
+
+    if traceGen:
+        print ' **', 'pickGenAux', placeB.poseD.mode(), graspB.grasp.mode(), hand
 
     tag = 'pickGen'
     shw = shadowWidths(placeB.poseD.var, placeB.delta, prob)
@@ -321,8 +328,7 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                     yield ans
             regrasp = True
     else:
-        if debug(tag): raw_input('Pose is not specified, need to place')
-        else: print 'Pose is not specified, need to place'
+        debugMsg(tag, 'Pose is not specified, need to place')
 
     if onlyCurrent:
         tr(tag, 'onlyCurrent: out of values')
@@ -381,6 +387,10 @@ class PlaceGen(Function):
 def placeGenGen(args, goalConds, bState):
     (obj, hand, poses, support, objV, graspV, objDelta, graspDelta, confDelta,
      prob) = args
+
+    if traceGen:
+        print '***', 'placeGenGen', hand
+
     tag = 'placeGen'
     base = sameBase(goalConds)
     tr(tag, 'obj=%s, base=%s'%(obj, base))
@@ -437,6 +447,9 @@ placeGenCache = {}
 # returns values for (?graspPose, ?graspFace, ?conf, ?confAppr)
 def placeGenTop(args, goalConds, pbs, regrasp=False, away=False, update=True):
     (obj, graspB, placeBs, hand, base, prob) = args
+
+    if traceGen:
+        print '***', 'placeGenTop', graspB.grasp.mode(), hand
 
     startTime = time.clock()
     tag = 'placeGen'
@@ -517,9 +530,11 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                   for gBO in gBOther]
         if any(other):
             tr(tag,
-               ('Regraspable', pB.poseD.mode(), [gBO.grasp.mode() for gBO in gBOther]),
+               ('Regraspable', pB.poseD.mode(), [gBO.grasp.mode() \
+                                                 for (gBO, o) in zip(gBOther, other) \
+                                                 if o is not None]),
                draw=[(c, 'W', 'green') for c in \
-                     [o for o in other if o != None]], snap=['W'])
+                     [o for o in other if o is not None]], snap=['W'])
             regraspablePB[pB] = True
             return True
         else:
@@ -608,6 +623,9 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
             # if debug('placeGen'): print 'unknown pB, cost = 0'
             return 0
 
+    if traceGen:
+        print ' **', 'placeGenAux', graspB.grasp.mode(), hand
+
     tag = 'placeGen'
     approached = {}
     context = {}
@@ -627,7 +645,8 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
     allGrasps = [(checkOrigGrasp(gB), gB) for gB in graspGen(pbs, obj, graspB)]
     gClasses, gCosts = groupByCost(allGrasps)
 
-    tr(tag, 'Top grasps', [g.grasp.mode() for g in gClasses[0]], 'costs', gCosts)
+    tr(tag, 'Top grasps', [[g.grasp.mode() for g in gC] for gC in gClasses], 'costs', gCosts)
+    print 'Top grasps', [[g.grasp.mode() for g in gC] for gC in gClasses], 'costs', gCosts
 
     for grasps, gCost in zip(gClasses, gCosts):
         targetConfs = placeApproachConfGen(grasps)
@@ -724,6 +743,10 @@ def lookInRegionGenGen(args, goalConds, bState, away = False, update=True):
 
 def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
     (obj, region, var, delta, prob) = args
+
+    if traceGen:
+        print '***', 'placeInRegionGenGen'
+    
     tag = 'placeInGen'
     pbs = bState.pbs.copy()
     world = pbs.getWorld()
@@ -854,6 +877,10 @@ def drop(pbs, prob, obj, hand, placeB):
 def placeInGenAway(args, goalConds, pbs):
     # !! Should search over regions and hands
     (obj, delta, prob) = args
+
+    if traceGen:
+        print '***', 'placeInGenAway'
+
     if not pbs.awayRegions():
         raw_input('Need some awayRegions')
         return
@@ -868,13 +895,17 @@ def placeInGenAway(args, goalConds, pbs):
                                    goalConds, pbs, away=True, update=False):
         yield ans
 
-placeInGenMaxPoses  = 300
-placeInGenMaxPosesH = 300
+placeInGenMaxPoses  = 500
+placeInGenMaxPosesH = 500
 
 def placeInGenTop(args, goalConds, pbs,
                   regrasp=False, away = False, update=True):
     (obj, regShapes, graspB, placeB, base, prob) = args
     tag = 'placeInGen'
+
+    if traceGen:
+        print '***', 'placeInGenTop', placeB.poseD.mode(), graspB.grasp.mode()
+
     regions = [x.name() for x in regShapes]
     tr(tag, '(%s,%s) h=%s'%(obj,regions, glob.inHeuristic))
     tr(tag, 
@@ -935,6 +966,10 @@ def placeInGenAux(pbs, poseGen, goalConds, confAppr, conf, placeB, graspB,
     def placeBGen():
         for pose in poseGen.copy():
             yield placeB.modifyPoseD(mu=pose)
+
+    if traceGen:
+        print '***', 'placeInGenAux', placeB.poseD.mode(), graspB.grasp.mode(), hand
+
     tries = 0
     shWorld = pbs.getShadowWorld(prob)
     gen = Memoizer('placeBGen_placeInGenAux1', placeBGen())

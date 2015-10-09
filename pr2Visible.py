@@ -37,13 +37,15 @@ cacheStats = [0, 0, 0, 0, 0, 0]                   # h tries, h hits, h easy, rea
 
 def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     global laserScanGlobal, laserScanSparseGlobal
-    key = (ws, conf, shape, tuple(obstacles), prob, moveHead, tuple(fixed), glob.inHeuristic)
+    key = (ws, conf, shape, tuple(obstacles), prob, moveHead, tuple(fixed))
     cacheStats[0 if glob.inHeuristic else 3] += 1
     if key in cache:
         cacheStats[1 if glob.inHeuristic else 4] += 1
         return cache[key]
     if debug('visible'):
         print 'visible', shape.name(), 'from base=', conf['pr2Base'], 'head=', conf['pr2Head']
+        print 'obstacles', obstacles
+        print 'fixed', fixed
     lookConf = lookAtConf(conf, shape) if moveHead else conf
     if not lookConf:
         if debug('visible'):
@@ -58,9 +60,9 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         debugMsg('visible', 'look conf and view cone')
 
     potentialOccluders = []
-    fixed = list(ws.fixedObjects)+fixed
-    fix = [obj for obj in obstacles if obj.name() in fixed]
-    move = [obj for obj in obstacles if obj.name() not in fixed]
+    fix = [obj for obj in obstacles if obj.name() in ws.fixedObjects]
+    for f in fixed: fix.append(f)
+    move = [obj for obj in obstacles if obj not in fix]
     for objShape in fix+move:
         # if objShape.name() == 'PR2': continue # already handled
         if objShape.collides(vc):
@@ -89,7 +91,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         cache[key] = (False, [])
         return False, []
 
-    if 'table' in shape.name() or glob.inHeuristic:
+    if 'table' in shape.name():
         threshold = 0.5*prob            # generous
     else:
         # threshold = 0.75*prob
@@ -138,7 +140,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     if debug('visible'):
         if ans[1] and any([vc.collides(obj) for obj in fix]):
             print 'visible ->', ans
-            raw_input('Visibility is compromised')
+            debugMsg('visible', 'Visibility is compromised')
     return ans
 
 def countContacts(contacts, id):
@@ -208,7 +210,9 @@ def lookScan(lookConf):
     global laserScanSparseGlobal, laserScanGlobal
     lookCartConf = lookConf.cartConf()
     headTrans = lookCartConf['pr2Head']
-    if glob.inHeuristic:
+
+    # ALWAYS USES SPARSE SCAN
+    if True:
         if not laserScanSparseGlobal:
             laserScanSparseGlobal = Scan(Ident, laserScanParamsSparse)
         laserScan = laserScanSparseGlobal
@@ -216,6 +220,7 @@ def lookScan(lookConf):
         if not laserScanGlobal:
             laserScanGlobal = Scan(Ident, laserScanParams)
         laserScan = laserScanGlobal
+
     scanTrans = headTrans.compose(hu.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0))))
     scan = laserScan.applyTrans(scanTrans)
     return scan

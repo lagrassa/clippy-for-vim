@@ -1462,6 +1462,7 @@ def pushPath(pbs, prob, gB, pB, conf, prePose, shape, regShape, hand,
         if abs(angleDiff) > math.pi/6 or \
                (abs(angleDiff) > 0.1 and dist < 0.02):
             if debug(tag): print 'Angle too large for pushing'
+            # pdb.set_trace()
             ans = (pathViols, 'tilt')
             pushPathCache[key].append((prob, prob, gB, ans))
             return ans

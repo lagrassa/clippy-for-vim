@@ -143,7 +143,7 @@ class PBS:
             for i in (0,1):
                 poseList[i] = delta(poseList[i], count)
             newPose = hu.Pose(*poseList)
-            self.resetPlaceB(obj, pB.modifyPoseD(newPose))
+            self.resetPlaceB(pB.modifyPoseD(newPose))
             self.reset()
             shape = pB.shape(world)
             supported = self.findSupportRegion(p, shape,
@@ -164,11 +164,13 @@ class PBS:
             tr('dither', 'Robot in collision.  Will try to fix.',
                      draw=[(self, 0.0, 'W')], snap=['W'])
             self.ditherRobotOutOfCollision(shProb)
+            self.reset()
             confViols = rm.confViolations(self.conf, self, shProb)
 
         # Now, see if the shadow of the object in the hand is colliding.
         # If so, reduce it.
         shProb = 0.98
+        confViols = rm.confViolations(self.conf, self, shProb)
         for h in (0, 1):
             colls = confViols.heldShadows[h]
             hand = ('left', 'right')[h]
@@ -187,11 +189,10 @@ class PBS:
                 newVar = tuple(v/factor for v in var)
                 self.resetGraspB(obj, hand, gB.modifyPoseD(var=newVar))
                 self.reset()
-                confViols = rm.confViolations(self.conf, self, .98)
+                confViols = rm.confViolations(self.conf, self, shProb)
                 colls = confViols.heldShadows[h]
             
         # Now for shadow collisions;  reduce the shadow if necessary
-        confViols = rm.confViolations(self.conf, self, shProb)
         shadows = confViols.allShadows()
         count = 0
         while shadows:
@@ -208,7 +209,7 @@ class PBS:
                 pB = self.getPlaceB(obj)
                 var = pB.poseD.variance()
                 newVar = tuple(v/factor for v in var)
-                self.resetPlaceB(obj, pB.modifyPoseD(var=newVar))
+                self.resetPlaceB(pB.modifyPoseD(var=newVar))
             self.reset()
             confViols = rm.confViolations(self.conf, self, shProb)
             shadows = confViols.allShadows()
@@ -244,6 +245,7 @@ class PBS:
                 tr('dither', 'Object not supported.  Will try to fix.',
                    draw=[(self, 0.0, 'W')], snap=['W'])
                 self.ditherObjectToSupport(pB.obj, 0.99)
+                self.reset()
         debugMsg('collisionCheck')
 
     def getWorld(self):
@@ -266,7 +268,9 @@ class PBS:
             return self.defaultPlaceB(obj)
         else:
             return None
-    def resetPlaceB(self, obj, pB):
+
+    def resetPlaceB(self, pB):
+        obj = pB.obj
         if self.fixObjBs.get(obj, None):
             self.fixObjBs[obj] = pB
         elif self.moveObjBs.get(obj, None):
@@ -279,6 +283,8 @@ class PBS:
             self.moveObjBs[obj] = pB
         else:
             assert None, 'Unknown obj in resetPlaceB'
+        self.reset()
+
     def defaultPlaceB(self, obj):
         world = self.getWorld()
         fr = world.getFaceFrames(obj)
@@ -434,16 +440,16 @@ class PBS:
         return self
 
     # Side effects the belief about this object in this world
-    def updateObjB(self, objPlace):
-        obj = objPlace.obj
-        if obj in self.moveObjBs:
-            self.moveObjBs[obj] = objPlace
-        elif obj in self.fixObjBs:
-            self.fixObjBs[obj] = objPlace
-        else:
-            # Must be in the hand...
-            pass
-        self.reset()
+    # def updateObjB(self, objPlace):
+    #     obj = objPlace.obj
+    #     if obj in self.moveObjBs:
+    #         self.moveObjBs[obj] = objPlace
+    #     elif obj in self.fixObjBs:
+    #         self.fixObjBs[obj] = objPlace
+    #     else:
+    #         # Must be in the hand...
+    #         pass
+    #     self.reset()
 
     def excludeObjs(self, objs):
         for obj in objs:
