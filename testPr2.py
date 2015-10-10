@@ -277,7 +277,7 @@ def testWithBInHand(name, goal, gf = 0, args = {}):
     grasped = 'objB'; hand = 'left'
     args['initBelief'] = lambda bs: makeInitBel(bs, grasped, hand, gf=gf)
     args['initWorld'] = lambda bs,rw: makeAttachedWorldFromPBS(bs.pbs, rw, grasped, hand)
-    skel = None
+    skel = args.get('skeleton', None)
     return doTest(name, exp, goal, skel, args)
 
 def test5(**args):
@@ -312,6 +312,18 @@ def test7(**args):
 def test8(**args):
     initG = 0
     #initG = 3
+
+    # one place, one pick;  use with easy = True
+    skel1 = [[pick, moveNB, lookAt, moveNB, lookAt, move,
+             place, move]]
+
+    skel2 = [[pick, moveNB, lookAt, moveNB, lookAt, move,
+             place, move,
+             pick, moveNB, lookAt, moveNB, lookAt, move,
+             place, move]]
+        
+    args['skeleton'] = skel2
+    
     goal = holding('objB', 'left', 1, goalProb=0.7)
     testWithBInHand('test8', goal, initG, args)
 
