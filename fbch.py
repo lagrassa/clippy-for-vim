@@ -106,7 +106,7 @@ class State:
                                 maxCostInGroup = defaultFluentCost
                                 groupActSet = set()
                         elif hv[0] != float('inf'):
-                            totalCost = sum([a.instanceCost for a in hv[1]])
+                            totalCost = sum([a.instanceCost for a in hv[1].elts])
                             if totalCost > maxCostInGroup:
                                 maxCostInGroup = totalCost
                                 groupActSet = hv[1]

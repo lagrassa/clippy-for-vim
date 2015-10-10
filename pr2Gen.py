@@ -266,7 +266,6 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
     approached = {}
     rm = pbs.getRoadMap()
     failureReasons = []
-    regrasp = False
     if placeB.poseD.mode() is not None: # otherwise go to regrasp
         if not base:
             # Try current conf
@@ -326,7 +325,6 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
                              (c, 'W', 'navy', shWorld.attached)],
                        snap=['W'])
                     yield ans
-            regrasp = True
     else:
         debugMsg(tag, 'Pose is not specified, need to place')
 
@@ -334,9 +332,11 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         tr(tag, 'onlyCurrent: out of values')
         return
         
-    # Try a regrasp... that is place the object somewhere else where it can be grasped.
-    if regrasp and glob.inHeuristic:
+    if glob.inHeuristic:                # don't do regrasping in heuristic
         return
+    
+    # Try a regrasp... that is place the object somewhere else where it can be grasped.
+
     if failureReasons and all(['visibility' in reason for reason in failureReasons]):
         tr(tag, 'There were valid targets that failed due to visibility')
         return
@@ -521,26 +521,42 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         (pB, gB) = context[ca]
         return canPickPlaceTest(pbs, ca, c, hand, gB, pB, prob,
                                 op='place', quick=quick)
+    def currentGrasp(gB):
+        if obj == pbsOrig.held[hand].mode():
+            currGraspB = pbsOrig.graspB[hand]
+            return  (gB.grasp.mode() == currGraspB.grasp.mode()) and \
+                   gB.poseD.mode().near(currGraspB.poseD.mode(), .01, .01)
+        return False
 
     def checkRegraspable(pB):
         if pB in regraspablePB:
             return regraspablePB[pB]
-        other =  [next(potentialGraspConfGen(pbs, pB, gBO, conf, hand, base, prob, nMax=1),
-                       (None, None, None))[0] \
-                  for gBO in gBOther]
-        if any(other):
-            tr(tag,
-               ('Regraspable', pB.poseD.mode(), [gBO.grasp.mode() \
-                                                 for (gBO, o) in zip(gBOther, other) \
-                                                 if o is not None]),
-               draw=[(c, 'W', 'green') for c in \
-                     [o for o in other if o is not None]], snap=['W'])
-            regraspablePB[pB] = True
-            return True
-        else:
-            regraspablePB[pB] = False
-            tr(tag, ('Not regraspable', pB.poseD.mode()))
-            return False
+        regraspablePB[pB] = 5.
+        curGrasp = None
+        for gBO in gBOther:
+            if currentGrasp(gBO):
+                curGrasp = gBO
+                break
+        if curGrasp:
+            c = next(potentialGraspConfGen(pbs, pB, gBO, conf, hand, base, prob, nMax=1),
+                     (None, None, None))[0]
+            if c:
+                tr(tag, 'Regraspable for current grasp')
+                regraspablePB[pB] = 0.
+                return True
+            else:
+                tr(tag, 'Not regraspable for current grasp - rejecting')
+                regraspablePB[pB] = 5.
+        for gBO in gBOther:
+            if gBO == curGrasp: continue
+            c = next(potentialGraspConfGen(pbs, pB, gBO, conf, hand, base, prob, nMax=1),
+                     (None, None, None))[0]
+            if c:
+                tr(tag,
+                   'Regraspable', pB.poseD.mode(), gBO.grasp.mode(),
+                   draw=[(c, 'W', 'green')], snap=['W'])
+                regraspablePB[pB] = 2.
+                return True
 
     def checkOrigGrasp(gB):
         # 0 if currently true
@@ -548,14 +564,10 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         # 2 otherwise
         
         # Prefer current grasp
-        if obj == pbsOrig.held[hand].mode():
-            currGraspB = pbsOrig.graspB[hand]
-            match = (gB.grasp.mode() == currGraspB.grasp.mode()) and \
-                      gB.poseD.mode().near(currGraspB.poseD.mode(), .01, .01)
-            if match:
-                tr(tag, 'current grasp is a match',
-                   ('curr', currGraspB), ('desired', gB))
-                return 0
+        if currentGrasp(gB):
+            tr(tag, 'current grasp is a match',
+               ('curr', pbsOrig.graspB[hand]), ('desired', gB))
+            return 0
 
         minConf = minimalConf(pbsOrig.conf, hand)
         if minConf in PPRCache:
@@ -593,7 +605,8 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                    ('for grasp class', gB.grasp),
                    ('placeBsCopy.values', len(placeBsCopy.values)))
                 if regrasp:
-                    checkRegraspable(pB)
+                    if not checkRegraspable(pB):
+                        continue
                 graspConfGen = potentialGraspConfGen(pbs, pB, gB, conf, hand, base, prob)
                 count = 0
                 for c,ca,_ in graspConfGen:
@@ -613,15 +626,10 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
             return 0
         (pB, gB) = context[ca]
         if pB in regraspablePB:
-            if regraspablePB[pB]:
-                # if debug('placeGen'): print 'regrasp cost = 0'
-                return 0
-            else:
-                # if debug('placeGen'): print 'regrasp cost = 5'
-                return 5
+            return regraspablePB[pB]
         else:
-            # if debug('placeGen'): print 'unknown pB, cost = 0'
-            return 0
+            # if debug('placeGen'): print 'unknown pB, cost = 1'
+            return 1.
 
     if traceGen:
         print ' **', 'placeGenAux', graspB.grasp.mode(), hand

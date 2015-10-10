@@ -1014,6 +1014,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             tr(tag, 'pose specified and not safely in region')
 
     if not base:
+        # cacheResults = []
         cacheResults = checkRegionPoseCache(obj, graspB.grasp.mode(), regShapes, hand)
         if cacheResults is None:
             tr(tag, 'Losing proposition')
@@ -1055,7 +1056,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
 
     def poseCost(tries):
         hcost, rs, index = pointDist[tries]
-        if not base:
+        if glob.useRegionPoseCache and not base:
             key = (rs.name(), obj, hand, graspMode)
             entry = regionPoseCache[key]
             entry[0] += 1
@@ -1063,7 +1064,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         p = genPose(rs, angle, point)
         if not p: return None
         cost = poseViolationWeight(p)
-        if not base and cost is not None:
+        if glob.useRegionPoseCache and not base and cost is not None:
             entry[1].append(rs.origin().inverse().compose(p).pose())
         return (p, rs, cost)
 
@@ -1082,6 +1083,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
 
 maxRegionPoseAttempts = 100
 def checkRegionPoseCache(obj, graspMode, regShapes, hand):
+    if not glob.useRegionPoseCache: return []
     ans = None
     for rs in regShapes:
         key = (rs.name(), obj, hand, graspMode)
@@ -1098,7 +1100,8 @@ def checkRegionPoseCache(obj, graspMode, regShapes, hand):
                 # convert relative poses to global poses
                 poses = [origin.compose(p).pose() for p in poses]
                 random.shuffle(poses)
-                print '... Found', len(poses), 'poses in cache for', hand
+                if debug('potentialRegionPoseGen'):
+                    print '... Found', len(poses), 'poses in cache for', hand
                 return poses
         else:
             regionPoseCache[key] = list((0., list()))

@@ -39,6 +39,8 @@ if useROS:
 
 traceGen = False
 
+useRegionPoseCache = False
+
 realWorld = None
 horizontal = None
 vertical = None
