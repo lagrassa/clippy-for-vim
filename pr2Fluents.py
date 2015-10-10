@@ -233,6 +233,9 @@ class BaseConf(Fluent):
         # Needs heuristic val because we don't have an operator that
         # explicitly produces this.  Assume we will need to do a look
         # and a move Could be smarter.
+        if self.test(details):
+            return 0
+        
         dummyOp = Operator('LookMove', ['dummy'],{},[])
         dummyOp.instanceCost = 7.0
         return (dummyOp.instanceCost, ActSet([dummyOp]))
@@ -510,10 +513,12 @@ class CanReachNB(Fluent):
         if isVar(endConf):
             assert 'need to have end conf bound to test'
         elif isVar(startConf):
-            tr('canReachNB', 'BTest canReachNB returning False because startconf unbound',
+            tr('canReachNB',
+               'BTest canReachNB returning False because startconf unbound',
                      self)
             return False
-        elif max(abs(a-b) for (a,b) in zip(startConf['pr2Base'], endConf['pr2Base'])) > 1.0e-4:
+        elif max(abs(a-b) for (a,b) in \
+                 zip(startConf['pr2Base'], endConf['pr2Base'])) > 1.0e-4:
             # Bases have to be equal!
             debugMsg('canReachNB', 'Base not belong to us', startConf, endConf)
             return False
@@ -531,7 +536,8 @@ class CanReachNB(Fluent):
             return False
         elif violations.empty():
             return True
-        elif not (violations.obstacles or violations.heldShadows or violations.heldObstacles):
+        elif not (violations.obstacles or violations.heldShadows or \
+                  violations.heldObstacles):
             assert violations.shadows
             (startConf, endConf, cond) = self.args
             return onlyBaseCollides(startConf, violations.shadows) and \
