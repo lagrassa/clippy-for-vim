@@ -491,7 +491,7 @@ def testShelvesGraspSide(ng=0, objD=True, **args):
                   [region, 'table1FRR'], easy=easy)
 
     goals =[ inRegion('objA', region),
-             inRegion('objD', 'table1Right'),    # trouble placing D
+             inRegion('objD', 'table1FRR'),    # trouble placing D
              holding('objA', 'right', 0),
              holding('bigD', 'left', 0) ]
     # skel for pickable obstacle, easy case

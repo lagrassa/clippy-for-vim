@@ -1021,8 +1021,8 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         else:
             for pose in cacheResults:
                 cost = poseViolationWeight(pose)
-                if cost is not None:
-                    print 'Cached ->', pose, 'cost=', cost
+                if debug(tag) and cost is not None:
+                        print 'Cached ->', pose, 'cost=', cost
                 yield pose
 
     shRotations = dict([(angle, objShadow.applyTrans(hu.Pose(0,0,0,angle)).prim()) \
@@ -1069,7 +1069,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
 
     for pose, cost in leastCostGen(poseCost, maxPoses, maxTries):
         count += 1
-        if True: # debug(tag):
+        if debug(tag):
             print '->', pose, 'cost=', cost
             # shRotations is already rotated
             (x,y,z,angle) = pose.xyztTuple()

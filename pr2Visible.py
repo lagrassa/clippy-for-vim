@@ -211,8 +211,8 @@ def lookScan(lookConf):
     lookCartConf = lookConf.cartConf()
     headTrans = lookCartConf['pr2Head']
 
-    # ALWAYS USES SPARSE SCAN
-    if True:
+    # ALWAYS USES DENSE SCAN
+    if False:
         if not laserScanSparseGlobal:
             laserScanSparseGlobal = Scan(Ident, laserScanParamsSparse)
         laserScan = laserScanSparseGlobal

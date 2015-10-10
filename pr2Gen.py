@@ -646,7 +646,6 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
     gClasses, gCosts = groupByCost(allGrasps)
 
     tr(tag, 'Top grasps', [[g.grasp.mode() for g in gC] for gC in gClasses], 'costs', gCosts)
-    print 'Top grasps', [[g.grasp.mode() for g in gC] for gC in gClasses], 'costs', gCosts
 
     for grasps, gCost in zip(gClasses, gCosts):
         targetConfs = placeApproachConfGen(grasps)
