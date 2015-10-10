@@ -282,7 +282,7 @@ def testWithBInHand(name, goal, gf = 0, args = {}):
 
 def test5(**args):
     goal = emptyHand()
-    testWithBInHand('test5', goal, args)
+    testWithBInHand('test5', goal, args = args)
     
 ######################################################################
 # Test Pick Up
@@ -292,7 +292,7 @@ def test5(**args):
 def test6(**args):
     # Can't have higher target prob unless we can look at hand
     goal = holding('objA', 'left', 2, goalProb=0.7)
-    testWithBInHand('test6', goal, args)
+    testWithBInHand('test6', goal, args = args)
     
 ######################################################################
 # Test Placing
@@ -302,7 +302,7 @@ def test6(**args):
 def test7(**args):
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
     goal = placed('objA', front, 'left')
-    testWithBInHand('test7', goal, args)
+    testWithBInHand('test7', goal, args = args)
 
 ######################################################################
 # Test Regrasp

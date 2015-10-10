@@ -332,6 +332,8 @@ def pickGenAux(pbs, obj, confAppr, conf, placeB, graspB, hand, base, prob,
         tr(tag, 'onlyCurrent: out of values')
         return
         
+    # Try a regrasp... that is place the object somewhere else where
+    # it can be grasped.
     if glob.inHeuristic:                # don't do regrasping in heuristic
         return
     
@@ -641,13 +643,13 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
     rm = pbs.getRoadMap()
     shWorld = pbs.getShadowWorld(prob)
     if regrasp:
-         graspBOther = graspB.copy()
-         otherGrasps = range(len(graspBOther.graspDesc))
-         otherGrasps.remove(graspB.grasp.mode())
-         if otherGrasps:
+        graspBOther = graspB.copy()
+        otherGrasps = range(len(graspBOther.graspDesc))
+        otherGrasps.remove(graspB.grasp.mode())
+        if otherGrasps:
              graspBOther.grasp = UniformDist(otherGrasps)
              gBOther = list(graspGen(pbs, obj, graspBOther))
-         else:
+        else:
              gBOther = []
 
     allGrasps = [(checkOrigGrasp(gB), gB) for gB in graspGen(pbs, obj, graspB)]

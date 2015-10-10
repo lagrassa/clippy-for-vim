@@ -2039,17 +2039,17 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
     if len(preBoundNames) > 0 and debug('preBoundOps'):
         raw_input('look at dem ops')
 
-    if not glob.inHeuristic and len(result) > 0:
-        placeR = [x for x in result if x.name == 'Place' and \
-                  not x.delayBinding]
-        if len(placeR) > 1:
-            print '*******  returning from app op ******'
-            for oo in placeR:
-                print '    args', oo.args
-                print '   results of this operator'
-                for xx in oo.results:
-                    for yy in xx[0]: print '     ', yy
-            raw_input('gogogo')
+    # if not glob.inHeuristic and len(result) > 0:
+    #     placeR = [x for x in result if x.name == 'Place' and \
+    #               not x.delayBinding]
+    #     if len(placeR) > 1:
+    #         print '*******  returning from app op ******'
+    #         for oo in placeR:
+    #             print '    args', oo.args
+    #             print '   results of this operator'
+    #             for xx in oo.results:
+    #                 for yy in xx[0]: print '     ', yy
+    #         raw_input('gogogo')
 
     if len(result) == 0:
         debugMsg('appOp:number', ('h', glob.inHeuristic, 'number', len(result)))
