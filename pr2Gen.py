@@ -1136,14 +1136,16 @@ def lookGenTop(args, goalConds, pbs):
             # conf needs to be safe before we look
             delta = pbs.domainProbs.moveConfDelta
             if baseConfWithin(pbs.conf['pr2Base'], base, delta):
-                curLookConf = lookAtConfCanView(newBS_after, prob, newBS_after.conf,
+                curLookConf = lookAtConfCanView(newBS_before, prob,
+                                                newBS_before.conf,
                                                 shapeForLook,
                                                 shapeShadow=shapeShadow,
                                                 findPath=False)
             else:
                 curLookConf = None
+            # LPK just changed line below which used to have newBS_after
             lookConf = curLookConf or \
-                       lookAtConfCanView(newBS_after, prob, confAtTarget,
+                       lookAtConfCanView(newBS_before, prob, confAtTarget,
                                          shapeForLook, shapeShadow=shapeShadow)
             if lookConf:
                 tr(tag, '=> Found a path to look conf with specified base.',

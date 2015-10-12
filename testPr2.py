@@ -50,7 +50,8 @@ medVar = (0.05**2, 0.05**2, 1e-10, 0.1**2)
 smallVar = (0.03**2, 0.03**2, 1e-10, 0.06**2)
 tinyVar = (0.001**2, 0.001**2, 1e-10, 0.002**2)
 
-targetSmallVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2)
+#targetSmallVar = (0.01**2, 0.01**2, 0.01**2, 0.02**2)
+targetSmallVar = (0.02**2, 0.02**2, 0.02**2, 0.04**2)
 
 def makeExp(fix, move, reg, easy=False):
     exp = Experiment()

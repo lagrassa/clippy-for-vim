@@ -112,7 +112,10 @@ debugOnly = ['h', 'assign']  # print but don't pause
 # Add tags that you want to debug and pause on to this list
 
 debugOn = usualTags +   ['helpfulActions'] + skeletonTags + \
-  ['pickGen']
+  ['lookGen']
+
+
+
 
 #  ['pickGen', 'placeGen', 'placeInGen', 'pushInGen', 'pushGen'] + \
 
