@@ -261,10 +261,14 @@ def canView(pbs, prob, conf, hand, shape,
     if not vc: return None
     shWorld = pbs.getShadowWorld(prob)
     attached = shWorld.attached
+    if shapeShadow:
+        avoid = shapes.Shape([vc, shape, shapeShadow], None)
+    else:
+        avoid = shapes.Shape([vc, shape], None)
     # confPlace = conf.placement(attached=attached)
-    if not collides(conf, vc, attached=attached): # vc.collides(confPlace):
+    if not collides(conf, avoid, attached=attached):
         if debug('canView'):
-            print 'canView - no view cone collision'
+            print 'canView - no collisions'
         return [conf]
     elif not findPath:
         return []
@@ -274,10 +278,6 @@ def canView(pbs, prob, conf, hand, shape,
             vc.draw('W', 'red')
             conf.draw('W', attached=attached)
             debugMsg('canView', 'ViewCone collision')
-        if shapeShadow:
-            avoid = shapes.Shape([vc, shape, shapeShadow], None)
-        else:
-            avoid = shapes.Shape([vc, shape], None)
         pathFull = []
         for h in ['left', 'right']:     # try both hands
             chainName = robot.armChainNames[h]
