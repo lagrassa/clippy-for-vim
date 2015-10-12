@@ -275,15 +275,15 @@ def canView(pbs, prob, conf, hand, shape,
     # !! don't move arms to clear view of fixed objects
     if not permanent(objectName(shape.name())):
         if debug('canView'):
-            vc.draw('W', 'red')
+            avoid.draw('W', 'red')
             conf.draw('W', attached=attached)
             debugMsg('canView', 'ViewCone collision')
         pathFull = []
         for h in ['left', 'right']:     # try both hands
             chainName = robot.armChainNames[h]
             armChains = [chainName, robot.gripperChainNames[h]]
-            if not (collides(conf, vc, attached=attached, selectedChains=armChains) \
-                   if glob.useCC else vc.collides(armShape(conf, h))):
+            if not (collides(conf, avoid, attached=attached, selectedChains=armChains) \
+                   if glob.useCC else avoid.collides(armShape(conf, h))):
                 continue
             if debug('canView'):
                 print 'canView collision with', h, 'arm', conf['pr2Base']
@@ -296,13 +296,13 @@ def canView(pbs, prob, conf, hand, shape,
                 if path:
                     for c in path: c.draw('W', 'blue', attached=attached)
                     path[-1].draw('W', 'orange', attached=attached)
-                    vc.draw('W', 'green')
+                    avoid.draw('W', 'green')
                     debugMsg('canView', 'Retract arm')
             if debug('canView') or debug('canViewFail'):
                 if not path:
                     pbs.draw(prob, 'W')
                     conf.draw('W', attached=attached)
-                    vc.draw('W', 'red')
+                    avoid.draw('W', 'red')
                     raw_input('canView - no path')
             if path:
                 pathFull.extend(path)

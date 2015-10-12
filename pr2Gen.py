@@ -1061,6 +1061,11 @@ class LookGen(Function):
             yield ans
 
 # Returns (lookConf,), viol
+# The lookConf should be s.t.
+# - has no collisions with beforeShadow or any other permanent objects in the pbs
+# - can move to targetConf in the after world
+# - has the same base, if base is specified
+
 def lookGenTop(args, goalConds, pbs):
     # This checks that from conf c, sh is visible (not blocked by
     # fixed obstacles).  The obst are "movable" obstacles.  Returns
@@ -1132,21 +1137,23 @@ def lookGenTop(args, goalConds, pbs):
         if testFn(confAtTarget, shapeForLook, shWorld_before):
             # Is current conf good enough?  If not -
             # Modify the lookConf (if needed) by moving arm out of the
-            # way of the viewCone.  Use the before shadow because this
-            # conf needs to be safe before we look
+            # way of the viewCone and the shapeShadow.
             delta = pbs.domainProbs.moveConfDelta
             if baseConfWithin(pbs.conf['pr2Base'], base, delta):
-                curLookConf = lookAtConfCanView(newBS_before, prob,
-                                                newBS_before.conf,
+                curLookConf = lookAtConfCanView(newBS_after, prob,
+                                                newBS_after.conf,
                                                 shapeForLook,
                                                 shapeShadow=shapeShadow,
                                                 findPath=False)
             else:
                 curLookConf = None
-            # LPK just changed line below which used to have newBS_after
+            # Note that lookAtConfCanView avois the view cone and
+            # shapeShadow in newBS_after, this ensures that this
+            # motion can take us back to a safe conf in the after world.
             lookConf = curLookConf or \
-                       lookAtConfCanView(newBS_before, prob, confAtTarget,
-                                         shapeForLook, shapeShadow=shapeShadow)
+                       lookAtConfCanView(newBS_after, prob, confAtTarget,
+                                         shapeForLook, shapeShadow=shapeShadow,
+                                         findPath=True)
             if lookConf:
                 tr(tag, '=> Found a path to look conf with specified base.',
                    ('-> cyan', lookConf.conf),
