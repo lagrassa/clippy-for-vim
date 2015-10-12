@@ -110,7 +110,13 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
     # 1.  Can move from home to pre holding nothing with object placed at pose
     if preConf:
         pbs1 = pbs.copy().updatePermObjPose(objPlace).updateHeldBel(None, hand)
-        if op == 'place': pbs1.addAvoidShadow([obj])
+        if op == 'pick':
+            oB = objPlace.modifyPoseD(var=4*(0.0,)) # ignore uncertainty
+            oB.delta = 4*(0.0,)
+        else:
+            oB = objPlace.modifyPoseD(var=pbs.domainProbs.placeVar)
+            oB.delta = pbs.domainProbs.placeDelta
+        pbs1 = pbs1.updatePermObjPose(oB).addAvoidShadow([obj])
         if debug(tag):
             pbs1.draw(p, 'W')
             debugMsg(tag, 'H->App, obj@pose (condition 1)')
@@ -129,7 +135,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
     # preConfShape = preConf.placement(attached = pbs1.getShadowWorld(p).attached)
     objShadow = objPlace.shadow(pbs1.getShadowWorld(p))
     # Check visibility at preConf (for pick)
-    if op=='pick' and not (glob.inHeuristic or quick):
+    if op =='pick' and not (glob.inHeuristic or quick):
         path = canView(pbs1, p, preConf, hand, objShadow)
         if path:
             debugMsg(tag, 'Succeeded visibility test for pick')
@@ -854,7 +860,7 @@ def getCRNBObsts(goalConds, pbs):
 
 def getCRHObsts(goalConds, pbs):
     fbs = fbch.getMatchingFluents(goalConds,
-                             Bd([CanReachHome(['C', 'LAP', 'Cond']),
+                             Bd([CanReachHome(['C', 'Cond']),
                                  True, 'P'], True))
     world = pbs.getWorld()
     obsts = []

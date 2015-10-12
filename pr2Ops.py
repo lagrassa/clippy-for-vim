@@ -667,8 +667,8 @@ class AddPreConds(Function):
 #####    Fix this!!!
 # noinspection PyUnusedLocal
 def canReachHandGen(args, goal, start, vals):
-    (conf, fcp, p, cond, hand) = args
-    f = CanReachHome([conf, fcp, cond], True)
+    (conf, p, cond, hand) = args
+    f = CanReachHome([conf, cond], True)
     path, viol = f.getViols(start, True, p)
     if viol and viol.heldShadows[handI[hand]] != []:
         return [[]]
@@ -679,8 +679,8 @@ def canReachHandGen(args, goal, start, vals):
 # hand will reduce the violations.
 # noinspection PyUnusedLocal
 def canReachDropGen(args, goal, start, vals):
-    (conf, fcp, p, cond) = args
-    f = CanReachHome([conf, fcp, cond], True)
+    (conf, p, cond) = args
+    f = CanReachHome([conf, cond], True)
     result = []
     path, viol = f.getViols(start, True, p)
     for hand in ('left', 'right'):
@@ -1341,7 +1341,7 @@ move = Operator(
     'Move',
     ['CStart', 'CEnd', 'DEnd'],
     # Pre
-    {0 : {Bd([CanReachHome(['CEnd', False, []]),  True, movePreProb], True)},
+    {0 : {Bd([CanReachHome(['CEnd', []]),  True, movePreProb], True)},
      1 : {Conf(['CStart', 'DEnd'], True)}},
     # Results:  list of pairs: (fluent set, private preconds)
     [({Conf(['CEnd', 'DEnd'], True)}, {})],
@@ -1762,8 +1762,8 @@ class AchCanReachGen(Function):
     @staticmethod
     def fun(args, goal, start):
         tag = 'canReachGen'
-        (conf, fcp, prob, cond) = args
-        crhFluent = Bd([CanReachHome([conf, fcp, cond]), True, prob], True)
+        (conf, prob, cond) = args
+        crhFluent = Bd([CanReachHome([conf, cond]), True, prob], True)
         def violFn(pbs):
             p, v = canReachHome(pbs, conf, prob, Violations())
             return v
@@ -1908,7 +1908,7 @@ def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
         conds = frozenset([Bd([SupportFace([obst]), face, prob], True),
                            B([Pose([obst, face]), poseMean, objBMinVar,
                               lookDelta, prob], True)])
-        resultBS = newBS.conditioned(conds)
+        resultBS = newBS.conditioned([], conds)
         resultViol = violFn(resultBS)
         if resultViol is not None and shadowName not in resultViol.allShadows():
             op = lookAtOp(obst, 'LookConf', face, poseMean, 'PoseVarBefore',
@@ -1966,7 +1966,7 @@ def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
                            moveDelta, prob], True)})
 
             # Verify that this is helpful
-            resultBS = newBS.conditioned(newConds)
+            resultBS = newBS.conditioned([], newConds)
             resultViol = violFn(resultBS)
             assert resultViol is not None, 'impossible proposal'
 
@@ -2007,7 +2007,7 @@ def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
                            moveDelta, prob], True)})
 
             # Verify that this is helpful
-            resultBS = newBS.conditioned(newConds)
+            resultBS = newBS.conditioned([]. newConds)
             resultViol = violFn(resultBS)
             assert resultViol is not None, 'impossible proposal'
 
@@ -2045,13 +2045,13 @@ achIn = Operator('AchIn',
 # drop obj in hand, push, etc.
 
 achCanReach = Operator('AchCanReach',
-    ['CEnd', 'FCP', 'PreCond', 'PostCond', 'NewCond', 'Op', 'PR'],
+    ['CEnd', 'PreCond', 'PostCond', 'NewCond', 'Op', 'PR'],
     {0: {},
-     1: {Bd([CanReachHome(['CEnd', 'FCP', 'PreCond']),  True, 'PR'], True)}},
+     1: {Bd([CanReachHome(['CEnd', 'PreCond']),  True, 'PR'], True)}},
     # Result
-    [({Bd([CanReachHome(['CEnd', 'FCP','PostCond']),  True, 'PR'], True)}, {})],
+    [({Bd([CanReachHome(['CEnd','PostCond']),  True, 'PR'], True)}, {})],
     functions = [
-        AchCanReachGen(['Op', 'NewCond'],['CEnd', 'FCP', 'PR', 'PostCond'],
+        AchCanReachGen(['Op', 'NewCond'],['CEnd', 'PR', 'PostCond'],
                        True),
         AddPreConds(['PreCond'],['PostCond', 'NewCond'], True)],
     argsToPrint = [0],

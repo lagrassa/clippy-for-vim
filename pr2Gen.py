@@ -211,10 +211,14 @@ def pickGenTop(args, goalConds, pbs, onlyCurrent = False):
         conf = None
         confAppr = None
         tr(tag, 'Using current state, support=%s, pose=%s'%(sup, pose.xyztTuple()))
+
     # Update placeB
+    # Use 0 variance !!
+    pickVar = 4*(0.0,)
     placeB = ObjPlaceB(obj, placeB.faceFrames, DeltaDist(sup),
-                       PoseD(pose, placeB.poseD.var), placeB.delta)
+                       PoseD(pose, pickVar), placeB.delta)
     tr(tag, 'target placeB=%s'%placeB)
+
     shWorld = newBS.getShadowWorld(prob)
     tr('pickGen', 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
     gen = pickGenAux(newBS, obj, confAppr, conf, placeB, graspB, hand, base, prob,
@@ -425,8 +429,9 @@ def placeGenGen(args, goalConds, bState):
         return
 
     if isinstance(poses, tuple):
+        placeVar = pbs.domainProbs.placeVar # instead of objV
         placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
-                           PoseD(poses, objV), delta=objDelta)
+                           PoseD(poses, placeVar), delta=objDelta)
         placeBs = frozenset([placeB])
     else:
         raw_input('placeGenGen - poses is not a tuple')
@@ -547,7 +552,7 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                 regraspablePB[pB] = 0.
                 return True
             else:
-                tr(tag, 'Not regraspable for current grasp - rejecting')
+                tr(tag, 'Not regraspable for current grasp')
                 regraspablePB[pB] = 5.
         for gBO in gBOther:
             if gBO == curGrasp: continue
@@ -1444,9 +1449,7 @@ def canSeeGenTop(args, goalConds, pbs, outBindings):
     tr('canSeeGen', '(%s) h=%s'%(obj, glob.inHeuristic))
     tr('canSeeGen', zip(('conf', 'placeB', 'cond', 'prob'), args))
 
-    newBS = pbs.copy()
-    newBS = newBS.updateFromGoalPoses(goalConds)
-    newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
+    newBS = pbs.conditioned(goalConds, conds)
     newBS = newBS.updatePermObjPose(placeB)
 
     shWorld = newBS.getShadowWorld(prob)

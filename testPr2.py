@@ -321,8 +321,8 @@ def test8(**args):
              place, move,
              pick, moveNB, lookAt, moveNB, lookAt, move,
              place, move]]
-        
-    args['skeleton'] = skel2
+
+    args['skeleton'] = skel2 if args.get('skeleton', None) else None
     
     goal = holding('objB', 'left', 1, goalProb=0.7)
     testWithBInHand('test8', goal, initG, args)
@@ -343,7 +343,7 @@ def test9(**args):
     goal1 = holding('objA', 'left', 2)
     goal2 = placed('objA', front)
     skel = None
-    return doTest('test9', exp, goal1, skel, args)
+    return doTest('test9', exp, goal2, skel, args)
 
 def test10(**args):
     front = hu.Pose(1.3, 0.0, tZ, math.pi/2)

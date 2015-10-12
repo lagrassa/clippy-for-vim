@@ -351,11 +351,10 @@ class PBS:
                 self.avoidShadow = self.avoidShadow + [s]
         return self
 
-    def conditioned(self, goalConds, cond = None, permShadows = False):
+    def conditioned(self, goalConds, cond):
         newBS = self.copy()
         newBS = newBS.updateFromGoalPoses(goalConds)
-        if cond is not None:
-            newBS = newBS.updateFromGoalPoses(cond, permShadows=permShadows)
+        newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
         return newBS
     
     # Makes objects mentioned in the goal permanent,

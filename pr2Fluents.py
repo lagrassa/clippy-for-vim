@@ -311,10 +311,7 @@ class CanReachHome(Fluent):
     implicit = True
     conditional = True
 
-    # Args are: conf, fcp, cond
-
-    # fcp is kind of a hack: it means that the first condiiton is
-    # a pose and the shadow of that object is irreducible.
+    # Args are: conf, cond
 
     def conditionOn(self, f):
         preds = ('Pose', 'SupportFace', 'Holding', 'Grasp', 'GraspFace')
@@ -329,7 +326,7 @@ class CanReachHome(Fluent):
     # TODO : LPK: Try to share this code across CanX fluents
     def getViols(self, bState, v, p):
         assert v == True
-        (conf, fcp, cond) = self.args
+        (conf, cond) = self.args
 
         key = (hash(bState.pbs), p)
         if not hasattr(self, 'viols'): self.viols = {}
@@ -337,9 +334,7 @@ class CanReachHome(Fluent):
         if key in self.viols: return self.viols[key]
         if glob.inHeuristic and key in self.hviols: return self.hviols[key]
 
-        newPBS = bState.pbs.conditioned(cond, permShadows = True)
-        # TODO: LPK: Make this an optional arg to conditioned?
-        newPBS.addAvoidShadow([cond[0].args[0].args[0]] if fcp else [])
+        newPBS = bState.pbs.conditioned([], cond)
         path, violations = canReachHome(newPBS, conf, p, Violations())
         debugMsg('CanReachHome',
                  ('conf', conf),
@@ -362,7 +357,7 @@ class CanReachHome(Fluent):
 
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
-        (conf, fcp, cond) = self.args
+        (conf, cond) = self.args
 
         if not self.isGround():
             # assume an obstacle, if we're asking.  May need to decrease this
@@ -378,7 +373,7 @@ class CanReachHome(Fluent):
         return totalCost, ops
 
     def prettyString(self, eq = True, includeValue = True):
-        (conf, fcp, cond) = self.args
+        (conf, cond) = self.args
         condStr = self.args[-1] if isVar(self.args[-1]) else \
           str([innerPred(c) for c in self.args[-1]]) 
 
@@ -646,12 +641,14 @@ class CanPickPlace(Fluent):
         tinyDelta = zeroDelta
 
         if not hasattr(self, 'conds') or self.conds is None:
-            objInPlace = [B([Pose([obj, poseFace]), pose, poseVar, poseDelta,
-                            1.0], True),
-                          Bd([SupportFace([obj]), poseFace, 1.0], True)]
+            placeVar = details.domainProbs.placeVar if details else poseVar
+            objInPlacePlaceVar = [B([Pose([obj, poseFace]), pose, placeVar, poseDelta,
+                                     1.0], True),
+                                  Bd([SupportFace([obj]), poseFace, 1.0], True)]
             objInPlaceZeroVar = [B([Pose([obj, poseFace]), pose, zeroVar,
                                    tinyDelta,1.0], True),
                           Bd([SupportFace([obj]), poseFace, 1.0], True)]
+            objInPlace = objInPlacePlaceVar if opType == 'place' else objInPlaceZeroVar
             holdingNothing = [Bd([Holding([hand]), 'none', 1.0], True)]
             objInHand = [B([Grasp([obj, hand, graspFace]),
                            graspMu, graspVar, graspDelta, 1.0], True),
@@ -664,17 +661,15 @@ class CanPickPlace(Fluent):
                                    
             self.conds = \
              [# 1.  Home to approach, holding nothing, obj in place
-              # If it's a place operation, the shadow of the object in
-              #    place is irreducible .   !!!
-              CanReachHome([preConf, opType == 'place',
+              CanReachHome([preConf,
                             objInPlace + holdingNothing]),
               # 2.  Home to approach with object in hand
-              CanReachHome([preConf, False, objInHand]),
+              CanReachHome([preConf, objInHand]),
               # 3.  Home to pick with hand empty, obj in place with zero var
-              CanReachHome([ppConf, False,
+              CanReachHome([ppConf,
                             holdingNothing + objInPlaceZeroVar]),
               # 4. Home to pick with the object in hand with zero var and delta
-              CanReachHome([ppConf, False, objInHandZeroVar])]
+              CanReachHome([ppConf, objInHandZeroVar])]
             for c in self.conds: c.addConditions(inconds, details)
         return self.conds
 
@@ -864,7 +859,7 @@ class CanPush(Fluent):
         if key in self.viols: return self.viols[key]
         if glob.inHeuristic and key in self.hviols: return self.hviols[key]
 
-        newPBS = bState.pbs.conditioned(cond, permShadows = True)
+        newPBS = bState.pbs.conditioned([], cond)
         path, violations = canPush(newPBS, obj, hand, poseFace, prePose, pose,
                                    preConf, pushConf, postConf, poseVar,
                                    prePoseVar, poseDelta, p, Violations())
