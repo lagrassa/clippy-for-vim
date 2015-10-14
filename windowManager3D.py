@@ -1,4 +1,6 @@
 import DrawingWindowStandalonePIL as dw
+# Without PIL, the graphics in the gen logs doesn't work, but everything else does.
+# import DrawingWindowStandalone as dw
 reload(dw)
 from graphics3D import Window3D
 

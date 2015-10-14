@@ -215,11 +215,11 @@ def test2h(**args):
 ######################################################################
 
 def test3(**args):
-    right1 = hu.Pose(1.1, 0.0, tZ, 0.0) 
+    right1 = hu.Pose(1.05, 0.0, tZ, 0.0) 
     right2 = hu.Pose(1.5, -0.5, tZ, 0.0)
-    left1 = hu.Pose(1.1, 0.5, tZ, 0.0)
+    left1 = hu.Pose(1.05, 0.5, tZ, 0.0)
     left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
-    coolShelvesPose = hu.Pose(1.4, 0.03, tZ, math.pi/2)
+    coolShelvesPose = hu.Pose(1.3, 0.03, tZ, math.pi/2)
     region = 'coolShelves_space_2'
     easy=args.get('easy', False)
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -310,10 +310,7 @@ def test7(**args):
 #       Start with something in the hand
 ######################################################################
 
-def test8(**args):
-    initG = 0
-    #initG = 3
-
+def test8(initG=0, **args):
     # one place, one pick;  use with easy = True
     skel1 = [[pick, moveNB, lookAt, moveNB, lookAt, move,
              place, move]]

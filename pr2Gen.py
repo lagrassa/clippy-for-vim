@@ -554,6 +554,9 @@ def placeGenAux(pbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
             else:
                 tr(tag, 'Not regraspable for current grasp')
                 regraspablePB[pB] = 5.
+                # Returning False means that we insist that the
+                # regrasp happen in one step.
+                # return False
         for gBO in gBOther:
             if gBO == curGrasp: continue
             c = next(potentialGraspConfGen(pbs, pB, gBO, conf, hand, base, prob, nMax=1),

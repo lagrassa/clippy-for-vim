@@ -1968,7 +1968,8 @@ def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
             # Verify that this is helpful
             resultBS = newBS.conditioned([], newConds)
             resultViol = violFn(resultBS)
-            assert resultViol is not None, 'impossible proposal'
+            if resultViol is None:
+                raw_input(tag + ': impossible proposal - continue?')
 
             op = placeOp(obst, r.hand, supportFace, poseMean, poseVar,
                          'RealPoseVar', moveDelta,
@@ -2007,9 +2008,10 @@ def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
                            moveDelta, prob], True)})
 
             # Verify that this is helpful
-            resultBS = newBS.conditioned([]. newConds)
+            resultBS = newBS.conditioned([], newConds)
             resultViol = violFn(resultBS)
-            assert resultViol is not None, 'impossible proposal'
+            if resultViol is None:
+                raw_input(tag + ': impossible proposal - continue?')
 
             op = pushOp(obst, r.hand, postPose, supportFace, postPoseVar,
                          moveDelta, prePose, prePoseVar, r.preConf, r.pushConf,
