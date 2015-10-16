@@ -671,7 +671,7 @@ class Operator(object):
                  conditionOnPreconds = False, 
                  argsToPrint = None,
                  specialRegress = None,
-                 metaGenerator = False,
+                 metaOperator = False,
                  rebindPenalty = glob.rebindPenalty,
                  costAdjustment = 0,
                  delayBinding = False,
@@ -680,7 +680,7 @@ class Operator(object):
         self.args = args # list of vars or constants
         self.preconditions = preconditions
         self.functions = functions if functions is not None else []
-        self.metaGenerator = metaGenerator
+        self.metaOperator = metaOperator
 
         assert type(results) == list
         if len(results) > 0:
@@ -921,7 +921,7 @@ class Operator(object):
                       self.conditionOnPreconds,
                       self.argsToPrint,
                       self.specialRegress,
-                      self.metaGenerator,
+                      self.metaOperator,
                       self.rebindPenalty,
                       self.costAdjustment,
                       self.delayBinding,
@@ -1065,38 +1065,24 @@ class Operator(object):
         rebindLater.suspendedOperator.instanceCost = rebindCost
         return [rebindLater, rebindCost]
 
-    def mopFromBindings(self, newBindings, results, newGoal, startState,
-                        heuristic,
-                        operators, ancestors):
-
-        for k in newBindings.keys():
-            if k[:2] == 'Op': mop = newBindings[k]
-
-        # We have made a commitment to achieving these conditions as a
-        # way of achieving the goal.  We need to remember them for
-        # planning at the next level down. 
-        preCond = None
-        for k in newBindings.keys():
-            if k[:7] == 'NewCond': newCond = newBindings[k]
-        if not newGoal.isConsistent(newCond, startState.details):
-            print self.name, 'generated a bad suggestion'
-            print 'Ignoring it for now, but we should fix this.'
-            return None
-        newGoal.addSet(newCond)
-        newGoal.depth = newGoal.depth - 1
-        # Set abstraction level for mop
-        if flatPlan:
-            mop.abstractionLevel = mop.concreteAbstractionLevel
-        else:
-            mop.setAbstractionLevel(ancestors)
-        tr('regression:mop', 'Applied metagenerator, got', mop, '\n',
-           newCond)
-        mopr = mop.regress(newGoal, startState, heuristic, operators,
-                           ancestors, numResults = 1)
-        return mopr[0] if len(mopr) > 1 else None
 
     def newGoalFromBindings(self, newBindings, results, goal, startState,
                             heuristic, operators, ancestors):
+
+    
+        goal = goal.copy()
+        if self.metaOperator:
+            # Add extra preconds straight into the goal
+            newCond = False
+            for k in newBindings.keys():
+                if k[:7] == 'NewCond': newCond = newBindings[k]
+            assert newCond != False
+            if not goal.isConsistent(newCond, startState.details):
+                print self.name, 'generated a bad suggestion'
+                print 'Ignoring it for now, but we should fix this.'
+                return None
+            goal.addSet(newCond)
+
         resultSE = [f.applyBindings(newBindings) \
                     for f in self.guaranteedSideEffects(allLevels = True)]
         # These are side effects we can rely on
@@ -1223,11 +1209,6 @@ class Operator(object):
         newGoal.bindings = copy.copy(goal.bindings)
         newGoal.bindings.update(newBindings)
 
-        if self.metaGenerator:
-            return self.mopFromBindings(newBindings, results, newGoal,
-                                        startState,
-                                           heuristic, operators, ancestors)
-        
         primCost = self.cost(self.abstractionLevel,
                          [lookup(arg, newBindings) for arg in self.args],
                          startState.details)
@@ -1467,6 +1448,13 @@ class Function(object):
     __str__ = prettyString
     __repr__ = __str__
 
+class AddPreConds(Function):
+    # Add a list of conditions into a conditional fluent
+    # noinspection PyUnusedLocal
+    @staticmethod
+    def fun((postCond, newConds), goal, start):
+        resultCond = simplifyCond(postCond, newConds)
+        return [[resultCond]]
         
 ######################################################################
 # Heuristic.  Needs to be reimplemented.  See belief.py

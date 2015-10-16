@@ -6,7 +6,8 @@ from traceFile import tr, trAlways, debug, debugMsg
 import planGlobals as glob
 
 import fbch
-from fbch import Fluent, hCache, State, applicableOps, Operator
+from fbch import Fluent, hCache, State, applicableOps, Operator,\
+     AddPreConds
 
 from miscUtil import isVar, isAnyVar, floatify, customCopy,\
     lookup, prettyString, isGround, SetWithEquality
@@ -403,6 +404,34 @@ def getOverlap(vl1, vl2, dl1, dl2):
         return False, False
     else:
         return newMean, newDelta
+
+######################################################################
+#
+# Belief meta-operator
+#
+######################################################################
+
+# Needs special treatment in regression to take the binding of
+# 'NewCond' and add it to the preconditions
+
+class BMetaOperator(Operator):
+    def __init__(self, name, fluentClass, args, generator,
+                 argsToPrint = None):
+        super(BMetaOperator, self).__init__(\
+            name,
+            args + ['PreCond', 'NewCond', 'PostCond', 'P'],
+            {0 : {},
+             1 : {Bd([fluentClass(args + ['PreCond']), True, 'P'], True)}},
+            [({Bd([fluentClass(args + ['PostCond']),  True, 'P'], True)}, {})],
+            functions = [
+               generator(['NewCond'], args + ['P', 'PostCond'], True),
+               AddPreConds(['PreCond'],['PostCond', 'NewCond'], True)],
+            argsToPrint = range(len(args)) if argsToPrint == None else \
+                           argsToPrint,
+            ignorableArgs = range(len(args), len(args) + 4),
+            ignorableArgsForHeuristic = range(len(args), len(args) + 4),
+            conditionOnPreconds = True,
+            metaOperator = True)
 
 ######################################################################
 #

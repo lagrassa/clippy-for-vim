@@ -631,7 +631,8 @@ def pushOut(pbs, prob, obst, delta, goalConds):
         obst = obst.name()
     for ans in pushInGenAway((obst, delta, prob), goalConds, pbs):
         ans = ans.copy()
-        ans.var = domainPlaceVar; ans.delta = delta
+        ans.var = pbs.domainProbs.objBMinVar(obst)
+        ans.delta = delta
         yield ans
 
 pushInGenMaxPoses  = 50
