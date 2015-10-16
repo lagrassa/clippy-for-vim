@@ -13,7 +13,7 @@ from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowWidths, objectName
 from pr2Gen import PickGen, LookGen,\
     EasyGraspGen, canPickPlaceTest, PoseInRegionGen, PlaceGen, moveOut
-from belief import Bd, B
+from belief import Bd, B, BMetaOperator
 from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
      findRegionParent, CanReachNB, BaseConf, BLoc, canReachHome, canReachNB,\
@@ -652,14 +652,6 @@ def genLookObjHandPrevVariance((ve, hand, obj, face), goal, start, vals):
         result.append([cappedVbo])
     return result
 '''
-
-class AddPreConds(Function):
-    # Add a list of conditions into a conditional fluent
-    # noinspection PyUnusedLocal
-    @staticmethod
-    def fun((postCond, newConds), goal, start):
-        resultCond = simplifyCond(postCond, newConds)
-        return [[resultCond]]
 
 '''
 # Really just return true if reducing variance on the object in the
@@ -1767,15 +1759,14 @@ class AchCanReachGen(Function):
         def violFn(pbs):
             p, v = canReachHome(pbs, conf, prob, Violations())
             return v
-        for ans in \
+        for newCond in \
               achCanXGen(start.pbs, goal, cond, [crhFluent], violFn, prob, tag):
-            (op, newCond) = ans
             if not State(goal).isConsistent(newCond):
                 print 'AchCanReach suggestion inconsistent with goal'
                 for c in newCond: print c
                 debugMsg(tag, 'Inconsistent')
             else:
-                yield op, newCond
+                yield [newCond]
 
 class AchCanReachNBGen(Function):
     @staticmethod
@@ -1787,15 +1778,14 @@ class AchCanReachNBGen(Function):
         def violFn(pbs):
             p, v = canReachNB(pbs, startConf, endConf, prob, Violations())
             return v
-        for ans in \
+        for newCond in \
               achCanXGen(start.pbs, goal, cond, [crFluent], violFn, prob, tag):
-            (op, newCond) = ans
             if not State(goal).isConsistent(newCond):
                 print 'AchCanReachNB suggestion inconsistent with goal'
                 for c in newCond: print c
                 debugMsg(tag, 'Inconsistent')
             else:
-                yield op, newCond
+                yield [newCond]
 
 class AchCanPickPlaceGen(Function):
     @staticmethod
@@ -1911,11 +1901,7 @@ def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
         resultBS = newBS.conditioned([], conds)
         resultViol = violFn(resultBS)
         if resultViol is not None and shadowName not in resultViol.allShadows():
-            op = lookAtOp(obst, 'LookConf', face, poseMean, 'PoseVarBefore',
-                          lookDelta, objBMinVar, objBMinVar, 'ConfDelta',
-                          obsVar,'P1', prob, prob, prob)
-            tr(tag, '=> returning', op)
-            yield op, conds
+            yield [conds]
         else:
             trAlways('Error? Looking could not dispel shadow')
     tr(tag, '=> Out of remedies')
@@ -1964,21 +1950,8 @@ def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
                 {Bd([SupportFace([obst]), supportFace, prob], True),
                  B([Pose([obst, supportFace]), poseMean, poseVar,
                            moveDelta, prob], True)})
-
-            # Verify that this is helpful
-            resultBS = newBS.conditioned([], newConds)
-            resultViol = violFn(resultBS)
-            if resultViol is None:
-                raw_input(tag + ': impossible proposal - continue?')
-
-            op = placeOp(obst, r.hand, supportFace, poseMean, poseVar,
-                         'RealPoseVar', moveDelta,
-                         graspFace, graspMean, graspVar, graspDelta,
-                         r.ca, 'ConfDelta', r.c, 'AwayRegion',
-                         prob, prob, prob, 'P1')
-            tr(tag, '=> returning', op, '\n', newConds)
             print '*** moveOut', obst
-            yield op, newConds
+            yield [newConds]
     tr(tag, '=> Out of remedies')
 
 def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
@@ -2006,19 +1979,8 @@ def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
                 {Bd([SupportFace([obst]), supportFace, prob], True),
                  B([Pose([obst, supportFace]), postPose, postPoseVar,
                            moveDelta, prob], True)})
-
-            # Verify that this is helpful
-            resultBS = newBS.conditioned([], newConds)
-            resultViol = violFn(resultBS)
-            if resultViol is None:
-                raw_input(tag + ': impossible proposal - continue?')
-
-            op = pushOp(obst, r.hand, postPose, supportFace, postPoseVar,
-                         moveDelta, prePose, prePoseVar, r.preConf, r.pushConf,
-                         r.postConf,  'ConfDelta', prob, 'PR1', 'PR2')
-            tr(tag, '=> returning', op)
             print '*** pushOut', obst
-            yield op, newConds
+            yield [newConds]
     tr(tag, '=> Out of remedies')
     
 
@@ -2030,110 +1992,27 @@ def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
 
 # Could be place, push, or look
 
-'''
-achIn = Operator('AchIn',
-        ['Obj1', 'Region'],
-        {0 : {}},
-        # Results
-        [({Bd([In(['Obj1', 'Region']), True, 'PR'], True)},{})],
-        functions = [AchInGen(['Op', 'NewCond'], ['Obj1', 'Region'])],
-        argsToPrint = [0, 1],
-        ignorableArgs = range(2, 10),
-        metaGenerator = True)
-'''        
+achCanReach = BMetaOperator('AchCanReach', CanReachHome, ['CEnd'],
+                           AchCanReachGen,
+                           argsToPrint = [0])
 
-# Calls a generator that returns an instance of a base operator, and the
-# conditions it achieves.  Could look at obj, move an obj, look at hand,
-# drop obj in hand, push, etc.
+achCanReachNB = BMetaOperator('AchCanReachNB', CanReachNB, ['CStart', 'CEnd'],
+                           AchCanReachNBGen,
+                           argsToPrint = [0, 1])
 
-achCanReach = Operator('AchCanReach',
-    ['CEnd', 'PreCond', 'PostCond', 'NewCond', 'Op', 'PR'],
-    {0: {},
-     1: {Bd([CanReachHome(['CEnd', 'PreCond']),  True, 'PR'], True)}},
-    # Result
-    [({Bd([CanReachHome(['CEnd','PostCond']),  True, 'PR'], True)}, {})],
-    functions = [
-        AchCanReachGen(['Op', 'NewCond'],['CEnd', 'PR', 'PostCond'],
-                       True),
-        AddPreConds(['PreCond'],['PostCond', 'NewCond'], True)],
-    argsToPrint = [0],
-    ignorableArgs = range(1, 6),
-    ignorableArgsForHeuristic = range(1, 6),
-    metaGenerator = True
-    )
-
-achCanReachNB = Operator('AchCanReachNB',
-    ['CStart', 'CEnd', 'PreCond', 'PostCond', 'NewCond', 'Op', 'PR'],
-    {0: {},
-     1: {Bd([CanReachNB(['CStart', 'CEnd', 'PreCond']),  True, 'PR'], True)}},
-    # Result
-    [({Bd([CanReachNB(['CStart', 'CEnd', 'PostCond']), True,'PR'], True)}, {})],
-    functions = [
-        AchCanReachNBGen(['Op', 'NewCond'],['CStart', 'CEnd', 'PR','PostCond'],
-                         True),
-        AddPreConds(['PreCond'],['PostCond', 'NewCond'], True)],
-    argsToPrint = [0, 1],
-    ignorableArgs = range(2, 6),
-    ignorableArgsForHeuristic = range(2, 6),
-    metaGenerator = True
-    )
-
-achCanPickPlace = Operator('AchCanPickPlace',
+achCanPickPlace = BMetaOperator('AchCanPickPlace', CanPickPlace,
     ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
      'RealPoseVar', 'PoseDelta', 'PoseFace',
-     'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta','PPOp',
-     'PreCond', 'PostCond', 'NewCond', 'Op', 'PR'],
-    {0: {},
-     1: {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
-                          'RealPoseVar', 'PoseDelta', 'PoseFace',
-                          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'PPOp', 'PreCond']), True, 'PR'],True)}},
-    # Result
-    [({Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
-                          'RealPoseVar', 'PoseDelta', 'PoseFace',
-                          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'PPOp', 'PostCond']), True, 'PR'],True)},
-                          {})],
-    functions = [
-        # Call generator
-        AchCanPickPlaceGen(['Op', 'NewCond'],
-                  ['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
-                          'RealPoseVar', 'PoseDelta', 'PoseFace',
-                          'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                          'PPOp', 'PR', 'PostCond'], True),
-         # Add the appropriate condition
-         AddPreConds(['PreCond'], ['PostCond', 'NewCond'], True)],
-    argsToPrint = [2, 3, 4],
-    ignorableArgs = [0, 1] + range(5, 17),
-    ignorableArgsForHeuristic = [0, 1] + range(5, 17),
-    metaGenerator = True)
+     'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta','PPOp'],
+     AchCanPickPlaceGen,
+     argsToPrint = (1, 2, 3))
 
-achCanPush = Operator('AchCanPush',
+achCanPush = BMetaOperator('AchCanPush', CanPush,
     ['Obj', 'Hand', 'PoseFace',
      'PrePose', 'Pose', 'PreConf', 'PushConf', 'PostConf',
-     'PoseVar', 'PrePoseVar', 'PoseDelta', 'PreCond', 'PostCond',
-    'NewCond', 'Op', 'Prob'],
-    {0: {},
-     1: {Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
-                      'PreConf', 'PushConf',
-                    'PostConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',
-                    'PreCond']),  True, 'Prob'], True)}},
-    # Result
-    [({Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
-                    'PreConf', 'PushConf',
-                    'PostConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',
-                    'PostCond']),  True, 'Prob'], True)}, {})],
-    functions = [
-        AchCanPushGen(['Op', 'NewCond'],
-                      ['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
-                       'PreConf', 'PushConf', 'PostConf', 'PoseVar',
-                      'PrePoseVar', 'PoseDelta', 'Prob', 'PostCond'], True),
-        AddPreConds(['PreCond'],['PostCond', 'NewCond'], True)],
-    argsToPrint = [0, 1, 4],
-    ignorableArgs = range(1, 14),
-    ignorableArgsForHeuristic = range(1, 14),
-    metaGenerator = True
-    )
+     'PoseVar', 'PrePoseVar', 'PoseDelta'],
+    AchCanPushGen,
+    argsToPrint = (0, 1, 4))
 
 # Never been tested
 '''

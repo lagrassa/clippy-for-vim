@@ -1356,7 +1356,8 @@ def moveOut(pbs, prob, obst, delta, goalConds):
         obst = obst.name()
     for ans in placeInGenAway((obst, delta, prob), goalConds, pbs):
         ans = ans.copy()
-        ans.var = domainPlaceVar; ans.delta = delta
+        ans.var = pbs.domainProbs.objBMinVar(obst)
+        ans.delta = delta
         yield ans
 
 # Preconditions (for R1):
