@@ -256,7 +256,8 @@ class PBS:
         return self.beliefContext.roadMap
     def getObjectShapeAtOrigin(self, obj):
         return self.beliefContext.world.getObjectShapeAtOrigin(obj)
-
+    def confViolations(self, conf, prob):
+        return self.beliefContext.roadMap.confViolations(conf, self, prob)
     def awayRegions(self):
         return frozenset([r for r in self.regions if r[:5] == 'table'])
 

@@ -693,7 +693,7 @@ def prof(test, n=100):
 
     from pr2GenAux import graspConfGenCacheStats, graspConfStats
     print 'graspConfGenCacheStats', graspConfGenCacheStats
-    print 'graspConfCacheStats', graspConfStats
+    print 'graspConfStats', graspConfStats
 
 def profPrint(n=100):
     import pstats

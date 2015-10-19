@@ -370,7 +370,10 @@ graspConfClear = 0.001
 
 def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None):
     tag = 'potentialGraspConfs'
-    key = (pbs, placeB, graspB.grasp.mode(), conf, hand, tuple(base) if base else None, prob, nMax)
+    graspMode = graspB.grasp.mode()
+    # When the grasp is -1 (a push), we need the full grasp spec.
+    graspBCacheVal = graspB if graspMode == -1 else graspMode
+    key = (pbs, placeB, graspBCacheVal, conf, hand, tuple(base) if base else None, prob, nMax)
     args = (pbs, placeB, graspB, conf, hand, tuple(base) if base else None, prob, nMax)
     cache = graspConfGenCache
     val = cache.get(key, None)
@@ -423,6 +426,7 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
     # Check inverse kinematics
     conf = robot.inverseKin(cart)
     if None in conf.values():
+        debugMsg('potentialGraspConfsLose', 'invkin failure')
         if counts: counts[0] += 1       # kin failure
         return
     # Copy the other arm
@@ -826,7 +830,7 @@ def getCPObsts(goalConds, pbs):
         for (pf, pb) in pfbs:
             if isGround(pb.values()):
                 ignoreObjects.add(pb['Obj'])
-        obsts.append((ignoreObjects, obst))
+        obsts.append((frozenset(ignoreObjects), obst))
     debugMsg('getReachObsts', ('->', len(obsts), 'CRH NB obsts'))
     return obsts
 
@@ -854,7 +858,7 @@ def getCRNBObsts(goalConds, pbs):
         for (pf, pb) in pfbs:
             if isGround(pb.values()):
                 ignoreObjects.add(pb['Obj'])
-        obsts.append((ignoreObjects, obst))
+        obsts.append((frozenset(ignoreObjects), obst))
     debugMsg('getReachObsts', ('->', len(obsts), 'CRH NB obsts'))
     return obsts
 
@@ -881,7 +885,7 @@ def getCRHObsts(goalConds, pbs):
         for (pf, pb) in pfbs:
             if isGround(pb.values()):
                 ignoreObjects.add(pb['Obj'])
-        obsts.append((ignoreObjects, obst))
+        obsts.append((frozenset(ignoreObjects), obst))
     debugMsg('getReachObsts', ('->', len(obsts), 'CRH obsts'))
     return obsts
 
@@ -984,7 +988,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                     debugMsg(tag, 'v=%s'%v, 'weight=%s'%str(v.weight()),
                              'pose=%s'%pose, 'grasp=%s'%grasp)
                 
-                return v.weight() # + baseDist(pbs.conf, ca)
+                return v.weight() + baseDist(pbs.conf, ca)
 
             else:
                 if debug(tag):

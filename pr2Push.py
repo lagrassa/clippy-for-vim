@@ -40,7 +40,8 @@ pushGenCache = {}
 
 minPushLength = 0.02
 
-useDirectPush = True
+# Needs work... the hand needs to turn in the direction of the push?
+useDirectPush = False
 
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
@@ -154,7 +155,6 @@ def pushGenTop(args, goalConds, pbs,
         pushGenCache[key] = memo
         if debug(tag):
             print tag, 'creating new pushGenAux generator'
-    rm = newBS.getRoadMap()
     for ans in memo:
         (hand, prePoseTuple, preConf, pushConf, postConf) = ans.pushTuple()
         prePose = hu.Pose(*prePoseTuple)
@@ -163,7 +163,7 @@ def pushGenTop(args, goalConds, pbs,
             testBS = newBS.copy()
             testBS.updatePermObjPose(placeB.modifyPoseD(prePose)) # obj at prePose
             testBS.draw(prob, 'W'); preConf.draw('W')
-            viol = rm.confViolations(preConf, testBS, prob)
+            viol = testBS.confViolations(preConf, prob)
             if not glob.inHeuristic and debug(tag):
                 print 'pushGen violations', viol
             if not viol:
@@ -248,21 +248,25 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
         for direct in (True, False) if (useDirectPush and vertical and curPose) else (False,):
             count = 0                       # how many tries
             doneCount = 0                   # how many went all the way
-            for ans in potentialConfs(pbs, prob, placeB,
-                                      curPose.pose() if direct else prePose.pose(),
-                                      graspB, hand, base):
+            initPose = curPose.pose() if direct else prePose.pose()
+            appPoseOffset = hu.Pose(*(glob.pushBuffer*direction).tolist()+[0.0])
+            appPose = appPoseOffset.compose(initPose).pose()
+            if debug(tag):
+                print 'Calling potentialConfs, with direct =', direct
+            for ans in potentialConfs(pbs, prob, placeB, appPose, graspB, hand, base):
                 if not ans:
-                    tr(tag+'Path', 'potential grasp conf is empy')
+                    tr(tag+'_kin', 'potential grasp conf is empy')
                     continue
-                (c, ca, viol) = ans         # conf, approach, violations
-                pushConf = gripSet(c, hand, 2*width) # open fingers
+                (prec, postc) = ans         # conf, approach, violations
+                preConf = gripSet(prec, hand, 2*width) # open fingers
+                pushConf = gripSet(postc, hand, 2*width) # open fingers
                 if debug(tag+'_kin'):
                     pushConf.draw('W', 'orange')
                     raw_input('Candidate conf')
                 count += 1
                 pathAndViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
-                                                curPose.pose() if direct else prePose.pose(),
-                                                xyPrim, supportRegion, hand, reachObsts=reachObsts)
+                                                initPose, preConf, supportRegion, hand,
+                                                reachObsts=reachObsts)
                 if reason == 'done':
                     doneCount +=1 
                     pushPaths.append((pathAndViols, reason))
@@ -304,20 +308,29 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
     tr(tag, '=> pushGenAux exhausted')
     return
 
+# Return (preConf, pushConf) - conf at prePose and conf at placeB (pushConf)
 def potentialConfs(pbs, prob, placeB, prePose, graspB, hand, base):
-    def preGraspConfGen():
-        for (c, ca, v) in potentialGraspConfGen(pbs, prePB, graspB, None, hand, base, prob):
-            (x, y, th) = c['pr2Base']
+    def graspConfGen(pb1, pb2, rev):
+        for (c1, ca1, v1) in \
+                potentialGraspConfGen(pbs, pb1, graspB, None, hand, base, prob):
+            (x, y, th) = c1['pr2Base']
             basePose = hu.Pose(x, y, 0, th)
-            ans = graspConfForBase(pbs, placeB, graspB, hand, basePose, prob)
-            if debug('pushGen_kin'):
-                c.draw('W', 'cyan'); print 'ans=', ans
-                raw_input('Candidate at prePose')
-            if ans: yield ans
+            if debug('pushPath'):
+                print 'Testing potential push conf at other end of push'
+            ans = graspConfForBase(pbs, pb2, graspB, hand, basePose, prob)
+            if ans:
+                c2, ca2, v2 = ans
+                if debug('pushPath'):
+                    # the first should be a preConf, the second a pushConf
+                    if rev:
+                        c2.draw('W', 'blue'); c1.draw('W', 'pink')
+                    else:
+                        c1.draw('W', 'blue'); c2.draw('W', 'pink')
+                    raw_input('potentialConfs')
+                yield (c2, c1) if rev else (c1, c2)
     prePB = placeB.modifyPoseD(prePose)
-    postGen = potentialGraspConfGen(pbs, placeB, graspB, None, hand, base, prob)
-    preGen = preGraspConfGen()
-    return roundrobin(postGen, preGen)
+    return roundrobin(graspConfGen(placeB, prePB, True),
+                      graspConfGen(prePB, placeB, False))
 
 # Path entries are (robot conf, violations, object pose)
 # Paths can end or start with a series of steps that do not move the
@@ -517,12 +530,10 @@ def sortPushContacts(contacts, targetPose, curPose):
                 # bad ones require "pulling"
                 bad.append((0, None, vertical, contact, width))
             elif -ntrz >= minPushLength:
-                # distance negated...
-                score = 5 * width - ntrz # prefer wide faces and longer pushes
-                good.append((score, -ntrz, vertical, contact, width))
-                # if abs(ntrz) > 0.1:
-                #     score = 5 * width - 0.5*ntrz # prefer wide faces and longer pushes
-                #     good.append((score, -0.5*ntrz, vertical, contact, width))
+                for dist in (ntrz, 0.5*ntrz):
+                    # distance negated...
+                    score = 5 * width - dist # prefer wide faces and longer pushes
+                    good.append((score, -dist, vertical, contact, width))
     else:                               # no pose, just use width
         for (vertical, contact, width) in contacts:
             if debug('pushGenDetail'):
@@ -695,6 +706,10 @@ def pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, hand,
     tag = 'pushInGen'
     shWorld = pbs.getShadowWorld(prob)
     for pB in awayTargetPB(pbs, prob, placeB, regShapes):
+        tr(tag, 'target', pB,
+           draw=[(pbs, prob, 'W'),
+                 (pB.shape(shWorld), 'W', 'pink')],
+           snap=['W'])
         for ans in pushGenTop((placeB.obj, pB, hand, prob),
                               goalConds, pbs,
                               # TODO: should this be true or false?
@@ -722,8 +737,11 @@ def regionPB(pbs, prob, placeB, regShape):
     targets = sortedTargets(pbs, prob, placeB, bboxRandomCoords(bbox, n=20))
     for point in targets:
         newMode = hu.Pose(point[0], point[1], mode.z, mode.theta)
+
+        # TODO: This results in a big shadow.  Is this good?
         newPB = placeB.modifyPoseD(newMode, var=4*(0.02**2,))
         newPB.delta = delta=4*(0.001,)
+
         newShape = newPB.makeShadow(pbs, prob) 
         if inside(newShape, regShape, strict=True):
             if debug('pushInGen'):
@@ -792,14 +810,13 @@ def awayTargetPB(pbs, prob, placeB, regShapes):
                     pbs.draw(prob, 'W'); drawFrame(contactFrame); newShape.draw('W', 'magenta')
                     raw_input('Go?')
                 yield newPB
-        if useDirectPush:
-            for newPB in regionPB(pbs, prob, placeB, regShape):
-                if debug('pushInGen'):
-                    print 'pushInGen', 'directPush newPB', newPB
-                    newShape = newPB.makeShadow(pbs, prob)
-                    pbs.draw(prob, 'W'); newShape.draw('W', 'magenta')
-                    raw_input('Go?')
-                yield newPB
+        for newPB in regionPB(pbs, prob, placeB, regShape):
+            if debug('pushInGen'):
+                print 'pushInGen', 'directPush newPB', newPB
+                newShape = newPB.makeShadow(pbs, prob)
+                pbs.draw(prob, 'W'); newShape.draw('W', 'magenta')
+                raw_input('Go?')
+            yield newPB
 
 # def maxDistInRegionPB(pbs, prob, placeB, direction, regShape,
 #                       mind = 0.0, maxd = 1.0, count = 0):
@@ -873,3 +890,13 @@ def push(pbs, prob, obj, hand):
         print 'Cached push failed'
         pdb.set_trace()
 
+
+def displaceHand(conf, hand, offsetPose):
+    cart = conf.cartConf()
+    handFrameName = conf.robot.armChainNames[hand]
+    trans = cart[handFrameName]         # initial hand position
+    nTrans = offsetPose.compose(trans)  # final hand position
+    nCart = cart.set(handFrameName, nTrans)
+    nConf = conf.robot.inverseKin(nCart, conf=conf) # use conf to resolve
+    if all(nConf.values()):
+        return nConf
