@@ -593,6 +593,17 @@ def testPush0(objName='bigA', **args):
 ######################################################################
 
 def testPush1(objName='bigA', **args):
+    skel = [[poseAchIn,
+             lookAt.applyBindings({'Obj' : 'bigA'}), moveNB, 
+             lookAt.applyBindings({'Obj' : 'table1'}), move,
+             push, moveNB, 
+             lookAt.applyBindings({'Obj' : 'bigA'}), move,
+             push, moveNB,
+             lookAt.applyBindings({'Obj' : 'bigA'}), move,
+             push, moveNB, 
+             lookAt.applyBindings({'Obj' : 'bigA'}), move]]
+
+    args['skeleton'] = skel if 'skeleton' in args else None
     testPush('testPush1', objName,
              hu.Pose(1.1, 0.0, tZ, 0.0),
              'table1FR', **args)
