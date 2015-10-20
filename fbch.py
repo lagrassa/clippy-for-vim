@@ -30,7 +30,7 @@ hmax = float('inf')  # prune a node if the h value is higher than this
 plannerGreedy = 0.5  # UC = 0, A* = 0.5, BestFirst = 1.0
 
 # Stop monotonic planning if cost is bigger than this.
-maxMonoCost = 300
+maxMonoCost = 1000
 
 ######################################################################
 ## Planner support classes

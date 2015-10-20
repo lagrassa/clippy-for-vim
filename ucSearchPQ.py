@@ -139,8 +139,8 @@ def search(initialState, goalTest, actions, successor,
                              n.state, getH(n.state))
                 return n.path(), n.costs()
             if n.cost > maxCost:
-                if somewhatVerbose or verbose:
-                    print "Search failed reaching cost", n.cost
+                if True: #somewhatVerbose or verbose:
+                    print "Search failed: exceeded max cost ", n.cost
                 return None, None
 
             if getH(n.state)== 0:
