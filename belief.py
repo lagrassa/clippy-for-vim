@@ -708,16 +708,18 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                                   [f.shortName() for f in fUp]
             tr('hAddBack', 'stored value', k, minSoFar,
                        [a.name for a in bestActSet.elts], h = True)
+        else:
+            # Didn't find a way to make this ff true
+            if minSoFar == float('inf'):
+                # Could not have had a BB cut-off
+                tr('infHeuristic',
+                    fUp,
+                    ('num applicable ops', len(ops)),
+                    ol = False)
         
         # Return the value in the cache
         result = hCacheLookup(fUp)
 
-        if result != False and result[0] == float('inf'):
-            tr('infHeuristic',
-               fUp,
-               ('num applicable ops', len(ops)),
-               ol = False)
-        
         # If it's not in the cache, we bailed out before computing a good
         # value.  Just return inf
         return result if result != False else (float('inf'), ActSet())
