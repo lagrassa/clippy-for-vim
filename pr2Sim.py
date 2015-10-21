@@ -460,11 +460,11 @@ class RealWorld(WorldState):
         deltaPose = objectDisplacement(shape, c1, c2, hand, deltaPose)
         self.setObjectPose(obj, deltaPose.compose(self.getObjectPose(obj)))
         shape = self.objectShapes[obj]
-        self.setRobotConf(c2)           # move robot and objectShapes update
+        self.setRobotConf(c2)     # move robot and objectShapes update
         if self.robotPlace.collides(shape):
             print 'Push left object in collision'
             pdb.set_trace()
-        print 'Touching', obj, 'in push, moved it to', self.getObjectPose(obj).pose()
+        print 'Touching', obj, 'in push, moved to', self.getObjectPose(obj).pose()
 
     def executePush(self, op, params, noBase = True):
         def moveObjSim(prevConf, conf):
@@ -601,8 +601,8 @@ def bruteForceMin(f, init):
 
     (minX, minVal) = fun(init)
     print 'initial', minX, '->', minVal
-    for x in [-0.02, 0.02]:
-        for y in [-0.02, 0.02]:
+    for x in [-0.05, -0.02, 0.02, 0.05]:
+        for y in [-0.05, -0.02, 0.02, 0.05]:
             for th in [-0.02, -0.01, 0.0, 0.01, 0.02]:
                 X = np.array([x, y, th])
                 newX, val = fun(X)
@@ -610,4 +610,6 @@ def bruteForceMin(f, init):
                     minVal = val
                     minX = newX
     print 'final', minX, '->', minVal
+    if minVal == 10.0:
+        pdb.set_trace()
     return minX, minVal

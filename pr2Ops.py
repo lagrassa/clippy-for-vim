@@ -205,11 +205,29 @@ def pushPrim(args, details):
                          poseDelta, resultProb, Violations(), prim=True)
     assert path
     tr('prim', '*** pushPrim', args, ('path length', len(path)))
-    assert postConf in path
-    revIndex = path.index(postConf)
-    revPath = path[revIndex:]
-    revPath.reverse()
+    if postConf in path:
+        revIndex = path.index(postConf)
+        revPath = path[revIndex:]
+        revPath.reverse()
+    else:
+        revIndex = path.index(reverseConf(path, hand))
+        revPath = path[revIndex:]
+        revPath.reverse()
+        revPath.append(postConf)
+        raw_input('Did not find postConf in path - adding it')
     return path, revPath, details.pbs.getPlacedObjBs()    
+
+# TODO: Similar to one defined in pr2Push
+def reverseConf(pp, hand):
+    cpost = pp[-1]                # end of the path, contact with object
+    handFrameName = cpost.robot.armChainNames[hand]
+    tpost = cpost.cartConf()[handFrameName] # final hand position
+    for i in range(2, len(pp)):
+        c = pp[-i]
+        t = c.cartConf()[handFrameName] # hand position
+        if t.distance(tpost) > 0.1:
+            return c
+    return pp[0]
 
 ################################################################
 ## Simple generators

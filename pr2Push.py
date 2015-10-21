@@ -311,12 +311,14 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
 # Return (preConf, pushConf) - conf at prePose and conf at placeB (pushConf)
 def potentialConfs(pbs, prob, placeB, prePose, graspB, hand, base):
     def graspConfGen(pb1, pb2, rev):
+        if debug('pushPath'):
+            print 'potentialConfs for', pb1.poseD.mode(), pb2.poseD.mode(), rev
         for (c1, ca1, v1) in \
                 potentialGraspConfGen(pbs, pb1, graspB, None, hand, base, prob):
             (x, y, th) = c1['pr2Base']
             basePose = hu.Pose(x, y, 0, th)
             if debug('pushPath'):
-                print 'Testing potential push conf at other end of push'
+                print 'Testing base', basePose, 'at other end of push'
             ans = graspConfForBase(pbs, pb2, graspB, hand, basePose, prob)
             if ans:
                 c2, ca2, v2 = ans
@@ -347,15 +349,15 @@ def getPrePost(pp):
     return (ppre, cpre, ppost, cpost)
 
 def reverseConf(pp, hand):
-    cpost, _, _ = pp[-1]
+    cpost, _, _ = pp[-1]                # end of the path, contact with object
     handFrameName = cpost.robot.armChainNames[hand]
     tpost = cpost.cartConf()[handFrameName] # final hand position
     for i in range(2, len(pp)):
         c, _, _ = pp[-i]
         t = c.cartConf()[handFrameName] # hand position
         if t.distance(tpost) > 0.1:
-            break
-    return c
+            return c
+    return pp[0][0]
 
 def sortedPushPaths(pushPaths, curPose):
     scored = []

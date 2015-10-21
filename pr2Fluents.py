@@ -1445,6 +1445,7 @@ def pushDirections(preConf, initConf, initPose, pushConf, pushPose, hand):
     pushDist = (pushDir[0]**2 + pushDir[1]**2)**0.5 # xy push distance
     if pushDist != 0:
         pushDir /= pushDist
+    pushDist -= handTiltOffset     # the tilt reduces the push dist
     # Return
     return (appDir, appDist, pushDir, pushDist)
 
@@ -1554,12 +1555,11 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand,
     # Number of steps for approach displacement
     nsteps = int(pushDist / pushStepSize)
     delta = pushDist / nsteps
-    stepVals = [0, nsteps] if glob.inHeuristic else xrange(nsteps+1)
+    stepVals = [0, nsteps-1] if glob.inHeuristic else xrange(nsteps)
     if angleDiff == 0 or pushDist < pushStepSize:
         deltaAngle = 0.0
     else:
-        nstepsAngle = int(pushDist / pushStepSize) # angle rotation only after contact
-        deltaAngle = angleDiff / nstepsAngle
+        deltaAngle = angleDiff / nsteps
     if debug(tag): 
         print 'nsteps=', nsteps, 'delta=', delta, 'deltaAngle', deltaAngle
     handFrameName = conf.robot.armChainNames[hand]
@@ -1573,7 +1573,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand,
                                 tiltRot = tiltRot, angle=step*deltaAngle)
         if not nconf:
             reason = 'invkin'; break
-        if step_i == nsteps:
+        if step_i == nsteps-1:
             nconf = conf
         viol = newBS.confViolations(nconf, prob)
         if viol is None:
