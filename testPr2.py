@@ -589,7 +589,7 @@ def testPush0(objName='bigA', **args):
              'table1BRR', **args)
 
 ######################################################################
-# Test Two Pushes, easier
+# Needs three pushes!
 ######################################################################
 
 def testPush1(objName='bigA', **args):
