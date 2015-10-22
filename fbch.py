@@ -2402,7 +2402,7 @@ def writeSearchCoda(f1, f2):
             f2.write('}\n')
             f2.close()
 
-# file, state, cost, heurstic
+# file, state, cost, heuristic
 def writeSearchNode(f, s, c, h, styleStr, start = None, hFun = None):
     f.write('    "'+s.uniqueStr()+\
             styleStr+prettyString(c, True)+\

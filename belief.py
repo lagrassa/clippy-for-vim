@@ -10,7 +10,9 @@ from fbch import Fluent, hCache, State, applicableOps, Operator,\
      AddPreConds
 
 from miscUtil import isVar, isAnyVar, floatify, customCopy,\
-    lookup, prettyString, isGround, SetWithEquality
+    lookup, prettyString, isGround, SetWithEquality, timeString
+
+import local
 
 
 ######################################################################
@@ -566,20 +568,21 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     # cache entries will be frozen sets of fluents
     # Return a set of actions.
     # ha is heuristic ancestors
-    def aux(fUp, k, minSoFar, ha):
-        global cacheHits, easy, regress
+    def aux(g, k, minSoFar, ha, fp = None):
+        global cacheHits, easy
 
+        fUp = frozenset(g.fluents)
         # If fUp is in ancestors, return infinite score.  Stops stupid
         # endless backchaining
         if fUp in ha:
-            if debug('hAddBackV'): print 'X'
+            if writeFile: writeHNode(fp, g, 'inf', loopStyle)
             return float('inf'), None
         
         # See if it's in the main cache
         if inCache(fUp):
             cval = hCacheLookup(fUp)
-            if debug('hAddBackV'): print 'c', cval[0]
             cacheHits += 1
+            if writeFile: writeHNode(fp, g, cval[0], cacheStyle)
             return cval
 
         # Try to find a quick answer
@@ -592,30 +595,28 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             if hv:
                 # We actually do have a special value
                 (cost, ops) = hv
-                if debug('hAddBackV'): print 'hv',
+                if writeFile: writeHNode(fp, g, cost, specialStyle)
         # See if it's true in start state
-        g = State(fUp)
         if cost is None and start.satisfies(g):
-            if debug('hAddBackV'): print 's',
             cost, ops = 0, ActSet()
+            if writeFile: writeHNode(fp, g, cost, initStyle)
         # See if it's in level 2 cache.   This makes it inadmissible
         if cost == None and hAddBackEntail:
             result = hCacheEntailsSet(fUp)
             if result:
                 (cost, ops) = result
-                if debug('hAddBackV'): print 'e',
         # At a leaf.  Use static eval.
         if cost == None and k == 0:
-            if debug('hAddBackV'): print 'l',
             cost = staticEval(fUp)
             dummyO = Operator('dummy'+prettyString(cost), [], {}, [])
             dummyO.instanceCost = cost
             ops = ActSet([dummyO])
+            if writeFile: writeHNode(fp, g, cost, leafStyle)
         if cost == None and all([not f.isGround() for f in fUp]):
             # None of these fluents are ground; assume they can be
             # made true by matching
-            if debug('hAddBackV'): print 'ng',
             cost, ops = 0, ActSet()
+            if writeFile: writeHNode(fp, g, cost, nonGroundStyle)
 
         if cost != None:
             # We found a cheap answer.  Put in cache and return
@@ -637,112 +638,148 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         # abstraction in computing the heuristic 
         ops = applicableOps(g, operators, start, ancestors,
                                 monotonic = False)
-        if len(ops) == 0:
-            debugMsg('hAddBack', 'no applicable ops', g)
+        pres = set()
         for o in ops:
             if primitiveHeuristicAlways:
                 o.abstractionLevel = o.concreteAbstractionLevel
             # TODO : LPK : domain-dependent hack
             n = glob.numOpInstances if o.name in ['Push', 'Place'] else 1
-            pres = o.regress(g, start, numResults = n)
-            if len(pres) > 0:
-                pres = pres[:-1] # Last one is rebind
-                if debug('hAddBack'): print 'mr', k, o.name, len(pres)
-            regress += 1
-            if len(pres) == 0: debugMsg('hAddBack', 'no preimage', g, o)
-            for pre in pres:
-                preImage, newOpCost = pre
-                newActSet = ActSet([preImage.operator])
-                partialCost = preImage.operator.instanceCost
-                # AND loop over preconditions.  See if we have a good value
-                # for this operator
-                goodValue = True
-                for fff in partitionFn(preImage.fluents):
-                    if partialCost >= minSoFar:
-                        # This op can never be cheaper than the best we
-                        # have found so far in this loop
-                        if debug('hAddBackV'): print 'BB!',
-                        goodValue = False # This is not a good cost estimate
-                        break
+            opres = o.regress(g, start, numResults = n)
+            if len(opres) > 0:
+                pres = pres.union(set(opres[:-1]))
+        if len(pres) == 0: debugMsg('hAddBack', 'no applicable ops', g)
+        for pre in pres:
+            preImage, newOpCost = pre
+            newActSet = ActSet([preImage.operator])
+            partialCost = preImage.operator.instanceCost
+            # AND loop over preconditions.  See if we have a good value
+            # for this operator
+            for fff in partitionFn(preImage.fluents):
+                if partialCost >= minSoFar:
+                    # This op can never be cheaper than the best we
+                    # have found so far in this loop
+                    break
+                fffs = State(fff)
+                if writeFile: writeSearchArc(fp, preImage, fffs)
+                subCost, subActSet = \
+                  aux(fffs, k-1, minSoFar - partialCost, newHA, fp)
+                if subCost == float('inf'):
+                    partialCost, newActSet = (float('inf'), ActSet())
+                else:
+                    newActSet = newActSet.union(subActSet)
+                    partialCost = sum([opr.instanceCost \
+                                           for opr in newActSet.elts])
+                        
+            if writeFile:
+                if partialCost >= minSoFar:
+                    style = bbStyle
+                else:
+                    style = andStyle
+                writeHNode(fp, preImage, partialCost, style)
+                writeSearchArc(fp, g, preImage, o)
 
-                    if debug('hAddBack', h = True):
-                        print ' '*(maxK - k)+'C Aux:', k-1, o.name, \
-                             prettyString(minSoFar - partialCost),\
-                                  [f.shortName() for f in fff]
-                                       
-                    subCost, subActSet = \
-                      aux(fff, k-1, minSoFar - partialCost, newHA)
-
-                    if debug('hAddBack', h = True):
-                        print '\n'+' '*(maxK - k)+'R Aux:', k-1, o.name, \
-                          prettyString(subCost), [f.shortName() for f in fff]
-
-                    if subCost == float('inf'):
-                        partialCost, newActSet = (float('inf'), ActSet())
-                    else:
-                        newActSet = newActSet.union(subActSet)
-                        partialCost = sum([opr.instanceCost \
-                                               for opr in newActSet.elts])
-
-                # At this point, partialCost is the total cost for this operator
-                if partialCost < minSoFar and goodValue:
-                    # This is a better way of achieving fUp; a reliable value
-                    minSoFar = partialCost
-                    bestActSet = newActSet
-                    if feasibleOnly:
-                        # Good enough for us!
-                        addToCachesSet(fUp, minSoFar, bestActSet)
-                        if debug('hAddBack'):
-                            print '\n'+' '*(maxK - k)+'H', \
-                              prettyString(minSoFar), \
-                                  [f.shortName() for f in fUp]
-                        tr('hAddBack', 'stored value', k, minSoFar,
-                                  [a.name for a in bestActSet.elts], h = True)
-                        return (minSoFar, bestActSet)
+            # At this point, partialCost is the total cost for this operator
+            if partialCost < minSoFar:
+                # This is a better way of achieving fUp; a reliable value
+                minSoFar = partialCost
+                bestActSet = newActSet
+                  
+                if feasibleOnly:
+                    # Good enough for us!
+                    addToCachesSet(fUp, minSoFar, bestActSet)
+                    return (minSoFar, bestActSet)
 
         # Done with all the ways of achieving fUp.  Store the result
         if bestActSet is not None:
             addToCachesSet(fUp, minSoFar, bestActSet)
-            if debug('hAddBack'):
-                print '\n'+' '*(maxK - k)+'H', prettyString(minSoFar), \
-                                  [f.shortName() for f in fUp]
-            tr('hAddBack', 'stored value', k, minSoFar,
-                       [a.name for a in bestActSet.elts], h = True)
-        else:
-            # Didn't find a way to make this ff true
-            if minSoFar == float('inf'):
-                # Could not have had a BB cut-off
-                tr('infHeuristic',
-                    fUp,
-                    ('num applicable ops', len(ops)),
-                    ol = False)
-        
+
         # Return the value in the cache
         result = hCacheLookup(fUp)
 
+        if writeFile:
+            writeHNode(fp, g, result[0] if result != False else '?', orStyle)
+        
         # If it's not in the cache, we bailed out before computing a good
         # value.  Just return inf
         return result if result != False else (float('inf'), ActSet())
 
+    def topLevel():
+        if writeFile:
+            fp = open(local.outDir+'Heur'+'_'+timeString()+'.dot', 'w')
+            fp.write('digraph G {\n')
+            fp.write('    ordering=out;\n')
+            fp.write('    node [fontname=HelveticaBold];\n')
+        else:
+            fp = None
+        
+        totalActSet = ActSet()
+        for ff in partitionFn(goal.fluents):
+            sff = State(ff)
+            (ic, actSet) = aux(sff, maxK, float('inf'), set(), fp)
+            if ic == float('inf'):
+                return ic, None
+            else:
+                totalActSet = totalActSet.union(actSet)
+                if writeFile:
+                    writeHNode(fp, sff, ic, orStyle)
+                    writeSearchArc(fp, goal, sff)
+                
+        totalCost = sum([op.instanceCost for op in totalActSet.elts])
+
+        if writeFile:
+            writeHNode(fp, goal, totalCost, andStyle)
+            fp.write('}\n')
+            fp.close()
+        return totalCost, totalActSet
+
     glob.inHeuristic = True
-    totalActSet = ActSet()
-    # AND loop over fluents
-    for ff in partitionFn(goal.fluents):
-        (ic, actSet) = aux(ff, maxK, float('inf'), set())
-        if ic == float('inf'):
-            glob.inHeuristic = False
-            return ic, None
-        totalActSet = totalActSet.union(actSet)
-    totalCost = sum([op.instanceCost for op in totalActSet.elts])
+    writeFile = False
+    (totalCost, totalActSet) = topLevel()
 
-    if totalCost < float('inf') and \
-            (debug('hAddBack') or debug('hAddBackV')):
-        print '** Final **', prettyString(totalCost)
-        for thing in goal.fluents: print '   ', thing.shortName()
-        print '     acts'
-        for op in totalActSet.elts: print '        ', \
-              prettyString(op.instanceCost), op.name, op.args[0]
-        debugMsg('hAddBack', 'final')
-
+    if totalCost == float('inf'):
+        # Could flush cache
+        writeFile = True
+        (totalCost, totalActSet) = topLevel()
+        print 'Infinite cost heuristic, wrote file'
     glob.inHeuristic = False
     return totalCost, totalActSet.elts
+
+def writeHNode(f, s, c, styleStr):
+    f.write('    "'+s.uniqueStr()+\
+            styleStr +\
+             prettyString(c, True) + '\\n' + s.prettyString(False)+'"];\n')
+
+def writeSearchArc(f, s1, s2, op = None):
+    opStr = op.prettyString(False) if op is not None else ''
+    f.write('    "'+s1.uniqueStr()+'" -> "'+s2.uniqueStr()+'"[label="'+\
+            opStr+'"];\n')
+# red
+loopStyle = \
+  '" [shape=box, style=filled, colorscheme=pastel16, color=1, label="Loop cost='
+# blue
+initStyle = \
+  '" [shape=box, style=filled, colorscheme=pastel16, color=2, label="Init cost='
+# yellow
+cacheStyle = \
+ '" [shape=box, style=filled, colorscheme=pastel16, color=6, label="Cache cost='
+# purple
+andStyle = \
+  '" [shape=box, style=filled, colorscheme=pastel16, color=4, label="cost='
+# green
+orStyle = \
+  '" [shape=box, style=filled, colorscheme=pastel16, color=3, label="cost='
+# orange
+specialStyle = \
+ '" [shape=box, style=filled, colorscheme=pastel16, color=5, label="Special cost='
+# brown
+leafStyle = \
+  '" [shape=box, style=filled, colorscheme=pastel19, color=7, label="Leaf cost='
+# pink
+nonGroundStyle = \
+  '" [shape=box, style=filled, colorscheme=pastel19, color=8, label="NonGround cost='
+# gray
+domStyle = \
+  '" [shape=box, style=filled, colorscheme=pastel19, color=9, label="Dominated cost='
+# clear
+bbStyle = \
+  '" [shape=box, label="Pruned cost='
