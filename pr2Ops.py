@@ -392,6 +392,8 @@ class ObsVar(Function):
 
 # Regression:  what does the mode need to be beforehand, assuming a good
 # outcome.  Don't let it go down too fast...
+minProb = 0.5
+
 class ObsModeProb(Function):
     # noinspection PyUnusedLocal
     @staticmethod
@@ -399,7 +401,7 @@ class ObsModeProb(Function):
         p = max([a for a in args if not isVar(a)])
         pFalsePos = pFalseNeg = start.domainProbs.obsTypeErrProb
         pr = p * pFalsePos / ((1 - p) * (1 - pFalseNeg) + p * pFalsePos)
-        return [[max(0.1, pr, p - 0.2)]]
+        return [[max(minProb, pr, p - 0.2)]]
 
 class RegressProb(Function):
     isNecessary = True

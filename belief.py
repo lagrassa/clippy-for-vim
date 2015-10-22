@@ -568,7 +568,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     # cache entries will be frozen sets of fluents
     # Return a set of actions.
     # ha is heuristic ancestors
-    def aux(g, k, minSoFar, ha, fp = None):
+    def aux(g, k, bound, ha, fp = None):
         global cacheHits, easy
 
         fUp = frozenset(g.fluents)
@@ -604,6 +604,8 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         if cost == None and hAddBackEntail:
             result = hCacheEntailsSet(fUp)
             if result:
+                if writeFile: writeHNode(fp, g, cost, l2CacheStyle)
+                print 'L2'
                 (cost, ops) = result
         # At a leaf.  Use static eval.
         if cost == None and k == 0:
@@ -648,16 +650,20 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             if len(opres) > 0:
                 pres = pres.union(set(opres[:-1]))
         if len(pres) == 0: debugMsg('hAddBack', 'no applicable ops', g)
+
+        minSoFar = bound
         for pre in pres:
             preImage, newOpCost = pre
             newActSet = ActSet([preImage.operator])
             partialCost = preImage.operator.instanceCost
             # AND loop over preconditions.  See if we have a good value
             # for this operator
+            bb = False
             for fff in partitionFn(preImage.fluents):
                 if partialCost >= minSoFar:
                     # This op can never be cheaper than the best we
                     # have found so far in this loop
+                    bb = True
                     break
                 fffs = State(fff)
                 if fp is not None: writeSearchArc(fp, preImage, fffs)
@@ -671,12 +677,11 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                                            for opr in newActSet.elts])
                         
             if fp is not None:
-                if partialCost >= minSoFar:
-                    style = bbStyle
-                else:
-                    style = andStyle
-                writeHNode(fp, preImage, partialCost, style)
-                writeSearchArc(fp, g, preImage, o)
+                style = bbStyle if bb else \
+                         (domStyle if partialCost >= minSoFar else andStyle)
+                cost = ('?' if bb else partialCost, minSoFar)
+                writeHNode(fp, preImage, cost, style)
+                writeSearchArc(fp, g, preImage, preImage.operator)
 
             # At this point, partialCost is the total cost for this operator
             if partialCost < minSoFar:
@@ -697,7 +702,8 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         result = hCacheLookup(fUp)
 
         if fp is not None:
-            writeHNode(fp, g, result[0] if result != False else '?', orStyle)
+            cost = ('?' if result == False else result[0], bound) 
+            writeHNode(fp, g, cost, orStyle)
         
         # If it's not in the cache, we bailed out before computing a good
         # value.  Just return inf
@@ -730,15 +736,14 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             writeHNode(fp, goal, totalCost, andStyle)
             fp.write('}\n')
             fp.close()
+            print 'Wrote heuristic file'
         return totalCost, totalActSet
 
     glob.inHeuristic = True
-    (totalCost, totalActSet) = topLevel()
-
+    (totalCost, totalActSet) = topLevel(writeFile = debug('alwaysWriteHFile'))
     if totalCost == float('inf'):
         # Could flush cache
         (h2, as2) = topLevel(writeFile = True)
-        print 'Infinite cost heuristic, wrote file'
         print 'New heuristic value', h2
         totalActSet = ActSet()
     glob.inHeuristic = False
@@ -762,6 +767,8 @@ initStyle = \
 # yellow
 cacheStyle = \
  '" [shape=box, style=filled, colorscheme=pastel16, color=6, label="Cache cost='
+l2CacheStyle = \
+ '" [shape=box, style=filled, colorscheme=pastel16, color=6, label="L2 Cache cost='
 # purple
 andStyle = \
   '" [shape=box, style=filled, colorscheme=pastel16, color=4, label="cost='
