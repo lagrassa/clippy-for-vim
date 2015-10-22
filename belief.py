@@ -575,14 +575,14 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         # If fUp is in ancestors, return infinite score.  Stops stupid
         # endless backchaining
         if fUp in ha:
-            if writeFile: writeHNode(fp, g, 'inf', loopStyle)
+            if fp is not None: writeHNode(fp, g, 'inf', loopStyle)
             return float('inf'), None
         
         # See if it's in the main cache
         if inCache(fUp):
             cval = hCacheLookup(fUp)
             cacheHits += 1
-            if writeFile: writeHNode(fp, g, cval[0], cacheStyle)
+            if fp is not None: writeHNode(fp, g, cval[0], cacheStyle)
             return cval
 
         # Try to find a quick answer
@@ -595,11 +595,11 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             if hv:
                 # We actually do have a special value
                 (cost, ops) = hv
-                if writeFile: writeHNode(fp, g, cost, specialStyle)
+                if fp is not None: writeHNode(fp, g, cost, specialStyle)
         # See if it's true in start state
         if cost is None and start.satisfies(g):
             cost, ops = 0, ActSet()
-            if writeFile: writeHNode(fp, g, cost, initStyle)
+            if fp is not None: writeHNode(fp, g, cost, initStyle)
         # See if it's in level 2 cache.   This makes it inadmissible
         if cost == None and hAddBackEntail:
             result = hCacheEntailsSet(fUp)
@@ -611,12 +611,12 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             dummyO = Operator('dummy'+prettyString(cost), [], {}, [])
             dummyO.instanceCost = cost
             ops = ActSet([dummyO])
-            if writeFile: writeHNode(fp, g, cost, leafStyle)
+            if fp is not None: writeHNode(fp, g, cost, leafStyle)
         if cost == None and all([not f.isGround() for f in fUp]):
             # None of these fluents are ground; assume they can be
             # made true by matching
             cost, ops = 0, ActSet()
-            if writeFile: writeHNode(fp, g, cost, nonGroundStyle)
+            if fp is not None: writeHNode(fp, g, cost, nonGroundStyle)
 
         if cost != None:
             # We found a cheap answer.  Put in cache and return
@@ -660,7 +660,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                     # have found so far in this loop
                     break
                 fffs = State(fff)
-                if writeFile: writeSearchArc(fp, preImage, fffs)
+                if fp is not None: writeSearchArc(fp, preImage, fffs)
                 subCost, subActSet = \
                   aux(fffs, k-1, minSoFar - partialCost, newHA, fp)
                 if subCost == float('inf'):
@@ -670,7 +670,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                     partialCost = sum([opr.instanceCost \
                                            for opr in newActSet.elts])
                         
-            if writeFile:
+            if fp is not None:
                 if partialCost >= minSoFar:
                     style = bbStyle
                 else:
@@ -696,14 +696,14 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         # Return the value in the cache
         result = hCacheLookup(fUp)
 
-        if writeFile:
+        if fp is not None:
             writeHNode(fp, g, result[0] if result != False else '?', orStyle)
         
         # If it's not in the cache, we bailed out before computing a good
         # value.  Just return inf
         return result if result != False else (float('inf'), ActSet())
 
-    def topLevel():
+    def topLevel(writeFile = False):
         if writeFile:
             fp = open(local.outDir+'Heur'+'_'+timeString()+'.dot', 'w')
             fp.write('digraph G {\n')
@@ -720,27 +720,27 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                 return ic, None
             else:
                 totalActSet = totalActSet.union(actSet)
-                if writeFile:
+                if fp is not None:
                     writeHNode(fp, sff, ic, orStyle)
                     writeSearchArc(fp, goal, sff)
                 
         totalCost = sum([op.instanceCost for op in totalActSet.elts])
 
-        if writeFile:
+        if fp is not None:
             writeHNode(fp, goal, totalCost, andStyle)
             fp.write('}\n')
             fp.close()
         return totalCost, totalActSet
 
     glob.inHeuristic = True
-    writeFile = False
     (totalCost, totalActSet) = topLevel()
 
     if totalCost == float('inf'):
         # Could flush cache
-        writeFile = True
-        (totalCost, totalActSet) = topLevel()
+        (h2, as2) = topLevel(writeFile = True)
         print 'Infinite cost heuristic, wrote file'
+        print 'New heuristic value', h2
+        totalActSet = ActSet()
     glob.inHeuristic = False
     return totalCost, totalActSet.elts
 

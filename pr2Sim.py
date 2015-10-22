@@ -472,6 +472,9 @@ class RealWorld(WorldState):
 
         failProb = self.domainProbs.pushFailProb
         success = DDist({True : 1 - failProb, False : failProb}).draw()
+        if not success:
+            print 'Ignoring a random push path failure!'
+        success = True
         if success:
             # Execute the push prim
             if params:

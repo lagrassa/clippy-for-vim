@@ -39,7 +39,7 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['pushGen', 'pushInGen', 'pushGen_kin', 'pushPath']
+debugOn = usualTags
 
 # + ['debugInHeuristic', 'pushGen', 'pushInGen', 'pushGen_kin', 'pushPath']
 # + ['lookGen', 'pickGen', 'placeGen', 'placeInGen', 'getReachObsts', 'CanReachHome']
