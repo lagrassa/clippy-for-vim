@@ -604,7 +604,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         if cost == None and hAddBackEntail:
             result = hCacheEntailsSet(fUp)
             if result:
-                if writeFile: writeHNode(fp, g, cost, l2CacheStyle)
+                if fp is not None: writeHNode(fp, g, cost, l2CacheStyle)
                 print 'L2'
                 (cost, ops) = result
         # At a leaf.  Use static eval.
