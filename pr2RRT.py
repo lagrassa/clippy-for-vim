@@ -1,3 +1,4 @@
+import sys
 import pdb
 import time
 from time import sleep
@@ -5,7 +6,11 @@ import planGlobals as glob
 from traceFile import debug, debugMsg
 import hu
 import windowManager3D as wm
-#from miscUtil import within
+from random import random
+
+if glob.useMPL:
+    sys.path.append("/Users/tlp/MacDocuments/Research/git/MCR/")
+    from mpl.algorithm_runner import runAlgorithm
 
 ############################################################
 #  TO DO:
@@ -122,7 +127,7 @@ class RRT:
             raise Exception, "Neither path is marked init"
 
 def safeConf(conf, pbs, prob, allowedViol):
-    viol = pbs.getRoadMap().confViolations(conf, pbs, prob)
+    viol = pbs.confViolations(conf, prob)
     ans =  viol \
            and viol.obstacles <= allowedViol.obstacles \
            and viol.shadows <= allowedViol.shadows \
@@ -220,8 +225,8 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
     else:
         glob.ignoreShadowZ = True
     if allowedViol==None:
-        v1 = pbs.getRoadMap().confViolations(destConf, pbs, prob)
-        v2 = pbs.getRoadMap().confViolations(initConf, pbs, prob)
+        v1 = pbs.confViolations(destConf, prob)
+        v2 = pbs.confViolations(initConf, prob)
         if v1 and v2:
             allowedViol = v1.update(v2)
         else:
@@ -238,22 +243,27 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
                 print 'RRT: not safe enough at final position... continuing'
             glob.ignoreShadowZ = True
             return [], None
-    nodes = 'FAILURE'
-    failCount = -1                      # not really a failure the first time
     inflated = pbsInflate(pbs, prob, initConf, destConf) if inflate else pbs
-    while nodes == 'FAILURE' and failCount < (failIter or glob.failRRTIter):
-        rrt = RRT(inflated, prob, initConf, destConf, allowedViol, moveChains)
-        nodes = rrt.findPath(K = maxIter or glob.maxRRTIter)
-        failCount += 1
-        if True:
-            if failCount > 0: print '    RRT has failed', failCount, 'times'
-    if failCount == (failIter or glob.failRRTIter):
-        glob.ignoreShadowZ = True
-        return [], None
-    rrtTime = time.time() - startTime
-    if debug('rrt'):
-        print 'Found path in', rrtTime, 'secs'
-    path = [c.conf for c in nodes]
+
+    if glob.useMPL:
+        path = runMPL(inflated, prob, initConf, destConf, allowedViol, moveChains)
+    else:
+        nodes = 'FAILURE'
+        failCount = -1                      # not really a failure the first time
+        while nodes == 'FAILURE' and failCount < (failIter or glob.failRRTIter):
+            rrt = RRT(inflated, prob, initConf, destConf, allowedViol, moveChains)
+            nodes = rrt.findPath(K = maxIter or glob.maxRRTIter)
+            failCount += 1
+            if True:
+                if failCount > 0: print '    RRT has failed', failCount, 'times'
+        if failCount == (failIter or glob.failRRTIter):
+            glob.ignoreShadowZ = True
+            return [], None
+        rrtTime = time.time() - startTime
+        if debug('rrt'):
+            print 'Found path in', rrtTime, 'secs'
+        path = [c.conf for c in nodes]
+
     if debug('verifyRRTPath'):
         # verifyPath(pbs, prob, path, 'rrt:'+str(moveChains))
         verifyPath(pbs, prob, interpolatePath(path), allowedViol,
@@ -285,7 +295,7 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
                       maxIter = None, failIter = None):
     startTime = time.time()
     if allowedViol==None:
-        v = pbs.getRoadMap().confViolations(initConf, pbs, prob)
+        v = pbs.confViolations(initConf, prob)
         if v:
             allowedViol = v
         else:
@@ -393,3 +403,90 @@ def pbsInflate(pbs, prob, initConf, goalConf):
     wm.getWindow('W').update()
     # raw_input('Inflation')
     return newBS
+
+##################################################
+# Interface for Amruth's MCR code
+##################################################
+
+# Should really avoid the conversion to tuples
+
+class MCRHelper():
+    def __init__(self, pbs, prob, allowedViol, moveChains, conf):
+        self.pbs = pbs
+        self.prob = prob
+        self.allowedViol = allowedViol
+        self.moveChains = moveChains
+        self.conf = conf
+
+    # return back list of obstacles that are in collision when robot is at configuration q
+    def collisionsAtQ(self, q):
+        conf = confFromTuple(q, self.moveChains, self.conf)
+        return confCollisions(conf, self.pbs, self.prob, self.allowedViol)
+
+    # return a configuration represented as a list, can use the passed goal to do goal biasing in random sampling
+    def sampleConfig(self, goal):
+        return tupleFromConf(self.pbs.getRobot().randomConf(self.moveChains),
+                             self.moveChains)
+
+    # return a list of configurations (as defined above that exclude qFrom and qTo ie (qFrom... qTo) )
+    def generateInBetweenConfigs(self, qFrom, qTo):
+        confFrom = confFromTuple(qFrom, self.moveChains, self.conf)
+        confTo = confFromTuple(qTo, self.moveChains, self.conf)
+        return [tupleFromConf(c, self.moveChains) \
+                for c in interpolate(confTo, confFrom)]
+
+    # scalar representation of the distance between these configurations
+    def distance(self, q1, q2):
+        conf1 = confFromTuple(q1, self.moveChains, self.conf)
+        conf2 = confFromTuple(q2, self.moveChains, self.conf)
+        return self.robot.distConf(conf1, conf2)
+
+    # need a way to get the weight of an obstacle (right now its obstacle.getWeight())
+
+def runMPL(pbs, prob, initConf, destConf, allowedViol, moveChains):
+    algorithms = ['mcr', 'rrt', 'birrt',
+                  'ignore start and goal birrt', 'collision based rrt']
+    helper = MCRHelper(pbs, prob, allowedViol, moveChains, initConf)
+    init = tupleFromConf(initConf, moveChains)
+    dest = tupleFromConf(destConf, moveChains)
+    path, cover = runAlgorithm(init, dest, helper, algorithms.index('birrt'))
+    return [confFromTuple(c, moveChains, initConf) for c in path]
+
+def tupleFromConf(conf, moveChains):
+    values = []
+    for chain in moveChains:
+        values.extend(conf.conf[chain])
+    return tuple(values)
+
+def confFromTuple(tup, moveChains, conf):
+    index = 0
+    for chain in moveChains:
+        n = len(conf.conf[chain])
+        conf = conf.set(chain, list(tup[index:index+n]))
+        index += n
+    return conf
+
+def confCollisions(conf, pbs, prob, allowedViol):
+    viol = pbs.confViolations(conf, prob)
+    ans =  viol \
+           and viol.obstacles <= allowedViol.obstacles \
+           and viol.shadows <= allowedViol.shadows \
+           and all(viol.heldObstacles[h] <= allowedViol.heldObstacles[h] for h in (0,1)) \
+           and all(viol.heldShadows[h] <= allowedViol.heldShadows[h] for h in (0,1))
+    if ans:
+        # No unallowed violations
+        return []
+    elif ans is None:
+        return ['permanent']
+    # Collect collisions
+    collisions = []
+    for o in viol.obstacles:
+        if not o in allowedViol.obstacles: collisions.append(o.name())
+    for o in viol.shadows:
+        if not o in allowedViol.shadows: collisions.append(o.name())
+    for h in (0,1):
+        for o in viol.heldObstacles[h]:
+            if not o in allowedViol.heldObstacles[h]: collisions.append(o.name())
+        for o in viol.heldShadows[h]:
+            if not o in allowedViol.heldShadows[h]: collisions.append(o.name())
+    return collisions

@@ -33,6 +33,8 @@ if useROS:
     useVertical = True
     useHorizontal = True
 
+useMPL = False
+
 ########################################
 # HACKS
 ########################################
