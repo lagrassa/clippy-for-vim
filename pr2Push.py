@@ -38,7 +38,7 @@ maxDone = 1
 pushGenCacheStats = [0, 0]
 pushGenCache = {}
 
-minPushLength = 0.02
+minPushLength = 0.0999
 
 # Needs work... the hand needs to turn in the direction of the push?
 useDirectPush = False
