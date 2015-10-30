@@ -589,7 +589,8 @@ def pushInRegionGenGen(args, goalConds, bState, away = False, update=True):
     # Get the regions
     regions = getRegions(region)
     shWorld = pbs.getShadowWorld(prob)
-    regShapes = [shWorld.regionShapes[r] for r in regions]
+    regShapes = [shWorld.regionShapes[region] if isinstance(region, str) else region\
+                 for region in regions]
     tr(tag, 'Target region in purple',
        draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes], snap=['W'])
     pose, support = getPoseAndSupport(obj, pbs, prob)
@@ -730,8 +731,17 @@ def pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, hand,
         if reachCollides(pB): continue
         tr(tag, 'target', pB,
            draw=[(pbs, prob, 'W'),
-                 (pB.shape(shWorld), 'W', 'pink')],
+                 (pB.makeShadow(pbs, prob), 'W', 'pink')] \
+                 + [(rs, 'W', 'purple') for rs in regShapes],
            snap=['W'])
+
+        if not any(inside(pB.makeShadow(pbs, prob), regShape, strict=True) \
+                   for regShape in regShapes):
+           for rs in regShapes: rs.draw('W', 'purple')
+           pbs.draw(prob, 'W'); pB.makeShadow(pbs, prob).draw('W', 'pink')
+           print 'pushInGen target not in region'
+           pdb.set_trace()
+
         for ans in pushGenTop((placeB.obj, pB, hand, prob),
                               goalConds, pbs,
                               # TODO: should this be true or false?
@@ -840,28 +850,6 @@ def awayTargetPB(pbs, prob, placeB, regShapes):
                 raw_input('Go?')
             yield newPB
 
-# def maxDistInRegionPB(pbs, prob, placeB, direction, regShape,
-#                       mind = 0.0, maxd = 1.0, count = 0):
-#     if count > 10:
-#         debugMsg('pushGen', 'maxDistInRegionPB failed to converge')
-#         return [placeB]
-#     dist = 0.5*(mind+maxd)
-#     postPoseOffset = hu.Pose(*(dist*direction).tolist()+[0.0])
-#     postPose = postPoseOffset.compose(placeB.poseD.mode())
-#     newPB = placeB.modifyPoseD(postPose.pose(), var=4*(0.01**2,))
-#     newPB.delta = delta=4*(0.001,)
-#     if inside(newPB.makeShadow(pbs, prob), regShape, strict=True):
-#         if maxd-mind < 0.01:
-#             postPoseOffset = hu.Pose(*((dist*0.5)*direction).tolist()+[0.0])
-#             postPose = postPoseOffset.compose(placeB.poseD.mode())
-#             newPB2 = placeB.modifyPoseD(postPose.pose(), var=4*(0.01**2,))
-#             newPB2.delta = delta=4*(0.001,)
-#             return [newPB2, newPB]
-#         else:
-#             return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, dist, maxd, count+1)
-#     else:
-#         return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, mind, dist, count+1)
-
 def minDistInRegionPB(pbs, prob, placeB, direction, regShape,
                       mind = 0.0, maxd = 1.0, count = 0):
     if count > 10:
@@ -870,8 +858,10 @@ def minDistInRegionPB(pbs, prob, placeB, direction, regShape,
     dist = 0.5*(mind+maxd)
     postPoseOffset = hu.Pose(*(dist*direction).tolist()+[0.0])
     postPose = postPoseOffset.compose(placeB.poseD.mode())
-    newPB = placeB.modifyPoseD(postPose.pose(), var=4*(0.01**2,))
+
+    newPB = placeB.modifyPoseD(postPose.pose(), var=4*(0.02**2,))
     newPB.delta = delta=4*(0.001,)
+
     if inside(newPB.makeShadow(pbs, prob), regShape, strict=True):
         if maxd-mind < 0.01:
             return [newPB]
