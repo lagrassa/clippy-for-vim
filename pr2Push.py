@@ -279,8 +279,9 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
             pose1 = placeB.poseD.mode()
             pose2 = appPose
             if count == 0:
-                print 'No push', direction[:2], 'between', pose1, pose2, 'with', hand, 'vert', vertical
-                pdb.set_trace()
+                if debug('pushFail'):
+                    print 'No push', direction[:2], 'between', pose1, pose2, 'with', hand, 'vert', vertical
+                    pdb.set_trace()
                 debugMsg(tag+'_fail', ('Could not find conf for push along', direction[:2]))
             else:
                 print 'Found conf for push', direction[:2], 'between', pose1, pose2 
@@ -309,7 +310,8 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
                                placeB.modifyPoseD(ppost.pose()),
                                cpre, cpost, crev, viol, hand,
                                placeB.poseD.var, placeB.delta)
-            print 'Yield push', ppre.pose(), '->', ppost.pose()
+            if debug('pushFail'):
+                print 'Yield push', ppre.pose(), '->', ppost.pose()
             cachePushResponse(ans)
             yield ans
 
