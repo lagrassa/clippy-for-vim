@@ -1068,14 +1068,16 @@ class Operator(object):
 
     def newGoalFromBindings(self, newBindings, results, goal, startState,
                             heuristic, operators, ancestors):
-
-    
         goal = goal.copy()
         if self.metaOperator:
             # Add extra preconds straight into the goal
             newCond = False
             for k in newBindings.keys():
                 if k[:7] == 'NewCond': newCond = newBindings[k]
+            if newCond == False:
+                # newCond had better be already bound!
+                newCond = self.args[-3]
+                assert isGround(newCond)
             assert newCond != False
             if not goal.isConsistent(newCond, startState.details):
                 print self.name, 'generated a bad suggestion'
