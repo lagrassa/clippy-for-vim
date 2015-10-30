@@ -714,6 +714,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         try:
             totalActSet = ActSet()
             infCost = False
+            totalCost = '???'
             for ff in partitionFn(goal.fluents):
                 sff = State(ff)
                 (ic, actSet) = aux(sff, maxK, float('inf'), set(), fp)
