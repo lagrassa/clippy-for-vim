@@ -740,10 +740,15 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     glob.inHeuristic = True
     (totalCost, totalActSet) = topLevel(writeFile = writeFile)
     if totalCost == float('inf'):
+        print '** Found infinite heuristic value, recomputing **'
         # Could flush cache
         (h2, as2) = topLevel(writeFile = True)
         print 'New heuristic value', h2
-        totalActSet = ActSet()
+        # totalActSet = ActSet()
+        totalCost = h2
+        if totalCost == float('inf'):
+            raw_input('Heuristic value is still infinite - continue?')
+        totalActSet = as2
     glob.inHeuristic = False
     return totalCost, totalActSet.elts
 

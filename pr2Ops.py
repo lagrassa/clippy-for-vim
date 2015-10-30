@@ -214,7 +214,7 @@ def pushPrim(args, details):
         revPath = path[revIndex:]
         revPath.reverse()
         revPath.append(postConf)
-        raw_input('Did not find postConf in path - adding it')
+        print 'Did not find postConf in path - adding it'
     return path, revPath, details.pbs.getPlacedObjBs()    
 
 # TODO: Similar to one defined in pr2Push

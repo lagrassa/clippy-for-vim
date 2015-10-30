@@ -325,8 +325,8 @@ class PushResponse:
         shWorld = pbs.getShadowWorld(prob)
         for conf,color in ((self.preConf, 'blue'), (self.pushConf, 'pink'), (self.postConf, 'green')):
             if conf: conf.draw(window, color=color)
-        if self.prePB: self.prePB.shape(shWorld).draw('blue')
-        if self.postPB: self.postPB.shape(shWorld).draw('pink')
+        if self.prePB: self.prePB.shape(shWorld).draw(window, 'blue')
+        if self.postPB: self.postPB.shape(shWorld).draw(window, 'pink')
         if self.viol: self.viol.draw(window, 'magenta')
     def __repr__(self):
         return str(self)

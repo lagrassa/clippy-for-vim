@@ -1553,13 +1553,16 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand,
     # Set up state for the push scan
     #######################
     # Number of steps for approach displacement
-    nsteps = int(pushDist / pushStepSize)
+    nsteps = max(int(pushDist / pushStepSize), 1)
     delta = pushDist / nsteps
-    stepVals = [0, nsteps-1] if glob.inHeuristic else xrange(nsteps)
     if angleDiff == 0 or pushDist < pushStepSize:
         deltaAngle = 0.0
     else:
         deltaAngle = angleDiff / nsteps
+    if nsteps > 1:
+        stepVals = [0, nsteps-1] if glob.inHeuristic else xrange(nsteps)
+    else:
+        stepVals = [0]
     if debug(tag): 
         print 'nsteps=', nsteps, 'delta=', delta, 'deltaAngle', deltaAngle
     handFrameName = conf.robot.armChainNames[hand]
@@ -1596,7 +1599,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand,
             drawState(newBS, prob, nconf, nshape, reachObsts)
         pathViols.append((nconf, viol, offsetPB.poseD.mode()))
         if all(not nshape.collides(obst) for (ig, obst) in reachObsts \
-               if pB.obj not in ig):
+               if (pB.obj not in ig)):
             safePathViols = list(pathViols)
     #######################
     # Prepare ans
