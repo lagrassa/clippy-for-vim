@@ -214,7 +214,7 @@ def pushPrim(args, details):
         revPath = path[revIndex:]
         revPath.reverse()
         revPath.append(postConf)
-        raw_input('Did not find postConf in path - adding it')
+        print 'Did not find postConf in path - adding it'
     return path, revPath, details.pbs.getPlacedObjBs()    
 
 # TODO: Similar to one defined in pr2Push
@@ -288,6 +288,15 @@ class RegionParent(Function):
             return [['none']]
         else:
             return [[findRegionParent(start, region)]]
+
+class RegionGeom(Function):
+    @staticmethod
+    def fun((regionName, parentObj, parentObjPose), goal, start):
+        startPbs = start.pbs
+        opb = startPbs.getPlaceB(parentObj).modifyPoseD(parentObjPose)
+        newPbs = startPbs.updatePermObjPose(opb)
+        reg = newPbs.getShadowWorld(0.9).regionShapes[regionName]
+        return [[reg]]
 
 class PoseInStart(Function):
     # noinspection PyUnusedLocal
@@ -586,14 +595,24 @@ class GenLookObjPrevVariance(Function):
     @staticmethod
     def fun((ve, obj, face), goal, start):
         lookVar = start.domainProbs.obsVarTuple
+<<<<<<< HEAD
         if start.pbs.getHeld('left') == obj or \
           start.pbs.getHeld('right') == obj:
+=======
+        odoVar = [e * e for e in start.domainProbs.odoError]
+        
+        if start.pbs.getHeld('left').mode() == obj or \
+          start.pbs.getHeld('right').mode() == obj:
+>>>>>>> master
             vs = maxPoseVar
         else:
             vs = list(start.poseModeDist(obj, face).mld().sigma.diagonal().\
                       tolist()[0])
             vs[2] = .0001**2
-            vs = tuple(vs)
+            # This is the variance in the start state.  We have to be able
+            # to move to look at it, which will increase the variance.
+            # So increase it a bit here.
+            vs = tuple([v + ov for (v, ov) in zip(vs, odoVar)])
         # Don't let variance get bigger than variance in the initial state, or
         # the cap, whichever is bigger
         cap = [max(a, b) for (a, b) in zip(maxPoseVar, vs)]
@@ -1422,7 +1441,7 @@ bLoc2 = Operator(
 poseAchIn = Operator(
              'PosesAchIn', ['Obj1', 'Region',
                             'ObjPose1', 'PoseFace1',
-                            'Obj2', 'ObjPose2', 'PoseFace2',
+                            'Obj2', 'ObjPose2', 'PoseFace2', 'RegionGeom',
                             'PoseVar', 'TotalVar', 'PoseDelta', 'TotalDelta',
                             'P1', 'P2', 'PR'],
             # Very prescriptive:  find objects, then nail down obj1,
@@ -1450,13 +1469,14 @@ poseAchIn = Operator(
                 #StdevTimes2(['TotalVar'], ['PoseVar']),
                 Times2(['TotalVar'], ['PoseVar']),
                 Times2(['TotalDelta'], ['PoseDelta']),
+                RegionGeom(['RegionGeom'], ['Region', 'Obj2', 'ObjPose2']),
                 # call main generator
                 PoseInRegionGen(['ObjPose1', 'PoseFace1'],
-                   ['Obj1', 'Region', 'TotalVar', 'TotalDelta',
+                   ['Obj1', 'RegionGeom', 'TotalVar', 'TotalDelta',
                     probForGenerators])],
             argsToPrint = [0, 1],
-            ignorableArgs = range(2,14),
-            ignorableArgsForHeuristic = range(2, 14),
+            ignorableArgs = range(2,15),
+            ignorableArgsForHeuristic = range(2, 15),
             conditionOnPreconds = True,
             rebindPenalty = 100)
 

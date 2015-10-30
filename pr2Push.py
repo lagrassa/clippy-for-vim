@@ -37,10 +37,11 @@ maxDone = 1
 pushGenCacheStats = [0, 0]
 pushGenCache = {}
 
-minPushLength = 0.02
+minPushLength = 0.00999
 
 # Needs work... the hand needs to turn in the direction of the push?
 useDirectPush = False
+useHorizontalPush = False
 
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
@@ -209,7 +210,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
     # frames) that brings the fingers in contact with the object and
     # span the centroid.
     potentialContacts = []
-    for vertical in (True, False):
+    for vertical in (True, False) if useHorizontalPush else (True,):
         potentialContacts.extend(handContactFrames(prim, center, vertical))
     # sort contacts and compute a distance when applicable, entries
     # are: (distance, vertical, contactFrame, width)
@@ -251,7 +252,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
             appPoseOffset = hu.Pose(*(glob.pushBuffer*direction).tolist()+[0.0])
             appPose = appPoseOffset.compose(initPose).pose()
             if debug(tag):
-                print 'Calling potentialConfs, with direct =', direct
+                print 'Calling potentialConfs, with direct =', direct, 'appPose', appPose
             for ans in potentialConfs(pbs, prob, placeB, appPose, graspB, hand, base):
                 if not ans:
                     tr(tag+'_kin', 'potential grasp conf is empy')
@@ -274,8 +275,15 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
                 tr(tag, 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
                 if doneCount >= maxDone and not partialPaths: break
                 if count > maxPushPaths: break
-            if count == 0 and not glob.inHeuristic and debug(tag):
-                print tag, 'Could not find conf for push along', direction[:2]
+            pose1 = placeB.poseD.mode()
+            pose2 = appPose
+            if count == 0:
+                if debug('pushFail'):
+                    print 'No push', direction[:2], 'between', pose1, pose2, 'with', hand, 'vert', vertical
+                    pdb.set_trace()
+                debugMsg(tag+'_fail', ('Could not find conf for push along', direction[:2]))
+            else:
+                print 'Found conf for push', direction[:2], 'between', pose1, pose2 
         # Sort the push paths by violations
         sorted = sortedPushPaths(pushPaths, curPose)
         for i in range(min(len(sorted), maxDone)):
@@ -301,6 +309,8 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
                                placeB.modifyPoseD(ppost.pose()),
                                cpre, cpost, crev, viol, hand,
                                placeB.poseD.var, placeB.delta)
+            if debug('pushFail'):
+                print 'Yield push', ppre.pose(), '->', ppost.pose()
             cachePushResponse(ans)
             yield ans
 
@@ -313,12 +323,14 @@ def potentialConfs(pbs, prob, placeB, prePose, graspB, hand, base):
         if debug('pushPath'):
             print 'potentialConfs for', pb1.poseD.mode(), pb2.poseD.mode(), rev
         for (c1, ca1, v1) in \
-                potentialGraspConfGen(pbs, pb1, graspB, None, hand, base, prob):
+                potentialGraspConfGen(newBS, pb1, graspB, None, hand, base, prob,
+                                      findApproach=False):
             (x, y, th) = c1['pr2Base']
             basePose = hu.Pose(x, y, 0, th)
             if debug('pushPath'):
                 print 'Testing base', basePose, 'at other end of push'
-            ans = graspConfForBase(pbs, pb2, graspB, hand, basePose, prob)
+            ans = graspConfForBase(newBS, pb2, graspB, hand, basePose, prob,
+                                   findApproach=False)
             if ans:
                 c2, ca2, v2 = ans
                 if debug('pushPath'):
@@ -330,6 +342,7 @@ def potentialConfs(pbs, prob, placeB, prePose, graspB, hand, base):
                     raw_input('potentialConfs')
                 yield (c2, c1) if rev else (c1, c2)
     prePB = placeB.modifyPoseD(prePose)
+    newBS = pbs.copy().excludeObjs([placeB.obj])
     return roundrobin(graspConfGen(placeB, prePB, True),
                       graspConfGen(prePB, placeB, False))
 
@@ -575,7 +588,8 @@ def pushInRegionGenGen(args, goalConds, bState, away = False, update=True):
     # Get the regions
     regions = getRegions(region)
     shWorld = pbs.getShadowWorld(prob)
-    regShapes = [shWorld.regionShapes[r] for r in regions]
+    regShapes = [shWorld.regionShapes[region] if isinstance(region, str) else region\
+                 for region in regions]
     tr(tag, 'Target region in purple',
        draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes], snap=['W'])
     pose, support = getPoseAndSupport(obj, pbs, prob)
@@ -677,8 +691,9 @@ def pushInGenTop(args, goalConds, pbs, away = False, update=True):
         return
     conf = None
     confAppr = None
-    # Obstacles for all Reachable fluents
-    reachObsts = getReachObsts(goalConds, pbs)
+    # Obstacles for all Reachable fluents, that don't have obj constrained.
+    reachObsts = getReachObsts(goalConds, pbs, ignore=[obj])
+    print 'pushInGen', len(reachObsts), 'reachObsts'
     if reachObsts is None:
         tr(tag, '=> No path for reachObst, failing')
         return
@@ -704,17 +719,32 @@ def pushInGenTop(args, goalConds, pbs, away = False, update=True):
 # reachObsts are regions where placements are forbidden
 def pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, hand,
                  away=False, update=True):
+    def reachCollides(pB):
+        relevant = [obst for (ig, obst) in reachObsts \
+                    if placeB.obj not in ig]
+        shape = pB.shape(pbs)
+        return any(shape.collides(obst) for obst in relevant)
     tag = 'pushInGen'
     shWorld = pbs.getShadowWorld(prob)
     for pB in awayTargetPB(pbs, prob, placeB, regShapes):
+        if reachCollides(pB): continue
         tr(tag, 'target', pB,
            draw=[(pbs, prob, 'W'),
-                 (pB.shape(shWorld), 'W', 'pink')],
+                 (pB.makeShadow(pbs, prob), 'W', 'pink')] \
+                 + [(rs, 'W', 'purple') for rs in regShapes],
            snap=['W'])
+
+        if not any(inside(pB.makeShadow(pbs, prob), regShape, strict=True) \
+                   for regShape in regShapes):
+           for rs in regShapes: rs.draw('W', 'purple')
+           pbs.draw(prob, 'W'); pB.makeShadow(pbs, prob).draw('W', 'pink')
+           print 'pushInGen target not in region'
+           pdb.set_trace()
+
         for ans in pushGenTop((placeB.obj, pB, hand, prob),
                               goalConds, pbs,
                               # TODO: should this be true or false?
-                              partialPaths=True, reachObsts=reachObsts,
+                              partialPaths=True,
                               update=update, away=away):
 
             tr(tag, '->', str(ans),
@@ -819,28 +849,6 @@ def awayTargetPB(pbs, prob, placeB, regShapes):
                 raw_input('Go?')
             yield newPB
 
-# def maxDistInRegionPB(pbs, prob, placeB, direction, regShape,
-#                       mind = 0.0, maxd = 1.0, count = 0):
-#     if count > 10:
-#         debugMsg('pushGen', 'maxDistInRegionPB failed to converge')
-#         return [placeB]
-#     dist = 0.5*(mind+maxd)
-#     postPoseOffset = hu.Pose(*(dist*direction).tolist()+[0.0])
-#     postPose = postPoseOffset.compose(placeB.poseD.mode())
-#     newPB = placeB.modifyPoseD(postPose.pose(), var=4*(0.01**2,))
-#     newPB.delta = delta=4*(0.001,)
-#     if inside(newPB.makeShadow(pbs, prob), regShape, strict=True):
-#         if maxd-mind < 0.01:
-#             postPoseOffset = hu.Pose(*((dist*0.5)*direction).tolist()+[0.0])
-#             postPose = postPoseOffset.compose(placeB.poseD.mode())
-#             newPB2 = placeB.modifyPoseD(postPose.pose(), var=4*(0.01**2,))
-#             newPB2.delta = delta=4*(0.001,)
-#             return [newPB2, newPB]
-#         else:
-#             return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, dist, maxd, count+1)
-#     else:
-#         return maxDistInRegionPB(pbs, prob, placeB, direction, regShape, mind, dist, count+1)
-
 def minDistInRegionPB(pbs, prob, placeB, direction, regShape,
                       mind = 0.0, maxd = 1.0, count = 0):
     if count > 10:
@@ -849,8 +857,10 @@ def minDistInRegionPB(pbs, prob, placeB, direction, regShape,
     dist = 0.5*(mind+maxd)
     postPoseOffset = hu.Pose(*(dist*direction).tolist()+[0.0])
     postPose = postPoseOffset.compose(placeB.poseD.mode())
-    newPB = placeB.modifyPoseD(postPose.pose(), var=4*(0.01**2,))
+
+    newPB = placeB.modifyPoseD(postPose.pose(), var=4*(0.02**2,))
     newPB.delta = delta=4*(0.001,)
+
     if inside(newPB.makeShadow(pbs, prob), regShape, strict=True):
         if maxd-mind < 0.01:
             return [newPB]

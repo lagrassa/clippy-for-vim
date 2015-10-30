@@ -368,13 +368,16 @@ graspConfGenCacheStats = [0,0]
 
 graspConfClear = 0.001
 
-def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob, nMax=None):
+def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob,
+                          nMax=None, findApproach=True):
     tag = 'potentialGraspConfs'
     graspMode = graspB.grasp.mode()
     # When the grasp is -1 (a push), we need the full grasp spec.
     graspBCacheVal = graspB if graspMode == -1 else graspMode
-    key = (pbs, placeB, graspBCacheVal, conf, hand, tuple(base) if base else None, prob, nMax)
-    args = (pbs, placeB, graspB, conf, hand, tuple(base) if base else None, prob, nMax)
+    key = (pbs, placeB, graspBCacheVal, conf, hand, tuple(base) if base else None, prob,
+           nMax, findApproach)
+    args = (pbs, placeB, graspB, conf, hand, tuple(base) if base else None, prob,
+            nMax, findApproach)
     cache = graspConfGenCache
     val = cache.get(key, None)
     graspConfGenCacheStats[0] += 1
@@ -397,7 +400,7 @@ graspConfs = set([])
 graspConfStats = [0,0]
 
 def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
-                     wrist = None, counts = None):
+                     wrist = None, counts = None, findApproach = True):
     robot = pbs.getRobot()
     rm = pbs.getRoadMap()
     if not wrist:
@@ -438,11 +441,13 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
         conf.conf['pr2LeftArm'] = pbs.conf['pr2LeftArm']
         # conf.conf['pr2LeftGripper'] = pbs.conf['pr2LeftGripper']
         conf.conf['pr2LeftGripper'] = [0.08]
-    ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
+    ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob) \
+         if findApproach else True
     if ca:
         # Check for collisions, don't include attached...
         viol = rm.confViolations(ca, pbs, prob, ignoreAttached=True,
-                                 clearance=graspConfClear)
+                                 clearance=graspConfClear) \
+                                 if findApproach else Violations()
         if not viol:
             if debug('potentialGraspConfsLose'):
                 pbs.draw(prob, 'W'); conf.draw('W','red')
@@ -470,15 +475,17 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
             debugMsg('potentialGraspConfsLose', 'no approach conf')
 
 def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
-                             nMax=10):
+                             nMax=10, findApproach=True):
     tag = 'potentialGraspConfs'
     if debug(tag): print 'Entering potentialGraspConfGenAux'
     if conf:
-        ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
+        ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob) \
+             if findApproach else True
         if ca:
             viol = pbs.getRoadMap().confViolations(ca, pbs, prob,
                                                    ignoreAttached=True,
-                                                   clearance=graspConfClear)
+                                                   clearance=graspConfClear) \
+                                                   if findApproach else Violations()
             if viol:
                 yield conf, ca, viol
         tr(tag, 'Conf specified; viol is None or out of alternatives')
@@ -737,7 +744,7 @@ def pathObst(cs, cd, p, pbs, name, start=None, smooth=False):
     pbs.beliefContext.pathObstCache[key] = ans
     return ans
 
-def getReachObsts(goalConds, pbs):
+def getReachObsts(goalConds, pbs, ignore = []):
     fbs = fbch.getMatchingFluents(goalConds,
              Bd([CanPickPlace(['Preconf', 'Ppconf', 'Hand', 'Obj', 'Pose',
                                'Posevar', 'Posedelta', 'Poseface',
@@ -747,21 +754,21 @@ def getReachObsts(goalConds, pbs):
     obstacles = []
     for (f, b) in fbs:
         crhObsts = getCRHObsts([Bd([fc, True, b['P']], True) \
-                                for fc in f.args[0].getConds()], pbs)
+                                for fc in f.args[0].getConds()], pbs, ignore=ignore)
         if crhObsts is None:
             return None
         obstacles.extend(crhObsts)
 
     # Now look for standalone CRH, CRNB and CP
-    basicCRH = getCRHObsts(goalConds, pbs)
+    basicCRH = getCRHObsts(goalConds, pbs, ignore=ignore)
     if basicCRH is None: return None
     obstacles.extend(basicCRH)
 
-    basicCRNB = getCRNBObsts(goalConds, pbs) 
+    basicCRNB = getCRNBObsts(goalConds, pbs, ignore=ignore) 
     if basicCRNB is None: return None
     obstacles.extend(basicCRNB)
 
-    basicCP = getCPObsts(goalConds, pbs) 
+    basicCP = getCPObsts(goalConds, pbs, ignore=ignore) 
     if basicCP is None: return None
     obstacles.extend(basicCP)
         
@@ -793,7 +800,7 @@ def pushPathObst(obj, hand, poseFace, prePose, pose, preConf, pushConf,
     #pbs.beliefContext.pathObstCache[key] = ans
     return ans
 
-def getCPObsts(goalConds, pbs):
+def getCPObsts(goalConds, pbs, ignore=[]):
     fbs = fbch.getMatchingFluents(goalConds,
                      Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
                                   'PreConf', 'PushConf',
@@ -806,6 +813,15 @@ def getCPObsts(goalConds, pbs):
         if debug('getReachObsts'):
             print 'GRO', f
         ignoreObjects = set([])
+        # Look at Poses in conditions; they are exceptions
+        pfbs = fbch.getMatchingFluents(b['PreCond'],
+                                       B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
+        for (pf, pb) in pfbs:
+            if isGround(pb.values()):
+                ignoreObjects.add(pb['Obj'])
+        # Ignore obstacles which have objects in ignore 
+        if any(obj in ignoreObjects for obj in ignore):
+            continue
         obst = pushPathObst(b['Obj'], b['Hand'], b['PoseFace'], b['PrePose'], b['Pose'],
                             b['PreConf'], b['PushConf'],
                             b['PostConf'], b['PoseVar'], b['PrePoseVar'], b['PoseDelta'],
@@ -815,17 +831,11 @@ def getCPObsts(goalConds, pbs):
         if not obst:
             debugMsg('getReachObsts', ('path fail', f, b.values()))
             return None
-        # Look at Poses in conditions; they are exceptions
-        pfbs = fbch.getMatchingFluents(b['PreCond'],
-                                       B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
-        for (pf, pb) in pfbs:
-            if isGround(pb.values()):
-                ignoreObjects.add(pb['Obj'])
         obsts.append((frozenset(ignoreObjects), obst))
     debugMsg('getReachObsts', ('->', len(obsts), 'CRH NB obsts'))
     return obsts
 
-def getCRNBObsts(goalConds, pbs):
+def getCRNBObsts(goalConds, pbs, ignore=[]):
     fbs = fbch.getMatchingFluents(goalConds,
                              Bd([CanReachNB(['Start', 'End', 'Cond']),
                                  True, 'P'], True))
@@ -837,23 +847,26 @@ def getCRNBObsts(goalConds, pbs):
         if debug('getReachObsts'):
             print 'GRO', f
         ignoreObjects = set([])
-        obst = pathObst(b['Start'], b['Cond'], b['P'], pbs,
-                        name= 'reachObst%d'%index, start=b['End'])
-        index += 1
-        if not obst:
-            debugMsg('getReachObsts', ('path fail', f, b.values()))
-            return None
         # Look at Poses in conditions; they are exceptions
         pfbs = fbch.getMatchingFluents(b['Cond'],
                                        B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
         for (pf, pb) in pfbs:
             if isGround(pb.values()):
                 ignoreObjects.add(pb['Obj'])
+        # Ignore obstacles which have objects in ignore 
+        if any(obj in ignoreObjects for obj in ignore):
+            continue
+        obst = pathObst(b['Start'], b['Cond'], b['P'], pbs,
+                        name= 'reachObst%d'%index, start=b['End'])
+        index += 1
+        if not obst:
+            debugMsg('getReachObsts', ('path fail', f, b.values()))
+            return None
         obsts.append((frozenset(ignoreObjects), obst))
     debugMsg('getReachObsts', ('->', len(obsts), 'CRH NB obsts'))
     return obsts
 
-def getCRHObsts(goalConds, pbs):
+def getCRHObsts(goalConds, pbs, ignore=[]):
     fbs = fbch.getMatchingFluents(goalConds,
                              Bd([CanReachHome(['C', 'Cond']),
                                  True, 'P'], True))
@@ -865,17 +878,20 @@ def getCRHObsts(goalConds, pbs):
         if debug('getReachObsts'):
             print 'GRO', f
         ignoreObjects = set([])
-        obst = pathObst(b['C'], b['Cond'], b['P'], pbs, name= 'reachObst%d'%index)
-        index += 1
-        if not obst:
-            debugMsg('getReachObsts', ('path fail', f, b.values()))
-            return None
         # Look at Poses in conditions; they are exceptions
         pfbs = fbch.getMatchingFluents(b['Cond'],
                                   B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
         for (pf, pb) in pfbs:
             if isGround(pb.values()):
                 ignoreObjects.add(pb['Obj'])
+        # Ignore obstacles which have objects in ignore 
+        if any(obj in ignoreObjects for obj in ignore):
+            continue
+        obst = pathObst(b['C'], b['Cond'], b['P'], pbs, name= 'reachObst%d'%index)
+        index += 1
+        if not obst:
+            debugMsg('getReachObsts', ('path fail', f, b.values()))
+            return None
         obsts.append((frozenset(ignoreObjects), obst))
     debugMsg('getReachObsts', ('->', len(obsts), 'CRH obsts'))
     return obsts

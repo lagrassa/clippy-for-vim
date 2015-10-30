@@ -710,42 +710,46 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         return result if result != False else (float('inf'), ActSet())
 
     def topLevel(writeFile = False):
-        if writeFile:
-            fp = open(local.outDir+'Heur'+'_'+timeString()+'.dot', 'w')
-            fp.write('digraph G {\n')
-            fp.write('    ordering=out;\n')
-            fp.write('    node [fontname=HelveticaBold];\n')
-        else:
-            fp = None
-        
-        totalActSet = ActSet()
-        for ff in partitionFn(goal.fluents):
-            sff = State(ff)
-            (ic, actSet) = aux(sff, maxK, float('inf'), set(), fp)
-            if ic == float('inf'):
-                return ic, None
-            else:
-                totalActSet = totalActSet.union(actSet)
-                if fp is not None:
-                    writeHNode(fp, sff, ic, orStyle)
-                    writeSearchArc(fp, goal, sff)
+        fp = openHFile() if writeFile else None
+        try:
+            totalActSet = ActSet()
+            infCost = False
+            totalCost = '???'
+            for ff in partitionFn(goal.fluents):
+                sff = State(ff)
+                (ic, actSet) = aux(sff, maxK, float('inf'), set(), fp)
+                if ic == float('inf'):
+                    infCost = True
+                    break
+                else:
+                    totalActSet = totalActSet.union(actSet)
+                    if fp is not None:
+                        writeHNode(fp, sff, ic, orStyle)
+                        writeSearchArc(fp, goal, sff)
                 
-        totalCost = sum([op.instanceCost for op in totalActSet.elts])
-
-        if fp is not None:
-            writeHNode(fp, goal, totalCost, andStyle)
-            fp.write('}\n')
-            fp.close()
-            print 'Wrote heuristic file'
+            totalCost = sum([op.instanceCost for op in totalActSet.elts]) \
+                        if not infCost else float('inf')
+        
+        finally:
+            if fp is not None:
+                writeHNode(fp, goal, totalCost, andStyle)
+                closeHFile(fp)
         return totalCost, totalActSet
 
+    ### Procedure body ####
+    writeFile = debug('alwaysWriteHFile')
     glob.inHeuristic = True
-    (totalCost, totalActSet) = topLevel(writeFile = debug('alwaysWriteHFile'))
+    (totalCost, totalActSet) = topLevel(writeFile = writeFile)
     if totalCost == float('inf'):
+        print '** Found infinite heuristic value, recomputing **'
         # Could flush cache
         (h2, as2) = topLevel(writeFile = True)
         print 'New heuristic value', h2
-        totalActSet = ActSet()
+        # totalActSet = ActSet()
+        totalCost = h2
+        if totalCost == float('inf'):
+            raw_input('Heuristic value is still infinite - continue?')
+        totalActSet = as2
     glob.inHeuristic = False
     return totalCost, totalActSet.elts
 
@@ -758,6 +762,19 @@ def writeSearchArc(f, s1, s2, op = None):
     opStr = op.prettyString(False) if op is not None else ''
     f.write('    "'+s1.uniqueStr()+'" -> "'+s2.uniqueStr()+'"[label="'+\
             opStr+'"];\n')
+
+def openHFile():
+    fp = open(local.outDir+'Heur'+'_'+timeString()+'.dot', 'w')
+    fp.write('digraph G {\n')
+    fp.write('    ordering=out;\n')
+    fp.write('    node [fontname=HelveticaBold];\n')
+    return fp
+
+def closeHFile(fp):
+    fp.write('}\n')
+    fp.close()
+    print 'Wrote heuristic file'
+            
 # red
 loopStyle = \
   '" [shape=box, style=filled, colorscheme=pastel16, color=1, label="Loop cost='
