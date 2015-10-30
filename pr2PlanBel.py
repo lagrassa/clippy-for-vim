@@ -63,36 +63,221 @@ class BeliefContext:
 # Marginal distributions over object poses, relative to the robot
 class PBS:
     def __init__(self, beliefContext, held=None, conf=None,
-                 graspB=None, fixObjBs=None, moveObjBs=None, regions=[],
-                 domainProbs=None, useRight=True, avoidShadow=[],
-                 fixGrasp=None, fixHeld=None):
+                 graspB=None, objectBs=None, regions=[],
+                 domainProbs=None, avoidShadow=[], base=None):
         self.beliefContext = beliefContext
-        self.conf = conf or None
-        self.held = held or \
-          {'left': DeltaDist('none'), 'right': DeltaDist('none')}
-        # Keep graspB only for mode of held - value is ObjGraspB instance
-        self.graspB = graspB or {'left':None, 'right':None}
-        self.fixObjBs = fixObjBs or {}            # {obj: objPlaceB}
-        self.moveObjBs = moveObjBs or {}          # {obj: objPlaceB}
-        self.fixGrasp = fixGrasp or {'left':False, 'right':False} # the graspB can be changed
-        self.fixHeld = fixHeld or {'left':False, 'right':False} # whether the held can be changed
-        self.regions = regions
-        self.pbs = self
-        self.useRight = glob.useRight
+        # The components of the state
+        # The conf of the robot (fixed?, conf)
+        self.conf = conf or (False, None)
+        # Required base (fixed, (x, y, theta)) if any
+        self.base = base
+        # The held object in each hand (fixed?, object)
+        self.held = held or {'left': (False, 'none'), 'right': (False, 'none')}
+        # The grasp parameters (fixed?, PoseD)
+        self.graspB = graspB or {'left':(False, None), 'right': (False, None)}
+        # The object poses, {obj: (fixed?, objPlaceB)}
+        self.objectBs = objectBs or {}
+        # Indicate which object shadows are fixed
         self.avoidShadow = avoidShadow  # shadows to avoid
-        self.domainProbs = domainProbs
-        # cache
-        self.shadowWorld = None                   # cached obstacles
+        # Cache
+        self.shadowWorld = None         # cached shadow world
         self.shadowProb = None
 
+        # Additional info
+        self.regions = regions
+        self.useRight = glob.useRight
+        self.pbs = self                 # hack... to impersonate a belief
+        self.domainProbs = domainProbs
+
+    # Access beliefContext
+    def genCache(self, tag):
+        return self.beliefContext.genCaches[tag]
+    def getWorld(self):
+        return self.beliefContext.world
+    def getRobot(self):
+        return self.beliefContext.world.robot
+    def getRoadMap(self):
+        return self.beliefContext.roadMap
+    def getObjectShapeAtOrigin(self, obj):
+        return self.beliefContext.world.getObjectShapeAtOrigin(obj)
+    def confViolations(self, conf, prob):
+        return self.beliefContext.roadMap.confViolations(conf, self, prob)
+
+    # Accessors
+    def fixObjBs(self):
+        return [objB for (fix, objB) in self.objectBs if fix]
+    def awayRegions(self):
+        # This is highly domain specific
+        return frozenset([r for r in self.regions if r[:5] == 'table'])
+    def defaultGraspB(self, obj):
+        desc = self.getWorld().getGraspDesc(obj)
+        return ObjGraspB(obj, desc, UniformDist(range(len(desc))), None, Ident, 4*(100.0,))
+    def getGraspB(self, obj, hand, face = None, default = True):
+        if obj == self.getHeld(hand):
+            graspB = self.graspB[hand][1]
+            if face is None or face == graspB.grasp.mode():
+                return graspB
+            elif default:
+                return self.defaultGraspB(obj)
+            else:
+                return None
+        elif default:
+            return self.defaultGraspB(obj)
+        else:
+            return None
+    def defaultPlaceB(self, obj):
+        world = self.getWorld()
+        fr = world.getFaceFrames(obj)
+        return ObjPlaceB(obj, fr, UniformDist(range(len(fr))), Ident,
+                         4*(100.0,))
+    def getPlaceB(self, obj, face = None, default = True):
+        (fix, placeB) = self.objectBs.get(obj, (False, None))[1]
+        if placeB and (face is None or face == placeB.support.mode()):
+            return placeB
+        elif default:
+            return self.defaultPlaceB(obj)
+        else:
+            return None
+    def getPlacedObjBs(self):
+        objectBs = {o:pB for (o, (fix,pB)) in self.objectBs.iteritems()}
+        for hand in ('left', 'right'):
+            heldObj = self.held[hand]
+            if heldObj in objectBs:
+                del objectBs[heldObj]
+        return objectBs
+    def getHeld(self, hand):
+        return self.held[hand][1]
+    def objectsInPBS(self):
+        objects = []
+        for (fix, held) in self.held.values():
+            if held and held != 'none':
+                objects.append(held)
+        objects.extend(self.objectBs.keys())
+        return set(objects)
+
+    # These return new PBS
+    def conditioned(self, goalConds, cond):
+        newBS = self.copy()
+        newBS = newBS.updateFromConds(goalConds)
+        newBS = newBS.updateFromConds(cond, permShadows=True)
+        return newBS
+    def copy(self):
+        return PBS(self.beliefContext, self.held.copy(), self.conf.copy(),
+                   self.graspB.copy(), self.objectBs.copy(),
+                   self.regions, self.domainProbs, self.avoidShadow[:], self.base)
+
+    # Updates
+    def updateAvoidShadow(self, avoidShadow):
+        self.avoidShadow = avoidShadow
+        return self
+    def addAvoidShadow(self, avoidShadow):
+        for s in avoidShadow:
+            if s not in self.avoidShadow:
+                self.avoidShadow = self.avoidShadow + [s]
+        return self
+    def resetGraspB(self, obj, hand, gB):
+        (_, held) = self.held[hand]
+        (fix, _) = self.graspB[hand]
+        if obj == held:
+            self.graspB[hand] = (fix, gB)
+        else:
+            assert None, 'Object does not match grasp in resetGraspB'
+    def resetPlaceB(self, pB):
+        obj = pB.obj
+        entry = self.objectBs.get(obj, None)
+        if entry:
+            self.objectBs[obj] = (entry[0], pB)
+        elif obj == self.held['left']:
+            self.updateHeld('none', None, None, 'left', None)
+            self.objectBs[obj] = (False, pB)
+        elif obj == self.held['right']:
+            self.updateHeld('none', None, None, 'right', None)
+            self.objectBs[obj] = (False, pB)
+        else:
+            assert None, 'Unknown obj in resetPlaceB'
+        self.reset()
     def reset(self):
         self.shadowWorld = None
         self.shadowProb = None
+    def updateHeld(self, obj, face, graspD, hand, delta = None):
+        desc = self.getWorld().getGraspDesc(obj) \
+               if obj != 'none' else []
+        og = ObjGraspB(obj, desc, DeltaDist(face), None, graspD, delta = delta)
+        self.held[hand] = (False, obj)
+        self.graspB[hand] = (False, og)
+        self.excludeObjs([obj])
+        self.reset()
+        return self
+    def updateHeldBel(self, graspB, hand):
+        self.graspB[hand] = (False, graspB)
+        if graspB is None:
+            self.held[hand] = (False, 'none')
+        else:
+            self.held[hand] = (False, graspB.obj)
+        if graspB:
+            self.excludeObjs([graspB.obj])
+        self.reset()
+        return self
+    def updateConf(self, c):
+        (fixedConf, oldConf) = self.conf
+        self.conf = (fixedConf, c)
+        # The shadowWorld conf
+        if self.shadowWorld:
+            self.shadowWorld.setRobotConf(c, fixed=fixedConf)
+        return self
+    def updatePermObjBel(self, objPlace):
+        obj = objPlace.obj
+        for hand in ('left', 'right'):
+            if self.getHeld[hand] == obj:
+                self.updateHeldBel(None, hand)
+        self.objectBs[obj] = (True, objPlace) # make it permanent
+        self.reset()
+        return self
+    def excludeObjs(self, objs):
+        for obj in objs:
+            if obj in self.moveObjBs: del self.moveObjBs[obj]
+        self.reset()
+        return self
+    def updateFromConds(self, goalConds, permShadows=False):
+        world = self.getWorld()
+        initialObjects = self.objectsInPBS()
+        goalPoseBels = getGoalPoseBels(goalConds, world.getFaceFrames)
+        (held, graspB) = \
+               getHeldAndGraspBel(goalConds, world.getGraspDesc)
+        for h in ('left', 'right'):
+            if held[h]:
+                self.held[h] = (True, held[h][1])
+            if graspB[h]:
+                self.graspB[h] = (True, graspB[h][1])
+        for gB in self.graspB.values():
+            if gB: self.excludeObjs([gB.obj])
+        for h in ('left', 'right'):
+            if self.held[h] in goalPoseBels:
+                # print 'Held object in pose conditions, removing from hand'
+                self.updateHeldBel(None, h)
+        goalConf = getGoalConf(goalConds)
+        if goalConf:
+            self.updateConf(goalConf, fixed=True)
+        base = getBase(goalConds)
+        if base:
+            self.
+        self.objectBs.update({o:(True, pB) for (o, pB) in goalPoseBels.iteritems()})
+        # The shadows of Pose(obj) in the cond are also permanent
+        if permShadows:
+            self.updateAvoidShadow(goalPoseBels.keys())
+        self.reset()
+        finalObjects = self.objectsInPBS()
+        if initialObjects != finalObjects:
+            tr('conservation',
+               ('    initial', sorted(list(initialObjects))),
+               ('    final', sorted(list(finalObjects))))
+        return self
+
+    # Modify world to eliminate collisions and keep support
 
     def ditherRobotOutOfCollision(self, p):
         count = 0
-        rm = self.beliefContext.roadMap
-        confViols = rm.confViolations(self.conf, self, p)
+        confViols = self.confViolations(self.conf, p)
         while count < 100 and (confViols is None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]):
             count += 1
@@ -106,7 +291,7 @@ class PBS:
                               for b in base])
             newConf = self.conf.set('pr2Base', newBase)
             self.updateConf(newConf)
-            confViols = rm.confViolations(self.conf, self, p)
+            confViols = self.confViolations(self.conf, p)
         if count == 100:
             raise Exception, 'Failed to move robot out of collision'
 
@@ -126,7 +311,6 @@ class PBS:
         ditherCount = 200
         def delta(x, c = 1): return x + (random.random() - 0.5)*0.01*c
         count = 0
-        rm = self.beliefContext.roadMap
         world = self.getWorld()
         pB = self.getPlaceB(obj)
         shape = pB.shape(world)
@@ -154,10 +338,9 @@ class PBS:
     def internalCollisionCheck(self, dither=True, objChecks=True, factor=2.0):
         shProb = 0.1
         ws = self.getShadowWorld(shProb)   # minimal shadow
-        rm = self.beliefContext.roadMap
         # First check the robot for hard collisions.  Increase this to
         # give some boundary
-        confViols = rm.confViolations(self.conf, self, shProb)
+        confViols = self.confViolations(self.conf, shProb)
         if dither and \
                confViols is None or confViols.obstacles or \
                confViols.heldObstacles[0] or confViols.heldObstacles[1]:
@@ -165,12 +348,12 @@ class PBS:
                      draw=[(self, 0.0, 'W')], snap=['W'])
             self.ditherRobotOutOfCollision(shProb)
             self.reset()
-            confViols = rm.confViolations(self.conf, self, shProb)
+            confViols = self.confViolations(self.conf, shProb)
 
         # Now, see if the shadow of the object in the hand is colliding.
         # If so, reduce it.
         shProb = 0.98
-        confViols = rm.confViolations(self.conf, self, shProb)
+        confViols = self.confViolations(self.conf, shProb)
         for h in (0, 1):
             colls = confViols.heldShadows[h]
             hand = ('left', 'right')[h]
@@ -184,12 +367,12 @@ class PBS:
                 # max variance that does not result in a shadow colliion.
                 if count > 50:
                     assert None, 'Could not reduce grasp shadow after 10 attempts'
-                gB = self.getGraspB(self.held[hand].mode(), hand)
+                gB = self.getGraspB(self.held[hand], hand)
                 var = gB.poseD.variance()
                 newVar = tuple(v/factor for v in var)
                 self.resetGraspB(obj, hand, gB.modifyPoseD(var=newVar))
                 self.reset()
-                confViols = rm.confViolations(self.conf, self, shProb)
+                confViols = self.confViolations(self.conf, shProb)
                 colls = confViols.heldShadows[h]
             
         # Now for shadow collisions;  reduce the shadow if necessary
@@ -211,7 +394,7 @@ class PBS:
                 newVar = tuple(v/factor for v in var)
                 self.resetPlaceB(pB.modifyPoseD(var=newVar))
             self.reset()
-            confViols = rm.confViolations(self.conf, self, shProb)
+            confViols = self.confViolations(self.conf, shProb)
             shadows = confViols.allShadows()
 
         if not objChecks: return
@@ -220,6 +403,7 @@ class PBS:
         objShapes = [o for o in ws.getObjectShapes() \
                      if 'shadow' not in o.name()]
         n = len(objShapes)
+        fixed = self.fixObjBs()
         for index in range(n):
             shape = objShapes[index]
             if debugMsg('collisionCheck'):
@@ -228,8 +412,8 @@ class PBS:
                 shape2 = objShapes[index2]
                 # Ignore collisions between fixed objects
                 if shape.collides(shape2) and \
-                  not (shape.name() in self.fixObjBs and \
-                       shape2.name() in self.fixObjBs):
+                  not (shape.name() in fixed and \
+                       shape2.name() in fixed):
                     for shapeXX in objShapes: shapeXX.draw('W', 'black')
                     shape2.draw('W', 'magenta')
                     raise Exception, 'Object-Object collision: '+ \
@@ -247,230 +431,9 @@ class PBS:
                 self.ditherObjectToSupport(pB.obj, 0.99)
                 self.reset()
         debugMsg('collisionCheck')
-
-    def getWorld(self):
-        return self.beliefContext.world
-    def getRobot(self):
-        return self.beliefContext.world.robot
-    def getRoadMap(self):
-        return self.beliefContext.roadMap
-    def getObjectShapeAtOrigin(self, obj):
-        return self.beliefContext.world.getObjectShapeAtOrigin(obj)
-    def confViolations(self, conf, prob):
-        return self.beliefContext.roadMap.confViolations(conf, self, prob)
-    def awayRegions(self):
-        return frozenset([r for r in self.regions if r[:5] == 'table'])
-
-    def getPlaceB(self, obj, face = None, default = True):
-        placeB = self.fixObjBs.get(obj, None) or self.moveObjBs.get(obj, None)
-        if placeB and (face is None or face == placeB.support.mode()):
-            return placeB
-        elif default:
-            return self.defaultPlaceB(obj)
-        else:
-            return None
-
-    def resetPlaceB(self, pB):
-        obj = pB.obj
-        if self.fixObjBs.get(obj, None):
-            self.fixObjBs[obj] = pB
-        elif self.moveObjBs.get(obj, None):
-            self.moveObjBs[obj] = pB
-        elif obj == self.held['left'].mode():
-            self.updateHeld('none', None, None, 'left', None)
-            self.moveObjBs[obj] = pB
-        elif obj == self.held['right'].mode():
-            self.updateHeld('none', None, None, 'right', None)
-            self.moveObjBs[obj] = pB
-        else:
-            assert None, 'Unknown obj in resetPlaceB'
-        self.reset()
-
-    def defaultPlaceB(self, obj):
-        world = self.getWorld()
-        fr = world.getFaceFrames(obj)
-        return ObjPlaceB(obj, fr, UniformDist(range(len(fr))), Ident,
-                         4*(100.0,))
     
-    def getGraspB(self, obj, hand, face = None, default = True):
-        if obj == self.held[hand].mode():
-            graspB = self.graspB[hand]
-            if face is None or face == graspB.grasp.mode():
-                return graspB
-            elif default:
-                return self.defaultGraspB(obj)
-            else:
-                return None
-        elif default:
-            return self.defaultGraspB(obj)
-        else:
-            return None
-    def resetGraspB(self, obj, hand, gB):
-        if obj == self.held[hand].mode():
-            self.graspB[hand] = gB
-        else:
-            assert None, 'Object does not match grasp in resetGraspB'
-    def defaultGraspB(self, obj):
-        desc = self.getWorld().getGraspDesc(obj)
-        return ObjGraspB(obj, desc, UniformDist(range(len(desc))), None, Ident, 4*(100.0,))
-
-    def getPlacedObjBs(self):
-        objectBs = {}
-        objectBs.update(self.fixObjBs)
-        objectBs.update(self.moveObjBs)
-        for hand in ('left', 'right'):
-            heldObj = self.held[hand].mode()
-            if heldObj != 'none' and heldObj in objectBs:
-                del objectBs[heldObj]
-        return objectBs
-
-    def getHeld(self, hand):
-        return self.held[hand]
-
-    def copy(self):
-        return PBS(self.beliefContext, self.held.copy(), self.conf.copy(),
-                   self.graspB.copy(), self.fixObjBs.copy(), self.moveObjBs.copy(),
-                   self.regions, self.domainProbs, self.useRight, self.avoidShadow[:],
-                   self.fixGrasp.copy(), self.fixHeld.copy())
-
-    def objectsInPBS(self):
-        objects = []
-        for held in self.held.values():
-            if held and held.mode() != 'none':
-                objects.append(held.mode())
-        objects.extend(self.fixObjBs.keys())
-        objects.extend(self.moveObjBs.keys())
-        return set(objects)
-
-    def updateAvoidShadow(self, avoidShadow):
-        self.avoidShadow = avoidShadow
-        return self
-
-    def addAvoidShadow(self, avoidShadow):
-        for s in avoidShadow:
-            if s not in self.avoidShadow:
-                self.avoidShadow = self.avoidShadow + [s]
-        return self
-
-    def conditioned(self, goalConds, cond):
-        newBS = self.copy()
-        newBS = newBS.updateFromGoalPoses(goalConds)
-        newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
-        return newBS
+    # Creating shadow world
     
-    # Makes objects mentioned in the goal permanent,
-    # Side-effects self
-    def updateFromGoalPoses(self, goalConds,
-                            updateHeld=True, updateConf=True, permShadows=False):
-        world = self.getWorld()
-        initialObjects = self.objectsInPBS()
-        goalPoseBels = getGoalPoseBels(goalConds, world.getFaceFrames)
-        if updateHeld:
-            (held, graspB) = \
-                   getHeldAndGraspBel(goalConds, world.getGraspDesc)
-            for h in ('left', 'right'):
-                if held[h]:
-                    self.fixHeld[h] = True
-                    self.held[h] = held[h]
-                if graspB[h]:
-                    self.fixGrasp[h] = True
-                    self.graspB[h] = graspB[h]
-            for gB in self.graspB.values():
-                if gB: self.excludeObjs([gB.obj])
-            for h in ('left', 'right'):
-                if self.held[h] in goalPoseBels:
-                    # print 'Held object in pose conditions, removing from hand'
-                    self.updateHeldBel(None, h)
-        if updateConf:
-            self.conf = getConf(goalConds, self.conf)
-        world = self.getWorld()
-        self.fixObjBs.update(goalPoseBels)
-        self.moveObjBs = dict([(o, p) for (o, p) \
-                               in self.getPlacedObjBs().iteritems() \
-                               if o not in self.fixObjBs])
-        # The shadows of Pose(obj) in the cond are also permanent
-        if permShadows:
-            self.updateAvoidShadow(goalPoseBels.keys())
-        self.reset()
-        finalObjects = self.objectsInPBS()
-        if initialObjects != finalObjects:
-            tr('conservation',
-               ('    initial', sorted(list(initialObjects))),
-               ('    final', sorted(list(finalObjects))))
-        return self
-
-    def updateHeld(self, obj, face, graspD, hand, delta = None):
-        desc = self.getWorld().getGraspDesc(obj) \
-          if obj != 'none' else []
-        og = ObjGraspB(obj, desc, DeltaDist(face), None, graspD, delta = delta)
-        self.held[hand] = DeltaDist(obj) # !! Is this rigt??
-        self.graspB[hand] = og
-        self.excludeObjs([obj])
-        self.reset()
-        return self
-
-    def updateHeldBel(self, graspB, hand):
-        self.graspB[hand] = graspB
-        if graspB is None:
-            self.held[hand] = DeltaDist('none')
-            self.fixHeld[hand] = False
-            self.fixGrasp[hand] = False
-        else:
-            self.held[hand] = DeltaDist(graspB.obj) # !! Is this rigt??
-        if graspB:
-            self.excludeObjs([graspB.obj])
-        self.reset()
-        return self
-    
-    def updateConf(self, c):
-        self.conf = c
-        if self.shadowWorld:
-            self.shadowWorld.setRobotConf(c)
-        return self
-
-    def updatePermObjPose(self, objPlace):
-        obj = objPlace.obj
-        if obj in self.moveObjBs:
-            del self.moveObjBs[obj]
-        for hand in ('left', 'right'):
-            if self.held[hand].mode() == objPlace.obj:
-                self.updateHeldBel(None, hand)
-        self.fixObjBs[obj] = objPlace
-        self.reset()
-        return self
-
-    # Side effects the belief about this object in this world
-    # def updateObjB(self, objPlace):
-    #     obj = objPlace.obj
-    #     if obj in self.moveObjBs:
-    #         self.moveObjBs[obj] = objPlace
-    #     elif obj in self.fixObjBs:
-    #         self.fixObjBs[obj] = objPlace
-    #     else:
-    #         # Must be in the hand...
-    #         pass
-    #     self.reset()
-
-    def excludeObjs(self, objs):
-        for obj in objs:
-            if obj in self.fixObjBs: del self.fixObjBs[obj]
-            if obj in self.moveObjBs: del self.moveObjBs[obj]
-        self.reset()
-        return self
-
-    def extendFixObjBs(self, objBs, objShapes):
-        if not objBs: return self       # no change
-        # To extend objects we need to copy beliefContext and change world.
-        bc = copy.copy(self.beliefContext)
-        bc.world = self.getWorld().copy()
-        bs = self.copy()
-        bs.beliefContext = bc
-        for obj, objShape in zip(objBs, objShapes):
-            bc.world.addObjectShape(objShape)
-            bs.excludeObjs([obj])
-            bs.fixObjBs[obj] = objBs[obj]
-        return bs
-
     # arg can also be a graspB since they share relevant methods
     def shadowPair(self, objB, faceFrame, prob):
         def shLE(w1, w2):
@@ -573,7 +536,7 @@ class PBS:
         # robot.nominalConf = nominalConf
         # Add shadow for held object
         for hand in ('left', 'right'):
-            heldObj = self.held[hand].mode()
+            heldObj = self.held[hand]
             if heldObj != 'none':
                 assert self.graspB[hand] and self.graspB[hand].obj == heldObj
                 graspIndex = self.graspB[hand].grasp.mode()
@@ -678,6 +641,7 @@ class PBS:
             shadow.draw('W', 'red')
         return shadow
 
+    # Miscellaneous
     def draw(self, p = 0.9, win = 'W', clear=True, drawRobot=True):
         if clear: wm.getWindow(win).clear()
         self.getShadowWorld(p).draw(win, drawRobot=drawRobot)
@@ -840,7 +804,6 @@ def getGoalPoseBels(goalConds, getFaceFrames):
     if not goalConds: return {}
     fbs = getMatchingFluents(goalConds,
                    B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
-
     ans = dict([(b['Obj'], ObjPlaceB(b['Obj'],
                                      getFaceFrames(b['Obj']), # !! ??
                                      DeltaDist(b['Face']),
@@ -850,37 +813,51 @@ def getGoalPoseBels(goalConds, getFaceFrames):
                       (isGround(b.values()) and not ('*' in b.values()))])
     return ans
 
-def getConf(overrides, curr):
-    if not overrides: return curr
+# Return None if there is no Conf requirement; otherwise return conf
+def getGoalConf(goalConds):
+    if not goalConds: return None
     fbs = [(f, b) for (f, b) \
-           in getMatchingFluents(overrides,
+           in getMatchingFluents(goalConds,
                                  Conf(['Mu', 'Delta'], True)) if f.isGround()]
     assert len(fbs) <= 1, 'Too many Conf fluents in conditions'
-    conf = curr
+    conf = None
     if len(fbs) == 1:
         ((f, b),) = fbs
         if isGround(b.values()):
             conf = b['Mu']
     return conf
 
-def getHeldAndGraspBel(overrides, getGraspDesc):
+# Return None if there is no BaseConf requirement; otherwise return
+# base pose tuple
+def getBase(goalConds):
+    fbs = fbch.getMatchingFluents(goalConds,
+                                  BaseConf(['B', 'D'], True))
+    assert len(fbs) <= 1, 'Too many BaseConf fluents in conditions'
+    result = None
+    for (f, b) in fbs:
+        base = b['B']
+        if not isVar(base):
+            assert result is None, 'More than one Base fluent'
+            result = tuple(base)
+    return result
+
+def getHeldAndGraspBel(goalConds, getGraspDesc):
     held = {'left':None, 'right':None}
     graspB = {'left':None, 'right':None}
-    if not overrides: return (held, graspB)
-
+    if not goalConds: return (held, graspB)
     # Figure out what we're holding
-    hbs = getMatchingFluents(overrides, Bd([Holding(['H']), 'Obj', 'P'], True))
+    hbs = getMatchingFluents(goalConds, Bd([Holding(['H']), 'Obj', 'P'], True))
     objects = {}
     for (f, b) in hbs:
         if isGround(b.values()):  
             hand = b['H']
             assert hand in ('left', 'right') and not hand in objects, \
                    'Multiple inconsistent Holding in conds'
-            held[hand] = DeltaDist(b['Obj'])   # !! is this right?
+            held[hand] = b['Obj']
             objects[hand] = b['Obj']
 
     # Grasp faces
-    gfbs = getMatchingFluents(overrides,
+    gfbs = getMatchingFluents(goalConds,
                             Bd([GraspFace(['Obj', 'H']), 'Face', 'P'], True))
     faces = {}
     for (f, b) in gfbs:
@@ -892,7 +869,7 @@ def getHeldAndGraspBel(overrides, getGraspDesc):
             faces[hand] = face
 
     # Grasps
-    gbs = getMatchingFluents(overrides,
+    gbs = getMatchingFluents(goalConds,
             B([Grasp(['Obj', 'H', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
     grasps = {}
     for (f, b) in gbs:

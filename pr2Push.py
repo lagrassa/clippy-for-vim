@@ -10,9 +10,8 @@ import hu
 from planUtil import ObjGraspB, PoseD, PushResponse
 from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords, bboxRandomCoords, supportFaceIndex
 from pr2GenAux import *
-from pr2PlanBel import getConf
 from pr2Fluents import pushPath
-from pr2PlanBel import getConf, getGoalPoseBels
+from pr2PlanBel import getGoalConf, getGoalPoseBels
 import mathematica
 reload(mathematica)
 import windowManager3D as wm
@@ -93,7 +92,7 @@ def pushGenTop(args, goalConds, pbs,
         tr(tag, '=> obj is none or no placeB, failing')
         return
     if goalConds:
-        if getConf(goalConds, None) and not away:
+        if getGoalConf(goalConds, None) and not away:
             tr(tag, '=> goal conf specified and not away, failing')
             return
         for (h, o) in getHolding(goalConds):
@@ -161,7 +160,7 @@ def pushGenTop(args, goalConds, pbs,
         # Double check that preConf is safe - this should not be necessary...
         if debug(tag):
             testBS = newBS.copy()
-            testBS.updatePermObjPose(placeB.modifyPoseD(prePose)) # obj at prePose
+            testBS.updatePermObjBel(placeB.modifyPoseD(prePose)) # obj at prePose
             testBS.draw(prob, 'W'); preConf.draw('W')
             viol = testBS.confViolations(preConf, prob)
             if not glob.inHeuristic and debug(tag):
@@ -666,7 +665,7 @@ def pushInGenTop(args, goalConds, pbs, away = False, update=True):
         # Nothing to do
         tr(tag, '=> object is none or no regions, failing')
         return
-    if goalConds and getConf(goalConds, None) and not away:
+    if goalConds and getGoalConf(goalConds, None) and not away:
         # if conf is specified, just fail
         tr(tag, '=> conf is specified, failing')
         return

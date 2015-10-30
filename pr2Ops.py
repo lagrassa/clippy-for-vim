@@ -242,8 +242,8 @@ class GetObj(Function):
     # noinspection PyUnusedLocal
     @staticmethod
     def fun((h,), goal, start):
-        heldLeft = start.pbs.getHeld('left').mode()
-        heldRight = start.pbs.getHeld('right').mode()
+        heldLeft = start.pbs.getHeld('left')
+        heldRight = start.pbs.getHeld('right')
         hh = heldLeft if h == 'left' else heldRight
         if hh == 'none' or h == 'right' and not start.pbs.useRight:
             # If there is nothing in the hand right now, then we
@@ -256,7 +256,7 @@ class GetObj(Function):
 # Return a tuple (obj, face, mu, var, delta).  Values taken from the start state
 def graspStuffFromStart(start, hand):
     pbs = start.pbs
-    obj = pbs.getHeld(hand).mode()
+    obj = pbs.getHeld(hand)
     if obj == 'none':
         return ('none', 0, (0.0, 0.0, 0.0, 0.0),
                            (0.0, 0.0, 0.0, 0.0),
@@ -586,8 +586,8 @@ class GenLookObjPrevVariance(Function):
     @staticmethod
     def fun((ve, obj, face), goal, start):
         lookVar = start.domainProbs.obsVarTuple
-        if start.pbs.getHeld('left').mode() == obj or \
-          start.pbs.getHeld('right').mode() == obj:
+        if start.pbs.getHeld('left') == obj or \
+          start.pbs.getHeld('right') == obj:
             vs = maxPoseVar
         else:
             vs = list(start.poseModeDist(obj, face).mld().sigma.diagonal().\
@@ -651,7 +651,7 @@ def genLookObjHandPrevVariance((ve, hand, obj, face), goal, start, vals):
     maxGraspVar = start.domainProbs.maxGraspVar
 
     result = []
-    hs = start.pbs.getHeld(hand).mode()
+    hs = start.pbs.getHeld(hand)
     vs = None
     if hs == obj:
         vs = tuple(start.graspModeDist(obj, hand, face)\

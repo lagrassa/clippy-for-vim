@@ -127,6 +127,7 @@ class WorldState:
         self.fixedObjects = set([])           # immovable object names
         self.fixedHeld = {'left':False, 'right':False}  # is held obj fixed?
         self.fixedGrasp = {'left':False, 'right':False}  # is grasp fixed?
+        self.fixedConf = False                           # if conf fixed?
         self.held = {'left':None, 'right':None}   # object names
         self.grasp = {'left':None, 'right':None}  # transforms
         self.attached = {'left':None, 'right':None} # object shapes
@@ -199,10 +200,12 @@ class WorldState:
         del self.objectShapes[name]
         del self.frames[name]
 
-    def setRobotConf(self, conf):
+    def setRobotConf(self, conf, fixed=False):
+        assert not self.fixedConf
         robot = self.robot
         # Update the state of the world
         self.robotConf = conf
+        self.fixedConf = fixed
         # Include the frames in the world
         placement, frames = robot.placement(conf, attached = self.attached)
         self.robotPlace = placement

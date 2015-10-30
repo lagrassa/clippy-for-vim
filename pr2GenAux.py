@@ -109,14 +109,14 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
     violations = Violations()           # cumulative
     # 1.  Can move from home to pre holding nothing with object placed at pose
     if preConf:
-        pbs1 = pbs.copy().updatePermObjPose(objPlace).updateHeldBel(None, hand)
+        pbs1 = pbs.copy().updatePermObjBel(objPlace).updateHeldBel(None, hand)
         if op == 'pick':
             oB = objPlace.modifyPoseD(var=4*(0.0,)) # ignore uncertainty
             oB.delta = 4*(0.0,)
         else:
             oB = objPlace.modifyPoseD(var=pbs.domainProbs.placeVar)
             oB.delta = pbs.domainProbs.placeDelta
-        pbs1 = pbs1.updatePermObjPose(oB).addAvoidShadow([obj])
+        pbs1 = pbs1.updatePermObjBel(oB).addAvoidShadow([obj])
         if debug(tag):
             pbs1.draw(p, 'W')
             debugMsg(tag, 'H->App, obj@pose (condition 1)')
@@ -178,7 +178,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         tableB2 = tableB.modifyPoseD(var = lookVar)
         tableB2.delta = lookDelta
         prob = 0.95
-        shadow = tableB2.shadow(pbs2.updatePermObjPose(tableB2).getShadowWorld(prob))
+        shadow = tableB2.shadow(pbs2.updatePermObjBel(tableB2).getShadowWorld(prob))
         if collides(preConf, shadow, attached = pbs2.getShadowWorld(p).attached):
             preConfShape = preConf.placement(attached = pbs2.getShadowWorld(p).attached)
             pbs2.draw(p, 'W'); preConfShape.draw('W', 'cyan'); shadow.draw('W', 'cyan')
@@ -198,7 +198,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
     # 3.  Can move from home to pick with object placed at pose (0 var)
     oB = objPlace.modifyPoseD(var=4*(0.0,)) # ignore uncertainty
     oB.delta = 4*(0.0,)
-    pbs3 = pbs.copy().updatePermObjPose(oB).updateHeldBel(None, hand)
+    pbs3 = pbs.copy().updatePermObjBel(oB).updateHeldBel(None, hand)
     if debug(tag):
         pbs3.draw(p, 'W')
         debugMsg(tag, 'H->Target, obj placed (0 var) (condition 3)')
@@ -486,7 +486,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
     wrist = objectGraspFrame(pbs, graspB, placeB, hand)
 
     shWorld = pbs.getShadowWorld(prob)
-    gripperShape = gripperPlace(shWorld.robotConf, hand, wrist, shWorld.robotPlace)
+    gripperShape = gripperPlace(pbs.conf, hand, wrist)
     for perm in shWorld.fixedObjects:
         obst = shWorld.objectShapes[perm]
         if obst.collides(gripperShape):
@@ -505,7 +505,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
         (x,y,th) = base
         nominalBasePose = hu.Pose(x, y, 0.0, th)
     else:
-        (x,y,th) = shWorld.robotConf['pr2Base']
+        (x,y,th) = pbs.conf['pr2Base']
         curBasePose = hu.Pose(x, y, 0.0, th)
     counts = [0, 0]
     if base:
@@ -672,6 +672,10 @@ def drawObjAndShadow(pbs, placeB, prob, win, color = None):
     if shadowName(obj) in ws.world.objects:
         ws.world.getObjectShapeAtOrigin(shadowName(obj)).applyLoc(placeB.objFrame()).draw(win, color=color)
 
+def sameBase(pbs):
+    # base is None or (fixed, base)
+    return pbs.base and pbs.base[0]     # fixed base
+
 ################
 ## Looking at goal fluents
 ################
@@ -682,19 +686,6 @@ def getGoalInConds(goalConds, X=[]):
                                   Bd([In(['Obj', 'Reg']), 'Val', 'P'], True))
     return [(b['Obj'], b['Reg'], b['P']) \
             for (f, b) in fbs if isGround(b.values())]
-
-def sameBase(goalConds):
-    # Return None if there is no sameBase requirement; otherwise
-    # return base pose
-    fbs = fbch.getMatchingFluents(goalConds,
-                                  BaseConf(['B', 'D'], True))
-    result = None
-    for (f, b) in fbs:
-        base = b['B']
-        if not isVar(base):
-            assert result is None, 'More than one Base fluent'
-            result = tuple(base)
-    return result
 
 def targetConf(goalConds):
     fbs_conf = [(f, b) for (f, b) \
