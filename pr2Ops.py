@@ -136,9 +136,9 @@ def moveNBPrim(args, details):
 
     bs = details.pbs.copy()
     # Make all the objects be fixed
-    bs.fixObjBs.update(bs.moveObjBs)
-    bs.moveObjBs = {}
-    cs = bs.conf
+    for o in bs.objectBs:
+        bs.objectBs[o] = (True, bs.objectBs[o][1])
+    fixCS, cs = bs.getConf()
     tr('prim', 'moveNBPrim (start, end)', confStr(cs), confStr(ce),
        pause = False)
     path, interpolated = primNBPath(bs, cs, ce, movePreProb)
@@ -151,9 +151,9 @@ def movePrim(args, details):
 
     bs = details.pbs.copy()
     # Make all the objects be fixed
-    bs.fixObjBs.update(bs.moveObjBs)
-    bs.moveObjBs = {}
-    cs = bs.conf
+    for o in bs.objectBs:
+        bs.objectBs[o] = (True, bs.objectBs[o][1])
+    fixCS, cs = bs.getConf()
     tr('prim', 'movePrim (start, end)', confStr(cs), confStr(ce),
        pause = False)
     path, interpolated = primPath(bs, cs, ce, movePreProb)
@@ -262,7 +262,7 @@ def graspStuffFromStart(start, hand):
                            (0.0, 0.0, 0.0, 0.0),
                            smallDelta)
 
-    gd = pbs.getGraspB(obj, hand)
+    gd = pbs.getGraspBForObj(obj, hand)
     face = gd.grasp.mode()
     mu = gd.poseD.modeTuple()
     var = gd.poseD.var
@@ -595,15 +595,9 @@ class GenLookObjPrevVariance(Function):
     @staticmethod
     def fun((ve, obj, face), goal, start):
         lookVar = start.domainProbs.obsVarTuple
-<<<<<<< HEAD
-        if start.pbs.getHeld('left') == obj or \
-          start.pbs.getHeld('right') == obj:
-=======
         odoVar = [e * e for e in start.domainProbs.odoError]
-        
-        if start.pbs.getHeld('left').mode() == obj or \
-          start.pbs.getHeld('right').mode() == obj:
->>>>>>> master
+        if start.pbs.getHeld('left') == obj or \
+               start.pbs.getHeld('right') == obj:
             vs = maxPoseVar
         else:
             vs = list(start.poseModeDist(obj, face).mld().sigma.diagonal().\
@@ -718,7 +712,7 @@ def canReachDropGen(args, goal, start, vals):
         if viol:
             collidesWithHeld = viol.heldObstacles[handI[hand]]
             if len(collidesWithHeld) > 0:
-                heldO = start.pbs.held[hand].mode()
+                heldO = start.pbs.getHeld(hand)
                 assert heldO != 'none'
                 fbs = fbch.getMatchingFluents(goal,
                                Bd([Holding([hand]), 'Obj', 'P'], True))
@@ -743,7 +737,7 @@ def canPickPlaceDropGen(args, goal, start, vals):
             # objects that collide with the object in the hand
             collidesWithHeld = viol.heldObstacles[handI[dropHand]]
             if len(collidesWithHeld) > 0:  # maybe make sure not shadow
-                heldO = start.pbs.held[dropHand].mode()
+                heldO = start.pbs.getHeld(dropHand)
                 fbs = fbch.getMatchingFluents(goal,
                                Bd([Holding([dropHand]), 'Obj', 'P'], True))
                 # should be 0 or 1 object names
@@ -926,8 +920,7 @@ def moveBProgress(details, args, obs=None):
     # Change robot conf.  For now, trust the observation completely
     details.pbs.updateConf(endConf)
 
-    for ob in details.pbs.moveObjBs.values() + \
-               details.pbs.fixObjBs.values():
+    for fix, ob in details.pbs.objectBs.values():
         oldVar = ob.poseD.var
         newVar = tuple([a + b for (a, b) in zip(oldVar, odoVar)])
         details.pbs.resetPlaceB(ob.modifyPoseD(var=newVar))
@@ -977,7 +970,7 @@ def placeBProgress(details, args, obs=None):
     failProb = details.domainProbs.placeFailProb
     # !! This is wrong!  The coordinate frames of the variances don't match.
     v = [x+y for x,y in \
-         zip(details.pbs.getGraspB(o,h).poseD.var, placeVar)]
+         zip(details.pbs.getGraspBForObj(o,h).poseD.var, placeVar)]
     v[2] = 1e-20
     gv = tuple(v)
     details.poseModeProbs[o] = (1 - failProb) * details.graspModeProb[h]
@@ -988,7 +981,8 @@ def placeBProgress(details, args, obs=None):
     else:
         raw_input('place face is DDist, should be int')
         pf = pf.mode()
-    details.pbs.moveObjBs[o] = ObjPlaceB(o, ff, pf, PoseD(p, gv))
+    assert not details.pbs.objectBs[o][0] # not fixed
+    details.pbs.objectBs[o] = (False, ObjPlaceB(o, ff, pf, PoseD(p, gv)))
     details.pbs.reset()
     details.pbs.getShadowWorld(0)
     details.pbs.internalCollisionCheck()
@@ -1013,7 +1007,8 @@ def pushBProgress(details, args, obs=None):
     # Failure here would be to knock the object over
     details.poseModeProbs[o] = (1 - failProb) * details.poseModeProbs[o]
     ff = details.pbs.getWorld().getFaceFrames(o)
-    details.pbs.moveObjBs[o] = ObjPlaceB(o, ff, pf, PoseD(pose, gv))
+    assert not details.pbs.objectBs[o][0] # not fixed
+    details.pbs.objectBs[o] = (False, ObjPlaceB(o, ff, pf, PoseD(pose, gv)))
     details.pbs.reset()
     details.pbs.getShadowWorld(0)
     details.pbs.internalCollisionCheck()
@@ -1042,8 +1037,8 @@ def objectObsUpdate(details, lookConf, obsList):
     fixed = shWorld.getNonShadowShapes() + [rob]
     obstacles = shWorld.getNonShadowShapes()
     # Objects that we expect to be visible
-    heldLeft = details.pbs.held['left'].mode()
-    heldRight = details.pbs.held['left'].mode()
+    heldLeft = details.pbs.getHeld('left')
+    heldRight = details.pbs.getHeld('left')
 
     objList = [s for s in obstacles \
                if visible(shWorld, lookConf, s, rem(obstacles,s)+[rob], 0.5,
@@ -1215,8 +1210,8 @@ def scoreObsObj(details, obs, objct):
         return missedObsLikelihoodPenalty, None, None
 
     # Don't consider matches against objects in the hand
-    heldLeft = details.pbs.held['left'].mode()
-    heldRight = details.pbs.held['right'].mode()
+    heldLeft = details.pbs.getHeld('left')
+    heldRight = details.pbs.getHeld('right')
     if objct in (heldLeft, heldRight):
         return -float('inf'), None, None
     
@@ -1280,7 +1275,7 @@ def lookAtHandBProgress(details, args, obs):
     # Awful!  Should have an attribute of the object
     universe = [o for o in details.pbs.beliefContext.world.objects.keys() \
                 if o[0:3] == 'obj']
-    heldDist = details.pbs.held[h]
+    heldDist = DeltaDist(details.pbs.getHeld(h))
 
     oldMlo = heldDist.mode()
     # Update dist on what we're holding if we got an observation
@@ -1296,16 +1291,14 @@ def lookAtHandBProgress(details, args, obs):
         # If we are fairly sure of the object, update the mode object's dist
         mlo = heldDist.mode()
         bigSigma = (0.01, 0.01, 0.01, 0.04)
-        faceDist = details.pbs.graspB[h].grasp
-        gd = details.pbs.graspB[h].graspDesc
+        faceDist = details.pbs.getGraspB(h).grasp
+        gd = details.pbs.getGraspB(h).graspDesc
         if mlo == 'none':
             # We think we are not holding anything
             newOGB = None
         # If we now have a new mode, we have to reinitialize the grasp dist!
         elif mlo != oldMlo:
             raw_input('Fix observation update to handle new mlo')
-            #details.graspModeProb[h] = 1 - details.domainProbs.obsTypeErrProb
-            #gd = details.pbs.graspB[h].graspDesc
             newOGB = ObjGraspB(mlo, gd, faceDist, None, 
                                PoseD(hu.Pose(0.0, 0.0, 0.0, 0.0), bigSigma))
         elif obsObj == 'none':
@@ -1334,7 +1327,7 @@ def lookAtHandBProgress(details, args, obs):
             faceDist = DeltaDist(ogf)
 
             mlf = faceDist.mode()
-            poseDist = details.pbs.graspB[h].poseD
+            poseDist = details.pbs.getGraspB(h).poseD
             oldMu = poseDist.modeTuple()
             oldSigma = poseDist.variance()
 
@@ -1912,7 +1905,7 @@ def achCanXGen(pbs, goal, originalCond, targetFluents, violFn, prob, tag):
         return itertools.chain(lookG, roundrobin(placeG, pushG))
     
 
-def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
+def lookAchCanXGen(pbs, shWorld, initViol, violFn, prob):
     tag = 'lookAchGen'
     reducibleShadows = [sh.name() for sh in initViol.allShadows() \
                         if (not sh.name() in shWorld.fixedObjects) and \
@@ -1923,22 +1916,22 @@ def lookAchCanXGen(newBS, shWorld, initViol, violFn, prob):
         tr(tag, '=> No shadows to fix')
         return       # nothing available
 
-    obsVar = newBS.domainProbs.obsVarTuple
-    lookDelta = newBS.domainProbs.shadowDelta
+    obsVar = pbs.domainProbs.obsVarTuple
+    lookDelta = pbs.domainProbs.shadowDelta
     for shadowName in reducibleShadows:
         obst = objectName(shadowName)
-        objBMinVar = newBS.domainProbs.objBMinVar(obst)
-        placeB = newBS.getPlaceB(obst)
+        objBMinVar = pbs.domainProbs.objBMinVar(obst)
+        placeB = pbs.getPlaceB(obst)
         tr(tag, '=> reduce shadow %s (in red):'%obst,
-           draw=[(newBS, prob, 'W'),
-           (placeB.shadow(newBS.getShadowWorld(prob)), 'W', 'red')],
+           draw=[(pbs, prob, 'W'),
+           (placeB.shadow(pbs.getShadowWorld(prob)), 'W', 'red')],
            snap=['W'])
         face = placeB.support.mode()
         poseMean = placeB.poseD.modeTuple()
         conds = frozenset([Bd([SupportFace([obst]), face, prob], True),
                            B([Pose([obst, face]), poseMean, objBMinVar,
                               lookDelta, prob], True)])
-        resultBS = newBS.conditioned([], conds)
+        resultBS = pbs.conditioned([], conds)
         resultViol = violFn(resultBS)
         if resultViol is not None and shadowName not in resultViol.allShadows():
             yield [conds]
@@ -1953,15 +1946,15 @@ def ignore(thing):
 
 def fixedHeld(pbs, obj):
     for hand in ('left', 'right'):
-        if obj == pbs.held[hand].mode() and pbs.fixHeld[hand]:
-            return True
+        (fix, held) = pbs.held[hand]
+        return obj == held and fix
     return False
 
-def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
+def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob, cond):
     tag = 'placeAchGen'
     obstacles = [o.name() for o in initViol.allObstacles() \
                   if (not o.name() in shWorld.fixedObjects) and \
-                     (not fixedHeld(newBS, o.name())) and \
+                     (not fixedHeld(pbs, o.name())) and \
                      graspable(o.name())]
     if obstacles:
         tr(tag, '=> Pickable obstacles to fix', obstacles)
@@ -1969,13 +1962,13 @@ def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
         tr(tag, '=> No pickable obstacles to fix')
         return       # nothing available
 
-    moveDelta = newBS.domainProbs.placeDelta
+    moveDelta = pbs.domainProbs.placeDelta
     # LPK: If this fails, it could be that we really want to try a
     # different obstacle (so we can do the obstacles in a different order)
     # than a different placement of the first obst;  not really sure how to
     # arrange that.
     for obst in obstacles:
-        for r in moveOut(newBS, prob, obst, moveDelta, cond):
+        for r in moveOut(pbs, prob, obst, moveDelta, cond):
             # TODO: LPK: concerned about how graspVar and graspDelta
             # are computed
             graspFace = r.gB.grasp.mode()
@@ -1994,20 +1987,20 @@ def placeAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
             yield [newConds]
     tr(tag, '=> Out of remedies')
 
-def pushAchCanXGen(newBS, shWorld, initViol, violFn, prob, cond):
+def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob, cond):
     tag = 'pushAchGen'
     obstacles = [o.name() for o in initViol.allObstacles() \
                   if (not o.name() in shWorld.fixedObjects) and \
-                  (not fixedHeld(newBS, o.name()))]
+                  (not fixedHeld(pbs, o.name()))]
     if obstacles:
         tr(tag, 'Movable obstacles to fix', obstacles)        
     else:
         tr(tag, '=> No movable obstacles to fix')
         return       # nothing available
 
-    moveDelta = newBS.domainProbs.placeDelta
+    moveDelta = pbs.domainProbs.placeDelta
     for obst in obstacles:
-        for r in pushOut(newBS, prob, obst, moveDelta, cond):
+        for r in pushOut(pbs, prob, obst, moveDelta, cond):
 
             supportFace = r.postPB.support.mode()
             postPose = r.postPB.poseD.modeTuple()

@@ -29,7 +29,7 @@ class BeliefState:
         self.domainProbs = domainProbs
         self.awayRegion = awayRegion
         self.poseModeProbs = dict([(name , 0.99) \
-               for name in (pbs.moveObjBs.keys() + pbs.fixObjBs.keys())])
+                                   for name in pbs.objectBs.keys()])
         self.graspModeProb = {'left' : 0.99, 'right' : 0.99}
         # wm.getWindow('Belief').startCapture()
 
@@ -39,7 +39,7 @@ class BeliefState:
             return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray), 0.99)])
         else:
             if face == '*': face = None
-            poseD = self.pbs.getGraspB(obj, hand, face).poseD
+            poseD = self.pbs.getGraspBForObj(obj, hand, face).poseD
             return GMU([(MVG(poseD.modeTuple(), diagToSq(poseD.var)),
                         self.graspModeProb[hand])])
 
@@ -55,25 +55,24 @@ class BeliefState:
     def draw(self, w = 'Belief'):
         s = '------------  Belief -------------\n'
         s += 'Conf:\n'
-        for key in self.pbs.conf.keys():
-            s += '   ' + key + ' ' + prettyString(self.pbs.conf[key]) + '\n'
-        gb = self.pbs.graspB
-        gbl = gb['left']
-        gbr = gb['right']
+        for key in self.pbs.getConf().keys():
+            s += '   ' + key + ' ' + prettyString(self.pbs.getConf()[key]) + '\n'
+        gb = self.pbs.getGraspB
+        gbl = gb('left')
+        gbr = gb('right')
         s += 'Held Left: %s mode prob %s\n'%\
-             (self.pbs.held['left'], prettyString(self.graspModeProb['left']))
+             (self.pbs.getHeld('left'), prettyString(self.graspModeProb['left']))
         s += '    Grasp type: %s\n'%(prettyString(gbl.grasp) if gbl else None)
         s += '    Grasp mean: %s\n'%(prettyString(gbl.poseD.meanTuple()) if (gbl and gbl.poseD) else None)
         s += '    Grasp stdev: %s\n'%(prettyStdev(gbl.poseD.varTuple())  if (gbl and gbl.poseD) else None)
         s += 'Held Right: %s mode prob %s\n'%\
-             (self.pbs.held['right'],prettyString(self.graspModeProb['right']))
+             (self.pbs.getHeld('right'),prettyString(self.graspModeProb['right']))
         s += '    Grasp type: %s\n'%(prettyString(gbr.grasp) if gbr else None)
         s += '    Grasp mean: %s\n'%(prettyString(gbr.poseD.meanTuple()) if (gbr and gbr.poseD) else None)
         s += '    Grasp stdev: %s\n'%(prettyStdev(gbr.poseD.varTuple())  if (gbr and gbr.poseD) else None)
         s += 'Objects:\n'
-        for (name, stuff) in self.pbs.moveObjBs.items() + \
-                             self.pbs.fixObjBs.items():
-            s += name + '\n'
+        for (name, (fix, stuff)) in self.pbs.objectBs.items():
+            s += name + '(fixed=%s)'%fix, + '\n'
             s += '   prob: %s\n'%self.poseModeProbs[name]
             s += '   face: %s\n'%stuff.support
             s += '   pose: %s\n'%prettyString(stuff.poseD.meanTuple())

@@ -161,13 +161,13 @@ class Conf(Fluent):
     def test(self, bState):
         assert self.isGround()
         (targetConf, delta) = self.args
-        return confWithin(bState.pbs.conf, targetConf, delta)
+        return confWithin(bState.pbs.getConf(), targetConf, delta)
 
     def getGrounding(self, bstate):
         assert self.value == True
         (targetConf, delta) = self.args
         assert not isGround(targetConf)
-        return {targetConf : bstate.details.pbs.conf}
+        return {targetConf : bstate.details.pbs.getConf()}
 
     def couldClobber(self, other, details = None):
         return other.predicate in ('Conf', 'BaseConf')
@@ -224,7 +224,7 @@ class BaseConf(Fluent):
     predicate = 'BaseConf'
     def test(self, bState):
         (targetConf, delta) = self.args
-        return baseConfWithin(bState.pbs.conf['pr2Base'], targetConf, delta)
+        return baseConfWithin(bState.pbs.getConf()['pr2Base'], targetConf, delta)
 
     def heuristicVal(self, details):
         # Needs heuristic val because we don't have an operator that
@@ -911,7 +911,7 @@ class GraspFace(Fluent):
         if obj == 'none':
             return DeltaDist(0)
         else:
-            return bState.pbs.getGraspB(obj, hand).grasp # a DDist over integers
+            return bState.pbs.getGraspBForObj(obj, hand).grasp # a DDist over integers
 
     def fglb(self, other, bState = None):
         (obj, hand) = self.args                  # Args
@@ -945,7 +945,7 @@ class Grasp(Fluent):
                 # We don't think it's in the hand, so dist is huge
                 return lostDist
         if face == '*':
-            face = bState.pbs.getGraspB(obj, hand).grasp.mode()
+            face = bState.pbs.getGraspBForObj(obj, hand).grasp.mode()
 
         return bState.graspModeDist(obj, hand, face)
 
@@ -1213,8 +1213,6 @@ def partition(fluents):
                     
         groups.append(frozenset(newSet))
     return groups
-<<<<<<< HEAD
-=======
 
 ###
 # Tests
@@ -1326,15 +1324,15 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
             preConf, pushConf, postConf, poseVar, prePoseVar,
             poseDelta, prob, initViol, prim=False):
     tag = 'canPush'
-    held = pbs.held[hand].mode()
+    held = pbs.getHeld(hand)
     newBS = pbs.copy()
     if held != 'none':
         tr(tag, 'Hand=%s is holding %s in pbs'%(hand, held))
         newBS.updateHeld('none', None, None, hand, None)
-    if obj in [h.mode() for h in newBS.held.values()]:
+    if obj in [newBS.getHeld(h) for h in ('left', 'right')]:
         tr(tag, '=> obj is in the other hand')
         # LPK!! Changed hand below to otherHand(hand)
-        assert pbs.held[otherHand(hand)].mode() == obj
+        assert pbs.getHeld(otherHand(hand)) == obj
         newBS.updateHeld('none', None, None, otherHand(hand), None)
     post = hu.Pose(*pose)
     placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), poseFace,
@@ -1673,4 +1671,3 @@ def checkReplay(pbs, prob, cachedValues):
         viol = [pbs.confViolations(conf, prob) for (conf, _, _) in pathViols]
         if all(viol):
             return ([(c, v2, p) for ((c, v1, p), v2) in zip(pathViols, viol)], 'done')
->>>>>>> master

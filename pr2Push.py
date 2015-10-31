@@ -110,7 +110,7 @@ def pushGenTop(args, goalConds, pbs,
         # Just placements specified in goal
         newBS = newBS.updateFromGoalPoses(goalConds)
     tr(tag, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
-    held = newBS.held[hand].mode()
+    held = newBS.getHeld(hand)
     if held != 'none':
         # Get rid of held object in newBS, we'll need to add this to
         # violations in canPush...
@@ -118,7 +118,7 @@ def pushGenTop(args, goalConds, pbs,
         newBS.updateHeld('none', None, None, hand, None)
     if held == obj:
         curPB = None
-    elif obj in [h.mode() for h in newBS.held.values()]:
+    elif obj in [newBS.getHeld(h) for h in ('left', 'right')]:
         tr(tag, 'obj is in other hand')
         newBS.updateHeld('none', None, None, otherHand(hand), None)
         curPB = None
@@ -883,7 +883,7 @@ def cachePushResponse(pr):
             pdb.set_trace()
 
 def push(pbs, prob, obj, hand):
-    minConf = minimalConf(pbs.conf, hand)
+    minConf = minimalConf(pbs.getConf(), hand)
     if minConf in PushCache:
         pr = PushCache[minConf]
     else:

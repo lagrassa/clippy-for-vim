@@ -434,12 +434,12 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
         return
     # Copy the other arm
     if hand == 'left':
-        conf.conf['pr2RightArm'] = pbs.conf['pr2RightArm']
-        # conf.conf['pr2RightGripper'] = pbs.conf['pr2RightGripper']
+        conf.conf['pr2RightArm'] = pbs.getConf()['pr2RightArm']
+        # conf.conf['pr2RightGripper'] = pbs.getConf()['pr2RightGripper']
         conf.conf['pr2RightGripper'] = [0.08]
     else:
-        conf.conf['pr2LeftArm'] = pbs.conf['pr2LeftArm']
-        # conf.conf['pr2LeftGripper'] = pbs.conf['pr2LeftGripper']
+        conf.conf['pr2LeftArm'] = pbs.getConf()['pr2LeftArm']
+        # conf.conf['pr2LeftGripper'] = pbs.getConf()['pr2LeftGripper']
         conf.conf['pr2LeftGripper'] = [0.08]
     ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob) \
          if findApproach else True
@@ -493,7 +493,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
     wrist = objectGraspFrame(pbs, graspB, placeB, hand)
 
     shWorld = pbs.getShadowWorld(prob)
-    gripperShape = gripperPlace(pbs.conf, hand, wrist)
+    gripperShape = gripperPlace(pbs.getConf(), hand, wrist)
     for perm in shWorld.fixedObjects:
         obst = shWorld.objectShapes[perm]
         if obst.collides(gripperShape):
@@ -512,7 +512,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
         (x,y,th) = base
         nominalBasePose = hu.Pose(x, y, 0.0, th)
     else:
-        (x,y,th) = pbs.conf['pr2Base']
+        (x,y,th) = pbs.getConf()['pr2Base']
         curBasePose = hu.Pose(x, y, 0.0, th)
     counts = [0, 0]
     if base:
@@ -607,8 +607,8 @@ lookPoses = {'left': [trL(x) for x in [hu.Pose(0.4, 0.35, 1.0, ang),
                                         hu.Pose(0.5, -0.18, 1.0, -ang)]]}
 def potentialLookHandConfGen(pbs, prob, hand):
     shWorld = pbs.getShadowWorld(prob)
-    robot = pbs.conf.robot
-    curCartConf = pbs.conf.cartConf()
+    robot = pbs.getConf().robot
+    curCartConf = pbs.getConf().cartConf()
     chain = robot.armChainNames[hand]
     baseFrame = curCartConf['pr2Base']
     for pose in lookPoses[hand]:
@@ -616,7 +616,7 @@ def potentialLookHandConfGen(pbs, prob, hand):
             print 'potentialLookHandConfs trying:\n', pose
         target = baseFrame.compose(pose)
         cartConf = curCartConf.set(chain, target)
-        conf = robot.inverseKin(cartConf, conf=pbs.conf)
+        conf = robot.inverseKin(cartConf, conf=pbs.getConf())
         if all(v for v in conf.conf.values()):
             if debug('potentialLookHandConfs'):
                 conf.draw('W', 'blue')
@@ -693,22 +693,6 @@ def getGoalInConds(goalConds, X=[]):
                                   Bd([In(['Obj', 'Reg']), 'Val', 'P'], True))
     return [(b['Obj'], b['Reg'], b['P']) \
             for (f, b) in fbs if isGround(b.values())]
-
-def targetConf(goalConds):
-    fbs_conf = [(f, b) for (f, b) \
-                in getMatchingFluents(goalConds,
-                                      Conf(['Mu', 'Delta'], True))]
-    fbs_crnb = fbch.getMatchingFluents(goalConds,
-                                       Bd([CanReachNB(['Start', 'End', 'Cond']),
-                                           True, 'P'], True))
-    if not (fbs_conf and fbs_crnb): return None
-    conf = None
-    for (fconf, bconf) in fbs_conf:
-        for (fcrnb, bcrnb) in fbs_crnb:
-            confVar = fconf.args[0]
-            if isVar(confVar) and fconf.args[0] == fcrnb.args[0].args[0]:
-                conf = fcrnb.args[0].args[1]
-    return conf
 
 def pathShape(path, prob, pbs, name):
     assert isinstance(path, (list, tuple))
@@ -983,7 +967,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                                 (None,None,None))
             else:
                 # Try not to move the base...
-                cb = pbs.conf['pr2Base']
+                cb = pbs.getConf()['pr2Base']
                 c, ca, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, cb, prob, nMax=1),
                                 (None,None,None))
                 if not v:
@@ -995,7 +979,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
                     debugMsg(tag, 'v=%s'%v, 'weight=%s'%str(v.weight()),
                              'pose=%s'%pose, 'grasp=%s'%grasp)
                 
-                return v.weight() + baseDist(pbs.conf, ca)
+                return v.weight() + baseDist(pbs.getConf(), ca)
 
             else:
                 if debug(tag):
@@ -1237,11 +1221,11 @@ def chooseHandGen(pbs, goalConds, obj, hand, leftGen, rightGen):
     leftHeldInGoal = 'left' in holding
     rightHeldInGoal = 'right' in holding
     # What are we currently holding (heuristic value)
-    leftHeldNow = pbs.held['left'].mode() != 'none'
-    rightHeldNow = pbs.held['right'].mode() != 'none'
+    leftHeldNow = pbs.getHeld('left') != 'none'
+    rightHeldNow = pbs.getHeld('right') != 'none'
     # Are we already holding the desired object
-    leftHeldTargetObjNow = pbs.held['left'].mode() == obj
-    rightHeldTargetObjNow = pbs.held['right'].mode() == obj
+    leftHeldTargetObjNow = pbs.getHeld('left') == obj
+    rightHeldTargetObjNow = pbs.getHeld('right') == obj
 
     if leftHeldInGoal and rightHeldInGoal:
         # Both hands are busy!!
@@ -1285,25 +1269,28 @@ def getRegions(region):
     else:
         return frozenset(region)
 
-def getPoseAndSupport(obj, pbs, prob):
+def getPoseAndSupport(tag, obj, pbs, prob):
     # Set pose and support from current state
     pose = None
     if pbs.getPlaceB(obj, default=False):
         # If it is currently placed, use that support
         support = pbs.getPlaceB(obj).support.mode()
         pose = pbs.getPlaceB(obj).poseD.mode()
-    elif obj == pbs.held['left'].mode():
+        tr(tag, 'Using current placeB, support=%s, pose=%s'%(sup, pose.xyztTuple()))
+    elif obj == pbs.getHeld('left'):
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
                                                    'left')
         shape = pbs.getObjectShapeAtOrigin(obj).\
                 applyLoc(attachedShape.origin())
         support = supportFaceIndex(shape)
-    elif obj == pbs.held['right'].mode():
+        tr(tag, 'Object already in %s hand, support=%s'%('left', suport))
+    elif obj == pbs.getHeld('right'):
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
                                                    'right')
         shape = pbs.getObjectShapeAtOrigin(obj).\
                 applyLoc(attachedShape.origin())
         support = supportFaceIndex(shape)
+        tr(tag, 'Object already in %s hand, support=%s'%('right', suport))
     else:
         raise Exception('Cannot determine support')
     return pose, support

@@ -329,10 +329,9 @@ class RoadMap:
                          ('targetConf', targetConf.conf),
                          ('initConf', initConf),
                          ('prob', prob),
-                         ('moveObjBs', pbs.moveObjBs),
-                         ('fixObjBs', pbs.fixObjBs),
-                         ('held', (pbs.held['left'].mode(),
-                                   pbs.held['right'].mode())),
+                         ('objectBs', pbs.objectBs),
+                         ('held', (pbs.held['left'],
+                                   pbs.held['right'])),
                          ('initViol', initViol))
             if glob.inHeuristic: return 
             key = (targetConf, initConf, moveBase)
@@ -926,17 +925,17 @@ class RoadMap:
                     continue
                 held, heldSh = heldParts(attachedPartsDict[hand])
                 # check hColl
-                if edge and pbs.graspB[hand] not in edge.hColl[hand]:
-                    edge.hColl[hand][pbs.graspB[hand]] = {}
-                eColl = edge.hColl[hand][pbs.graspB[hand]] if edge else None
+                if edge and pbs.getGraspB(hand) not in edge.hColl[hand]:
+                    edge.hColl[hand][pbs.getGraspB(hand)] = {}
+                eColl = edge.hColl[hand][pbs.getGraspB(hand)] if edge else None
                 res = self.confCollidersPlaceAux(held, obst, hColl[h], eColl,
                                             (perm and shWorld.fixedHeld[hand]), draw)
                 if res is None: return None # irremediable
                 elif res: continue          # collision, move to next obj
                 # Check hsColl
-                if edge and pbs.graspB[hand] not in edge.hsColl[hand]:
-                    edge.hsColl[hand][pbs.graspB[hand]] = {}
-                eColl = edge.hsColl[hand][pbs.graspB[hand]] if edge else None
+                if edge and pbs.getGraspB(hand) not in edge.hsColl[hand]:
+                    edge.hsColl[hand][pbs.getGraspB(hand)] = {}
+                eColl = edge.hsColl[hand][pbs.getGraspB(hand)] if edge else None
                 res = self.confCollidersPlaceAux(heldSh, obst, hsColl[h], eColl,
                                                  (perm and shWorld.fixedGrasp[hand]), draw)
                 if res is None: return None # irremediable
@@ -1029,9 +1028,9 @@ class RoadMap:
                 if not attached[hand] or obst in hColl[h] or obst in hsColl[h]:
                     continue
                 # check hColl
-                if edge and pbs.graspB[hand] not in edge.hColl[hand]:
-                    edge.hColl[hand][pbs.graspB[hand]] = {}
-                eColl = edge.hColl[hand][pbs.graspB[hand]] if edge else None
+                if edge and pbs.getGraspB(hand) not in edge.hColl[hand]:
+                    edge.hColl[hand][pbs.getGraspB(hand)] = {}
+                eColl = edge.hColl[hand][pbs.getGraspB(hand)] if edge else None
                 attCC = compileAttachedFrames(conf.robot, attached, hand, robCC[0], heldSolidParts)
                 res = self.confCollidersAux(None, attCC, obst, oCC, hColl[h], eColl,
                                             (perm and shWorld.fixedHeld[hand]), clearance, draw)
@@ -1039,9 +1038,9 @@ class RoadMap:
                 if res is None: return None # irremediable
                 elif res: continue          # collision, move to next obj
                 # Check hsColl
-                if edge and pbs.graspB[hand] not in edge.hsColl[hand]:
-                    edge.hsColl[hand][pbs.graspB[hand]] = {}
-                eColl = edge.hsColl[hand][pbs.graspB[hand]] if edge else None
+                if edge and pbs.getGraspB(hand) not in edge.hsColl[hand]:
+                    edge.hsColl[hand][pbs.getGraspB(hand)] = {}
+                eColl = edge.hsColl[hand][pbs.getGraspB(hand)] if edge else None
                 attCC = compileAttachedFrames(conf.robot, attached, hand, robCC[0], heldShadowParts)
                 res = self.confCollidersAux(None, attCC, obst, oCC, hsColl[h], eColl,
                                             (perm and shWorld.fixedGrasp[hand]), clearance,  draw)
@@ -1082,12 +1081,12 @@ class RoadMap:
             # for h in hands:
             #     hand = handName[h]
             #     if attached[hand]:
-            #         if edge and pbs.graspB[hand] not in edge.hColl[hand]:
-            #             edge.hColl[hand][pbs.graspB[hand]] = {}
-            #         edge.hColl[hand][pbs.graspB[hand]][obst] = (obst in hColl[h])
-            #         if pbs.graspB[hand] not in edge.hsColl[hand]:
-            #             edge.hsColl[hand][pbs.graspB[hand]] = {}
-            #         edge.hsColl[hand][pbs.graspB[hand]][obst] = (obst in hsColl[h])
+            #         if edge and pbs.getGraspB(hand) not in edge.hColl[hand]:
+            #             edge.hColl[hand][pbs.getGraspB(hand)] = {}
+            #         edge.hColl[hand][pbs.getGraspB(hand)][obst] = (obst in hColl[h])
+            #         if pbs.getGraspB(hand) not in edge.hsColl[hand]:
+            #             edge.hsColl[hand][pbs.getGraspB(hand)] = {}
+            #         edge.hsColl[hand][pbs.getGraspB(hand)][obst] = (obst in hsColl[h])
         viol = initViol.update(makeViolations(shWorld, (aColl, hColl, hsColl)))
 
         if debug('verifyPath'):

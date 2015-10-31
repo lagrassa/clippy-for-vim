@@ -369,8 +369,11 @@ class PlanTest:
                              else ['pr2Base', 'pr2LeftArm']})
         rm.batchAddClusters(self.initConfs)
         belC.roadMap = rm
-        pbs = PBS(belC, conf=pr2Home, fixObjBs = self.fix.copy(),
-                  moveObjBs = self.move.copy(), regions = frozenset(regions),
+        pbs = PBS(belC, conf=pr2Home, 
+                  objectBs = \
+                  [(True, o) for o in self.fix.copy()] + \
+                  [(False, o) for o in self.move.copy()],
+                  regions = frozenset(regions),
                   domainProbs=self.domainProbs, useRight=glob.useRight) 
         pbs.draw(0.95, 'Belief')
         bs = BeliefState(pbs, self.domainProbs, 'table2Top')
@@ -413,7 +416,7 @@ class PlanTest:
         if glob.useROS:
             # pass belief state so that we can do obs updates in prims.
             self.realWorld = RobotEnv(world, self.bs) 
-            startConf = self.bs.pbs.conf.copy()
+            startConf = self.bs.pbs.getConf().copy()
             # Move base to [0., 0., 0.]
             startConf.set('pr2Base', 3*[0.])
             result, cnfOut, _ = pr2GoToConf(startConf,'move')
@@ -432,7 +435,7 @@ class PlanTest:
             # LPK!! add collision checking
             heldLeft = self.bs.pbs.held['left'].mode()
             heldRight = self.bs.pbs.held['right'].mode()
-            self.realWorld.setRobotConf(self.bs.pbs.conf)
+            self.realWorld.setRobotConf(self.bs.pbs.getConf())
             for obj in self.objects:
                 if not obj in (heldLeft, heldRight):
                     pb = self.bs.pbs.getPlaceB(obj)
@@ -443,7 +446,7 @@ class PlanTest:
                     else:
                         objPose = meanObjPose
                     self.realWorld.setObjectPose(obj, objPose)
-            self.realWorld.setRobotConf(self.bs.pbs.conf)
+            self.realWorld.setRobotConf(self.bs.pbs.getConf())
 
         # Modify belief and world if these hooks are defined
         if initBelief: initBelief(self.bs)

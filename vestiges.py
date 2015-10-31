@@ -1012,8 +1012,6 @@ def getAllPoseBels(overrides, getFaceFrames, curr):
         objects[o] = p
     return objects
 
-<<<<<<< HEAD
-
 # regrasp
 def testRegrasp(hpn = False, draw=False):
     t = PlanTest('testRegrasp',  typicalErrProbs,
@@ -1068,9 +1066,6 @@ def testScan():
             count += 1
     return count
 
-
-=======
-        
     def setObjectConfOld(self, objName, conf):
         obj = self.world.objects[objName]
         if not isinstance(conf, dict):
@@ -1686,3 +1681,123 @@ def potentialConfs(pbs, prob, placeB, prePose, graspB, hand, base):
     postGen = potentialGraspConfGen(pbs, placeB, graspB, None, hand, base, prob)
     preGen = preGraspConfGen()
     return roundrobin(postGen, preGen)
+
+# Preconditions (for R1):
+
+# 1. CanReach(...) - new Pose fluent should not make the canReach
+# infeasible (use fluent as taboo).
+# new Pose fluent should not already be in conditions (any Pose for this obj).
+
+# 2. Pose(obj) - new Pose has to be consistent with the goal (ok to
+# reduce variance wrt goal but not cond). if Pose(obj) in goalConds,
+# can only reduce variance.
+
+def canXGenTop(violFn, args, goalConds, newBS, tag):
+    (cond, prob, lookVar) = args
+    tr(tag, 'h=%s'%glob.inHeuristic)
+    # Initial test
+    viol = violFn(newBS)
+    tr(tag, ('viol', viol),
+       draw=[(newBS, prob, 'W')], snap=['W'])
+    if not viol:                  # hopeless
+        if tag == 'canPickPlaceGen':
+            glob.debugOn.append('canPickPlaceTest')
+            violFn(newBS)
+            glob.debugOn.remove('canPickPlaceTest')
+        tr(tag, 'Impossible dream')
+        return
+    if viol.empty():
+        tr(tag, '=> No obstacles or shadows; returning')
+        return
+    
+    lookDelta = newBS.domainProbs.shadowDelta
+    moveDelta = newBS.domainProbs.placeDelta
+    shWorld = newBS.getShadowWorld(prob)
+    fixed = shWorld.fixedObjects
+    # Try to fix one of the violations if any...
+    obstacles = [o.name() for o in viol.allObstacles() \
+                 if o.name() not in fixed]
+    shadows = [sh.name() for sh in viol.allShadows() \
+               if not sh.name() in fixed]
+    if not (obstacles or shadows):
+        tr(tag, '=> No movable obstacles or shadows to fix')
+        return       # nothing available
+    if obstacles:
+        obst = obstacles[0]
+        for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
+            yield ans
+        return
+    if shadows:
+        shadowName = shadows[0]
+        obst = objectName(shadowName)
+        objBMinVar = newBS.domainProbs.objBMinVar(objectName(obst))
+        placeB = newBS.getPlaceB(obst)
+        tr(tag, '=> reduce shadow %s (in red):'%obst,
+           draw=[(newBS, prob, 'W'),
+                 (placeB.shadow(newBS.getShadowWorld(prob)), 'W', 'red')],
+           snap=['W'])
+        ans = PPResponse(placeB, None, None, None, None, objBMinVar, lookDelta)
+        yield ans
+        # Either reducing the shadow is not enough or we failed and
+        # need to move the object (if it's movable).
+        if obst not in fixed:
+            for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
+                yield ans
+    tr(tag, '=> Out of remedies')
+
+# Preconditions (for R1):
+
+# 1. CanSeeFrom(...) - new Pose fluent should not make the CanSeeFrom
+# infeasible.  new Pose fluent should not already be in conditions.
+
+# 2. Pose(obj) - new Pose has to be consistent with the goal (ok to
+# reduce variance wrt goal but not cond)
+
+# returns
+# ['Occ', 'PoseFace', 'Pose', 'PoseVar', 'PoseDelta']
+def canSeeGen(args, goalConds, bState):
+    (obj, pose, support, objV, objDelta, lookConf, lookDelta, prob) = args
+    pbs = bState.pbs.copy()
+    world = pbs.getWorld()
+
+    if pose == '*':
+        poseD = pbs.getPlaceB(obj).poseD
+    else: 
+        poseD = PoseD(pose, objV)
+    if isVar(support) or support == '*':
+        support = pbs.getPlaceB(obj).support.mode()
+    if objDelta == '*':
+        objDelta = lookDelta
+    
+    placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
+                       poseD,
+                       # Pretend that the object has bigger delta
+                       delta=tuple([o+l for (o,l) in zip(objDelta, lookDelta)]))
+
+    for ans in canSeeGenTop((lookConf, placeB, [], prob),
+                            goalConds, pbs):
+        yield ans
+
+def canSeeGenTop(args, goalConds, pbs):
+    (conf, placeB, cond, prob) = args
+    obj = placeB.obj
+    tr('canSeeGen', '(%s) h=%s'%(obj, glob.inHeuristic))
+    tr('canSeeGen', zip(('conf', 'placeB', 'cond', 'prob'), args))
+
+    newBS = pbs.conditioned(goalConds, conds)
+    newBS = newBS.updatePermObjBel(placeB)
+
+    shWorld = newBS.getShadowWorld(prob)
+    shape = shWorld.objectShapes[placeB.obj]
+    obst = [s for s in shWorld.getNonShadowShapes() \
+            if s.name() != placeB.obj ]
+    p, occluders = visible(shWorld, conf, shape, obst, prob, moveHead=True)
+    occluders = [oc for oc in occluders if oc not in newBS.fixObjBs()]
+    if not occluders:
+        tr('canSeeGen', '=> no occluders')
+        return
+    obst = occluders[0] # !! just pick one
+    moveDelta = pbs.domainProbs.placeDelta
+    for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
+        yield ans 
+

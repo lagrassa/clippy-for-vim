@@ -349,16 +349,12 @@ def bboxMixedCoords(bb, prob, n=20, z=None):
         else:
             yield next(rand)
 
-def trArgs(tag, names, args, goalConds, pbs):
+def trArgs(tag, names, args, pbs):
     tr(tag, 
        zip(names, args),
-       ('goalConds', goalConds),
-       ('moveObjBs', pbs.moveObjBs),
-       ('fixObjBs', pbs.fixObjBs),
-       ('held', (pbs.held['left'].mode(),
-                 pbs.held['right'].mode(),
-                 pbs.graspB['left'],
-                 pbs.graspB['right'])))
+       ('objectBs', pbs.objectBs),
+       ('held', (pbs.held['left'], pbs.held['right'],
+                 pbs.getGraspB('left'), pbs.getGraspB('right'))))
 
 def otherHand(hand):
     return 'left' if hand == 'right' else 'right'

@@ -391,13 +391,12 @@ def pbsInflate(pbs, prob, initConf, goalConf):
     if not glob.useInflation: return pbs
     newBS = pbs.copy()
     newBS.conf = initConf
-    for objBs in (newBS.fixObjBs, newBS.moveObjBs):
-        for obj in objBs:
-            objB = objBs[obj]
-            inflatedVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
-            objBs[obj] = objB.modifyPoseD(var=inflatedVar)
+    for obj in newBS.objectBs:
+        fix, objB = newBS.objectBs[obj]
+        inflatedVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
+        newBS.objectBs[obj] = objB.modifyPoseD(var=inflatedVar)
     newBS.internalCollisionCheck(dither=False, objChecks=False, factor=1.1)
-    newBS.conf = goalConf
+    newBS.conf = (newBS.conf[0], goalConf)
     newBS.internalCollisionCheck(dither=False, objChecks=False, factor=1.1)
     newBS.draw(prob, 'W')
     wm.getWindow('W').update()
