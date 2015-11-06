@@ -743,7 +743,7 @@ def canPPDebug(details, fluent):
     conds = rf.getConds()
     for c in conds:
         c.viols = {}; c.hviols = {}
-        c.getViols(details, True, fluent.args[-1])
+        c.getViols(details.pbs, True, fluent.args[-1])
 
 # Get false fluents
 def ff(g, details):

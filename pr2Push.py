@@ -45,12 +45,14 @@ useHorizontalPush = False
 
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
-        for ans in pushGenGen(args, goalConds, bState):
+        pbs = bState.pbs
+        cpbs = pbs.conditioned(goalConds, [])
+        for ans in pushGenGen(args, pbs, cpbs):
             if debug('pushGen'):
                 # Verify that it's feasible
                 (obj, pose, support, poseVar, poseDelta, confdelta, prob) = args
                 (hand, prePose, preConf, pushConf, postConf) = ans.pushTuple()
-                path, viol = canPush(bState.pbs, obj, hand, support, hu.Pose(*prePose),
+                path, viol = canPush(cpbs, obj, hand, support, hu.Pose(*prePose),
                                      pose, preConf, pushConf, postConf, poseVar,
                                      poseVar, poseDelta, prob,
                                      Violations(), prim=False)
@@ -66,73 +68,63 @@ class PushGen(Function):
             yield ans.pushTuple()
         tr('pushGen', '-> completely exhausted')
 
-def pushGenGen(args, goalConds, bState):
+def pushGenGen(args, pbs, cpbs):
     (obj, pose, support, posevar, posedelta, confdelta, prob) = args
     tag = 'pushGen'
-    pbs = bState.pbs.copy()
     world = pbs.getWorld()
     # This is the target placement
     placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
                        PoseD(pose, posevar), delta=posedelta)
     # Figure out whether one hand or the other is required;  if not, do round robin
     leftGen = pushGenTop((obj, placeB, 'left', prob),
-                         goalConds, pbs)
+                         pbs, cpbs)
     rightGen = pushGenTop((obj, placeB, 'right', prob),
-                          goalConds, pbs)
+                          pbs, cpbs)
     # Run the push generator with each of the hands
-    for ans in chooseHandGen(pbs, goalConds, obj, None, leftGen, rightGen):
+    for ans in chooseHandGen(pbs, cpbs, obj, None, leftGen, rightGen):
         yield ans
 
-def pushGenTop(args, goalConds, pbs,
-               partialPaths=False, reachObsts=[], update=True, away=False):
+def pushGenTop(args, pbs, cpbs,
+               partialPaths=False, reachObsts=[], away=False):
     (obj, placeB, hand, prob) = args
     startTime = time.clock()
     tag = 'pushGen'
-    trArgs(tag, ('obj', 'placeB', 'hand', 'prob'), args, goalConds, pbs)
+    trArgs(tag, ('obj', 'placeB', 'hand', 'prob'), args, pbs)
     if obj == 'none' or not placeB:
         tr(tag, '=> obj is none or no placeB, failing')
         return
-    if goalConds:
-        if getGoalConf(goalConds, None) and not away:
-            tr(tag, '=> goal conf specified and not away, failing')
-            return
-        for (h, o) in getHolding(goalConds):
-            if h == hand:
-                # TODO: we could push with the held object
-                tr(tag, '=> Hand=%s is holding in goal, failing'%hand)
-                return
-        base = sameBase(goalConds)
-    else:
-        base = None
-    # Set up pbs
-    newBS = pbs.copy()
-    if update:
-        # Just placements specified in goal
-        newBS = newBS.updateFromGoalPoses(goalConds)
-    tr(tag, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
-    held = newBS.getHeld(hand)
+    if fixed(cpbs.conf) and not away:
+        tr(tag, '=> goal conf specified and not away, failing')
+        return
+    if fixed(cpbs.getHeld(hand)):
+        # TODO: we could push with the held object
+        tr(tag, '=> Hand=%s is holding in goal, failing'%hand)
+        return
+    base = cpbs.getBase()
+    tr(tag, 'Goal conditions', draw=[(cpbs, prob, 'W')], snap=['W'])
+    held = cpbs.getHeld(hand)
     if held != 'none':
-        # Get rid of held object in newBS, we'll need to add this to
+        # Get rid of held object in pbs, we'll need to add this to
         # violations in canPush...
         tr(tag, 'Hand=%s is holding %s in pbs'%(hand,held))
-        newBS.updateHeld('none', None, None, hand, None)
+        cpbs.updateHeld('none', None, None, hand, None)
     if held == obj:
         curPB = None
-    elif obj in [newBS.getHeld(h) for h in ('left', 'right')]:
+    elif obj in [cpbs.getHeld(h) for h in ('left', 'right')]:
         tr(tag, 'obj is in other hand')
-        newBS.updateHeld('none', None, None, otherHand(hand), None)
+        cpbs.updateHeld('none', None, None, otherHand(hand), None)
         curPB = None
     else:
-        curPB = newBS.getPlaceB(obj, default=False)
+        curPB = cpbs.getPlaceB(obj, default=False)
         if curPB:
             tr(tag, 'obj is placed')
 
     # Are we in a pre-push?
-    ans = push(newBS, prob, obj, hand)
+    ans = push(cpbs, prob, obj, hand)
     if ans:
-        shWorld = newBS.getShadowWorld(prob)
+        shWorld = cpbs.getShadowWorld(prob)
         tr(tag, 'Cached push ->' + str(ans), 'viol=%s'%ans.viol,
-           draw=[(newBS, prob, 'W'),
+           draw=[(cpbs, prob, 'W'),
                  (ans.prePB.shape(shWorld), 'W', 'magenta'),
                  (ans.preConf, 'W', 'magenta', shWorld.attached)],
            snap=['W'])
@@ -140,7 +132,7 @@ def pushGenTop(args, goalConds, pbs,
         
     # Check the cache, otherwise call Aux
     pushGenCacheStats[0] += 1
-    key = (newBS, placeB, hand, base, prob, partialPaths, away, update, glob.inHeuristic)
+    key = (cpbs, placeB, hand, base, prob, partialPaths, away, update, glob.inHeuristic)
     val = pushGenCache.get(key, None)
     if val != None:
         pushGenCacheStats[1] += 1
@@ -149,7 +141,7 @@ def pushGenTop(args, goalConds, pbs,
         if debug(tag):
             print tag, 'cached, with len(values)=', len(memo.values)
     else:
-        gen = pushGenAux(newBS, placeB, hand, base, curPB, prob,
+        gen = pushGenAux(cpbs, placeB, hand, base, curPB, prob,
                          partialPaths=partialPaths, reachObsts=reachObsts)
         memo = Memoizer(tag, gen)
         pushGenCache[key] = memo
@@ -160,7 +152,7 @@ def pushGenTop(args, goalConds, pbs,
         prePose = hu.Pose(*prePoseTuple)
         # Double check that preConf is safe - this should not be necessary...
         if debug(tag):
-            testBS = newBS.copy()
+            testBS = cpbs.copy()
             testBS.updatePermObjBel(placeB.modifyPoseD(prePose)) # obj at prePose
             testBS.draw(prob, 'W'); preConf.draw('W')
             viol = testBS.confViolations(preConf, prob)
@@ -178,11 +170,11 @@ def choosePrim(shape):
     return sorted(shape.toPrims(),
                   key = lambda p: bboxVolume(p.bbox()), reverse=True)[0]
 
-def pushGenAux(pbs, placeB, hand, base, curPB, prob,
+def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
                partialPaths=False, reachObsts=[]):
     tag = 'pushGen'
     # The shape at target, without any shadow
-    shape = placeB.shape(pbs.getWorld())
+    shape = placeB.shape(cpbs.getWorld())
     if curPB:
         curPose = curPB.poseD.mode()
         targetPose = placeB.poseD.mode()
@@ -202,7 +194,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
     center =  np.average(xyPrim.vertices(), axis=1)
     # This should identify arbitrary surfaces, e.g. in shelves.  The
     # bottom of the region is the support polygon.
-    supportRegion = pbs.findSupportRegion(prob, xyPrim, fail = False)
+    supportRegion = cpbs.findSupportRegion(prob, xyPrim, fail = False)
     if not supportRegion:
         trAlways('Target pose is not supported')
         return
@@ -222,12 +214,12 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
     # Now we have frames for contact with object, we have to generate
     # potential answers following the face normal in the given
     # direction.
-    rm = pbs.getRoadMap()               # save typing...
+    rm = cpbs.getRoadMap()               # save typing...
     for (dist, vertical, contactFrame, width) in sortedContacts:
         if debug(tag): print 'dist=', dist
         # construct a graspB corresponding to the push hand pose,
         # determined by the contact frame
-        graspB = graspBForContactFrame(pbs, prob, contactFrame,
+        graspB = graspBForContactFrame(cpbs, prob, contactFrame,
                                        0.0,  placeB, hand, vertical)
         # This is negative z axis of face
         direction = -contactFrame.matrix[:3,2].reshape(3)
@@ -236,7 +228,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
         # initial pose for object along direction
         prePose = prePoseOffset.compose(placeB.poseD.mode())
         if debug(tag):
-            pbs.draw(prob, 'W')
+            cpbs.draw(prob, 'W')
             shape.draw('W', 'blue'); prim.draw('W', 'green')
             print 'vertical', vertical, 'dist', dist
             drawFrame(contactFrame)
@@ -253,7 +245,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
             appPose = appPoseOffset.compose(initPose).pose()
             if debug(tag):
                 print 'Calling potentialConfs, with direct =', direct, 'appPose', appPose
-            for ans in potentialConfs(pbs, prob, placeB, appPose, graspB, hand, base):
+            for ans in potentialConfs(cpbs, prob, placeB, appPose, graspB, hand, base):
                 if not ans:
                     tr(tag+'_kin', 'potential grasp conf is empy')
                     continue
@@ -264,7 +256,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
                     pushConf.draw('W', 'orange')
                     raw_input('Candidate conf')
                 count += 1
-                pathAndViols, reason = pushPath(pbs, prob, graspB, placeB, pushConf,
+                pathAndViols, reason = pushPath(cpbs, prob, graspB, placeB, pushConf,
                                                 initPose, preConf, supportRegion, hand,
                                                 reachObsts=reachObsts)
                 if reason == 'done':
@@ -299,7 +291,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
                     print name, 'conf tool'
                     print conf.cartConf()[handName].compose(robot.toolOffsetX[hand]).matrix
             tr(tag, 'pre conf (blue), post conf (pink), rev conf (green)',
-               draw=[(pbs, prob, 'W'),
+               draw=[(cpbs, prob, 'W'),
                      (cpre, 'W', 'blue'), (cpost, 'W', 'pink'),
                      (crev, 'W', 'green')], snap=['W'])
             viol = Violations()
@@ -318,7 +310,7 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
     return
 
 # Return (preConf, pushConf) - conf at prePose and conf at placeB (pushConf)
-def potentialConfs(pbs, prob, placeB, prePose, graspB, hand, base):
+def potentialConfs(cpbs, prob, placeB, prePose, graspB, hand, base):
     def graspConfGen(pb1, pb2, rev):
         if debug('pushPath'):
             print 'potentialConfs for', pb1.poseD.mode(), pb2.poseD.mode(), rev
@@ -342,7 +334,7 @@ def potentialConfs(pbs, prob, placeB, prePose, graspB, hand, base):
                     raw_input('potentialConfs')
                 yield (c2, c1) if rev else (c1, c2)
     prePB = placeB.modifyPoseD(prePose)
-    newBS = pbs.copy().excludeObjs([placeB.obj])
+    newBS = cpbs.copy().excludeObjs([placeB.obj])
     return roundrobin(graspConfGen(placeB, prePB, True),
                       graspConfGen(prePB, placeB, False))
 
@@ -475,7 +467,7 @@ vertGM = np.array([(0.,-1.,0.,0.),
                     (1.,0.,0.,0.),
                     (0.,0.,0.,1.)], dtype=np.float64)
 
-def graspBForContactFrame(pbs, prob, contactFrame, zOffset, placeB, hand, vertical):
+def graspBForContactFrame(cpbs, prob, contactFrame, zOffset, placeB, hand, vertical):
     tag = 'graspBForContactFrame'
     # TODO: what should these values be?
     graspVar = 4*(0.01**2,)
@@ -490,20 +482,20 @@ def graspBForContactFrame(pbs, prob, contactFrame, zOffset, placeB, hand, vertic
     if debug(tag):
         print 'displacedContactFrame\n', displacedContactFrame.matrix
         drawFrame(displacedContactFrame)
-        placeB.shape(pbs.getWorld()).draw('W')
+        placeB.shape(cpbs.getWorld()).draw('W')
         raw_input('displacedContactFrame')
     graspB = None
     # consider flips of the hand (mapping one finger to the other)
     for angle in (0, np.pi):
         displacedContactFrame = displacedContactFrame.compose(hu.Pose(0.,0.,0.,angle))
         if debug(tag):
-            pbs.draw(prob); drawFrame(displacedContactFrame)
+            cpbs.draw(prob); drawFrame(displacedContactFrame)
             raw_input('displacedContactFrame (rotated)')
         gM = displacedContactFrame.compose(hu.Transform(vertGM if vertical else horizGM))
         if debug(tag):
             print gM.matrix
             print 'vertical =', vertical
-            pbs.draw(prob); drawFrame(gM)
+            cpbs.draw(prob); drawFrame(gM)
             raw_input('gM')
         gT = objFrame.inverse().compose(gM) # gM relative to objFrame
         # TODO: find good values for dx, dy, dz must be 0.
@@ -513,8 +505,8 @@ def graspBForContactFrame(pbs, prob, contactFrame, zOffset, placeB, hand, vertic
         # -1 grasp denotes a "virtual" grasp
         gB = ObjGraspB(obj, graspDescList, -1, placeB.support.mode(),
                        PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
-        wrist = objectGraspFrame(pbs, gB, placeB, hand)
-        if any(pbs.getWorld().robot.potentialBasePosesGen(wrist, hand, complain=False)):
+        wrist = objectGraspFrame(cpbs, gB, placeB, hand)
+        if any(cpbs.getWorld().robot.potentialBasePosesGen(wrist, hand, complain=False)):
             if debug(tag): print 'valid graspB'
             graspB = gB
             break
@@ -576,14 +568,15 @@ def gripSet(conf, hand, width=0.08):
 class PushInRegionGen(Function):
     # Return objPose, poseFace.
     def fun(self, args, goalConds, bState):
-        for ans in pushInRegionGenGen(args, goalConds, bState, away = False):
+        pbs = bState.pbs
+        cpbs = pbs.conditioned(goalConds, [])
+        for ans in pushInRegionGenGen(args, pbs, cpbs, away = False):
             assert isinstance(ans, tuple)
             yield ans.poseInTuple()
 
-def pushInRegionGenGen(args, goalConds, bState, away = False, update=True):
+def pushInRegionGenGen(args, pbs, cpbs, away = False, update=True):
     (obj, region, var, delta, prob) = args
     tag = 'pushInGen'
-    pbs = bState.pbs.copy()
     world = pbs.getWorld()
     # Get the regions
     regions = getRegions(region)
@@ -592,8 +585,7 @@ def pushInRegionGenGen(args, goalConds, bState, away = False, update=True):
                  for region in regions]
     tr(tag, 'Target region in purple',
        draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes], snap=['W'])
-    pose, support = getPoseAndSupport(obj, pbs, prob)
-
+    pose, support = getPoseAndSupport(obj, pbs, prob) # from original pbs
     # Check if object pose is specified in goalConds
     poseBels = getGoalPoseBels(goalConds, world.getFaceFrames)
     if obj in poseBels:
@@ -606,7 +598,7 @@ def pushInRegionGenGen(args, goalConds, bState, away = False, update=True):
             for ans in gen:
                 regions = [x.name() for x in regShapes]
                 tr(tag, str(ans), 'regions=%s'%regions,
-                   draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
+                   draw=[(cpbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
                    snap=['W'])
                 yield ans
             return
@@ -624,7 +616,7 @@ def pushInRegionGenGen(args, goalConds, bState, away = False, update=True):
                        PoseD(pose, var), delta=delta)
 
     gen = pushInGenTop((obj, regShapes, placeB, prob),
-                          goalConds, pbs, away = away, update=update)
+                          pbs, cpbs, away = away, update=update)
     for ans in gen:
         tr(tag, ans)
         yield ans
@@ -649,13 +641,13 @@ def pushInGenAway(args, goalConds, pbs):
                                    goalConds, pbs, away=True, update=False):
         yield ans
 
-def pushOut(pbs, prob, obst, delta, goalConds):
+def pushOut(pbs, prob, obst, delta):
     tr('pushOut', 'obst=%s'%obst)
     domainPlaceVar = tuple([pushVarIncreaseFactor * x \
                             for x in pbs.domainProbs.obsVarTuple])
     if not isinstance(obst, str):
         obst = obst.name()
-    for ans in pushInGenAway((obst, delta, prob), goalConds, pbs):
+    for ans in pushInGenAway((obst, delta, prob), pbs):
         ans = ans.copy()
         ans.var = pbs.domainProbs.objBMinVar(obst)
         ans.delta = delta
@@ -668,7 +660,7 @@ def connectedSupport(reg, support):
     isectBB = bboxIsect([reg.bbox(), support.bbox()])
     return bboxVolume(isectBB) > 0 and abs(isectBB[0,2] - support.bbox()[0,2]) <= 0.005
 
-def pushInGenTop(args, goalConds, pbs, away = False, update=True):
+def pushInGenTop(args, pbs, cpbs, away = False, update=True):
     (obj, regShapes, placeB, prob) = args
     tag = 'pushInGen'
     regions = [x.name() for x in regShapes]
@@ -679,11 +671,11 @@ def pushInGenTop(args, goalConds, pbs, away = False, update=True):
         # Nothing to do
         tr(tag, '=> object is none or no regions, failing')
         return
-    if goalConds and getGoalConf(goalConds, None) and not away:
+    if fixed(cpbs.conf) and not away:
         # if conf is specified, just fail
         tr(tag, '=> conf is specified, failing')
         return
-    supportRegion = pbs.findSupportRegionForObj(prob, obj,
+    supportRegion = cpbs.findSupportRegionForObj(prob, obj,
                                                 strict=True, fail=False)
     regShapes = [r for r in regShapes if connectedSupport(r, supportRegion)]
     if not regShapes:
@@ -692,23 +684,23 @@ def pushInGenTop(args, goalConds, pbs, away = False, update=True):
     conf = None
     confAppr = None
     # Obstacles for all Reachable fluents, that don't have obj constrained.
-    reachObsts = getReachObsts(goalConds, pbs, ignore=[obj])
+    reachObsts = getReachObsts(goalConds, cpbs, ignore=[obj])
     print 'pushInGen', len(reachObsts), 'reachObsts'
     if reachObsts is None:
         tr(tag, '=> No path for reachObst, failing')
         return
     tr(tag, '%d reachObsts - in orange'%len(reachObsts),
-       draw=[(pbs, prob, 'W')] + [(obst, 'W', 'orange') for _,obst in reachObsts],
+       draw=[(cpbs, prob, 'W')] + [(obst, 'W', 'orange') for _,obst in reachObsts],
        snap=['W'])
-    shWorld = pbs.getShadowWorld(prob)
+    shWorld = cpbs.getShadowWorld(prob)
     nPoses = pushInGenMaxPosesH if glob.inHeuristic else pushInGenMaxPoses
 
-    leftGen = pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts,
+    leftGen = pushInGenAux(pbs, cpbs, prob, placeB, regShapes, reachObsts,
                            'left', away=away, update=update)
-    rightGen = pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts,
+    rightGen = pushInGenAux(pbs, cpbs, prob, placeB, regShapes, reachObsts,
                             'right', away=away, update=update)
     # Figure out whether one hand or the other is required;  if not, do round robin
-    mainGen = chooseHandGen(pbs, goalConds, obj, None, leftGen, rightGen)
+    mainGen = chooseHandGen(cpbs, goalConds, obj, None, leftGen, rightGen)
 
     # Picks among possible target poses and then try to push it in region
     for ans in mainGen:
@@ -717,38 +709,35 @@ def pushInGenTop(args, goalConds, pbs, away = False, update=True):
 # placeB is current place for object
 # regShapes is a list of (one) target region
 # reachObsts are regions where placements are forbidden
-def pushInGenAux(pbs, prob, goalConds, placeB, regShapes, reachObsts, hand,
-                 away=False, update=True):
+def pushInGenAux(pbs, cpbs, prob, placeB, regShapes, reachObsts, hand,
+                 away=False):
     def reachCollides(pB):
         relevant = [obst for (ig, obst) in reachObsts \
                     if placeB.obj not in ig]
-        shape = pB.shape(pbs)
+        shape = pB.shape(cpbs)
         return any(shape.collides(obst) for obst in relevant)
     tag = 'pushInGen'
-    shWorld = pbs.getShadowWorld(prob)
-    for pB in awayTargetPB(pbs, prob, placeB, regShapes):
+    shWorld = cpbs.getShadowWorld(prob)
+    for pB in awayTargetPB(cpbs, prob, placeB, regShapes):
         if reachCollides(pB): continue
         tr(tag, 'target', pB,
-           draw=[(pbs, prob, 'W'),
+           draw=[(cpbs, prob, 'W'),
                  (pB.makeShadow(pbs, prob), 'W', 'pink')] \
                  + [(rs, 'W', 'purple') for rs in regShapes],
            snap=['W'])
 
-        if not any(inside(pB.makeShadow(pbs, prob), regShape, strict=True) \
+        if not any(inside(pB.makeShadow(cpbs, prob), regShape, strict=True) \
                    for regShape in regShapes):
            for rs in regShapes: rs.draw('W', 'purple')
-           pbs.draw(prob, 'W'); pB.makeShadow(pbs, prob).draw('W', 'pink')
+           cpbs.draw(prob, 'W'); pB.makeShadow(pbs, prob).draw('W', 'pink')
            print 'pushInGen target not in region'
            pdb.set_trace()
 
         for ans in pushGenTop((placeB.obj, pB, hand, prob),
-                              goalConds, pbs,
-                              # TODO: should this be true or false?
-                              partialPaths=True,
-                              update=update, away=away):
+                              pbs, cpbs, away=away):
 
             tr(tag, '->', str(ans),
-               draw=[(pbs, prob, 'W'),
+               draw=[(cpbs, prob, 'W'),
                      (ans.prePB.shape(shWorld), 'W', 'blue'),
                      (ans.postPB.shape(shWorld), 'W', 'pink'),
                      (ans.preConf, 'W', 'blue', shWorld.attached),
@@ -911,3 +900,12 @@ def displaceHand(conf, hand, offsetPose):
     nConf = conf.robot.inverseKin(nCart, conf=conf) # use conf to resolve
     if all(nConf.values()):
         return nConf
+
+# find bbox for CI_1(2), that is, displacements of bb1 that place it
+# inside bb2.  Assumes that bb1 has origin at 0,0.
+def bboxInterior(bb1, bb2):
+    for j in xrange(3):
+        di1 = bb1[1,j] - bb1[0,j]
+        di2 = bb2[1,j] - bb2[0,j]
+        if di1 > di2: return None
+    return np.array([[bb2[i,j] - bb1[i,j] for j in range(3)] for i in range(2)])

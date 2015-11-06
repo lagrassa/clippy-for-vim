@@ -63,7 +63,8 @@ class BeliefContext:
 class PBS:
     def __init__(self, beliefContext, held=None, conf=None,
                  graspB=None, objectBs=None, regions=[],
-                 domainProbs=None, avoidShadow=[], base=None, targetConf=None):
+                 domainProbs=None, avoidShadow=[], base=None,
+                 targetConf=None, conditions=[]):
         self.beliefContext = beliefContext
         # The components of the state
         # The conf of the robot (fixed?, conf)
@@ -79,6 +80,8 @@ class PBS:
         self.objectBs = objectBs or {}
         # Indicate which object shadows are fixed
         self.avoidShadow = avoidShadow  # shadows to avoid
+        # List of fluents that must be feasible
+        self.conditions = conditions
         # Cache
         self.shadowWorld = None         # cached shadow world
         self.shadowProb = None
@@ -170,12 +173,16 @@ class PBS:
         newBS = self.copy()
         newBS = newBS.updateFromConds(goalConds)
         newBS = newBS.updateFromConds(cond, permShadows=True)
+        newBS.conditions = [fluent for fluent in goalConds if fluent.conditional]
         return newBS
     def copy(self):
         return PBS(self.beliefContext, self.held.copy(), self.conf.copy(),
                    self.graspB.copy(), self.objectBs.copy(),
                    self.regions, self.domainProbs, self.avoidShadow[:],
-                   self.base, self.targetConf)
+                   self.base, self.targetConf, self.conditions)
+    def feasible(self):
+        # Check that all the condotions are feasible.
+        return all(fl.feasible(self) for fl in self.conditions)
 
     # Updates
     def updateAvoidShadow(self, avoidShadow):
@@ -186,14 +193,15 @@ class PBS:
             if s not in self.avoidShadow:
                 self.avoidShadow = self.avoidShadow + [s]
         return self
-    def resetGraspB(self, obj, hand, gB):
+    def updateGraspB(self, obj, hand, gB):
         (_, held) = self.held[hand]
         (fix, _) = self.graspB[hand]
         if obj == held:
             self.graspB[hand] = (fix, gB)
         else:
-            assert None, 'Object does not match grasp in resetGraspB'
-    def resetPlaceB(self, pB):
+            assert None, 'Object does not match grasp in updateGraspB'
+        self.reset()
+    def updatePlaceB(self, pB):
         obj = pB.obj
         entry = self.objectBs.get(obj, None)
         if entry:
@@ -205,7 +213,7 @@ class PBS:
             self.updateHeld('none', None, None, 'right', None)
             self.objectBs[obj] = (False, pB)
         else:
-            assert None, 'Unknown obj in resetPlaceB'
+            assert None, 'Unknown obj in updatePlaceB'
         self.reset()
     def reset(self):
         self.shadowWorld = None
@@ -341,7 +349,7 @@ class PBS:
             for i in (0,1):
                 poseList[i] = delta(poseList[i], count)
             newPose = hu.Pose(*poseList)
-            self.resetPlaceB(pB.modifyPoseD(newPose))
+            self.updatePlaceB(pB.modifyPoseD(newPose))
             self.reset()
             shape = pB.shape(world)
             supported = self.findSupportRegion(p, shape,
@@ -384,7 +392,7 @@ class PBS:
                 gB = self.getGraspBForObj(self.held[hand], hand)
                 var = gB.poseD.variance()
                 newVar = tuple(v/factor for v in var)
-                self.resetGraspB(obj, hand, gB.modifyPoseD(var=newVar))
+                self.updateGraspB(obj, hand, gB.modifyPoseD(var=newVar))
                 self.reset()
                 confViols = self.confViolations(self.conf, shProb)
                 colls = confViols.heldShadows[h]
@@ -406,7 +414,7 @@ class PBS:
                 pB = self.getPlaceB(obj)
                 var = pB.poseD.variance()
                 newVar = tuple(v/factor for v in var)
-                self.resetPlaceB(pB.modifyPoseD(var=newVar))
+                self.updatePlaceB(pB.modifyPoseD(var=newVar))
             self.reset()
             confViols = self.confViolations(self.conf, shProb)
             shadows = confViols.allShadows()

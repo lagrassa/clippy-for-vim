@@ -5,13 +5,12 @@ import time
 import shapes
 from transformations import rotation_matrix
 import planGlobals as glob
-from traceFile import debugMsg, debug
+from traceFile import debugMsg, debug. tr
 from pr2Robot import gripperFaceFrame
 from planUtil import Violations
 from pr2Util import shadowName, objectName 
 from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
 from pr2RRT import planRobotGoalPath, interpolatePath
-from traceFile import tr
 
 Ident = hu.Transform(np.eye(4))            # identity transform
 tiny = 1.0e-6
@@ -156,6 +155,8 @@ def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False
         raw_input('CRH Failed')
 
     return path, viol
+
+ppConfs = {}
 
 def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
                      op='pick', quick = False):
@@ -386,15 +387,15 @@ def canPush(pbs, obj, hand, poseFace, prePose, pose,
             preConf, pushConf, postConf, poseVar, prePoseVar,
             poseDelta, prob, initViol, prim=False):
     tag = 'canPush'
-    held = pbs.held[hand].mode()
+    held = pbs.getHeld(hand)
     newBS = pbs.copy()
     if held != 'none':
         tr(tag, 'Hand=%s is holding %s in pbs'%(hand, held))
         newBS.updateHeld('none', None, None, hand, None)
-    if obj in [h.mode() for h in newBS.held.values()]:
+    if obj in [newBS.getHeld(h) for h in ('left', 'right')]:
         tr(tag, '=> obj is in the other hand')
         # LPK!! Changed hand below to otherHand(hand)
-        assert pbs.held[otherHand(hand)].mode() == obj
+        assert pbs.getHeld(otherHand(hand)) == obj
         newBS.updateHeld('none', None, None, otherHand(hand), None)
     post = hu.Pose(*pose)
     placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), poseFace,
@@ -602,13 +603,16 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand,
     # Set up state for the push scan
     #######################
     # Number of steps for approach displacement
-    nsteps = int(pushDist / pushStepSize)
+    nsteps = max(int(pushDist / pushStepSize), 1)
     delta = pushDist / nsteps
-    stepVals = [0, nsteps-1] if glob.inHeuristic else xrange(nsteps)
     if angleDiff == 0 or pushDist < pushStepSize:
         deltaAngle = 0.0
     else:
         deltaAngle = angleDiff / nsteps
+    if nsteps > 1:
+        stepVals = [0, nsteps-1] if glob.inHeuristic else xrange(nsteps)
+    else:
+        stepVals = [0]
     if debug(tag): 
         print 'nsteps=', nsteps, 'delta=', delta, 'deltaAngle', deltaAngle
     handFrameName = conf.robot.armChainNames[hand]
@@ -645,7 +649,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand,
             drawState(newBS, prob, nconf, nshape, reachObsts)
         pathViols.append((nconf, viol, offsetPB.poseD.mode()))
         if all(not nshape.collides(obst) for (ig, obst) in reachObsts \
-               if pB.obj not in ig):
+               if (pB.obj not in ig)):
             safePathViols = list(pathViols)
     #######################
     # Prepare ans

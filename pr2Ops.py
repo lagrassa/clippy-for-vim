@@ -694,7 +694,7 @@ def genLookObjHandPrevVariance((ve, hand, obj, face), goal, start, vals):
 def canReachHandGen(args, goal, start, vals):
     (conf, p, cond, hand) = args
     f = CanReachHome([conf, cond], True)
-    path, viol = f.getViols(start, True, p)
+    path, viol = f.getViols(start.pbs, True, p)
     if viol and viol.heldShadows[handI[hand]] != []:
         return [[]]
     else:
@@ -707,7 +707,7 @@ def canReachDropGen(args, goal, start, vals):
     (conf, p, cond) = args
     f = CanReachHome([conf, cond], True)
     result = []
-    path, viol = f.getViols(start, True, p)
+    path, viol = f.getViols(start.pbs, True, p)
     for hand in ('left', 'right'):
         if viol:
             collidesWithHeld = viol.heldObstacles[handI[hand]]
@@ -731,7 +731,7 @@ def canPickPlaceDropGen(args, goal, start, vals):
      graspFace, graspMu, graspVar, graspDelta, op, cond, p) = args
     f = CanPickPlace(args[:-1], True)
     result = []
-    path, viol = f.getViols(start, True, p)
+    path, viol = f.getViols(start.pbs, True, p)
     for dropHand in ('left', 'right'):
         if viol:
             # objects that collide with the object in the hand
@@ -923,7 +923,7 @@ def moveBProgress(details, args, obs=None):
     for fix, ob in details.pbs.objectBs.values():
         oldVar = ob.poseD.var
         newVar = tuple([a + b for (a, b) in zip(oldVar, odoVar)])
-        details.pbs.resetPlaceB(ob.modifyPoseD(var=newVar))
+        details.pbs.updatePlaceB(ob.modifyPoseD(var=newVar))
     details.pbs.reset()
     details.pbs.getShadowWorld(0)
     details.pbs.internalCollisionCheck()
@@ -1188,7 +1188,7 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
                          'Belief', 'magenta')],
                snap = ['Belief'])
 
-    details.pbs.resetPlaceB(ObjPlaceB(objName, w.getFaceFrames(objName),
+    details.pbs.updatelaceB(ObjPlaceB(objName, w.getFaceFrames(objName),
                                       DeltaDist(oldPlaceB.support.mode()),
                                       PoseD(hu.Pose(*newMu), newSigma)))
 
@@ -1897,10 +1897,9 @@ def achCanXGen(pbs, goal, originalCond, targetFluents, violFn, prob, tag):
             print 'need to see if base pose is specified and pass it in'
 
         lookG = lookAchCanXGen(newBS, shWorld, viol, violFn, prob)
-        placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob,
-                                 allConds + goal)
-        pushG = pushAchCanXGen(newBS, shWorld, viol, violFn, prob,
-                               allConds + goal)
+        # This used to pass in: allConds + goal, but already in newBS.
+        placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob)
+        pushG = pushAchCanXGen(newBS, shWorld, viol, violFn, prob)
         # prefer looking
         return itertools.chain(lookG, roundrobin(placeG, pushG))
     
@@ -1950,7 +1949,7 @@ def fixedHeld(pbs, obj):
         return obj == held and fix
     return False
 
-def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob, cond):
+def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob):
     tag = 'placeAchGen'
     obstacles = [o.name() for o in initViol.allObstacles() \
                   if (not o.name() in shWorld.fixedObjects) and \
@@ -1968,7 +1967,7 @@ def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob, cond):
     # than a different placement of the first obst;  not really sure how to
     # arrange that.
     for obst in obstacles:
-        for r in moveOut(pbs, prob, obst, moveDelta, cond):
+        for r in moveOut(pbs, prob, obst, moveDelta):
             # TODO: LPK: concerned about how graspVar and graspDelta
             # are computed
             graspFace = r.gB.grasp.mode()
@@ -1987,7 +1986,7 @@ def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob, cond):
             yield [newConds]
     tr(tag, '=> Out of remedies')
 
-def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob, cond):
+def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob):
     tag = 'pushAchGen'
     obstacles = [o.name() for o in initViol.allObstacles() \
                   if (not o.name() in shWorld.fixedObjects) and \
@@ -2000,7 +1999,7 @@ def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob, cond):
 
     moveDelta = pbs.domainProbs.placeDelta
     for obst in obstacles:
-        for r in pushOut(pbs, prob, obst, moveDelta, cond):
+        for r in pushOut(pbs, prob, obst, moveDelta):
 
             supportFace = r.postPB.support.mode()
             postPose = r.postPB.poseD.modeTuple()

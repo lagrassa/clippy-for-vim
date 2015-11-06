@@ -359,3 +359,8 @@ def trArgs(tag, names, args, pbs):
 def otherHand(hand):
     return 'left' if hand == 'right' else 'right'
 
+def checkCache(cache, key, valueFn):
+    if key not in cache:
+        cache[key] = valueFn(*key)
+    return cache[key]
+

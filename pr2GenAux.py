@@ -92,228 +92,6 @@ def InPlaceDeproach(*x): return True
 # place1. move home->place with hand empty
 # place2. move home->pre with obj at place pose
 
-ppConfs = {}
-
-def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
-                     op='pick', quick = False):
-    tag = 'canPickPlaceTest'
-    obj = objGrasp.obj
-    collides = pbs.getRoadMap().checkRobotCollision
-    if debug(tag):
-        print zip(('preConf', 'ppConf', 'hand', 'objGrasp', 'objPlace', 'p', 'pbs'),
-                  (preConf, ppConf, hand, objGrasp, objPlace, p, pbs))
-    if not legalGrasp(pbs, ppConf, hand, objGrasp, objPlace):
-        debugMsg(tag, 'Grasp is not legal in canPickPlaceTest')
-        return None, 'Legal grasp'
-    # pbs.getRoadMap().approachConfs[ppConf] = preConf
-    violations = Violations()           # cumulative
-    # 1.  Can move from home to pre holding nothing with object placed at pose
-    if preConf:
-        pbs1 = pbs.copy().updatePermObjBel(objPlace).updateHeldBel(None, hand)
-        if op == 'pick':
-            oB = objPlace.modifyPoseD(var=4*(0.0,)) # ignore uncertainty
-            oB.delta = 4*(0.0,)
-        else:
-            oB = objPlace.modifyPoseD(var=pbs.domainProbs.placeVar)
-            oB.delta = pbs.domainProbs.placeDelta
-        pbs1 = pbs1.updatePermObjBel(oB).addAvoidShadow([obj])
-        if debug(tag):
-            pbs1.draw(p, 'W')
-            debugMsg(tag, 'H->App, obj@pose (condition 1)')
-        if quick:
-            violations = pbs.getRoadMap().confViolations(preConf, pbs1, p, violations)
-            path = [preConf]
-        else:
-            path, violations = canReachHome(pbs1, preConf, p, violations)
-        if not violations:
-            debugMsg(tag, 'Failed H->App, obj=pose (condition 1)')
-            return None, '1. H->App obj@pose'
-        elif debug(tag):
-            for c in path: c.draw('W', attached = pbs1.getShadowWorld(p).attached)
-            debugMsg(tag, 'path 1')
-
-    # preConfShape = preConf.placement(attached = pbs1.getShadowWorld(p).attached)
-    objShadow = objPlace.shadow(pbs1.getShadowWorld(p))
-    # Check visibility at preConf (for pick)
-    if op =='pick' and not (glob.inHeuristic or quick):
-        path = canView(pbs1, p, preConf, hand, objShadow)
-        if path:
-            debugMsg(tag, 'Succeeded visibility test for pick')
-            preConfView = path[-1]
-            if preConfView != preConf:
-                path, violations = canReachHome(pbs1, preConfView, p, violations)
-                if not violations:
-                    debugMsg(tag, 'Cannot reachHome with retracted arm')
-                    pbs1.draw(p, 'W'); preConfView.draw('W', 'red')
-                    debugMsg(tag, 'canPickPlaceTest - Cannot reachHome with retracted arm')
-                    return None, 'Obj visibility'
-        else:
-            debugMsg(tag, 'Failed visibility test for pick')
-            return None, 'Obj visibility'
-            
-    # 2 - Can move from home to pre holding the object
-    pbs2 = pbs.copy().excludeObjs([obj]).updateHeldBel(objGrasp, hand)
-    if debug(tag):
-        pbs2.draw(p, 'W'); preConf.draw('W', attached = pbs2.getShadowWorld(p).attached)
-        debugMsg(tag, 'H->App, obj=held (condition 2)')
-    if quick:
-        violations = pbs.getRoadMap().confViolations(preConf, pbs2, p, violations)
-        path = [preConf]
-    else:
-        path, violations = canReachHome(pbs2, preConf, p, violations)
-    if not violations:
-        debugMsg(tag + 'Failed H->App, obj=held (condition 2)')
-        return None, '2. H->App, held=obj'
-    elif debug(tag):
-        for c in path: c.draw('W', attached = pbs2.getShadowWorld(p).attached)
-        debugMsg(tag, 'path 2')
-
-    # Check visibility of support table at preConf (for pick AND place)
-    if op in ('pick', 'place') and not (glob.inHeuristic or quick):
-        tableB = findSupportTableInPbs(pbs1, objPlace.obj) # use pbs1 so obj is there
-        assert tableB
-        if debug(tag): print 'Looking at support for', obj, '->', tableB.obj
-        lookDelta = pbs2.domainProbs.minDelta
-        lookVar = pbs2.domainProbs.obsVarTuple
-        tableB2 = tableB.modifyPoseD(var = lookVar)
-        tableB2.delta = lookDelta
-        prob = 0.95
-        shadow = tableB2.shadow(pbs2.updatePermObjBel(tableB2).getShadowWorld(prob))
-        if collides(preConf, shadow, attached = pbs2.getShadowWorld(p).attached):
-            preConfShape = preConf.placement(attached = pbs2.getShadowWorld(p).attached)
-            pbs2.draw(p, 'W'); preConfShape.draw('W', 'cyan'); shadow.draw('W', 'cyan')
-            debugMsg('Preconf collides for place in canPickPlaceTest')
-            return None, 'Support shadow collision'
-        if collides(ppConf, shadow): # ppConfShape.collides(shadow):
-            ppConfShape = ppConf.placement() # no attached
-            pbs2.draw(p, 'W'); ppConfShape.draw('W', 'magenta'); shadow.draw('W', 'magenta')
-            debugMsg(tag, 'PPconf collides for place in canPickPlaceTest')
-            return None, 'Support shadow collision'
-        if not canView(pbs2, p, preConf, hand, shadow):
-            preConfShape = preConf.placement(attached = pbs2.getShadowWorld(p).attached)
-            pbs2.draw(p, 'W'); preConfShape.draw('W', 'orange'); shadow.draw('W', 'orange')
-            debugMsg(tag, 'Failing to view for place in canPickPlaceTest')
-            return None, 'Support visibility'
-
-    # 3.  Can move from home to pick with object placed at pose (0 var)
-    oB = objPlace.modifyPoseD(var=4*(0.0,)) # ignore uncertainty
-    oB.delta = 4*(0.0,)
-    pbs3 = pbs.copy().updatePermObjBel(oB).updateHeldBel(None, hand)
-    if debug(tag):
-        pbs3.draw(p, 'W')
-        debugMsg(tag, 'H->Target, obj placed (0 var) (condition 3)')
-    if quick:
-        violations = pbs.getRoadMap().confViolations(ppConf, pbs3, p, violations)
-        path = [ppConf]
-    else:
-        path, violations = canReachHome(pbs3, ppConf, p, violations)
-    if not violations:
-        debugMsg(tag, 'Failed H->Target  (condition 3)')
-        return None, '3. H->Target obj@pose 0var'
-    elif debug(tag):
-        for c in path: c.draw('W', attached = pbs3.getShadowWorld(p).attached)
-        debugMsg(tag, 'path 3')
-    # 4.  Can move from home to pick while holding obj with zero grasp variance
-    gB = objGrasp.modifyPoseD(var=4*(0.0,)) # ignore uncertainty
-    gB.delta = 4*(0.0,)
-    pbs4 = pbs.copy().excludeObjs([obj]).updateHeldBel(gB, hand)
-    if debug(tag):
-        pbs4.draw(p, 'W'); ppConf.draw('W', attached = pbs4.getShadowWorld(p).attached)
-        debugMsg(tag, 'H->Target, holding obj (0 var) (condition 4)')
-    if quick:
-        violations = pbs.getRoadMap().confViolations(ppConf, pbs4, p, violations)
-        path = [ppConf]
-    else:
-        path, violations = canReachHome(pbs4, ppConf, p, violations)
-    if not violations:
-        debugMsg(tag, 'Failed H->Target held=obj(condition 4)')
-        return None, '4. H->Target held=obj 0var'
-    elif debug(tag):
-        for c in path: c.draw('W', attached = pbs4.getShadowWorld(p).attached)
-        debugMsg(tag, 'path 4')
-    debugMsg(tag, ('->', violations))
-
-    if debug('lookBug'):
-        base = tuple(preConf['pr2Base'])
-        entry = (preConf, tuple([x.getShadowWorld(p) for x in (pbs1, pbs2, pbs3, pbs4)]))
-        if base in ppConfs:
-            ppConfs[base] = ppConfs[base].union(frozenset([entry]))
-        else:
-            ppConfs[base] = frozenset([entry])
-
-    return violations, None
-
-
-# Find a path to a conf such that the arm (specified) by hand does not
-# collide with the view cone to the target shape and maybe shadow.
-def canView(pbs, prob, conf, hand, shape,
-            shapeShadow = None, maxIter = 50, findPath = True):
-    def armShape(c, h):
-        parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])
-        armShapes = [parts[pbs.getRobot().armChainNames[h]],
-                     parts[pbs.getRobot().gripperChainNames[h]]]
-        if attached[h]:
-            armShapes.append(parts[attached[h].name()])
-        return shapes.Shape(armShapes, None)
-    collides = pbs.getRoadMap().checkRobotCollision
-    robot = pbs.getRobot()
-    vc = viewCone(conf, shape)
-    if not vc: return None
-    shWorld = pbs.getShadowWorld(prob)
-    attached = shWorld.attached
-    if shapeShadow:
-        avoid = shapes.Shape([vc, shape, shapeShadow], None)
-    else:
-        avoid = shapes.Shape([vc, shape], None)
-    # confPlace = conf.placement(attached=attached)
-    if not collides(conf, avoid, attached=attached):
-        if debug('canView'):
-            print 'canView - no collisions'
-        return [conf]
-    elif not findPath:
-        return []
-    # !! don't move arms to clear view of fixed objects
-    if not permanent(objectName(shape.name())):
-        if debug('canView'):
-            avoid.draw('W', 'red')
-            conf.draw('W', attached=attached)
-            debugMsg('canView', 'ViewCone collision')
-        pathFull = []
-        for h in ['left', 'right']:     # try both hands
-            chainName = robot.armChainNames[h]
-            armChains = [chainName, robot.gripperChainNames[h]]
-            if not (collides(conf, avoid, attached=attached, selectedChains=armChains) \
-                   if glob.useCC else avoid.collides(armShape(conf, h))):
-                continue
-            if debug('canView'):
-                print 'canView collision with', h, 'arm', conf['pr2Base']
-            path, viol = planRobotGoalPath(pbs, prob, conf,
-                                lambda c: not (collides(c, avoid, attached=attached, selectedChains=armChains) \
-                                                          if glob.useCC else avoid.collides(armShape(c,h))),
-                                           None, [chainName], maxIter = maxIter)
-            if debug('canView'):
-                pbs.draw(prob, 'W')
-                if path:
-                    for c in path: c.draw('W', 'blue', attached=attached)
-                    path[-1].draw('W', 'orange', attached=attached)
-                    avoid.draw('W', 'green')
-                    debugMsg('canView', 'Retract arm')
-            if debug('canView') or debug('canViewFail'):
-                if not path:
-                    pbs.draw(prob, 'W')
-                    conf.draw('W', attached=attached)
-                    avoid.draw('W', 'red')
-                    raw_input('canView - no path')
-            if path:
-                pathFull.extend(path)
-            else:
-                return []
-        return pathFull
-    else:
-        if debug('canView'):
-            print 'canView - ignore view cone collision for perm object', shape
-        return [conf]
-
 ################
 ## GENERATORS
 ################
@@ -348,8 +126,8 @@ def findApproachConf(pbs, obj, placeB, conf, hand, prob):
 # 1. The grasp surface (graspDesc)
 # !! 2. The pose on the grasp surface (3 params) -- for now -- skip this
 # 3. The conf of the robot (and an approach conf, but we won't vary that)
-def graspGen(pbs, obj, graspB, placeB=None, conf=None, hand=None, prob=None):
-
+def graspGen(pbs, graspB, placeB=None, conf=None, hand=None, prob=None):
+    obj = graspB.obj
     grasps = list(graspB.grasp.support())
     random.shuffle(grasps)
     for grasp in grasps:
@@ -362,192 +140,6 @@ def graspGen(pbs, obj, graspB, placeB=None, conf=None, hand=None, prob=None):
                              graspB.poseD.var),
                        delta=graspB.delta)
         yield gB
-
-graspConfGenCache = {}
-graspConfGenCacheStats = [0,0]
-
-graspConfClear = 0.001
-
-def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob,
-                          nMax=None, findApproach=True):
-    tag = 'potentialGraspConfs'
-    graspMode = graspB.grasp.mode()
-    # When the grasp is -1 (a push), we need the full grasp spec.
-    graspBCacheVal = graspB if graspMode == -1 else graspMode
-    key = (pbs, placeB, graspBCacheVal, conf, hand, tuple(base) if base else None, prob,
-           nMax, findApproach)
-    args = (pbs, placeB, graspB, conf, hand, tuple(base) if base else None, prob,
-            nMax, findApproach)
-    cache = graspConfGenCache
-    val = cache.get(key, None)
-    graspConfGenCacheStats[0] += 1
-
-    if val != None:
-        graspConfGenCacheStats[1] += 1
-        memo = val.copy()
-        if debug(tag): print tag, 'cached gen with len(values)=', memo.values
-    else:
-        memo = Memoizer('potentialGraspConfGen',
-                        potentialGraspConfGenAux(*args))
-        cache[key] = memo
-        if debug(tag): print tag, 'new gen'
-    for x in memo:
-        assert len(x) == 3 and x[-1] != None
-        yield x
-
-graspConfs = set([])
-
-graspConfStats = [0,0]
-
-def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
-                     wrist = None, counts = None, findApproach = True):
-    robot = pbs.getRobot()
-    rm = pbs.getRoadMap()
-    if not wrist:
-        wrist = objectGraspFrame(pbs, graspB, placeB, hand)
-    basePose = basePose.pose()
-
-    # If just the base collides with a perm obstacle, no need to continue
-    graspConfStats[0] += 1
-    baseShape = pr2BaseLink.applyTrans(basePose)
-    shWorld = pbs.getShadowWorld(prob)
-    for perm in shWorld.fixedObjects:
-        obst = shWorld.objectShapes[perm]
-        if obst.collides(baseShape):
-            graspConfStats[1] += 1
-            if counts: counts[1] += 1   # collision
-            return
-        
-    cart = CartConf({'pr2BaseFrame': basePose,
-                     'pr2Torso':[torsoZ]}, robot)
-    if hand == 'left':
-        cart.conf['pr2LeftArmFrame'] = wrist 
-        cart.conf['pr2LeftGripper'] = [0.08] # !! pick better value
-    else:
-        cart.conf['pr2RightArmFrame'] = wrist 
-        cart.conf['pr2RightGripper'] = [0.08]
-    # Check inverse kinematics
-    conf = robot.inverseKin(cart)
-    if None in conf.values():
-        debugMsg('potentialGraspConfsLose', 'invkin failure')
-        if counts: counts[0] += 1       # kin failure
-        return
-    # Copy the other arm
-    if hand == 'left':
-        conf.conf['pr2RightArm'] = pbs.getConf()['pr2RightArm']
-        # conf.conf['pr2RightGripper'] = pbs.getConf()['pr2RightGripper']
-        conf.conf['pr2RightGripper'] = [0.08]
-    else:
-        conf.conf['pr2LeftArm'] = pbs.getConf()['pr2LeftArm']
-        # conf.conf['pr2LeftGripper'] = pbs.getConf()['pr2LeftGripper']
-        conf.conf['pr2LeftGripper'] = [0.08]
-    ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob) \
-         if findApproach else True
-    if ca:
-        # Check for collisions, don't include attached...
-        viol = rm.confViolations(ca, pbs, prob, ignoreAttached=True,
-                                 clearance=graspConfClear) \
-                                 if findApproach else Violations()
-        if not viol:
-            if debug('potentialGraspConfsLose'):
-                pbs.draw(prob, 'W'); conf.draw('W','red')
-                debugMsg('potentialGraspConfsLose', 'collision at approach')
-            if counts: counts[1] += 1   # collision
-            return
-        viol = rm.confViolations(conf, pbs, prob, initViol=viol,
-                                 ignoreAttached=True, clearance=graspConfClear)
-        if viol:
-            if debug('potentialGraspConfsWin'):
-                pbs.draw(prob, 'W'); conf.draw('W','green')
-                debugMsg('potentialGraspConfsWin', ('->', conf.conf))
-            if debug('keepGraspConfs'):
-                graspConfs.add((conf, ca, pbs, prob, viol))
-            return conf, ca, viol
-        else:
-            if debug('potentialGraspConfsLose'):
-                pbs.draw(prob, 'W'); conf.draw('W','red')
-                debugMsg('potentialGraspConfsLose', 'collision at target')
-            if counts: counts[1] += 1   # collision
-    else:
-        if counts: counts[0] += 1       # kin failure
-        if debug('potentialGraspConfsLose'):
-            pbs.draw(prob, 'W'); conf.draw('W','orange')
-            debugMsg('potentialGraspConfsLose', 'no approach conf')
-
-def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
-                             nMax=10, findApproach=True):
-    tag = 'potentialGraspConfs'
-    if debug(tag): print 'Entering potentialGraspConfGenAux'
-    if conf:
-        ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob) \
-             if findApproach else True
-        if ca:
-            viol = pbs.getRoadMap().confViolations(ca, pbs, prob,
-                                                   ignoreAttached=True,
-                                                   clearance=graspConfClear) \
-                                                   if findApproach else Violations()
-            if viol:
-                yield conf, ca, viol
-        tr(tag, 'Conf specified; viol is None or out of alternatives')
-        return
-    wrist = objectGraspFrame(pbs, graspB, placeB, hand)
-
-    shWorld = pbs.getShadowWorld(prob)
-    gripperShape = gripperPlace(pbs.getConf(), hand, wrist)
-    for perm in shWorld.fixedObjects:
-        obst = shWorld.objectShapes[perm]
-        if obst.collides(gripperShape):
-            if debug(tag):
-                pbs.draw(prob, 'W')
-                obst.draw('W', 'magenta'); gripperShape.draw('W', 'magenta')
-            tr(tag, 'Hand collides with permanent', perm)
-            return
-
-    tr(tag, hand, placeB.obj, graspB.grasp, '\n', wrist,
-       draw = [(pbs, prob, 'W')], snap = ['W'])
-    count = 0
-    tried = 0
-    robot = pbs.getRobot()
-    if base:
-        (x,y,th) = base
-        nominalBasePose = hu.Pose(x, y, 0.0, th)
-    else:
-        (x,y,th) = pbs.getConf()['pr2Base']
-        curBasePose = hu.Pose(x, y, 0.0, th)
-    counts = [0, 0]
-    if base:
-        for ans in [graspConfForBase(pbs, placeB, graspB, hand,
-                                     nominalBasePose, prob, wrist=wrist, counts=counts)]:
-            if ans:
-                yield ans
-        tr(tag, 'Base specified; out of grasp confs for base')
-        return
-    # Try current pose first
-    ans = graspConfForBase(pbs, placeB, graspB, hand, curBasePose, prob,
-                           wrist=wrist, counts=counts)
-    if ans: yield ans
-    # Try the rest
-    # TODO: Sample subset?
-    for basePose in robot.potentialBasePosesGen(wrist, hand):
-        if nMax and count >= nMax: break
-        tried += 1
-        ans = graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
-                               wrist=wrist, counts=counts)
-        if ans:
-            count += 1
-            yield ans
-    debugMsg('potentialGraspConfs',
-             ('Tried', tried, 'found', count, 'potential grasp confs, with grasp', graspB.grasp),
-             ('Failed', counts[0], 'invkin', counts[1], 'collisions'))
-    return
-
-def gripperPlace(conf, hand, wrist, robotPlace=None):
-    confWrist = conf.cartConf()[conf.robot.armChainNames[hand]]
-    if not robotPlace:
-        robotPlace = conf.placement()
-    gripperChain = conf.robot.gripperChainNames[hand]
-    shape = (part for part in robotPlace.parts() if part.name() == gripperChain).next()
-    return shape.applyTrans(confWrist.inverse()).applyTrans(wrist)
 
 def potentialLookConfGen(pbs, prob, shape, maxDist):
     def testPoseInv(basePoseInv):
@@ -629,40 +221,6 @@ def potentialLookHandConfGen(pbs, prob, hand):
     return
 
 ################
-## SUPPORT FUNCTIONS
-################
-
-# returns lists of (poseB, graspB, conf, canfAppr)
-
-# !! THIS IS NOT FINISHED!
-
-def candidatePlaceH(pbs, inCondsRev, graspB, reachObsts, hand, prob):
-
-    assert False
-
-    # REVERSE THE INCONDS -- because regression is in opposite order
-    inConds = inCondsRev[::-1]
-    debugMsg('candidatePGCC', ('inConds - reversed', inConds))
-    objs = [obj for (obj,_,_,_) in inConds]
-    objPB = [opb for (_,_,opb,_,_) in inConds]
-    shWorld = pbs.getShadowWorld(prob)
-    # Shadows (at origin) for objects to be placed.
-    ## !! Maybe give it a little cushion
-    objShadows = [shWorld.world.getObjectShapesAtOrigin(o.name()) for o in shWorld.getShadowShapes()]
-    newBS = pbs.copy()
-    newBS.excludeObjs(objs)
-    shWorld = newBS.getShadowWorld(prob)
-    poseObsts = [sh for sh in shWorld.getShadowShapes() if not sh.name() in shWorld.fixedObjects]
-    fixedObst = [sh for sh in shWorld.getShadowShapes() if sh.name() in shWorld.fixedObjects]
-    # inCond is (obj, regShape, placeB, prob)
-    allObsts = [fixedObst] + poseObsts + reachObsts
-    robObsts = [fixedObst] + poseObsts
-    regShapes = [regShape for (_,regShape,_,_) in inConds]
-    robot = shWorld.robot
-    # 1. Find plausible grasps -- could skip and just use legalGrasps
-    # 2. Find combinations of poses and grasps
-
-################
 ## Drawing
 ################
     
@@ -683,202 +241,6 @@ def sameBase(pbs):
     # base is None or (fixed, base)
     return pbs.base and pbs.base[0]     # fixed base
 
-################
-## Looking at goal fluents
-################
-            
-def getGoalInConds(goalConds, X=[]):
-    # returns a list of [(obj, regShape, prob)]
-    fbs = fbch.getMatchingFluents(goalConds,
-                                  Bd([In(['Obj', 'Reg']), 'Val', 'P'], True))
-    return [(b['Obj'], b['Reg'], b['P']) \
-            for (f, b) in fbs if isGround(b.values())]
-
-def pathShape(path, prob, pbs, name):
-    assert isinstance(path, (list, tuple))
-    attached = pbs.getShadowWorld(prob).attached
-    return shapes.Shape([c.placement(attached=attached) for c in path], None, name=name)
-
-def pathObst(cs, cd, p, pbs, name, start=None, smooth=False):
-    newBS = pbs.copy()
-    newBS = newBS.updateFromGoalPoses(cd, permShadows=True)
-    key = (cs, newBS, p)
-    if key in pbs.beliefContext.pathObstCache:
-        return pbs.beliefContext.pathObstCache[key]
-    path,  viol = canReachHome(newBS, cs, p, Violations(), homeConf = start)
-    if debug('pathObst'):
-        newBS.draw(p, 'W')
-        cs.draw('W', 'red', attached=newBS.getShadowWorld(p).attached)
-        print 'condition', cd
-    if not path:
-        if debug('pathObst'):
-            print 'pathObst', 'failed to find path to conf in red', (cs, p, newBS)
-        ans = None
-    else:
-        if smooth or glob.smoothPathObst:
-            if debug('pathObst'):
-                print 'Smoothing in pathObst - initial', len(path)
-            st = time.time()
-            path = newBS.getRoadMap().smoothPath(path, newBS, p,
-                                                 nsteps = 50, npasses = 5)
-            if debug('pathObst'):
-                print 'Smoothing in pathObst - final', len(path), 'time=%.3f'%(time.time()-st)
-        path = interpolatePath(path)        # fill it in...
-        ans = pathShape(path, p, newBS, name)
-    pbs.beliefContext.pathObstCache[key] = ans
-    return ans
-
-def getReachObsts(goalConds, pbs, ignore = []):
-    fbs = fbch.getMatchingFluents(goalConds,
-             Bd([CanPickPlace(['Preconf', 'Ppconf', 'Hand', 'Obj', 'Pose',
-                               'Posevar', 'Posedelta', 'Poseface',
-                               'Graspface', 'Graspmu', 'Graspvar', 'Graspdelta',
-                                'Op', 'Inconds']),
-                                True, 'P'], True))
-    obstacles = []
-    for (f, b) in fbs:
-        crhObsts = getCRHObsts([Bd([fc, True, b['P']], True) \
-                                for fc in f.args[0].getConds()], pbs, ignore=ignore)
-        if crhObsts is None:
-            return None
-        obstacles.extend(crhObsts)
-
-    # Now look for standalone CRH, CRNB and CP
-    basicCRH = getCRHObsts(goalConds, pbs, ignore=ignore)
-    if basicCRH is None: return None
-    obstacles.extend(basicCRH)
-
-    basicCRNB = getCRNBObsts(goalConds, pbs, ignore=ignore) 
-    if basicCRNB is None: return None
-    obstacles.extend(basicCRNB)
-
-    basicCP = getCPObsts(goalConds, pbs, ignore=ignore) 
-    if basicCP is None: return None
-    obstacles.extend(basicCP)
-        
-    return obstacles
-
-def pushPathObst(obj, hand, poseFace, prePose, pose, preConf, pushConf,
-                 postConf, poseVar, prePoseVar, poseDelta, cond, p, pbs, name):
-    newBS = pbs.copy()
-    newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
-    path,  viol = canPush(newBS, obj, hand, poseFace, prePose, pose,
-                          preConf, pushConf, postConf, poseVar,
-                          prePoseVar, poseDelta, p, Violations())
-    # Attache the pushed object to the hand so that it is in reachObst
-    post = hu.Pose(*pose)
-    placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), poseFace,
-                       PoseD(post, poseVar), poseDelta)
-    gB = pushGraspB(pbs, pushConf, hand, placeB)
-    newBS = newBS.updateHeldBel(gB, hand)
-    if debug('pathObst'):
-        newBS.draw(p, 'W')
-        cs.draw('W', 'red', attached=newBS.getShadowWorld(p).attached)
-        print 'condition', cd
-    if not path:
-        if debug('pathObst'):
-            print 'pathObst', 'failed to find path to conf in red', (cs, p, newBS)
-        ans = None
-    else:
-        ans = pathShape(path, p, newBS, name)
-    #pbs.beliefContext.pathObstCache[key] = ans
-    return ans
-
-def getCPObsts(goalConds, pbs, ignore=[]):
-    fbs = fbch.getMatchingFluents(goalConds,
-                     Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
-                                  'PreConf', 'PushConf',
-                               'PostConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',                                 'PreCond']),  True, 'Prob'], True))
-    world = pbs.getWorld()
-    obsts = []
-    index = 0
-    for (f, b) in fbs:
-        if not isGround(b.values()): continue
-        if debug('getReachObsts'):
-            print 'GRO', f
-        ignoreObjects = set([])
-        # Look at Poses in conditions; they are exceptions
-        pfbs = fbch.getMatchingFluents(b['PreCond'],
-                                       B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
-        for (pf, pb) in pfbs:
-            if isGround(pb.values()):
-                ignoreObjects.add(pb['Obj'])
-        # Ignore obstacles which have objects in ignore 
-        if any(obj in ignoreObjects for obj in ignore):
-            continue
-        obst = pushPathObst(b['Obj'], b['Hand'], b['PoseFace'], b['PrePose'], b['Pose'],
-                            b['PreConf'], b['PushConf'],
-                            b['PostConf'], b['PoseVar'], b['PrePoseVar'], b['PoseDelta'],
-                            b['PreCond'], b['Prob'], pbs,
-                            name= 'reachObst%d'%index)
-        index += 1
-        if not obst:
-            debugMsg('getReachObsts', ('path fail', f, b.values()))
-            return None
-        obsts.append((frozenset(ignoreObjects), obst))
-    debugMsg('getReachObsts', ('->', len(obsts), 'CRH NB obsts'))
-    return obsts
-
-def getCRNBObsts(goalConds, pbs, ignore=[]):
-    fbs = fbch.getMatchingFluents(goalConds,
-                             Bd([CanReachNB(['Start', 'End', 'Cond']),
-                                 True, 'P'], True))
-    world = pbs.getWorld()
-    obsts = []
-    index = 0
-    for (f, b) in fbs:
-        if not isGround(b.values()): continue
-        if debug('getReachObsts'):
-            print 'GRO', f
-        ignoreObjects = set([])
-        # Look at Poses in conditions; they are exceptions
-        pfbs = fbch.getMatchingFluents(b['Cond'],
-                                       B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
-        for (pf, pb) in pfbs:
-            if isGround(pb.values()):
-                ignoreObjects.add(pb['Obj'])
-        # Ignore obstacles which have objects in ignore 
-        if any(obj in ignoreObjects for obj in ignore):
-            continue
-        obst = pathObst(b['Start'], b['Cond'], b['P'], pbs,
-                        name= 'reachObst%d'%index, start=b['End'])
-        index += 1
-        if not obst:
-            debugMsg('getReachObsts', ('path fail', f, b.values()))
-            return None
-        obsts.append((frozenset(ignoreObjects), obst))
-    debugMsg('getReachObsts', ('->', len(obsts), 'CRH NB obsts'))
-    return obsts
-
-def getCRHObsts(goalConds, pbs, ignore=[]):
-    fbs = fbch.getMatchingFluents(goalConds,
-                             Bd([CanReachHome(['C', 'Cond']),
-                                 True, 'P'], True))
-    world = pbs.getWorld()
-    obsts = []
-    index = 0
-    for (f, b) in fbs:
-        if not isGround(b.values()): continue
-        if debug('getReachObsts'):
-            print 'GRO', f
-        ignoreObjects = set([])
-        # Look at Poses in conditions; they are exceptions
-        pfbs = fbch.getMatchingFluents(b['Cond'],
-                                  B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
-        for (pf, pb) in pfbs:
-            if isGround(pb.values()):
-                ignoreObjects.add(pb['Obj'])
-        # Ignore obstacles which have objects in ignore 
-        if any(obj in ignoreObjects for obj in ignore):
-            continue
-        obst = pathObst(b['C'], b['Cond'], b['P'], pbs, name= 'reachObst%d'%index)
-        index += 1
-        if not obst:
-            debugMsg('getReachObsts', ('path fail', f, b.values()))
-            return None
-        obsts.append((frozenset(ignoreObjects), obst))
-    debugMsg('getReachObsts', ('->', len(obsts), 'CRH obsts'))
-    return obsts
 
 # Returns (hand, obj) for Holding fluents.   Leave it out if obj is 'none'
 def getHolding(goalConds):
@@ -906,7 +268,7 @@ angleList = [-math.pi/2. -math.pi/4., 0.0, math.pi/4, math.pi/2]
 # (regShapeName, obj, hand, grasp) : (n_attempts, [relPose, ...])
 regionPoseCache = {}
 
-def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, reachObsts, hand, base,
+def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, hand, base,
                            maxPoses = 30):
     def interpolateVars(maxV, minV, n):
         deltaV = [(maxV[i]-minV[i])/(n-1.) for i in range(4)]
@@ -925,18 +287,16 @@ def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, reachObsts
     count = 0
     # Preferentially use large variance...
     for medVar in interpolateVars(maxVar, minVar, 4):
-        pB = placeB.modifyPoseD(var=medVar)
         if debug('potentialRegionPoseGen'):
             print 'potentialRegionPoseGen var', medVar
-        for pose in potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes,
-                                              reachObsts, hand, base, maxPoses):
+        pB = placeB.modifyPoseD(var=medVar)
+        for pose in potentialRegionPoseGenAux(pbs, obj, pB, graspB, prob, regShapes,
+                                              hand, base, maxPoses):
             yield pose
             if count > maxPoses: return
             count += 1
 
-# TODO: Should structure this as a mini-batch generator!
-
-def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachObsts, hand, base,
+def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, hand, base,
                               maxPoses = 30):
     def genPose(rs, angle, point):
         (x,y,z,_) = point
@@ -948,7 +308,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
             print x,y,z,angle
             raw_input('Go?')
         pose = hu.Pose(x,y,z,angle)
-        if inside(sh, rs) and \
+        if inside(sh, rs, strict=True) and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
             debugMsg('potentialRegionPoseGen', ('-> pose', pose))
             return pose
@@ -959,7 +319,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
     def poseViolationWeight(pose):
         tag = 'potentialRegionPoseGenWeight'
         pB = placeB.modifyPoseD(mu=pose)
-        for gB in graspGen(pbs, obj, graspB):
+        for gB in graspGen(pbs, graspB):
             grasp = gB.grasp.mode()
             debugMsg(tag, 'Trying grasp = %d'%grasp)
             if base:
@@ -1004,9 +364,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeB, graspB, prob, regShapes, reachOb
         tr(tag, 'pose specified', placeB.poseD.mode(), ol = True)
         sh = objShadow.applyLoc(placeB.objFrame()).prim()
         verts = sh.vertices()
-        if any(any(np.all(np.all(np.dot(r.planes(), verts) <= tiny, axis=1)) \
-                   for r in rs.parts()) \
-               for rs in regShapes)  and \
+        if any(inside(sh, rs, strict=True) for rs in regShapes)  and \
            all(not sh.collides(obst) for (ig, obst) in reachObsts if obj not in ig):
             tr(tag, 'pose specified and safely in region',
                placeB.poseD.mode(), ol = True)
