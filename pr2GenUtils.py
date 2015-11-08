@@ -1,9 +1,14 @@
+import random
+import hu
 from planUtil import ObjGraspB
+from traceFile import tr, debug, debugMsg
+from miscUtil import roundrobin
+from pr2Util import PoseD
 
 def fixed(value):
     return value and isinstance(value, tuple) and len(value) == 2 and value[0]
 
-def sortedHyp(hypGen, validTestFn, costFn, maxHyps, maxTries,
+def sortedHyps(hypGen, validTestFn, costFn, maxHyps, maxTries,
               minCost = 0., size = 10):
     costHistory = []
     hypHistory = []
@@ -23,7 +28,7 @@ def sortedHyp(hypGen, validTestFn, costFn, maxHyps, maxTries,
             del costHistory[minIndex]
             del hypHistory[minIndex]
             count += 1
-            yield hyp, hypCost
+            yield hyp
             continue
         else:
             return
@@ -44,7 +49,7 @@ def sortedHyp(hypGen, validTestFn, costFn, maxHyps, maxTries,
         else:                           # cost <= min(costHistory)
             hypCost = cost
         count += 1
-        yield hyp, hypCost
+        yield hyp
 
 def baseDist(c1, c2):
     (x1,y1,th1) = c1['pr2Base']
@@ -88,21 +93,21 @@ def getPoseAndSupport(tag, obj, pbs, prob):
         # If it is currently placed, use that support
         support = pbs.getPlaceB(obj).support.mode()
         pose = pbs.getPlaceB(obj).poseD.mode()
-        tr(tag, 'Using current placeB, support=%s, pose=%s'%(sup, pose.xyztTuple()))
+        tr(tag, 'Using current placeB, support=%s, pose=%s'%(support, pose.xyztTuple()))
     elif obj == pbs.getHeld('left'):
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
                                                    'left')
         shape = pbs.getObjectShapeAtOrigin(obj).\
                 applyLoc(attachedShape.origin())
         support = supportFaceIndex(shape)
-        tr(tag, 'Object already in %s hand, support=%s'%('left', suport))
+        tr(tag, 'Object already in %s hand, support=%s'%('left', support))
     elif obj == pbs.getHeld('right'):
         attachedShape = pbs.getRobot().attachedObj(pbs.getShadowWorld(prob),
                                                    'right')
         shape = pbs.getObjectShapeAtOrigin(obj).\
                 applyLoc(attachedShape.origin())
         support = supportFaceIndex(shape)
-        tr(tag, 'Object already in %s hand, support=%s'%('right', suport))
+        tr(tag, 'Object already in %s hand, support=%s'%('right', support))
     else:
         raise Exception('Cannot determine support')
     return pose, support

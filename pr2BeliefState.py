@@ -30,6 +30,8 @@ class BeliefState:
         self.awayRegion = awayRegion
         self.poseModeProbs = dict([(name , 0.99) \
                                    for name in pbs.objectBs.keys()])
+        # Share the poseModeProbs.
+        self.pbs.poseModeProbs = self.poseModeProbs
         self.graspModeProb = {'left' : 0.99, 'right' : 0.99}
         # wm.getWindow('Belief').startCapture()
 
@@ -51,7 +53,7 @@ class BeliefState:
             poseD = self.pbs.getPlaceB(obj, face).poseD
             return GMU([(MVG(poseD.modeTuple(), diagToSq(poseD.var)),
                          self.poseModeProbs[obj])])
-        
+
     def draw(self, w = 'Belief'):
         s = '------------  Belief -------------\n'
         s += 'Conf:\n'

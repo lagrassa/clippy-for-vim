@@ -1,5 +1,12 @@
+import hu
+import planGlobals as glob
 from planGlobals import torsoZ
+from pr2Util import Memoizer
+from planUtil import Violations
+from pr2GenTests import objectGraspFrame
 from pr2GenUtils import sortedHyps, baseDist
+from pr2Robot import CartConf, pr2BaseLink
+from traceFile import tr, debug, debugMsg
 
 approachConfCacheStats = [0,0]
 graspConfGenCache = {}
@@ -55,12 +62,12 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
     pbsCopy = pbs.copy()                # so it can be modified 
     hypGen = graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                              nMax=nMax, findApproach=findApproach)
-    for hyp in sortedHyp(hypGen, validTestFn, costFn, nMax, 2*nMax):
+    for hyp in sortedHyps(hypGen, validTestFn, costFn, nMax, 2*nMax):
         if debug('potentialGraspConfGen'):
             pbs.draw(prob, 'W'); hyp.conf.draw('W', 'green')
             debugMsg(tag, 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),
                      'pose=%s'%placeB.poseD.mode(), 'grasp=%s'%graspB.grasp.mode())
-        yield hyp.conf, hym.confApproach, hyp.viol
+        yield hyp.conf, hyp.approachConf, hyp.viol
 
 def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
                      wrist = None, counts = None, findApproach = True):
@@ -70,18 +77,20 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
     basePose = basePose.pose()
     graspConfStats[0] += 1
     # If just the base collides with a perm obstacle, no need to continue
-    if baseCollision(pbs, basePose): return
-    conf = confFromBaseAndWrist(basePose, wrist, robot, counts)
+    if baseCollision(pbs, prob, basePose): return
+    conf = confFromBaseAndWrist(pbs, basePose, hand, wrist, robot, counts)
     if conf is None: return
     # check collisions
-    ans = testConfs(pbs, placeB, conf, hand, prob, findApproach=findApproach)
+    ans = testConfs(pbs, placeB, conf, hand, prob,
+                    findApproach=findApproach, counts=counts)
     if ans is None: return
     (_, ca, viol) = ans
     return conf, ca, viol
 
-def testConfs(pbs, placeB, conf, hand, prob, findApproach=True):
+def testConfs(pbs, placeB, conf, hand, prob, findApproach=True, counts=None):
     viol = Violations()
     testc = [(conf, 'target')]
+    ca = None
     if findApproach:
         # get approach conf
         ca = findApproachConf(pbs, placeB.obj, placeB, conf, hand, prob)
@@ -93,8 +102,8 @@ def testConfs(pbs, placeB, conf, hand, prob, findApproach=True):
             return
         testc = [(ca, 'approach')] + testc
     for c, ctype in testc:
-        viol = confViolations(c, prob, initViol=viol,
-                              ignoreAttached=True, clearance=graspConfClear)
+        viol = pbs.confViolations(c, prob, initViol=viol,
+                                  ignoreAttached=True, clearance=graspConfClear)
         if viol is None:                # illegal
             if debug('potentialGraspConfsLose'):
                 pbs.draw(prob, 'W'); c.draw('W','red')
@@ -104,9 +113,9 @@ def testConfs(pbs, placeB, conf, hand, prob, findApproach=True):
     if debug('potentialGraspConfsWin'):
         pbs.draw(prob, 'W'); conf.draw('W','green')
         debugMsg('potentialGraspConfsWin', ('->', conf.conf))
-    return viol
+    return c, ca, viol
 
-def baseCollision(pbs, basePose, counts=None):
+def baseCollision(pbs, prob, basePose, counts=None):
     baseShape = pr2BaseLink.applyTrans(basePose)
     shWorld = pbs.getShadowWorld(prob)
     for perm in shWorld.fixedObjects:
@@ -121,7 +130,7 @@ def baseCollision(pbs, basePose, counts=None):
             return True
     return False
 
-def gripperCollision(pbs, conf, hand, wrist, counts=None):
+def gripperCollision(pbs, prob, conf, hand, wrist, counts=None):
     shWorld = pbs.getShadowWorld(prob)
     gripperShape = gripperPlace(conf, hand, wrist)
     for perm in shWorld.fixedObjects:
@@ -136,7 +145,7 @@ def gripperCollision(pbs, conf, hand, wrist, counts=None):
             return True
     return False
 
-def confFromBaseAndWrist(basePose, wrist, robot, counts=None):
+def confFromBaseAndWrist(pbs, basePose, hand, wrist, robot, counts=None):
     cart = CartConf({'pr2BaseFrame': basePose,
                      'pr2Torso':[torsoZ]}, robot)
     if hand == 'left':
@@ -160,18 +169,18 @@ def confFromBaseAndWrist(basePose, wrist, robot, counts=None):
         conf.conf['pr2LeftGripper'] = [0.08]
     return conf
 
-def graspPoseHypGen(pbs, placeB, graspB, conf, hand, base, prob,
+def graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                     nMax=10, findApproach=True):
     tag = 'potentialGraspConfs'
     if debug(tag): print 'Entering potentialGraspConfGenAux'
     if conf:
         ans = testConfs(pbs, placeB, conf, hand, prob, findApproach=findApproach)
         if ans:
-            yield GraspPoseHyp(*ans)
+            yield GraspConfHyp(*ans)
         tr(tag, 'Conf specified; viol is None or out of alternatives')
         return
     wrist = objectGraspFrame(pbs, graspB, placeB, hand)
-    if gripperCollision(pbs, pbs.getConf(), hand, wrist): return
+    if gripperCollision(pbs, prob, pbs.getConf(), hand, wrist): return
     tr(tag, hand, placeB.obj, graspB.grasp, '\n', wrist,
        draw = [(pbs, prob, 'W')], snap = ['W'])
     count = 0
@@ -185,7 +194,7 @@ def graspPoseHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                                      nominalBasePose, prob, wrist=wrist, counts=counts)]:
             if ans:
                 count += 1
-                yield GraspPoseHyp(*ans)
+                yield GraspConfHyp(*ans)
         tr(tag, 'Base specified; out of grasp confs for base')
         return
     (x,y,th) = pbs.getConf()['pr2Base']
@@ -205,7 +214,7 @@ def graspPoseHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                                wrist=wrist, counts=counts)
         if ans:
             count += 1
-            yield GraspPoseHyp(*ans)
+            yield GraspConfHyp(*ans)
     debugMsg('potentialGraspConfs',
              ('Tried', tried, 'found', count, 'potential grasp confs, with grasp', graspB.grasp),
              ('Failed', counts[0], 'invkin', counts[1], 'collisions'))

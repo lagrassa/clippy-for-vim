@@ -5,7 +5,7 @@ import time
 import shapes
 from transformations import rotation_matrix
 import planGlobals as glob
-from traceFile import debugMsg, debug. tr
+from traceFile import debugMsg, debug, tr
 from pr2Robot import gripperFaceFrame
 from planUtil import Violations
 from pr2Util import shadowName, objectName 
@@ -59,6 +59,8 @@ def robotGraspFrame(pbs, conf, hand):
     return wristFrame
 
 def findRegionParent(pbs, region):
+    # In case, this is a bState and not a pbs
+    pbs = pbs.pbs
     regs = pbs.getWorld().regions
     for (obj, stuff) in regs.items():
         for (regName, regShape, regTr) in stuff:
@@ -71,8 +73,8 @@ def findRegionParent(pbs, region):
 def inTest(pbs, obj, regName, prob, pB=None):
     regs = pbs.getWorld().regions
     parent = findRegionParent(pbs, regName)
-    pObj = bState.poseModeProbs[obj]
-    pParent = bState.poseModeProbs[parent]
+    pObj = pbs.poseModeProbs[obj]
+    pParent = pbs.poseModeProbs[parent]
     pFits = prob / (pObj * pParent)
     if pFits > 1: return False
 

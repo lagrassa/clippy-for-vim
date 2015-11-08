@@ -3,7 +3,6 @@ import numpy as np
 import planGlobals as glob
 from numpy import cos, sin, arctan2, sqrt, power
 import hu
-from traceFile import tr, trAlways
 from itertools import product, permutations, chain, imap
 from dist import DeltaDist, varBeforeObs, probModeMoved, MixtureDist,\
      UniformDist, chiSqFromP, MultivariateGaussianDistribution
@@ -12,13 +11,14 @@ from miscUtil import isVar, prettyString, makeDiag, argmax, lookup, roundrobin
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowWidths, objectName
 from pr2Gen import PickGen, LookGen,\
-    EasyGraspGen, canPickPlaceTest, PoseInRegionGen, PlaceGen, moveOut
+    EasyGraspGen, PoseInRegionGen, PlaceGen, moveOut
+from pr2GenTests import canPickPlaceTest, canReachHome, canReachNB, canPush, findRegionParent
 from belief import Bd, B, BMetaOperator
-from pr2Fluents import Conf, CanReachHome, Holding, GraspFace, Grasp, Pose,\
+from pr2Fluents import Conf, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
-     findRegionParent, CanReachNB, BaseConf, BLoc, canReachHome, canReachNB,\
-     Pushable, CanPush, canPush, graspable, pushable
-from traceFile import debugMsg, debug
+     CanReachHome, CanReachNB, BaseConf, BLoc,\
+     Pushable, CanPush, graspable, pushable
+from traceFile import debugMsg, debug, tr, trAlways
 from pr2Push import PushGen, pushOut
 import pr2RRT as rrt
 from pr2Visible import visible
@@ -294,7 +294,7 @@ class RegionGeom(Function):
     def fun((regionName, parentObj, parentObjPose), goal, start):
         startPbs = start.pbs
         opb = startPbs.getPlaceB(parentObj).modifyPoseD(parentObjPose)
-        newPbs = startPbs.updatePermObjPose(opb)
+        newPbs = startPbs.updatePermObjBel(opb)
         reg = newPbs.getShadowWorld(0.9).regionShapes[regionName]
         return [[reg]]
 

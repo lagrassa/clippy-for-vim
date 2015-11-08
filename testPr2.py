@@ -702,7 +702,7 @@ def prof(test, n=100):
     p.sort_stats('cumulative').print_stats(n)
     p.sort_stats('cumulative').print_callers(n)
 
-    from pr2GenAux import graspConfGenCacheStats, graspConfStats
+    from pr2GenGrasp import graspConfGenCacheStats, graspConfStats
     print 'graspConfGenCacheStats', graspConfGenCacheStats
     print 'graspConfStats', graspConfStats
 
@@ -734,7 +734,7 @@ def canPPDebug(details, fluent):
     # bc.objectShadowCache.clear()
     # for c in bc.genCaches.values():
     #     c.clear()
-    # pr2GenAux.graspConfGenCache.clear()
+    # pr2GenGrasp.graspConfGenCache.clear()
     # bc.world.robot.cacheReset()
     # pr2Visible.cache.clear()
     # belief.hCacheReset()

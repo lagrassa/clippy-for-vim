@@ -1,6 +1,11 @@
 import random
-from pr2Util import checkCache
+import math
+import hu
+from cspace import CI
+from pr2Util import checkCache, shadowName, inside, bboxRandomCoords
 from pr2GenUtils import sortedHyps, baseDist
+import planGlobals as glob
+from traceFile import tr, debug, debugMsg
 
 # TODO: Should pick relevant orientations... or more samples.
 angleList = [-math.pi/2. -math.pi/4., 0.0, math.pi/4, math.pi/2]
@@ -13,7 +18,7 @@ regionPoseCache = {}
 # Preferences:  bigger shadows, fewer violations, grasp conf close to current conf
 def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, hand, base,
                            maxPoses = 30):
-    if traceGen:
+    if glob.traceGen:
         print ' **', 'potentialRegionPoseGen', placeB.poseD.mode(), graspB.grasp.mode(), hand
     # Consider a range of variances
     maxVar = placeB.poseD.var
@@ -55,8 +60,8 @@ def potentialRegionPoseGenAux(pbs, obj, placeBs, graspB, prob, regShapes, hand, 
         return scoreValidHyp(hyp, pbsCopy, graspB, prob)
     tag = 'potentialRegionPoseGen'
     pbsCopy = pbs.copy()                # so it can be modified 
-    hypGen = regionPoseHypGen(pbsCopy, probs, placeBs, regShapes)
-    for hyp in sortedHyp(hypGen, validTestFn, costFn, maxPoses, 2*maxPoses):
+    hypGen = regionPoseHypGen(pbsCopy, prob, placeBs, regShapes)
+    for hyp in sortedHyps(hypGen, validTestFn, costFn, maxPoses, 2*maxPoses):
         if debug(tag):
             pbs.draw(prob, 'W'); hyp.conf.draw('W', 'green')
             debugMsg(tag, 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),
@@ -78,26 +83,28 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
     def makeShadow(pB, angle):
         # placed, pbs, prob and ff drawn from environment
         shadow = pbs.objShadow(pB.obj, shadowName(pB.obj), prob, pB, ff).prim()
-        if not placed:
-            shadow = shadow.applyTrans(hu.Pose(0,0,0,angle))
-        return shadow
+        if placed:
+            angle = pB.poseD.mode().pose().theta
+        return shadow.applyTrans(hu.Pose(0,0,0,angle))
     def makeBI(shadow, rs):
         return CI(shadow, rs).bbox()
     def placeShadow(pB, angle, rs):
         # Shadow for placement
         shadow = checkCache(objShadows, (pB, angle), makeShadow)
         if placed:
-            return shadow
+            (x, y, _, _) = pB.poseD.mode().pose().xyztTuple()
+            return shadow.applyTrans(hu.Pose(x, y, 0, 0))
         else:
             # The CI bbox (positions that put object inside region)
             bI = checkCache(regBI, (shadow, rs), makeBI)
-            if bI is None: continue
+            if bI is None: return
             z0 = bI[0,2] + clearance
             # Sampled (x,y) point
-            pt = next(bboxRandomCoords(bI.bbox(), n=1, z=z0))
+            (x, y, _, _) = next(bboxRandomCoords(bI, n=1, z=z0))
             return shadow.applyTrans(hu.Pose(x, y, 0, 0))
-    # initialize 
-    ff = placeB.faceFrames[placeBs[0].support.mode()]
+    # initialize
+    tag = 'potentialRegionPoseGen'
+    ff = placeBs[0].faceFrames[placeBs[0].support.mode()]
     regPrims = [rs.prim() for rs in regShapes]
     objShadows = dict()
     regBI = dict()
@@ -115,9 +122,15 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
         angle = random.choice(angleList)
         placedShadow = placeShadow(pB, angle, rs)
         # Check conditions
+        if debug(tag):
+            pbs.draw(prob, 'W'); placedShadow.draw('W', 'orange')
+            debugMsg(tag, 'candiate pose=%s, angle=%.2f'%(pB.poseD.mode(), angle))
         if inside(placedShadow, rs) and \
                legalPlace(pB.obj, placedShadow, shWorld):
+            debugMsg(tag, 'valid hyp pose=%s angle=%.2f'%(pB.poseD.mode(), angle))
             yield PoseHyp(pB, placedShadow)
+        else:
+            debugMsg(tag, 'invalid hyp pose=%s'%pB.poseD.mode())
         if placed:
             placed = False              # only try placed this once
 

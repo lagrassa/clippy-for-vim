@@ -58,14 +58,16 @@ import pr2Visible
 reload(pr2Visible)
 pr2Visible.cache = {}
 
-import pr2GenAux
-reload(pr2GenAux)
-
-import pr2Gen
-reload(pr2Gen)
-
+import pr2GenTests
+reload(pr2GenTests)
+import pr2GenGrasp
+reload(pr2GenGrasp)
+import pr2GenPose
+reload(pr2GenPose)
 import pr2Push
 reload(pr2Push)
+import pr2Gen
+reload(pr2Gen)
 
 import pr2Ops
 reload(pr2Ops)
@@ -106,11 +108,11 @@ def clearCaches(details):
     pr2Visible.cache.clear()
     bc.pathObstCache.clear()
     bc.objectShadowCache.clear()
-    pr2GenAux.graspConfGenCache.clear()
+    pr2GenGrasp.graspConfGenCache.clear()
     bc.world.robot.cacheReset()
     pr2Visible.cache.clear()
     fbch.hCacheReset()
-    pr2Fluents.pushPathCache.clear()
+    pr2GenTests.pushPathCache.clear()
     pr2Push.pushGenCache.clear()
 
 ######################################################################
@@ -369,12 +371,13 @@ class PlanTest:
                              else ['pr2Base', 'pr2LeftArm']})
         rm.batchAddClusters(self.initConfs)
         belC.roadMap = rm
-        pbs = PBS(belC, conf=pr2Home, 
+        pbs = PBS(belC,
+                  conf=(False, pr2Home), 
                   objectBs = \
-                  [(True, o) for o in self.fix.copy()] + \
-                  [(False, o) for o in self.move.copy()],
+                  dict([(o, (True, pB)) for (o,pB) in self.fix.iteritems()] + \
+                  [(o, (False, pB)) for (o,pB) in self.move.iteritems()]),
                   regions = frozenset(regions),
-                  domainProbs=self.domainProbs, useRight=glob.useRight) 
+                  domainProbs=self.domainProbs) 
         pbs.draw(0.95, 'Belief')
         bs = BeliefState(pbs, self.domainProbs, 'table2Top')
         # TODO:  LPK Awful modularity
@@ -433,8 +436,8 @@ class PlanTest:
             glob.realWorld = self.realWorld
 
             # LPK!! add collision checking
-            heldLeft = self.bs.pbs.held['left'].mode()
-            heldRight = self.bs.pbs.held['right'].mode()
+            heldLeft = self.bs.pbs.getHeld('left')
+            heldRight = self.bs.pbs.getHeld('right')
             self.realWorld.setRobotConf(self.bs.pbs.getConf())
             for obj in self.objects:
                 if not obj in (heldLeft, heldRight):

@@ -1,24 +1,23 @@
-
+import time
+import pdb
+import random
 import math
 from operator import itemgetter
+import planGlobals as glob
 from fbch import Function
 from geom import bboxInside, bboxVolume, vertsBBox, bboxContains, bboxIsect
 import numpy as np
 from traceFile import debug, debugMsg, tr, trAlways
 from shapes import thingFaceFrames, drawFrame
 import hu
-from planUtil import ObjGraspB, PoseD, PushResponse
-from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords, bboxRandomCoords, supportFaceIndex
-from pr2GenAux import *
-from pr2Fluents import pushPath
+from planUtil import ObjGraspB, ObjPlaceB, Violations, PoseD, PushResponse
+from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords, bboxRandomCoords, supportFaceIndex, inside
+from pr2GenTests import pushPath
+from pr2GenUtils import getRegions, getPoseAndSupport, fixed, chooseHandGen
 from pr2PlanBel import getGoalConf, getGoalPoseBels
 import mathematica
 reload(mathematica)
 import windowManager3D as wm
-from subprocess import call
-import time
-import pdb
-import random
 
 # Pick poses and confs for pushing an object
 
@@ -583,20 +582,19 @@ def pushInRegionGenGen(args, pbs, cpbs, away = False, update=True):
     shWorld = pbs.getShadowWorld(prob)
     regShapes = [shWorld.regionShapes[region] if isinstance(region, str) else region\
                  for region in regions]
+    regions = [x.name() for x in regShapes]
     tr(tag, 'Target region in purple',
        draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes], snap=['W'])
-    pose, support = getPoseAndSupport(obj, pbs, prob) # from original pbs
-    # Check if object pose is specified in goalConds
-    poseBels = getGoalPoseBels(goalConds, world.getFaceFrames)
-    if obj in poseBels:
-        pB = poseBels[obj]
+    pose, support = getPoseAndSupport(tag, obj, pbs, prob) # from original pbs
+    # Check if object pose is specified in goal
+    if obj in cpbs.objectBs and fixed(cpbs.objectBs[obj]):
+        pB = cpbs.getPlaceB(obj)
         shw = shadowWidths(pB.poseD.var, pB.delta, prob)
         shwMin = shadowWidths(graspV, graspDelta, prob)
         if any(w > mw for (w, mw) in zip(shw, shwMin)):
             args = (obj, pose, support, var, delta, None, prob)
-            gen = pushGenGen(args, goalConds, bState)
+            gen = pushGenGen(args, pbs, cpbs)
             for ans in gen:
-                regions = [x.name() for x in regShapes]
                 tr(tag, str(ans), 'regions=%s'%regions,
                    draw=[(cpbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
                    snap=['W'])
@@ -683,24 +681,15 @@ def pushInGenTop(args, pbs, cpbs, away = False, update=True):
         return
     conf = None
     confAppr = None
-    # Obstacles for all Reachable fluents, that don't have obj constrained.
-    reachObsts = getReachObsts(goalConds, cpbs, ignore=[obj])
-    print 'pushInGen', len(reachObsts), 'reachObsts'
-    if reachObsts is None:
-        tr(tag, '=> No path for reachObst, failing')
-        return
-    tr(tag, '%d reachObsts - in orange'%len(reachObsts),
-       draw=[(cpbs, prob, 'W')] + [(obst, 'W', 'orange') for _,obst in reachObsts],
-       snap=['W'])
     shWorld = cpbs.getShadowWorld(prob)
     nPoses = pushInGenMaxPosesH if glob.inHeuristic else pushInGenMaxPoses
 
-    leftGen = pushInGenAux(pbs, cpbs, prob, placeB, regShapes, reachObsts,
-                           'left', away=away, update=update)
-    rightGen = pushInGenAux(pbs, cpbs, prob, placeB, regShapes, reachObsts,
-                            'right', away=away, update=update)
+    leftGen = pushInGenAux(pbs, cpbs, prob, placeB, regShapes,
+                           'left', away=away)
+    rightGen = pushInGenAux(pbs, cpbs, prob, placeB, regShapes,
+                            'right', away=away)
     # Figure out whether one hand or the other is required;  if not, do round robin
-    mainGen = chooseHandGen(cpbs, goalConds, obj, None, leftGen, rightGen)
+    mainGen = chooseHandGen(pbs, cpbs, obj, None, leftGen, rightGen)
 
     # Picks among possible target poses and then try to push it in region
     for ans in mainGen:
@@ -709,17 +698,18 @@ def pushInGenTop(args, pbs, cpbs, away = False, update=True):
 # placeB is current place for object
 # regShapes is a list of (one) target region
 # reachObsts are regions where placements are forbidden
-def pushInGenAux(pbs, cpbs, prob, placeB, regShapes, reachObsts, hand,
+def pushInGenAux(pbs, cpbs, prob, placeB, regShapes, hand,
                  away=False):
-    def reachCollides(pB):
-        relevant = [obst for (ig, obst) in reachObsts \
-                    if placeB.obj not in ig]
-        shape = pB.shape(cpbs)
-        return any(shape.collides(obst) for obst in relevant)
+    def feasiblePBS(pB):
+        if pbs.conditions:
+            newBS = pbs.copy().updatePlaceB(pB)
+            return newBS.feasible()           # check conditioned fluents
+        else:
+            return True
     tag = 'pushInGen'
     shWorld = cpbs.getShadowWorld(prob)
     for pB in awayTargetPB(cpbs, prob, placeB, regShapes):
-        if reachCollides(pB): continue
+        if feasiblePBS(pB): continue
         tr(tag, 'target', pB,
            draw=[(cpbs, prob, 'W'),
                  (pB.makeShadow(pbs, prob), 'W', 'pink')] \

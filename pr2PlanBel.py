@@ -12,9 +12,11 @@ from objects import World, WorldState
 #from pr2Robot import PR2, pr2Init, makePr2Chains
 from traceFile import debugMsg, debug
 import planGlobals as glob
-from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose
+from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose, \
+     BaseConf, CanReachNB
 from planUtil import ObjGraspB, ObjPlaceB
-from pr2Util import shadowName, shadowWidths, objectName, supportFaceIndex, PoseD, inside, permanent, pushable, graspable
+from pr2Util import shadowName, shadowWidths, objectName, supportFaceIndex, \
+     PoseD, inside, permanent, pushable, graspable
 from fbch import getMatchingFluents
 from belief import B, Bd
 from traceFile import tr, trAlways
@@ -64,7 +66,7 @@ class PBS:
     def __init__(self, beliefContext, held=None, conf=None,
                  graspB=None, objectBs=None, regions=[],
                  domainProbs=None, avoidShadow=[], base=None,
-                 targetConf=None, conditions=[]):
+                 targetConf=None, conditions=[], poseModeProbs=None):
         self.beliefContext = beliefContext
         # The components of the state
         # The conf of the robot (fixed?, conf)
@@ -91,6 +93,7 @@ class PBS:
         self.useRight = glob.useRight
         self.pbs = self                 # hack... to impersonate a belief
         self.domainProbs = domainProbs
+        self.poseModeProbs = poseModeProbs
 
     # Access beliefContext
     def genCache(self, tag):
@@ -103,8 +106,8 @@ class PBS:
         return self.beliefContext.roadMap
     def getObjectShapeAtOrigin(self, obj):
         return self.beliefContext.world.getObjectShapeAtOrigin(obj)
-    def confViolations(self, conf, prob):
-        return self.beliefContext.roadMap.confViolations(conf, self, prob)
+    def confViolations(self, conf, prob, **keys):
+        return self.beliefContext.roadMap.confViolations(conf, self, prob, **keys)
 
     # Accessors
     def fixObjBs(self):
@@ -138,7 +141,7 @@ class PBS:
         return ObjPlaceB(obj, fr, UniformDist(range(len(fr))), Ident,
                          4*(100.0,))
     def getPlaceB(self, obj, face = None, default = True):
-        (fix, placeB) = self.objectBs.get(obj, (False, None))[1]
+        (fix, placeB) = self.objectBs.get(obj, (False, None))
         if placeB and (face is None or face == placeB.support.mode()):
             return placeB
         elif default:
@@ -176,10 +179,11 @@ class PBS:
         newBS.conditions = [fluent for fluent in goalConds if fluent.conditional]
         return newBS
     def copy(self):
-        return PBS(self.beliefContext, self.held.copy(), self.conf.copy(),
+        def copyVal(x): return (x[0], x[1].copy())
+        return PBS(self.beliefContext, self.held.copy(), copyVal(self.conf),
                    self.graspB.copy(), self.objectBs.copy(),
                    self.regions, self.domainProbs, self.avoidShadow[:],
-                   self.base, self.targetConf, self.conditions)
+                   self.base, self.targetConf, self.conditions, self.poseModeProbs)
     def feasible(self):
         # Check that all the condotions are feasible.
         return all(fl.feasible(self) for fl in self.conditions)
@@ -247,16 +251,15 @@ class PBS:
     def updatePermObjBel(self, objPlace):
         obj = objPlace.obj
         for hand in ('left', 'right'):
-            if self.getHeld[hand] == obj:
+            if self.getHeld(hand) == obj:
                 self.updateHeldBel(None, hand)
         self.objectBs[obj] = (True, objPlace) # make it permanent
         self.reset()
         return self
     def excludeObjs(self, objs):
         for obj in objs:
-            for o in self.objectsBs:
-                if o == obj:
-                    del self.objecBs[obj]
+            if obj in self.objectBs:
+                del self.objectBs[obj]
         self.reset()
         return self
     def updateFromConds(self, goalConds, permShadows=False):
@@ -270,10 +273,10 @@ class PBS:
                 self.held[h] = (True, held[h][1])
             if graspB[h]:
                 self.graspB[h] = (True, graspB[h][1])
-        for gB in self.graspB.values():
+        for gB in graspB.values():
             if gB: self.excludeObjs([gB.obj])
         for h in ('left', 'right'):
-            if self.held[h] in goalPoseBels:
+            if self.getHeld(h) in goalPoseBels:
                 # print 'Held object in pose conditions, removing from hand'
                 self.updateHeldBel(None, h)
         goalConf = getGoalConf(goalConds)
@@ -559,20 +562,21 @@ class PBS:
         # robot.nominalConf = nominalConf
         # Add shadow for held object
         for hand in ('left', 'right'):
-            heldObj = self.held[hand]
+            heldObj = self.getHeld(hand)
             if heldObj != 'none':
-                assert self.graspB[hand] and self.graspB[hand].obj == heldObj
-                graspIndex = self.graspB[hand].grasp.mode()
-                graspDesc = self.graspB[hand].graspDesc[graspIndex]
+                graspB = self.getGraspB(hand)
+                assert graspB and graspB.obj == heldObj
+                graspIndex = graspB.grasp.mode()
+                graspDesc = graspB.graspDesc[graspIndex]
                 # Transform from object origin to grasp surface
                 # The graspDesc frame is relative to object origin
                 # The graspB pose encodes finger tip relative to graspDesc frame
-                faceFrame = graspDesc.frame.compose(self.graspB[hand].poseD.mode())
+                faceFrame = graspDesc.frame.compose(graspB.poseD.mode())
                 if graspIndex < 0:      # push grasp
-                    support = self.graspB[hand].support
+                    support = graspB.support
                     supportFrame = w.getFaceFrames(heldObj)[support]
                     # Create shadow pair and attach both to robot
-                    shadowMin, shadow = self.shadowPair(self.graspB[hand],
+                    shadowMin, shadow = self.shadowPair(graspB,
                                                         supportFrame, prob)
 
                     shadow = shadow.applyTrans(supportFrame)
@@ -594,7 +598,7 @@ class PBS:
                         raw_input('Grasped shadow')
                 else:  # normal grasp
                     # Create shadow pair and attach both to robot
-                    shadowMin, shadow = self.shadowPair(self.graspB[hand], faceFrame, prob)
+                    shadowMin, shadow = self.shadowPair(self.getGraspB(hand), faceFrame, prob)
                     # shadow is expressed in face frame, now we need
                     # to express it relative to wrist.
                     # fingerFrame maps from wrist to inner face of finger
@@ -618,7 +622,7 @@ class PBS:
                     raw_input('Attach?')
         sw.fixedHeld = {h:fix for (h, (fix,v)) in self.held.iteritems()}
         sw.fixedGrasp = {h:fix for (h, (fix,v)) in self.graspB.iteritems()}
-        sw.setRobotConf(self.conf)
+        sw.setRobotConf(self.getConf())
         if debug('getShadowWorldGrasp') and not glob.inHeuristic:
             sw.draw('W')
         # cache[key] = sw
@@ -672,9 +676,9 @@ class PBS:
     def items(self):
         return (frozenset(self.held.items()),
                 frozenset(self.graspB.items()),
-                self.conf, self.baseConf,
+                self.conf, self.base, self.targetConf,
                 frozenset(self.avoidShadow),
-                frozenset(self.objectsBs.items()))
+                frozenset(self.objectBs.items()))
     def __eq__(self, other):
         return hasattr(other, 'items') and self.items() == other.items()
     def __neq__(self, other):
@@ -853,8 +857,8 @@ def getGoalConf(goalConds):
 # Return None if there is no BaseConf requirement; otherwise return
 # base pose tuple
 def getGoalBase(goalConds):
-    fbs = fbch.getMatchingFluents(goalConds,
-                                  BaseConf(['B', 'D'], True))
+    fbs = getMatchingFluents(goalConds,
+                             BaseConf(['B', 'D'], True))
     assert len(fbs) <= 1, 'Too many BaseConf fluents in conditions'
     result = None
     for (f, b) in fbs:
@@ -868,9 +872,9 @@ def getGoalTargetConf(goalConds):
     fbs_conf = [(f, b) for (f, b) \
                 in getMatchingFluents(goalConds,
                                       Conf(['Mu', 'Delta'], True))]
-    fbs_crnb = fbch.getMatchingFluents(goalConds,
-                                       Bd([CanReachNB(['Start', 'End', 'Cond']),
-                                           True, 'P'], True))
+    fbs_crnb = getMatchingFluents(goalConds,
+                                  Bd([CanReachNB(['Start', 'End', 'Cond']),
+                                      True, 'P'], True))
     if not (fbs_conf and fbs_crnb): return None
     conf = None
     for (fconf, bconf) in fbs_conf:

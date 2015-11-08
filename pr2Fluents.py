@@ -6,6 +6,7 @@ import numpy as np
 from planUtil import Violations, ObjPlaceB, ObjGraspB
 from pr2Util import shadowName, drawPath, objectName, PoseD, \
      supportFaceIndex, GDesc, inside, otherHand, graspable, pushable, permanent
+from pr2GenTests import inTest, canReachNB, canReachHome
 from dist import DeltaDist, probModeMoved
 from traceFile import debugMsg, debug, pause
 import planGlobals as glob
@@ -490,9 +491,7 @@ class CanReachNB(Fluent):
         if key in self.viols: return self.viols[key]
         if glob.inHeuristic and key in self.hviols: return self.hviols[key]
 
-        newPBS = pbs.copy()
-        newPBS.updateFromGoalPoses(cond, permShadows=True)
-
+        newPBS = pbs.conditioned([], cond)
         path, violations = canReachNB(newPBS, startConf, endConf, p,
                                       Violations())
         debugMsg('CanReachNB',
