@@ -779,7 +779,8 @@ def placeInRegionGenGen(args, goalConds, bState, away = False, update=True):
     # Get the regions
     regions = getRegions(region)
     shWorld = pbs.getShadowWorld(prob)
-    regShapes = [shWorld.regionShapes[region] for region in regions]
+    regShapes = [shWorld.regionShapes[region] if isinstance(region, str) else region \
+                 for region in regions]
     tr(tag, 'Target region in purple',
        draw=[(pbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
        snap=['W'])

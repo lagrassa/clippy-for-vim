@@ -948,6 +948,7 @@ def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, reachObsts
     maxVar = placeB.poseD.var
     minVar = pbs.domainProbs.obsVarTuple
     count = 0
+    pdb.set_trace()
     # Preferentially use large variance...
     for medVar in interpolateVars(maxVar, minVar, 4):
         pB = placeB.modifyPoseD(var=medVar)
