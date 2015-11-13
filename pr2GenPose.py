@@ -3,7 +3,8 @@ import math
 import hu
 from cspace import CI
 from pr2Util import checkCache, shadowName, inside, bboxRandomCoords
-from pr2GenUtils import sortedHyps, baseDist
+from pr2GenUtils import sortedHyps, baseDist, graspGen
+from pr2GenGrasp import potentialGraspConfGen
 import planGlobals as glob
 from traceFile import tr, debug, debugMsg
 
@@ -70,12 +71,12 @@ def potentialRegionPoseGenAux(pbs, obj, placeBs, graspB, prob, regShapes, hand, 
 
 def checkValidHyp(hyp, pbs, graspB, prob, regShapes, hand, base):
     return poseGraspable(hyp, pbs, graspB, prob, hand, base) and \
-           feasiblePBS(hyp, pbs)
+           feasiblePBS(hyp, pbs, prob)
 
 # We want to minimize this score, optimzal value is 0.
 def scoreValidHyp(hyp, pbs, graspB, prob):
     # ignores size of shadow.
-    return hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf)
+    return 5*hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf)
 
 # A generator for hyps that meet the minimal requirement - object is
 # in region and does not have permanent collisions with other objects.
@@ -89,11 +90,11 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
     def makeBI(shadow, rs):
         return CI(shadow, rs).bbox()
     def placeShadow(pB, angle, rs):
-        # Shadow for placement
+        # Shadow for placement, rotated by angle
         shadow = checkCache(objShadows, (pB, angle), makeShadow)
         if placed:
-            (x, y, _, _) = pB.poseD.mode().pose().xyztTuple()
-            return shadow.applyTrans(hu.Pose(x, y, 0, 0))
+            (x, y, z, angle) = pB.poseD.mode().pose().xyztTuple()
+            npB = pB.modifyPoseD(hu.Pose(x, y, z, angle))
         else:
             # The CI bbox (positions that put object inside region)
             bI = checkCache(regBI, (shadow, rs), makeBI)
@@ -101,7 +102,8 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
             z0 = bI[0,2] + clearance
             # Sampled (x,y) point
             (x, y, _, _) = next(bboxRandomCoords(bI, n=1, z=z0))
-            return shadow.applyTrans(hu.Pose(x, y, 0, 0))
+            npB = pB.modifyPoseD(hu.Pose(x, y, z0, angle))
+        return npB, shadow.applyTrans(npB.poseD.mode())
     # initialize
     tag = 'potentialRegionPoseGen'
     ff = placeBs[0].faceFrames[placeBs[0].support.mode()]
@@ -114,33 +116,36 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
     if any(pB.poseD.mode() for pB in placeBs):
         placedBs = [pB for pB in placeBs if pB.poseD.mode()]
         placed = True
+    else:
+        placed = False
     # generate samples
     for trial in xrange(maxTries):
         # placement depends on region, pB and angle
         rs = random.choice(regPrims)
         pB = random.choice(placedBs if placed else placeBs)
         angle = random.choice(angleList)
-        placedShadow = placeShadow(pB, angle, rs)
+        npB, placedShadow = placeShadow(pB, angle, rs)
         # Check conditions
         if debug(tag):
             pbs.draw(prob, 'W'); placedShadow.draw('W', 'orange')
             debugMsg(tag, 'candiate pose=%s, angle=%.2f'%(pB.poseD.mode(), angle))
         if inside(placedShadow, rs) and \
-               legalPlace(pB.obj, placedShadow, shWorld):
-            debugMsg(tag, 'valid hyp pose=%s angle=%.2f'%(pB.poseD.mode(), angle))
-            yield PoseHyp(pB, placedShadow)
+               legalPlace(npB.obj, placedShadow, shWorld):
+            debugMsg(tag, 'valid hyp pose=%s angle=%.2f'%(npB.poseD.mode(), angle))
+            yield PoseHyp(npB, placedShadow)
         else:
-            debugMsg(tag, 'invalid hyp pose=%s'%pB.poseD.mode())
+            debugMsg(tag, 'invalid hyp pose=%s'%npB.poseD.mode())
         if placed:
             placed = False              # only try placed this once
 
 # A shadow placement illegal if it collides with a fixed object.
-def legalPlace(obj, shadow, shadowWorld):
+def legalPlace(obj, shadow, shWorld):
     return not any(o.collides(shadow) for o in shWorld.getObjectShapes() \
                    if ((o.name() in shWorld.fixedObjects) and (o.name() != obj)))
 
 def poseGraspable(hyp, pbs, graspB, prob, hand, base):
     for gB in graspGen(pbs, graspB):
+        pB = hyp.pB
         grasp = gB.grasp.mode()
         cb = pbs.getConf()['pr2Base']
         # Try with a specified base
@@ -150,14 +155,22 @@ def poseGraspable(hyp, pbs, graspB, prob, hand, base):
             # try without specifying base
             c, ca, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, None, prob, nMax=1),
                             (None,None,None))
-        debugMsg('poseGraspable', 'v=%s'%v, 'pose=%s'%hyp.getPose(), 'grasp=%s'%grasp)
         if v:
             hyp.conf = ca
+            hyp.viol = v
+            pbs.draw(prob, 'W'); pB.shape(pbs).draw('W', 'green'); ca.draw('W', 'green')
+            debugMsg('poseGraspable', 'candiate won pose=%s'%pB.poseD.mode())            
             return hyp
+        else:
+            debugMsg('poseGraspable', 'candiate failed pose=%s'%pB.poseD.mode())
 
-def feasiblePBS(hyp, pbs):
+def feasiblePBS(hyp, pbs, prob):
     if pbs.conditions:
+        print '*** Testing feasibibility with conditions:'
+        for cond in pbs.conditions: print '    ', cond
         pbs = pbs.updatePlaceB(hyp.pB)
-        return pbs.feasible()           # check conditioned fluents
+        feasible = pbs.feasible(prob)   # check conditioned fluents
+        print '*** feasible =>', feasible
+        return feasible
     else:
         return True

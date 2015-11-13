@@ -11,12 +11,15 @@ from traceFile import debug, debugMsg, tr, trAlways
 from shapes import thingFaceFrames, drawFrame
 import hu
 from planUtil import ObjGraspB, ObjPlaceB, Violations, PoseD, PushResponse
-from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords, bboxRandomCoords, supportFaceIndex, inside
-from pr2GenTests import pushPath
-from pr2GenUtils import getRegions, getPoseAndSupport, fixed, chooseHandGen
+from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords, bboxRandomCoords,\
+     supportFaceIndex, inside, Memoizer
+from pr2GenTests import pushPath, objectGraspFrame, canPush
+from pr2GenUtils import getRegions, getPoseAndSupport, fixed, chooseHandGen, minimalConf
+from pr2GenGrasp import potentialGraspConfGen, graspConfForBase
 from pr2PlanBel import getGoalConf, getGoalPoseBels
 import mathematica
 reload(mathematica)
+from miscUtil import roundrobin
 import windowManager3D as wm
 
 # Pick poses and confs for pushing an object
@@ -80,7 +83,7 @@ def pushGenGen(args, pbs, cpbs):
     rightGen = pushGenTop((obj, placeB, 'right', prob),
                           pbs, cpbs)
     # Run the push generator with each of the hands
-    for ans in chooseHandGen(pbs, cpbs, obj, None, leftGen, rightGen):
+    for ans in chooseHandGen('push', pbs, cpbs, obj, None, leftGen, rightGen):
         yield ans
 
 def pushGenTop(args, pbs, cpbs,
@@ -131,7 +134,7 @@ def pushGenTop(args, pbs, cpbs,
         
     # Check the cache, otherwise call Aux
     pushGenCacheStats[0] += 1
-    key = (cpbs, placeB, hand, base, prob, partialPaths, away, update, glob.inHeuristic)
+    key = (cpbs, placeB, hand, base, prob, partialPaths, away, glob.inHeuristic)
     val = pushGenCache.get(key, None)
     if val != None:
         pushGenCacheStats[1] += 1
@@ -172,6 +175,10 @@ def choosePrim(shape):
 def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
                partialPaths=False, reachObsts=[]):
     tag = 'pushGen'
+
+    if glob.traceGen:
+        print '***', tag, hand
+
     # The shape at target, without any shadow
     shape = placeB.shape(cpbs.getWorld())
     if curPB:
@@ -268,13 +275,12 @@ def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
                 if count > maxPushPaths: break
             pose1 = placeB.poseD.mode()
             pose2 = appPose
-            if count == 0:
-                if debug('pushFail'):
+            if debug('pushFail'):
+                if count == 0:
                     print 'No push', direction[:2], 'between', pose1, pose2, 'with', hand, 'vert', vertical
-                    pdb.set_trace()
-                debugMsg(tag+'_fail', ('Could not find conf for push along', direction[:2]))
-            else:
-                print 'Found conf for push', direction[:2], 'between', pose1, pose2 
+                    debugMsg('pushFail', 'Could not find conf for push along %s'%direction[:2])
+                else:
+                    print 'Found conf for push', direction[:2], 'between', pose1, pose2 
         # Sort the push paths by violations
         sorted = sortedPushPaths(pushPaths, curPose)
         for i in range(min(len(sorted), maxDone)):
@@ -575,6 +581,10 @@ class PushInRegionGen(Function):
 
 def pushInRegionGenGen(args, pbs, cpbs, away = False, update=True):
     (obj, region, var, delta, prob) = args
+
+    if glob.traceGen:
+        print '***', 'pushInRegionGenGen', obj, region.name()
+
     tag = 'pushInGen'
     world = pbs.getWorld()
     # Get the regions
@@ -622,7 +632,7 @@ def pushInRegionGenGen(args, pbs, cpbs, away = False, update=True):
 
 pushVarIncreaseFactor = 3 # was 2
 
-def pushInGenAway(args, goalConds, pbs):
+def pushInGenAway(args, pbs):
     (obj, delta, prob) = args
     placeB = pbs.getPlaceB(obj, default=False)
     assert placeB, 'Need to know where object is to get support region'
@@ -634,9 +644,9 @@ def pushInGenAway(args, goalConds, pbs):
                             for x in pbs.domainProbs.obsVarTuple])
     # Pass in the goalConds to get reachObsts, but don't do the update of
     # the pbs, since achCanXGen has already done it.
-    for ans in pushInRegionGenGen((obj, regShape.name(),
+    for ans in pushInRegionGenGen((obj, regShape,
                                    targetPushVar, delta, prob),
-                                   goalConds, pbs, away=True, update=False):
+                                   pbs, pbs, away=True):
         yield ans
 
 def pushOut(pbs, prob, obst, delta):
@@ -689,7 +699,7 @@ def pushInGenTop(args, pbs, cpbs, away = False, update=True):
     rightGen = pushInGenAux(pbs, cpbs, prob, placeB, regShapes,
                             'right', away=away)
     # Figure out whether one hand or the other is required;  if not, do round robin
-    mainGen = chooseHandGen(pbs, cpbs, obj, None, leftGen, rightGen)
+    mainGen = chooseHandGen('push', pbs, cpbs, obj, None, leftGen, rightGen)
 
     # Picks among possible target poses and then try to push it in region
     for ans in mainGen:
@@ -709,7 +719,11 @@ def pushInGenAux(pbs, cpbs, prob, placeB, regShapes, hand,
     tag = 'pushInGen'
     shWorld = cpbs.getShadowWorld(prob)
     for pB in awayTargetPB(cpbs, prob, placeB, regShapes):
-        if feasiblePBS(pB): continue
+        if feasiblePBS(pB):
+            tr(tag, 'target is feasible:', pB)
+        else:
+            tr(tag, 'target is not feasible:', pB)
+            continue
         tr(tag, 'target', pB,
            draw=[(cpbs, prob, 'W'),
                  (pB.makeShadow(pbs, prob), 'W', 'pink')] \
@@ -809,17 +823,17 @@ def awayTargetPB(pbs, prob, placeB, regShapes):
     for vertical in (True, False):
         potentialContacts.extend(handContactFrames(prim, center, vertical))
     for regShape in regShapes:
-        for (vertical, contactFrame, width) in potentialContacts:
-            # This is z axis of face, push will be in that direction 
-            direction = contactFrame.matrix[:3,2].reshape(3).copy()
-            direction[2] = 0.0            # we want z component exactly 0.
-            for newPB in minDistInRegionPB(pbs, prob, placeB, direction, regShape):
-                if debug('pushInGen'):
-                    print 'pushInGen', 'direction', direction, 'newPB', newPB
-                    newShape = newPB.makeShadow(pbs, prob)
-                    pbs.draw(prob, 'W'); drawFrame(contactFrame); newShape.draw('W', 'magenta')
-                    raw_input('Go?')
-                yield newPB
+        # for (vertical, contactFrame, width) in potentialContacts:
+        #     # This is z axis of face, push will be in that direction 
+        #     direction = contactFrame.matrix[:3,2].reshape(3).copy()
+        #     direction[2] = 0.0            # we want z component exactly 0.
+        #     for newPB in minDistInRegionPB(pbs, prob, placeB, direction, regShape):
+        #         if debug('pushInGen'):
+        #             print 'pushInGen', 'direction', direction, 'newPB', newPB
+        #             newShape = newPB.makeShadow(pbs, prob)
+        #             pbs.draw(prob, 'W'); drawFrame(contactFrame); newShape.draw('W', 'magenta')
+        #             raw_input('Go?')
+        #         yield newPB
         for newPB in regionPB(pbs, prob, placeB, regShape):
             if debug('pushInGen'):
                 print 'pushInGen', 'directPush newPB', newPB

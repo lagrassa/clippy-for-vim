@@ -6,7 +6,7 @@ import numpy as np
 from planUtil import Violations, ObjPlaceB, ObjGraspB
 from pr2Util import shadowName, drawPath, objectName, PoseD, \
      supportFaceIndex, GDesc, inside, otherHand, graspable, pushable, permanent
-from pr2GenTests import inTest, canReachNB, canReachHome
+from pr2GenTests import inTest, canReachNB, canReachHome, canPush
 from dist import DeltaDist, probModeMoved
 from traceFile import debugMsg, debug, pause
 import planGlobals as glob
@@ -1061,9 +1061,8 @@ class CanSeeFrom(Fluent):
             (ans, occluders) = False, None
         else:
             # All object poses are permanent, no collisions can be ignored
-            newPBS = pbs.copy()
-            newPBS.updateFromGoalPoses(cond, permShadows=True)
-            placeB = newPBS.getPlaceB(obj)
+            cpbs = pbs.conditioned([], cond)
+            placeB = cpbs.getPlaceB(obj)
             # LPK! Forcing the variance to be very small.  Currently it's
             # using variance from the initial state, and then overriding
             # it based on conditions.  This is incoherent.  Could change
@@ -1073,9 +1072,9 @@ class CanSeeFrom(Fluent):
                 placeB.support = DeltaDist(poseFace)
             if placeB.poseD.mode() != pose and pose != '*':
                 placeB = placeB.modifyPoseD(mu=pose)
-            newPBS.updatePermObjBel(placeB)
-            newPBS.reset()   # recompute shadow world
-            shWorld = newPBS.getShadowWorld(p)
+            cpbs.updatePermObjBel(placeB)
+            cpbs.reset()   # recompute shadow world
+            shWorld = cpbs.getShadowWorld(p)
             shName = shadowName(obj)
             sh = shWorld.objectShapes[shName]
             fixed = []

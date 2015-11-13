@@ -79,7 +79,8 @@ def primPath(bs, cs, ce, p):
     if not(path):
         path, viols = canReachHome(bs, ce, p, Violations(),
                                    homeConf=cs, optimize=True)
-        path = path[::-1]               # reverse path
+        if path:
+            path = path[::-1]               # reverse path
     if path:
         if viols.weight() > 0 and onlyShadows(viols):
             print 'Shadow collision in primPath', viols
@@ -135,10 +136,10 @@ def moveNBPrim(args, details):
     (base, cs, ce, cd) = args
 
     bs = details.pbs.copy()
-    # Make all the objects be fixed
+    # Make all the objects be fixed, make sure we don't hit anything
     for o in bs.objectBs:
         bs.objectBs[o] = (True, bs.objectBs[o][1])
-    fixCS, cs = bs.getConf()
+    cs = bs.getConf()
     tr('prim', 'moveNBPrim (start, end)', confStr(cs), confStr(ce),
        pause = False)
     path, interpolated = primNBPath(bs, cs, ce, movePreProb)
@@ -150,10 +151,10 @@ def movePrim(args, details):
     (cs, ce, cd) = args
 
     bs = details.pbs.copy()
-    # Make all the objects be fixed
+    # Make all the objects be fixed, make sure we don't hit anything
     for o in bs.objectBs:
         bs.objectBs[o] = (True, bs.objectBs[o][1])
-    fixCS, cs = bs.getConf()
+    cs = bs.getConf()
     tr('prim', 'movePrim (start, end)', confStr(cs), confStr(ce),
        pause = False)
     path, interpolated = primPath(bs, cs, ce, movePreProb)
@@ -981,7 +982,6 @@ def placeBProgress(details, args, obs=None):
     else:
         raw_input('place face is DDist, should be int')
         pf = pf.mode()
-    assert not details.pbs.objectBs[o][0] # not fixed
     details.pbs.objectBs[o] = (False, ObjPlaceB(o, ff, pf, PoseD(p, gv)))
     details.pbs.reset()
     details.pbs.getShadowWorld(0)
@@ -1188,9 +1188,9 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
                          'Belief', 'magenta')],
                snap = ['Belief'])
 
-    details.pbs.updatelaceB(ObjPlaceB(objName, w.getFaceFrames(objName),
-                                      DeltaDist(oldPlaceB.support.mode()),
-                                      PoseD(hu.Pose(*newMu), newSigma)))
+    details.pbs.updatePlaceB(ObjPlaceB(objName, w.getFaceFrames(objName),
+                                       DeltaDist(oldPlaceB.support.mode()),
+                                       PoseD(hu.Pose(*newMu), newSigma)))
 
     if newP < 0.3:
         print 'Object has gotten lost and has very low probability in'
@@ -1882,26 +1882,26 @@ class AchCanPushGen(Function):
 # both ways.
 
 def achCanXGen(pbs, goal, originalCond, targetFluents, violFn, prob, tag):
-        allConds = list(originalCond) + targetFluents
-        newBS = pbs.conditioned(goal, allConds)
-        shWorld = newBS.getShadowWorld(prob)
-            
-        viol = violFn(newBS)
-        tr(tag, ('viol', viol), draw=[(newBS, prob, 'W')], snap=['W'])
-        if viol is None:                  # hopeless
-            trAlways('Impossible dream', pause = True); return []
-        if viol.empty():
-            tr(tag, '=> No obstacles or shadows; returning'); return []
+    allConds = list(originalCond) + targetFluents
+    newBS = pbs.conditioned(goal, allConds)
+    shWorld = newBS.getShadowWorld(prob)
 
-        if debug('nagLeslie'):
-            print 'need to see if base pose is specified and pass it in'
+    viol = violFn(newBS)
+    tr(tag, ('viol', viol), draw=[(newBS, prob, 'W')], snap=['W'])
+    if viol is None:                  # hopeless
+        trAlways('Impossible dream', pause = True); return []
+    if viol.empty():
+        tr(tag, '=> No obstacles or shadows; returning'); return []
 
-        lookG = lookAchCanXGen(newBS, shWorld, viol, violFn, prob)
-        # This used to pass in: allConds + goal, but already in newBS.
-        placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob)
-        pushG = pushAchCanXGen(newBS, shWorld, viol, violFn, prob)
-        # prefer looking
-        return itertools.chain(lookG, roundrobin(placeG, pushG))
+    if debug('nagLeslie'):
+        print 'need to see if base pose is specified and pass it in'
+
+    lookG = lookAchCanXGen(newBS, shWorld, viol, violFn, prob)
+    # This used to pass in: allConds + goal, but already in newBS.
+    placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob)
+    pushG = pushAchCanXGen(newBS, shWorld, viol, violFn, prob)
+    # prefer looking
+    return itertools.chain(lookG, roundrobin(placeG, pushG))
     
 
 def lookAchCanXGen(pbs, shWorld, initViol, violFn, prob):
@@ -1927,13 +1927,14 @@ def lookAchCanXGen(pbs, shWorld, initViol, violFn, prob):
            snap=['W'])
         face = placeB.support.mode()
         poseMean = placeB.poseD.modeTuple()
+        # set of fluents
         conds = frozenset([Bd([SupportFace([obst]), face, prob], True),
                            B([Pose([obst, face]), poseMean, objBMinVar,
                               lookDelta, prob], True)])
         resultBS = pbs.conditioned([], conds)
         resultViol = violFn(resultBS)
         if resultViol is not None and shadowName not in resultViol.allShadows():
-            yield [conds]
+            yield conds
         else:
             trAlways('Error? Looking could not dispel shadow')
     tr(tag, '=> Out of remedies')
@@ -1979,11 +1980,11 @@ def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob):
             poseVar = r.pB.poseD.varTuple()
 
             newConds = frozenset(
-                {Bd([SupportFace([obst]), supportFace, prob], True),
+                [Bd([SupportFace([obst]), supportFace, prob], True),
                  B([Pose([obst, supportFace]), poseMean, poseVar,
-                           moveDelta, prob], True)})
+                           moveDelta, prob], True)])
             print '*** moveOut', obst
-            yield [newConds]
+            yield newConds
     tr(tag, '=> Out of remedies')
 
 def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob):
@@ -2008,11 +2009,11 @@ def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob):
             prePoseVar = r.prePB.poseD.var
 
             newConds = frozenset(
-                {Bd([SupportFace([obst]), supportFace, prob], True),
+                [Bd([SupportFace([obst]), supportFace, prob], True),
                  B([Pose([obst, supportFace]), postPose, postPoseVar,
-                           moveDelta, prob], True)})
+                           moveDelta, prob], True)])
             print '*** pushOut', obst
-            yield [newConds]
+            yield newConds
     tr(tag, '=> Out of remedies')
     
 

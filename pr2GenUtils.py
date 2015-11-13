@@ -3,7 +3,7 @@ import hu
 from planUtil import ObjGraspB
 from traceFile import tr, debug, debugMsg
 from miscUtil import roundrobin
-from pr2Util import PoseD
+from pr2Util import PoseD, supportFaceIndex
 
 def fixed(value):
     return value and isinstance(value, tuple) and len(value) == 2 and value[0]
@@ -125,48 +125,63 @@ def findGraspConfEntries(conf):
             if confDelta(c, conf) < 0.001 or confDelta(ca, conf) < 0.001]
 
 
-def chooseHandGen(pbs, cpbs, obj, hand, leftGen, rightGen):
+# For action==place, pre-condition is Holding(hand) = obj
+# For action==push, pre-condition is Holding(hand) = 'none'
+# 1. Reject bindings for hand that would make the pre-condition inconsistent with the goal.
+# 2. Prefer bindings that would make the pre-condition "closer" to
+# current state, e.g. if a hand is empty it is a better candidate than
+# if it is full with a different object.
+
+def chooseHandGen(action, pbs, cpbs, obj, hand, leftGen, rightGen):
     tag = 'chooseHandGen'
+    assert action in ('place', 'push')
     assert not (pbs.useRight == False and hand == 'right')
     mustUseLeft = (hand == 'left' or not pbs.useRight)
     mustUseRight = (hand == 'right')
-
-    # What are we required to be holding
-    leftHeldInGoal = fixed(cpbs.held['left'])
-    rightHeldInGoal = fixed(cpbs.held['right'])
-
-    # What are we currently holding (heuristic value)
-    leftHeldNow = pbs.getHeld('left') != 'none'
-    rightHeldNow = pbs.getHeld('right') != 'none'
-
-    # Are we already holding the desired object
+    # Are we already holding the desired object?
     leftHeldTargetObjNow = pbs.getHeld('left') == obj
     rightHeldTargetObjNow = pbs.getHeld('right') == obj
-
+    # Are we currently holding something?
+    leftHeldNow = pbs.getHeld('left') != 'none'
+    rightHeldNow = pbs.getHeld('right') != 'none'
+    # For pushing, Holding(hand)='none' is equiv to unspecified
+    if action == 'place':
+        # What are we required to be holding (including 'none')?
+        leftHeldInGoal = fixed(cpbs.held['left'])
+        rightHeldInGoal = fixed(cpbs.held['right'])
+    elif action == 'push':
+        # What are we required to be holding (not including 'none')?
+        leftHeldInGoal = fixed(cpbs.held['left']) and cpbs.getHeld('left') != 'none'
+        rightHeldInGoal = fixed(cpbs.held['right']) and cpbs.getHeld('right') != 'none'
     if leftHeldInGoal and rightHeldInGoal:
-        # Both hands are busy!!
+        # Cannot be Holding(hand)=obj in goal, so it must be Holding(hand)=other
+        # Adding Holding(hand)=obj for either hand will be inconsistent
+        tr(tag, '=> Both hands already held in goal, fail')
         return []
-
     if mustUseLeft or rightHeldInGoal:
+        # Left hand is only choice
         if leftHeldInGoal:
-            tr(tag, 0, '=> Left held already in goal, fail')
+            tr(tag, '=> Must use left but left held already in goal, fail')
             return []
         else:
             gen = leftGen
     elif mustUseRight or leftHeldInGoal:
+        # Right hand is only choice
         if rightHeldInGoal:
-            tr(tag, 0, '=> Right held already in goal, fail')
+            tr(tag, '=> Must use right but right held already in goal, fail')
             return []
         else:
             gen = rightGen
     elif rightHeldTargetObjNow or (leftHeldNow and not leftHeldTargetObjNow):
-        # Try right hand first if we're holding something in the left
+        # Try right hand first if we're holding something else in the left or the target in the right.
         gen = roundrobin(rightGen, leftGen)
     elif leftHeldTargetObjNow or (rightHeldNow and not rightHeldTargetObjNow):
-        # Try right hand first if we're holding something in the left
+        # Try left hand first if we're holding something else in the right or the target in the left
         gen = roundrobin(leftGen, rightGen)
     else:
+        # Just prefer right hand
         gen = roundrobin(rightGen, leftGen)
+
     return gen
 
 def minimalConf(conf, hand):

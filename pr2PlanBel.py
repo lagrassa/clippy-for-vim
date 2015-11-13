@@ -22,6 +22,7 @@ from belief import B, Bd
 from traceFile import tr, trAlways
 from transformations import rotation_matrix
 from geom import bboxVolume
+from miscUtil import isVar
 
 Ident = hu.Transform(np.eye(4))            # identity transform
 
@@ -151,7 +152,7 @@ class PBS:
     def getPlacedObjBs(self):
         objectBs = {o:pB for (o, (fix,pB)) in self.objectBs.iteritems()}
         for hand in ('left', 'right'):
-            heldObj = self.held[hand]
+            heldObj = self.getHeld(hand)
             if heldObj in objectBs:
                 del objectBs[heldObj]
         return objectBs
@@ -159,7 +160,7 @@ class PBS:
         return self.held[hand][1]
     def getBase(self):
         return self.base[1] if self.base else None
-    def getTargetCond(self):
+    def getTargetConf(self):
         return self.targetConf[1] if self.targetConf else None
     def getGraspB(self, hand):
         return self.graspB[hand][1]
@@ -175,8 +176,9 @@ class PBS:
     def conditioned(self, goalConds, cond):
         newBS = self.copy()
         newBS = newBS.updateFromConds(goalConds)
-        newBS = newBS.updateFromConds(cond, permShadows=True)
-        newBS.conditions = [fluent for fluent in goalConds if fluent.conditional]
+        if cond:
+            newBS = newBS.updateFromConds(cond, permShadows=True)
+        newBS.conditions += [fluent for fluent in goalConds if fluent.conditional]
         return newBS
     def copy(self):
         def copyVal(x): return (x[0], x[1].copy())
@@ -184,9 +186,9 @@ class PBS:
                    self.graspB.copy(), self.objectBs.copy(),
                    self.regions, self.domainProbs, self.avoidShadow[:],
                    self.base, self.targetConf, self.conditions, self.poseModeProbs)
-    def feasible(self):
+    def feasible(self, prob):
         # Check that all the condotions are feasible.
-        return all(fl.feasible(self) for fl in self.conditions)
+        return all(fl.feasiblePBS(self, True, prob) for fl in self.conditions)
 
     # Updates
     def updateAvoidShadow(self, avoidShadow):
@@ -197,7 +199,8 @@ class PBS:
             if s not in self.avoidShadow:
                 self.avoidShadow = self.avoidShadow + [s]
         return self
-    def updateGraspB(self, obj, hand, gB):
+    def updateGraspB(self, hand, gB):
+        obj = gB.obj
         (_, held) = self.held[hand]
         (fix, _) = self.graspB[hand]
         if obj == held:
@@ -210,10 +213,10 @@ class PBS:
         entry = self.objectBs.get(obj, None)
         if entry:
             self.objectBs[obj] = (entry[0], pB)
-        elif obj == self.held['left']:
+        elif obj == self.getHeld('left'):
             self.updateHeld('none', None, None, 'left', None)
             self.objectBs[obj] = (False, pB)
-        elif obj == self.held['right']:
+        elif obj == self.getHeld('right'):
             self.updateHeld('none', None, None, 'right', None)
             self.objectBs[obj] = (False, pB)
         else:
@@ -269,23 +272,25 @@ class PBS:
         (held, graspB) = \
                getHeldAndGraspBel(goalConds, world.getGraspDesc)
         for h in ('left', 'right'):
-            if held[h]:
-                self.held[h] = (True, held[h][1])
-            if graspB[h]:
-                self.graspB[h] = (True, graspB[h][1])
+            if held[h] is not None:
+                self.held[h] = (True, held[h])
+            if graspB[h] is not None:
+                self.graspB[h] = (True, graspB[h])
         for gB in graspB.values():
-            if gB: self.excludeObjs([gB.obj])
+            if gB is not None: self.excludeObjs([gB.obj])
         for h in ('left', 'right'):
-            if self.getHeld(h) in goalPoseBels:
+            if held[h] in goalPoseBels:
                 # print 'Held object in pose conditions, removing from hand'
                 self.updateHeldBel(None, h)
         goalConf = getGoalConf(goalConds)
-        if goalConf:
-            self.updateConf(goalConf, fixed=True)
+        if goalConf is not None:
+            self.conf = (True, goalConf)
         base = getGoalBase(goalConds)
-        self.base = (True, base) if base else None
+        if base is not None:
+            self.base = (True, base)
         targetConf = getGoalTargetConf(goalConds)
-        self.targetConf = (True, targetConf) if targetConf else None
+        if targetConf is not None:
+            self.targetConf = (True, targetConf)
         self.objectBs.update({o:(True, pB) for (o, pB) in goalPoseBels.iteritems()})
         # The shadows of Pose(obj) in the cond are also permanent
         if permShadows:
@@ -302,21 +307,21 @@ class PBS:
 
     def ditherRobotOutOfCollision(self, p):
         count = 0
-        confViols = self.confViolations(self.conf, p)
+        confViols = self.confViolations(self.getConf(), p)
         while count < 100 and (confViols is None or confViols.obstacles or \
           confViols.heldObstacles[0] or confViols.heldObstacles[1]):
             count += 1
             if debug('dither'):
                 self.draw(p, 'W')
                 raw_input('go?')
-            base = self.conf['pr2Base']
+            base = self.getConf()['pr2Base']
             # Should consider motions in both positive and negative directions
             # It won't wonder away too far... TLP
             newBase = tuple([b + (random.random() - 0.5) * 0.01 * count\
                               for b in base])
-            newConf = self.conf.set('pr2Base', newBase)
+            newConf = self.getConf().set('pr2Base', newBase)
             self.updateConf(newConf)
-            confViols = self.confViolations(self.conf, p)
+            confViols = self.confViolations(self.getConf(), p)
         if count == 100:
             raise Exception, 'Failed to move robot out of collision'
 
@@ -365,7 +370,7 @@ class PBS:
         ws = self.getShadowWorld(shProb)   # minimal shadow
         # First check the robot for hard collisions.  Increase this to
         # give some boundary
-        confViols = self.confViolations(self.conf, shProb)
+        confViols = self.confViolations(self.getConf(), shProb)
         if dither and \
                confViols is None or confViols.obstacles or \
                confViols.heldObstacles[0] or confViols.heldObstacles[1]:
@@ -373,12 +378,12 @@ class PBS:
                      draw=[(self, 0.0, 'W')], snap=['W'])
             self.ditherRobotOutOfCollision(shProb)
             self.reset()
-            confViols = self.confViolations(self.conf, shProb)
+            confViols = self.confViolations(self.getConf(), shProb)
 
         # Now, see if the shadow of the object in the hand is colliding.
         # If so, reduce it.
         shProb = 0.98
-        confViols = self.confViolations(self.conf, shProb)
+        confViols = self.confViolations(self.getConf(), shProb)
         for h in (0, 1):
             colls = confViols.heldShadows[h]
             hand = ('left', 'right')[h]
@@ -395,9 +400,9 @@ class PBS:
                 gB = self.getGraspBForObj(self.held[hand], hand)
                 var = gB.poseD.variance()
                 newVar = tuple(v/factor for v in var)
-                self.updateGraspB(obj, hand, gB.modifyPoseD(var=newVar))
+                self.updateGraspB(hand, gB.modifyPoseD(var=newVar))
                 self.reset()
-                confViols = self.confViolations(self.conf, shProb)
+                confViols = self.confViolations(self.getConf(), shProb)
                 colls = confViols.heldShadows[h]
             
         # Now for shadow collisions;  reduce the shadow if necessary
@@ -419,7 +424,7 @@ class PBS:
                 newVar = tuple(v/factor for v in var)
                 self.updatePlaceB(pB.modifyPoseD(var=newVar))
             self.reset()
-            confViols = self.confViolations(self.conf, shProb)
+            confViols = self.confViolations(self.getConf(), shProb)
             shadows = confViols.allShadows()
 
         if not objChecks: return
@@ -428,7 +433,7 @@ class PBS:
         objShapes = [o for o in ws.getObjectShapes() \
                      if 'shadow' not in o.name()]
         n = len(objShapes)
-        fixed = self.fixObjBs()
+        fixed = [o.obj for o in self.fixObjBs()]
         for index in range(n):
             shape = objShapes[index]
             if debugMsg('collisionCheck'):
@@ -553,7 +558,7 @@ class PBS:
 
             if obj in self.avoidShadow:      # can't collide with these shadows
                 sw.fixedObjects.add(shadow.name())
-            if  obj in self.fixObjBs():   # can't collide with these objects
+            if self.objectBs.get(obj, (False, None))[0]:   # can't collide with these objects
                 sw.fixedObjects.add(shadowMin.name())
         # Add robot
         sw.robot = self.getRobot()
@@ -591,7 +596,7 @@ class PBS:
                     graspShadow = shadow.applyTrans(heldFrame)
                     graspShadowMin = shadowMin.applyTrans(heldFrame)
                     if debug('getShadowWorldGrasp'):
-                        cart = self.conf.cartConf()
+                        cart = self.getConf().cartConf()
                         wrist = cart[robot.armChainNames[hand]]
                         graspShadowMin.applyTrans(wrist).draw('W', 'red')
                         graspShadow.applyTrans(wrist).draw('W', 'gray')

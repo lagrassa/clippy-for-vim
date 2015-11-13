@@ -361,7 +361,10 @@ class PlanTest:
     def buildBelief(self, home=None, regions=frozenset([])):
         world = self.world
         belC = BeliefContext(world)
-        pr2Home = home or makeConf(world.robot, 0.0, 0.0, 0.0)
+        if isinstance(home, tuple):
+            pr2Home = makeConf(world.robot, home[0], home[1], home[2], vertical=True)
+        else:
+            pr2Home = home or makeConf(world.robot, 0.0, 0.0, 0.0)
         rm = RoadMap(pr2Home, world,
                      params={'kNearest':17, # May be too low
                              'kdLeafSize':100,

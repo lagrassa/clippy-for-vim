@@ -74,7 +74,7 @@ class BeliefState:
         s += '    Grasp stdev: %s\n'%(prettyStdev(gbr.poseD.varTuple())  if (gbr and gbr.poseD) else None)
         s += 'Objects:\n'
         for (name, (fix, stuff)) in self.pbs.objectBs.items():
-            s += name + '(fixed=%s)'%fix, + '\n'
+            s += name + '(fixed=%s)'%fix + '\n'
             s += '   prob: %s\n'%self.poseModeProbs[name]
             s += '   face: %s\n'%stuff.support
             s += '   pose: %s\n'%prettyString(stuff.poseD.meanTuple())

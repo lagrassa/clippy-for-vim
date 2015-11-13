@@ -468,17 +468,17 @@ class RoadMap:
         if ans is None:
             startTime = time.time()
             # trAlways('Calling RRT')
-            path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
-                                              maxIter=50, failIter=20, inflate=optimize)
+            for inflate in ((True, False) if optimize else (False,)):
+                path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
+                                                  maxIter=50, failIter=20, inflate=inflate)
+                if viol is not None: break
             runningTime = time.time() - startTime
             trAlways('RRT time', runningTime)
             if viol:
                 viol = viol.update(initViol)
             else:
                 trAlways('RRT failed')
-
                 print 'endPtViol', endPtViol
-                print 'shadowWorld', id(pbs.getShadowWorld(prob)), hash(pbs.getShadowWorld(prob))
                 for x in pbs.getShadowWorld(prob).objectShapes.values(): print x
                 raw_input('RRT failed')
 
@@ -1541,8 +1541,8 @@ def bsEntails(bs1, p1, cacheValues, loose=False):
     return None
 
 def bsBigger(bs1, p1, bs2, p2):
-    (held1, grasp1, conf1, avoid1, fix1, move1) = bs1.items()
-    (held2, grasp2, conf2, avoid2, fix2, move2) = bs2.items()
+    (held1, grasp1, conf1, base1, tconf1, avoid1, obj1) = bs1.items()
+    (held2, grasp2, conf2, base2, tconf2, avoid2, obj2) = bs2.items()
     if held1 != held2:
         if debug('confReachViolCache'):
             print 'held are not the same'
@@ -1555,12 +1555,16 @@ def bsBigger(bs1, p1, bs2, p2):
             print '    avoid1', avoid1
             print '    avoid2', avoid2
         return False
+    fix1 = frozenset([(o,pB) for (o, (fix, pB)) in obj1 if fix])
+    fix2 = frozenset([(o,pB) for (o, (fix, pB)) in obj2 if fix])
     if not placesBigger(fix1, p1, fix2, p2):
         if debug('confReachViolCache'):
             print 'fix1 is not superset of fix2'
             print '    fix1', fix1
             print '    fix2', fix2
         return False
+    move1 = frozenset([(o,pB) for (o, (fix, pB)) in obj1 if not fix])
+    move2 = frozenset([(o,pB) for (o, (fix, pB)) in obj2 if not fix])
     if not placesBigger(move1, p1, move2, p2):
         if debug('confReachViolCache'):
             print 'move1 is not superset of move2'
@@ -1568,8 +1572,8 @@ def bsBigger(bs1, p1, bs2, p2):
             print '    move2', move2
         return False
     if grasp1 != grasp2:
-        gr1 = dict(list(grasp1))
-        gr2 = dict(list(grasp2))
+        gr1 = dict([(o,gB) for (o, (fix, gB)) in grasp1])
+        gr2 = dict([(o,gB) for (o, (fix, gB)) in grasp2])
         if not graspBigger(gr1, p1, gr2, p2):
             if debug('confReachViolCache'):
                 print 'grasp1 is not bigger than grasp2'

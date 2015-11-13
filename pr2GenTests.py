@@ -1,4 +1,5 @@
 import pdb
+import math
 import numpy as np
 import hu
 import time
@@ -7,10 +8,11 @@ from transformations import rotation_matrix
 import planGlobals as glob
 from traceFile import debugMsg, debug, tr
 from pr2Robot import gripperFaceFrame
-from planUtil import Violations
-from pr2Util import shadowName, objectName 
+from planUtil import Violations, ObjPlaceB, ObjGraspB
+from pr2Util import shadowName, objectName, permanent, inside, PoseD, GDesc, otherHand
 from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
 from pr2RRT import planRobotGoalPath, interpolatePath
+import windowManager3D as wm
 
 Ident = hu.Transform(np.eye(4))            # identity transform
 tiny = 1.0e-6
@@ -511,7 +513,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand,
         if debug(tag):
             for (ig, obst) in reachObsts: obst.draw('W', 'orange')
             print '->', reason, gloss, 'path len=', len(safePathViols)
-            if pause(tag): raw_input(reason)
+            debugMsg(reason)
         ans = (safePathViols, reason)
         if cache: pushPathCache[key].append((pbs, prob, gB, ans))
         return ans

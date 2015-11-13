@@ -21,7 +21,7 @@ graspConfClear = 0.001
 # Preferences:  grasp conf close to current conf
 
 def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob,
-                          nMax=None, findApproach=True):
+                          nMax=10, findApproach=True):
     tag = 'potentialGraspConfs'
     grasp = graspB.grasp.mode()
     # When the grasp is -1 (a push), we need the full grasp spec.
@@ -54,7 +54,7 @@ class GraspConfHyp(object):
 
 # Generator for grasp confs
 def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
-                             nMax=None, findApproach = True):
+                             nMax=10, findApproach = True):
     def validTestFn(hyp):
         return True
     def costFn(hyp):
@@ -126,7 +126,7 @@ def baseCollision(pbs, prob, basePose, counts=None):
             if debug('baseCollision'):
                 pbs.draw(prob, 'W')
                 obst.draw('W', 'magenta'); baseShape.draw('W', 'magenta')
-            tr(tag, 'Base collides with permanent', perm)
+            tr('baseCollision', 'Base collides with permanent', perm)
             return True
     return False
 
@@ -141,7 +141,7 @@ def gripperCollision(pbs, prob, conf, hand, wrist, counts=None):
             if debug('gripperCollision'):
                 pbs.draw(prob, 'W')
                 obst.draw('W', 'magenta'); gripperShape.draw('W', 'magenta')
-            tr(tag, 'Hand collides with permanent', perm)
+            tr('gripperCollision', 'Hand collides with permanent', perm)
             return True
     return False
 
@@ -204,7 +204,7 @@ def graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                            wrist=wrist, counts=counts)
     if ans:
         count += 1
-        yield ans
+        yield GraspConfHyp(*ans)
     # Try the rest
     # TODO: Sample subset?
     for basePose in robot.potentialBasePosesGen(wrist, hand):

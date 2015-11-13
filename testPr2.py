@@ -96,6 +96,7 @@ defaultArgs = {'hpn' : True,
                'skeleton' : None,
                'easy' : False,
                'multiplier' : 6,
+               'home' : None,
                'initBelief' : None,
                'initWorld' : None}
 
@@ -128,7 +129,8 @@ def test0(**args):
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
     goal = inRegion(['objA'], 'table1Left')
     # pick/place, flat
-    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), move, 
+    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), move,              
              place.applyBindings({'Obj' : 'objA'}),
              move, pick, moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}),
@@ -291,8 +293,17 @@ def test5(**args):
 ######################################################################
 
 def test6(**args):
+    skel = [[pick.applyBindings({'Obj' : 'objA'}),
+             moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
+             moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
+             move, place.applyBindings({'Obj' : 'objB'}), move,
+             achCanReach, 
+             lookAt.applyBindings({'Obj' : 'table1'}),
+             move]]
     # Can't have higher target prob unless we can look at hand
     goal = holding('objA', 'left', 2, goalProb=0.7)
+    if 'skeleton' in args and args['skeleton']:
+        args['skeleton'] = skel
     testWithBInHand('test6', goal, args = args)
     
 ######################################################################
@@ -383,6 +394,10 @@ def test11(**args):
 def changePose(bs, rw, obj, pose):
     origPose = rw.getObjectPose(obj)
     rw.setObjectPose(obj, hu.Pose(pose.x, pose.y, origPose.z, pose.theta))
+
+def changeBelPose(bs, obj, pose, var=None):
+    pB = bs.pbs.getPlaceB(obj)
+    bs.pbs.updatePlaceB(pB.modifyPoseD(pose, var=var))
 
 ######################################################################
 # Test Swap
@@ -582,7 +597,10 @@ def testPush(name, objName, startPose, targetReg, **args):
     return doTest(name, exp, goal, skel, args)
 
 def testPush0(objName='bigA', **args):
-    skel = [[lookAt, move, push, moveNB, lookAt, moveNB, achCanPush, move, achCanReach, move]]
+    skel = [[poseAchIn,
+             lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), move,
+             push, moveNB, lookAt, moveNB, achCanPush, move, achCanReach, move]]
     args['skeleton'] = skel if 'skeleton' in args else None
     testPush('testPush0', objName,
              hu.Pose(1.1, 0.0, tZ, 0.0),
@@ -627,10 +645,12 @@ def testPushShelves(name, objName, startPose, targetReg,
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    'coolShelves' : (coolShelvesPose, smallVar)
                    },
-                  {objName : (startPose, medVar),
+                  {objName : (startPose, medVar), 
                    'objB' : (startPoseB, medVar)},
-                  ['table1Top', targetReg], easy=args.get('easy', False))
+                  ['table1Top', targetReg],
+                  easy=args.get('easy', False))
     goal = inRegion(objName, targetReg)
+    # goal = inRegion([objName, 'objB'], targetReg) # DEBUGGING
     # pick and place!
     skel = [[lookAt, move, place, move, 
              pick, moveNB, lookAt, moveNB, lookAt, move]]

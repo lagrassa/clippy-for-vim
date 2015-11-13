@@ -416,6 +416,8 @@ def getOverlap(vl1, vl2, dl1, dl2):
 # Needs special treatment in regression to take the binding of
 # 'NewCond' and add it to the preconditions
 
+# assumes generator returns a list of lists (or sets) of fluents
+
 class BMetaOperator(Operator):
     def __init__(self, name, fluentClass, args, generator,
                  argsToPrint = None):
@@ -605,7 +607,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
             result = hCacheEntailsSet(fUp)
             if result:
                 if fp is not None: writeHNode(fp, g, cost, l2CacheStyle)
-                print 'L2'
+                # print 'L2'
                 (cost, ops) = result
         # At a leaf.  Use static eval.
         if cost == None and k == 0:

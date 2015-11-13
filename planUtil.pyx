@@ -280,7 +280,7 @@ class PPResponse:
         obj = (self.pB or self.gB).obj
         pose = self.pB.poseD.mode().xyztTuple() if self.pB else None
         grasp = self.gB.grasp.mode() if self.gB else None
-        pg = (self.pB.support.mode(), grasp)
+        pg = (self.pB.support.mode(), grasp) if self.pB else (None, grasp)
         w = self.viol.weight() if self.viol else None
         return '%s %s v=%s (p,g)=%s, pose=%s'%(obj, self.hand, w, pg, pose)
     def draw(self, window, pbs, prob=0.9):
