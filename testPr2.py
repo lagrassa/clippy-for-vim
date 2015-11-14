@@ -406,7 +406,7 @@ def changeBelPose(bs, obj, pose, var=None):
 
 def testSwap(hardSwap = False, **args):
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    back = hu.Pose(1.4, 0.0, tZ, 0.0)
+    back = hu.Pose(1.3, 0.0, tZ, 0.0)
     mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
     parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
     parking2 = hu.Pose(0.95, -0.3, tZ, 0.0)
@@ -418,9 +418,9 @@ def testSwap(hardSwap = False, **args):
     exp = makeExp(perm,
                   {'objA' : (back, medVar),
                    'objB' : (front, medVar)},
-                  ['table1Top', 'table2Top', 'table1MidFront',
-                   'table1MidRear'], easy=args.get('easy', False))
-    goal = inRegion(['objA', 'objB'], ['table1MidFront', 'table1MidRear'])
+                  ['table1Top', 'table2Top', 'table1MidFrontThird',
+                   'table1MidCenterThird'], easy=args.get('easy', False))
+    goal = inRegion(['objA', 'objB'], ['table1MidFrontThird', 'table1MidCenterThird'])
     # A on other table
     goal1 = inRegion('objA', 'table2Top')
     skel1 = [[poseAchIn, 
