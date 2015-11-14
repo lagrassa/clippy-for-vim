@@ -1113,7 +1113,8 @@ def obsDist(details, obj):
     var = objBel.poseD.variance()
     obsCov = [v1 + v2 for (v1, v2) in zip(var, obsVar)]
     obsPoseD = MultivariateGaussianDistribution(np.mat(poseMu).T,
-                                                makeDiag(obsCov))
+                                                makeDiag(obsCov),
+                                                pose4 = True)
     return obsPoseD, poseFace
 
 def scoreAssignment(obsAssignments, scores):
@@ -1783,6 +1784,7 @@ lookAtHand = Operator(\
 # Returns an operator and the new condition that should be added to the
 # conditional operator by this fluent.
 
+# Generator whose elements are a list containing lists (or sets) of fluents
 class AchCanReachGen(Function):
     @staticmethod
     def fun(args, goal, start):
@@ -1792,15 +1794,16 @@ class AchCanReachGen(Function):
         def violFn(pbs):
             p, v = canReachHome(pbs, conf, prob, Violations())
             return v
-        for newCond in \
+        for newConds in \
               achCanXGen(start.pbs, goal, cond, [crhFluent], violFn, prob, tag):
-            if not State(goal).isConsistent(newCond):
+            if not State(goal).isConsistent(newConds):
                 print 'AchCanReach suggestion inconsistent with goal'
                 for c in newCond: print c
                 debugMsg(tag, 'Inconsistent')
             else:
-                yield [newCond]
+                yield [newConds]
 
+# Generator whose elements are a list containing lists (or sets) of fluents
 class AchCanReachNBGen(Function):
     @staticmethod
     def fun(args, goal, start):
@@ -1811,15 +1814,16 @@ class AchCanReachNBGen(Function):
         def violFn(pbs):
             p, v = canReachNB(pbs, startConf, endConf, prob, Violations())
             return v
-        for newCond in \
+        for newConds in \
               achCanXGen(start.pbs, goal, cond, [crFluent], violFn, prob, tag):
-            if not State(goal).isConsistent(newCond):
+            if not State(goal).isConsistent(newConds):
                 print 'AchCanReachNB suggestion inconsistent with goal'
-                for c in newCond: print c
+                for c in newConds: print c
                 debugMsg(tag, 'Inconsistent')
             else:
-                yield [newCond]
+                yield [newConds]
 
+# Generator whose elements are a list containing lists (or sets) of fluents
 class AchCanPickPlaceGen(Function):
     @staticmethod
     def fun(args, goal, start):
@@ -1847,9 +1851,17 @@ class AchCanPickPlaceGen(Function):
             v, r = canPickPlaceTest(pbs, preconf, ppconf, hand,
                                     graspB, placeB, prob, op=op)
             return v
-        return achCanXGen(start.pbs, goal, cond, addedConditions,
-                          violFn, prob, tag)
+        for newConds in \
+              achCanXGen(start.pbs, goal, cond, addedConditions,
+                         violFn, prob, tag):
+            if not State(goal).isConsistent(newConds):
+                print 'AchCanReachNB suggestion inconsistent with goal'
+                for c in newConds: print c
+                debugMsg(tag, 'Inconsistent')
+            else:
+                yield [newConds]
 
+# Generator whose elements are a list containing lists (or sets) of fluents
 class AchCanPushGen(Function):
     @staticmethod
     def fun(args, goal, start):
@@ -1872,9 +1884,16 @@ class AchCanPushGen(Function):
                                    poseVar,
                                    poseDelta, prob, Violations())
             return v
-        return achCanXGen(start.pbs, goal, cond, [cpFluent, poseFluent],
-                          violFn, prob, tag)
-
+        for newConds in \
+               achCanXGen(start.pbs, goal, cond, [cpFluent, poseFluent],
+                                      violFn, prob, tag):
+            if not State(goal).isConsistent(newConds):
+                print 'AchCanReachNB suggestion inconsistent with goal'
+                for c in newConds: print c
+                debugMsg(tag, 'Inconsistent')
+            else:
+                yield [newConds]
+        return 
     
 # violFn specifies what we are trying to achieve tries all the ways we
 # know how to achieve it targetFluents are the declarative version of

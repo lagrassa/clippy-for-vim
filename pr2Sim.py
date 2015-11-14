@@ -115,7 +115,8 @@ class RealWorld(WorldState):
                       0.0,
                       (dispAngle * odoError[3])**2)
             # Draw the noise with zero mean and this variance
-            baseOff = hu.Pose(*MVG((0.,0.,0.,0.), np.diag(odoVar)).draw())
+            baseOff = hu.Pose(*MVG((0.,0.,0.,0.), np.diag(odoVar),
+                                   pose4 = True).draw())
             # Apply the noise to the nominal displacement
             dispNoisy = baseOff.compose(disp)
             # Apply the noisy displacement to the "actual" robot location
@@ -332,7 +333,8 @@ class RealWorld(WorldState):
                     continue
                 else:
                     obsVar = self.domainProbs.obsVar
-                    obsPose = hu.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
+                    obsPose = hu.Pose(*MVG(truePose.xyztTuple(), obsVar,
+                                           True).draw())
                     obsPlace = obsPose.compose(ff).pose().xyztTuple()
                     obs.append((objType, trueFace, hu.Pose(*obsPlace)))
         tr('sim', 'Observation', obs)

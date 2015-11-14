@@ -537,14 +537,17 @@ def fixSigma(sigma, ridge = 0):
     return sigma
 
 # Uses numpy matrices
+# pose4 is a big hack to deal with a case when the last element is a rotation
 class MultivariateGaussianDistribution:
-    def __init__(self, mu, sigma):
+    def __init__(self, mu, sigma, pose4 = False):
         self.mu = mat(mu)       # column vector
         self.sigma = fixSigma(mat(sigma))     # square pos def matrix
+        self.pose4 = pose4
 
     def copy(self):
         return MultivariateGaussianDistribution(np.copy(self.mu),
-                                                np.copy(self.sigma))
+                                                np.copy(self.sigma),
+                                                self.pose4)
 
     def prob(self, v):
         d = len(v)
@@ -552,20 +555,28 @@ class MultivariateGaussianDistribution:
         diff = v - self.mu
         if diff.shape == (1, 4):
             diff = diff.T
+        if self.pose4:
+            diff[3][0] = fixAnglePlusMinusPi(diff[3][0])
         return exp(-0.5 * diff.T * self.sigma.I * diff) / norm
 
     def logProb(self, v):
         d = len(v)
         norm = math.sqrt((2 * math.pi)**d * linalg.det(self.sigma))
         diff = v - self.mu
+        if diff.shape == (1, 4):
+            diff = diff.T
+        if self.pose4:
+            diff[3][0] = fixAnglePlusMinusPi(diff[3][0])
         return -0.5 * diff.T * self.sigma.I * diff - np.log(norm)
     
     def marginal(self, indices):
+        assert not self.pose4
         mmu = self.mu.take(indices).T
         mcov = self.sigma.take(indices, axis = 0).take(indices, axis = 1)
         return MultivariateGaussianDistribution(mmu, mcov)
 
     def conditional(self, indices2, values2, indices1, xadd = op.add):
+        assert not self.pose4
         # Mean of indices1, conditioned on indices2 = values2
         mu1 = self.mu.take(indices1).T
         mu2 = self.mu.take(indices2).T
@@ -579,6 +590,7 @@ class MultivariateGaussianDistribution:
         return MultivariateGaussianDistribution(mu1g2, sigma1g2)
 
     def difference(self, indices1, indices2, xadd = op.add):
+        assert not self.pose4
         # dist of indices1 - indices2
         mu1 = self.mu.take(indices1).T
         mu2 = self.mu.take(indices2).T
@@ -592,6 +604,7 @@ class MultivariateGaussianDistribution:
         return MultivariateGaussianDistribution(mudiff, sigmadiff)
 
     def corners(self, p, xadd = op.add, noZ = False):
+        assert not self.pose4
         # Generate points along each major axis
         pts = []
         if noZ:
@@ -634,6 +647,7 @@ class MultivariateGaussianDistribution:
         return tuple([self.sigma[i,i] for i in range(self.sigma.shape[0])])
 
     def pnm(self, deltas):
+        assert not self.pose4
         # Amount of probability mass within delta of mean. Treating
         # the dimensions independently; deltas is a vector; returns
         # a vector of results
@@ -641,6 +655,7 @@ class MultivariateGaussianDistribution:
                 for i in range(len(deltas))]
 
     def pn(self, value, deltas):
+        assert not self.pose4
         # Amount of probability mass within delta of value
         # Value is a column vector of same dim as mu; so is delta
         return [gaussPN(value[i], deltas[i], float(self.mu[i]), 
@@ -649,6 +664,7 @@ class MultivariateGaussianDistribution:
 
     # Special hack for when we know this is a vector of poses
     def pnPoses(self, value, deltas):
+        assert not self.pose4
         # Amount of probability mass within delta of value
         # Value is a column vector of same dim as mu; so is delta
         result = []
@@ -666,44 +682,23 @@ class MultivariateGaussianDistribution:
     def draw(self):
         return np.random.multivariate_normal(self.mu.flat, self.sigma)
 
-    '''
-    def drawEllipse(self):
-        if len(self.mu) != 2:
-            print 'Can only draw 2D distributions'
-        points = self.corners(0.9)
-        print points
-        (eigVals, eigVecs) = linalg.eig(self.sigma)
-        e = Ellipse(xy = self.mu,
-                    width = 2*math.sqrt(eigVals[0]),
-                    height = 2*math.sqrt(eigVals[1]),
-                angle = math.atan2(eigVecs[1,0], eigVecs[0,0])* 180 / math.pi)
-        e.set_facecolor('blue')
-        fig = figure()
-        ax = fig.add_subplot(111, aspect='equal')
-        ax.add_artist(e)
-        ax.plot([float(p[0]) for p in points[0:2]],
-                [float(p[1]) for p in points[0:2]], 'ro')
-        ax.plot([float(p[0]) for p in points[2:4]],
-                [float(p[1]) for p in points[2:4]], 'go')
-        ax.set_xlim(-3, 3)
-        ax.set_ylim(-3, 3)
-        fig.show()
-    '''
-
     def kalmanTransUpdate(mvg, u, transSigma):
+        assert not self.pose4
         mu = mvg.mu + u
         sigma = mvg.sigma + transSigma
         return MultivariateGaussianDistribution(mu, sigma)
 
     def kalmanObsUpdate(mvg, obs, obsSigma):
         innovation = np.transpose(obs - mvg.mu)
+        if self.pose4:
+            innovation[0][4] = fixAnglePlusMinusPi(innovation[0][4])
         innovation_covariance = mvg.sigma + obsSigma
         kalman_gain = mvg.sigma * np.linalg.inv(innovation_covariance)
         size = mvg.mu.shape[1]
         mu = np.transpose(np.transpose(mvg.mu) + \
                                  kalman_gain * innovation)
         sigma = (np.eye(size)-kalman_gain)*mvg.sigma
-        return MultivariateGaussianDistribution(mu, sigma)
+        return MultivariateGaussianDistribution(mu, sigma, self.pose4)
 
     def __str__(self):
         return 'G('+prettyString(self.mu)+','+prettyString(self.sigma)+')'

@@ -518,7 +518,7 @@ def placeGenAux(cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         return canPickPlaceTest(cpbs, ca, c, hand, gB, pB, prob,
                                 op='place', quick=quick)
     def currentGrasp(gB):
-        pdb.set_trace()
+        # pdb.set_trace()
         if obj == pbsOrig.getHeld(hand):
             currGraspB = pbsOrig.getGraspB(hand)
             return  (gB.grasp.mode() == currGraspB.grasp.mode()) and \
