@@ -326,9 +326,14 @@ class RealWorld(WorldState):
                 trueFace = supportFaceIndex(self.objectShapes[curObj])
                 tr('sim', 'Observed face=%s, pose=%s'%(trueFace, truePose.xyztTuple()))
                 ff = self.objectShapes[curObj].faceFrames()[trueFace]
-                obsMissProb = self.domainProbs.obsTypeErrProb
-                miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
-                if miss:
+                failProb = self.domainProbs.obsTypeErrProb
+                if debug('simulateFaiure'):
+                    success = DDist({True : 1 - failProb, False : failProb}).draw()
+                    if not success:
+                        print '*** Simulated look failure ***'
+                else:
+                    success = True
+                if not success:
                     tr('sim', 'Missed observation')
                     continue
                 else:
@@ -358,7 +363,12 @@ class RealWorld(WorldState):
             'PreConf', 'ConfDelta', 'PickConf', 'RealGraspVar', 'PoseVar',
             'P1', 'PR1', 'PR2', 'PR3']
         failProb = self.domainProbs.pickFailProb
-        success = DDist({True : 1 - failProb, False : failProb}).draw()
+        if debug('simulateFaiure'):
+            success = DDist({True : 1 - failProb, False : failProb}).draw()
+            if not success:
+                print '*** Simulated pick failure ***'
+        else:
+            success = True
 
         # Try to execute pick
         (hand, pickConf, approachConf) = \
@@ -412,7 +422,12 @@ class RealWorld(WorldState):
 
     def executePlace(self, op, params):
         failProb = self.domainProbs.placeFailProb
-        success = DDist({True : 1 - failProb, False : failProb}).draw()
+        if debug('simulateFaiure'):
+            success = DDist({True : 1 - failProb, False : failProb}).draw()
+            if not success:
+                print '*** Simulated place failure ***'
+        else:
+            success = True
         if success:
             # Execute the place prim, starting at c1, aiming for c2.
             # Every kind of horrible, putting these indices here..
@@ -473,10 +488,12 @@ class RealWorld(WorldState):
             self.pushObject(obj, prevConf, conf, hand, deltaPose)
 
         failProb = self.domainProbs.pushFailProb
-        success = DDist({True : 1 - failProb, False : failProb}).draw()
-        if not success:
-            print 'Ignoring a random push path failure!'
-        success = True
+        if debug('simulateFaiure'):
+            success = DDist({True : 1 - failProb, False : failProb}).draw()
+            if not success:
+                print '*** Simulated push failure ***'
+        else:
+            success = True
         if success:
             # Execute the push prim
             if params:

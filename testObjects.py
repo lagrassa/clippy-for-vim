@@ -130,6 +130,22 @@ glob.objectSymmetries['solidTable'] = sym2
 glob.objectTypes['solidTable'] = 'solidTable'
 glob.constructor['solidTable'] = makeSolidTable
 
+def makeChute(dx=0.2, dy=0.298, dz=0.3, name='chute', width=0.04, color = 'brown'):
+    chute = [\
+        Ba([(-dx, dy-width, 0.0), (dx, dy, dz)],
+           name=name+ 'back', color=color),
+        Ba([(-dx,      -dy, 0.0),
+            (-dx+width, dy, dz)],
+           name=name+' side 1', color=color),
+        Ba([(dx-width, -dy, 0.0),
+            (dx,       dy, dz)],
+           name=name+' side 2', color=color)
+        ]
+    return (Sh(chute, name = name, color=color), [])
+glob.objectSymmetries['chute'] = sym0
+glob.objectTypes['chute'] = 'chute'
+glob.constructor['chute'] = makeChute
+
 tZ = 0.68                               # table height + 0.01
 def makeLegTable(dx=0.603, dy=0.30, dz=0.67, name='table1', width=0.1, color = 'orange'):
     reg = [Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name+'Top', color=color),
