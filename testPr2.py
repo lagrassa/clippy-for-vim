@@ -429,8 +429,8 @@ def testSwap(hardSwap = False, **args):
     # A and B on other table
     goal2 = inRegion(['objA', 'objB'], 'table2Top')
     # B in back
-    goal3 = inRegion('objB', 'table1MidRear')
-    actualGoal = goal if hardSwap else goal3
+    goal3 = inRegion('objB', 'table1MidCenterThird')
+    actualGoal = goal if hardSwap else goal1
     skel = None
     return doTest('testSwap', exp, actualGoal, skel, args)
 
