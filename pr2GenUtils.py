@@ -10,6 +10,7 @@ def fixed(value):
 
 def sortedHyps(hypGen, validTestFn, costFn, maxHyps, maxTries,
               minCost = 0., size = 10):
+    tag = 'sortedHyps'
     costHistory = []
     hypHistory = []
     historySize = min(size, maxHyps)    # used to be 5 or 20
@@ -18,8 +19,10 @@ def sortedHyps(hypGen, validTestFn, costFn, maxHyps, maxTries,
     while count < maxHyps and tries < maxTries:
         tries += 1
         hyp = next(hypGen, None)
+        if debug(tag): print 'hyp', hyp
         if hyp and validTestFn(hyp):
             cost = costFn(hyp)
+            if debug(tag): print 'hyp cost', cost
         elif len(costHistory) > 0:
             # return some previous hyp
             minIndex = costHistory.index(min(costHistory))
@@ -28,17 +31,20 @@ def sortedHyps(hypGen, validTestFn, costFn, maxHyps, maxTries,
             del costHistory[minIndex]
             del hypHistory[minIndex]
             count += 1
+            if debug(tag): print 'yield hyp', hyp, 'with cost', hypCost
             yield hyp
             continue
         else:
-            return
+            continue                    # keep trying
         assert hyp                      # we have a hyp and it's valid
         if cost == minCost:             # best possible, so yield it
             hypCost = cost
+            if debug(tag): print 'yield min hyp cost', hypCost
         elif len(costHistory) < historySize:
             # build up the history
             costHistory.append(cost)
             hypHistory.append(hyp)
+            if debug(tag): print 'save hyp and keep looking'
             continue
         elif cost > min(costHistory):
             minIndex = costHistory.index(min(costHistory))
@@ -46,7 +52,9 @@ def sortedHyps(hypGen, validTestFn, costFn, maxHyps, maxTries,
             hypCost = costHistory[minIndex]
             costHistory[minIndex] = cost
             hypHistory[minIndex] = hyp
+            if debug(tag): print 'yield best hyp so far', hyp, 'with cost ', hypCost
         else:                           # cost <= min(costHistory)
+            if debug(tag): print 'yield hyp with cost', hypCost
             hypCost = cost
         count += 1
         yield hyp
@@ -65,6 +73,12 @@ def graspGen(pbs, graspB, placeB=None, conf=None, hand=None, prob=None):
     obj = graspB.obj
     grasps = list(graspB.grasp.support())
     random.shuffle(grasps)
+    inHand = hand and obj == pbs.getHeld(hand)
+    if inHand:
+        # Put current grasp first
+        gB = pbs.getGraspB(hand)
+        currGrasp = gB.grasp.mode()
+        grasps = [currGrasp] + [g for g in grasps if g != currGrasp]
     for grasp in grasps:
         if debug('graspGen'):
             print 'graspGen: Generating grasp=', grasp
@@ -75,6 +89,13 @@ def graspGen(pbs, graspB, placeB=None, conf=None, hand=None, prob=None):
                              graspB.poseD.var),
                        delta=graspB.delta)
         yield gB
+
+def currentGrasp(pbs, gB, hand):
+    if gB.obj == pbs.getHeld(hand):
+        currGraspB = pbs.getGraspB(hand)
+        return  (gB.grasp.mode() == currGraspB.grasp.mode()) and \
+               gB.poseD.mode().near(currGraspB.poseD.mode(), .01, .01)
+    return False
 
 ###### Helpers for XinGen
 

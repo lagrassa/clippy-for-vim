@@ -133,7 +133,7 @@ def easyGraspGenAux(cpbs, placeB, graspB, hand, prob, oldFace, oldGrasp):
     if debug(tag): print 'easyGraspGenAux'
     obj = placeB.obj
     approached = {}
-    for gB in graspGen(cpbs, graspB):
+    for gB in graspGen(cpbs, graspB, hand=hand):
         if gB.grasp.mode() == oldFace and gB.poseD.modeTuple() == oldGrasp:
             tr(tag, 'Rejected %s because same'%gB)
             continue
@@ -416,12 +416,7 @@ def placeGenGen(args, pbs, cpbs):
             tr(tag, '=> unspecified pose with same base constraint, failing')
             return
         assert not isVar(hand)
-        
-        # Just placements specified in goal (and excluding obj)
-        # placeInGenAway does not do this when calling placeGen
-        newBS = cpbs.copy().excludeObjs([obj])
-        # v is viol
-        for ans in placeInGenAway((obj, objDelta, prob), newBS):
+        for ans in placeInGenAway((obj, objDelta, prob), cpbs):
             yield ans
         return
 
@@ -502,28 +497,21 @@ def placeGenTop(args, pbs, cpbs, regrasp=False, away=False):
         else:
             placeBG = placeBs
         memo = Memoizer(tag,
-                        placeGenAux(newBS, obj, confAppr, conf, placeBG.copy(),
+                        placeGenAux(pbs, newBS, obj, confAppr, conf, placeBG.copy(),
                                     graspB, hand, base, prob,
-                                    regrasp=regrasp, pbsOrig = pbs))
+                                    regrasp=regrasp))
         placeGenCache[key] = memo
         tr(tag, 'Created new generator')
     for ans in memo:
         tr(tag, str(ans) +' (t=%s)'%(time.clock()-startTime))
         yield ans
 
-def placeGenAux(cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
-                regrasp=False, pbsOrig=None):
+def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
+                regrasp=False):
     def placeable(ca, c, quick=False):
         (pB, gB) = context[ca]
         return canPickPlaceTest(cpbs, ca, c, hand, gB, pB, prob,
                                 op='place', quick=quick)
-    def currentGrasp(gB):
-        # pdb.set_trace()
-        if obj == pbsOrig.getHeld(hand):
-            currGraspB = pbsOrig.getGraspB(hand)
-            return  (gB.grasp.mode() == currGraspB.grasp.mode()) and \
-                   gB.poseD.mode().near(currGraspB.poseD.mode(), .01, .01)
-        return False
 
     def checkRegraspable(pB):
         if pB in regraspablePB:
@@ -531,7 +519,7 @@ def placeGenAux(cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         regraspablePB[pB] = 5.
         curGrasp = None
         for gBO in gBOther:
-            if currentGrasp(gBO):
+            if currentGrasp(pbs, gBO, hand):
                 curGrasp = gBO
                 break
         if curGrasp:
@@ -564,12 +552,12 @@ def placeGenAux(cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         # 2 otherwise
         
         # Prefer current grasp
-        if currentGrasp(gB):
+        if currentGrasp(pbs, gB, hand):
             tr(tag, 'current grasp is a match',
-               ('curr', pbsOrig.graspB[hand]), ('desired', gB))
+               ('curr', pbs.graspB[hand]), ('desired', gB))
             return 0
 
-        minConf = minimalConf(pbsOrig.getConf(), hand)
+        minConf = minimalConf(pbs.getConf(), hand)
         if minConf in PPRCache:
             ppr = PPRCache[minConf]
             currGraspB = ppr.gB
@@ -580,9 +568,9 @@ def placeGenAux(cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                    ('curr', currGraspB), ('desired', gB))
                 return 0
 
-        pB = pbsOrig.getPlaceB(obj, default=False) # check we know where obj is.
-        if pbsOrig and pbsOrig.getHeld(hand) != obj and pB:
-            nextGr = next(potentialGraspConfGen(pbsOrig, pB, gB, conf, hand, base,
+        pB = pbs.getPlaceB(obj, default=False) # check we know where obj is.
+        if pbs and pbs.getHeld(hand) != obj and pB:
+            nextGr = next(potentialGraspConfGen(pbs, pB, gB, conf, hand, base,
                                           prob, nMax=1),
                               (None, None, None))
             # !!! LPK changed this because next was returning None
@@ -590,7 +578,7 @@ def placeGenAux(cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
                 return 1
             else:
                 if debug(tag) and gB.grasp.mode() == 0:
-                    pbsOrig.draw(prob, 'W')
+                    pbs.draw(prob, 'W')
                     print 'cannot use grasp 0'
                 return 2
         else:
@@ -645,11 +633,11 @@ def placeGenAux(cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         otherGrasps.remove(graspB.grasp.mode())
         if otherGrasps:
              graspBOther.grasp = UniformDist(otherGrasps)
-             gBOther = list(graspGen(cpbs, graspBOther))
+             gBOther = list(graspGen(cpbs, graspBOther, hand=hand))
         else:
              gBOther = []
 
-    allGrasps = [(checkOrigGrasp(gB), gB) for gB in graspGen(cpbs, graspB)]
+    allGrasps = [(checkOrigGrasp(gB), gB) for gB in graspGen(cpbs, graspB, hand=hand)]
     gClasses, gCosts = groupByCost(allGrasps)
 
     tr(tag, 'Top grasps', [[g.grasp.mode() for g in gC] for gC in gClasses], 'costs', gCosts)
@@ -659,12 +647,14 @@ def placeGenAux(cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
         batchSize = 1 if glob.inHeuristic else pickPlaceBatchSize
         batch = 0
         while True:
+            tr(tag, 'Trying grasps', grasps)
             # Collect the next batach of trialConfs
             batch += 1
             trialConfs = []
             count = 0
             minCost = 1e6
             for ca in targetConfs:   # targetConfs is a generator
+                tr(tag, 'Testing conf as placeable')
                 viol, reason = placeable(ca, approached[ca])
                 if viol:
                     cost = viol.weight() + gCost + regraspCost(ca)
@@ -1153,8 +1143,8 @@ def lookGenTop(args, pbs, cpbs):
         # Use cpbs (which doesn't declare shadow to be permanent) to
         # generate candidate confs, since they will need to collide
         # with shadow of obj.
-        for gB in graspGen(cpbs, graspB):
-            for hand in ['left', 'right']:
+        for hand in ['left', 'right']:
+            for gB in graspGen(cpbs, graspB, hand=hand):
                 for ans in pickGenTop((obj, gB, placeB_after, hand, prob),
                                       pbs, cpbs, onlyCurrent=True):
                     # Modify the approach conf so that robot avoids view cone.

@@ -221,7 +221,8 @@ def test3(**args):
     right2 = hu.Pose(1.5, -0.5, tZ, 0.0)
     left1 = hu.Pose(1.05, 0.5, tZ, 0.0)
     left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
-    coolShelvesPose = hu.Pose(1.3, 0.03, tZ, math.pi/2)
+    coolShelvesPose = hu.Pose(1.35, 0.03, tZ, math.pi/2)
+    # coolShelvesPose = hu.Pose(1.3, 0.03, tZ, math.pi/2)
     region = 'coolShelves_space_2'
     easy=args.get('easy', False)
     exp = makeExp({'table1' : (table1Pose, smallVar),

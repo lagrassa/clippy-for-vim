@@ -21,7 +21,7 @@ graspConfClear = 0.001
 # Preferences:  grasp conf close to current conf
 
 def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob,
-                          nMax=10, findApproach=True):
+                          nMax=100, findApproach=True):
     tag = 'potentialGraspConfs'
     grasp = graspB.grasp.mode()
     # When the grasp is -1 (a push), we need the full grasp spec.

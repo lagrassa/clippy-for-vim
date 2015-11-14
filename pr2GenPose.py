@@ -1,3 +1,4 @@
+import pdb
 import random
 import math
 import hu
@@ -144,7 +145,8 @@ def legalPlace(obj, shadow, shWorld):
                    if ((o.name() in shWorld.fixedObjects) and (o.name() != obj)))
 
 def poseGraspable(hyp, pbs, graspB, prob, hand, base):
-    for gB in graspGen(pbs, graspB):
+    tag = 'poseGraspable'
+    for gB in graspGen(pbs, graspB, hand=hand):
         pB = hyp.pB
         grasp = gB.grasp.mode()
         cb = pbs.getConf()['pr2Base']
@@ -159,10 +161,10 @@ def poseGraspable(hyp, pbs, graspB, prob, hand, base):
             hyp.conf = ca
             hyp.viol = v
             pbs.draw(prob, 'W'); pB.shape(pbs).draw('W', 'green'); ca.draw('W', 'green')
-            debugMsg('poseGraspable', 'candiate won pose=%s'%pB.poseD.mode())            
+            debugMsg(tag, 'candiate won pose=%s, grasp=%s'%(pB.poseD.mode(), gB.grasp.mode()))
             return hyp
         else:
-            debugMsg('poseGraspable', 'candiate failed pose=%s'%pB.poseD.mode())
+            debugMsg(tag, 'candiate failed pose=%s, grasp=%s'%(pB.poseD.mode(), gB.grasp.mode()))
 
 def feasiblePBS(hyp, pbs, prob):
     if pbs.conditions:
