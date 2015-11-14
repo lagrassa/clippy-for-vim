@@ -374,7 +374,7 @@ def test10(**args):
     return doTest('test10', exp, goal1, skel, args)
 
 def test11(**args):
-    front1 = hu.Pose(1.1, 0.0, tZ, 0.)
+    front1 = hu.Pose(1.05, 0.0, tZ, 0.)
     front2 = hu.Pose(1.1, 0.11, tZ, -math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    },
@@ -436,6 +436,39 @@ def testSwap(hardSwap = False, **args):
 
 def testHardSwap(**keys):
     return testSwap(hardSwap = True, **keys)
+
+######################################################################
+# Test with Chute
+######################################################################
+
+def testChute0(**args):
+    front = hu.Pose(1.1, 0.0, tZ, 0.0)
+    back = hu.Pose(1.3, 0.0, tZ, 0.0)
+    mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
+    perm = {'table1' : (table1Pose, smallVar),
+            'table2' : (table2Pose, smallVar)}
+    perm['chute'] = (mid, smallVar)
+
+    exp = makeExp(perm,
+                  {'objA' : (back, medVar),
+                   'objB' : (front, medVar)},
+                  ['table1Top', 'table2Top', 'table1MidFrontThird',
+                   'table1MidCenterThird'], easy=args.get('easy', False))
+    # Complete swap
+    goal = inRegion(['objA', 'objB'],
+                    ['table1MidFrontThird', 'table1MidCenterThird'])
+    # B on other table
+    goal0 = inRegion('objB', 'table2Top')
+    # A on other table
+    goal1 = inRegion('objA', 'table2Top')
+    # A and B on other table
+    goal2 = inRegion(['objA', 'objB'], 'table2Top')
+    # B in back
+    goal3 = inRegion('objB', 'table1MidRear')
+    actualGoal = goal1
+    skel = None
+    return doTest('testSwap', exp, actualGoal, skel, args)
+
 
 ######################################################################
 # Test Swap with clutter

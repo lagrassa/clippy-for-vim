@@ -58,6 +58,8 @@ import pr2Visible
 reload(pr2Visible)
 pr2Visible.cache = {}
 
+import pr2GenUtils
+reload(pr2GenUtils)
 import pr2GenTests
 reload(pr2GenTests)
 import pr2GenGrasp
