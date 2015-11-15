@@ -82,12 +82,12 @@ constructor = {}
 IKfastStep = 0.1
 useRRT = True                           # use RRT exclusively
 rrtStep = 0.025
-rrtInterpolateStepSize = 10*rrtStep
+rrtInterpolateStepSize = 4*rrtStep
 smoothSteps = 100
 smoothPasses = 20
 torsoZ = 0.1                            # normally 0.3 or 0.2
 skipRRT = False
-maxRRTIter = 200
+maxRRTIter = 100
 failRRTIter = 20
 smoothPathObst = True
 

@@ -4,6 +4,7 @@ cimport numpy as np
 from cpython cimport bool
 cimport shapes
 from traceFile import debug
+import planGlobals as glob
 import gjk
 
 #################################
@@ -23,9 +24,11 @@ tiny = 1.0e-6
 # np.any seems to be really slow... so it's been re-written...
 
 cpdef bool primPrimCollides(shapes.Prim t1, shapes.Prim t2):
-    # return primPrimCollidesReal(t1, t2)
-    ans2 = gjk.gjkDist(t1, t2)
-    return ans2 < 1.0e-6
+    if glob.useCC:
+        ans2 = gjk.gjkDist(t1, t2)
+        return ans2 < 1.0e-6
+    else:
+        return primPrimCollidesReal(t1, t2)
 
 cpdef bool primPrimCollidesReal(shapes.Prim t1, shapes.Prim t2):
     cdef:

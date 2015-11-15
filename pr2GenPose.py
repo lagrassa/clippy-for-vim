@@ -89,7 +89,8 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
             angle = pB.poseD.mode().pose().theta
         return shadow.applyTrans(hu.Pose(0,0,0,angle))
     def makeBI(shadow, rs):
-        return CI(shadow, rs).bbox()
+        ci = CI(shadow, rs)
+        if ci: return ci.bbox()
     def placeShadow(pB, angle, rs):
         # Shadow for placement, rotated by angle
         shadow = checkCache(objShadows, (pB, angle), makeShadow)
@@ -99,7 +100,7 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
         else:
             # The CI bbox (positions that put object inside region)
             bI = checkCache(regBI, (shadow, rs), makeBI)
-            if bI is None: return
+            if bI is None: return None, None
             z0 = bI[0,2] + clearance
             # Sampled (x,y) point
             (x, y, _, _) = next(bboxRandomCoords(bI, n=1, z=z0))
@@ -126,6 +127,7 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
         pB = random.choice(placedBs if placed else placeBs)
         angle = random.choice(angleList)
         npB, placedShadow = placeShadow(pB, angle, rs)
+        if not placedShadow: continue
         # Check conditions
         if debug(tag):
             pbs.draw(prob, 'W'); placedShadow.draw('W', 'orange')

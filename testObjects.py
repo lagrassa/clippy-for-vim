@@ -130,7 +130,7 @@ glob.objectSymmetries['solidTable'] = sym2
 glob.objectTypes['solidTable'] = 'solidTable'
 glob.constructor['solidTable'] = makeSolidTable
 
-def makeChute(dx=0.2, dy=0.298, dz=0.3, name='chute', width=0.04, color = 'brown'):
+def makeChute(dx=0.25, dy=0.298, dz=0.3, name='chute', width=0.04, color = 'brown'):
     chute = [\
         Ba([(-dx, dy-width, 0.0), (dx, dy, dz)],
            name=name+ 'back', color=color),
@@ -153,9 +153,10 @@ def makeLegTable(dx=0.603, dy=0.30, dz=0.67, name='table1', width=0.1, color = '
            Ba([(-dx, -dy, 0.), (-0.2, dy, dz)], name=name+'Right', color=color),
            Ba([(-0.2*dx, 0, 0.), (0.2*dx, dy, dz)], name=name+'MidFront', color=color),
            Ba([(-0.2*dx, -dy, 0.), (0.2*dx, 0, dz)], name=name+'MidRear', color=color),
-           Ba([(-0.2*dx, 0.33*dy, 0.), (0.2*dx, dy, dz)], name=name+'MidFrontThird', color=color),
-           Ba([(-0.2*dx, -0.33*dy, 0.), (0.2*dx, 0.33*dy, dz)], name=name+'MidCenterThird', color=color),
-           Ba([(-0.2*dx, -dy, 0.), (0.2*dx, dy, dz)], name=name+'MidRearThird', color=color),
+
+           Ba([(-0.2*dx, 0.33*dy, 0.), (0.2*dx, dy, dz)], name=name+'Mid1_3', color=color),
+           Ba([(-0.2*dx, -0.33*dy, 0.), (0.2*dx, 0.33*dy, dz)], name=name+'Mid2_3', color=color),
+           Ba([(-0.2*dx, -dy, 0.), (0.2*dx, -0.33*dy, dz)], name=name+'Mid3_3', color=color),
 
            Ba([(-dx, -dy, 0.), (-dx/2, 0., dz)], name=name+'FLL', color=color),
            Ba([(-dx, 0.0, 0.), (-dx/2, dy, dz)], name=name+'BLL', color=color),

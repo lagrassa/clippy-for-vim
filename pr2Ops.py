@@ -127,7 +127,7 @@ def verifyPath(pbs, prob, path, msg):
 def verifyPaths(bs, p, path, smoothed, interpolated):
     if debug('verifyPath'):
         verifyPath(bs, p, path, 'original')
-        verifyPath(bs, p, interpolate(path), 'original interpolated')
+        verifyPath(bs, p, rrt.interpolatePath(path), 'original interpolated')
         verifyPath(bs, p, smoothed, 'smoothed')
         verifyPath(bs, p, interpolated, 'smoothed interpolated')
 

@@ -470,7 +470,8 @@ class RoadMap:
             # trAlways('Calling RRT')
             for inflate in ((True, False) if optimize else (False,)):
                 path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
-                                                  maxIter=50, failIter=20, inflate=inflate)
+                                                  maxIter=glob.maxRRTIter,
+                                                  failIter=20, inflate=inflate)
                 if viol is not None: break
             runningTime = time.time() - startTime
             trAlways('RRT time', runningTime)
