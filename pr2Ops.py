@@ -1544,7 +1544,7 @@ place = Operator('Place', placeArgs,
         argsToPrint = range(4),
         ignorableArgs = range(1, 19),   # all place of same obj at same level
         ignorableArgsForHeuristic = range(4, 19),
-        rebindPenalty = 30)
+        rebindPenalty = 20)
         
 
 pushArgs = ['Obj', 'Hand', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta',

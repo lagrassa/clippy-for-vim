@@ -80,6 +80,21 @@ glob.objectTypes['obj'] = 'soda'
 glob.objectTypes['soda'] = 'soda'
 glob.constructor['soda'] = makeSoda
 
+def makeTallSoda(dx=0.0445, dy=0.027, dz=0.25, name='tsA', color=None):
+    glob.graspDesc['tallSoda'] = []
+    if glob.useHorizontal:
+        glob.graspDesc['tallSoda'].extend([gdesc0(name), gdesc1(name)])
+    if glob.useVertical:
+        glob.graspDesc['tallSoda'].extend([gdesc2(name), gdesc3(name)])
+    color = color or pickColor(name)
+    return (Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)])], name=name, color=color), []) 
+glob.graspableNames.append('ts')
+glob.graspableNames.append('tallSoda')
+glob.objectSymmetries['tallSoda'] = sym2
+glob.objectTypes['ts'] = 'tallSoda'
+glob.objectTypes['tallSoda'] = 'tallSoda'
+glob.constructor['tallSoda'] = makeTallSoda
+
 # dz should be 0.1175
 def makeBig(dx=0.0445, dy=0.055, dz=0.1175, name='bigA', color=None):
     color = color or pickColor(name)
