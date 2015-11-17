@@ -446,7 +446,7 @@ def placeGenTop(args, pbs, cpbs, regrasp=False, away=False):
     (obj, graspB, placeBs, hand, base, prob) = args
 
     if glob.traceGen:
-        print '***', 'placeGenTop', graspB.grasp.mode(), hand
+        print '***', 'placeGenTop', graspB.grasp.mode(), hand, 'regrasp', regrasp
 
     startTime = time.clock()
     tag = 'placeGen'

@@ -27,13 +27,22 @@ sym4 = ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,(1./2.)*math.pi*x) for x in range(4)]})
 sym6 = ({4 : 4}, {4 : [hu.Pose(0.,0.,0., (1./3.)*math.pi*x) for x in range(6)]})
 # Grasps
 # from the side
-gMat0 = hu.Transform(np.array([(0.,1.,0.,0.),
+# the z offset raises or lowers the grasp relative to midpoint of object
+gMat0 = hu.Transform(np.array([(0.,1.,0.,0.0),
                                (0.,0.,1.,-0.025),
-                               (1.,0.,0.,0.01),
+                               (1.,0.,0.,0.02), 
+                               (0.,0.,0.,1.)]))
+gMat0h = hu.Transform(np.array([(0.,1.,0.,0.0),
+                               (0.,0.,1.,-0.025),
+                               (1.,0.,0.,0.05), 
                                (0.,0.,0.,1.)]))
 gMat1 = hu.Transform(np.array([(0.,-1.,0.,0.),
                                (0.,0.,-1.,0.025),
-                               (1.,0.,0.,0.01),
+                               (1.,0.,0.,0.02),
+                               (0.,0.,0.,1.)]))
+gMat1h = hu.Transform(np.array([(0.,-1.,0.,0.),
+                               (0.,0.,-1.,0.025),
+                               (1.,0.,0.,0.05),
                                (0.,0.,0.,1.)]))
 # from the top
 gMat2= hu.Transform(np.array([(-1.,0.,0.,0.),
@@ -46,7 +55,9 @@ gMat3= hu.Transform(np.array([(1.,0.,0.,0.),
                               (0.,0.,0.,1.)]))
 
 gdesc0 = lambda obj: GDesc(obj, gMat0, 0.05, 0.05, 0.025)
+gdesc0h = lambda obj: GDesc(obj, gMat0h, 0.05, 0.05, 0.025)
 gdesc1 = lambda obj: GDesc(obj, gMat1, 0.05, 0.05, 0.025)
+gdesc1h = lambda obj: GDesc(obj, gMat1h, 0.05, 0.05, 0.025)
 gdesc2 = lambda obj: GDesc(obj, gMat2, 0.05, 0.05, 0.025)
 gdesc3 = lambda obj: GDesc(obj, gMat3, 0.05, 0.05, 0.025)
 
@@ -83,7 +94,7 @@ glob.constructor['soda'] = makeSoda
 def makeTallSoda(dx=0.0445, dy=0.027, dz=0.25, name='tsA', color=None):
     glob.graspDesc['tallSoda'] = []
     if glob.useHorizontal:
-        glob.graspDesc['tallSoda'].extend([gdesc0(name), gdesc1(name)])
+        glob.graspDesc['tallSoda'].extend([gdesc0h(name), gdesc1h(name)])
     if glob.useVertical:
         glob.graspDesc['tallSoda'].extend([gdesc2(name), gdesc3(name)])
     color = color or pickColor(name)

@@ -447,7 +447,7 @@ def testChute0(**args):
     # front = hu.Pose(1.05, 0.0, tZ, math.pi/2)
     # back = hu.Pose(1.2, 0.0, tZ, math.pi/2)
     front = hu.Pose(1.05, 0.0, tZ, 0.0)
-    back = hu.Pose(1.1, 0.0, tZ, 0.0)  # not far enough back yet
+    back = hu.Pose(1.3, 0.0, tZ, 0.0)  # not far enough back yet
     mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
     perm = {'table1' : (table1Pose, smallVar),
             'table2' : (table2Pose, smallVar)}
@@ -466,8 +466,9 @@ def testChute0(**args):
     return doTest('testSwap', exp, actualGoal, skel, args)
 
 def testChute1(**args):
+    glob.useVertical = False
     front = hu.Pose(1.05, 0.0, tZ, 0.0)
-    back = hu.Pose(1.2, 0.0, tZ, 0.0)
+    back = hu.Pose(1.3, 0.0, tZ, 0.0)
     mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
     perm = {'table1' : (table1Pose, smallVar),
             'table2' : (table2Pose, smallVar)}

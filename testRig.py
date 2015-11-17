@@ -366,7 +366,8 @@ class PlanTest:
         if isinstance(home, tuple):
             pr2Home = makeConf(world.robot, home[0], home[1], home[2], vertical=True)
         else:
-            pr2Home = home or makeConf(world.robot, 0.0, 0.0, 0.0)
+            pr2Home = home or makeConf(world.robot, 0.0, 0.0, 0.0, vertical=True)
+        world.robot.nominalConf = pr2Home # !! Note
         rm = RoadMap(pr2Home, world,
                      params={'kNearest':17, # May be too low
                              'kdLeafSize':100,

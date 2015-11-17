@@ -14,7 +14,7 @@ graspConfGenCacheStats = [0,0]
 graspConfs = set([])
 graspConfStats = [0,0]
 
-graspConfClear = 0.001
+graspConfClear = 0.0
 
 # Generate grasp
 # Requirements: grasp is collision free

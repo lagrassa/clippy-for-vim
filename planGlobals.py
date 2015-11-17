@@ -55,7 +55,7 @@ useHandTiltForPush = True              # Use for real robot
 
 inHeuristic = False
 
-useCC = True                            # Use compiled chains collision checks
+useCC = False                            # Use compiled chains collision checks
 skipSearch = False                       # Don't plan paths except for prims
 useMathematica = False
 
@@ -85,7 +85,7 @@ rrtStep = 0.025
 rrtInterpolateStepSize = 4*rrtStep
 smoothSteps = 100
 smoothPasses = 20
-torsoZ = 0.1                            # normally 0.3 or 0.2
+torsoZ = 0.2                            # normally 0.3 or 0.2
 skipRRT = False
 maxRRTIter = 100
 failRRTIter = 20

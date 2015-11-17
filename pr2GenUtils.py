@@ -75,10 +75,11 @@ def graspGen(pbs, graspB, placeB=None, conf=None, hand=None, prob=None):
     random.shuffle(grasps)
     inHand = hand and obj == pbs.getHeld(hand)
     if inHand:
-        # Put current grasp first
+        # Put current grasp first if it's elegible
         gB = pbs.getGraspB(hand)
         currGrasp = gB.grasp.mode()
-        grasps = [currGrasp] + [g for g in grasps if g != currGrasp]
+        if currGrasp in grasps:
+            grasps = [currGrasp] + [g for g in grasps if g != currGrasp]
     for grasp in grasps:
         if debug('graspGen'):
             print 'graspGen: Generating grasp=', grasp
