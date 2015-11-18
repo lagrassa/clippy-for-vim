@@ -24,11 +24,14 @@ tiny = 1.0e-6
 # np.any seems to be really slow... so it's been re-written...
 
 cpdef bool primPrimCollides(shapes.Prim t1, shapes.Prim t2):
-    if glob.useCC:
-        ans2 = gjk.gjkDist(t1, t2)
-        return ans2 < 1.0e-6
-    else:
-        return primPrimCollidesReal(t1, t2)
+    ans2 = gjk.gjkDist(t1, t2) < 1.0e-6
+    if debug('testPrimPrimCollides'):
+        ans = primPrimCollidesReal(t1, t2)
+        if bool(ans) != bool(ans2):
+            t1.draw('W'); t2.draw('W')
+            print 'Traditional', ans, 'GJK', ans2
+            if ans and not ans2: raw_input('Dangerously Inconsistent')
+    return ans2
 
 cpdef bool primPrimCollidesReal(shapes.Prim t1, shapes.Prim t2):
     cdef:

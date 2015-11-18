@@ -397,7 +397,7 @@ class PBS:
                 # max variance that does not result in a shadow colliion.
                 if count > 50:
                     assert None, 'Could not reduce grasp shadow after 10 attempts'
-                gB = self.getGraspBForObj(self.held[hand], hand)
+                gB = self.getGraspBForObj(self.getHeld(hand), hand)
                 var = gB.poseD.variance()
                 newVar = tuple(v/factor for v in var)
                 self.updateGraspB(hand, gB.modifyPoseD(var=newVar))

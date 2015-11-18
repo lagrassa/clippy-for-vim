@@ -19,7 +19,7 @@ from pr2GenGrasp import potentialGraspConfGen, graspConfForBase
 import pr2GenLook
 reload(pr2GenLook)
 from pr2GenLook import potentialLookConfGen
-from pr2GenTests import canPickPlaceTest, canView
+from pr2GenTests import canPickPlaceTest, canView, canReachHome
 from pr2Visible import lookAtConf, visible
 
 '''
@@ -1166,9 +1166,15 @@ def lookGenTop(args, pbs, cpbs):
     # Find a lookConf unconstrained by base
     lookConfGen = potentialLookConfGen(cpbs_before, prob, shapeForLook, maxLookDist)
     rm = cpbs_before.getRoadMap()
-    for ans in rm.confReachViolGen(lookConfGen, cpbs_before, prob,
-                                   testFn = lambda c: testFn(c, shapeForLook, shWorld_before)):
-        viol, cost, path = ans
+
+#    for ans in rm.confReachViolGen(lookConfGen, cpbs_before, prob,
+#                                   testFn = lambda c: testFn(c, shapeForLook, shWorld_before)):
+#        viol, cost, path = ans
+
+    noViol = Violations()
+    for c in lookConfGen:
+        if not testFn(c, shapeForLook, shWorld_before): continue
+        path, viol =  canReachHome(cpbs, c, prob, noViol)
         tr(tag, '(%s) viol=%s'%(obj, viol.weight() if viol else None))
         if not path:
             tr(tag,  'Failed to find a path to look conf.')
@@ -1274,10 +1280,17 @@ def lookHandGenTop(args, cpbs):
     rm = newBS.getRoadMap()
     obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
     lookConfGen = potentialLookHandConfGen(newBS, prob, hand)
-    for ans in rm.confReachViolGen(lookConfGen, newBS, prob,
-                                   startConf = newBS.getConf(),
-                                   testFn = testFn):
-        viol, cost, path = ans
+
+    # for ans in rm.confReachViolGen(lookConfGen, newBS, prob,
+    #                                startConf = newBS.getConf(),
+    #                                testFn = testFn):
+    #     viol, cost, path = ans
+
+    noViol = Violations()
+    for c in lookConfGen:
+        if not testFn(c): continue
+        path, viol =  canReachHome(newBS, c, prob, noViol,
+                                   homeConf=newBS.getConf())
         tr(tag, '(%s) viol=%s'%(obj, viol.weight() if viol else None))
         if not path:
             tr(tag, 'Failed to find a path to look conf.')

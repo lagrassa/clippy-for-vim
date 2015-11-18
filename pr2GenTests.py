@@ -506,15 +506,13 @@ def pushDirections(preConf, initConf, initPose, pushConf, pushPose, hand):
 # The conf in the input is the robot conf in contact with the object
 # at the destination pose.
 
-def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand,
-             reachObsts=[]):
+def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
     tag = 'pushPath'
-    def finish(reason, gloss, safePathViols=[], cache=True):
+    def finish(reason, gloss, pathViols=[], cache=True):
         if debug(tag):
-            for (ig, obst) in reachObsts: obst.draw('W', 'orange')
-            print '->', reason, gloss, 'path len=', len(safePathViols)
+            print '->', reason, gloss, 'path len=', len(pathViols)
             debugMsg(reason)
-        ans = (safePathViols, reason)
+        ans = (pathViols, reason)
         if cache: pushPathCache[key].append((pbs, prob, gB, ans))
         return ans
     #######################
@@ -526,13 +524,12 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand,
     newBS = pbs.copy().updateHeldBel(gB, hand)
     # Check cache and return it if appropriate
     baseSig = "%.6f, %.6f, %.6f"%tuple(conf['pr2Base'])
-    key = (postPose, baseSig, initPose, hand, frozenset(reachObsts),
-           glob.pushBuffer, glob.inHeuristic)
-    names =('postPose', 'base', 'initPose', 'hand', 'reachObsts', 'pushBuffer', 'inHeuristic')
+    key = (postPose, baseSig, initPose, hand, glob.pushBuffer, glob.inHeuristic)
+    names =('postPose', 'base', 'initPose', 'hand', 'pushBuffer', 'inHeuristic')
     cached = checkPushPathCache(key, names, pbs, prob, gB, conf, newBS)
     if cached is not None:
-        safePathViols, reason = cached
-        return finish(reason, 'Cached answer', safePathViols, cache=False)
+        pathViols, reason = cached
+        return finish(reason, 'Cached answer', pathViols, cache=False)
     if debug(tag): newBS.draw(prob, 'W'); raw_input('pushPath: Go?')
     # Check there is no permanent collision at the goal
     viol = newBS.confViolations(conf, prob)
@@ -574,7 +571,6 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand,
     # We will return (conf, viol, pose) for steps along the path --
     # starting at initPose.  Before contact, pose in None.
     pathViols = []
-    safePathViols = []
     reason = 'done'                     # done indicates success
     #######################
     # Set up state for the approach scan
@@ -599,7 +595,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand,
             reason = 'selfCollide'; break
         if debug('pushPath'):
             print 'approach step=', step, viol
-            drawState(newBS, prob, nconf, shape, reachObsts)
+            drawState(newBS, prob, nconf, shape)
         pathViols.append((nconf, viol, None))
     if reason != 'done':
         return finish(reason, 'During approach', [])
@@ -650,17 +646,14 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand,
             reason = 'selfCollide'; break
         if debug('pushPath'):
             print 'push step=', step, viol
-            drawState(newBS, prob, nconf, nshape, reachObsts)
+            drawState(newBS, prob, nconf, nshape)
         pathViols.append((nconf, viol, offsetPB.poseD.mode()))
-        if all(not nshape.collides(obst) for (ig, obst) in reachObsts \
-               if (pB.obj not in ig)):
-            safePathViols = list(pathViols)
     #######################
     # Prepare ans
     #######################
-    if not safePathViols:
-        reason = 'reachObst collision'
-    return finish(reason, 'Final pushPath', safePathViols)
+    if not pathViols:
+        reason = 'no path'
+    return finish(reason, 'Final pushPath', pathViols)
 
 def armCollides(conf, objShape, hand):
     armShape = conf.placement()
@@ -668,7 +661,7 @@ def armCollides(conf, objShape, hand):
     gripperName = conf.robot.gripperChainNames[hand]
     return any(objShape.collides(parts[name]) for name in parts if name != gripperName)
 
-def drawState(pbs, prob, conf, shape=None, reachObsts=[]):
+def drawState(pbs, prob, conf, shape=None):
     shWorld = pbs.getShadowWorld(prob)
     attached = shWorld.attached
     if glob.useMathematica:

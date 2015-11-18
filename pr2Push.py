@@ -87,7 +87,7 @@ def pushGenGen(args, pbs, cpbs):
         yield ans
 
 def pushGenTop(args, pbs, cpbs,
-               partialPaths=False, reachObsts=[], away=False):
+               partialPaths=False, away=False):
     (obj, placeB, hand, prob) = args
     startTime = time.clock()
     tag = 'pushGen'
@@ -144,7 +144,7 @@ def pushGenTop(args, pbs, cpbs,
             print tag, 'cached, with len(values)=', len(memo.values)
     else:
         gen = pushGenAux(cpbs, placeB, hand, base, curPB, prob,
-                         partialPaths=partialPaths, reachObsts=reachObsts)
+                         partialPaths=partialPaths)
         memo = Memoizer(tag, gen)
         pushGenCache[key] = memo
         if debug(tag):
@@ -173,7 +173,7 @@ def choosePrim(shape):
                   key = lambda p: bboxVolume(p.bbox()), reverse=True)[0]
 
 def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
-               partialPaths=False, reachObsts=[]):
+               partialPaths=False):
     tag = 'pushGen'
 
     if glob.traceGen:
@@ -263,8 +263,7 @@ def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
                     raw_input('Candidate conf')
                 count += 1
                 pathAndViols, reason = pushPath(cpbs, prob, graspB, placeB, pushConf,
-                                                initPose, preConf, supportRegion, hand,
-                                                reachObsts=reachObsts)
+                                                initPose, preConf, supportRegion, hand)
                 if reason == 'done':
                     doneCount +=1 
                     pushPaths.append((pathAndViols, reason))
@@ -541,7 +540,7 @@ def sortPushContacts(contacts, targetPose, curPose):
                 # bad ones require "pulling"
                 bad.append((0, None, vertical, contact, width))
             elif -ntrz >= minPushLength:
-                for dist in (ntrz, 0.5*ntrz):
+                for dist in (ntrz, 0.5*ntrz) if abs(ntrz) > 0.025 else (ntrz,):
                     # distance negated...
                     score = 5 * width - dist # prefer wide faces and longer pushes
                     good.append((score, -dist, vertical, contact, width))
@@ -642,8 +641,6 @@ def pushInGenAway(args, pbs):
        draw=[(pbs, prob, 'W')], snap=['W'])
     targetPushVar = tuple([pushVarIncreaseFactor * x \
                             for x in pbs.domainProbs.obsVarTuple])
-    # Pass in the goalConds to get reachObsts, but don't do the update of
-    # the pbs, since achCanXGen has already done it.
     for ans in pushInRegionGenGen((obj, regShape,
                                    targetPushVar, delta, prob),
                                    pbs, pbs, away=True):
@@ -707,7 +704,6 @@ def pushInGenTop(args, pbs, cpbs, away = False, update=True):
 
 # placeB is current place for object
 # regShapes is a list of (one) target region
-# reachObsts are regions where placements are forbidden
 def pushInGenAux(pbs, cpbs, prob, placeB, regShapes, hand,
                  away=False):
     def feasiblePBS(pB):

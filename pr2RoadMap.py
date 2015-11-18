@@ -471,7 +471,8 @@ class RoadMap:
             for inflate in ((True, False) if optimize else (False,)):
                 path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
                                                   maxIter=glob.maxRRTIter,
-                                                  failIter=20, inflate=inflate)
+                                                  failIter=glob.failRRTIter,
+                                                  inflate=inflate)
                 if viol is not None: break
             runningTime = time.time() - startTime
             trAlways('RRT time', runningTime)
@@ -832,20 +833,24 @@ class RoadMap:
         hsColl2 = (hsColl[0][:], hsColl[1][:])
         
         if glob.useCC:
-            ansCC = self.confCollidersCC(pbs, prob, conf, aColl, hColl, hsColl,
-                                         edge, ignoreAttached, clearance, draw)
+            ansCC, scCC = self.confCollidersCC(pbs, prob, conf, aColl, hColl, hsColl,
+                                             edge, ignoreAttached, clearance, draw)
             if debug('testCC'):
-                ans = self.confCollidersPlace(pbs, prob, conf, aColl1, hColl1, hsColl1,
-                                              edge, ignoreAttached, draw)
+                ans, sc = self.confCollidersPlace(pbs, prob, conf, aColl1, hColl1, hsColl1,
+                                                  edge, ignoreAttached, draw)
                 if ans != ansCC or (aColl, hColl, hsColl) != (aColl1, hColl1, hsColl1):
 
-                    ansCC2 = self.confCollidersCC(pbs, prob, conf, aColl2, hColl2, hsColl2,
-                                                  edge, ignoreAttached, 0., draw)
+                    ansCC2, scCC2 = self.confCollidersCC(pbs, prob, conf, aColl2, hColl2, hsColl2,
+                                                         edge, ignoreAttached, 0., draw)
                     if ansCC2 != ans:
 
                         print 'ansCC', ansCC, 'ansCC2', ansCC2, 'ans', ans
-                        pbs.draw(prob, 'W'); conf.draw('W', 'blue')
-                        pdb.set_trace()
+                        if not (scCC2 or sc):
+                            pbs.draw(prob, 'W');
+                            conf.draw('W', 'blue', attached=pbs.getShadowWorld(prob).attached)
+                            pdb.set_trace()
+                        else:
+                            print 'Disagreement about self collision'
 
             return ansCC
         else:
@@ -910,13 +915,13 @@ class RoadMap:
             if debug('robotSelfCollide'):
                 conf.draw('W', 'red')
                 raw_input('selfCollision')
-            return None                 # irremediable collision
+            return None, True           # irremediable collision
         for obst in shWorld.getObjectShapes():
             perm = obst.name() in permanentNames
             eColl = edge.aColl if edge else None
             res = self.confCollidersPlaceAux(robShape, obst, aColl, eColl,
                                         perm, draw)
-            if res is None: return None # irremediable
+            if res is None: return None, False # irremediable
             elif res: continue          # collision with robot, go to next obj
             # Check for held collisions if not collision so far
             if not attached or not any(attached.values()): continue
@@ -931,7 +936,7 @@ class RoadMap:
                 eColl = edge.hColl[hand][pbs.getGraspB(hand)] if edge else None
                 res = self.confCollidersPlaceAux(held, obst, hColl[h], eColl,
                                             (perm and shWorld.fixedHeld[hand]), draw)
-                if res is None: return None # irremediable
+                if res is None: return None, False # irremediable
                 elif res: continue          # collision, move to next obj
                 # Check hsColl
                 if edge and pbs.getGraspB(hand) not in edge.hsColl[hand]:
@@ -939,8 +944,8 @@ class RoadMap:
                 eColl = edge.hsColl[hand][pbs.getGraspB(hand)] if edge else None
                 res = self.confCollidersPlaceAux(heldSh, obst, hsColl[h], eColl,
                                                  (perm and shWorld.fixedGrasp[hand]), draw)
-                if res is None: return None # irremediable
-        return True
+                if res is None: return None, False # irremediable
+        return True, False
 
     # Checks individual collision: returns True if remediable
     # collision, False if no collision and None if irremediable.
@@ -1011,7 +1016,7 @@ class RoadMap:
             if debug(tag):
                 conf.draw('W', 'red', attached=attached)
                 raw_input('selfCollision')
-            return None                 # irremediable collision
+            return None, True           # irremediable collision
 
         for obst in shWorld.getObjectShapes():
             perm = obst.name() in permanentNames
@@ -1020,7 +1025,7 @@ class RoadMap:
             res = self.confCollidersAux(None, robCC, obst, oCC, aColl, eColl,
                                         perm, clearance, draw)
             if debug(tag): print 'Robot obst', obst.name(), 'res', res
-            if res is None: return None # irremediable
+            if res is None: return None, False # irremediable
             elif res: continue          # collision with robot, go to next obj
             # Check for held collisions if not collision so far
             if not attached or not any(attached.values()): continue
@@ -1036,7 +1041,7 @@ class RoadMap:
                 res = self.confCollidersAux(None, attCC, obst, oCC, hColl[h], eColl,
                                             (perm and shWorld.fixedHeld[hand]), clearance, draw)
                 if debug(tag): print 'Held obst', obst.name(), 'res', res
-                if res is None: return None # irremediable
+                if res is None: return None, False # irremediable
                 elif res: continue          # collision, move to next obj
                 # Check hsColl
                 if edge and pbs.getGraspB(hand) not in edge.hsColl[hand]:
@@ -1046,9 +1051,9 @@ class RoadMap:
                 res = self.confCollidersAux(None, attCC, obst, oCC, hsColl[h], eColl,
                                             (perm and shWorld.fixedGrasp[hand]), clearance,  draw)
                 if debug(tag): print 'HeldShadow obst', obst.name(), 'res', res
-                if res is None: return None # irremediable
+                if res is None: return None, False # irremediable
         if debug(tag): print 'returning True'
-        return True
+        return True, False
 
     # We want edge to depend only on endpoints so we can cache the
     # interpolated confs.  The collisions depend on the robot variance
