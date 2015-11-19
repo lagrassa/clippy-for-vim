@@ -976,18 +976,6 @@ def cartChainName(chainName):
 def pointDist(p1, p2):
     return sum([(a-b)**2 for (a, b) in zip(p1, p2)])**0.5
 
-def validEdge(node_i, node_f):
-    return validEdgeTest(node_i.conf['pr2Base'], node_f.conf['pr2Base'])
-
-def validEdgeTest(xyt_i, xyt_f):
-    (xi, yi, thi) = xyt_i
-    (xf, yf, thf) = xyt_f
-    if max(abs(xi-xf), abs(yi-yf)) < 0.01:
-        # small enough displacement
-        return True
-    # Not strictly back, so the head can look at where it's going
-    return abs(hu.angleDiff(math.atan2(yf-yi, xf-xi), thi)) <= 0.75*math.pi
-
 r = 0.02
 boxPoint = shapes.Shape([shapes.BoxAligned(np.array([(-2*r, -2*r, -r), (2*r, 2*r, r)]), None),
                          shapes.BoxAligned(np.array([(2*r, -r, -r), (3*r, r, r)]), None)], None)

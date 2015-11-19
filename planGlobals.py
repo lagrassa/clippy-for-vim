@@ -88,7 +88,7 @@ smoothPasses = 20
 torsoZ = 0.2                            # normally 0.3 or 0.2
 skipRRT = False
 maxRRTIter = 100
-failRRTIter = 20
+failRRTIter = 10
 smoothPathObst = True
 
 maxOpenLoopDist = 2.0
