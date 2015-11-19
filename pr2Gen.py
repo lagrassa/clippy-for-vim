@@ -1021,6 +1021,12 @@ class LookGen(Function):
                                     pbs, cpbs):
             yield ans
 
+class LookConfHyp:
+    def __init__(self, conf, path, viol):
+        self.conf = conf
+        self.path = path
+        self.viol = viol
+
 # Returns (lookConf,), viol
 # The lookConf should be s.t.
 # - has no collisions with beforeShadow or any other permanent objects in the cpbs
@@ -1164,23 +1170,34 @@ def lookGenTop(args, pbs, cpbs):
                     else:
                         assert None, 'shape should be visible, but it is not'
     # Find a lookConf unconstrained by base
-    lookConfGen = potentialLookConfGen(cpbs_before, prob, shapeForLook, maxLookDist)
-    rm = cpbs_before.getRoadMap()
+    def lookConfHypGen():
+        for conf in  potentialLookConfGen(cpbs_before, prob, shapeForLook, maxLookDist):
+            path, viol =  canReachHome(cpbs, c, prob, noViol)
+            if not path:
+                tr(tag,  'Failed to find a path to look conf.')
+                raw_input('Failed to find a path to look conf.')
+                continue
+            yield LookConfHyp(conf, path, viol)
+    def pathLength(path):
+        dist = 0.
+        for i in range(1, len(path)):
+            dist += baseDist(path[i-1], path[i])
+        return dist
 
 #    for ans in rm.confReachViolGen(lookConfGen, cpbs_before, prob,
 #                                   testFn = lambda c: testFn(c, shapeForLook, shWorld_before)):
 #        viol, cost, path = ans
 
+    raw_input('*********** LOOK *************')
+
     noViol = Violations()
-    for c in lookConfGen:
-        if not testFn(c, shapeForLook, shWorld_before): continue
-        path, viol =  canReachHome(cpbs, c, prob, noViol)
+    for hyp in sortedHyps(lookConfHypGen(),
+                          lambda h: testFn(h.conf, shapeForLook, shWorld_before),
+                          lambda h: pathLength(h.path),
+                          20, 40, size=5):       # ??
+        conf = hyp.conf
+        viol = hyp.viol
         tr(tag, '(%s) viol=%s'%(obj, viol.weight() if viol else None))
-        if not path:
-            tr(tag,  'Failed to find a path to look conf.')
-            raw_input('Failed to find a path to look conf.')
-            continue
-        conf = path[-1]                 # lookConf is at the end of the path
         # Modify the look conf so that robot does not block
         lookConf = lookAtConfCanView(cpbs_before, prob, conf,
                                      shapeForLook, shapeShadow=shapeShadow)

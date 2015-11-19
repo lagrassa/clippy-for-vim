@@ -418,9 +418,9 @@ def testSwap(hardSwap = False, **args):
     exp = makeExp(perm,
                   {'objA' : (back, medVar),
                    'objB' : (front, medVar)},
-                  ['table1Top', 'table2Top', 'table1MidFrontThird',
-                   'table1MidCenterThird'], easy=args.get('easy', False))
-    goal = inRegion(['objA', 'objB'], ['table1MidFrontThird', 'table1MidCenterThird'])
+                  ['table1Top', 'table2Top', 'table1Mid1_3',
+                   'table1Mid2_3'], easy=args.get('easy', False))
+    goal = inRegion(['objA', 'objB'], ['table1Mid1_3', 'table1Mid2_3'])
     # A on other table
     goal1 = inRegion('objA', 'table2Top')
     skel1 = [[poseAchIn, 
@@ -429,7 +429,7 @@ def testSwap(hardSwap = False, **args):
     # A and B on other table
     goal2 = inRegion(['objA', 'objB'], 'table2Top')
     # B in back
-    goal3 = inRegion('objB', 'table1MidCenterThird')
+    goal3 = inRegion('objB', 'table1Mid2_3')
     actualGoal = goal if hardSwap else goal3
     skel = None
     return doTest('testSwap', exp, actualGoal, skel, args)

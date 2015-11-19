@@ -375,7 +375,7 @@ class PlanTest:
                              'moveChains':
                              ['pr2Base', 'pr2LeftArm', 'pr2RightArm'] if glob.useRight \
                              else ['pr2Base', 'pr2LeftArm']})
-        rm.batchAddClusters(self.initConfs)
+        rm.batchAddNodes(self.initConfs)
         belC.roadMap = rm
         pbs = PBS(belC,
                   conf=(False, pr2Home), 
