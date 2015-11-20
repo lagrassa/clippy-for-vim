@@ -776,7 +776,7 @@ def placeInRegionGenGen(args, pbs, cpbs, away = False):
             args = (obj, None, pB.poseD.modeTuple(),
                     support, var, graspV,
                     delta, graspDelta, None, prob)
-            gen = placeGenGen(args, cpbs)
+            gen = placeGenGen(args, pbs, cpbs)
             for ans in gen:
                 regions = [x.name() for x in regShapes]
                 tr(tag, str(ans), 'regions=%s'%regions,
@@ -1187,8 +1187,6 @@ def lookGenTop(args, pbs, cpbs):
 #    for ans in rm.confReachViolGen(lookConfGen, cpbs_before, prob,
 #                                   testFn = lambda c: testFn(c, shapeForLook, shWorld_before)):
 #        viol, cost, path = ans
-
-    raw_input('*********** LOOK *************')
 
     noViol = Violations()
     for hyp in sortedHyps(lookConfHypGen(),
