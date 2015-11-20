@@ -17,7 +17,7 @@ from pr2Robot import gripperFaceFrame
 from pr2Visible import visible, lookAtConf
 from time import sleep
 from pr2Ops import lookAtBProgress
-from pr2RoadMap import validEdgeTest
+#from pr2RoadMap import validEdgeTest     # lpk temporarily removed
 from traceFile import tr, snap
 import locate
 reload(locate)

@@ -447,7 +447,7 @@ def testChute0(**args):
     # front = hu.Pose(1.05, 0.0, tZ, math.pi/2)
     # back = hu.Pose(1.2, 0.0, tZ, math.pi/2)
     front = hu.Pose(1.05, 0.0, tZ, 0.0)
-    back = hu.Pose(1.3, 0.0, tZ, 0.0)  # not far enough back yet
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)  
     mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
     perm = {'table1' : (table1Pose, smallVar),
             'table2' : (table2Pose, smallVar)}
@@ -461,14 +461,14 @@ def testChute0(**args):
     goal0 = holding('tsA', 'left', 0, goalProb = 0.7)
     # A on other table
     goal1 = inRegion('tsA', 'table2Top')
-    actualGoal = goal0
+    actualGoal = goal1
     skel = None
     return doTest('testSwap', exp, actualGoal, skel, args)
 
 def testChute1(**args):
     glob.useVertical = False
     front = hu.Pose(1.05, 0.0, tZ, 0.0)
-    back = hu.Pose(1.3, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
     mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
     perm = {'table1' : (table1Pose, smallVar),
             'table2' : (table2Pose, smallVar)}
@@ -490,7 +490,7 @@ def testChute1(**args):
     goal2 = inRegion(['objA', 'objB'], 'table2Top')
     # B in back
     goal3 = inRegion('objA', 'table1Mid1_3')
-    actualGoal = goal3
+    actualGoal = goal1
     skel = None
     return doTest('testSwap', exp, actualGoal, skel, args)
 

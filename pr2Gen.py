@@ -1172,7 +1172,7 @@ def lookGenTop(args, pbs, cpbs):
     # Find a lookConf unconstrained by base
     def lookConfHypGen():
         for conf in  potentialLookConfGen(cpbs_before, prob, shapeForLook, maxLookDist):
-            path, viol =  canReachHome(cpbs, c, prob, noViol)
+            path, viol =  canReachHome(cpbs, conf, prob, noViol)
             if not path:
                 tr(tag,  'Failed to find a path to look conf.')
                 raw_input('Failed to find a path to look conf.')
