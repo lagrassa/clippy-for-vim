@@ -17,7 +17,6 @@ from pr2Robot import gripperFaceFrame
 from pr2Visible import visible, lookAtConf
 from time import sleep
 from pr2Ops import lookAtBProgress
-from pr2RoadMap import validEdgeTest
 from traceFile import tr, snap
 import locate
 reload(locate)
@@ -180,8 +179,6 @@ class RealWorld(WorldState):
                 tr('sim',
                    ('base', conf['pr2Base'], 'left', leftPos, 'right', rightPos))
                 break
-            if debug('backwards') and not validEdgeTest(prevXYT, newXYT):
-                backSteps.append((prevXYT, newXYT))
             # Integrate the displacement
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
             # approx pi => 1 meter
