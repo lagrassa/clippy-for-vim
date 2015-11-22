@@ -2008,9 +2008,15 @@ def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob):
                  B([Pose([obst, supportFace]), poseMean, poseVar,
                            moveDelta, prob], True)])
             print '*** moveOut', obst
-            if glob.traceGen:
-                for c in newConds: print '    ', c
-            yield newConds
+            resultBS = pbs.conditioned([], newConds)
+            resultViol = violFn(resultBS)
+            if resultViol is not None and obst not in resultViol.allObstacles():
+                if glob.traceGen:
+                    print '*** moveOut successful'
+                    for c in newConds: print '    ', c
+                yield newConds
+            else:
+                trAlways('Error? moveOut did not remove obstacle')
     tr(tag, '=> Out of remedies')
 
 def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob):
@@ -2039,7 +2045,15 @@ def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob):
                  B([Pose([obst, supportFace]), postPose, postPoseVar,
                            moveDelta, prob], True)])
             print '*** pushOut', obst
-            yield newConds
+            resultBS = pbs.conditioned([], newConds)
+            resultViol = violFn(resultBS)
+            if resultViol is not None and obst not in resultViol.allObstacles():
+                if glob.traceGen:
+                    print '*** pushOut successful'
+                    for c in newConds: print '    ', c
+                yield newConds
+            else:
+                trAlways('Error? pushOut did not remove obstacle')
     tr(tag, '=> Out of remedies')
     
 

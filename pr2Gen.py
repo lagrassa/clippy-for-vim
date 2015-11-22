@@ -594,9 +594,9 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
         for pB in placeBsCopy:          # re-generate
             for gB in grasps:
                 tr(tag, 
-                   'considering grasps for ', pB, '\n',
-                   'for grasp class', gB.grasp,   '\n',
-                   'placeBsCopy.values', len(placeBsCopy.values))
+                   'considering grasps for ', pB.poseD.mode(), '\n',
+                   '  for grasp class', gB.grasp,   '\n',
+                   '  placeBsCopy.values', len(placeBsCopy.values))
                 if regrasp:
                     if not checkRegraspable(pB):
                         continue
