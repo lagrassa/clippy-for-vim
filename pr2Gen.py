@@ -57,6 +57,8 @@ class Generator(Function):
 #  How many candidates to generate at a time...  Larger numbers will
 #  generally lead to better solutions but take longer.
 pickPlaceBatchSize = 3
+pickPlaceMaxYield = 10
+pickPlaceMaxTries = 30
 
 easyGraspGenCacheStats = [0,0]
 
@@ -302,14 +304,16 @@ def pickGenAux(pbs, cpbs, obj, confAppr, conf, placeB, graspB, hand, prob,
         else:
             targetConfs = graspApproachConfGen(firstConf)
             batchSize = 1 if glob.inHeuristic else pickPlaceBatchSize
-            batch = 0
-            while True:
+            totalCount = 0
+            totalTries = 0
+            while totalCount < pickPlaceMaxYield and totalTries < pickPlaceMaxTries :
                 # Collect the next batch of trialConfs
-                batch += 1
                 trialConfs = []
                 count = 0
                 minCost = 1e6
                 for ca in targetConfs:       # targetConfs is a generator
+                    totalTries += 1
+                    tr(tag, 'Testing conf as pickable')
                     viol, reason = pickable(ca, approached[ca], placeB, graspB)
                     if viol:
                         trialConfs.append((viol.weight(), viol, ca))
@@ -319,6 +323,7 @@ def pickGenAux(pbs, cpbs, obj, confAppr, conf, placeB, graspB, hand, prob,
                         tr(tag, 'target conf failed: ' + reason)
                         continue
                     count += 1
+                    totalCount += 1
                     if count == batchSize or minCost == 0: break
                 if count == 0: break
                 trialConfs.sort()
@@ -589,9 +594,9 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
         for pB in placeBsCopy:          # re-generate
             for gB in grasps:
                 tr(tag, 
-                   ('considering grasps for ', pB),
-                   ('for grasp class', gB.grasp),
-                   ('placeBsCopy.values', len(placeBsCopy.values)))
+                   'considering grasps for ', pB, '\n',
+                   'for grasp class', gB.grasp,   '\n',
+                   'placeBsCopy.values', len(placeBsCopy.values))
                 if regrasp:
                     if not checkRegraspable(pB):
                         continue
@@ -645,15 +650,20 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
     for grasps, gCost in zip(gClasses, gCosts):
         targetConfs = placeApproachConfGen(grasps)
         batchSize = 1 if glob.inHeuristic else pickPlaceBatchSize
-        batch = 0
-        while True:
+        totalCount = 0
+        totalTries = 0
+        while totalCount < pickPlaceMaxYield and totalTries < pickPlaceMaxTries :
             tr(tag, 'Trying grasps', grasps)
-            # Collect the next batach of trialConfs
-            batch += 1
+            # Collect the next batch of trialConfs
             trialConfs = []
             count = 0
             minCost = 1e6
             for ca in targetConfs:   # targetConfs is a generator
+
+                if glob.traceGen:
+                    ca.prettyPrint('trialConf %d'%totalTries)
+
+                totalTries += 1
                 tr(tag, 'Testing conf as placeable')
                 viol, reason = placeable(ca, approached[ca])
                 if viol:
@@ -664,8 +674,9 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
                     tr(tag, 'Failure of placeable: '+reason)
                     continue
                 count += 1
+                totalCount += 1
                 if count == batchSize or minCost == 0: break
-            if count == 0: break
+            if count == 0: break        # no more targetConfs, exit
             cpbs.getShadowWorld(prob)
             trialConfs.sort()
             for _, viol, ca in trialConfs:
@@ -873,7 +884,7 @@ def placeInGenAway(args, pbs):
     (obj, delta, prob) = args
 
     if glob.traceGen:
-        print '***', 'placeInGenAway'
+        print '***', 'placeInGenAway', obj
 
     if not pbs.awayRegions():
         raw_input('Need some awayRegions')
@@ -940,7 +951,9 @@ def placeInGenAux(pbs, cpbs, poseGen, confAppr, conf, placeB, graspB,
                   hand, base, prob, regrasp=False, away=False):
 
     def placeBGen():
+        if glob.traceGen: print '    ', 'In placeInGenAux:placeBGen'
         for pose in poseGen.copy():
+            if glob.traceGen: print '    ', 'In placeInGenAux:placeBGen yielding', pose
             yield placeB.modifyPoseD(mu=pose)
 
     if glob.traceGen:

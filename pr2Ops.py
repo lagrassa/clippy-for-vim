@@ -1859,6 +1859,11 @@ class AchCanPickPlaceGen(Function):
                 for c in newConds: print c
                 debugMsg(tag, 'Inconsistent')
             else:
+                if glob.traceGen:
+                    print 'AchCanPickPlaceGen yields'
+                    for c in newConds:
+                        print '    ', c
+                pdb.set_trace()
                 yield [newConds]
 
 # Generator whose elements are a list containing lists (or sets) of fluents
@@ -2003,6 +2008,8 @@ def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob):
                  B([Pose([obst, supportFace]), poseMean, poseVar,
                            moveDelta, prob], True)])
             print '*** moveOut', obst
+            if glob.traceGen:
+                for c in newConds: print '    ', c
             yield newConds
     tr(tag, '=> Out of remedies')
 

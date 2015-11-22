@@ -118,10 +118,12 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
     if any(pB.poseD.mode() for pB in placeBs):
         placedBs = [pB for pB in placeBs if pB.poseD.mode()]
         placed = True
+        if glob.traceGen: print '    ', tag, 'start: placed=True'
     else:
         placed = False
     # generate samples
     for trial in xrange(maxTries):
+        if glob.traceGen: print '    ', tag, 'trial: placed=', placed
         # placement depends on region, pB and angle
         rs = random.choice(regPrims)
         pB = random.choice(placedBs if placed else placeBs)
@@ -131,7 +133,7 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
         # Check conditions
         if debug(tag):
             pbs.draw(prob, 'W'); placedShadow.draw('W', 'orange')
-            debugMsg(tag, 'candiate pose=%s, angle=%.2f'%(pB.poseD.mode(), angle))
+            debugMsg(tag, 'candiate pose=%s, angle=%.2f'%(npB.poseD.mode(), angle))
         if inside(placedShadow, rs) and \
                legalPlace(npB.obj, placedShadow, shWorld):
             debugMsg(tag, 'valid hyp pose=%s angle=%.2f'%(npB.poseD.mode(), angle))
