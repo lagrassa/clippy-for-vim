@@ -65,7 +65,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
     for hyp in sortedHyps(hypGen, validTestFn, costFn, nMax, 2*nMax):
         if debug('potentialGraspConfGen'):
             pbs.draw(prob, 'W'); hyp.conf.draw('W', 'green')
-            debugMsg(tag, 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),
+            debugMsg('potentialGraspConfGen', 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),
                      'pose=%s'%placeB.poseD.mode(), 'grasp=%s'%graspB.grasp.mode())
         yield hyp.conf, hyp.approachConf, hyp.viol
 

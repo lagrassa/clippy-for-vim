@@ -491,7 +491,18 @@ def testChute1(**args):
     # B in back
     goal3 = inRegion('objA', 'table1Mid1_3')
     actualGoal = goal1
-    skel = None
+    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}),
+             moveNB, lookAt.applyBindings({'Obj' : 'table2'}),
+             move, place,
+             move, pick,
+             moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
+             move, 
+             achCanPickPlace,
+             lookAt.applyBindings({'Obj' : 'objB'}),
+             move, place, move,
+             pick, moveNB, lookAt,
+             move]]
+
     return doTest('testSwap', exp, actualGoal, skel, args)
 
 
