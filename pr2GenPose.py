@@ -72,7 +72,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeBs, graspB, prob, regShapes, hand, 
 
 def checkValidHyp(hyp, pbs, graspB, prob, regShapes, hand, base):
     return poseGraspable(hyp, pbs, graspB, prob, hand, base) and \
-           feasiblePBS(hyp, pbs, prob)
+           feasiblePBS(hyp, pbs)
 
 # We want to minimize this score, optimzal value is 0.
 def scoreValidHyp(hyp, pbs, graspB, prob):
@@ -170,12 +170,13 @@ def poseGraspable(hyp, pbs, graspB, prob, hand, base):
         else:
             debugMsg(tag, 'candiate failed pose=%s, grasp=%s'%(pB.poseD.mode(), gB.grasp.mode()))
 
-def feasiblePBS(hyp, pbs, prob):
+def feasiblePBS(hyp, pbs):
     if pbs.conditions:
-        print '*** Testing feasibibility with conditions:'
-        for cond in pbs.conditions: print '    ', cond
-        pbs = pbs.updatePlaceB(hyp.pB)
-        feasible = pbs.feasible(prob)   # check conditioned fluents
+        print '*** Testing feasibibility with %d conditions'%(len(pbs.conditions))
+        if glob.traceGen:
+            for cond in pbs.conditions: print '    ', cond
+        pbs.updatePlaceB(hyp.pB)
+        feasible = pbs.feasible()   # check conditioned fluents
         print '*** feasible =>', feasible
         return feasible
     else:

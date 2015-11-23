@@ -148,6 +148,10 @@ class Bd(BFluent):
                 addToNHCache(fs, cost, ops)
             return nhCacheLookup(fs)[0] < float('inf')
 
+    def feasiblePBS(self, pbs):
+        (rFluent, v, p) = self.args
+        return rFluent.feasiblePBS(pbs, v, p)
+
     def heuristicVal(self, details):
         (rFluent, v, p) = self.args
         return rFluent.heuristicVal(details, v, p)

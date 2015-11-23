@@ -1863,7 +1863,6 @@ class AchCanPickPlaceGen(Function):
                     print 'AchCanPickPlaceGen yields'
                     for c in newConds:
                         print '    ', c
-                pdb.set_trace()
                 yield [newConds]
 
 # Generator whose elements are a list containing lists (or sets) of fluents
@@ -1960,7 +1959,7 @@ def lookAchCanXGen(pbs, shWorld, initViol, violFn, prob):
         if resultViol is not None and shadowName not in resultViol.allShadows():
             yield conds
         else:
-            trAlways('Error? Looking could not dispel shadow')
+            trAlways('*** Looking could not dispel shadow')
     tr(tag, '=> Out of remedies')
 
 
@@ -2011,12 +2010,14 @@ def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob):
             resultBS = pbs.conditioned([], newConds)
             resultViol = violFn(resultBS)
             if resultViol is not None and obst not in resultViol.allObstacles():
+                print '*** moveOut successful'
                 if glob.traceGen:
-                    print '*** moveOut successful'
                     for c in newConds: print '    ', c
                 yield newConds
             else:
-                trAlways('Error? moveOut did not remove obstacle')
+                pbs.draw(prob, 'W'); r.pB.shape(pbs).draw('W', 'cyan')
+                trAlways('*** moveOut suggestion (in cyan) did not remove obstacle')
+                raw_input('moveOut failed')
     tr(tag, '=> Out of remedies')
 
 def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob):
@@ -2048,12 +2049,13 @@ def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob):
             resultBS = pbs.conditioned([], newConds)
             resultViol = violFn(resultBS)
             if resultViol is not None and obst not in resultViol.allObstacles():
+                print '*** pushOut successful'
                 if glob.traceGen:
-                    print '*** pushOut successful'
                     for c in newConds: print '    ', c
                 yield newConds
             else:
-                trAlways('Error? pushOut did not remove obstacle')
+                pbs.draw(prob, 'W'); r.postPB.shape(pbs).draw('W', 'cyan')
+                trAlways('*** pushOut suggestion (in cyan) did not remove obstacle')
     tr(tag, '=> Out of remedies')
     
 

@@ -467,7 +467,7 @@ class CanReachNB(Fluent):
     def feasible(self, bState, v, p):
         return self.feasiblePBS(bState.pbs, v, p)
 
-    def feasiblePBS(self, bState, v, p):
+    def feasiblePBS(self, pbs, v, p):
         if not self.isGround():
             (startConf, endConf, cond) = self.args
             assert isGround(endConf) and isGround(cond)

@@ -67,7 +67,7 @@ class PBS:
     def __init__(self, beliefContext, held=None, conf=None,
                  graspB=None, objectBs=None, regions=[],
                  domainProbs=None, avoidShadow=[], base=None,
-                 targetConf=None, conditions=[], poseModeProbs=None):
+                 targetConf=None, conditions=set([]), poseModeProbs=None):
         self.beliefContext = beliefContext
         # The components of the state
         # The conf of the robot (fixed?, conf)
@@ -178,7 +178,7 @@ class PBS:
         newBS = newBS.updateFromConds(goalConds)
         if cond:
             newBS = newBS.updateFromConds(cond, permShadows=True)
-        newBS.conditions += [fluent for fluent in goalConds if fluent.conditional]
+        newBS.conditions.update([fluent for fluent in goalConds if fluent.isConditional()])
         return newBS
     def copy(self):
         def copyVal(x): return (x[0], x[1].copy())
@@ -186,9 +186,9 @@ class PBS:
                    self.graspB.copy(), self.objectBs.copy(),
                    self.regions, self.domainProbs, self.avoidShadow[:],
                    self.base, self.targetConf, self.conditions, self.poseModeProbs)
-    def feasible(self, prob):
-        # Check that all the condotions are feasible.
-        return all(fl.feasiblePBS(self, True, prob) for fl in self.conditions)
+    def feasible(self):
+        # Check that all the condotions are feasible; applied to Bd
+        return all(fl.feasiblePBS(self) for fl in self.conditions)
 
     # Updates
     def updateAvoidShadow(self, avoidShadow):

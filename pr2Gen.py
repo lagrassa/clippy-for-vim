@@ -1,5 +1,6 @@
 import time
 import pdb
+import itertools
 from fbch import Function
 from dist import DeltaDist
 from pr2Util import supportFaceIndex, shadowWidths, trArgs, inside, graspable, \
@@ -296,11 +297,8 @@ def pickGenAux(pbs, cpbs, obj, confAppr, conf, placeB, graspB, hand, prob,
         # object does not guarantee there are no solutions.
         if (not firstConf):
             if not onlyCurrent:
-                tr(tag, 'No potential grasp confs, will need to regrasp',
+                tr(tag, 'No potential grasp confs for %s, will need to regrasp'%obj,
                    draw=[(cpbs, prob, 'W')], snap=['W'])
-                if True: # debug(tag):
-                    print 'pickGen: Cannot find grasp conf for current pose of ' + obj
-                else: print 'pickGen: Cannot find graspconf for current pose of', obj
         else:
             targetConfs = graspApproachConfGen(firstConf)
             batchSize = 1 if glob.inHeuristic else pickPlaceBatchSize
@@ -590,13 +588,13 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
             return 1
 
     def placeApproachConfGen(grasps):
-        placeBsCopy = placeBs.copy()
-        for pB in placeBsCopy:          # re-generate
+        # Keep generating and if you run out, start again...
+        for pB in itertools.chain(placeBs, placeBs.copy()):
             for gB in grasps:
                 tr(tag, 
                    'considering grasps for ', pB.poseD.mode(), '\n',
                    '  for grasp class', gB.grasp,   '\n',
-                   '  placeBsCopy.values', len(placeBsCopy.values))
+                   '  placeBsCopy.values', len(placeBs.values))
                 if regrasp:
                     if not checkRegraspable(pB):
                         continue
@@ -772,6 +770,8 @@ def placeInRegionGenGen(args, pbs, cpbs, away = False):
        draw=[(cpbs, prob, 'W')] + [(rs, 'W', 'purple') for rs in regShapes],
        snap=['W'])
     pose, support = getPoseAndSupport(tag, obj, cpbs, prob)
+    if away:                            # don't specify pose
+        pose = None
 
     graspV = cpbs.domainProbs.maxGraspVar
     graspDelta = cpbs.domainProbs.graspDelta
