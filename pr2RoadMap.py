@@ -284,6 +284,7 @@ class RoadMap:
 
         ######### procedure starts ##########
 
+        if debug('traceCRH'): print 'Find path...'
         initConf = startConf or self.homeConf
         initNode = makeNode(initConf)
         attached = pbs.getShadowWorld(prob).attached

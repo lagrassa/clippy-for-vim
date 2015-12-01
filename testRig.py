@@ -114,7 +114,7 @@ def clearCaches(details):
     bc.world.robot.cacheReset()
     pr2Visible.cache.clear()
     fbch.hCacheReset()
-    pr2GenTests.pushPathCache.clear()
+    pr2Push.pushPathCache.clear()
     pr2Push.pushGenCache.clear()
 
 ######################################################################

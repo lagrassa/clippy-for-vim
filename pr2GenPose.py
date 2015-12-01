@@ -110,6 +110,9 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
     tag = 'potentialRegionPoseGen'
     ff = placeBs[0].faceFrames[placeBs[0].support.mode()]
     regPrims = [rs.prim() for rs in regShapes]
+    print 'Region prims:'
+    for rs, rp in zip(regShapes, regPrims):
+        print rs, rp
     objShadows = dict()
     regBI = dict()
     clearance = 0.01
@@ -126,6 +129,7 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
         if glob.traceGen: print '    ', tag, 'trial: placed=', placed
         # placement depends on region, pB and angle
         rs = random.choice(regPrims)
+        print '... random region prim', rs
         pB = random.choice(placedBs if placed else placeBs)
         angle = random.choice(angleList)
         npB, placedShadow = placeShadow(pB, angle, rs)
@@ -173,8 +177,6 @@ def poseGraspable(hyp, pbs, graspB, prob, hand, base):
 def feasiblePBS(hyp, pbs):
     if pbs.conditions:
         print '*** Testing feasibibility with %d conditions'%(len(pbs.conditions))
-        if glob.traceGen:
-            for cond in pbs.conditions: print '    ', cond
         pbs.updatePlaceB(hyp.pB)
         feasible = pbs.feasible()   # check conditioned fluents
         print '*** feasible =>', feasible

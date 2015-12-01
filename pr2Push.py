@@ -12,14 +12,13 @@ from shapes import thingFaceFrames, drawFrame
 import hu
 from planUtil import ObjGraspB, ObjPlaceB, Violations, PoseD, PushResponse
 from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords, bboxRandomCoords,\
-     supportFaceIndex, inside, Memoizer
-from pr2GenTests import pushPath, objectGraspFrame, canPush
+     supportFaceIndex, inside, Memoizer, objectGraspFrame
 from pr2GenUtils import getRegions, getPoseAndSupport, fixed, chooseHandGen, minimalConf
 from pr2GenGrasp import potentialGraspConfGen, graspConfForBase
-from pr2PlanBel import getGoalConf, getGoalPoseBels
 import mathematica
 reload(mathematica)
 from miscUtil import roundrobin
+from transformations import rotation_matrix
 import windowManager3D as wm
 
 # Pick poses and confs for pushing an object
@@ -51,22 +50,12 @@ class PushGen(Function):
         cpbs = pbs.conditioned(goalConds, [])
         for ans in pushGenGen(args, pbs, cpbs):
             if debug('pushGen'):
-                # Verify that it's feasible
                 (obj, pose, support, poseVar, poseDelta, confdelta, prob) = args
                 (hand, prePose, preConf, pushConf, postConf) = ans.pushTuple()
-                path, viol = canPush(cpbs, obj, hand, support, hu.Pose(*prePose),
-                                     pose, preConf, pushConf, postConf, poseVar,
-                                     poseVar, poseDelta, prob,
-                                     Violations(), prim=False)
-                if viol == None:
-                    raw_input('PushGen generated infeasible answer')
-                    return
-            else:
+                preConf.cartConf().prettyPrint('Pre Conf')
+                pushConf.cartConf().prettyPrint('Push Conf')
+                postConf.cartConf().prettyPrint('Post Conf')
                 tr('pushGen', '->', 'final', str(ans))
-                if debug('pushGen'):
-                    ans.preConf.cartConf().prettyPrint('Pre Conf')
-                    ans.pushConf.cartConf().prettyPrint('Push Conf')
-                    ans.postConf.cartConf().prettyPrint('Post Conf')
             yield ans.pushTuple()
         tr('pushGen', '-> completely exhausted')
 
@@ -86,8 +75,7 @@ def pushGenGen(args, pbs, cpbs):
     for ans in chooseHandGen('push', pbs, cpbs, obj, None, leftGen, rightGen):
         yield ans
 
-def pushGenTop(args, pbs, cpbs,
-               partialPaths=False, away=False):
+def pushGenTop(args, pbs, cpbs, away=False):
     (obj, placeB, hand, prob) = args
     startTime = time.clock()
     tag = 'pushGen'
@@ -134,7 +122,7 @@ def pushGenTop(args, pbs, cpbs,
         
     # Check the cache, otherwise call Aux
     pushGenCacheStats[0] += 1
-    key = (cpbs, placeB, hand, base, prob, partialPaths, away, glob.inHeuristic)
+    key = (cpbs, placeB, hand, base, prob, away, glob.inHeuristic)
     val = pushGenCache.get(key, None)
     if val != None:
         pushGenCacheStats[1] += 1
@@ -144,7 +132,7 @@ def pushGenTop(args, pbs, cpbs,
             print tag, 'cached, with len(values)=', len(memo.values)
     else:
         gen = pushGenAux(cpbs, placeB, hand, base, curPB, prob,
-                         partialPaths=partialPaths)
+                         away=away)
         memo = Memoizer(tag, gen)
         pushGenCache[key] = memo
         if debug(tag):
@@ -173,7 +161,7 @@ def choosePrim(shape):
                   key = lambda p: bboxVolume(p.bbox()), reverse=True)[0]
 
 def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
-               partialPaths=False):
+               away=False):
     tag = 'pushGen'
 
     if glob.traceGen:
@@ -210,17 +198,30 @@ def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
     potentialContacts = []
     for vertical in (True, False) if useHorizontalPush else (True,):
         potentialContacts.extend(handContactFrames(prim, center, vertical))
+
+    for ans in pushGenPaths(cpbs, prob, potentialContacts, placeB, curPB,
+                            hand, base, prim, supportRegion, away=away):
+        yield ans
+
+    tr(tag, '=> pushGenAux exhausted')
+    return
+
+# placeB is target, curPB is current
+# yields PushResponse
+def pushGenPaths(cpbs, prob, potentialContacts, placeB, curPB,
+                 hand, base, prim, supportRegion, away=False):
+    tag = 'pushGen'
+    curPose = curPB.poseD.mode()
     # sort contacts and compute a distance when applicable, entries
     # are: (distance, vertical, contactFrame, width)
     # Sort contacts by nearness to current pose of object
     sortedContacts = sortPushContacts(potentialContacts, placeB.poseD.mode(),
-                                      curPose)
+                                      curPose, away=away)
     if not sortPushContacts:
         tr(tag, '=> No sorted contacts')
     # Now we have frames for contact with object, we have to generate
     # potential answers following the face normal in the given
     # direction.
-    rm = cpbs.getRoadMap()               # save typing...
     for (dist, vertical, contactFrame, width) in sortedContacts:
         if debug(tag): print 'dist=', dist
         # construct a graspB corresponding to the push hand pose,
@@ -265,12 +266,10 @@ def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
                 pathAndViols, reason = pushPath(cpbs, prob, graspB, placeB, pushConf,
                                                 initPose, preConf, supportRegion, hand)
                 if reason == 'done':
+                    pushPaths.append((pathAndViols, reason))
                     doneCount +=1 
-                    pushPaths.append((pathAndViols, reason))
-                elif pathAndViols and partialPaths:
-                    pushPaths.append((pathAndViols, reason))
+                    if doneCount >= maxDone: break
                 tr(tag, 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
-                if doneCount >= maxDone and not partialPaths: break
                 if count > maxPushPaths: break
             pose1 = placeB.poseD.mode()
             pose2 = appPose
@@ -309,9 +308,6 @@ def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
                 print 'Yield push', ppre.pose(), '->', ppost.pose()
             cachePushResponse(ans)
             yield ans
-
-    tr(tag, '=> pushGenAux exhausted')
-    return
 
 # Return (preConf, pushConf) - conf at prePose and conf at placeB (pushConf)
 def potentialConfs(cpbs, prob, placeB, prePose, graspB, hand, base):
@@ -520,7 +516,7 @@ def graspBForContactFrame(cpbs, prob, contactFrame, zOffset, placeB, hand, verti
     assert graspB
     return graspB
 
-def sortPushContacts(contacts, targetPose, curPose):
+def sortPushContacts(contacts, targetPose, curPose, away=False):
     bad = []
     good = []
     if curPose:
@@ -540,7 +536,7 @@ def sortPushContacts(contacts, targetPose, curPose):
                 # bad ones require "pulling"
                 bad.append((0, None, vertical, contact, width))
             elif -ntrz >= minPushLength:
-                for dist in (ntrz, 0.5*ntrz) if abs(ntrz) > 0.025 else (ntrz,):
+                for dist in (ntrz, 0.5*ntrz) if (abs(ntrz) > 0.025 and not away) else (ntrz,):
                     # distance negated...
                     score = 5 * width - dist # prefer wide faces and longer pushes
                     good.append((score, -dist, vertical, contact, width))
@@ -578,7 +574,7 @@ class PushInRegionGen(Function):
             assert isinstance(ans, tuple)
             yield ans.poseInTuple()
 
-def pushInRegionGenGen(args, pbs, cpbs, away = False, update=True):
+def pushInRegionGenGen(args, pbs, cpbs, away = False):
     (obj, region, var, delta, prob) = args
 
     if glob.traceGen:
@@ -623,7 +619,7 @@ def pushInRegionGenGen(args, pbs, cpbs, away = False, update=True):
                        PoseD(pose, var), delta=delta)
 
     gen = pushInGenTop((obj, regShapes, placeB, prob),
-                          pbs, cpbs, away = away, update=update)
+                          pbs, cpbs, away = away)
     for ans in gen:
         tr(tag, ans)
         yield ans
@@ -665,7 +661,7 @@ def connectedSupport(reg, support):
     isectBB = bboxIsect([reg.bbox(), support.bbox()])
     return bboxVolume(isectBB) > 0 and abs(isectBB[0,2] - support.bbox()[0,2]) <= 0.005
 
-def pushInGenTop(args, pbs, cpbs, away = False, update=True):
+def pushInGenTop(args, pbs, cpbs, away = False):
     (obj, regShapes, placeB, prob) = args
     tag = 'pushInGen'
     regions = [x.name() for x in regShapes]
@@ -708,13 +704,16 @@ def pushInGenAux(pbs, cpbs, prob, placeB, regShapes, hand,
                  away=False):
     def feasiblePBS(pB):
         if pbs.conditions:
-            newBS = pbs.copy().updatePlaceB(pB)
+            newBS = pbs.copy()
+            newBS.updatePlaceB(pB)
             return newBS.feasible()           # check conditioned fluents
         else:
             return True
     tag = 'pushInGen'
     shWorld = cpbs.getShadowWorld(prob)
-    for pB in awayTargetPB(cpbs, prob, placeB, regShapes):
+    # Get a pose in one of the regions.  If away=True, has to be one
+    # push away.
+    for pB in regionTargetPB(cpbs, prob, placeB, regShapes, away=away):
         if feasiblePBS(pB):
             tr(tag, 'target is feasible:', pB)
         else:
@@ -810,7 +809,7 @@ def removeDuplicates(pointList):
             points.append(point1)
     return points
 
-def awayTargetPB(pbs, prob, placeB, regShapes):
+def regionTargetPB(pbs, prob, placeB, regShapes, away=False):
     shape = placeB.shape(pbs.getWorld())
     prim = choosePrim(shape)
     xyPrim = shape.xyPrim()
@@ -819,45 +818,66 @@ def awayTargetPB(pbs, prob, placeB, regShapes):
     for vertical in (True, False):
         potentialContacts.extend(handContactFrames(prim, center, vertical))
     for regShape in regShapes:
-        # for (vertical, contactFrame, width) in potentialContacts:
-        #     # This is z axis of face, push will be in that direction 
-        #     direction = contactFrame.matrix[:3,2].reshape(3).copy()
-        #     direction[2] = 0.0            # we want z component exactly 0.
-        #     for newPB in minDistInRegionPB(pbs, prob, placeB, direction, regShape):
-        #         if debug('pushInGen'):
-        #             print 'pushInGen', 'direction', direction, 'newPB', newPB
-        #             newShape = newPB.makeShadow(pbs, prob)
-        #             pbs.draw(prob, 'W'); drawFrame(contactFrame); newShape.draw('W', 'magenta')
-        #             raw_input('Go?')
-        #         yield newPB
-        for newPB in regionPB(pbs, prob, placeB, regShape):
+        # Placements in region achievable with a single push, if any
+        for (vertical, contactFrame, width) in potentialContacts:
+            # This is z axis of face, push will be in that direction 
+            direction = contactFrame.matrix[:3,2].reshape(3).copy()
+            direction[2] = 0.0            # we want z component exactly 0.
+            for newPB in lineRegionPB(pbs, prob, placeB, direction, regShape):
+                if debug('pushInGen'):
+                    print 'pushInGen', 'direction', direction, 'newPB', newPB
+                    newShape = newPB.makeShadow(pbs, prob)
+                    pbs.draw(prob, 'W'); drawFrame(contactFrame); newShape.draw('W', 'magenta')
+                    raw_input('Go?')
+                yield newPB
+        if not away:
+            for newPB in regionPB(pbs, prob, placeB, regShape):
+                if debug('pushInGen'):
+                    print 'pushInGen', 'directPush newPB', newPB
+                    newShape = newPB.makeShadow(pbs, prob)
+                    pbs.draw(prob, 'W'); newShape.draw('W', 'magenta')
+                    raw_input('Go?')
+                yield newPB
+
+def lineRegionPB(pbs, prob, placeB, direction, regShape, n=20):
+    shWorld = pbs.getShadowWorld(prob)
+    shape = pbs.getObjectShapeAtOrigin(placeB.obj)
+    mode = placeB.poseD.mode().pose()
+    bb = bboxInterior(shape.bbox(), regShape.bbox())
+    bbCenterPt = tuple([0.5*(bb[1][i]+bb[0][i]) for i in (0,1)])
+    bbRadius = sum([(bb[1][i]-bbCenterPt[i])**2 for i in (0,1)])**0.5
+    targets = lineTargets((mode.x, mode.y), bbCenterPt, bbRadius, direction, n=n*2)
+    count = 0
+    for point in targets:
+        newMode = hu.Pose(point[0], point[1], mode.z, mode.theta)
+
+        # TODO: How big a shadow to use??  This is smaller than regionPB
+        newPB = placeB.modifyPoseD(newMode, var=4*(0.01**2,))
+        newPB.delta = delta=4*(0.001,)
+
+        newShape = newPB.makeShadow(pbs, prob) 
+        if inside(newShape, regShape, strict=True):
             if debug('pushInGen'):
-                print 'pushInGen', 'directPush newPB', newPB
-                newShape = newPB.makeShadow(pbs, prob)
-                pbs.draw(prob, 'W'); newShape.draw('W', 'magenta')
-                raw_input('Go?')
+                pbs.draw(prob, 'W'); newShape.draw('W'); regShape.draw('W', 'purple')
+                raw_input('target pose in region for push')
+            count += 1
             yield newPB
+            if count > n: return
 
-def minDistInRegionPB(pbs, prob, placeB, direction, regShape,
-                      mind = 0.0, maxd = 1.0, count = 0):
-    if count > 10:
-        debugMsg('minDistInRegionPB', ('minDistInRegionPB failed to converge for direction', direction))
-        return []
-    dist = 0.5*(mind+maxd)
-    postPoseOffset = hu.Pose(*(dist*direction).tolist()+[0.0])
-    postPose = postPoseOffset.compose(placeB.poseD.mode())
-
-    newPB = placeB.modifyPoseD(postPose.pose(), var=4*(0.02**2,))
-    newPB.delta = delta=4*(0.001,)
-
-    if inside(newPB.makeShadow(pbs, prob), regShape, strict=True):
-        if maxd-mind < 0.01:
-            return [newPB]
-        else:
-            return minDistInRegionPB(pbs, prob, placeB, direction, regShape, mind, dist, count+1)
-    else:
-        return minDistInRegionPB(pbs, prob, placeB, direction, regShape, mind, dist, count+1) \
-               + minDistInRegionPB(pbs, prob, placeB, direction, regShape, dist, maxd, count+1)
+# p is current point (x,y), c is center of region (x,y), r is radius
+# and v is direction (x,y)
+def lineTargets(p, c, r, v, n=20):
+    def dot(x,y): return sum([x[i]*y[i] for i in (0,1)])
+    vmag = dot(v,v)**0.5
+    vhat = [v[0]/vmag, v[1]/vmag]       # norm direction
+    cp = [c[i] - p[i] for i in (0,1)]
+    d = dot(cp, vhat)                   # proj c-p along dir
+    z = (dot(cp,cp) - d**2)**0.5        # perp distance
+    if z >= r: return
+    x = (r**2 - z**2)**0.5
+    for count in xrange(n):
+        l = random.uniform(d-x, d+x)
+        yield [p[i] + l*vhat[i] for i in (0,1)]
 
 PushCache = {}
 def cachePushResponse(pr):
@@ -909,3 +929,286 @@ def bboxInterior(bb1, bb2):
         di2 = bb2[1,j] - bb2[0,j]
         if di1 > di2: return None
     return np.array([[bb2[i,j] - bb1[i,j] for j in range(3)] for i in range(2)])
+
+
+pushPathCacheStats = [0, 0]
+pushPathCache = {}
+
+if glob.useHandTiltForPush:
+    handTiltOffset = 0.0375                 # 0.18*math.sin(math.pi/15)
+    # handTiltOffset = 0.0560                 # 0.18*math.sin(math.pi/10)
+else:
+    handTiltOffset = 0.0
+
+# return None (if no useful cache hit) or the cached ans
+def checkPushPathCache(key, names,  pbs, prob, gB, conf, newBS):
+    tag = 'pushPath'
+    pushPathCacheStats[0] += 1
+    val = pushPathCache.get(key, None)
+    if val is not None:
+        for v in val:
+            (bs, p, gB1, ans) = v
+            if bs == pbs and p >= prob and gB == gB1:
+                if debug(tag): print tag, gB.obj, 'cached ->', ans[-1]
+                pushPathCacheStats[1] += 1
+                return ans
+        replay = checkReplay(newBS, prob, val)
+        if replay:
+            if debug(tag): print tag, 'cached replay ->', replay[-1]
+            pushPathCacheStats[1] += 1
+            return replay
+    else:
+        tr(tag, 'pushPath cache did not hit')
+        if debug(tag):
+            print '-----------'
+            conf.prettyPrint()
+            for n, x in zip(names, key): print n, x
+            print '-----------'
+        pushPathCache[key] = []
+
+# preConf = approach conf, before contact
+# initPose = object pose before push
+# initConf = conf at initPose
+# pushConf = conf at the end of push
+# pushPose = pose at end of push
+# returns (appDir, appDist, pushDir, pushDist)
+def pushDirections(preConf, initConf, initPose, pushConf, pushPose, hand):
+    # Approach dir and dist
+    handFrameName = preConf.robot.armChainNames[hand]
+    preWrist = preConf.cartConf()[handFrameName]
+    initWrist = initConf.cartConf()[handFrameName]
+    appDir = (initWrist.point().matrix.reshape(4) - preWrist.point().matrix.reshape(4))[:3]
+    appDir[2] = 0.0
+    appDist = (appDir[0]**2 + appDir[1]**2)**0.5 # xy app distance
+    if appDist != 0:
+        appDir /= appDist
+    appDist -= handTiltOffset     # the tilt reduces the approach dist
+    # Push dir and dist
+    pushDir = (pushPose.point().matrix.reshape(4) - initPose.point().matrix.reshape(4))[:3]
+    pushDir[2] = 0.0
+    pushDist = (pushDir[0]**2 + pushDir[1]**2)**0.5 # xy push distance
+    if pushDist != 0:
+        pushDir /= pushDist
+    pushDist -= handTiltOffset     # the tilt reduces the push dist
+    # Return
+    return (appDir, appDist, pushDir, pushDist)
+
+# The conf in the input is the robot conf in contact with the object
+# at the destination pose.
+
+pushStepSize = 0.01
+
+def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
+    tag = 'pushPath'
+    def finish(reason, gloss, pathViols=[], cache=True):
+        if debug(tag):
+            print '->', reason, gloss, 'path len=', len(pathViols)
+            debugMsg(reason)
+        ans = (pathViols, reason)
+        if cache: pushPathCache[key].append((pbs, prob, gB, ans))
+        return ans
+    #######################
+    # Preliminaries
+    #######################
+    initPose = hu.Pose(*initPose) if isinstance(initPose, (tuple, list)) else initPose
+    postPose = pB.poseD.mode()
+    # Create pbs in which the object is grasped
+    newBS = pbs.copy().updateHeldBel(gB, hand)
+    # Check cache and return it if appropriate
+    baseSig = "%.6f, %.6f, %.6f"%tuple(conf['pr2Base'])
+    key = (postPose, baseSig, initPose, hand, glob.pushBuffer, glob.inHeuristic)
+    names =('postPose', 'base', 'initPose', 'hand', 'pushBuffer', 'inHeuristic')
+    cached = checkPushPathCache(key, names, pbs, prob, gB, conf, newBS)
+    if cached is not None:
+        pathViols, reason = cached
+        return finish(reason, 'Cached answer', pathViols, cache=False)
+    if debug(tag): newBS.draw(prob, 'W'); raw_input('pushPath: Go?')
+    # Check there is no permanent collision at the goal
+    viol = newBS.confViolations(conf, prob)
+    if not viol:
+        return finish('collide', 'Final conf collides in pushPath')
+    #######################
+    # Set up scan parameters, directions, steps, etc.
+    #######################
+    # initConf is for initial contact at initPose
+    initConf = displaceHandRot(conf, hand, initPose.compose(postPose.inverse()))
+    if not initConf:
+        return finish('invkin', 'No invkin at initial contact')
+    # the approach and push directions (and distances)
+    appDir, appDist, pushDir, pushDist = \
+            pushDirections(preConf, initConf, initPose, conf, postPose, hand)
+    if pushDist == 0:
+        return finish('dist=0', 'Push distance = 0')
+    # Find tilt, if any, for hand given the direction
+    tiltRot = handTilt(preConf, hand, appDir)
+    if tiltRot is None:
+        return finish('bad dir', 'Illegal hand orientation')
+    # rotation angle (if any) - can only do small ones (if we're lucky)
+    angleDiff = hu.angleDiff(postPose.theta, initPose.theta)
+    if debug(tag): print 'angleDiff', angleDiff
+    if abs(angleDiff) > math.pi/6 or \
+           (abs(angleDiff) > 0.1 and pushDist < 0.02):
+        return finish('tilt', 'Angle too large for pushing')
+    # The minimal shadow, at the destination
+    shape = pB.makeShadow(pbs, 0.0)
+    assert shape
+    if debug(tag):
+        offPose = postPose.inverse().compose(initPose)
+        shape.draw('W', 'pink'); shape.applyTrans(offPose).draw('W', 'blue')
+        conf.draw('W', 'pink'); preConf.draw('W', 'blue'); raw_input('Go?')
+    #######################
+    # Set up state for the combined scans
+    #######################
+    # We will return (conf, viol, pose) for steps along the path --
+    # starting at initPose.  Before contact, pose in None.
+    pathViols = []
+    reason = 'done'                     # done indicates success
+    #######################
+    # Set up state for the approach scan
+    #######################
+    # Number of steps for approach displacement
+    nsteps = int(appDist / pushStepSize)
+    delta = appDist / nsteps
+    stepVals = [0, nsteps-1] if glob.inHeuristic else xrange(nsteps)
+    #######################
+    # Do the approach scan
+    #######################
+    for step_i in stepVals:
+        step = (step_i * delta)
+        hOffsetPose = hu.Pose(*((step*appDir).tolist()+[0.0]))
+        nconf = displaceHandRot(preConf, hand, hOffsetPose, tiltRot = tiltRot)
+        if not nconf:
+            reason = 'invkin'; break
+        viol = newBS.confViolations(nconf, prob)
+        if viol is None:
+            reason = 'collide'; break
+        if armCollides(nconf, shape, hand):
+            reason = 'selfCollide'; break
+        if debug('pushPath'):
+            print 'approach step=', step, viol
+            drawState(newBS, prob, nconf, shape)
+        pathViols.append((nconf, viol, None))
+    if reason != 'done':
+        return finish(reason, 'During approach', [])
+    #######################
+    # Set up state for the push scan
+    #######################
+    # Number of steps for approach displacement
+    nsteps = max(int(pushDist / pushStepSize), 1)
+    delta = pushDist / nsteps
+    if angleDiff == 0 or pushDist < pushStepSize:
+        deltaAngle = 0.0
+    else:
+        deltaAngle = angleDiff / nsteps
+    if nsteps > 1:
+        stepVals = [0, nsteps-1] if glob.inHeuristic else xrange(nsteps)
+    else:
+        stepVals = [0]
+    if debug(tag): 
+        print 'nsteps=', nsteps, 'delta=', delta, 'deltaAngle', deltaAngle
+    handFrameName = conf.robot.armChainNames[hand]
+    #######################
+    # Do the push scan
+    #######################
+    for step_i in stepVals:
+        step = (step_i * delta)
+        hOffsetPose = hu.Pose(*((step*pushDir).tolist()+[0.0]))
+        nconf = displaceHandRot(initConf, hand, hOffsetPose,
+                                tiltRot = tiltRot, angle=step*deltaAngle)
+        if not nconf:
+            reason = 'invkin'; break
+        if step_i == nsteps-1:
+            nconf = conf
+        viol = newBS.confViolations(nconf, prob)
+        if viol is None:
+            reason = 'collide'; break
+        offsetPose = hu.Pose(*(step*pushDir).tolist()+[0.0])
+        offsetRot = hu.Pose(0.,0.,0.,step*deltaAngle)
+        newPose = offsetPose.compose(initPose).compose(offsetRot).pose()
+        if debug('pushPath'):
+            print step_i, 'newPose:', newPose
+            print step_i, 'nconf point', nconf.cartConf()[handFrameName].point()
+        offsetPB = pB.modifyPoseD(newPose, var=4*(0.01**2,))
+        offsetPB.delta=4*(0.001,)
+        nshape = offsetPB.makeShadow(pbs, prob)
+        if regShape and not inside(nshape, regShape):
+            reason = 'outside'; break
+        if armCollides(nconf, nshape, hand):
+            reason = 'selfCollide'; break
+        if debug('pushPath'):
+            print 'push step=', step, viol
+            drawState(newBS, prob, nconf, nshape)
+        pathViols.append((nconf, viol, offsetPB.poseD.mode()))
+    #######################
+    # Prepare ans
+    #######################
+    if not pathViols:
+        reason = 'no path'
+    return finish(reason, 'Final pushPath', pathViols)
+
+def armCollides(conf, objShape, hand):
+    armShape = conf.placement()
+    parts = dict([(part.name(), part) for part in armShape.parts()])
+    gripperName = conf.robot.gripperChainNames[hand]
+    return any(objShape.collides(parts[name]) for name in parts if name != gripperName)
+
+def drawState(pbs, prob, conf, shape=None):
+    shWorld = pbs.getShadowWorld(prob)
+    attached = shWorld.attached
+    if glob.useMathematica:
+        wm.getWindow('W').startCapture()
+    pbs.draw(prob, 'W')
+    conf.draw('W', 'green', attached)
+    if shape: shape.draw('W', 'blue')
+    wm.getWindow('W').update()
+    if glob.useMathematica:
+        mathematica.mathFile(wm.getWindow('W').stopCapture(),
+                             view = "ViewPoint -> {2, 0, 2}",
+                             filenameOut='./pushPath.m')
+        
+def displaceHandRot(conf, hand, offsetPose, nearTo=None, tiltRot=None, angle=0.0):
+    cart = conf.cartConf()
+    handFrameName = conf.robot.armChainNames[hand]
+    trans = cart[handFrameName]         # initial hand position
+    # wrist x points down, so we negate angle to get rotation around z.
+    xrot = hu.Transform(rotation_matrix(-angle, (1,0,0)))
+    nTrans = offsetPose.compose(trans).compose(xrot) # final hand position
+    if tiltRot and trans.matrix[2,0] < -0.9:     # rot and vertical (wrist x along -z)
+        nTrans = nTrans.compose(tiltRot)
+    nCart = cart.set(handFrameName, nTrans)
+    nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
+    if all(nConf.values()):
+        assert all(conf[g] == nConf[g] for g in ('pr2LeftGripper', 'pr2RightGripper'))
+        return nConf
+    
+def handTilt(conf, hand, direction):
+    cart = conf.cartConf()
+    handFrameName = conf.robot.armChainNames[hand]
+    trans = cart[handFrameName]
+    # Horizontal hand orientation
+    if trans.matrix[2,0] >= -0.9:       
+        # x axis of wrist points along hand, we don't need tilt
+        return hu.Pose(0,0,0,0)
+    # Rest is for vertical hand orientation
+    transInv = trans.inverse()
+    transInvMat = transInv.matrix
+    handDir = np.dot(transInvMat, np.hstack([direction, np.array([0.0])]).reshape(4,1))
+    if abs(handDir[2,0]) > 0.7:
+        sign = -1.0 if handDir[2,0] < 0 else 1.0
+        # Because of the wrist orientation, the sign is negative
+        if glob.useHandTiltForPush:
+            # Tilting the hand causes a discontinuity at the end of the push
+            return hu.Transform(rotation_matrix(-sign*math.pi/15., (0,1,0)))
+        else:
+            return hu.Pose(0,0,0,0)
+    else:
+        if debug('pushPath'):
+            print 'Bad direction relative to hand'
+        return None
+
+def checkReplay(pbs, prob, cachedValues):
+    doneVals = [val for (bs, p, gB, val) in cachedValues if val[-1] == 'done']
+    for (pathViols, reason) in doneVals:
+        viol = [pbs.confViolations(conf, prob) for (conf, _, _) in pathViols]
+        if all(viol):
+            return ([(c, v2, p) for ((c, v1, p), v2) in zip(pathViols, viol)], 'done')

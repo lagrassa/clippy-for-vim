@@ -41,6 +41,7 @@ debugOnly = ['h', 'assign']  # don't pause
 
 debugOn = usualTags
 
+# + ['traceCRH']
 # + ['placeGen', 'placeInGen', 'potentialRegionPoseGen']
 # + ['testPrimPrimCollides', 'testCC']
 # + ['pushFail', 'pushInGen', 'pushGen']

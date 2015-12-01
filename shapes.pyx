@@ -243,6 +243,11 @@ cdef class Prim:
             self.primVerts = np.dot(self.primOrigin.matrix, self.basePrim.baseVerts)
         return self.primVerts
 
+    cpdef np.ndarray[np.float64_t, ndim=2] getVertices(self): # same as vertices
+        if self.primVerts is None:
+            self.primVerts = np.dot(self.primOrigin.matrix, self.basePrim.baseVerts)
+        return self.primVerts
+
     cpdef np.ndarray[np.float64_t, ndim=2] planes(self):
         if self.primPlanes is None:
             self.primPlanes = np.dot(self.basePrim.basePlanes,
@@ -409,6 +414,10 @@ cdef class Shape:
     cpdef np.ndarray[np.float64_t, ndim=2] vertices(self):
         raw_input('Calling for vertices of compound shape')
         return None
+
+    cpdef np.ndarray[np.float64_t, ndim=2] getVertices(self):
+        return np.hstack([p.vertices() for p in self.toPrims() \
+                          if not p.vertices() is None])
 
     cpdef Shape applyTrans(self, hu.Transform trans, str frame='unspecified'):
         return Shape([p.applyTrans(trans, frame) for p in self.parts()],

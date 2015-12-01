@@ -4,11 +4,10 @@ import itertools
 from fbch import Function
 from dist import DeltaDist
 from pr2Util import supportFaceIndex, shadowWidths, trArgs, inside, graspable, \
-     objectName, shadowName, Memoizer, otherHand
+     objectName, shadowName, Memoizer, otherHand, baseConfWithin
 from pr2PlanBel import getGoalConf, getGoalPoseBels
 from shapes import Box
 from dist import UniformDist
-from pr2Fluents import baseConfWithin
 from planUtil import PPResponse, ObjPlaceB, ObjGraspB, PoseD, Violations
 from miscUtil import roundrobin, isVar
 from pr2Push import pushInRegionGenGen
@@ -258,9 +257,6 @@ def pickGenAux(pbs, cpbs, obj, confAppr, conf, placeB, graspB, hand, prob,
             approached[ca] = c
             yield ca
 
-    def currentGraspFeasible():
-        wrist = objectGraspFrame(cpbs, graspB, placeB, hand)
-
     if glob.traceGen:
         print ' **', 'pickGenAux', placeB.poseD.mode(), graspB.grasp.mode(), hand
 
@@ -445,7 +441,7 @@ placeGenCacheStats = [0, 0]
 placeGenCache = {}
 
 # returns values for (?graspPose, ?graspFace, ?conf, ?confAppr)
-def placeGenTop(args, pbs, cpbs, regrasp=False, away=False):
+def placeGenTop(args, pbs, cpbs, regrasp=False, onlyPose=False):
     (obj, graspB, placeBs, hand, base, prob) = args
 
     if glob.traceGen:
@@ -484,7 +480,7 @@ def placeGenTop(args, pbs, cpbs, regrasp=False, away=False):
 
     key = (newBS,
            (obj, graspB, placeBs, hand, tuple(base) if base else None, prob),
-           regrasp, away)
+           regrasp, onlyPose)
     val = placeGenCache.get(key, None)
     placeGenCacheStats[0] += 1
     if val is not None:
@@ -502,7 +498,7 @@ def placeGenTop(args, pbs, cpbs, regrasp=False, away=False):
         memo = Memoizer(tag,
                         placeGenAux(pbs, newBS, obj, confAppr, conf, placeBG.copy(),
                                     graspB, hand, base, prob,
-                                    regrasp=regrasp))
+                                    regrasp=regrasp, onlyPose=onlyPose))
         placeGenCache[key] = memo
         tr(tag, 'Created new generator')
     for ans in memo:
@@ -510,7 +506,7 @@ def placeGenTop(args, pbs, cpbs, regrasp=False, away=False):
         yield ans
 
 def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, prob,
-                regrasp=False):
+                regrasp=False, onlyPose=False):
     def placeable(ca, c, quick=False):
         (pB, gB) = context[ca]
         return canPickPlaceTest(cpbs, ca, c, hand, gB, pB, prob,
@@ -687,7 +683,12 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
                          (pB.shape(shWorld), 'W', 'magenta'),
                          (c, 'W', 'magenta', shWorld.attached)],
                    snap=['W'])
+                if debug(tag):
+                    c.prettyPrint('place conf')
                 yield ans
+                if onlyPose:
+                    tr(tag, 'onlyPose, only generate one conf, so return')
+                    return
     tr(tag, 'out of values')
 
 # Preconditions (for R1):
@@ -708,8 +709,8 @@ class PoseInRegionGen(Function):
         cpbs = pbs.conditioned(goalConds, [])
         for ans in lookInRegionGenGen(args, pbs, cpbs, away = False):
             yield ans
-        for ans in roundrobin(placeInRegionGenGen(args, pbs, cpbs, away = False),
-                              pushInRegionGenGen(args, pbs, cpbs, away = False)):
+        for ans in roundrobin(placeInRegionGenGen(args, pbs, cpbs),
+                              pushInRegionGenGen(args, pbs, cpbs)):
             if ans:
                 yield ans.poseInTuple()
 
@@ -747,7 +748,7 @@ def lookInRegionGenGen(args, pbs, cpbs, away = False):
         yield ans
     tr(tag, '=> Look will not achieve In')
 
-def placeInRegionGenGen(args, pbs, cpbs, away = False):
+def placeInRegionGenGen(args, pbs, cpbs, away = False, onlyPose = False):
     (obj, region, var, delta, prob) = args
 
     if glob.traceGen:
@@ -825,7 +826,7 @@ def placeInRegionGenGen(args, pbs, cpbs, away = False):
                        PoseD(pose, var), delta=delta)
 
     gen = placeInGenTop((obj, regShapes, graspB, placeB, None, prob),
-                          pbs, cpbs, away = away)
+                          pbs, cpbs, away = away, onlyPose = onlyPose)
     for ans in gen:
         tr(tag, '-> ', ans)
         yield ans
@@ -879,7 +880,7 @@ def drop(pbs, prob, obj, hand, placeB):
                             op='place')[0]:
                 return ppr
 
-def placeInGenAway(args, pbs):
+def placeInGenAway(args, pbs, onlyPose=False):
     # !! Should search over regions and hands
     (obj, delta, prob) = args
 
@@ -895,13 +896,13 @@ def placeInGenAway(args, pbs):
                             for x in pbs.domainProbs.obsVarTuple])
     for ans in placeInRegionGenGen((obj, pbs.awayRegions(),
                                     targetPlaceVar, delta, prob),
-                                   pbs, pbs, away=True):
+                                   pbs, pbs, away=True, onlyPose=onlyPose):
         yield ans
 
 placeInGenMaxPoses  = 500
 
 def placeInGenTop(args, pbs, cpbs,
-                  regrasp=False, away = False):
+                  regrasp=False, away = False, onlyPose=False):
     (obj, regShapes, graspB, placeB, base, prob) = args
     tag = 'placeInGen'
 
@@ -930,10 +931,10 @@ def placeInGenTop(args, pbs, cpbs,
     # note the use of PB...
     leftGen = placeInGenAux(pbs, cpbs, poseGenLeft, confAppr,
                             conf, placeB, graspB, 'left', base, prob,
-                            regrasp=regrasp, away=away)
+                            regrasp=regrasp, away=away, onlyPose=onlyPose)
     rightGen = placeInGenAux(pbs, cpbs, poseGenRight, confAppr,
                              conf, placeB, graspB, 'right', base, prob,
-                             regrasp=regrasp, away=away)
+                             regrasp=regrasp, away=away, onlyPose=onlyPose)
     # Figure out whether one hand or the other is required;  if not, do round robin
     mainGen = chooseHandGen('place', pbs, cpbs, obj, None, leftGen, rightGen)
 
@@ -948,7 +949,7 @@ def placeInGenTop(args, pbs, cpbs,
 
 # Don't try to place all objects at once
 def placeInGenAux(pbs, cpbs, poseGen, confAppr, conf, placeB, graspB,
-                  hand, base, prob, regrasp=False, away=False):
+                  hand, base, prob, regrasp=False, away=False, onlyPose=False):
 
     def placeBGen():
         if glob.traceGen: print '    ', 'In placeInGenAux:placeBGen'
@@ -963,7 +964,7 @@ def placeInGenAux(pbs, cpbs, poseGen, confAppr, conf, placeB, graspB,
     shWorld = cpbs.getShadowWorld(prob)
     gen = Memoizer('placeBGen_placeInGenAux1', placeBGen())
     for ans in placeGenTop((graspB.obj, graspB, gen, hand, base, prob),
-                           pbs, cpbs, regrasp=regrasp, away=away):
+                           pbs, cpbs, regrasp=regrasp, onlyPose=onlyPose):
         tr('placeInGen', ('=> blue', str(ans)),
            draw=[(cpbs, prob, 'W'),
                  (ans.pB.shape(shWorld), 'W', 'blue'),
@@ -1337,7 +1338,7 @@ def moveOut(pbs, prob, obst, delta):
                             for x in pbs.domainProbs.obsVarTuple])
     if not isinstance(obst, str):
         obst = obst.name()
-    for ans in placeInGenAway((obst, delta, prob), pbs):
+    for ans in placeInGenAway((obst, delta, prob), pbs, onlyPose=True):
         ans = ans.copy()
         ans.var = pbs.domainProbs.objBMinVar(obst)
         ans.delta = delta

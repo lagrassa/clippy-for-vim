@@ -8,6 +8,7 @@ from dist import chiSqFromP
 import numpy as np
 from traceFile import debug, debugMsg, tr
 from planUtil import PoseD, Violations
+from pr2Robot import gripperFaceFrame
 import planGlobals as glob
 
 class Hashable:
@@ -365,3 +366,70 @@ def checkCache(cache, key, valueFn):
         cache[key] = valueFn(*key)
     return cache[key]
 
+def baseConfWithin(bc1, bc2, delta):
+    (x1, y1, t1) = bc1
+    (x2, y2, t2) = bc2
+    bp1 = hu.Pose(x1, y1, 0, t1)
+    bp2 = hu.Pose(x2, y2, 0, t2)
+    return bp1.near(bp2, delta[0], delta[-1])
+    
+def confWithin(c1, c2, delta):
+    def withinDelta(a, b):
+        if isinstance(a, list):
+            dd = delta[0]                # !! hack
+            return all([abs(a[i] - b[i]) <= dd \
+                        for i in range(min(len(a), len(b)))])
+        else:
+            return a.withinDelta(b, delta)
+
+    if not all([d >= 0 for d in delta]):
+        return False
+
+    # We only care whether | conf - targetConf | <= delta
+    # Check that the moving frames are all within specified delta
+    c1CartConf = c1.cartConf()
+    c2CartConf = c2.cartConf()
+    robot = c1.robot
+
+    # Also be sure two head angles are the same
+    (c1h1, c1h2) = c1['pr2Head']
+    (c2h1, c2h2) = c2['pr2Head']
+
+    # Also look at gripper
+
+    return all([withinDelta(c1CartConf[x],c2CartConf[x]) \
+                for x in robot.moveChainNames]) and \
+                hu.nearAngle(c1h1, c2h1, delta[-1]) and \
+                hu.nearAngle(c1h2, c2h2, delta[-1])
+
+
+def objectGraspFrame(pbs, objGrasp, objPlace, hand):
+    # Find the robot wrist frame corresponding to the grasp at the placement
+    objFrame = objPlace.objFrame()
+    graspDesc = objGrasp.graspDesc[objGrasp.grasp.mode()]
+    faceFrame = graspDesc.frame.compose(objGrasp.poseD.mode())
+    centerFrame = faceFrame.compose(hu.Pose(0,0,graspDesc.dz,0))
+    graspFrame = objFrame.compose(centerFrame)
+    # !! Rotates wrist frame to grasp face frame - defined in pr2Robot
+    gT = gripperFaceFrame[hand]
+    wristFrame = graspFrame.compose(gT.inverse())
+    # assert wristFrame.pose()
+
+    if debug('objectGraspFrame'):
+        print 'objGrasp', objGrasp
+        print 'objPlace', objPlace
+        print 'objFrame\n', objFrame.matrix
+        print 'grasp faceFrame\n', faceFrame.matrix
+        print 'centerFrame\n', centerFrame.matrix
+        print 'graspFrame\n', graspFrame.matrix
+        print 'object wristFrame\n', wristFrame.matrix
+
+    return wristFrame
+
+def robotGraspFrame(pbs, conf, hand):
+    robot = pbs.getRobot()
+    _, frames = robot.placement(conf, getShapes=[])
+    wristFrame = frames[robot.wristFrameNames[hand]]
+    if debug('robotGraspFrame'):
+        print 'robot wristFrame\n', wristFrame
+    return wristFrame

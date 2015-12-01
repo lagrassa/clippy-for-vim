@@ -185,10 +185,12 @@ class PBS:
         return PBS(self.beliefContext, self.held.copy(), copyVal(self.conf),
                    self.graspB.copy(), self.objectBs.copy(),
                    self.regions, self.domainProbs, self.avoidShadow[:],
-                   self.base, self.targetConf, self.conditions, self.poseModeProbs)
+                   self.base, self.targetConf, self.conditions.copy(), self.poseModeProbs)
     def feasible(self):
-        # Check that all the condotions are feasible; applied to Bd
-        return all(fl.feasiblePBS(self) for fl in self.conditions)
+        # Check that all the conditions are feasible; applied to Bd
+        for fl in self.conditions:
+            if not fl.feasiblePBS(self): return False
+        return True
 
     # Updates
     def updateAvoidShadow(self, avoidShadow):

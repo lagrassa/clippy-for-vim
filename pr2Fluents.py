@@ -5,7 +5,8 @@ import hu
 import numpy as np
 from planUtil import Violations, ObjPlaceB, ObjGraspB
 from pr2Util import shadowName, drawPath, objectName, PoseD, \
-     supportFaceIndex, GDesc, inside, otherHand, graspable, pushable, permanent
+     supportFaceIndex, GDesc, inside, otherHand, graspable, pushable, permanent, \
+     confWithin, baseConfWithin
 from pr2GenTests import inTest, canReachNB, canReachHome, canPush
 from dist import DeltaDist, probModeMoved
 from traceFile import debugMsg, debug, pause
@@ -61,43 +62,6 @@ class In(Fluent):
             return False
         else: 
             return inTest(bState.pbs, obj, region, p)
-
-    
-def baseConfWithin(bc1, bc2, delta):
-    (x1, y1, t1) = bc1
-    (x2, y2, t2) = bc2
-    bp1 = hu.Pose(x1, y1, 0, t1)
-    bp2 = hu.Pose(x2, y2, 0, t2)
-    return bp1.near(bp2, delta[0], delta[-1])
-    
-def confWithin(c1, c2, delta):
-    def withinDelta(a, b):
-        if isinstance(a, list):
-            dd = delta[0]                # !! hack
-            return all([abs(a[i] - b[i]) <= dd \
-                        for i in range(min(len(a), len(b)))])
-        else:
-            return a.withinDelta(b, delta)
-
-    if not all([d >= 0 for d in delta]):
-        return False
-
-    # We only care whether | conf - targetConf | <= delta
-    # Check that the moving frames are all within specified delta
-    c1CartConf = c1.cartConf()
-    c2CartConf = c2.cartConf()
-    robot = c1.robot
-
-    # Also be sure two head angles are the same
-    (c1h1, c1h2) = c1['pr2Head']
-    (c2h1, c2h2) = c2['pr2Head']
-
-    # Also look at gripper
-
-    return all([withinDelta(c1CartConf[x],c2CartConf[x]) \
-                for x in robot.moveChainNames]) and \
-                hu.nearAngle(c1h1, c2h1, delta[-1]) and \
-                hu.nearAngle(c1h2, c2h2, delta[-1])
 
 # Do we know where the object is?
 class BLoc(Fluent):
@@ -329,8 +293,10 @@ class CanReachHome(Fluent):
         key = (hash(pbs), p)
         if not hasattr(self, 'viols'): self.viols = {}
         if not hasattr(self, 'hviols'): self.hviols = {}
-        if key in self.viols: return self.viols[key]
-        if glob.inHeuristic and key in self.hviols: return self.hviols[key]
+        if key in self.viols:
+            return self.viols[key]
+        if glob.inHeuristic and key in self.hviols:
+            return self.hviols[key]
 
         newPBS = pbs.conditioned([], cond)
         path, violations = canReachHome(newPBS, conf, p, Violations())
@@ -683,12 +649,13 @@ class CanPickPlace(Fluent):
     def getViols(self, pbs, v, p):
         def violCombo(v1, v2):
             return v1.update(v2)
-
         key = (hash(pbs), p)
         if not hasattr(self, 'viols'): self.viols = {}
         if not hasattr(self, 'hviols'): self.hviols = {}
-        if key in self.viols: return self.viols[key]
-        if glob.inHeuristic and key in self.hviols: return self.hviols[key]
+        if key in self.viols:
+            return self.viols[key]
+        if glob.inHeuristic and key in self.hviols:
+            return self.hviols[key]
             
         condViols = [c.getViols(pbs, v, p) for c in self.getConds(pbs)]
 

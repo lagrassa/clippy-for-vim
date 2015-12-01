@@ -1,9 +1,8 @@
 import hu
 import planGlobals as glob
 from planGlobals import torsoZ
-from pr2Util import Memoizer
+from pr2Util import Memoizer, objectGraspFrame
 from planUtil import Violations
-from pr2GenTests import objectGraspFrame
 from pr2GenUtils import sortedHyps, baseDist
 from pr2Robot import CartConf, pr2BaseLink
 from traceFile import tr, debug, debugMsg
