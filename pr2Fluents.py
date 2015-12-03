@@ -411,8 +411,8 @@ def hCost(violations, details):
 
 def hCostSee(vis, occluders, details):
     # vis is whether enough is visible;   we're 0 cost if that's true
-    if vis:
-        return 0, ActSet()
+    if not vis:
+        return float('inf'), ActSet()
 
     obstOps = set([Operator('RemoveObst', [o],{},[]) \
                    for o in occluders])
@@ -1004,13 +1004,14 @@ class CanSeeFrom(Fluent):
     def bTest(self, details, v, p):
         assert v == True
         ans, occluders = self.getViols(details.pbs, v, p, strict=True)
-        return ans
+        return ans and len(occluders) == 0
 
     def update(self):
         super(CanSeeFrom, self).update()
         self.viols = {}
         self.hviols = {}
 
+    # Ans is true if *it could possibly be made true*
     def getViols(self, pbs, v, p, strict=True):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
@@ -1051,6 +1052,9 @@ class CanSeeFrom(Fluent):
             if strict:
                 fixed = obstacles
                 obstacles = []
+            # Returns (bool, list of occluders).  The bool indicates
+            # whether the target shape is potentially visible if the
+            # occluding obsts are removed.
             ans, occluders = visible(shWorld, conf, sh, obstacles,
                                      p, moveHead=False, fixed=fixed)
             debugMsg('CanSeeFrom',

@@ -475,30 +475,30 @@ def testChute1(**args):
     perm['chute'] = (mid, smallVar)
 
     exp = makeExp(perm,
-                  {'objA' : (back, medVar),
-                   'objB' : (front, medVar)},
+                  {'tsA' : (back, medVar),
+                   'tsB' : (front, medVar)},
                   ['table1Top', 'table2Top', 'table1Mid1_3',
                    'table1Mid2_3'], easy=args.get('easy', False))
     # Complete swap
-    goal = inRegion(['objA', 'objB'],
+    goal = inRegion(['tsA', 'tsB'],
                     ['table1Mid1_3', 'table1Mid2_3'])
     # B on other table
-    goal0 = inRegion('objB', 'table2Top')
+    goal0 = inRegion('tsB', 'table2Top')
     # A on other table
-    goal1 = inRegion('objA', 'table2Top')
+    goal1 = inRegion('tsA', 'table2Top')
     # A and B on other table
-    goal2 = inRegion(['objA', 'objB'], 'table2Top')
+    goal2 = inRegion(['tsA', 'tsB'], 'table2Top')
     # B in back
-    goal3 = inRegion('objA', 'table1Mid1_3')
+    goal3 = inRegion('tsA', 'table1Mid1_3')
     actualGoal = goal1
-    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}),
+    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'tsA'}),
              moveNB, lookAt.applyBindings({'Obj' : 'table2'}),
              move, place,
              move, pick,
-             moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
+             moveNB, lookAt.applyBindings({'Obj' : 'tsA'}),
              move, 
              achCanPickPlace,
-             lookAt.applyBindings({'Obj' : 'objB'}),
+             lookAt.applyBindings({'Obj' : 'tsB'}),
              move, place, move,
              pick, moveNB, lookAt,
              move]]

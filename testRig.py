@@ -651,9 +651,12 @@ typicalErrProbs = DomainProbs(
 #             placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
 #             graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
 
-allOperators = [move, push, lookAt, moveNB,
+allOperators = [move, lookAt, moveNB,
                 achCanReach, achCanReachNB, achCanPickPlace, achCanPush,
                 poseAchIn, bLoc1, bLoc2]
+
+if not debug('disablePush'):
+    allOperators.extend([push])
 
 if not debug('disablePickPlace'):
     allOperators.extend([pick, place])
