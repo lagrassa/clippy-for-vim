@@ -494,7 +494,7 @@ def testChute1(**args):
     goal2 = inRegion([a, b], 'table2Top')
     # B in back
     goal3 = inRegion('a', 'table1Mid1_3')
-    actualGoal = goalLook #goal1
+    actualGoal = goal1
     skel = [[poseAchIn, lookAt.applyBindings({'Obj' : a}),
              moveNB, lookAt.applyBindings({'Obj' : 'table2'}),
              move, place,

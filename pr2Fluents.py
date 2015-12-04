@@ -1003,8 +1003,8 @@ class CanSeeFrom(Fluent):
 
     def bTest(self, details, v, p):
         assert v == True
-        ans, occluders = self.getViols(details.pbs, v, p, strict=True)
-        return ans # and len(occluders) == 0
+        ans, occluders = self.getViols(details.pbs, v, p)
+        return ans and len(occluders) == 0
 
     def update(self):
         super(CanSeeFrom, self).update()
@@ -1012,7 +1012,7 @@ class CanSeeFrom(Fluent):
         self.hviols = {}
 
     # Ans is true if *it could possibly be made true*
-    def getViols(self, pbs, v, p, strict=True):
+    def getViols(self, pbs, v, p):
         assert v == True
         (obj, pose, poseFace, conf, cond) = self.args
         key = (hash(pbs), p)
@@ -1049,9 +1049,6 @@ class CanSeeFrom(Fluent):
             obstacles = [s for s in shWorld.getNonShadowShapes() if \
                         s.name() != obj ] + \
                         [conf.placement(shWorld.attached)]
-            if strict:
-                fixed = obstacles
-                obstacles = []
             # Returns (bool, list of occluders).  The bool indicates
             # whether the target shape is potentially visible if the
             # occluding obsts are removed.
