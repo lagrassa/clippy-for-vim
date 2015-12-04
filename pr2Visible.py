@@ -15,7 +15,7 @@ Ident = hu.Transform(np.eye(4))            # identity transform
 laserScanGlobal = None
 laserScanSparseGlobal = None
 # laserScanParams = (0.3, 0.1, 0.1, 2., 20)
-laserScanParams = (0.3, 0.2, 0.1, 3., 50)
+laserScanParams = (0.3, 0.2, 0.1, 3., 30)
 laserScanParamsSparse = (0.3, 0.1, 0.1, 2., 15)
 minVisiblePoints = 5
 
@@ -112,6 +112,11 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     # acceptance is based on occlusion by fixed obstacles
     final = countContacts(contacts, 0)
     ratio = float(final)/float(total)
+    if ratio < threshold:
+        if debug('visible'): print 'visible ->', (False, [])
+        return False, []            # No hope
+    # find a list of movable occluders that could be removed to
+    # achieve visibility
     for j, objShape in enumerate(move):
         if objShape not in potentialOccluders: continue
         i = len(fix) + j
@@ -131,9 +136,15 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
                 pointBox(c[0]).draw('W', colors[c[1]%len(colors)])
         wm.getWindow('W').update()
         debugMsg('visible', 'Admire')
-    occluders.sort(reverse=True)
-    occluders = [x[1] for x in occluders]
-    ans = ratio >= threshold, occluders
+    # remove enough occluders to make it visible, be greedy
+    occluders.sort(reverse=True)        # biggest occluder first
+    ans = None
+    for i in xrange(len(occluders)):
+        if float(final - sum([x[0] for x in occluders[i:]]))/float(total) >= threshold:
+            ans = True, [x[1] for x in occluders[:i]]
+            break
+    if ans is None:
+        ans = True, [x[1] for x in occluders]
     if debug('visible'):
         print 'sorted occluders', occluders
         print 'total', total, 'final', final, '(', ratio, ')', 'thr', threshold, '->', ans

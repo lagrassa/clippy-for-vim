@@ -1040,10 +1040,11 @@ class LookGen(Function):
             yield ans
 
 class LookConfHyp:
-    def __init__(self, conf, path, viol):
+    def __init__(self, conf, path, viol, occluders):
         self.conf = conf
         self.path = path
         self.viol = viol
+        self.occluders = occluders
 
 # Returns (lookConf,), viol
 # The lookConf should be s.t.
@@ -1060,8 +1061,8 @@ def lookGenTop(args, pbs, cpbs):
         obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
         # We don't need to add the robot, since it can be moved out of the way.
         # obst_rob = obst + [c.placement(shWorld.attached)]
-        # visible returns (bool, occluders), return only the boolean
-        return visible(shWorld, c, sh, obst, prob, moveHead=True)[0]
+        # visible returns (bool, occluders)
+        return visible(shWorld, c, sh, obst, prob, moveHead=True)
 
     (obj, placeB_before, placeB_after, lookDelta, base, prob) = args
 
@@ -1105,7 +1106,7 @@ def lookGenTop(args, pbs, cpbs):
         # someone else has/will make sure that is true.  Start by
         # checking that confAtTarget is not blocked by fixed
         # obstacles.
-        if testFn(confAtTarget, shapeForLook, shWorld_before):
+        if testFn(confAtTarget, shapeForLook, shWorld_before)[0]:
             # Is current conf good enough?  If not -
             # Modify the lookConf (if needed) by moving arm out of the
             # way of the viewCone and the shapeShadow.
@@ -1143,7 +1144,8 @@ def lookGenTop(args, pbs, cpbs):
 
     # Check if the current conf will work for the look
     curr = cpbs_before.getConf()
-    if testFn(curr, shapeForLook, shWorld_before): # visible?
+    vis, occl = testFn(curr, shapeForLook, shWorld_before)
+    if vis and len(occl) == 0:          # visible without moving any occluders
         # move arm out of the way if necessary, use after shadow
         lookConf = lookAtConfCanView(cpbs_after, prob, curr,
                                      shapeForLook, shapeShadow=shapeShadow)
@@ -1152,41 +1154,42 @@ def lookGenTop(args, pbs, cpbs):
                draw=[(cpbs_before, prob, 'W'),
                      (lookConf, 'W', 'cyan', attached)])
             yield (lookConf,), cpbs_after.confViolations(lookConf, prob)
+    else:
+        tr(tag, 'Cannot look from current conf: vis=%s, occl=%s'%(vis, occl))
 
     # If we're looking at graspable objects, prefer a lookConf from
     # which we could pick the object, so that we don't have to move
     # the base.
+    # TODO: Generalize this to push
+    # if graspable(obj) and not glob.inHeuristic:
+    #     graspVar = 4*(0.001,)
+    #     graspDelta = 4*(0.001,)
+    #     graspB = ObjGraspB(obj, world.getGraspDesc(obj), None, None,
+    #                        PoseD(None, graspVar), delta=graspDelta)
+    #     # Use cpbs (which doesn't declare shadow to be permanent) to
+    #     # generate candidate confs, since they will need to collide
+    #     # with shadow of obj.
+    #     for hand in ['left', 'right']:
+    #         for gB in graspGen(cpbs, graspB, hand=hand):
+    #             for ans in pickGenTop((obj, gB, placeB_after, hand, prob),
+    #                                   pbs, cpbs, onlyCurrent=True):
+    #                 # Modify the approach conf so that robot avoids view cone.
+    #                 lookConf = lookAtConfCanView(cpbs, prob, ans.ca,
+    #                                              shapeForLook, shapeShadow=shapeShadow)
+    #                 if not lookConf:
+    #                     tr(tag, 'canView failed')
+    #                     continue
+    #                 # We should be guaranteed that this is true, since
+    #                 # ca was chosen so that the shape is visible.
+    #                 if testFn(lookConf, shapeForLook, shWorld_before):
+    #                     # Find the violations at that lookConf
+    #                     viol = cpbs.confViolations(lookConf, prob)
+    #                     vw = viol.weight() if viol else None
+    #                     tr(tag, '(%s) canView cleared viol=%s'%(obj, vw))
+    #                     yield (lookConf,), viol
+    #                 else:
+    #                     assert None, 'shape should be visible, but it is not'
 
-    # TODO: Generalize this to (pick or push)
-
-    if graspable(obj) and not glob.inHeuristic:
-        graspVar = 4*(0.001,)
-        graspDelta = 4*(0.001,)
-        graspB = ObjGraspB(obj, world.getGraspDesc(obj), None, None,
-                           PoseD(None, graspVar), delta=graspDelta)
-        # Use cpbs (which doesn't declare shadow to be permanent) to
-        # generate candidate confs, since they will need to collide
-        # with shadow of obj.
-        for hand in ['left', 'right']:
-            for gB in graspGen(cpbs, graspB, hand=hand):
-                for ans in pickGenTop((obj, gB, placeB_after, hand, prob),
-                                      pbs, cpbs, onlyCurrent=True):
-                    # Modify the approach conf so that robot avoids view cone.
-                    lookConf = lookAtConfCanView(cpbs, prob, ans.ca,
-                                                 shapeForLook, shapeShadow=shapeShadow)
-                    if not lookConf:
-                        tr(tag, 'canView failed')
-                        continue
-                    # We should be guaranteed that this is true, since
-                    # ca was chosen so that the shape is visible.
-                    if testFn(lookConf, shapeForLook, shWorld_before):
-                        # Find the violations at that lookConf
-                        viol = cpbs.confViolations(lookConf, prob)
-                        vw = viol.weight() if viol else None
-                        tr(tag, '(%s) canView cleared viol=%s'%(obj, vw))
-                        yield (lookConf,), viol
-                    else:
-                        assert None, 'shape should be visible, but it is not'
     # Find a lookConf unconstrained by base
     def lookConfHypGen():
         for conf in  potentialLookConfGen(cpbs_before, prob, shapeForLook, maxLookDist):
@@ -1195,21 +1198,20 @@ def lookGenTop(args, pbs, cpbs):
                 tr(tag,  'Failed to find a path to look conf.')
                 raw_input('Failed to find a path to look conf.')
                 continue
-            yield LookConfHyp(conf, path, viol)
-    def pathLength(path):
+            yield LookConfHyp(conf, path, viol, tuple())
+    def lookConfHypCost(hyp):
         dist = 0.
+        path = hyp.path
         for i in range(1, len(path)):
             dist += baseDist(path[i-1], path[i])
-        return dist
-
-#    for ans in rm.confReachViolGen(lookConfGen, cpbs_before, prob,
-#                                   testFn = lambda c: testFn(c, shapeForLook, shWorld_before)):
-#        viol, cost, path = ans
+        return dist + 5*len(hyp.occluders) # prefer no occluders
+    def lookConfHypValid(hyp):
+        vis, occl = testFn(hyp.conf, shapeForLook, shWorld_before)
+        hyp.occluders = tuple(occl)
+        return vis
 
     noViol = Violations()
-    for hyp in sortedHyps(lookConfHypGen(),
-                          lambda h: testFn(h.conf, shapeForLook, shWorld_before),
-                          lambda h: pathLength(h.path),
+    for hyp in sortedHyps(lookConfHypGen(), lookConfHypValid, lookConfHypCost,
                           20, 40, size=5):       # ??
         conf = hyp.conf
         viol = hyp.viol
