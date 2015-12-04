@@ -435,11 +435,19 @@ class MCRHelper():
         return [tupleFromConf(c, self.moveChains) \
                 for c in interpolate(confTo, confFrom)]
 
+    # get configuration through linear scaling of vector `qFrom + scaleFactor * (qTo - qFrom)`
+    def getBetweenConfigurationWithFactor(self, qFrom, qTo, scaleFactor):
+        confFrom = confFromTuple(qFrom, self.moveChains, self.conf)
+        confTo = confFromTuple(qTo, self.moveChains, self.conf)
+        return tupleFromConf(self.conf.robot.stepAlongLine(confTo, confFrom,
+                                                           scaleFactor, self.moveChains),
+                             self.moveChains)
+
     # scalar representation of the distance between these configurations
     def distance(self, q1, q2):
         conf1 = confFromTuple(q1, self.moveChains, self.conf)
         conf2 = confFromTuple(q2, self.moveChains, self.conf)
-        return self.robot.distConf(conf1, conf2)
+        return self.conf.robot.distConf(conf1, conf2)
 
     # need a way to get the weight of an obstacle (right now its obstacle.getWeight())
 
@@ -473,6 +481,12 @@ def confCollisions(conf, pbs, prob, allowedViol):
            and viol.shadows <= allowedViol.shadows \
            and all(viol.heldObstacles[h] <= allowedViol.heldObstacles[h] for h in (0,1)) \
            and all(viol.heldShadows[h] <= allowedViol.heldShadows[h] for h in (0,1))
+
+    print 'allowed', allowedViol
+    print viol
+    pbs.draw(prob, 'W'); conf.placement().draw('W')
+    raw_input('Next?')
+
     if ans:
         # No unallowed violations
         return []
@@ -489,4 +503,9 @@ def confCollisions(conf, pbs, prob, allowedViol):
             if not o in allowedViol.heldObstacles[h]: collisions.append(o.name())
         for o in viol.heldShadows[h]:
             if not o in allowedViol.heldShadows[h]: collisions.append(o.name())
+
+    pbs.draw(prob, 'W'); conf.placement().draw('W')
+    print 'collisions', collisions
+    raw_input('Next?')
+    
     return collisions
