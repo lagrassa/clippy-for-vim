@@ -7,12 +7,10 @@ import shapes
 from transformations import rotation_matrix
 import planGlobals as glob
 from traceFile import debugMsg, debug, tr
-from pr2Robot import gripperFaceFrame
 from planUtil import Violations, ObjPlaceB, ObjGraspB
 from pr2Util import shadowName, objectName, permanent, inside, PoseD, GDesc, otherHand, \
      objectGraspFrame, robotGraspFrame
 from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
-from pr2Push import pushPath
 from pr2RRT import planRobotGoalPath, interpolatePath
 import windowManager3D as wm
 
@@ -353,60 +351,3 @@ def canView(pbs, prob, conf, hand, shape,
             print 'canView - ignore view cone collision for perm object', shape
         return [conf]
 
-
-# Pushing                
-
-# returns path, violations
-def canPush(pbs, obj, hand, poseFace, prePose, pose,
-            preConf, pushConf, postConf, poseVar, prePoseVar,
-            poseDelta, prob, initViol, prim=False):
-    tag = 'canPush'
-    held = pbs.getHeld(hand)
-    newBS = pbs.copy()
-    if held != 'none':
-        tr(tag, 'Hand=%s is holding %s in pbs'%(hand, held))
-        newBS.updateHeld('none', None, None, hand, None)
-    if obj in [newBS.getHeld(h) for h in ('left', 'right')]:
-        tr(tag, '=> obj is in the other hand')
-        # LPK!! Changed hand below to otherHand(hand)
-        assert pbs.getHeld(otherHand(hand)) == obj
-        newBS.updateHeld('none', None, None, otherHand(hand), None)
-    post = hu.Pose(*pose)
-    placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), poseFace,
-                       PoseD(post, poseVar), poseDelta)
-    # graspB - from hand and objFrame
-    graspB = pushGraspB(newBS, pushConf, hand, placeB)
-    pathViols, reason = pushPath(newBS, prob, graspB, placeB, pushConf,
-                                 prePose, preConf, None, hand)
-    if not pathViols or reason != 'done':
-        tr(tag, 'pushPath failed')
-        return None, None
-    viol = pathViols[0][1]
-    path = []
-    for (c, v, _) in pathViols:
-        viol = viol.update(v)
-        if viol is None:
-            return None, None
-        path.append(c)
-    if held != 'none':
-        # if we had something in the hand indicate a collision
-        shape = placeB.shape(pbs.getWorld())
-        heldColl = ([shape],[]) if hand=='left' else ([],[shape])
-        viol.update(Violations([],[],heldColl,([],[])))
-    tr(tag, 'path=%s, viol=%s'%(path, viol))
-    return path, viol
-
-def pushGraspB(pbs, pushConf, hand, placeB):
-    obj = placeB.obj
-    pushWrist = robotGraspFrame(pbs, pushConf, hand)
-    objFrame = placeB.objFrame()
-    support = placeB.support.mode()
-    # TODO: what should these values be?
-    graspVar = 4*(0.01**2,)
-    graspDelta = 4*(0.0,)
-    graspFrame = objFrame.inverse().compose(pushWrist.compose(gripperFaceFrame[hand]))
-    graspDescList = [GDesc(obj, graspFrame, 0.0, 0.0, 0.0)]
-    graspDescFrame = objFrame.compose(graspDescList[-1].frame)
-    graspB =  ObjGraspB(obj, graspDescList, -1, support,
-                        PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
-    return graspB

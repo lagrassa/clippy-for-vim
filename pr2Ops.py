@@ -12,14 +12,14 @@ from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
 from pr2Util import shadowWidths, objectName
 from pr2Gen import PickGen, LookGen,\
     EasyGraspGen, PoseInRegionGen, PlaceGen, moveOut
-from pr2GenTests import canPickPlaceTest, canReachHome, canReachNB, canPush, findRegionParent
+from pr2GenTests import canPickPlaceTest, canReachHome, canReachNB, findRegionParent
 from belief import Bd, B, BMetaOperator
 from pr2Fluents import Conf, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
      CanReachHome, CanReachNB, BaseConf, BLoc,\
      Pushable, CanPush, graspable, pushable
 from traceFile import debugMsg, debug, tr, trAlways
-from pr2Push import PushGen, pushOut
+from pr2Push import PushGen, pushOut, canPush
 import pr2RRT as rrt
 from pr2Visible import visible
 import itertools
@@ -197,7 +197,7 @@ def placePrim(args, details):
     return details.pbs.getPlacedObjBs()
 
 def pushPrim(args, details):
-    (obj, hand, pose, poseFace, poseVar, poseDelta, prePose, prePoseVar,
+    (obj, hand, pose, poseFace, poseVar, realPoseVar, poseDelta, prePose, prePoseVar,
             preConf, pushConf, postConf, confDelta, resultProb, preProb1,
             preProb2) = args
     # TODO: Does it matter which prob we use?
@@ -491,24 +491,31 @@ class GraspDelta(Function):
             return []
         return [[result]]
 
-# Realistically, push increases variance quite a bit.  For now, we'll just
-# assume stdev needs to be halved
-# Also have a max stdev
+# Try some smaller values
+class RealPushPoseVar(Function):
+    # noinspection PyUnusedLocal
+    @staticmethod
+    def fun((resultVar,), goal, start):
+        return [[resultVar], [tuple([v * 0.5 for v in resultVar])],
+                [tuple([v * 0.75 for v in resultVar])]]
+
+# Realistically, push increases variance quite a bit. 
+# Have a max stdev
 class PushPrevVar(Function):
     # noinspection PyUnusedLocal
     @staticmethod
     def fun((resultVar,), goal, start):
         pushVar = start.domainProbs.pushVar
         maxPushVar = start.domainProbs.maxPushVar
-        # pretend it's lower
-        res = tuple([min(x - y, m) for (x, y, m) \
-                     in zip(resultVar, pushVar, maxPushVar)])
-        #res = tuple([x/4.0 for x in resultVar])
-        if any([v <= 0.0 for v in res]):
-            tr('pushGenVar', 'Push previous var would be negative', res)
-            return []
-        else:
-            return [[res]]
+        result = []
+        for rv in [resultVar]:
+            res = tuple([min(x - y, m) for (x, y, m) \
+                         in zip(rv, pushVar, maxPushVar)])
+            if any([v <= 0.0 for v in res]):
+                tr('pushGenVar', 'Push previous var would be negative', res)
+            else:
+                result.append([res])
+        return result
     
 class PlaceInPoseVar(Function):
     # TODO: LPK: be sure this is consistent with moveOut
@@ -832,7 +839,7 @@ def pushCostFun(al, args, details):
     # should always be like this.
     rawCost = 75
     abstractCost = 100
-    (_, _, _, _, _, _, _, _, _, _, _, _, p, _, _)  = args
+    (_, _, _, _, _, _, _, _, _, _, _, _, _, p, _, _)  = args
     result = costFun(rawCost,
                      p*canPPProb*(1-details.domainProbs.placeFailProb)) + \
                (abstractCost if al == 0 else 0)
@@ -991,7 +998,7 @@ def placeBProgress(details, args, obs=None):
 # noinspection PyUnusedLocal
 def pushBProgress(details, args, obs=None):
     # Conf of robot and pose of object change
-    (o, h, pose, pf, pv, pd, pp, ppv, prec, pushc, postc, cd, p, pr1,pr2) = args
+    (o, h, pose, pf, pv, rpv, pd, pp, ppv, prec, pushc, postc, cd, p, pr1,pr2) = args
 
     failProb = details.domainProbs.pushFailProb
     pushVar = details.domainProbs.pushVar
@@ -1547,7 +1554,7 @@ place = Operator('Place', placeArgs,
         rebindPenalty = 20)
         
 
-pushArgs = ['Obj', 'Hand', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta',
+pushArgs = ['Obj', 'Hand', 'Pose', 'PoseFace', 'PoseVar', 'RealPoseVar', 'PoseDelta',
             'PrePose', 'PrePoseVar', 'PreConf', 'PushConf', 'PostConf',
             'ConfDelta', 'P', 'PR1', 'PR2']
 
@@ -1584,10 +1591,11 @@ push = Operator('Push', pushArgs,
             NotStar([], ['PoseFace']),
 
             RegressProb(['P'], ['PR1', 'PR2'], pn = 'pushFailProb'),
-            PushPrevVar(['PrePoseVar'], ['PoseVar']),
+            RealPushPoseVar(['RealPoseVar'], ['PoseVar']),
+            PushPrevVar(['PrePoseVar'], ['RealPoseVar']),
             MoveConfDelta(['ConfDelta'], []),
             PushGen(['Hand','PrePose', 'PreConf', 'PushConf', 'PostConf'],
-                     ['Obj', 'Pose', 'PoseFace', 'PoseVar', 'PoseDelta',
+                     ['Obj', 'Pose', 'PoseFace', 'RealPoseVar', 'PoseDelta',
                       'ConfDelta', probForGenerators])],
         cost = pushCostFun,
         f = pushBProgress,

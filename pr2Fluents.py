@@ -7,7 +7,8 @@ from planUtil import Violations, ObjPlaceB, ObjGraspB
 from pr2Util import shadowName, drawPath, objectName, PoseD, \
      supportFaceIndex, GDesc, inside, otherHand, graspable, pushable, permanent, \
      confWithin, baseConfWithin
-from pr2GenTests import inTest, canReachNB, canReachHome, canPush
+from pr2GenTests import inTest, canReachNB, canReachHome
+from pr2Push import canPush
 from dist import DeltaDist, probModeMoved
 from traceFile import debugMsg, debug, pause
 import planGlobals as glob

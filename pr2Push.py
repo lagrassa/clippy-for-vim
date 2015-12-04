@@ -12,11 +12,11 @@ from shapes import thingFaceFrames, drawFrame, Shape
 import hu
 from planUtil import ObjGraspB, ObjPlaceB, Violations, PoseD, PushResponse
 from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords, bboxRandomCoords,\
-     supportFaceIndex, inside, Memoizer, objectGraspFrame
+     supportFaceIndex, inside, Memoizer, objectGraspFrame, robotGraspFrame
 from pr2GenUtils import getRegions, getPoseAndSupport, fixed, chooseHandGen, minimalConf
 from pr2GenGrasp import potentialGraspConfGen, graspConfForBase
 from pr2GenPose import potentialRegionPoseGen
-from pr2Robot import gripperPlace
+from pr2Robot import gripperPlace, gripperFaceFrame
 from cspace import xyCO
 import mathematica
 reload(mathematica)
@@ -1270,12 +1270,11 @@ def CObstacles(pbs, prob, potentialPushes, pB, hand, supportRegShape):
     newPB = pB.modifyPoseD(var=4*(0.01**2,))
     newPB.delta = delta=4*(0.001,)
     objShape = pB.makeShadow(pbs, prob)
-    (x,y,_,_) = newPB.poseD.mode().pose().xyztTuple()
-    centeringOffset = hu.Pose(-x,-y,0.,0.)
+    (x,y,z,_) = newPB.poseD.mode().pose().xyztTuple()
+    centeringOffset = hu.Pose(-x,-y,-z,0.)
 
     xyObst = {name: obst.xyPrim() \
               for (name, obst) in shWorld.objectShapes.iteritems()}
-
     CObsts = {}
     for dirx, (gB, width) in potentialPushes.iteritems():
         wrist = objectGraspFrame(pbs, gB, newPB, hand)
@@ -1489,7 +1488,7 @@ def searchObjPushPath(pbs, prob, potentialPushes, targetPB, curPB,
         return sum([abs(si - gi) for si, gi in zip(s[0:2], g[0:2])])
     
     gen = search.searchGen(None, [curPt], actions, successor,
-                           heuristic, verbose=debug('pushGen'),
+                           heuristic,
                            goalKey = lambda x: x.pt if x else x)
     print 'searchObjPushPath...'
     for (path, costs) in gen:
@@ -1636,3 +1635,61 @@ def pushGenPathsAux(pbs, prob, pathSeg, graspB, width, targetPB, curPB,
             print 'Yield push', ppre.pose(), '->', ppost.pose()
         cachePushResponse(ans)
         yield ans
+
+
+# Pushing                
+
+# returns path, violations
+def canPush(pbs, obj, hand, poseFace, prePose, pose,
+            preConf, pushConf, postConf, poseVar, prePoseVar,
+            poseDelta, prob, initViol, prim=False):
+    tag = 'canPush'
+    held = pbs.getHeld(hand)
+    newBS = pbs.copy()
+    if held != 'none':
+        tr(tag, 'Hand=%s is holding %s in pbs'%(hand, held))
+        newBS.updateHeld('none', None, None, hand, None)
+    if obj in [newBS.getHeld(h) for h in ('left', 'right')]:
+        tr(tag, '=> obj is in the other hand')
+        # LPK!! Changed hand below to otherHand(hand)
+        assert pbs.getHeld(otherHand(hand)) == obj
+        newBS.updateHeld('none', None, None, otherHand(hand), None)
+    post = hu.Pose(*pose)
+    placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), poseFace,
+                       PoseD(post, poseVar), poseDelta)
+    # graspB - from hand and objFrame
+    graspB = pushGraspB(newBS, pushConf, hand, placeB)
+    pathViols, reason = pushPath(newBS, prob, graspB, placeB, pushConf,
+                                 prePose, preConf, None, hand)
+    if not pathViols or reason != 'done':
+        tr(tag, 'pushPath failed')
+        return None, None
+    viol = pathViols[0][1]
+    path = []
+    for (c, v, _) in pathViols:
+        viol = viol.update(v)
+        if viol is None:
+            return None, None
+        path.append(c)
+    if held != 'none':
+        # if we had something in the hand indicate a collision
+        shape = placeB.shape(pbs.getWorld())
+        heldColl = ([shape],[]) if hand=='left' else ([],[shape])
+        viol.update(Violations([],[],heldColl,([],[])))
+    tr(tag, 'path=%s, viol=%s'%(path, viol))
+    return path, viol
+
+def pushGraspB(pbs, pushConf, hand, placeB):
+    obj = placeB.obj
+    pushWrist = robotGraspFrame(pbs, pushConf, hand)
+    objFrame = placeB.objFrame()
+    support = placeB.support.mode()
+    # TODO: what should these values be?
+    graspVar = 4*(0.01**2,)
+    graspDelta = 4*(0.0,)
+    graspFrame = objFrame.inverse().compose(pushWrist.compose(gripperFaceFrame[hand]))
+    graspDescList = [GDesc(obj, graspFrame, 0.0, 0.0, 0.0)]
+    graspDescFrame = objFrame.compose(graspDescList[-1].frame)
+    graspB =  ObjGraspB(obj, graspDescList, -1, support,
+                        PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
+    return graspB
