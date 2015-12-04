@@ -466,6 +466,9 @@ def testChute0(**args):
     return doTest('testSwap', exp, actualGoal, skel, args)
 
 def testChute1(**args):
+    short = args.get('short', False)
+    a = 'objA' if short else 'tsA'
+    b = 'objB' if short else 'tsB'
     glob.useVertical = False
     front = hu.Pose(1.05, 0.0, tZ, 0.0)
     back = hu.Pose(1.25, 0.0, tZ, 0.0)
@@ -475,30 +478,32 @@ def testChute1(**args):
     perm['chute'] = (mid, smallVar)
 
     exp = makeExp(perm,
-                  {'tsA' : (back, medVar),
-                   'tsB' : (front, medVar)},
+                  {a : (back, medVar),
+                   b : (front, medVar)},
                   ['table1Top', 'table2Top', 'table1Mid1_3',
                    'table1Mid2_3'], easy=args.get('easy', False))
     # Complete swap
-    goal = inRegion(['tsA', 'tsB'],
-                    ['table1Mid1_3', 'table1Mid2_3'])
+    goal = inRegion([a, b], ['table1Mid1_3', 'table1Mid2_3'])
+    # Just look at A
+    goalLook = placed(a, back)
     # B on other table
-    goal0 = inRegion('tsB', 'table2Top')
+    goal0 = inRegion(b, 'table2Top')
     # A on other table
-    goal1 = inRegion('tsA', 'table2Top')
+    goal1 = inRegion(a, 'table2Top')
     # A and B on other table
-    goal2 = inRegion(['tsA', 'tsB'], 'table2Top')
+    goal2 = inRegion([a, b], 'table2Top')
     # B in back
-    goal3 = inRegion('tsA', 'table1Mid1_3')
-    actualGoal = goal1
-    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'tsA'}),
+    goal3 = inRegion('a', 'table1Mid1_3')
+    actualGoal = goalLook #goal1
+    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : a}),
              moveNB, lookAt.applyBindings({'Obj' : 'table2'}),
              move, place,
              move, pick,
-             moveNB, lookAt.applyBindings({'Obj' : 'tsA'}),
+             moveNB, lookAt.applyBindings({'Obj' : a}),
              move, 
              achCanPickPlace,
-             lookAt.applyBindings({'Obj' : 'tsB'}),
+             lookAt.applyBindings({'Obj' : b}),
+             
              move, place, move,
              pick, moveNB, lookAt,
              move]]
