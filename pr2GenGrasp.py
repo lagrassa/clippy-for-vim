@@ -4,7 +4,7 @@ from planGlobals import torsoZ
 from pr2Util import Memoizer, objectGraspFrame
 from planUtil import Violations
 from pr2GenUtils import sortedHyps, baseDist
-from pr2Robot import CartConf, pr2BaseLink
+from pr2Robot import CartConf, pr2BaseLink, gripperPlace
 from traceFile import tr, debug, debugMsg
 
 approachConfCacheStats = [0,0]
@@ -218,14 +218,6 @@ def graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
              ('Tried', tried, 'found', count, 'potential grasp confs, with grasp', graspB.grasp),
              ('Failed', counts[0], 'invkin', counts[1], 'collisions'))
     return
-
-def gripperPlace(conf, hand, wrist, robotPlace=None):
-    confWrist = conf.cartConf()[conf.robot.armChainNames[hand]]
-    if not robotPlace:
-        robotPlace = conf.placement()
-    gripperChain = conf.robot.gripperChainNames[hand]
-    shape = (part for part in robotPlace.parts() if part.name() == gripperChain).next()
-    return shape.applyTrans(confWrist.inverse()).applyTrans(wrist)
 
 # This needs generalization
 def findApproachConf(pbs, obj, placeB, conf, hand, prob):

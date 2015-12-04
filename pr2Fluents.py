@@ -1004,7 +1004,7 @@ class CanSeeFrom(Fluent):
     def bTest(self, details, v, p):
         assert v == True
         ans, occluders = self.getViols(details.pbs, v, p, strict=True)
-        return ans and len(occluders) == 0
+        return ans # and len(occluders) == 0
 
     def update(self):
         super(CanSeeFrom, self).update()

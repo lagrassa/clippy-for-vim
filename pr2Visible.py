@@ -14,8 +14,9 @@ from miscUtil import argmax
 Ident = hu.Transform(np.eye(4))            # identity transform
 laserScanGlobal = None
 laserScanSparseGlobal = None
-laserScanParams = (0.3, 0.1, 0.1, 2., 20) # narrow
-laserScanParamsSparse = (0.3, 0.1, 0.1, 2., 15) # narrow
+# laserScanParams = (0.3, 0.1, 0.1, 2., 20)
+laserScanParams = (0.3, 0.2, 0.1, 3., 50)
+laserScanParamsSparse = (0.3, 0.1, 0.1, 2., 15)
 minVisiblePoints = 5
 
 colors = ['red', 'green', 'blue', 'orange', 'cyan', 'purple']

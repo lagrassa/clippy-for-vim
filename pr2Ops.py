@@ -2006,7 +2006,7 @@ def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob):
                 [Bd([SupportFace([obst]), supportFace, prob], True),
                  B([Pose([obst, supportFace]), poseMean, poseVar,
                            moveDelta, prob], True)])
-            print '*** moveOut', obst
+            print '*** moveOut', r
             resultBS = pbs.conditioned([], newConds)
             resultViol = violFn(resultBS)
             if resultViol is not None and obst not in resultViol.allObstacles():

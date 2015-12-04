@@ -181,7 +181,7 @@ cpdef bool updateDepthMap(Scan scan, shapes.Prim thing,
         double d0, d1, prod, t
     verts = scan.vertices             # 4xn array
     edges = scan.edges                # ex2 array
-    f2xv1 = np.dot(thing.planes(), verts);
+    f2xv1 = np.dot(thing.planes(), verts)
     ans = False                         # was an update made?
     bb = thing.bbox()
     for e in range(edges.shape[0]):

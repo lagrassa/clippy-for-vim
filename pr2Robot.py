@@ -1186,3 +1186,13 @@ def compileObjectFrames(objShape):
     ans = frames, framesList, allChains, frameChain
     objectFramesCache[objShape] = ans
     return ans
+
+#########
+
+def gripperPlace(conf, hand, wrist, robotPlace=None):
+    confWrist = conf.cartConf()[conf.robot.armChainNames[hand]]
+    if not robotPlace:
+        robotPlace = conf.placement()
+    gripperChain = conf.robot.gripperChainNames[hand]
+    shape = (part for part in robotPlace.parts() if part.name() == gripperChain).next()
+    return shape.applyTrans(confWrist.inverse()).applyTrans(wrist)

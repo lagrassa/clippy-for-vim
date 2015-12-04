@@ -39,7 +39,7 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags
+debugOn = usualTags + ['disablePush', 'lookGen', 'CanSeeFrom', 'visible']
 
 # + ['traceCRH']
 # + ['placeGen', 'placeInGen', 'potentialRegionPoseGen']

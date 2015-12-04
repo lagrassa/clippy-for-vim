@@ -18,18 +18,19 @@ regionPoseCache = {}
 # Generate poses
 # Requirements: inside region, graspable, pbs is feasible
 # Preferences:  bigger shadows, fewer violations, grasp conf close to current conf
-def potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes, hand, base,
-                           maxPoses = 30):
+def potentialRegionPoseGen(pbs, placeB, graspBGen, prob, regShapes, hand, base,
+                           maxPoses = 30, angles = angleList):
+    obj = placeB.obj
     if glob.traceGen:
-        print ' **', 'potentialRegionPoseGen', placeB.poseD.mode(), graspB.grasp.mode(), hand
+        print ' **', 'potentialRegionPoseGen', obj, placeB.poseD.mode(), hand
     # Consider a range of variances
     maxVar = placeB.poseD.var
     minVar = pbs.domainProbs.obsVarTuple
     pBs = [placeB.modifyPoseD(var=medVar) \
            for medVar in interpolateVars(maxVar, minVar, 4)]
     count = 0
-    for pose in potentialRegionPoseGenAux(pbs, obj, pBs, graspB, prob, regShapes,
-                                          hand, base, maxPoses):
+    for pose in potentialRegionPoseGenAux(pbs, obj, pBs, graspBGen, prob, regShapes,
+                                          hand, base, maxPoses=maxPoses, angles=angles):
         yield pose
         if count > maxPoses: return
         count += 1
@@ -54,34 +55,36 @@ class PoseHyp(object):
         return self.pB.poseD.mode()
 
 # Generator for poses
-def potentialRegionPoseGenAux(pbs, obj, placeBs, graspB, prob, regShapes, hand, base,
-                              maxPoses = 30):
+def potentialRegionPoseGenAux(pbs, obj, placeBs, graspBGen, prob, regShapes, hand, base,
+                              maxPoses = 30, angles = angleList):
     def validTestFn(hyp):
-        return checkValidHyp(hyp, pbsCopy, graspB, prob, regShapes, hand, base)
+        return checkValidHyp(hyp, pbsCopy, graspBGen, prob, regShapes, hand, base)
     def costFn(hyp):
-        return scoreValidHyp(hyp, pbsCopy, graspB, prob)
+        return scoreValidHyp(hyp, pbsCopy, graspBGen, prob)
     tag = 'potentialRegionPoseGen'
     pbsCopy = pbs.copy()                # so it can be modified 
-    hypGen = regionPoseHypGen(pbsCopy, prob, placeBs, regShapes)
+    hypGen = regionPoseHypGen(pbsCopy, prob, placeBs, regShapes,
+                              maxTries=2*maxPoses, angles=angles)
     for hyp in sortedHyps(hypGen, validTestFn, costFn, maxPoses, 2*maxPoses):
         if debug(tag):
             pbs.draw(prob, 'W'); hyp.conf.draw('W', 'green')
             debugMsg(tag, 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),
-                     'pose=%s'%hyp.getPose(), 'grasp=%s'%graspB.grasp.mode())
+                     'pose=%s'%hyp.getPose())
         yield hyp.getPose()
 
-def checkValidHyp(hyp, pbs, graspB, prob, regShapes, hand, base):
-    return poseGraspable(hyp, pbs, graspB, prob, hand, base) and \
+def checkValidHyp(hyp, pbs, graspBGen, prob, regShapes, hand, base):
+    return poseGraspable(hyp, pbs, graspBGen, prob, hand, base) and \
            feasiblePBS(hyp, pbs)
 
 # We want to minimize this score, optimzal value is 0.
-def scoreValidHyp(hyp, pbs, graspB, prob):
+def scoreValidHyp(hyp, pbs, graspBGen, prob):
     # ignores size of shadow.
     return 5*hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf)
 
 # A generator for hyps that meet the minimal requirement - object is
 # in region and does not have permanent collisions with other objects.
-def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
+def regionPoseHypGen(pbs, prob, placeBs, regShapes,
+                     maxTries = 10, angles = angleList):
     def makeShadow(pB, angle):
         # placed, pbs, prob and ff drawn from environment
         shadow = pbs.objShadow(pB.obj, shadowName(pB.obj), prob, pB, ff).prim()
@@ -131,14 +134,14 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes, maxTries = 10):
         rs = random.choice(regPrims)
         print '... random region prim', rs
         pB = random.choice(placedBs if placed else placeBs)
-        angle = random.choice(angleList)
+        angle = random.choice(angles)
         npB, placedShadow = placeShadow(pB, angle, rs)
         if not placedShadow: continue
         # Check conditions
         if debug(tag):
             pbs.draw(prob, 'W'); placedShadow.draw('W', 'orange')
             debugMsg(tag, 'candiate pose=%s, angle=%.2f'%(npB.poseD.mode(), angle))
-        if inside(placedShadow, rs) and \
+        if inside(placedShadow, rs, strict=True) and \
                legalPlace(npB.obj, placedShadow, shWorld):
             debugMsg(tag, 'valid hyp pose=%s angle=%.2f'%(npB.poseD.mode(), angle))
             yield PoseHyp(npB, placedShadow)
@@ -152,9 +155,9 @@ def legalPlace(obj, shadow, shWorld):
     return not any(o.collides(shadow) for o in shWorld.getObjectShapes() \
                    if ((o.name() in shWorld.fixedObjects) and (o.name() != obj)))
 
-def poseGraspable(hyp, pbs, graspB, prob, hand, base):
+def poseGraspable(hyp, pbs, graspBGen, prob, hand, base):
     tag = 'poseGraspable'
-    for gB in graspGen(pbs, graspB, hand=hand):
+    for gB in graspBGen.copy():
         pB = hyp.pB
         grasp = gB.grasp.mode()
         cb = pbs.getConf()['pr2Base']

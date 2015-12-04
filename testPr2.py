@@ -505,7 +505,8 @@ def testChute1(**args):
              lookAt.applyBindings({'Obj' : b}),
              
              move, place, move,
-             pick, moveNB, lookAt,
+             pick.applyBindings({'Obj' : 'tsB'}),
+             moveNB, lookAt,
              move]]
 
     return doTest('testSwap', exp, actualGoal, skel, args)
@@ -669,7 +670,10 @@ def testShelvesPush(**args):
 ######################################################################
 
 def testPush(name, objName, startPose, targetReg, **args):
-    exp = makeExp({'table1' : (table1Pose, smallVar)},
+    middle = hu.Pose(1.275, 0.05, tZ, math.pi/2)
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   # 'barB': (middle, medVar)
+                   },
                   {objName : (startPose, medVar)},
                   ['table1Top', targetReg], easy=args.get('easy', False))
     goal = inRegion(objName, targetReg)

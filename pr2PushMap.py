@@ -82,7 +82,7 @@ def CObstacles(pbs, prob, potentialPushes, pB, hand, supportRegShape):
               for (name, obst) in shWorld.objectShapes.iteritems()}
 
     CObsts = []
-    for (gB, width, direction) in potentialContacts:
+    for (gB, width, direction) in potentialPushes:
         wrist = objectGraspFrame(pbs, gB, newPB, hand)
         # the gripper at push pose relative to pB
         gripShape = gripperPlace(pbs.getConf(), hand, wrist)
@@ -94,7 +94,6 @@ def CObstacles(pbs, prob, potentialPushes, pB, hand, supportRegShape):
         objGripShapeCtr = objGripShape.applyTrans(centeringOffset)
         bb = bboxExtendXY(supportRegShape.bbox(), objGripShapeCtr.bbox())
         CO = {}
-        CObsts.append(CO)
         for (name, obst) in xyObst.iteritems():
             if bboxOverlap(bb, obst.bbox()):
                 c = xyCO(objGripShape, obst)
@@ -102,6 +101,7 @@ def CObstacles(pbs, prob, potentialPushes, pB, hand, supportRegShape):
                 c.properties['name'] = name
             else:
                 CO[name] = None
+        CObsts[direction] = CO
 
     return CObsts
         
@@ -113,17 +113,20 @@ def bboxExtendXY(bbB, bbA):
 
 # Given obst shape and direction vector [x,y,0], returns two line
 # equations [-y,x,0,-dmin] and [-y,x,0,-dmax]
-def tangents(obst, dir, eps = 0.):
-    x = dir[0]; y = dir[1]
-    mag = (x**2 + y**2)**0.5
-    x /= mag; y /= mag
+def tangents(obst, dirx, eps = 0.):
+    x = dirx[0]; y = dirx[1]            # has been normalized
     verts = obst.getVertices()
     ext = [float('inf'), -float('inf')]
     for i in xrange(verts.shape[1]):
         d = -verts[0,i]*y + verts[1,i]*x
         ext[0] = min(ext[0], d)
         ext[1] = max(ext[1], d)
-    return np.array([-y,x,0,-(ext[0]-eps)]), np.array([-y,x,0,-(ext[1]+eps)])
+    return [np.array([-y,x,0,-(ext[0]-eps)]), np.array([-y,x,0,-(ext[1]+eps)])]
+
+def lineThruPoint(pt, dirx):
+    x = dirx[0]; y = dirx[1]            # has been normalized
+    d = -pt[0]*y + pt[1]*x
+    return np.array([-y,x,0,-d])
     
 def edgeCross((A,B), (C,D)):
     """
@@ -146,7 +149,14 @@ sign of the one to the right,
            (np.sign(det(C,D,A)) == -np.sign(C,D,B))
 
 def edgeCollides(edge, poly):
-    # First, check if completely inside
+    # Are bounding boxes disjoint?
+    bb = poly.bbox()
+    if min(edge[0][0], edge[1][0]) >= bb[1][0] or \
+       min(edge[0][1], edge[1][1]) >= bb[1][1] or \
+       max(edge[0][0], edge[1][0]) <= bb[0][0] or \
+       max(edge[0][1], edge[1][1]) <= bb[0][1]:
+        return False
+    # Check in case edge is completely inside
     (z0, z1) = poly.zRange()
     p = np.array([edge[0][0], edge[0][1], 0.5*(z0+z1), 1.0])
     if np.all(np.dot(poly.planes(),
@@ -166,14 +176,18 @@ def lineIsectDist(pt, dirx, line):
     return -(sum([line[i]*p[i] for i in (0,1)]) + line[3]) / cos
 
 # tangents is a dictionary {dirx: list of tangent lines}
-def nextCrossing(pt, dirx, tangents, goal):
+# When searching backwards from the target, set reverse=True
+def nextCrossing(pt, dirx, tangents, goal, regShape, reverse = False):
+    if reverse:
+        dirx = -dirx
     d = sum((goal[i] - p[i])*dirx[i])
-    bestDir = None
     if all(abs(p[i] + dirx[i]*goal[i]) < 1e-4 for i in (0,1)):
         # aligned with goal
         bestDist = d
+        bestDir = 'goal'
     else:
         bestDist = None
+        bestDir = None
     for ndirx, tanLines in tangents.iteritems():
         if dirx == ndirx: continue
         for line in tanLines:
@@ -182,12 +196,43 @@ def nextCrossing(pt, dirx, tangents, goal):
                 bestDist = d
                 bestDir = ndirx
     if bestDist:
-        return [p[i] + bestDist*dirx[i] for i in (0,1)], bestDir
-    else:
-        return None, None
+        (z0, z1) = regShape.zRange()
+        p = np.array([p[i] + bestDist*dirx[i] for i in (0,1)] + [0.5*(z0+z1), 1.])
+        if np.all(np.dot(poly.planes(), np.resize(p,(4,1)))<=0):
+            if bestDir == 'goal':
+                return goal, bestDir, bestDist    # return goal exactly
+            else:
+                return (p[0],p[1]), bestDir, bestDist
+    return None, None
 
-
-
+def searchObjPushPath(pbs, prob, potentialPushes, targetPB, curPB,
+                   hand, base, prim, supportRegShape, away=False):
+    curPt = curPB.poseD.mode().pose().xyztTuple()[:2]
+    targetPt = targetPB.poseD.mode().pose().xyztTuple()[:2]
+    COs = CObstacles(pbs, prob, potentialPushes, targetPB,
+                     hand, supportRegShape)
+    tLines = {}
+    for (gB, width, direction) in potentialPushes:
+        tanLines = []
+        for c in COs[direction]:
+            tanLines.extend(tangents(c, direction, 0.001))
+        tanLines.append(lineThruPoint(curPt, direction))
+        tanLines.append(lineThruPoint(targetPt, direction)) 
+        tLines[direction] = tanLines
+    def actions(state):
+        p, dx, d = nextCrossing(state[0], state[1], tLines,
+                                curPt, supportRegShape, reverse=True)
+        # switch direction or stay the course
+        return ((p, dx, d), (p, state[1], d))
+    def successor(state, action):
+        s, dx, d = action
+        return ((s, dx), d)
+    def heuristic(s, g):
+        return sum([abs(si - gi) for si, gi in zip(s[0:2], g[0:2])])
+    gen = search.searchGen(targetPt, [curPt], actions, successor,
+                           heuristic)
+    for (path, costs) in gen:
+        yield path
 
 def pushGenPaths(pbs, prob, potentialContacts, targetPB, curPB,
                  hand, base, prim, supportRegShape, away=False):
@@ -204,7 +249,9 @@ def pushGenPaths(pbs, prob, potentialContacts, targetPB, curPB,
         # This is negative z axis of face
         direction = -contactFrame.matrix[:3,2].reshape(3)
         direction[2] = 0.0            # we want z component exactly 0.
-        potentialPushes.append((graspB, width, direction))
+        direction /= np.sqrt(direction*direction) # normalize
+        # Use tuple for direction so we can hash on it.
+        potentialPushes.append((graspB, width, (direction[0], direction[1])))
     
     for prPath in searchPushPath(pbs, prob, potentialPushes, targetPB, curPB,
                                  hand, base, prim, supportRegShape, away=away):
@@ -215,30 +262,11 @@ def pushGenPaths(pbs, prob, potentialContacts, targetPB, curPB,
 
 def searchPushPath(pbs, prob, potentialPushes, targetPB, curPB,
                    hand, base, prim, supportRegShape, away=False):
-    curPose = curPB.poseD.mode().pose()
-    targetPose = targetPB.poseD.mode().pose()
+
+
+
     
-
-
-    # sort contacts and compute a distance when applicable, entries
-    # are: (distance, vertical, contactFrame, width)
-    # Sort contacts by nearness to current pose of object
-    sortedContacts = sortPushContacts(potentialContacts, targetPB.poseD.mode(),
-                                      curPose)
-    if not sortPushContacts:
-        tr(tag, '=> No sorted contacts')
-    # Now we have frames for contact with object, we have to generate
-    # potential answers following the face normal in the given
-    # direction.
-    for (dist, vertical, contactFrame, width) in sortedContacts:
-        if debug(tag): print 'dist=', dist
-        # construct a graspB corresponding to the push hand pose,
-        # determined by the contact frame
-        graspB = graspBForContactFrame(pbs, prob, contactFrame,
-                                       0.0,  targetPB, hand, vertical)
-        # This is negative z axis of face
-        direction = -contactFrame.matrix[:3,2].reshape(3)
-        direction[2] = 0.0            # we want z component exactly 0.
+"""
         prePoseOffset = hu.Pose(*(dist*direction).tolist()+[0.0])
         # initial pose for object along direction
         prePose = prePoseOffset.compose(targetPB.poseD.mode())
@@ -316,3 +344,4 @@ def searchPushPath(pbs, prob, potentialPushes, targetPB, curPB,
                 print 'Yield push', ppre.pose(), '->', ppost.pose()
             cachePushResponse(ans)
             yield ans
+"""

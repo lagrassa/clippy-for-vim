@@ -923,10 +923,14 @@ def placeInGenTop(args, pbs, cpbs,
     conf = confAppr = None
     nPoses = placeInGenMaxPoses
     poseGenLeft = Memoizer('regionPosesLeft',
-                           potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes,
+                           potentialRegionPoseGen(pbs, placeB,
+                                                  Memoizer('graspBL', graspGen(pbs, graspB, hand='left')),
+                                                  prob, regShapes,
                                                   'left', base, maxPoses=nPoses))
     poseGenRight = Memoizer('regionPosesRight',
-                            potentialRegionPoseGen(pbs, obj, placeB, graspB, prob, regShapes,
+                            potentialRegionPoseGen(pbs, placeB,
+                                                  Memoizer('graspBR', graspGen(pbs, graspB, hand='right')),
+                                                   prob, regShapes,
                                                    'right', base, maxPoses=nPoses))
     # note the use of PB...
     leftGen = placeInGenAux(pbs, cpbs, poseGenLeft, confAppr,
