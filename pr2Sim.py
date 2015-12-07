@@ -160,7 +160,6 @@ class RealWorld(WorldState):
                     if self.robotPlace.collides(obst):
                         obs ='crash'
                         tr('sim', 'Crash! with '+obst.name())
-                        pdb.set_trace()
                         raw_input('Crash! with '+obst.name())
                         if crashIsError:
                             raise Exception, 'Crash'
@@ -170,6 +169,8 @@ class RealWorld(WorldState):
                         pass
             if obs == 'crash':
                 # Back up to previous conf
+                print 'This is supposed to back up to previous step and stop... does it work?'
+                pdb.set_trace()
                 c = path[i-1]
                 self.setRobotConf(c)  # LPK: was conf
                 self.robotPlace.draw('World', 'orange')

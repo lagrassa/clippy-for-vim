@@ -496,8 +496,13 @@ class RealPushPoseVar(Function):
     # noinspection PyUnusedLocal
     @staticmethod
     def fun((resultVar,), goal, start):
-        return [[resultVar], [tuple([v * 0.5 for v in resultVar])],
-                [tuple([v * 0.75 for v in resultVar])]]
+        # return [[resultVar], [tuple([v * 0.5 for v in resultVar])],
+        #        [tuple([v * 1.1 for v in start.domainProbs.pushVar])]]
+        obsVar = start.domainProbs.obsVarTuple
+        pushVar = start.domainProbs.pushVar
+        return [[tuple([max(v1, v2 * 1.1) \
+                        for v1, v2 in zip(tuple([(v + o) * 1.1 for (v,o) in zip(obsVar, pushVar)]),
+                                          pushVar)])]]
 
 # Realistically, push increases variance quite a bit. 
 # Have a max stdev

@@ -989,12 +989,12 @@ class Operator(object):
         # Stop right away if an immutable precond is false
         if any([(p.immutable and p.isGround() and\
                  not startState.fluentValue(p) == p.getValue()) \
-                for p in self.preconditionSet()]):
-                tr('regression:fail', 'immutable precond is false',
+                                       for p in self.preconditionSet()]):
+            tr('regression:fail', 'immutable precond is false',
                          [p for p in self.preconditionSet() if \
                           (p.immutable and p.isGround() and \
                             not startState.fluentValue(p) == p.getValue())])
-                return []
+            return []
 
         results = squashSets([r for (r, c) in self.results])
 

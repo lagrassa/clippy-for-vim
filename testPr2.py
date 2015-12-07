@@ -672,7 +672,7 @@ def testShelvesPush(**args):
 def testPush(name, objName, startPose, targetReg, **args):
     middle = hu.Pose(1.3, 0.05, tZ, math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
-                   # 'barB': (middle, medVar)
+                   'barB': (middle, medVar)
                    },
                   {objName : (startPose, medVar)},
                   ['table1Top', targetReg], easy=args.get('easy', False))
@@ -684,7 +684,7 @@ def testPush0(objName='bigA', **args):
     skel = [[poseAchIn,
              lookAt.applyBindings({'Obj' : 'bigA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), move,
-             push, moveNB, lookAt, moveNB, achCanPush, move, achCanReach, move]]
+             push, moveNB, lookAt, moveNB, lookAt, move]]
     args['skeleton'] = skel if 'skeleton' in args else None
     testPush('testPush0', objName,
              hu.Pose(1.1, 0.0, tZ, 0.0),
@@ -708,6 +708,22 @@ def testPush1(objName='bigA', **args):
     args['skeleton'] = skel if 'skeleton' in args else None
     testPush('testPush1', objName,
              hu.Pose(1.1, 0.0, tZ, 0.0),
+             'table1FR', **args)
+
+def testPush1a(objName='bigA', **args):
+    skel = [[poseAchIn,
+             lookAt.applyBindings({'Obj' : 'bigA'}), moveNB, 
+             lookAt.applyBindings({'Obj' : 'table1'}), move,
+             push, moveNB, 
+             lookAt.applyBindings({'Obj' : 'bigA'}), move,
+             push, moveNB,
+             lookAt.applyBindings({'Obj' : 'bigA'}), move,
+             push, moveNB, 
+             lookAt.applyBindings({'Obj' : 'bigA'}), move]]
+
+    args['skeleton'] = skel if 'skeleton' in args else None
+    startPose = hu.Pose(1.09654429, 0.28874632, 0.68000000, 0.01038590)
+    testPush('testPush1', objName, startPose,
              'table1FR', **args)
     
 ######################################################################
