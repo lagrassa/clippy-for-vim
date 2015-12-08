@@ -328,7 +328,10 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
         verifyPath(pbs, prob, interpolatePath(path), allowedViol, 'interp rrt:'+chain)
     return path, allowedViol
 
-def interpolate(q_f, q_i, stepSize=0.25, moveChains=None, maxSteps=100):
+def interpolate(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=100):
+    return list(interpolateGen(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=100))
+
+def interpolateGen(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=100):
     robot = q_f.robot
     path = [q_i]
     q = q_i
@@ -342,13 +345,14 @@ def interpolate(q_f, q_i, stepSize=0.25, moveChains=None, maxSteps=100):
         if eqChains(q, qn, moveChains): break
         q = qn
         path.append(q)
+        yield q
         step += 1
     if eqChains(path[-1], q_f, moveChains):
         path.pop()
     path.append(q_f)
     if len(path) > 1 and not(path[0] == q_i and path[-1] == q_f):
         raw_input('Path inconsistency')
-    return path
+    yield q_f
 
 def verifyPath(pbs, p, path, allowedViol, msg='rrt'):
     shWorld = pbs.getShadowWorld(p)
@@ -377,7 +381,7 @@ def verifyPath(pbs, p, path, allowedViol, msg='rrt'):
             raw_input('Ok?')
     return True
 
-def interpolatePath(path, stepSize = 0.25):
+def interpolatePath(path, stepSize = glob.rrtInterpolateStepSize):
     interpolated = []
     for i in range(1, len(path)):
         qf = path[i]
@@ -390,14 +394,13 @@ def interpolatePath(path, stepSize = 0.25):
 def pbsInflate(pbs, prob, initConf, goalConf):
     if not glob.useInflation: return pbs
     newBS = pbs.copy()
-    newBS.conf = initConf
-    for objBs in (newBS.fixObjBs, newBS.moveObjBs):
-        for obj in objBs:
-            objB = objBs[obj]
-            inflatedVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
-            objBs[obj] = objB.modifyPoseD(var=inflatedVar)
+    newBS.conf = (False, initConf)
+    for obj in newBS.objectBs:
+        fix, objB = newBS.objectBs[obj]
+        inflatedVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
+        newBS.updatePlaceB(objB.modifyPoseD(var=inflatedVar))
     newBS.internalCollisionCheck(dither=False, objChecks=False, factor=1.1)
-    newBS.conf = goalConf
+    newBS.conf = (newBS.conf[0], goalConf)
     newBS.internalCollisionCheck(dither=False, objChecks=False, factor=1.1)
     newBS.draw(prob, 'W')
     wm.getWindow('W').update()
@@ -417,6 +420,7 @@ class MCRHelper():
         self.allowedViol = allowedViol
         self.moveChains = moveChains
         self.conf = conf
+        self.stepSize = glob.rrtInterpolateStepSize
 
     # return back list of obstacles that are in collision when robot is at configuration q
     def collisionsAtQ(self, q):
@@ -432,15 +436,15 @@ class MCRHelper():
     def generateInBetweenConfigs(self, qFrom, qTo):
         confFrom = confFromTuple(qFrom, self.moveChains, self.conf)
         confTo = confFromTuple(qTo, self.moveChains, self.conf)
-        return [tupleFromConf(c, self.moveChains) \
-                for c in interpolate(confTo, confFrom)]
+        for c in interpolate(confTo, confFrom):
+            yield tupleFromConf(c, self.moveChains)
 
     # get configuration through linear scaling of vector `qFrom + scaleFactor * (qTo - qFrom)`
     def getBetweenConfigurationWithFactor(self, qFrom, qTo, scaleFactor):
         confFrom = confFromTuple(qFrom, self.moveChains, self.conf)
         confTo = confFromTuple(qTo, self.moveChains, self.conf)
         return tupleFromConf(self.conf.robot.stepAlongLine(confTo, confFrom,
-                                                           scaleFactor, self.moveChains),
+                                                           scaleFactor, moveChains=self.moveChains),
                              self.moveChains)
 
     # scalar representation of the distance between these configurations
@@ -457,6 +461,8 @@ def runMPL(pbs, prob, initConf, destConf, allowedViol, moveChains):
     helper = MCRHelper(pbs, prob, allowedViol, moveChains, initConf)
     init = tupleFromConf(initConf, moveChains)
     dest = tupleFromConf(destConf, moveChains)
+    if len(init) == 0 or len(dest) == 0:
+        return [initConf, destConf]
     path, cover = runAlgorithm(init, dest, helper, algorithms.index('birrt'))
     return [confFromTuple(c, moveChains, initConf) for c in path]
 
