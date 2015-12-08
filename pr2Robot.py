@@ -491,7 +491,7 @@ class PR2:
         # This has the Z axis pointing along fingers (more traditional, as in ikFast)
         self.toolOffsetZ = {'left': left_gripperToolOffsetZ, 'right': right_gripperToolOffsetZ}
         self.nominalConf = None
-        horizontalTrans, verticalTrans = ikTrans()
+        horizontalTrans, verticalTrans = ikTrans(level=2) # include more horizontal confs
         self.horizontalTrans = {'left': [p.inverse() for p in horizontalTrans],
                                 'right': [fliph(p).inverse() for p in horizontalTrans]}
         self.verticalTrans = {'left': [p.inverse() for p in verticalTrans],

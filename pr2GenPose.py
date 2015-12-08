@@ -132,7 +132,8 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes,
         if glob.traceGen: print '    ', tag, 'trial: placed=', placed
         # placement depends on region, pB and angle
         rs = random.choice(regPrims)
-        print '... random region prim', rs
+        if debug(tag):
+            print '... random region prim', rs
         pB = random.choice(placedBs if placed else placeBs)
         angle = random.choice(angles)
         npB, placedShadow = placeShadow(pB, angle, rs)

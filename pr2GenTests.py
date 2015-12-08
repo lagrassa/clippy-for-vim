@@ -355,21 +355,25 @@ def canView(pbs, prob, conf, hand, shape,
 # block the view cone.  It will construct a path from the input conf
 # to the returned lookConf if necessary - the path is not returned,
 # only the final conf.
-def lookAtConfCanView(cpbs, prob, conf, shape, hands=('left', 'right'),
+def lookAtConfCanView(pbs, prob, conf, shape, hands=('left', 'right'),
                       shapeShadow=None, findPath=True):
     lookConf = lookAtConf(conf, shape)  # conf with head looking at shape
-    if not glob.inHeuristic:            # if heuristic we'll ignore robot
+    if not lookConf:
+        tr('lookAtConfCanView', 'lookAtConfCanView failed conf')
+        return None
+    if True: # not glob.inHeuristic:            # if heuristic we'll ignore robot
+        path = None
         for hand in hands:              # consider each hand in turn
-            if not lookConf:
-                tr('lookAtConfCanView', 'lookAtConfCanView failed conf')
-                return None
             # Find path from lookConf to some conf that does not
             # collide with viewCone.  The last conf in the path will
             # be the new lookConf.
-            path = canView(cpbs, prob, lookConf, hand, shape,
+            path = canView(pbs, prob, lookConf, hand, shape,
                            shapeShadow=shapeShadow, findPath=findPath)
-            if not path:
-                tr('lookAtConfCanView', 'lookAtConfCanView failed path')
-                return None
-            lookConf = path[-1]
+            if path: break
+        if not path:
+            tr('lookAtConfCanView', 'lookAtConfCanView failed path')
+            return None
+        lookConf = path[-1]
+    tr('lookAtConfCanView', '->', lookConf)
     return lookConf
+

@@ -194,12 +194,14 @@ class PBS:
 
     # Updates
     def updateAvoidShadow(self, avoidShadow):
-        self.avoidShadow = avoidShadow
+        self.avoidShadow = list(avoidShadow)
+        self.reset()
         return self
     def addAvoidShadow(self, avoidShadow):
         for s in avoidShadow:
             if s not in self.avoidShadow:
                 self.avoidShadow = self.avoidShadow + [s]
+        self.reset()
         return self
     def updateGraspB(self, hand, gB):
         obj = gB.obj

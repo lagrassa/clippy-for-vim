@@ -214,43 +214,45 @@ def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
     return
 
 # Return (preConf, pushConf) - conf at prePose and conf at placeB (pushConf)
-def potentialConfs(cpbs, prob, placeB, prePose, graspB, hand, base):
-    def graspConfGen(pb1, pb2, rev):
-        if debug('pushPath'):
-            print 'potentialConfs for', pb1.poseD.mode(), pb2.poseD.mode(), rev
+def potentialConfs(cpbs, prob, placeB, prePose, appPose, graspB, hand, base):
+    def graspConfGen(appPB, prePB, targetPB, rev):
         for (c1, ca1, v1) in \
-                potentialGraspConfGen(newBS, pb1, graspB, None, hand, base, prob,
-                                      findApproach=False):
+                potentialGraspConfGen(newBS, targetPB if rev else appPB, graspB,
+                                      None, hand, base, prob, findApproach=False):
             (x, y, th) = c1['pr2Base']
             basePose = hu.Pose(x, y, 0, th)
             if debug('pushPath'):
                 print 'Testing base', basePose, 'at other end of push'
-            ans = graspConfForBase(newBS, pb2, graspB, hand, basePose, prob,
-                                   findApproach=False)
+            ans = graspConfForBase(newBS, appPB if rev else targetPB, graspB,
+                                   hand, basePose, prob, findApproach=False)
             if ans:
                 c2, ca2, v2 = ans
-                # check for visibility
-                s1 = pb1.shape(cpbs.getWorld())
-                sh1 = pb1.makeShadow(cpbs, prob)
-                s2 = pb2.shape(cpbs.getWorld())
-                sh2 = pb2.makeShadow(cpbs, prob)
-                if not (lookAtConfCanView(cpbs, prob, c1, s1, hands=(hand,), shapeShadow=sh1) \
-                        and lookAtConfCanView(cpbs, prob, c2, s2, hands=(hand,), shapeShadow=sh2)):
-                    c1.draw('W', 'red'); c2.draw('W', 'red')
-                    raw_input('Pushconf failed look')
+                appConf = c2 if rev else c1
+                targetConf = c1 if rev else c2
+                pb = prePB.modifyPoseD(var=(1.0e-05, 1.0e-05, 1.0000000000000002e-10, 2.0e-05))
+                newPBS = cpbs.copy()
+                newPBS.updatePermObjBel(pb)
+                newPBS.updateAvoidShadow([pb.obj])
+                pb = prePB.modifyPoseD(var=(0.0025, 0.0025, 0.0025, 0.01))
+                sh = pb.shape(cpbs.getWorld())
+                sw = pb.makeShadow(cpbs, prob)
+                if not lookAtConfCanView(newPBS, prob, appConf, sh, shapeShadow=sw, findPath=True):
+                    if debug('pushPathLook'):
+                        appConf.draw('W', 'orange')
+                        raw_input('Pushconf failed look')
                     continue
-                if debug('pushPath'):
-                    # the first should be a preConf, the second a pushConf
-                    if rev:
-                        c2.draw('W', 'blue'); c1.draw('W', 'pink')
-                    else:
-                        c1.draw('W', 'blue'); c2.draw('W', 'pink')
+                if debug('pushPath') or debug('pushPathLook'):
+                    # the first should be a appConf, the second a pushConf
+                    appConf.draw('W', 'blue'); targetConf.draw('W', 'pink')
                     raw_input('potentialConfs')
-                yield (c2, c1) if rev else (c1, c2)
-    prePB = placeB.modifyPoseD(prePose)
+                yield (appConf, targetConf)
+    prePB = placeB.modifyPoseD(prePose) # pb for initial contact
+    appPB = placeB.modifyPoseD(appPose) # pb for approach to object (no contact)
     newBS = cpbs.copy().excludeObjs([placeB.obj])
-    return roundrobin(graspConfGen(placeB, prePB, True),
-                      graspConfGen(prePB, placeB, False))
+    if debug('pushPath'):
+        print 'potentialConfs for', appPose, prePose, placeB.poseD.mode()
+    return roundrobin(graspConfGen(appPB, prePB, placeB, True),
+                      graspConfGen(appPB, prePB, placeB, False))
 
 # Path entries are (robot conf, violations, object pose)
 # Paths can end or start with a series of steps that do not move the
@@ -860,7 +862,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
     #######################
     # We will return (conf, viol, pose) for steps along the path --
     # starting at initPose.  Before contact, pose in None.
-    pathViols = []
+    pathViols = [(preConf, newBS.confViolations(preConf, prob), None)]
     reason = 'done'                     # done indicates success
     #######################
     # Set up state for the approach scan
@@ -1330,11 +1332,12 @@ def pushGenPaths(pbs, prob, potentialContacts, targetPB, curPB,
         graspB, width = potentialPushes[pathSegs[0].dirx]
         if not pathSegs[0].pt0: return      # degenerate path
         for seg in (pathSegs[0], split(pathSegs[0]),):
-            for ans in pushGenPathsAux(newBS, prob, seg, graspB, width, targetPB, curPB,
+            # Use pbs with object in it
+            for ans in pushGenPathsAux(pbs, newBS, prob, seg, graspB, width, targetPB, curPB,
                                        hand, base, supportRegShape, frame=frames[pathSegs[0].dirx]):
                 yield ans
         
-def pushGenPathsAux(pbs, prob, pathSeg, graspB, width, targetPB, curPB,
+def pushGenPathsAux(pbs, newBS, prob, pathSeg, graspB, width, targetPB, curPB,
                     hand, base, supportRegion, vertical=True, frame=None):
     tag = 'pushGen'
     dirx = pathSeg.dirx
@@ -1343,10 +1346,10 @@ def pushGenPathsAux(pbs, prob, pathSeg, graspB, width, targetPB, curPB,
     targetPose = targetPB.poseD.mode()
     assert targetPose.x == pathSeg.pt1[0] and targetPose.y == pathSeg.pt1[1]
     if debug(tag):
-        pbs.draw(prob, 'W')
-        shape = targetPB.shape(pbs.getWorld())
+        newBS.draw(prob, 'W')
+        shape = targetPB.shape(newBS.getWorld())
         shape.draw('W', 'pink');
-        shape = curPB.shape(pbs.getWorld())
+        shape = curPB.shape(newBS.getWorld())
         shape.draw('W', 'blue');
         if frame: drawFrame(frame)
         raw_input('object push')
@@ -1360,7 +1363,8 @@ def pushGenPathsAux(pbs, prob, pathSeg, graspB, width, targetPB, curPB,
     appPose = appPoseOffset.compose(prePose).pose()
     if debug(tag):
         print 'Calling potentialConfs, with appPose', appPose
-    for ans in potentialConfs(pbs, prob, targetPB, appPose, graspB, hand, base):
+    # Passing pbs with object still init
+    for ans in potentialConfs(pbs, prob, targetPB, prePose, appPose, graspB, hand, base):
         if not ans:
             tr(tag+'_kin', 'potential grasp conf is empy')
             continue
@@ -1371,7 +1375,7 @@ def pushGenPathsAux(pbs, prob, pathSeg, graspB, width, targetPB, curPB,
             pushConf.draw('W', 'orange')
             raw_input('Candidate conf')
         count += 1
-        pathAndViols, reason = pushPath(pbs, prob, graspB, targetPB, pushConf,
+        pathAndViols, reason = pushPath(newBS, prob, graspB, targetPB, pushConf,
                                         prePose, preConf, supportRegion, hand)
         if reason == 'done':
             pushPaths.append((pathAndViols, reason))
@@ -1402,7 +1406,7 @@ def pushGenPathsAux(pbs, prob, pathSeg, graspB, width, targetPB, curPB,
                 print name, 'conf tool'
                 print conf.cartConf()[handName].compose(robot.toolOffsetX[hand]).matrix
         tr(tag, 'pre conf (blue), post conf (pink), rev conf (green)',
-           draw=[(pbs, prob, 'W'),
+           draw=[(newBS, prob, 'W'),
                  (cpre, 'W', 'blue'), (cpost, 'W', 'pink'),
                  (crev, 'W', 'green')], snap=['W'])
         viol = Violations()

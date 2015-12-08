@@ -1576,7 +1576,7 @@ push = Operator('Push', pushArgs,
               BLoc(['Obj', planVar, 'P'], True)},    # was planP
          1 : {Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
                            'PreConf',
-                            'PushConf', 'PostConf', 'PoseVar', 'PrePoseVar',
+                            'PushConf', 'PostConf', 'RealPoseVar', 'PrePoseVar',
                             'PoseDelta', []]), True, canPPProb],True)},
         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
               B([Pose(['Obj', 'PoseFace']), 'PrePose',
