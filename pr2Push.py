@@ -1263,21 +1263,22 @@ def searchObjPushPath(pbs, prob, potentialPushes, targetPB, curPB,
     
     gen = search.searchGen(None, [curPt], actions, successor,
                            heuristic,
-                           goalKey = lambda x: x.pt if x else x)
-    print 'searchObjPushPath...'
+                           goalKey = lambda x: x.pt if x else x,
+                           printFinal = debug('pushGen'),
+                           fail = False)
+    if debug('pushGen'): print 'searchObjPushPath...'
     for (path, costs) in gen:
-        print '...yielding', path
-        if path is None:
-            if debug('pushGen'): pdb.set_trace()
-        else:
+        if debug('pushGen'):
+            print '...yielding', path
+            if path is None:
+                pdb.set_trace()
             pbs.draw(prob, 'W')
             targetPose = targetPB.poseD.mode()
             for (a, s) in path:
                 if not s: continue
                 pose = hu.Pose(s.pt[0], s.pt[1], targetPose.z, targetPose.theta)
                 targetPB.modifyPoseD(pose).makeShadow(pbs, prob).draw('W', 'blue')
-            if debug('pushGen'):
-                raw_input('Push path')
+            raw_input('Push path')
         yield path
 
 def segmentPath(path):

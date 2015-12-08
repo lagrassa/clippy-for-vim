@@ -172,14 +172,15 @@ class RealWorld(WorldState):
                 print 'This is supposed to back up to previous step and stop... does it work?'
                 pdb.set_trace()
                 c = path[i-1]
+                path = path[:i]         # cut off the rest of the path
                 self.setRobotConf(c)  # LPK: was conf
                 self.robotPlace.draw('World', 'orange')
                 self.robotPlace.draw('Belief', 'orange')
-                cart = conf.cartConf()
+                cart = c.cartConf()
                 leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
                 rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
                 tr('sim',
-                   ('base', conf['pr2Base'], 'left', leftPos, 'right', rightPos))
+                   ('base', c['pr2Base'], 'left', leftPos, 'right', rightPos))
                 break
             # Integrate the displacement
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))

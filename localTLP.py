@@ -40,7 +40,7 @@ debugOnly = ['h', 'assign']  # don't pause
 # Add tags that you want to debug and pause on to this list
 
 # debugOn = usualTags #+ ['lookGen', 'pushPathLook', 'canView']
-debugOn = usualTags + ['verifyRRTPath']
+debugOn = usualTags # + ['verifyRRTPath']
 
 # + ['lookGen', 'pickGen', 'placeGen', 'placeInGen', 'getReachObsts', 'CanReachHome']
 # + ['debugInHeuristic', 'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'visible', 'CanSeeFrom', 'canView']

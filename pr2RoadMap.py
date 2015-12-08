@@ -40,7 +40,7 @@ searchGreedy = 0.5 # 0.75 # greedy, trust that the heuristic is good...
 searchOpt = 0.5     # should be 0.5 ideally, but it's slow...
 
 useVisited = True           # unjustified
-minStep = 0.25              # !! normally 0.25 for joint interpolation
+minStep = glob.rrtInterpolateStepSize # !! normally 0.25 for joint interpolation
 
 confReachViolGenBatch = 10
 
@@ -763,7 +763,7 @@ class RoadMap:
                 if not smoothed or smoothed[-1] != p:
                     smoothed.append(p)
             n = len(smoothed)
-            while count < nsteps:
+            while count < nsteps and n > 2:
                 if debug('smooth'): print 'step', step, ':', 
                 if n < 1:
                     debugMsg('smooth', 'Path is empty!')

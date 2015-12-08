@@ -328,15 +328,17 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
         verifyPath(pbs, prob, interpolatePath(path), allowedViol, 'interp rrt:'+chain)
     return path, allowedViol
 
-def interpolate(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=100):
-    return list(interpolateGen(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=100))
+def interpolate(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=300):
+    return list(interpolateGen(q_f, q_i, stepSize=glob.rrtInterpolateStepSize,
+                               moveChains=None, maxSteps=maxSteps))
 
-def interpolateGen(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=100):
+def interpolateGen(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=300):
     robot = q_f.robot
     path = [q_i]
     q = q_i
     step = 0
     moveChains = moveChains or q_f.conf.keys()
+    yield q_i
     while q != q_f:
         if step > maxSteps:
             raw_input('interpolate exceeded maxSteps')
