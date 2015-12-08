@@ -337,6 +337,7 @@ def interpolateGen(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=No
     q = q_i
     step = 0
     moveChains = moveChains or q_f.conf.keys()
+    yield q_i
     while q != q_f:
         if step > maxSteps:
             raw_input('interpolate exceeded maxSteps')
