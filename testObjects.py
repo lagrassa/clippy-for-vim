@@ -193,6 +193,7 @@ def makeLegTable(dx=0.603, dy=0.30, dz=0.67, name='table1', width=0.1, color = '
            Ba([(0., 0.0, 0.), (dx/2, dy, dz)], name=name+'BR', color=color),
            Ba([(dx/2, -dy, 0.), (dx, 0., dz)], name=name+'FRR', color=color),
            Ba([(dx/2, 0.0, 0.), (dx, dy, dz)], name=name+'BRR', color=color),
+           Ba([(0, 0.0, 0.), (dx/2, dy, dz)], name=name+'BRR1', color=color),
            ]
     regions = [(r, hu.Pose(0.,0.,dz/2,0.)) for r in reg]
     table = [\

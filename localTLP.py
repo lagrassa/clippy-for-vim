@@ -24,7 +24,7 @@ drawRebindNodes = True
 usualTags = ['nonmon', 'animate']
 flags = ['simpleAbstractCostEstimates',
          'primitiveHeuristicAlways',
-         'pushSim',
+         # 'pushSim',
          'helpfulActions'
          ]
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
@@ -39,8 +39,7 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-# debugOn = usualTags #+ ['lookGen', 'pushPathLook', 'canView']
-debugOn = usualTags # + ['verifyRRTPath']
+debugOn = usualTags
 
 # + ['lookGen', 'pickGen', 'placeGen', 'placeInGen', 'getReachObsts', 'CanReachHome']
 # + ['debugInHeuristic', 'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'visible', 'CanSeeFrom', 'canView']

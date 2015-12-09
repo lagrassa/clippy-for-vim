@@ -466,7 +466,7 @@ class RealWorld(WorldState):
             # print 'retracted'
         return None
 
-    def pushObject(self, obj, c1, c2, hand, deltaPose):
+    def pushObjectSim(self, obj, c1, c2, hand, deltaPose):
         place = c2.placement()
         shape = self.objectShapes[obj]
         if not place.collides(shape):   # obj at current pose
@@ -483,10 +483,30 @@ class RealWorld(WorldState):
             pdb.set_trace()
         print 'Touching', obj, 'in push, moved to', self.getObjectPose(obj).pose()
 
+    def pushObjectRigid(self, obj, c1, c2, hand, deltaPose):
+        place = c2.placement()
+        shape = self.objectShapes[obj]
+        if not place.collides(shape):   # obj at current pose
+            print 'No contact with', obj
+            self.setRobotConf(c2)           # move robot and objectShapes update
+            return
+        # There is contact, step the object along
+        self.setObjectPose(obj, deltaPose.compose(self.getObjectPose(obj)))
+        shape = self.objectShapes[obj]
+        self.setRobotConf(c2)     # move robot and objectShapes update
+        if self.robotPlace.collides(shape):
+            print 'Push left object in collision'
+            pdb.set_trace()
+        print 'Touching', obj, 'in push, moved to', self.getObjectPose(obj).pose()
+
     def executePush(self, op, params, noBase = True):
         def moveObjSim(prevConf, conf):
-            self.pushObject(obj, prevConf, conf, hand, deltaPose)
-
+            self.pushObjectSim(obj, prevConf, conf, hand, deltaPose)
+        def moveObjRigid(prevConf, conf):
+            w1 = prevConf.cartConf()[robot.armChainNames[hand]]
+            w2 = conf.cartConf()[robot.armChainNames[hand]]
+            delta = w2.compose(w1.inverse()).pose(0.1) # from w1 to w2
+            self.pushObjectRigid(obj, prevConf, conf, hand, delta)
         failProb = self.domainProbs.pushFailProb
         if debug('simulateFaiure'):
             success = DDist({True : 1 - failProb, False : failProb}).draw()

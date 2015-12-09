@@ -113,9 +113,10 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes,
     tag = 'potentialRegionPoseGen'
     ff = placeBs[0].faceFrames[placeBs[0].support.mode()]
     regPrims = [rs.prim() for rs in regShapes]
-    print 'Region prims:'
-    for rs, rp in zip(regShapes, regPrims):
-        print rs, rp
+    if debug(tag):
+        print 'Region prims:'
+        for rs, rp in zip(regShapes, regPrims):
+            print rs, rp
     objShadows = dict()
     regBI = dict()
     clearance = 0.01
