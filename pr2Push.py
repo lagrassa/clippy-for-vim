@@ -48,7 +48,7 @@ minPushLength = 0.00999
 
 # Needs work... the hand needs to turn in the direction of the push?
 useDirectPush = False
-useHorizontalPush = True
+useHorizontalPush = False #True
 useVerticalPush = True
 
 class PushGen(Function):

@@ -12,6 +12,7 @@ from pr2Util import shadowName, objectName, permanent, inside, PoseD, GDesc, oth
      objectGraspFrame, robotGraspFrame
 from pr2Visible import visible, lookAtConf, viewCone, findSupportTableInPbs
 from pr2RRT import planRobotGoalPath, interpolatePath
+from dist import DeltaDist
 import windowManager3D as wm
 
 Ident = hu.Transform(np.eye(4))            # identity transform
@@ -51,10 +52,11 @@ def inTest(pbs, obj, regName, prob, pB=None):
 
     # compute a shadow for this object
     placeB = pB or pbs.getPlaceB(obj)
+    placeBSmall = placeB.modifyPoseD(delta = (0.0, 0.0, 0.0, 0.0))
     faceFrame = placeB.faceFrames[placeB.support.mode()]
 
-    # !! Clean this up
-    sh = pbs.objShadow(obj, shadowName(obj), pFits, placeB, faceFrame)
+    # Setting delta to be 0
+    sh = pbs.objShadow(obj, shadowName(obj), pFits, placeBSmall, faceFrame)
     shadow = sh.applyLoc(placeB.objFrame()) # !! is this right?
     shWorld = pbs.getShadowWorld(prob)
     region = shWorld.regionShapes[regName]
@@ -67,6 +69,36 @@ def inTest(pbs, obj, regName, prob, pB=None):
                                       (shadow, 'W', 'orange'),
                                       (region, 'W', 'purple')], snap=['W'])
     return ans
+
+# Just see if the the object, with irreducible shadow, would fit
+def inTestMinShadow(pbs, obj, pose, poseFace, regName):
+    regs = pbs.getWorld().regions
+
+    placeB = ObjPlaceB(obj,
+                       pbs.getWorld().getFaceFrames(obj),
+                       DeltaDist(poseFace),
+                       hu.Pose(* pose),
+                       (0, 0, 0, 0),
+                       (0, 0, 0, 0))
+    faceFrame = placeB.faceFrames[poseFace]
+
+    # !! Clean this up
+    prob = 0.1
+    sh = pbs.objShadow(obj, shadowName(obj), prob, placeB, faceFrame)
+    shadow = sh.applyLoc(placeB.objFrame()) # !! is this right?
+    shWorld = pbs.getShadowWorld(prob)
+
+    region = shWorld.regionShapes[regName]
+    ans = any([np.all(np.all(np.dot(r.planes(), shadow.prim().vertices()) <= \
+                             tiny, axis=1)) \
+               for r in region.parts()])
+
+    tr('testVerbose', 'In test, shadow in orange, region in purple',
+       (shadow, region, ans), draw = [(pbs, prob, 'W'),
+                                      (shadow, 'W', 'orange'),
+                                      (region, 'W', 'purple')], snap=['W'])
+    return ans
+
 
 # LPK: canReachNB which is like canReachHome, but without moving
 # the base.  

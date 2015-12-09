@@ -2,6 +2,7 @@ import time
 import copy
 import os
 import pdb
+import numpy as np
 
 import planGlobals as glob
 from traceFile import debugMsg, debug
@@ -2267,8 +2268,9 @@ def planBackward(startState, goal, ops, ancestors = [],
                 return p
             if f1:  writeSearchCoda(f1, f2)
             tr('nonmon', 'Monotonic failed')
-        print 'Automatically skipping non-mon'
-        return None
+
+        # print 'Automatically skipping non-mon'
+        # return None
     
         # Now try non-monotonic
         if fileTag:

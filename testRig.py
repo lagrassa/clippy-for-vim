@@ -46,6 +46,9 @@ import pr2BeliefState
 reload(pr2BeliefState)
 from pr2BeliefState import BeliefState
 
+import pr2GenTests
+reload(pr2GenTests)
+
 import pr2Fluents
 reload(pr2Fluents)
 from pr2Fluents import partition, In, Holding, Grasp, GraspFace, Pose, SupportFace
@@ -60,8 +63,6 @@ pr2Visible.cache = {}
 
 import pr2GenUtils
 reload(pr2GenUtils)
-import pr2GenTests
-reload(pr2GenTests)
 import pr2GenGrasp
 reload(pr2GenGrasp)
 import pr2GenPose
@@ -126,7 +127,7 @@ def clearCaches(details):
 def hEasy(s, g, ops, ancestors):
     return g.easyH(s, defaultFluentCost = 1.5)
 
-hDepth = 10
+hDepth = 15
 
 heuristicTime = 0.0
 

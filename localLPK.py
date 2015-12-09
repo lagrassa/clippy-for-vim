@@ -77,6 +77,7 @@ placeInGen
 placeInRegionGen
 potentialLookConfs
 prim
+pushSim : more accurate push sim
 regression
 regression:fail
 regression:fail:bindings
@@ -95,9 +96,7 @@ visibleEx (show visibility stuff during execution even if visible is false)
 # turned off helpful actions
 
 usualTags = ['nonmon', 'nagLeslie', 'animate', 'helpfulActions']
-flags = ['simpleAbstractCostEstimates',
-          'primitiveHeuristicAlways',
-          'pushSim']
+flags = ['simpleAbstractCostEstimates', 'primitiveHeuristicAlways']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack', 
                  'debugInHeuristic', 'h'] #, 'hv'] 
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
@@ -111,7 +110,7 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['disablePush', 'CanSeeFrom', 'CanSee']
+debugOn = usualTags + ['argh'] #+ ['disablePush']
 
 
 debugOnly = debugOnly

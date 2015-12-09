@@ -500,9 +500,11 @@ class RealPushPoseVar(Function):
         #        [tuple([v * 1.1 for v in start.domainProbs.pushVar])]]
         obsVar = start.domainProbs.obsVarTuple
         pushVar = start.domainProbs.pushVar
-        return [[tuple([max(v1, v2 * 1.1) \
-                        for v1, v2 in zip(tuple([(v + o) * 1.1 for (v,o) in zip(obsVar, pushVar)]),
-                                          pushVar)])]]
+        # can't be bigger than resultVar
+        return [[tuple([min(smallV, postV) \
+                     for smallV, postV in zip(tuple([(v + o) * 1.1 \
+                                           for (v,o) in zip(obsVar, pushVar)]),
+                                       resultVar)])]]
 
 # Realistically, push increases variance quite a bit. 
 # Have a max stdev
@@ -519,6 +521,7 @@ class PushPrevVar(Function):
             if any([v <= 0.0 for v in res]):
                 tr('pushGenVar', 'Push previous var would be negative', res)
             else:
+                assert all([a > b for (a, b) in zip(resultVar, res)])
                 result.append([res])
         return result
     
@@ -1867,7 +1870,7 @@ class AchCanPickPlaceGen(Function):
         for newConds in \
               achCanXGen(start.pbs, goal, cond, addedConditions,
                          violFn, prob, tag):
-            if not State(goal).isConsistent(newConds):
+            if not State(goal).isConsistent(newConds, start):
                 print 'AchCanReachNB suggestion inconsistent with goal'
                 for c in newConds: print c
                 debugMsg(tag, 'Inconsistent')
@@ -1911,11 +1914,38 @@ class AchCanPushGen(Function):
             else:
                 yield [newConds]
         return 
+
+# Generator whose elements are a list containing lists (or sets) of fluents
+class AchCanSeeGen(Function):
+    @staticmethod
+    def fun(args, goal, start):
+        tag = 'canSeeGen'
+        (obj, pose, poseFace, conf, prob, cond) = args
+        tr(tag, 'args', args)
+
+        # Conditions
+        csFluent = Bd([CanSeeFrom([obj, pose, poseFace, conf, cond]),
+                                  True, prob], True)
+        
+        def violFn(pbs):
+            ans, v = csFluent.getViols(pbs, True, prob)
+            return v
+        for newConds in \
+               achCanXGen(start.pbs, goal, cond, [csFluent],
+                                      violFn, prob, tag):
+            if not State(goal).isConsistent(newConds):
+                print 'AchCanReachNB suggestion inconsistent with goal'
+                for c in newConds: print c
+                debugMsg(tag, 'Inconsistent')
+            else:
+                yield [newConds]
+        return 
     
 # violFn specifies what we are trying to achieve tries all the ways we
-# know how to achieve it targetFluents are the declarative version of
-# the same condition; would be better if we didn't have to specify it
-# both ways.
+# know how to achieve it
+
+# targetFluents are the declarative version of the same condition;
+# would be better if we didn't have to specify it both ways.
 
 def achCanXGen(pbs, goal, originalCond, targetFluents, violFn, prob, tag):
     allConds = list(originalCond) + targetFluents
@@ -1936,6 +1966,9 @@ def achCanXGen(pbs, goal, originalCond, targetFluents, violFn, prob, tag):
     # This used to pass in: allConds + goal, but already in newBS.
     placeG = placeAchCanXGen(newBS, shWorld, viol, violFn, prob)
     pushG = pushAchCanXGen(newBS, shWorld, viol, violFn, prob)
+    if debug('disablePush'):
+        return itertools.chain(lookG, placeG)
+
     # prefer looking
     return itertools.chain(lookG, roundrobin(placeG, pushG))
     
@@ -2102,23 +2135,10 @@ achCanPush = BMetaOperator('AchCanPush', CanPush,
     AchCanPushGen,
     argsToPrint = (0, 1, 4))
 
-# Never been tested
-'''
-achCanSee = Operator('AchCanSee',
-    ['Obj', 'TargetPose', 'TargetPoseFace', 'TargetPoseVar',
-     'LookConf', 'PreCond', 'PostCond', 'NewCond', 'Op', 'PR'],
-    {0: {Bd([CanSeeFrom(['Obj', 'TargetPose', 'TargetPoseFace', 'LookConf',
-                         'PreCond']), True, 'PR'], True)}},
-    # Result
-    [({Bd([CanSeeFrom(['Obj', 'TargetPose', 'TargetPoseFace', 'LookConf', 
-                           'PostCond']),  True, 'PR'], True)}, {})],
-    functions = [
-        CanSeeGen(['Op', 'NewCond'],
-                  ['Obj', 'TargetPose', 'TargetPoseFace', 'TargetPoseVar',
-                   'LookConf', 'PR', 'PostCond']),
-         AddPreConds(['PreCond'], ['PostCond', 'NewCond'])],
-    metaGenerator = True)
-'''
+achCanSee = BMetaOperator('AchCanSee', CanSeeFrom,
+    ['Obj', 'Pose', 'PoseFace', 'Conf'],
+    AchCanSeeGen,
+    argsToPrint = (0, 1))
 
 ######################################################################
 #

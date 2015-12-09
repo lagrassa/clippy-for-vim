@@ -492,7 +492,7 @@ class RealWorld(WorldState):
             self.setRobotConf(c2)           # move robot and objectShapes update
             return
         # There is contact, step the object along
-        for steps in range(10):
+        for steps in range(20):
             newPose = deltaPose.compose(self.getObjectPose(obj))
             self.setObjectPose(obj, newPose)
             shape = self.objectShapes[obj]

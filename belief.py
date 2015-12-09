@@ -56,7 +56,7 @@ class BFluent(Fluent):
             return True
         if not other.predicate in ('B', 'Bd'):
             return False
-        return self.args[0].couldClobber(other.args[0])
+        return self.args[0].couldClobber(other.args[0], details)
 
     def argsGround(self):
         return self.args[0].isGround()

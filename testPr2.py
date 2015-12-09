@@ -465,6 +465,45 @@ def testChute0(**args):
     skel = None
     return doTest('testSwap', exp, actualGoal, skel, args)
 
+# Start with A where it needs to be
+def testChute2(**args):
+    short = args.get('short', False)
+    a = 'objA' if short else 'tsA'
+    b = 'objB' if short else 'tsB'
+    glob.useVertical = False
+    front = hu.Pose(1.05, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+    sideTable = hu.Pose(0.45, -1.2, tz, 0)
+    sideTable2 = hu.Pose(0.45, -1.5, tz, 0)
+    
+    mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
+    perm = {'table1' : (table1Pose, smallVar),
+            'table2' : (table2Pose, smallVar)}
+    perm['chute'] = (mid, smallVar)
+
+    exp = makeExp(perm,
+                  {a : (front, medVar),
+                   b : (sideTable, medVar)},
+                  ['table1Top', 'table2Top', 'table1Mid1_3',
+                   'table1Mid2_3'], easy=args.get('easy', False))
+    # Complete swap
+    goal = inRegion([a, b], ['table1Mid1_3', 'table1Mid2_3'])
+    actualGoal =  goal
+    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : a}),
+             moveNB, lookAt.applyBindings({'Obj' : 'table2'}),
+             move, place,
+             move, pick,
+             moveNB, lookAt.applyBindings({'Obj' : a}),
+             move, 
+             achCanPickPlace,
+             lookAt.applyBindings({'Obj' : b}),
+             move, place, move,
+             pick.applyBindings({'Obj' : 'tsB'}),
+             moveNB, lookAt,
+             move]]
+
+    return doTest('testSwap', exp, actualGoal, skel, args)
+
 def testChute1(**args):
     short = args.get('short', False)
     a = 'objA' if short else 'tsA'
@@ -492,9 +531,9 @@ def testChute1(**args):
     goal1 = inRegion(a, 'table2Top')
     # A and B on other table
     goal2 = inRegion([a, b], 'table2Top')
-    # B in back
-    goal3 = inRegion('a', 'table1Mid1_3')
-    actualGoal = goal1
+    # A in front
+    goal3 = inRegion(a, 'table1Mid1_3')
+    actualGoal =  goal
     skel = [[poseAchIn, lookAt.applyBindings({'Obj' : a}),
              moveNB, lookAt.applyBindings({'Obj' : 'table2'}),
              move, place,
@@ -503,7 +542,6 @@ def testChute1(**args):
              move, 
              achCanPickPlace,
              lookAt.applyBindings({'Obj' : b}),
-             
              move, place, move,
              pick.applyBindings({'Obj' : 'tsB'}),
              moveNB, lookAt,
