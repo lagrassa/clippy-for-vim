@@ -130,6 +130,7 @@ class RealWorld(WorldState):
                 print '--> modified base conf', conf['pr2Base']
             if action:
                 action(prevConf, conf) # do optional action
+                prevConf = conf
             else:
                 self.setRobotConf(conf)
             pathTraveled.append(conf)
@@ -491,9 +492,13 @@ class RealWorld(WorldState):
             self.setRobotConf(c2)           # move robot and objectShapes update
             return
         # There is contact, step the object along
-        self.setObjectPose(obj, deltaPose.compose(self.getObjectPose(obj)))
-        shape = self.objectShapes[obj]
-        self.setRobotConf(c2)     # move robot and objectShapes update
+        for steps in range(10):
+            newPose = deltaPose.compose(self.getObjectPose(obj))
+            self.setObjectPose(obj, newPose)
+            shape = self.objectShapes[obj]
+            self.setRobotConf(c2)     # move robot and objectShapes update
+            if not self.robotPlace.collides(shape):
+                break
         if self.robotPlace.collides(shape):
             print 'Push left object in collision'
             pdb.set_trace()
@@ -503,10 +508,12 @@ class RealWorld(WorldState):
         def moveObjSim(prevConf, conf):
             self.pushObjectSim(obj, prevConf, conf, hand, deltaPose)
         def moveObjRigid(prevConf, conf):
-            w1 = prevConf.cartConf()[robot.armChainNames[hand]]
-            w2 = conf.cartConf()[robot.armChainNames[hand]]
-            delta = w2.compose(w1.inverse()).pose(0.1) # from w1 to w2
-            self.pushObjectRigid(obj, prevConf, conf, hand, delta)
+            # w1 = prevConf.cartConf()[chain]
+            # w2 = conf.cartConf()[chain]
+            # delta2 = w2.compose(w1.inverse()).pose(0.1) # from w1 to w2
+            # deltaPose2 = hu.Pose(delta2.x+deltaPose.x, delta2.y+deltaPose.y, 0.0, 0.0)
+            # print 'deltaPose2', deltaPose2
+            self.pushObjectRigid(obj, prevConf, conf, hand, deltaPose)
         failProb = self.domainProbs.pushFailProb
         if debug('simulateFaiure'):
             success = DDist({True : 1 - failProb, False : failProb}).draw()
@@ -526,8 +533,9 @@ class RealWorld(WorldState):
                 obj = op.args[0]
                 hand = op.args[1]
                 robot = path[0].robot
-                w1 = path[0].cartConf()[robot.armChainNames[hand]]
-                w2 = path[-1].cartConf()[robot.armChainNames[hand]]
+                chain = robot.armChainNames[hand]
+                w1 = path[0].cartConf()[chain]
+                w2 = path[-1].cartConf()[chain]
                 delta = w2.compose(w1.inverse()).pose(0.1) # from w1 to w2
                 mag = (delta.x**2 + delta.y**2 + delta.z**2)**0.5
                 deltaPose = hu.Pose(0.005*(delta.x/mag), 0.005*(delta.y/mag), 0.005*(delta.z/mag), 0.0)
