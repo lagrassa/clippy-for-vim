@@ -780,11 +780,16 @@ def testPush2(objName='bigA', **args):
 def testPushShelves(name, objName, startPose, targetReg,
                     startPoseB, **args):
     coolShelvesPose = hu.Pose(1.45, 0.03, tZ, math.pi/2)
+    startPoseC = hu.Pose(1.1, 0.3, tZ, 0.0)
+    extraObject = args.get('extraObject', False)
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    'coolShelves' : (coolShelvesPose, smallVar)
                    },
                   {objName : (startPose, medVar), 
-                   'objB' : (startPoseB, medVar)},
+                   'objB' : (startPoseB, medVar)} if not extraObject \
+                  else {objName : (startPose, medVar), 
+                        'objB' : (startPoseB, medVar),
+                        'objC' : (startPoseC, medVar)},
                   ['table1Top', targetReg],
                   easy=args.get('easy', False))
     goal = inRegion(objName, targetReg)
