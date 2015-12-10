@@ -100,11 +100,11 @@ class RealWorld(WorldState):
         odoError = self.domainProbs.odoError
         prevXYT = self.robotConf.conf['pr2Base']
         prevConf = self.robotConf
-        for (i, conf) in enumerate(path):
+        for (pathIndex, conf) in enumerate(path):
             originalConf = conf
             newXYT = conf['pr2Base']
-            prevBasePose = path[max(0, i-1)].basePose()
-            newBasePose = path[i].basePose()
+            prevBasePose = path[max(0, pathIndex-1)].basePose()
+            newBasePose = path[pathIndex].basePose()
             # Compute the nominal displacement along the original path
             disp = prevBasePose.inverse().compose(newBasePose).pose()
             # Variance based on magnitude of original displacement
@@ -172,8 +172,8 @@ class RealWorld(WorldState):
                 # Back up to previous conf
                 print 'This is supposed to back up to previous step and stop... does it work?'
                 pdb.set_trace()
-                c = path[i-1]
-                path = path[:i]         # cut off the rest of the path
+                c = path[pathIndex-1]
+                path = path[:pathIndex]         # cut off the rest of the path
                 self.setRobotConf(c)  # LPK: was conf
                 self.robotPlace.draw('World', 'orange')
                 self.robotPlace.draw('Belief', 'orange')
@@ -492,7 +492,7 @@ class RealWorld(WorldState):
             self.setRobotConf(c2)           # move robot and objectShapes update
             return
         # There is contact, step the object along
-        for steps in range(10):
+        for steps in range(20):
             newPose = deltaPose.compose(self.getObjectPose(obj))
             self.setObjectPose(obj, newPose)
             shape = self.objectShapes[obj]

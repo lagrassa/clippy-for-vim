@@ -48,7 +48,7 @@ minPushLength = 0.00999
 
 # Needs work... the hand needs to turn in the direction of the push?
 useDirectPush = False
-useHorizontalPush = True
+useHorizontalPush = False
 useVerticalPush = True
 
 class PushGen(Function):
@@ -790,6 +790,9 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
     viol = newBS.confViolations(conf, prob)
     if not viol:
         return finish('collide', 'Final conf collides in pushPath')
+    preViol = newBS.confViolations(preConf, prob)
+    if not preViol:
+        return finish('collide', 'Pre-conf collides in pushPath')
     #######################
     # Set up scan parameters, directions, steps, etc.
     #######################
@@ -824,7 +827,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
     #######################
     # We will return (conf, viol, pose) for steps along the path --
     # starting at initPose.  Before contact, pose in None.
-    pathViols = [(preConf, newBS.confViolations(preConf, prob), None)]
+    pathViols = [(preConf, preViol, None)]
     reason = 'done'                     # done indicates success
     #######################
     # Set up state for the approach scan
@@ -1136,7 +1139,7 @@ def nextCrossing(pt, dirx, tangents, goal, regShape, reverse = False):
                 elif d < bestDist:
                     bestDist = d
                     bestDirs = [ndirx]
-    if bestDist:
+    if bestDist < float('inf'):
         (z0, z1) = regShape.zRange()
         p = np.array([pt[i] + bestDist*tdirx[i] for i in (0,1)] + [0.5*(z0+z1), 1.])
         if np.all(np.dot(regShape.planes(), np.resize(p,(4,1)))<=0.):
