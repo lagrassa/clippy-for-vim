@@ -52,11 +52,10 @@ def inTest(pbs, obj, regName, prob, pB=None):
 
     # compute a shadow for this object
     placeB = pB or pbs.getPlaceB(obj)
-    placeBSmall = placeB.modifyPoseD(delta = (0.0, 0.0, 0.0, 0.0))
     faceFrame = placeB.faceFrames[placeB.support.mode()]
 
     # Setting delta to be 0
-    sh = pbs.objShadow(obj, shadowName(obj), pFits, placeBSmall, faceFrame)
+    sh = pbs.objShadow(obj, shadowName(obj), pFits, placeB, faceFrame)
     shadow = sh.applyLoc(placeB.objFrame()) # !! is this right?
     shWorld = pbs.getShadowWorld(prob)
     region = shWorld.regionShapes[regName]
