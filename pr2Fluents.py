@@ -7,7 +7,7 @@ from planUtil import Violations, ObjPlaceB, ObjGraspB
 from pr2Util import shadowName, drawPath, objectName, PoseD, \
      supportFaceIndex, GDesc, inside, otherHand, graspable, pushable, permanent, \
      confWithin, baseConfWithin
-from pr2GenTests import inTest, canReachNB, canReachHome
+from pr2GenTests import inTest, canReachNB, canReachHome, inTestMinShadow
 from pr2Push import canPush
 from dist import DeltaDist, probModeMoved
 from traceFile import debugMsg, debug, pause
@@ -27,6 +27,8 @@ tiny = 1.0e-6
 #### Ugly!!!!!
 graspObstCost = 20  # Heuristic cost of moving an object
 pushObstCost = 75  # Heuristic cost of moving an object
+
+# Need contradiction between Pose and In: fglb
 
 ################################################################
 ## Fluent definitions
@@ -953,12 +955,21 @@ class Pose(Fluent):
 
         return bState.poseModeDist(obj, face)
 
-
     def fglb(self, other, bState = None):
-        if (other.predicate == 'Holding' and self.args[0] == other.value) or \
+        (obj, face) = self.args
+        if (other.predicate == 'Holding' and obj == other.value) or \
            (other.predicate in ('Grasp', 'GraspFace') and
                  self.args[0] == other.args[0]):
            return False, {}
+        elif (other.predicate == 'In' and obj == other.args[0]):
+            # see if having obj at pose puts it in this region
+            region = other.args[1]
+            if inTestMinShadow(bState.pbs, obj, self.value, face, region):
+                # pose might entail in, but we didn't check so carefully
+                return {self, other}, {}
+            else:
+                # contradiction
+                return False, {}
         else:
            return {self, other}, {}
 
@@ -1004,8 +1015,8 @@ class CanSeeFrom(Fluent):
 
     def bTest(self, details, v, p):
         assert v == True
-        ans, occluders = self.getViols(details.pbs, v, p)
-        return ans and len(occluders) == 0
+        path, viol = self.getViols(details.pbs, v, p)
+        return viol is not None and viol.empty()
 
     def update(self):
         super(CanSeeFrom, self).update()
@@ -1058,12 +1069,16 @@ class CanSeeFrom(Fluent):
             debugMsg('CanSeeFrom',
                     ('obj', obj, pose), ('conf', conf),
                     ('->', ans, 'occluders', occluders))
+
+        viol = Violations(occluders) if ans else None
+        path = ans if ans else None
+
         if glob.inHeuristic:
-            self.hviols[key] = ans, occluders
+            self.hviols[key] = path, viol
         else:
-            self.viols[key] = ans, occluders
+            self.viols[key] = path, viol
         debugMsg('CanSee', 'ans', ans, 'occluders', occluders)
-        return ans, occluders
+        return path, viol
     
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations
@@ -1075,8 +1090,8 @@ class CanSeeFrom(Fluent):
             dummyOp.instanceCost = graspObstCost
             return graspOCost, ActSet([dummyOp])
         
-        vis, occluders = self.getViols(details.pbs, v, p)
-        totalCost, ops = hCostSee(vis, occluders, details)
+        vis, viol = self.getViols(details.pbs, v, p)
+        totalCost, ops = hCostSee(vis, viol.obstacles, details)
         tr('hv', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
         return totalCost, ops
