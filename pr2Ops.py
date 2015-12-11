@@ -2063,7 +2063,7 @@ def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob):
             else:
                 pbs.draw(prob, 'W'); r.pB.shape(pbs).draw('W', 'cyan')
                 trAlways('*** moveOut suggestion (in cyan) did not remove obstacle')
-                raw_input('moveOut failed')
+                print '*** moveOut failed'
     tr(tag, '=> Out of remedies')
 
 def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob):

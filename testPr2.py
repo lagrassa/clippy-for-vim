@@ -780,7 +780,7 @@ def testPush2(objName='bigA', **args):
 def testPushShelves(name, objName, startPose, targetReg,
                     startPoseB, **args):
     coolShelvesPose = hu.Pose(1.45, 0.03, tZ, math.pi/2)
-    startPoseC = hu.Pose(1.1, 0.3, tZ, 0.0)
+    startPoseC = hu.Pose(1.1, 0.4, tZ, 0.0)
     extraObject = args.get('extraObject', False)
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    'coolShelves' : (coolShelvesPose, smallVar)
