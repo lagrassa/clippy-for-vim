@@ -20,6 +20,8 @@ if glob.useMPL:
 
 # For now, use configurations until they are added to the tree as Nodes.
 
+maxStopNodeSteps = 10
+
 class RRT:
     def __init__(self, pbs, prob, initConf, goalConf, allowedViol, moveChains):
         if debug('rrt'): print 'Setting up RRT'
@@ -83,7 +85,7 @@ class RRT:
             na_near = self.Ta.nearest(q_rand)
             # adjust continuous angle values
             q_rand = self.robot.normConf(q_rand, na_near.conf)
-            na_new = self.Ta.stopNode(q_rand, na_near, maxSteps = 5)
+            na_new = self.Ta.stopNode(q_rand, na_near, maxSteps = maxStopNodeSteps)
             if goalTest(na_new.conf):
                 return na_new
         if debug('rrt'):

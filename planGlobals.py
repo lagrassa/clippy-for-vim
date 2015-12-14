@@ -56,7 +56,7 @@ useHandTiltForPush = True              # Use for real robot
 inHeuristic = False
 
 useCC = True                            # Use compiled chains collision checks
-skipSearch = False                       # Don't plan paths except for prims
+skipSearch = False                      # Don't plan paths except for prims
 useMathematica = False
 
 ignoreShadowZ = True
@@ -76,13 +76,20 @@ graspDesc = {}
 constructor = {}
 
 ########################################
+# Perception Parameters
+########################################
+
+# laserScanParams = (0.3, 0.2, 0.1, 3., 30)
+laserScanParams = (0.3, 0.05, 0.05, 3., 10)
+
+########################################
 # Robot Parameters
 ########################################
 
 IKfastStep = 0.1
 useRRT = True                           # use RRT exclusively
 rrtStep = 0.025
-rrtInterpolateStepSize = 4*rrtStep
+rrtInterpolateStepSize = 8*rrtStep
 smoothSteps = 100
 smoothPasses = 20
 torsoZ = 0.2                            # normally 0.3 or 0.2

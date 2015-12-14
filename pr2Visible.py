@@ -13,10 +13,6 @@ from miscUtil import argmax
 
 Ident = hu.Transform(np.eye(4))            # identity transform
 laserScanGlobal = None
-laserScanSparseGlobal = None
-# laserScanParams = (0.3, 0.1, 0.1, 2., 20)
-laserScanParams = (0.3, 0.2, 0.1, 3., 30)
-laserScanParamsSparse = (0.3, 0.1, 0.1, 2., 15)
 minVisiblePoints = 5
 
 colors = ['red', 'green', 'blue', 'orange', 'cyan', 'purple']
@@ -37,7 +33,7 @@ cacheStats = [0, 0, 0, 0, 0, 0]                   # h tries, h hits, h easy, rea
 # target shape is potentially visible if the occluding obsts are removed.
 
 def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
-    global laserScanGlobal, laserScanSparseGlobal
+    global laserScanGlobal
     key = (ws, conf, shape, tuple(obstacles), prob, moveHead, tuple(fixed))
     cacheStats[0 if glob.inHeuristic else 3] += 1
     if key in cache:
@@ -70,11 +66,13 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
             potentialOccluders.append(objShape)
     if debug('visible'):
         print 'potentialOccluders', potentialOccluders
+
     # If we can't move the head, then the object might not be visible
     # because of FOV issues (not enough points on the object).
-    if moveHead and not potentialOccluders:
-        cacheStats[2 if glob.inHeuristic else 5] += 1
-        return True, []
+    # if moveHead and not potentialOccluders:
+    #     cacheStats[2 if glob.inHeuristic else 5] += 1
+    #     return True, []
+
     occluders = []
 
     scan = lookScan(lookConf)
@@ -219,19 +217,13 @@ def findSupportTableInPbs(pbs, targetObj):
     return findSupportTable(targetObj, pbs.getWorld(), pbs.getPlacedObjBs())
 
 def lookScan(lookConf):
-    global laserScanSparseGlobal, laserScanGlobal
+    global laserScanGlobal
     lookCartConf = lookConf.cartConf()
     headTrans = lookCartConf['pr2Head']
 
-    # ALWAYS USES DENSE SCAN
-    if False:
-        if not laserScanSparseGlobal:
-            laserScanSparseGlobal = Scan(Ident, laserScanParamsSparse)
-        laserScan = laserScanSparseGlobal
-    else:
-        if not laserScanGlobal:
-            laserScanGlobal = Scan(Ident, laserScanParams)
-        laserScan = laserScanGlobal
+    if not laserScanGlobal:
+        laserScanGlobal = Scan(Ident, glob.laserScanParams)
+    laserScan = laserScanGlobal
 
     scanTrans = headTrans.compose(hu.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0))))
     scan = laserScan.applyTrans(scanTrans)

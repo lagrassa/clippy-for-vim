@@ -865,9 +865,18 @@ def prof(test, n=100):
     p.sort_stats('cumulative').print_stats(n)
     p.sort_stats('cumulative').print_callers(n)
 
-    from pr2GenGrasp import graspConfGenCacheStats, graspConfStats
+    from pr2GenGrasp import graspConfGenCacheStats, graspConfStats, approachConfCacheStats
     print 'graspConfGenCacheStats', graspConfGenCacheStats
     print 'graspConfStats', graspConfStats
+    print 'approachConfCacheStats', approachConfCacheStats
+    from pr2Push import pushGenCacheStats
+    print 'pushGenCacheStats', pushGenCacheStats
+    from pr2Gen import easyGraspGenCacheStats, placeGenCacheStats
+    print 'easyGraspGenCacheStats', easyGraspGenCacheStats
+    print 'placeGenCacheStats', placeGenCacheStats
+    from pr2Visible import cacheStats
+    print 'h tries, h hits, h easy, real tries, real hits, real easy'
+    print 'visible cacheStats',  cacheStats
 
 def profPrint(n=100):
     import pstats

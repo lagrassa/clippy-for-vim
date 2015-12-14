@@ -412,11 +412,11 @@ def hCost(violations, details):
 
     return totalCost, ActSet(ops)
 
-def hCostSee(vis, occluders, details):
+def hCostSee(vis, violations, details):
     # vis is whether enough is visible;   we're 0 cost if that's true
-    if not vis:
+    if not vis or violations is None:
         return float('inf'), ActSet()
-
+    occluders = violations.obstacles
     obstOps = set([Operator('RemoveObst', [o],{},[]) \
                    for o in occluders])
     for o in obstOps: o.instanceCost = graspObstCost
@@ -1091,7 +1091,7 @@ class CanSeeFrom(Fluent):
             return graspOCost, ActSet([dummyOp])
         
         vis, viol = self.getViols(details.pbs, v, p)
-        totalCost, ops = hCostSee(vis, viol.obstacles, details)
+        totalCost, ops = hCostSee(vis, viol, details)
         tr('hv', ('Heuristic val', self.predicate),
            ('ops', ops), 'cost', totalCost)
         return totalCost, ops

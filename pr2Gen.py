@@ -1212,7 +1212,7 @@ def lookGenTop(args, pbs, cpbs):
 
     noViol = Violations()
     for hyp in sortedHyps(lookConfHypGen(), lookConfHypValid, lookConfHypCost,
-                          20, 40, size=5):       # ??
+                          20, 40, size=(1 if glob.inHeuristic else 5)):       # ??
         conf = hyp.conf
         viol = hyp.viol
         tr(tag, '(%s) viol=%s'%(obj, viol.weight() if viol else None))

@@ -46,9 +46,6 @@ simOdoErrorRate = 0.0                   # was 0.02
 
 pickSuccessDist = 0.1  # pretty big for now
 
-# laserScanParams = (0.3, 0.2, 0.1, 3., 50)
-laserScanParams = (0.3, 0.2, 0.1, 3., 30)
-
 class RealWorld(WorldState):
     def __init__(self, world, bs, probs, robot = None):
         # probs is an instance of DomainProbs
@@ -137,13 +134,12 @@ class RealWorld(WorldState):
             if debug('animate'):
                 self.draw('World');
                 # This is the original commanded conf, draw to see accumulated error
-                # originalConf.draw('World', 'pink')
                 self.bs.pbs.draw(0.95, 'Belief', drawRobot=False)
                 self.robotPlace.draw('Belief', 'gold')
                 sleep(animateSleep)
-            else:
-                self.robotPlace.draw('World', 'pink')
-                self.robotPlace.draw('Belief', 'pink')
+            # else:
+            #     self.robotPlace.draw('World', 'pink')
+            #     self.robotPlace.draw('Belief', 'pink')
             wm.getWindow('World').pause()
             wm.getWindow('Belief').pause()
             cart = conf.cartConf()
@@ -285,7 +281,7 @@ class RealWorld(WorldState):
         obs = []
 
         if debug('useLocate'):
-            scan = pc.simulatedScan(lookConf, laserScanParams,
+            scan = pc.simulatedScan(lookConf, glob.laserScanParams,
                                     self.getNonShadowShapes()+ [self.robotPlace])
             scan.draw('W', 'cyan')
 

@@ -4,12 +4,13 @@ from planUtil import ObjGraspB
 from traceFile import tr, debug, debugMsg
 from miscUtil import roundrobin
 from pr2Util import PoseD, supportFaceIndex
+import planGlobals as glob
 
 def fixed(value):
     return value and isinstance(value, tuple) and len(value) == 2 and value[0]
 
 def sortedHyps(hypGen, validTestFn, costFn, maxHyps, maxTries,
-              minCost = 0., size = 10):
+              minCost = 0., size = 3 if glob.inHeuristic else 10):
     tag = 'sortedHyps'
     costHistory = []
     hypHistory = []
