@@ -290,8 +290,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         obst =  solids + [rob]
         for s in solids:
             # The view is fixed.
-            if visible(shWorld, conf, s, rem(obst,s), prob,
-                       moveHead=False, fixed=rem(obst,s))[0]:
+            vis, occluders = visible(shWorld, conf, s, rem(obst,s), prob,
+                                     moveHead=False, fixed=rem(obst,s))
+            if vis and len(occluders)==0:
                 yield s
             else:
                 continue

@@ -328,13 +328,9 @@ def canView(pbs, prob, conf, hand, shape,
     vc = viewCone(conf, shape)
     if not vc: return None
     shWorld = pbs.getShadowWorld(prob)
-
-    obj = shape.name()
-    obst = [s for s in shWorld.getNonShadowShapes() \
-            if s.name() != obj and s.name() in shWorld.fixedObjects]
-    if not visible(shWorld, conf, shape, obst, prob, moveHead=True)[0]:
+    # We don't care about movable occluders, so obst = []
+    if not visible(shWorld, conf, shape, [], prob, moveHead=True)[0]:
         return None
-
     attached = shWorld.attached
     if shapeShadow:
         avoid = shapes.Shape([vc, shape, shapeShadow], None)

@@ -215,8 +215,9 @@ class RealWorld(WorldState):
         immovable = [s for s in objShapes if not world.getGraspdesc(s)]
         movable = [s for s in objShapes if world.getGraspdesc(s)]
         for s in immovable + movable:
-            if visible(shWorld, self.robotConf, s, rem(objShapes,s)+[rob], prob,
-                       moveHead=True, fixed=fixed)[0]:
+            vis, occl = visible(shWorld, self.robotConf, s, rem(objShapes,s)+[rob], prob,
+                                moveHead=True, fixed=fixed)
+            if vis and len(occl) == 0:
                 return s
 
     def executeMove(self, op, params, noBase = False):
@@ -262,9 +263,9 @@ class RealWorld(WorldState):
                                      self.world.getGraspDesc(targetObj))
             obstacles = [s for s in self.getObjectShapes() \
                          if s.name() != targetObj ] + [self.robotPlace]
-            vis, _ = visible(self, self.robotConf, shapeInHand,
+            vis, occl = visible(self, self.robotConf, shapeInHand,
                              obstacles, 0.75, moveHead=False, fixed=[self.robotPlace.name()])
-            if not vis:
+            if not vis or len(occl) > 0:
                 tr('sim', 'Object %s is not visible'%targetObj)
                 return 'none'
             else:
@@ -308,12 +309,12 @@ class RealWorld(WorldState):
                              s.name() != curObj ]  + [self.robotPlace]
                 deb = 'visible' in glob.debugOn
                 if (not deb) and debug('visibleEx'): glob.debugOn.append('visible')
-                vis, _ = visible(self, self.robotConf,
+                vis, occl = visible(self, self.robotConf,
                                  self.objectShapes[curObj],
                                  obstacles, 0.75, moveHead=False,
                                  fixed=[self.robotPlace])
                 if not deb and debug('visibleEx'): glob.debugOn.remove('visible')
-                if not vis:
+                if not vis or len(occl) > 0:
                     tr('sim', 'Object %s is not visible'%curObj)
                     continue
                 else:
