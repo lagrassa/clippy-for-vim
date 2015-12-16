@@ -84,7 +84,6 @@ def pr2GoToConf(cnfIn,                  # could be partial...
             conf.left_grip = []
             conf.right_grip = []
         if operation == 'look':
-            assert cnfIn.get('pr2Head', None)
             gaze = gazeCoords(cnfIn)
             conf.head = map(float, gaze) # a look point relative to robot
             debugMsg('robotEnvCareful', 'Looking at %s'%gaze)
@@ -217,7 +216,12 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         distSoFar = 0.0
         angleSoFar = 0.0
         prevXYT = path[0]['pr2Base']
-        for (i, conf) in enumerate(path):
+        npath = []
+        for p in path:
+            if not npath or p != npath[-1]:
+                npath.append(p)
+        for (i, conf) in enumerate(npath):
+            print '** Path step', i, 'out of', len(path)
             if debug('robotPathCareful') or debug('robotEnvCareful'):
                 conf.prettyPrint('Commanded conf')
                 self.bs.pbs.draw(0.95, 'W')
