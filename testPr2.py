@@ -149,6 +149,21 @@ def test0(**args):
             [place, move]]
     return doTest('test0', exp, goal, skel, args)
 
+
+def testHandle(**args):
+    coolShelvesPose = hu.Pose(1.6, 0.03, tZ, math.pi/2)
+    exp = makeExp({'table1' : (table1Pose, medVar),
+                   'bar2' : (hu.Pose(1.25, 0.0, tZ+0.3, math.pi/2), medVar),
+                   'coolShelves' : (coolShelvesPose , bigVar)},
+                  {'handleA' : (hu.Pose(1.25, 0.0, tZ, 0.0), medVar),
+                   'tallSodaB' : (hu.Pose(1.05, 0.2, tZ, 0.0), medVar),
+                   'tallSodaC' : (hu.Pose(1.05, -0.2, tZ, 0.0), medVar)
+                   },
+                  ['table1Top', 'table1Left'], easy=args.get('easy', False))
+    goal = inRegion(['handleA'], 'table1Left')
+    # goal = holding('handleA', hand='left', graspType=0)
+    return doTest('testHandle', exp, goal, None, args)
+
 ######################################################################
 # Test 1: 2 tables move 1 object
 ######################################################################
@@ -463,7 +478,7 @@ def testChute0(**args):
     goal1 = inRegion('tsA', 'table2Top')
     actualGoal = goal1
     skel = None
-    return doTest('testSwap', exp, actualGoal, skel, args)
+    return doTest('testChute0', exp, actualGoal, skel, args)
 
 # Start with A where it needs to be
 def testChute2(**args):
@@ -502,7 +517,7 @@ def testChute2(**args):
              moveNB, lookAt,
              move]]
 
-    return doTest('testSwap', exp, actualGoal, skel, args)
+    return doTest('testChute2', exp, actualGoal, skel, args)
 
 def testChute1(**args):
     short = args.get('short', False)
@@ -547,7 +562,42 @@ def testChute1(**args):
              moveNB, lookAt,
              move]]
 
-    return doTest('testSwap', exp, actualGoal, skel, args)
+    return doTest('testChute1', exp, actualGoal, skel, args)
+
+def testChute3(**args):
+    short = args.get('short', False)
+    a = 'objA' if short else 'tsA'
+    b = 'objB' if short else 'tsB'
+    # glob.useVertical = False
+    glob.useHorizontal = False
+    front = hu.Pose(1.05, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+    mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
+    perm = {'table1' : (table1Pose, smallVar),
+            'table2' : (table2Pose, smallVar)}
+    perm['chute'] = (mid, smallVar)
+
+    exp = makeExp(perm,
+                  {a : (back, medVar),
+                   b : (front, medVar)
+                   },
+                  ['table1Top', 'table2Top', 'table1Mid1_3',
+                   'table1Mid2_3'], easy=args.get('easy', False))
+    # Complete swap
+    goal = inRegion([a, b], ['table1Mid1_3', 'table1Mid2_3'])
+    # Just look at A
+    goalLook = placed(a, back)
+    # B on other table
+    goal0 = inRegion(b, 'table2Top')
+    # A on other table
+    goal1 = inRegion(a, 'table2Top')
+    # A and B on other table
+    goal2 = inRegion([a, b], 'table2Top')
+    # A in front
+    goal3 = inRegion(a, 'table1Mid1_3')
+    actualGoal =  goal1
+
+    return doTest('testChute3', exp, actualGoal, None, args)
 
 
 ######################################################################

@@ -79,7 +79,7 @@ class BFluent(Fluent):
         # Do the update on this fluent (should call the parent method)
         self.isGroundStored = self.getIsGround()
         self.isPartiallyBoundStored = self.getIsPartiallyBound()
-        self.strStored = self.getStr()
+        self.strStored = {True:None, False:None}
 
     # Avoid printing the value of the embedded rfluent
     def argString(self, eq):
