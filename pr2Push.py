@@ -457,6 +457,7 @@ class PushInRegionGen(Function):
             yield ans.poseInTuple()
 
 def pushInRegionGenGen(args, pbs, cpbs, away = False):
+    if debug('disablePush'): return 
     (obj, region, var, delta, prob) = args
 
     if glob.traceGen:

@@ -87,7 +87,7 @@ def primPath(bs, cs, ce, p):
             raw_input('Shadow collisions - continue?')
         trAlways('Direct path succeeded')
     else:
-        assert 'primPath failed'
+        assert False, 'primPath failed'
 
     smoothed = bs.getRoadMap().smoothPath(path, bs, p)
     interpolated = rrt.interpolatePath(smoothed)
@@ -2021,6 +2021,11 @@ def fixedHeld(pbs, obj):
 
 def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob):
     tag = 'placeAchGen'
+
+    # print tag, 'initViol=', initViol
+    # if raw_input('Debug? Enter y or n') == 'y':
+    #     pdb.set_trace()
+    
     obstacles = [o.name() for o in initViol.allObstacles() \
                   if (not o.name() in shWorld.fixedObjects) and \
                      (not fixedHeld(pbs, o.name())) and \
@@ -2067,6 +2072,7 @@ def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob):
     tr(tag, '=> Out of remedies')
 
 def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob):
+    if debug('disablePush'): return 
     tag = 'pushAchGen'
     obstacles = [o.name() for o in initViol.allObstacles() \
                   if (not o.name() in shWorld.fixedObjects) and \

@@ -769,7 +769,7 @@ def testShelvesPush(**args):
 def testPush(name, objName, startPose, targetReg, **args):
     middle = hu.Pose(1.3, 0.05, tZ, math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
-                   # 'barB': (middle, medVar)
+                   # 'barC': (middle, medVar)
                    },
                   {objName : (startPose, medVar)},
                   ['table1Top', targetReg], easy=args.get('easy', False))
@@ -777,9 +777,9 @@ def testPush(name, objName, startPose, targetReg, **args):
     skel = args.get('skeleton', None)
     return doTest(name, exp, goal, skel, args)
 
-def testPush0(objName='bigA', **args):
+def testPush0(objName='bigB', **args):
     skel = [[poseAchIn,
-             lookAt.applyBindings({'Obj' : 'bigA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'bigB'}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), move,
              push, moveNB, lookAt, moveNB, lookAt, move]]
     args['skeleton'] = skel if 'skeleton' in args else None
