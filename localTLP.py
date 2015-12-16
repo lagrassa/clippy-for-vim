@@ -21,11 +21,11 @@ monotonicFirst = True
 drawFailedNodes = False
 drawRebindNodes = True
 
-usualTags = ['nonmon']                  # 'animate'
+usualTags = ['nonmon', 'animate']
 flags = ['simpleAbstractCostEstimates',
          'primitiveHeuristicAlways',
          # 'pushSim',
-         'helpfulActions'
+         # 'helpfulActions'
          ]
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf',
                  'debugInHeuristic', 'h', 'hAddBack']

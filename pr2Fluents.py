@@ -956,6 +956,7 @@ class Pose(Fluent):
         return bState.poseModeDist(obj, face)
 
     def fglb(self, other, bState = None):
+        if not self.isGround(): return {self, other}, {}
         (obj, face) = self.args
         if (other.predicate == 'Holding' and obj == other.value) or \
            (other.predicate in ('Grasp', 'GraspFace') and

@@ -200,6 +200,7 @@ class JointConf:
         self.conf = conf
         self.robot = robot
         self.items = None
+        self.strStored = {True:None, False:None}
     def copy(self):
         return JointConf(self.conf.copy(), self.robot)
     def values(self):
@@ -239,9 +240,12 @@ class JointConf:
     def prettyString(self, eq = True):
         if not eq:
             # If we don't need to maintain equality, just print the base
-            return 'JointConf('+prettyString(self.conf['pr2Base'], eq)+')'
+            if self.strStored[eq] is None:
+                self.strStored[eq] = 'JointConf('+prettyString(self.conf['pr2Base'], eq)+')'
         else:
-            return 'JointConf('+prettyString(self.conf, eq)+')'
+            if self.strStored[eq] is None:
+                self.strStored[eq] = 'JointConf('+prettyString(self.conf, eq)+')'
+        return self.strStored[eq]
     def prettyPrint(self, msg='Conf:'):
         print msg
         for key in sorted(self.conf.keys()):

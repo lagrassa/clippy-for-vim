@@ -186,7 +186,7 @@ def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
     tag = 'pushGen'
 
     if glob.traceGen:
-        print '***', tag, hand
+        print '***', tag+'Aux', glob.inHeuristic, hand, placeB.poseD.mode(), curPB.poseD.mode()
 
     # The shape at target, without any shadow
     shape = placeB.shape(cpbs.getWorld())
@@ -212,9 +212,13 @@ def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
 
     for ans in pushGenPaths(cpbs, prob, potentialContacts, placeB, curPB,
                             hand, base, prim, supportRegion.xyPrim(), away=away):
+        if glob.traceGen:
+            print '***', tag+'Aux', glob.inHeuristic, hand, placeB.poseD.mode(), curPB.poseD.mode(), '->', ans
         yield ans
 
     tr(tag, '=> pushGenAux exhausted')
+    if glob.traceGen:
+        print '***', tag+'Aux', glob.inHeuristic, hand, placeB.poseD.mode(), curPB.poseD.mode(), '-> None'
     return
 
 # Return (preConf, pushConf) - conf at prePose and conf at placeB (pushConf)
@@ -565,13 +569,13 @@ def pushInGenTop(args, pbs, cpbs, away = False):
     shWorld = cpbs.getShadowWorld(prob)
     nPoses = pushInGenMaxPosesH if glob.inHeuristic else pushInGenMaxPoses
 
+    # Check the cache, otherwise call Aux
     leftGen = pushInGenAux(pbs, cpbs, prob, placeB, regShapes,
                            'left', away=away)
     rightGen = pushInGenAux(pbs, cpbs, prob, placeB, regShapes,
                             'right', away=away)
     # Figure out whether one hand or the other is required;  if not, do round robin
     mainGen = chooseHandGen('push', pbs, cpbs, obj, None, leftGen, rightGen)
-
     # Picks among possible target poses and then try to push it in region
     for ans in mainGen:
         yield ans

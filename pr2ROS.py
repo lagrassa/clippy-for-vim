@@ -6,7 +6,7 @@ import windowManager3D as wm
 
 import pointClouds as pc
 import planGlobals as glob
-from traceFile import debug, debugMsg
+from traceFile import debug, debugMsg, tr, trAlways
 from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn, objectName
 from pr2Visible import lookAtConf, findSupportTable, visible
 # import pr2Robot
@@ -206,12 +206,12 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         shWorld = self.bs.pbs.getShadowWorld(0.95)
         objShapes = shWorld.getObjectShapes()
 
-        if debug('robotEnv'):
-            self.bs.pbs.draw(0.95, 'W')
-            for conf in path:
-                conf.draw('W', 'blue')
-                wm.getWindow('W').update()
-        debugMsg('robotEnv', 'executePath')
+        tr('robotEnv',
+           'Executing path',
+           draw=[(self.bs.pbs, 0.95, 'W')] +
+           [(conf, 'W', 'blue') for conf in path],
+           snap=['W'])
+        # debugMsg('robotEnv', 'executePath')
 
         distSoFar = 0.0
         angleSoFar = 0.0
@@ -294,8 +294,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         obst =  solids + [rob]
         for s in solids:
             # The view is fixed.
-            if visible(shWorld, conf, s, rem(obst,s), prob,
-                       moveHead=False, fixed=rem(obst,s))[0]:
+            vis, occluders = visible(shWorld, conf, s, rem(obst,s), prob,
+                                     moveHead=False, fixed=rem(obst,s))
+            if vis and len(occluders)==0:
                 yield s
             else:
                 continue

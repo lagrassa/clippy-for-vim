@@ -28,7 +28,7 @@ sym6 = ({4 : 4}, {4 : [hu.Pose(0.,0.,0., (1./3.)*math.pi*x) for x in range(6)]})
 # Grasps
 # from the side
 # the z offset raises or lowers the grasp relative to midpoint of object
-gMat0 = hu.Transform(np.array([(0.,1.,0.,0.0),
+gMat0 = hu.Transform(np.array([(0.,1.,0.,0.),
                                (0.,0.,1.,-0.025),
                                (1.,0.,0.,0.02), 
                                (0.,0.,0.,1.)]))
@@ -116,7 +116,7 @@ glob.objectSymmetries['big'] = sym4
 glob.objectTypes['big'] = 'big'
 glob.constructor['big'] = makeBig
 
-def makeTall(dx=0.0445, dy=0.0445, dz=0.2, name='tallA', color=None):
+def makeTall(dx=0.0445, dy=0.0445, dz=0.4, name='tallA', color=None):
     color = color or pickColor(name)
     return (Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)])],
                name=name, color=color), [])
@@ -133,6 +133,23 @@ glob.pushableNames.append('bar')
 glob.objectSymmetries['bar'] = sym2
 glob.objectTypes['bar'] = 'bar'
 glob.constructor['bar'] = makeBigBar
+
+def makeBigBarHandle(dx=0.0445, dy=0.175, dz=0.2, name='handle', color=None):
+    color = color or pickColor(name)
+    gMat0 = hu.Transform(np.array([(0.,1.,0.,-0.04),
+                                   (0.,0.,1., -0.025),
+                                   (1.,0.,0.,0.02), 
+                                   (0.,0.,0.,1.)]))
+    gdesc0 = lambda obj: GDesc(obj, gMat0, 0.05, 0.05, 0.025)
+    glob.graspDesc['handle'] = [gdesc0(name)]
+    return (Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)]),
+                Ba([(-dx-0.08, -0.027, 0.), (-dx, 0.027, dz)])
+                ],
+               name=name, color=color), [])
+glob.graspableNames.append('handle')
+glob.objectSymmetries['handle'] = sym0
+glob.objectTypes['handle'] = 'handle'
+glob.constructor['handle'] = makeBigBarHandle
 
 soupZ = 0.1
 def makeSoup(radius=0.0675/2, height=0.1, name='soup', color='red'):

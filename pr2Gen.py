@@ -653,6 +653,7 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
             count = 0
             minCost = 1e6
             for ca in targetConfs:   # targetConfs is a generator
+                if totalTries > pickPlaceMaxTries: break
 
                 if glob.traceGen:
                     ca.prettyPrint('trialConf %d'%totalTries)
@@ -899,7 +900,7 @@ def placeInGenAway(args, pbs, onlyPose=False):
                                    pbs, pbs, away=True, onlyPose=onlyPose):
         yield ans
 
-placeInGenMaxPoses  = 500
+placeInGenMaxPoses  = 300               # ??
 
 def placeInGenTop(args, pbs, cpbs,
                   regrasp=False, away = False, onlyPose=False):

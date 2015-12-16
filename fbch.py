@@ -429,7 +429,7 @@ class Fluent(object):
     def update(self):
         self.isGroundStored = self.getIsGround()
         self.isPartiallyBoundStored = self.getIsPartiallyBound()
-        self.strStored = self.getStr()
+        self.strStored = {True:None, False:None} # key is eq
 
     def isImplicit(self):
         return self.implicit
@@ -507,13 +507,13 @@ class Fluent(object):
         return self.value
 
     def __str__(self):
-        if debug('extraTests'):
-            assert self.strStored == self.getStr(True)
-        return self.strStored
+        return self.getStr(True)
 
     def getStr(self, eq = True):
-        return self.predicate + self.argString(eq) +\
-          ' = ' + prettyString(self.value, eq)
+        if self.strStored[eq] is None:
+            self.strStored[eq] = self.predicate + self.argString(eq) +\
+                                 ' = ' + prettyString(self.value, eq)
+        return self.strStored[eq]
 
     def argString(self, eq):
         return '['+ ', '.join([prettyString(a, eq) for a in self.args]) + ']'
@@ -543,7 +543,7 @@ class Fluent(object):
     __repr__ = __str__
     def __hash__(self):
         #return hash(self.prettyString(eq=True))
-        return hash(self.strStored)
+        return hash(self.getStr(True))
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()
     def __ne__(self, other):
