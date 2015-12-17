@@ -465,6 +465,7 @@ class RealWorld(WorldState):
         return None
 
     def pushObjectSim(self, obj, c1, c2, hand, deltaPose):
+        print 'In push:', obj, 'before push at', self.getObjectPose(obj).pose()
         place = c2.placement()
         shape = self.objectShapes[obj]
         if not place.collides(shape):   # obj at current pose

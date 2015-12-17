@@ -628,7 +628,7 @@ def pushInGenAux(pbs, cpbs, prob, placeB, regShapes, hand,
                  + [(rs, 'W', 'purple') for rs in regShapes],
            snap=['W'])
 
-        if debug(tag):
+        if debug(tag+'Vefify'):
             print 'pushInGen asks', pB.poseD.mode().xyztTuple()
             cpbs.draw(prob, 'W');
             for rs in regShapes: rs.draw('W', 'purple')
@@ -644,7 +644,7 @@ def pushInGenAux(pbs, cpbs, prob, placeB, regShapes, hand,
 
         for ans in pushGenTop((placeB.obj, pB, hand, prob),
                               pbs, cpbs, away=away):
-            if debug(tag):
+            if debug(tag+'Vefify'):
                 print 'pushGen achieves', ans.postPB.poseD.mode().xyztTuple()
             tr(tag, '->', str(ans),
                draw=[(cpbs, prob, 'W'),
@@ -910,7 +910,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
     #######################
     for step_i in stepVals:
         step = (step_i * delta)
-        hOffsetPose = hu.Pose(*((step*pushDir).tolist()+[0.0]))
+        hOffsetPose = hu.Pose(*(((step - handTiltOffset)*pushDir).tolist()+[0.0]))
         nconf = displaceHandRot(initConf, hand, hOffsetPose,
                                 tiltRot = tiltRot, angle=step*deltaAngle)
         if not nconf:
@@ -923,6 +923,9 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
         offsetPose = hu.Pose(*(step*pushDir).tolist()+[0.0])
         offsetRot = hu.Pose(0.,0.,0.,step*deltaAngle)
         newPose = offsetPose.compose(initPose).compose(offsetRot).pose()
+
+        print step_i, 'newPose:', newPose
+
         if debug('pushPath'):
             print step_i, 'newPose:', newPose
             print step_i, 'nconf point', nconf.cartConf()[handFrameName].point()

@@ -138,7 +138,7 @@ pushBuffer = 0.12
 # Heuristic
 ########################################
 
-numOpInstances = 1
+numOpInstances = 1                      # used to be 4
 
 ########################################
 # Table parameters

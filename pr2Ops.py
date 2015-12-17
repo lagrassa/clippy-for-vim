@@ -207,7 +207,6 @@ def pushPrim(args, details):
     assert path
     tr('prim', '*** pushPrim', args, ('path length', len(path)))
     if postConf in path:
-        path = path[:-1]                # don't go all the way
         revIndex = path.index(postConf)
         revPath = path[revIndex:]
         revPath.reverse()
