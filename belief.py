@@ -745,17 +745,18 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     ### Procedure body ####
     writeFile = debug('alwaysWriteHFile')
     glob.inHeuristic = True
-    for k in range(2, maxK):
-        # Be smarter about this
-        print 'hk', k
-        (totalCost, totalActSet) = topLevel(k, writeFile = writeFile)
-        if totalCost < float('inf'):
-            print 'H won at depth', k
-            break
+    # for k in range(2, maxK):
+    #     # Be smarter about this
+    #     print 'hk', k
+    #     (totalCost, totalActSet) = topLevel(k, writeFile = writeFile)
+    #     if totalCost < float('inf'):
+    #         print 'H won at depth', k
+    #         break
+    (totalCost, totalActSet) = topLevel(maxK, writeFile = writeFile)
     if totalCost == float('inf'):
         print '** Found infinite heuristic value, recomputing **'
         # Could flush cache
-        (h2, as2) = topLevel(writeFile = True)
+        (h2, as2) = topLevel(maxK, writeFile = True)
         print 'New heuristic value', h2
         # totalActSet = ActSet()
         totalCost = h2
