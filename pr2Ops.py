@@ -207,12 +207,13 @@ def pushPrim(args, details):
     assert path
     tr('prim', '*** pushPrim', args, ('path length', len(path)))
     if postConf in path:
+        path = path[:-1]                # don't go all the way
         revIndex = path.index(postConf)
-        revPath = path[revIndex:-1]
+        revPath = path[revIndex:]
         revPath.reverse()
     else:
         revIndex = path.index(reverseConf(path, hand))
-        revPath = path[revIndex:-1]
+        revPath = path[revIndex:]
         revPath.reverse()
         revPath.append(postConf)
         print 'Did not find postConf in path - adding it'
