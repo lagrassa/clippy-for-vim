@@ -2273,13 +2273,15 @@ def planBackward(startState, goal, ops, ancestors = [],
         # return None
     
         # Now try non-monotonic
+        # Don't use a heuristic in this case;  it's actively
+        # detrimental
         if fileTag:
             (f1, f2) = writeSearchPreamble(goal.planNum, fileTag+'NonMon')
         (p, c) = planBackwardAux(goal, startState, ops, ancestors, skeleton,
-                                 False, lastOp, nonMonOps, heuristic,
-                                 h is not None, usefulActions,
+                                 False, lastOp, nonMonOps,
+                                 lambda g: 0, False, None,
                                  visitF, expandF, prevExpandF, float('inf'),
-                                 maxNodes)
+                                 maxNodes * 2)
         if p and f1:
             writeSuccess(f1, f2, p)
         if p: return p

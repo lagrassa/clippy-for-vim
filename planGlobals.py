@@ -157,6 +157,21 @@ pauseOn = []
 logOn = []
 planNum = 0
 
+
+########################################
+# Temporary
+########################################
+pushGenCalls = 0
+pushGenCallsH = 0
+pushGenFail = 0
+pushGenFailH = 0
+pushGenCache = 0
+pushGenCacheH = 0
+pushGenCacheMiss = 0
+pushGenCacheMissH = 0
+
+
+
 import local
 reload(local)
 from local import *

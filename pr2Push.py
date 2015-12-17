@@ -53,6 +53,11 @@ useVerticalPush = True
 
 class PushGen(Function):
     def fun(self, args, goalConds, bState):
+        if glob.inHeuristic:
+            glob.pushGenCallsH += 1
+        else:
+            glob.pushGenCalls += 1
+
         pbs = bState.pbs
         cpbs = pbs.conditioned(goalConds, [])
         for ans in pushGenGen(args, pbs, cpbs):
@@ -64,6 +69,11 @@ class PushGen(Function):
                 postConf.cartConf().prettyPrint('Post Conf')
                 tr('pushGen', '->', 'final', str(ans))
             yield ans.pushTuple()
+            
+        if glob.inHeuristic:
+            glob.pushGenFailH += 1
+        else:
+            glob.pushGenFail += 1
         tr('pushGen', '-> completely exhausted')
 
 def pushGenGen(args, pbs, cpbs):
@@ -132,12 +142,22 @@ def pushGenTop(args, pbs, cpbs, away=False):
     key = (cpbs, placeB, hand, base, prob, away, glob.inHeuristic)
     val = pushGenCache.get(key, None)
     if val != None:
+        if glob.inHeuristic:
+            glob.pushGenCacheH += 1
+        else:
+            glob.pushGenCache += 1
+        
         pushGenCacheStats[1] += 1
         # re-start the generator
         memo = val.copy()
         if debug(tag):
             print tag, 'cached, with len(values)=', len(memo.values)
     else:
+        if glob.inHeuristic:
+            glob.pushGenCacheMissH += 1
+        else:
+            glob.pushGenCacheMiss += 1
+
         gen = pushGenAux(cpbs, placeB, hand, base, curPB, prob,
                          away=away)
         memo = Memoizer(tag, gen)

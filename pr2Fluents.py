@@ -7,7 +7,8 @@ from planUtil import Violations, ObjPlaceB, ObjGraspB
 from pr2Util import shadowName, drawPath, objectName, PoseD, \
      supportFaceIndex, GDesc, inside, otherHand, graspable, pushable, permanent, \
      confWithin, baseConfWithin
-from pr2GenTests import inTest, canReachNB, canReachHome, inTestMinShadow
+from pr2GenTests import inTest, canReachNB, canReachHome, inTestMinShadow,\
+     canView
 from pr2Push import canPush
 from dist import DeltaDist, probModeMoved
 from traceFile import debugMsg, debug, pause
@@ -573,6 +574,7 @@ awayPose = (100.0, 100.0, 0.0, 0.0)
 
 # Check all four reachability conditions together.  For now, try to
 # piggy-back on existing code.  Can probably optimize later.
+# Also test for visibility
 class CanPickPlace(Fluent):
     predicate = 'CanPickPlace'
     implicit = True
@@ -664,74 +666,43 @@ class CanPickPlace(Fluent):
 
         if debug('CanPickPlace'):
             print 'canPickPlace getViols'
-            for (cond, (p, viol)) in zip(self.getConds(pbs), condViols):
+            for (cond, (pp, viol)) in zip(self.getConds(pbs), condViols):
                 print '    cond', cond
                 print '    viol', viol
 
-        pathNone = any([p is None for (p, v) in condViols])
+        pathNone = any([pp is None for (pp, v) in condViols])
         if pathNone:
             return (None, None)
-        allViols = [v for (p, v) in condViols]
+        allViols = [v for (pp, v) in condViols]
         violations = reduce(violCombo, allViols)
         if glob.inHeuristic:
             self.hviols[key] = True, violations
         else:
             self.viols[key] = True, violations
-        return True, violations
+
+        if glob.inHeuristic:
+            return True, violations
+
+        # Also, has to be not impossible to view the object from here.
+        (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
+          graspFace, graspMu, graspVar, graspDelta,
+          opType, inconds) = self.args
+        # Update pbs from inConds
+        pbs1 = pbs.conditioned(inconds, [])
+        # Need objPlace
+        objPlace = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj),
+                             DeltaDist(poseFace),
+                             PoseD(pose,  poseVar), delta=poseDelta)
+        #objShadow = objPlace.shadow(pbs1.getShadowWorld(p))
+        objShadow = objPlace.makeShadow(pbs1, p)
+        path = canView(pbs1, p, preConf, hand, objShadow)
+        canSee = bool(path)
+            
+        return canSee, violations
 
     def bTest(self, bState, v, p):
         path, violations = self.getViols(bState.pbs, v, p)
         success = bool(violations and violations.empty())
-
-        # Test the other way to be sure we are consistent
-        # (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
-        #   graspFace, graspMu, graspVar, graspDelta,
-        #   opType, inconds) = self.args
-
-        # newBS = bState.pbs.copy().updateFromGoalPoses(inconds, permShadows=True)
-        # world = newBS.getWorld()
-        # graspB = ObjGraspB(obj, world.getGraspDesc(obj), graspFace, poseFace,
-        #                    PoseD(graspMu, graspVar), delta= graspDelta)
-        # placeB = ObjPlaceB(obj, world.getFaceFrames(obj), poseFace,
-        #                    PoseD(pose, poseVar), delta=poseDelta)
-        # violPPTest = canPickPlaceTest(newBS, preConf, ppConf, hand,
-        #                               graspB, placeB, p, op=opType)
-
-
-        # LPK!!! Fix the following if we put it back in
-        # testEq = (violations == violPPTest or \
-        #   (violations and violPPTest and \
-        #    set([x.name() for x in violations.obstacles]) == \
-        #      set([x.name() for x in violPPTest.obstacles]) and \
-        #    set([x.name() for x in violations.shadows]) == \
-        #      set([x.name() for x in violPPTest.shadows])))
-
-        # if not testEq:
-        #     print 'Drawing newBS'
-        #     newBS.draw(p, 'W')
-            
-        #     print 'Mismatch in canPickPlaceTest!!'
-        #     print 'From the fluent', violations
-        #     print 'From the test', violPPTest
-        #     raw_input('okay?')
-        
-        
-        # If fluent is false but would have been true without
-        # conditioning, raise a flag
-        # if not success:
-        #     # this fluent, but with no conditions
-        #     sc = self.copy()
-        #     sc.args[-1] = tuple()
-        #     sc.update()
-        #     p2, v2 = sc.getViols(bState.pbs, v, p)
-        #     if bool(p2 and v2.empty()):
-        #         print 'CanPickPlace fluent made false by conditions'
-        #         print self
-        #         raw_input('go?')
-        #     elif len(self.args[-1]) > 0:
-        #         print 'CanPickPlace fluent false'
-        #         print self
-        #         #raw_input('go?')
         return success
 
     def heuristicVal(self, details, v, p):
@@ -956,7 +927,8 @@ class Pose(Fluent):
         return bState.poseModeDist(obj, face)
 
     def fglb(self, other, bState = None):
-        if not self.isGround(): return {self, other}, {}
+        if not self.isGround():
+            return {self, other}, {}
         (obj, face) = self.args
         if (other.predicate == 'Holding' and obj == other.value) or \
            (other.predicate in ('Grasp', 'GraspFace') and

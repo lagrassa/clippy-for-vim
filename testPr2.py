@@ -514,9 +514,9 @@ def testChute2(**args):
     goal = inRegion([a, b], ['table1Mid1_3', 'table1Mid2_3'])
     actualGoal =  goal
     skel = [[poseAchIn, lookAt.applyBindings({'Obj' : a}),
-             moveNB, lookAt.applyBindings({'Obj' : 'table2'}),
-             move, place,
-             move, pick,
+             moveNB, lookAt.applyBindings({'Obj' : 'table1'}),
+             move, place.applyBindings({'Obj' : a}),
+             move, pick.applyBindings({'Obj' : a}),
              moveNB, lookAt.applyBindings({'Obj' : a}),
              move, 
              achCanPickPlace,
@@ -775,7 +775,16 @@ def testPush(name, objName, startPose, targetReg, **args):
                   ['table1Top', targetReg], easy=args.get('easy', False))
     goal = inRegion(objName, targetReg)
     skel = args.get('skeleton', None)
-    return doTest(name, exp, goal, skel, args)
+    doTest(name, exp, goal, skel, args)
+    print 'Push gen calls inside / outside heuristic', \
+              glob.pushGenCallsH, glob.pushGenCalls
+    print 'Push gen fails inside / outside heuristic', \
+              glob.pushGenFailH, glob.pushGenFail
+    print 'Push gen cache hits inside / outside heuristic', \
+              glob.pushGenCacheH, glob.pushGenCache
+    print 'Push gen cache misses inside / outside heuristic', \
+              glob.pushGenCacheMissH, glob.pushGenCacheMiss
+
 
 def testPush0(objName='bigB', **args):
     skel = [[poseAchIn,

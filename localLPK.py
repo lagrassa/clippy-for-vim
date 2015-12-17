@@ -95,7 +95,7 @@ visibleEx (show visibility stuff during execution even if visible is false)
 
 # turned off helpful actions
 
-usualTags = ['nonmon', 'nagLeslie', 'animate', 'helpfulActions']
+usualTags = ['nonmon', 'nagLeslie'] # 'animate', , 'helpfulActions'
 flags = ['simpleAbstractCostEstimates', 'primitiveHeuristicAlways']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack', 
                  'debugInHeuristic', 'h'] #, 'hv'] 
@@ -110,7 +110,7 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['argh'] #+ ['disablePush']
+debugOn = usualTags #+ ['disablePush']
 
 
 debugOnly = debugOnly

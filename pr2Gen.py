@@ -1,5 +1,6 @@
 import time
 import pdb
+import numpy as np
 import itertools
 from fbch import Function
 from dist import DeltaDist
@@ -713,7 +714,35 @@ class PoseInRegionGen(Function):
         for ans in roundrobin(placeInRegionGenGen(args, pbs, cpbs),
                               pushInRegionGenGen(args, pbs, cpbs)):
             if ans:
+                self.test(pbs, ans.poseInTuple(), args)
                 yield ans.poseInTuple()
+
+    def test(self, pbs, (pose, face), args):
+        # Try at different delta extremes
+        tiny = 1.0e-6
+        (obj, regionGeom, var, delta, prob) = args
+
+        for epose in posesAtDeltaExtremes(pose, delta):
+            placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), face,
+                                PoseD(pose, var), delta=4*(0.0,))
+            shadow = placeB.makeShadow(pbs, prob)
+            ans = any([np.all(np.all(np.dot(r.planes(),
+                                            shadow.prim().vertices()) \
+                                               <= tiny, axis=1)) \
+                       for r in regionGeom.parts()])
+            if not ans:
+                regionGeom.draw('W', 'purple')
+                shadow.draw('W', 'black')                
+                raise Exception('pose at delta not in region')
+
+def posesAtDeltaExtremes(pose, delta):
+    def ss(a, b): return [aa + bb for (aa, bb) in zip(a, b)]
+    (dx, dy, dz, dth) = delta
+    dds = [(dx, dy, 0, dth), (dx, dy, 0, -dth),
+           (dx, -dy, 0, dth), (dx, -dy, 0, -dth),
+           (-dx, dy, 0, dth), (-dx, dy, 0, -dth),
+           (-dx, -dy, 0, dth), (-dx, -dy, 0, -dth)]
+    return [ss(pose, dd) for dd in dds]
 
 def lookInRegionGenGen(args, pbs, cpbs, away = False):
     (obj, region, var, delta, prob) = args
