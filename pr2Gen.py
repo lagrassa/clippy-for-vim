@@ -721,19 +721,28 @@ class PoseInRegionGen(Function):
         # Try at different delta extremes
         tiny = 1.0e-6
         (obj, regionGeom, var, delta, prob) = args
-
+        shadows = []
         for epose in posesAtDeltaExtremes(pose, delta):
             placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), face,
-                                PoseD(pose, var), delta=4*(0.0,))
-            shadow = placeB.makeShadow(pbs, prob)
-            ans = any([np.all(np.all(np.dot(r.planes(),
-                                            shadow.prim().vertices()) \
-                                               <= tiny, axis=1)) \
-                       for r in regionGeom.parts()])
-            if not ans:
-                regionGeom.draw('W', 'purple')
+                                PoseD(hu.Pose(*epose), var), delta=4*(0.0,))
+            shadows.append(placeB.makeShadow(pbs, prob))
+        ans = True
+        for shadow in shadows:
+            if not any([np.all(np.all(np.dot(r.planes(),
+                                             shadow.prim().vertices()) \
+                                      <= tiny, axis=1)) \
+                        for r in regionGeom.parts()]):
+                ans = False
+                break
+        if not ans:
+            regionGeom.draw('W', 'purple')
+            for shadow in shadows:
                 shadow.draw('W', 'black')                
-                raise Exception('pose at delta not in region')
+            placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), face,
+                               PoseD(hu.Pose(*pose), var), delta=delta)
+            std_shadow = placeB.makeShadow(pbs, prob)
+            std_shadow.draw('W', 'red')
+            raise Exception('pose at delta not in region')
 
 def posesAtDeltaExtremes(pose, delta):
     def ss(a, b): return [aa + bb for (aa, bb) in zip(a, b)]

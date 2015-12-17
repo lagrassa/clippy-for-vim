@@ -800,32 +800,32 @@ def testPush0(objName='bigB', **args):
 # Needs three pushes!
 ######################################################################
 
-def testPush1(objName='bigA', **args):
+def testPush1(objName='bigB', **args):
     skel = [[poseAchIn,
-             lookAt.applyBindings({'Obj' : 'bigA'}), moveNB, 
+             lookAt.applyBindings({'Obj' : 'bigB'}), moveNB, 
              lookAt.applyBindings({'Obj' : 'table1'}), move,
              push, moveNB, 
-             lookAt.applyBindings({'Obj' : 'bigA'}), move,
+             lookAt.applyBindings({'Obj' : 'bigB'}), move,
              push, moveNB,
-             lookAt.applyBindings({'Obj' : 'bigA'}), move,
+             lookAt.applyBindings({'Obj' : 'bigB'}), move,
              push, moveNB, 
-             lookAt.applyBindings({'Obj' : 'bigA'}), move]]
+             lookAt.applyBindings({'Obj' : 'bigB'}), move]]
 
     args['skeleton'] = skel if 'skeleton' in args else None
     testPush('testPush1', objName,
              hu.Pose(1.1, 0.0, tZ, 0.0),
              'table1FR', **args)
 
-def testPush1a(objName='bigA', **args):
+def testPush1a(objName='bigB', **args):
     skel = [[poseAchIn,
-             lookAt.applyBindings({'Obj' : 'bigA'}), moveNB, 
+             lookAt.applyBindings({'Obj' : 'bigB'}), moveNB, 
              lookAt.applyBindings({'Obj' : 'table1'}), move,
              push, moveNB, 
-             lookAt.applyBindings({'Obj' : 'bigA'}), move,
+             lookAt.applyBindings({'Obj' : 'bigB'}), move,
              push, moveNB,
-             lookAt.applyBindings({'Obj' : 'bigA'}), move,
+             lookAt.applyBindings({'Obj' : 'bigB'}), move,
              push, moveNB, 
-             lookAt.applyBindings({'Obj' : 'bigA'}), move]]
+             lookAt.applyBindings({'Obj' : 'bigB'}), move]]
 
     args['skeleton'] = skel if 'skeleton' in args else None
     startPose = hu.Pose(1.09654429, 0.28874632, 0.68000000, 0.01038590)
@@ -836,7 +836,7 @@ def testPush1a(objName='bigA', **args):
 # Test TWo Pushes, harder?
 ######################################################################
 
-def testPush2(objName='bigA', **args):
+def testPush2(objName='bigB', **args):
     testPush('testPush2', objName,
              hu.Pose(1.2, 0.0, tZ, 0.0),
              'table1FRR', **args)
@@ -870,7 +870,7 @@ def testPushShelves(name, objName, startPose, targetReg,
              move, lookAt, moveNB]]
     return doTest(name, exp, goal, skel, args)
 
-def testPush3(objName='bigA', **args):
+def testPush3(objName='bigB', **args):
     testPushShelves('testPush3', objName,
                     hu.Pose(1.1, 0.0, tZ, 0.0),
                     'table1BRR',
@@ -878,10 +878,10 @@ def testPush3(objName='bigA', **args):
                     **args)
 
 ######################################################################
-# Move obj b out of the way to push bigA
+# Move obj b out of the way to push bigB
 ######################################################################
 
-def testPush4(objName='bigA', **args):
+def testPush4(objName='bigB', **args):
     testPushShelves('testPush4', objName,
                     hu.Pose(1.1, 0.0, tZ, 0.0),
                     'table1BRR',
@@ -892,7 +892,7 @@ def testPush4(objName='bigA', **args):
 # Push to Region
 ######################################################################
 
-def testPush5(objName = 'bigA', **args):
+def testPush5(objName = 'bigB', **args):
     exp = makeExp({'table1' : (table1Pose, smallVar)},
                   {objName : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))

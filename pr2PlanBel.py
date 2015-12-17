@@ -702,6 +702,25 @@ class PBS:
 # Shadow computation
 ####################
 
+"""
+Fear (= uncertainty) and loathing (= slack) in belief space:
+
+Consider a constraint on the belief state.  The constraints are on
+the values of mu and sigma.  We want to constrain them so that,
+*for all the distributions inside the constraint on mu and sigma*,
+the mu, sigma, p shadow is inside the region.  Assume we know how to
+make a mu, sigma, p shadow.  That's under the assumption we know mu
+and sigma.
+
+But, we want to come up with a BV condition that will ensure the
+object is inside the region wp > p, for all mu, sigma within a box
+constraint.  The deltas are a box constraint on mu The sigma in the
+fluent is really an upper bound on sigmas, but we don't have to think
+about that.  So, the thing that has to fit in the region is the shadow
+shape for sigma, p convolved with the detla box.  The critical thing
+is that it has to work for any value of mu in the box
+"""
+
 def sigmaPoses(prob, poseD, poseDelta):
     interpStep = math.pi/16
     def interpAngle(lo, hi):
@@ -719,10 +738,14 @@ def sigmaPoses(prob, poseD, poseDelta):
         print 'shadowWidths', widths
         print 'angles', angles
         pdb.set_trace()
-    for a in angles: offsets.append([-wx, 0, 0, a])
-    for a in angles: offsets.append([wx, 0, 0, a])
-    for a in angles: offsets.append([0, -wy, 0, a])
-    for a in angles: offsets.append([0, wy, 0, a])
+    for dx in (-wx, 0., wx):
+        for dy in (-wy, 0., wy):
+            if dx or dy:
+                for a in angles: offsets.append([dx, dy, 0, a])
+    # for a in angles: offsets.append([-wx, 0, 0, a])
+    # for a in angles: offsets.append([wx, 0, 0, a])
+    # for a in angles: offsets.append([0, -wy, 0, a])
+    # for a in angles: offsets.append([0, wy, 0, a])
     poses = []
     for offset in offsets:
         offPoseTuple = offset

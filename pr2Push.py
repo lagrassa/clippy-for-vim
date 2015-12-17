@@ -628,6 +628,13 @@ def pushInGenAux(pbs, cpbs, prob, placeB, regShapes, hand,
                  + [(rs, 'W', 'purple') for rs in regShapes],
            snap=['W'])
 
+        if debug(tag):
+            print 'pushInGen asks', pB.poseD.mode().xyztTuple()
+            cpbs.draw(prob, 'W');
+            for rs in regShapes: rs.draw('W', 'purple')
+            pB.makeShadow(pbs, prob).draw('W', 'pink')
+            raw_input(tag)
+
         if not any(inside(pB.makeShadow(cpbs, prob), regShape, strict=True) \
                    for regShape in regShapes):
            for rs in regShapes: rs.draw('W', 'purple')
@@ -637,7 +644,8 @@ def pushInGenAux(pbs, cpbs, prob, placeB, regShapes, hand,
 
         for ans in pushGenTop((placeB.obj, pB, hand, prob),
                               pbs, cpbs, away=away):
-
+            if debug(tag):
+                print 'pushGen achieves', ans.postPB.poseD.mode().xyztTuple()
             tr(tag, '->', str(ans),
                draw=[(cpbs, prob, 'W'),
                      (ans.prePB.shape(shWorld), 'W', 'blue'),
@@ -777,7 +785,6 @@ def pushDirections(preConf, initConf, initPose, pushConf, pushPose, hand):
     pushDist = (pushDir[0]**2 + pushDir[1]**2)**0.5 # xy push distance
     if pushDist != 0:
         pushDir /= pushDist
-    pushDist -= handTiltOffset     # the tilt reduces the push dist
     # Return
     return (appDir, appDist, pushDir, pushDist)
 
@@ -860,7 +867,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
     # Number of steps for approach displacement
     nsteps = int(appDist / pushStepSize)
     delta = appDist / nsteps
-    stepVals = [0, nsteps-1] if glob.inHeuristic else xrange(nsteps)
+    stepVals = [0, nsteps] if glob.inHeuristic else xrange(nsteps+1)
     #######################
     # Do the approach scan
     #######################
@@ -892,7 +899,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
     else:
         deltaAngle = angleDiff / nsteps
     if nsteps > 1:
-        stepVals = [0, nsteps-1] if glob.inHeuristic else xrange(nsteps)
+        stepVals = [0, nsteps] if glob.inHeuristic else xrange(nsteps+1)
     else:
         stepVals = [0]
     if debug(tag): 
@@ -908,7 +915,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
                                 tiltRot = tiltRot, angle=step*deltaAngle)
         if not nconf:
             reason = 'invkin'; break
-        if step_i == nsteps-1:
+        if step_i == nsteps:
             nconf = conf
         viol = newBS.confViolations(nconf, prob)
         if viol is None:
