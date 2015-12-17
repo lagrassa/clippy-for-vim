@@ -1060,6 +1060,11 @@ def objectObsUpdate(details, lookConf, obsList):
                if visible(shWorld, lookConf, s, rem(obstacles,s)+[rob], 0.5,
                           moveHead=False, fixed=fixed)[0] and \
                   s.name() not in (heldLeft, heldRight)]
+
+    if debug('assign'):
+        print '*** Observations ***'
+        for obs in obsList: print '   ', obs
+                  
     if len(objList) == 0:
         trAlways('Do not expect to see any objects!')
     scores = {}
@@ -1069,8 +1074,6 @@ def objectObsUpdate(details, lookConf, obsList):
             (oType, obsFace, obsPose) = obs
             if world.getObjType(obj.name()) != oType: continue
             scores[(obj, obs)] = scoreObsObj(details, obs, obj.name())
-    # bestAssignment = argmax(allAssignments(objList, obsList),
-    #                          lambda a: scoreAssignment(a, scores))
     bestAssignment = greedyBestAssignment(scores)
     assert len(obsList)==0 or \
          any([xpose for (xobj, xpose, xf) in bestAssignment]), \
@@ -1078,14 +1081,11 @@ def objectObsUpdate(details, lookConf, obsList):
     for obj, obsPose, obsFace in bestAssignment:
         singleTargetUpdate(details, obj.name(), obsPose, obsFace)
 
-    if debug('pbsId'):
-        print 'Just updated pbs', id(details.pbs)
-        raw_input('Okay?')
-
 # Each object is assigned an observation or None
 # These are objects that we expected to be able to see.
 # Doesn't initialize new objects
 
+# Crazy, of course.
 def allAssignments(aList, bList):
     m = len(aList)
     n = len(bList)
@@ -1157,12 +1157,10 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
     w = details.pbs.beliefContext.world
 
     if obsPose is None:
-
-        # print '*****  Big hack until we get observation prediction right ****'
-        # print 'Expected to see', objName, 'but did not'
-        # return
-
         print 'Expected to see', objName, 'but did not'
+        print 'Should have been near pose', oldPlaceB.poseD.modeTuple()
+        if debug('assign'):
+            raw_input('okay?')
         # Update modeprob if we don't get a good score
         oldP = details.poseModeProbs[objName]
         obsGivenH = details.domainProbs.obsTypeErrProb

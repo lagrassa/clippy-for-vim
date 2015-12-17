@@ -2269,6 +2269,9 @@ def planBackward(startState, goal, ops, ancestors = [],
             if f1:  writeSearchCoda(f1, f2)
             tr('nonmon', 'Monotonic failed')
 
+        if not debug('nonmon'):
+            return
+
         # print 'Automatically skipping non-mon'
         # return None
     

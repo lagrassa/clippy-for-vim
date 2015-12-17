@@ -275,7 +275,7 @@ class B(BFluent):
            ('    Modep >= p', dp >= p),
            ('    value with star', \
               (dc.sigma.diagonal() <= np.array(var)).all() \
-                   and dp >= p))
+                   and dp >= p), ol = False)
 
         if v == '*':
             # Just checking variance and p
@@ -715,7 +715,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         # value.  Just return inf
         return result if result != False else (float('inf'), ActSet())
 
-    def topLevel(writeFile = False):
+    def topLevel(maxK, writeFile = False):
         fp = openHFile() if writeFile else None
         try:
             totalActSet = ActSet()
@@ -745,7 +745,13 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     ### Procedure body ####
     writeFile = debug('alwaysWriteHFile')
     glob.inHeuristic = True
-    (totalCost, totalActSet) = topLevel(writeFile = writeFile)
+    for k in range(2, maxK):
+        # Be smarter about this
+        print 'hk', k
+        (totalCost, totalActSet) = topLevel(k, writeFile = writeFile)
+        if totalCost < float('inf'):
+            print 'H won at depth', k
+            break
     if totalCost == float('inf'):
         print '** Found infinite heuristic value, recomputing **'
         # Could flush cache

@@ -138,7 +138,7 @@ pushBuffer = 0.12
 # Heuristic
 ########################################
 
-numOpInstances = 4
+numOpInstances = 1
 
 ########################################
 # Table parameters
@@ -169,8 +169,6 @@ pushGenCache = 0
 pushGenCacheH = 0
 pushGenCacheMiss = 0
 pushGenCacheMissH = 0
-
-
 
 import local
 reload(local)
