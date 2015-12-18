@@ -170,7 +170,4 @@ pushGenCacheH = 0
 pushGenCacheMiss = 0
 pushGenCacheMissH = 0
 
-import local
-reload(local)
-from local import *
-
+print 'Loaded planGlobals.py'

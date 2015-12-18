@@ -808,6 +808,8 @@ def testPush1(objName='bigB', **args):
              lookAt.applyBindings({'Obj' : 'bigB'}), move,
              push, moveNB,
              lookAt.applyBindings({'Obj' : 'bigB'}), move,
+             push, moveNB,
+             lookAt.applyBindings({'Obj' : 'bigB'}), move,
              push, moveNB, 
              lookAt.applyBindings({'Obj' : 'bigB'}), move]]
 

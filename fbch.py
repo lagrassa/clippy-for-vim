@@ -673,7 +673,7 @@ class Operator(object):
                  argsToPrint = None,
                  specialRegress = None,
                  metaOperator = False,
-                 rebindPenalty = glob.rebindPenalty,
+                 rebindPenalty = None, 
                  costAdjustment = 0,
                  delayBinding = False,
                  parent = None):
@@ -715,6 +715,10 @@ class Operator(object):
         self.subPlans = []
         self.delayBinding = delayBinding
         self.parent = parent
+
+    def getRebindPenalty(self):
+        return glob.rebindPenalty if self.rebindPenalty is None \
+          else self.rebindPenalty
 
     def verifyArgs(self):
         varsUsed = set({})
@@ -1062,7 +1066,7 @@ class Operator(object):
         rebindLater.operator = rebindLater.suspendedOperator
         rebindLater.bindingsAlreadyTried.extend(alreadyTried)
         rebindLater.rebind = True
-        rebindCost = self.rebindPenalty + cost
+        rebindCost = self.getRebindPenalty() + cost
         rebindLater.suspendedOperator.instanceCost = rebindCost
         return [rebindLater, rebindCost]
 
@@ -1418,7 +1422,7 @@ class RebindOp:
         if len(results) > 0 and debug('rebind'):
             tr('rebind', 'successfully rebound local vars',
                      'costs', [c for (s, c) in results], 'minus',
-                     op.rebindPenalty)
+                     op.getRebindPenalty())
             results[0] = (results[0][0], results[0][1] - op.instanceCost)
         else:
             tr('rebind', 'failed to rebind local vars')
@@ -2574,3 +2578,4 @@ def writePrimRefinement(f, op):
         wf(f, indent + tasksNodeName + arrow + primNodeName + \
            styleStr(refinementArrowStyle) + eol)
 
+print 'Loaded fbch.py'

@@ -11,6 +11,10 @@ import planGlobals as glob
 reload(glob)
 from planGlobals import useROS
 
+import local
+reload(local)
+from local import *
+
 import traceFile
 reload(traceFile)
 from traceFile import traceStart, traceEnd, tr, trAlways
@@ -65,6 +69,8 @@ import pr2GenUtils
 reload(pr2GenUtils)
 import pr2GenGrasp
 reload(pr2GenGrasp)
+import pr2GenLook
+reload(pr2GenLook)
 import pr2GenPose
 reload(pr2GenPose)
 import pr2Push
