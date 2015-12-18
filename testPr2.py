@@ -773,7 +773,12 @@ def testPush(name, objName, startPose, targetReg, **args):
                    },
                   {objName : (startPose, medVar)},
                   ['table1Top', targetReg], easy=args.get('easy', False))
-    goal = inRegion(objName, targetReg)
+    targetPose = args.get('targetPose', None)
+    hand = args.get('hand', 'right')
+    if targetPose:
+        goal = placed(objName, targetPose, hand)
+    else:
+        goal = inRegion(objName, targetReg)
     skel = args.get('skeleton', None)
     doTest(name, exp, goal, skel, args)
     print 'Push gen calls inside / outside heuristic', \
@@ -792,6 +797,17 @@ def testPush0(objName='bigB', **args):
              lookAt.applyBindings({'Obj' : 'table1'}), move,
              push, moveNB, lookAt, moveNB, lookAt, move]]
     args['skeleton'] = skel if 'skeleton' in args else None
+    testPush('testPush0', objName,
+             hu.Pose(1.1, 0.0, tZ, 0.0),
+             'table1BRR', **args)
+
+def testPush0Pose(objName='bigB', **args):
+    skel = [[poseAchIn,
+             lookAt.applyBindings({'Obj' : 'bigB'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), move,
+             push, moveNB, lookAt, moveNB, lookAt, move]]
+    args['skeleton'] = skel if 'skeleton' in args else None
+    args['targetPose'] = hu.Pose(1.1, 0.4, tZ, 0.)
     testPush('testPush0', objName,
              hu.Pose(1.1, 0.0, tZ, 0.0),
              'table1BRR', **args)

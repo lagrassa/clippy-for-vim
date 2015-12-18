@@ -227,6 +227,7 @@ def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
     supportRegion = cpbs.findSupportRegion(prob, prim, fail = False)
     if not supportRegion:
         trAlways('Target pose is not supported')
+        pdb.set_trace()
         return
     potentialContacts = getPotentialContacts(prim)
 
@@ -1130,6 +1131,9 @@ def edgeCollides(p0, p1, poly):
     p = np.array([p0[0], p0[1], 0.5*(z0+z1), 1.0])
     if np.all(np.dot(poly.planes(),
                      np.resize(p,(4,1)))<=0): return True
+    p = np.array([p1[0], p1[1], 0.5*(z0+z1), 1.0])
+    if np.all(np.dot(poly.planes(),
+                     np.resize(p,(4,1)))<=0): return True
     # Check for crossings
     verts = poly.vertices()
     face0 = poly.faces()[0]
@@ -1161,7 +1165,7 @@ def nextCrossing(pt, dirx, tangents, goal, regShape, reverse = False):
         bestDist = float('inf')
         bestDirs = []
     for (ndirx, nvert), tanLines in tangents.iteritems():
-        if abs(np.dot(dirx, ndirx)) == 1.0: continue
+        if abs(np.dot(tdirx, ndirx)) == 1.0: continue
         for line in tanLines:
             d = lineIsectDist(pt, tdirx, line)
             if d and d > 1e-6:
@@ -1208,7 +1212,11 @@ def searchObjPushPath(pbs, prob, potentialPushes, targetPB, curPB,
                       hand, supportRegShape, away=False):
     curPt = curPB.poseD.mode().pose().xyztTuple()[:2]
     targetPt = targetPB.poseD.mode().pose().xyztTuple()[:2]
-    COs = CObstacles(pbs, prob, potentialPushes, targetPB,
+    # Use a fixed shadow in computing the COs to avoid growth in COs
+    # in successive calls
+    ntargetPB = targetPB.modifyPoseD(var=(0.0001,0.0001, 1e-10,0.0004))
+    ntargetPB.delta = (0.01,0.01,0.0002,0.02)
+    COs = CObstacles(pbs, prob, potentialPushes, ntargetPB,
                      hand, supportRegShape)
     dirxs = []
     tLines = {}
@@ -1242,8 +1250,12 @@ def searchObjPushPath(pbs, prob, potentialPushes, targetPB, curPB,
         else:
             p, dxs, d = nextCrossing(state.pt, state.dirx, tLines,
                                     curPt, supportRegShape, reverse=True)
+            if debug('searchObjPushPath'):
+                print '  Next:', state.pt, state.dirx, '->', p
             if p:
                 vcost, nviol = countViols(state, p)
+                if debug('searchObjPushPath'):
+                    print '  Cost:', vcost, nviol
                 if vcost is not None: # None means permanent collision
                     # switch direction or stay the course
                     if dxs == ['goal']:
@@ -1261,6 +1273,7 @@ def searchObjPushPath(pbs, prob, potentialPushes, targetPB, curPB,
         return sum([abs(si - gi) for si, gi in zip(s[0:2], g[0:2])])
     
     if debug('pushGen'): print 'searchObjPushPath...'
+    print 'searchObjPushPath, target=', targetPt, 'cur=', curPt
     gen = search.searchGen(None, [curPt], actions, successor,
                            heuristic,
                            goalKey = lambda x: x.pt if x else x,
@@ -1280,7 +1293,14 @@ def searchObjPushPath(pbs, prob, potentialPushes, targetPB, curPB,
                     pose = hu.Pose(s.pt[0], s.pt[1], targetPose.z, targetPose.theta)
                     targetPB.modifyPoseD(pose).makeShadow(pbs, prob).draw('W', 'blue')
                 raw_input('Push path')
+        print '->'
+        if path and path[1:]:
+            for p in path[1:]: print '  ', p[0]
+        else:
+            print 'path=', path
+            pdb.set_trace()
         yield path
+    print 'searchObjPushPath end'
 
 def segmentPath(path):
     segments = []
@@ -1338,6 +1358,7 @@ def pushGenPaths(pbs, prob, potentialContacts, targetPB, curPB,
                 continue     # degenerate path
             maxPush = max([abs(a-b) for (a,b) in zip(ps.pt0,ps.pt1)])
             minDelta = min(targetPB.delta[0], targetPB.delta[1])
+            print 'maxPush', maxPush, 'minDelta', minDelta
             if maxPush < minDelta:
                 print 'maxPush < minDelta', ps
                 continue
@@ -1496,287 +1517,3 @@ def pushGraspB(pbs, pushConf, hand, placeB):
     graspB =  ObjGraspB(obj, graspDescList, -1, support,
                         PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
     return graspB
-
-###################################################################################
-# OLD
-###################################################################################
-
-
-# placeB is target, curPB is current
-# yields PushResponse
-def pushGenPathsOLD(cpbs, prob, potentialContacts, placeB, curPB,
-                 hand, base, prim, supportRegion, away=False):
-    tag = 'pushGen'
-    curPose = curPB.poseD.mode()
-    # sort contacts and compute a distance when applicable, entries
-    # are: (distance, vertical, contactFrame, width)
-    # Sort contacts by nearness to current pose of object
-    sortedContacts = sortPushContacts(potentialContacts, placeB.poseD.mode(),
-                                      curPose, away=away)
-    if not sortPushContacts:
-        tr(tag, '=> No sorted contacts')
-    # Now we have frames for contact with object, we have to generate
-    # potential answers following the face normal in the given
-    # direction.
-    for (dist, vertical, contactFrame, width) in sortedContacts:
-        if debug(tag): print 'dist=', dist
-        # construct a graspB corresponding to the push hand pose,
-        # determined by the contact frame
-        graspB = graspBForContactFrame(cpbs, prob, contactFrame,
-                                       0.0,  placeB, hand, vertical)
-        # This is negative z axis of face
-        direction = -contactFrame.matrix[:3,2].reshape(3)
-        direction[2] = 0.0            # we want z component exactly 0.
-        prePoseOffset = hu.Pose(*(dist*direction).tolist()+[0.0])
-        # initial pose for object along direction
-        prePose = prePoseOffset.compose(placeB.poseD.mode())
-        if debug(tag):
-            cpbs.draw(prob, 'W')
-            shape = placeB.shape(cpbs.getWorld())
-            shape.draw('W', 'blue'); prim.draw('W', 'green')
-            print 'vertical', vertical, 'dist', dist
-            drawFrame(contactFrame)
-            raw_input('graspDesc frame')
-        pushPaths = []                  # for different base positions
-        # Generate confs to place the hand at graspB
-        # Try going directly to goal and along the direction of face
-        # The direct route only works for vertical pushing...
-        for direct in (True, False) if (useDirectPush and vertical and curPose) else (False,):
-            count = 0                       # how many tries
-            doneCount = 0                   # how many went all the way
-            initPose = curPose.pose() if direct else prePose.pose()
-            appPoseOffset = hu.Pose(*(glob.pushBuffer*direction).tolist()+[0.0])
-            appPose = appPoseOffset.compose(initPose).pose()
-            if debug(tag):
-                print 'Calling potentialConfs, with direct =', direct, 'appPose', appPose
-            for ans in potentialConfs(cpbs, prob, placeB, appPose, graspB, hand, base):
-                if not ans:
-                    tr(tag+'_kin', 'potential grasp conf is empy')
-                    continue
-                (prec, postc) = ans         # conf, approach, violations
-                preConf = gripSet(prec, hand, 2*width) # open fingers
-                pushConf = gripSet(postc, hand, 2*width) # open fingers
-                if debug(tag+'_kin'):
-                    pushConf.draw('W', 'orange')
-                    raw_input('Candidate conf')
-                count += 1
-                pathAndViols, reason = pushPath(cpbs, prob, graspB, placeB, pushConf,
-                                                initPose, preConf, supportRegion, hand)
-                if reason == 'done':
-                    pushPaths.append((pathAndViols, reason))
-                    doneCount +=1 
-                    if doneCount >= maxDone: break
-                tr(tag, 'pushPath reason = %s, path len = %d'%(reason, len(pathAndViols)))
-                if count > maxPushPaths: break
-            pose1 = placeB.poseD.mode()
-            pose2 = appPose
-            if debug('pushFail'):
-                if count == 0:
-                    print 'No push', direction[:2], 'between', pose1, pose2, 'with', hand, 'vert', vertical
-                    debugMsg('pushFail', 'Could not find conf for push along %s'%direction[:2])
-                else:
-                    print 'Found conf for push', direction[:2], 'between', pose1, pose2 
-        # Sort the push paths by violations
-        sorted = sortedPushPaths(pushPaths, curPose)
-        for i in range(min(len(sorted), maxDone)):
-            pp = sorted[i]
-            ppre, cpre, ppost, cpost = getPrePost(pp)
-            if not ppre or not ppost: continue
-            crev = reverseConf(pp, hand)
-            if debug(tag):
-                robot = cpre.robot
-                handName = robot.armChainNames[hand]
-                print 'pre pose\n', ppre.matrix
-                for (name, conf) in (('pre', cpre), ('post', cpost), ('rev', crev)):
-                    print name, 'conf tool'
-                    print conf.cartConf()[handName].compose(robot.toolOffsetX[hand]).matrix
-            tr(tag, 'pre conf (blue), post conf (pink), rev conf (green)',
-               draw=[(cpbs, prob, 'W'),
-                     (cpre, 'W', 'blue'), (cpost, 'W', 'pink'),
-                     (crev, 'W', 'green')], snap=['W'])
-            viol = Violations()
-            for (c,v,p) in pathAndViols:
-                viol.update(v)
-            ans = PushResponse(placeB.modifyPoseD(ppre.pose()),
-                               placeB.modifyPoseD(ppost.pose()),
-                               cpre, cpost, crev, viol, hand,
-                               placeB.poseD.var, placeB.delta)
-            if debug('pushFail'):
-                print 'Yield push', ppre.pose(), '->', ppost.pose()
-            cachePushResponse(ans)
-            yield ans
-
-def sortPushContactsOLD(contacts, targetPose, curPose, away=False):
-    bad = []
-    good = []
-    if curPose:
-        offset = targetPose.inverse().compose(curPose).pose()
-        offsetPt = offset.matrix[:,3].reshape((4,1)).copy()
-        offsetPt[3,0] = 0.0                   # displacement
-        for (vertical, contact, width) in contacts:
-            cinv = contact.inverse() 
-            ntr = np.dot(cinv.matrix, offsetPt)
-            ntrz = ntr[2,0]
-            if debug('pushGenDetail'):
-                print 'push contact, vertical=', vertical, '\n', contact.matrix
-                print 'offset', offset
-                print 'offset z in contact frame\n', ntr
-                raw_input('Next?')
-            if ntrz >= 0.:
-                # bad ones require "pulling"
-                bad.append((0, None, vertical, contact, width))
-            elif -ntrz >= minPushLength:
-                for dist in (ntrz, 0.5*ntrz) if (abs(ntrz) > 0.025 and not away) else (ntrz,):
-                    # distance negated...
-                    score = 5 * width - dist # prefer wide faces and longer pushes
-                    good.append((score, -dist, vertical, contact, width))
-    else:                               # no pose, just use width
-        for (vertical, contact, width) in contacts:
-            if debug('pushGenDetail'):
-                print 'push contact, vertical=', vertical, '\n', contact.matrix
-                raw_input('Next?')
-            score = width
-            for dist in [0.05, 0.1, 0.25]:
-                # TODO: Pick distances to meaningful locations!!
-                # dist = random.uniform(0.05, 0.25)
-                good.append((score, dist, vertical, contact, width))
-    good.sort(reverse=True)             # z distance first
-    if debug('pushGen'):
-        print 'push contacts sorted by push distance'
-        for x in good:
-            print x
-    # remove score before returning
-    return [x[1:] for x in good]
-
-
-def regionTargetPBOLD(pbs, prob, placeB, regShapes, hand, away=False):
-    shape = placeB.shape(pbs.getWorld())
-    prim = choosePrim(shape)
-    xyPrim = shape.xyPrim()
-    center =  np.average(xyPrim.vertices(), axis=1)
-    potentialContacts = []
-    for vertical in (True, False):
-        potentialContacts.extend(handContactFrames(prim, center, vertical))
-    for regShape in regShapes:
-        # Placements in region achievable with a single push, if any
-        for (vertical, contactFrame, width) in potentialContacts:
-            # This is z axis of face, push will be in that direction 
-            direction = contactFrame.matrix[:3,2].reshape(3).copy()
-            direction[2] = 0.0            # we want z component exactly 0.
-            for newPB in lineRegionPB(pbs, prob, placeB, direction, regShape):
-                if debug('pushInGen'):
-                    print 'pushInGen', 'direction', direction, 'newPB', newPB
-                    newShape = newPB.makeShadow(pbs, prob)
-                    pbs.draw(prob, 'W'); drawFrame(contactFrame); newShape.draw('W', 'magenta')
-                    raw_input('Go?')
-                yield newPB
-        if not away:
-            for newPB in regionPB(pbs, prob, placeB, regShape):
-                if debug('pushInGen'):
-                    print 'pushInGen', 'directPush newPB', newPB
-                    newShape = newPB.makeShadow(pbs, prob)
-                    pbs.draw(prob, 'W'); newShape.draw('W', 'magenta')
-                    raw_input('Go?')
-                yield newPB
-
-# Find target placements in region.  Object starts out in placeB.
-def regionPBOLD(pbs, prob, placeB, regShape):
-    shWorld = pbs.getShadowWorld(prob)
-    shape = pbs.getObjectShapeAtOrigin(placeB.obj)
-    mode = placeB.poseD.mode().pose()
-    bbox = bboxInterior(shape.bbox(), regShape.bbox())
-    targets = sortedTargets(pbs, prob, placeB, bboxRandomCoords(bbox, n=20))
-    for point in targets:
-        newMode = hu.Pose(point[0], point[1], mode.z, mode.theta)
-
-        # TODO: Is this good?
-        newPB = placeB.modifyPoseD(newMode, var=4*(0.01**2,))
-        newPB.delta = delta=4*(0.001,)
-
-        newShape = newPB.makeShadow(pbs, prob) 
-        if inside(newShape, regShape, strict=True):
-            if debug('pushInGen'):
-                pbs.draw(prob, 'W'); newShape.draw('W'); regShape.draw('W', 'purple')
-                raw_input('target pose in region for push')
-            yield newPB
-
-def sortedTargets(pbs, prob, placeB, targetPoints):
-    shape = placeB.shape(pbs.getWorld())
-    prim = choosePrim(shape)
-    xyPrim = shape.xyPrim()
-    center =  np.average(xyPrim.vertices(), axis=1)
-    potentialContacts = []
-    for vertical in (True, False):
-        potentialContacts.extend(handContactFrames(prim, center, vertical))
-    mode = placeB.poseD.mode().pose()
-    targets = []
-    for point in targetPoints:
-        targets.append(hu.Pose(point[0], point[1], mode.z, mode.theta))
-    return sortedTargetsAux(potentialContacts, targets, placeB.poseD.mode())
-
-def sortedTargetsAux(contacts, targetPoses, curPose):
-    good = []
-    for targetPose in targetPoses:
-        offset = targetPose.inverse().compose(curPose).pose()
-        offsetPt = offset.matrix[:,3].reshape((4,1)).copy()
-        offsetPt[3,0] = 0.0                   # displacement
-        for (vertical, contact, width) in contacts:
-            cinv = contact.inverse() 
-            ntr = np.dot(cinv.matrix, offsetPt)
-            ntrz = ntr[2,0]
-            if ntrz < 0.:
-                score = math.sqrt(ntr[1,0]**2 + ntr[2,0]**2)
-                good.append((score, np.array(targetPose.xyztTuple()[:3])))
-    good.sort(key=itemgetter(0))
-    # remove score before returning
-    return removeDuplicates([x[1] for x in good])
-
-def removeDuplicates(pointList):
-    points = []
-    for i, point1 in enumerate(pointList):
-        match = False
-        for j, point2 in enumerate(pointList[i+1:]):
-            if all(point1==point2): match=True; break
-        if not match:
-            points.append(point1)
-    return points
-
-def lineRegionPBOLD(pbs, prob, placeB, direction, regShape, n=20):
-    shWorld = pbs.getShadowWorld(prob)
-    shape = pbs.getObjectShapeAtOrigin(placeB.obj)
-    mode = placeB.poseD.mode().pose()
-    bb = bboxInterior(shape.bbox(), regShape.bbox())
-    bbCenterPt = tuple([0.5*(bb[1][i]+bb[0][i]) for i in (0,1)])
-    bbRadius = sum([(bb[1][i]-bbCenterPt[i])**2 for i in (0,1)])**0.5
-    targets = lineTargets((mode.x, mode.y), bbCenterPt, bbRadius, direction, n=n*2)
-    count = 0
-    for point in targets:
-        newMode = hu.Pose(point[0], point[1], mode.z, mode.theta)
-
-        # TODO: How big a shadow to use??  This is smaller than regionPB
-        newPB = placeB.modifyPoseD(newMode, var=4*(0.01**2,))
-        newPB.delta = delta=4*(0.001,)
-
-        newShape = newPB.makeShadow(pbs, prob) 
-        if inside(newShape, regShape, strict=True):
-            if debug('pushInGen'):
-                pbs.draw(prob, 'W'); newShape.draw('W'); regShape.draw('W', 'purple')
-                raw_input('target pose in region for push')
-            count += 1
-            yield newPB
-            if count > n: return
-
-# p is current point (x,y), c is center of region (x,y), r is radius
-# and v is direction (x,y)
-def lineTargets(p, c, r, v, n=20):
-    def dot(x,y): return sum([x[i]*y[i] for i in (0,1)])
-    vmag = dot(v,v)**0.5
-    vhat = [v[0]/vmag, v[1]/vmag]       # norm direction
-    cp = [c[i] - p[i] for i in (0,1)]
-    d = dot(cp, vhat)                   # proj c-p along dir
-    z = (dot(cp,cp) - d**2)**0.5        # perp distance
-    if z >= r: return
-    x = (r**2 - z**2)**0.5
-    for count in xrange(n):
-        l = random.uniform(d-x, d+x)
-        yield [p[i] + l*vhat[i] for i in (0,1)]
