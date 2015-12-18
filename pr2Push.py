@@ -1780,3 +1780,5 @@ def lineTargets(p, c, r, v, n=20):
     for count in xrange(n):
         l = random.uniform(d-x, d+x)
         yield [p[i] + l*vhat[i] for i in (0,1)]
+
+print 'Loaded pr2Push.py'        

@@ -1393,8 +1393,7 @@ move = Operator(
     specialRegress = moveSpecialRegress,
     argsToPrint = [0, 1],
     ignorableArgs = range(3), # For hierarchy
-    ignorableArgsForHeuristic = (0, 2),
-    rebindPenalty = 100
+    ignorableArgsForHeuristic = (0, 2)
     )
 
 
@@ -1417,8 +1416,7 @@ moveNB = Operator(
     prim  = moveNBPrim,
     argsToPrint = [0],
     ignorableArgs = range(4), # For hierarchy
-    ignorableArgsForHeuristic = (1, 3),
-    rebindPenalty = 100
+    ignorableArgsForHeuristic = (1, 3)
     )
 
 # All this work to say you can know the location of something by knowing its
@@ -1429,8 +1427,7 @@ bLoc1 = Operator(
                Bd([SupportFace(['Obj']), '*', 'P'], True)}},
          [({BLoc(['Obj', 'Var', 'P'], True)}, {})],
          ignorableArgs = (1, 2),
-         ignorableArgsForHeuristic = (1, 2),
-         rebindPenalty = 100)
+         ignorableArgsForHeuristic = (1, 2))
 
 bLoc2 = Operator(
          'BLocGrasp', ['Obj', 'Var', 'Hand', 'P'],
@@ -1442,8 +1439,7 @@ bLoc2 = Operator(
          functions = [GenList(['Hand'], [],
                               listVals = [['left'], ['right']])],
          ignorableArgs = (1, 3),
-         ignorableArgsForHeuristic = (1, 3),
-         rebindPenalty = 100)
+         ignorableArgsForHeuristic = (1, 3))
 
 poseAchIn = Operator(
              'PosesAchIn', ['Obj1', 'Region',
@@ -1484,8 +1480,7 @@ poseAchIn = Operator(
             argsToPrint = [0, 1],
             ignorableArgs = range(2,15),
             ignorableArgsForHeuristic = range(2, 15),
-            conditionOnPreconds = True,
-            rebindPenalty = 100)
+            conditionOnPreconds = True)
 
 placeArgs = ['Obj', 'Hand',
          'PoseFace', 'Pose', 'PoseVar', 'RealPoseVar', 'PoseDelta',
@@ -1556,8 +1551,7 @@ place = Operator('Place', placeArgs,
         prim = placePrim,
         argsToPrint = range(4),
         ignorableArgs = range(1, 19),   # all place of same obj at same level
-        ignorableArgsForHeuristic = range(4, 19),
-        rebindPenalty = 20)
+        ignorableArgsForHeuristic = range(4, 19))
         
 
 pushArgs = ['Obj', 'Hand', 'Pose', 'PoseFace', 'PoseVar', 'RealPoseVar', 'PoseDelta',
@@ -1608,8 +1602,7 @@ push = Operator('Push', pushArgs,
         prim = pushPrim,
         argsToPrint = range(4),
         ignorableArgs = range(1, 19),
-        ignorableArgsForHeuristic = range(3, 19),
-        rebindPenalty = 30)
+        ignorableArgsForHeuristic = range(3, 19))
 
 # Put the condition to know the pose precisely down at the bottom to
 # try to decrease replanning.
@@ -1677,8 +1670,7 @@ pick = Operator(
         prim = pickPrim,
         argsToPrint = [0, 1, 5, 3, 9],
         ignorableArgs = range(1, 18),
-        ignorableArgsForHeuristic = range(4, 18),
-        rebindPenalty = 40)
+        ignorableArgsForHeuristic = range(4, 18))
 
 # We know that the resulting variance will always be less than obsVar.
 # Would like the result to be the min of PoseVarAfter (which is in the
@@ -1733,8 +1725,7 @@ lookAt = Operator(
     prim = lookPrim,
     argsToPrint = [0, 1, 3],
     ignorableArgs = [1, 2] + range(5, 14),   # change 5 to 4 to ignore var
-    ignorableArgsForHeuristic = [1, 2] + range(4, 14),
-    rebindPenalty = 100)
+    ignorableArgsForHeuristic = [1, 2] + range(4, 14))
     
 
 ## Should have a CanSeeFrom precondition
@@ -2188,3 +2179,5 @@ hRegrasp = Operator(
         cost = lambda al, args, details: magicRegraspCost,
         ignorableArgsForHeuristic = range(1, 16),
         argsToPrint = [0, 1])
+
+print 'Loaded pr2Ops.py'

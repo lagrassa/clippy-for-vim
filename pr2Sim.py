@@ -661,3 +661,5 @@ def bruteForceMin(f, init):
     if minVal == 10.0:
         pdb.set_trace()
     return minX, minVal
+
+print 'Loaded pr2Sim.py'
