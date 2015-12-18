@@ -18,7 +18,7 @@ from pr2GenUtils import *
 from pr2GenPose import potentialRegionPoseGen
 from pr2GenGrasp import potentialGraspConfGen, graspConfForBase
 import pr2GenLook
-reload(pr2GenLook)
+#reload(pr2GenLook)
 from pr2GenLook import potentialLookConfGen
 from pr2GenTests import canPickPlaceTest, canView, canReachHome, lookAtConfCanView
 from pr2Visible import lookAtConf, visible

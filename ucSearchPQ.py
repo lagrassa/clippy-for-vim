@@ -12,7 +12,6 @@ of times the heuristic function is called.
 from heapq import heappush, heappop
 
 import planGlobals as glob
-reload(glob)
 from traceFile import debugMsg, debug, trAlways, tr
 
 class SearchNode:

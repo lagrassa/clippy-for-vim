@@ -1,7 +1,7 @@
 import math
 import time
 import planGlobals as glob
-reload(glob)
+#reload(glob)
 from traceFile import debugMsg, debug
 
 # Can be cimports

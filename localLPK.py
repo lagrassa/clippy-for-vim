@@ -19,8 +19,6 @@ pngGen = '%s/g%s.png'
 htmlGen = '%s/a%s.html'
 htmlGenH = '%s/aH%s.html'
 
-rebindPenalty = 100
-
 monotonicFirst = True
 drawFailedNodes = False
 drawRebindNodes = True
@@ -126,3 +124,4 @@ debugOn.extend(debugOnly)
 debugOn.extend(flags)
 
 
+print 'Loaded localLPK.py'
