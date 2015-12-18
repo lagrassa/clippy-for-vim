@@ -4,6 +4,8 @@ import platform
 # Default values of global values, can be overriden in local.py
 ########################################
 
+libkinDir = ''
+
 ########################################
 # System: LINUX and Mac OS X are supported
 ########################################
@@ -169,5 +171,8 @@ pushGenCache = 0
 pushGenCacheH = 0
 pushGenCacheMiss = 0
 pushGenCacheMissH = 0
+
+# This has to be ugly here so that Cython can see the symbols.
+from local import *
 
 print 'Loaded planGlobals.py'

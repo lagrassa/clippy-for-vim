@@ -1,5 +1,6 @@
 import os
 import platform
+
 path = os.getcwd()
 parent = path[:path.rfind('/')] + '/../'
 libkinDir = './IK/'
@@ -108,7 +109,7 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['executionFail']
+debugOn = usualTags + ['executionFail', 'pushGen']
       # + ['alwaysWriteHFile'] #+ ['disablePush']
 
 
@@ -122,6 +123,5 @@ pauseOn = debugOn[:]
 logOn = debugOn + traceOnly
 debugOn.extend(debugOnly)
 debugOn.extend(flags)
-
 
 print 'Loaded localLPK.py'
