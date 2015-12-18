@@ -714,7 +714,7 @@ class PoseInRegionGen(Function):
         for ans in roundrobin(placeInRegionGenGen(args, pbs, cpbs),
                               pushInRegionGenGen(args, pbs, cpbs)):
             if ans:
-                self.test(pbs, ans.poseInTuple(), args)
+                # self.test(pbs, ans.poseInTuple(), args)
                 yield ans.poseInTuple()
 
     def test(self, pbs, (pose, face), args):

@@ -923,9 +923,6 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
         offsetPose = hu.Pose(*(step*pushDir).tolist()+[0.0])
         offsetRot = hu.Pose(0.,0.,0.,step*deltaAngle)
         newPose = offsetPose.compose(initPose).compose(offsetRot).pose()
-
-        print step_i, 'newPose:', newPose
-
         if debug('pushPath'):
             print step_i, 'newPose:', newPose
             print step_i, 'nconf point', nconf.cartConf()[handFrameName].point()
@@ -1334,14 +1331,28 @@ def pushGenPaths(pbs, prob, potentialContacts, targetPB, curPB,
                                   hand, supportRegShape, away=away):
         if not path: return
         pathSegs = segmentPath(path)
-        graspB, width = potentialPushes[(pathSegs[0].dirx, pathSegs[0].vert)]
-        if not pathSegs[0].pt0: return      # degenerate path
-        for seg in (pathSegs[0], split(pathSegs[0]),):
+        for i in range(len(pathSegs)):
+            ps = pathSegs[i]
+            if not ps.pt0:
+                print 'degenerate path segment', ps
+                continue     # degenerate path
+            maxPush = max([abs(a-b) for (a,b) in zip(ps.pt0,ps.pt1)])
+            minDelta = min(targetPB.delta[0], targetPB.delta[1])
+            if maxPush < minDelta:
+                print 'maxPush < minDelta', ps
+                continue
+            else:
+                break
+        graspB, width = potentialPushes[(ps.dirx, ps.vert)]
+        for seg in (ps, split(ps)):
             # Use pbs with object in it
+            print '  ', seg
             for ans in pushGenPathsAux(pbs, newBS, prob, seg, graspB, width, targetPB, curPB,
                                        hand, base, supportRegShape,
-                                       frame=frames[(pathSegs[0].dirx,pathSegs[0].vert) ]):
+                                       frame=frames[(ps.dirx,ps.vert) ]):
+                print '->', ans
                 yield ans
+            print '  -> end'
         
 def pushGenPathsAux(pbs, newBS, prob, pathSeg, graspB, width, targetPB, curPB,
                     hand, base, supportRegion, frame=None):
@@ -1350,7 +1361,8 @@ def pushGenPathsAux(pbs, newBS, prob, pathSeg, graspB, width, targetPB, curPB,
     direction = np.array([dirx[0], dirx[1], 0.0])
     curPose = curPB.poseD.mode()
     targetPose = targetPB.poseD.mode()
-    assert targetPose.x == pathSeg.pt1[0] and targetPose.y == pathSeg.pt1[1]
+    assert abs(targetPose.x - pathSeg.pt1[0]) <= targetPB.delta[0] and \
+           abs(targetPose.y - pathSeg.pt1[1]) <= targetPB.delta[1]
     if debug(tag):
         newBS.draw(prob, 'W')
         shape = targetPB.shape(newBS.getWorld())
@@ -1391,7 +1403,7 @@ def pushGenPathsAux(pbs, newBS, prob, pathSeg, graspB, width, targetPB, curPB,
         if count > maxPushPaths: break
     pose1 = targetPB.poseD.mode()
     pose2 = appPose
-    if debug('pushFail'):
+    if debug(tag):
         if count == 0:
             print 'No push', direction[:2], 'between', pose1, pose2, 'with', hand
             debugMsg('pushFail', 'Could not find conf for push along %s'%direction[:2])
