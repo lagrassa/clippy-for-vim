@@ -70,6 +70,11 @@ handI = {'left' : 0, 'right' : 1}
 tryDirectPath = True
 # canReachHome(conf) returns a path from conf to home!
 
+def describePath(path, tag):
+    print tag, len(path)
+    for i in range(len(path)-1): print i, path[i].robot.distConf(path[i], path[i+1])
+    raw_input('Go?')
+
 def primPath(bs, cs, ce, p):
     def onlyShadows(viols):
         return viols and not (viols.obstacles or any(viols.heldObstacles))
@@ -89,7 +94,8 @@ def primPath(bs, cs, ce, p):
     else:
         assert False, 'primPath failed'
 
-    smoothed = bs.getRoadMap().smoothPath(path, bs, p)
+    # smoothed = bs.getRoadMap().smoothPath(path, bs, p)
+    smoothed = path
     interpolated = rrt.interpolatePath(smoothed)
     verifyPaths(bs, p, path, smoothed, interpolated)
     return smoothed, interpolated
@@ -97,15 +103,17 @@ def primPath(bs, cs, ce, p):
 def primNBPath(bs, cs, ce, p):
     path, v = canReachNB(bs, cs, ce, p, Violations())
     if not path:
-        print 'NB Path failed, trying RRT'
-        path, v = rrt.planRobotPathSeq(bs, p, cs, ce, None,
-                                       maxIter=50, failIter=10, inflate=True)
-    assert path
+        path, v = canReachNB(bs, ce, cs, p, Violations())
+        if path:
+            path = path[::-1]
+    assert path, 'primNBPath failed'
     if v.weight() > 0:
         raw_input('Potential collision in primitive path')
     else:
         trAlways('Success on primNB')
-    smoothed = bs.getRoadMap().smoothPath(path, bs, p)
+
+    # smoothed = bs.getRoadMap().smoothPath(path, bs, p)
+    smoothed = path
     interpolated = rrt.interpolatePath(smoothed)
     verifyPaths(bs, p, path, smoothed, interpolated)
     return smoothed, interpolated

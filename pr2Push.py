@@ -18,6 +18,7 @@ from pr2GenGrasp import potentialGraspConfGen, graspConfForBase
 from pr2GenPose import potentialRegionPoseGen
 from pr2GenTests import lookAtConfCanView
 from pr2Robot import gripperPlace, gripperFaceFrame
+from pr2RRT import interpolate
 from cspace import xyCO
 import mathematica
 reload(mathematica)
@@ -789,6 +790,32 @@ def pushDirections(preConf, initConf, initPose, pushConf, pushPose, hand):
     # Return
     return (appDir, appDist, pushDir, pushDist)
 
+def transitionViol(pbs, prob, q1, q2, shape, hand):
+    viol = Violations()
+    if q1 is None or glob.inHeuristic:
+        if armCollides(q2, shape, hand): return None
+        viol = pbs.confViolations(q2, prob)
+    else:
+        dist = q1.robot.distConf(q1, q2)
+        if dist > 2.0:
+            if debug('pushPath'):
+                pbs.draw(prob, 'W'); q1.draw('W','blue'); q2.draw('W','pink')
+                print 'Transition requires too much motion'
+            return None
+        for q in interpolate(q2, q1):
+            if armCollides(q, shape, hand):
+                if debug('pushPath'):
+                    pbs.draw(prob, 'W'); q1.draw('W','blue'); q2.draw('W','pink')
+                    print 'Transition collides with pushed object'
+                return None
+            viol = pbs.confViolations(q, prob, initViol=viol)
+            if viol is None:
+                if debug('pushPath'):
+                    pbs.draw(prob, 'W'); q1.draw('W','blue'); q2.draw('W','pink')
+                    print 'Transition collides with permanent object'
+                break
+    return viol
+
 # The conf in the input is the robot conf in contact with the object
 # at the destination pose.
 
@@ -800,6 +827,8 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
         if debug(tag):
             print '->', reason, gloss, 'path len=', len(pathViols)
             debugMsg(reason)
+            if reason == 'done':
+                checkPathSmoothness(pbs, prob, [p[0] for p in pathViols])
         ans = (pathViols, reason)
         if cache: pushPathCache[key].append((pbs, prob, gB, ans))
         return ans
@@ -872,21 +901,21 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
     #######################
     # Do the approach scan
     #######################
+    prevConf = None
     for step_i in stepVals:
         step = (step_i * delta)
         hOffsetPose = hu.Pose(*((step*appDir).tolist()+[0.0]))
         nconf = displaceHandRot(preConf, hand, hOffsetPose, tiltRot = tiltRot)
         if not nconf:
             reason = 'invkin'; break
-        viol = newBS.confViolations(nconf, prob)
+        viol = transitionViol(newBS, prob, prevConf, nconf, shape, hand)
         if viol is None:
             reason = 'collide'; break
-        if armCollides(nconf, shape, hand):
-            reason = 'selfCollide'; break
         if debug('pushPath'):
             print 'approach step=', step, viol
             drawState(newBS, prob, nconf, shape)
         pathViols.append((nconf, viol, None))
+        prevConf = nconf
     if reason != 'done':
         return finish(reason, 'During approach', [])
     #######################
@@ -909,6 +938,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
     #######################
     # Do the push scan
     #######################
+    prevConf = None
     for step_i in stepVals:
         step = (step_i * delta)
         hOffsetPose = hu.Pose(*(((step - handTiltOffset)*pushDir).tolist()+[0.0]))
@@ -918,9 +948,6 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
             reason = 'invkin'; break
         if step_i == nsteps:
             nconf = conf
-        viol = newBS.confViolations(nconf, prob)
-        if viol is None:
-            reason = 'collide'; break
         offsetPose = hu.Pose(*(step*pushDir).tolist()+[0.0])
         offsetRot = hu.Pose(0.,0.,0.,step*deltaAngle)
         newPose = offsetPose.compose(initPose).compose(offsetRot).pose()
@@ -932,12 +959,14 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
         nshape = offsetPB.makeShadow(pbs, prob)
         if regShape and not inside(nshape, regShape):
             reason = 'outside'; break
-        if armCollides(nconf, nshape, hand):
-            reason = 'selfCollide'; break
+        viol = transitionViol(newBS, prob, prevConf, nconf, nshape, hand)
+        if viol is None:
+            reason = 'collide'; break
         if debug('pushPath'):
             print 'push step=', step, viol
             drawState(newBS, prob, nconf, nshape)
         pathViols.append((nconf, viol, offsetPB.poseD.mode()))
+        prevConf = nconf
     #######################
     # Prepare ans
     #######################
@@ -1298,7 +1327,6 @@ def searchObjPushPath(pbs, prob, potentialPushes, targetPB, curPB,
             for p in path[1:]: print '  ', p[0]
         else:
             print 'path=', path
-            pdb.set_trace()
         yield path
     print 'searchObjPushPath end'
 
@@ -1349,7 +1377,7 @@ def pushGenPaths(pbs, prob, potentialContacts, targetPB, curPB,
     # if curPB is None, then use targetPB -- does this make sense?
     for path in searchObjPushPath(newBS, prob, potentialPushes, targetPB, curPB or targetPB,
                                   hand, supportRegShape, away=away):
-        if not path: return
+        if not path or len(path) < 3: return
         pathSegs = segmentPath(path)
         for i in range(len(pathSegs)):
             ps = pathSegs[i]
@@ -1517,6 +1545,22 @@ def pushGraspB(pbs, pushConf, hand, placeB):
     graspB =  ObjGraspB(obj, graspDescList, -1, support,
                         PoseD(hu.Pose(0.,0.,0.,0), graspVar), delta=graspDelta)
     return graspB
+
+def checkPathSmoothness(pbs, prob, path):
+    if glob.inHeuristic or not path: return
+    robot = path[0].robot
+    for i in range(len(path)-1):
+        dist = robot.distConf(path[i], path[i+1])
+        print i, 'dist=', dist 
+        if dist > 2.0:
+            for q in interpolate(path[i], path[i+1]):
+                pbs.draw(prob, 'W')
+                q.draw('W', 'cyan')
+                raw_input('Next?')
+            pbs.draw(prob, 'W')
+            path[i].draw('W', 'blue')
+            path[i+1].draw('W', 'pink')
+            raw_input('dist=%f'%dist)
 
 print 'Loaded pr2Push.py'        
 

@@ -265,8 +265,9 @@ class JointConf:
     def __eq__(self, other):
         if not hasattr(other, 'conf'): return False
         return self.conf == other.conf
-    def __neq__(self, other):
-        return not self == other
+    def __ne__(self, other):
+        if not hasattr(other, 'conf'): return True
+        return not self.conf == other.conf
 
 class CartConf(JointConf):
     def __init__(self, conf, robot):

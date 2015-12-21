@@ -99,8 +99,9 @@ skipRRT = False
 maxRRTIter = 100
 failRRTIter = 10
 smoothPathObst = True
+rrtPlanAttempts = 5                     # to try to get smaller base displacement
 
-maxOpenLoopDist = 4.0                   # maybe should be smaller
+maxOpenLoopDist = 2.0                   # maybe should be smaller
 
 ########################################
 # Obstacle growing, should be determined by uncertainty

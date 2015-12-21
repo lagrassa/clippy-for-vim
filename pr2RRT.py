@@ -4,6 +4,7 @@ import time
 from time import sleep
 import planGlobals as glob
 from traceFile import debug, debugMsg
+from pr2Util import removeDuplicateConfs
 import hu
 import windowManager3D as wm
 from random import random
@@ -393,7 +394,7 @@ def interpolatePath(path, stepSize = glob.rrtInterpolateStepSize):
         confs = interpolate(qf, qi, stepSize=stepSize)
         if debug('rrt'): print i, 'path segment has', len(confs), 'confs'
         interpolated.extend(confs)
-    return interpolated
+    return removeDuplicateConfs(interpolated)
 
 def pbsInflate(pbs, prob, initConf, goalConf):
     if not glob.useInflation: return pbs

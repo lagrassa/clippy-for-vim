@@ -21,7 +21,7 @@ from traceFile import debugMsg, debug, trAlways
 from miscUtil import prettyString
 from heapq import heappush, heappop
 from planUtil import Violations
-from pr2Util import NextColor, drawPath, shadowWidths, Hashable, combineViols, shadowp
+from pr2Util import NextColor, drawPath, shadowWidths, Hashable, combineViols, shadowp, removeDuplicateConfs
 from traceFile import tr
 from pr2Robot import CartConf, compileObjectFrames, compileAttachedFrames
 from gjk import chainCollides, confPlaceChains, confSelfCollide, chainBBoxes
@@ -320,11 +320,30 @@ class RoadMap:
         startTime = time.time()
         # trAlways('Calling RRT')
         for inflate in ((True, False) if optimize else (False,)):
-            path, viol = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
-                                              maxIter=glob.maxRRTIter,
-                                              failIter=glob.failRRTIter,
-                                              inflate=inflate)
+            attempts = 1 if (not optimize or targetConf['pr2Base'] == initConf['pr2Base']) else glob.rrtPlanAttempts
+            bestDist = float('inf')
+            bestPath = None
+            bestViol = None
+            for attempt in range(attempts):
+                path, v = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
+                                               maxIter=glob.maxRRTIter,
+                                               failIter=glob.failRRTIter,
+                                               inflate=inflate)
+                if v is None: break
+                if attempts > 1:
+                    # Do a quick smoothing step to make the base dist estimate more accurate.
+                    path = self.smoothPath(path, pbs, prob,
+                                           nsteps = glob.smoothSteps/4, npasses = 1.)
+                    dist = basePathLength(path)
+                    print 'RRT base path length', dist
+                    if dist < bestDist:
+                        bestPath = path
+                        bestViol = v
+                else:
+                    bestPath = path; bestViol = v
+            path = bestPath; viol = bestViol
             if viol is not None: break
+        path = self.smoothPath(path, pbs, prob)
         runningTime = time.time() - startTime
         trAlways('RRT time', runningTime)
         if viol:
@@ -744,10 +763,7 @@ class RoadMap:
         n = len(path)
         if n < 3: return path
         if verbose: print 'Path has %s points'%str(n), '... smoothing'
-        input = []
-        for p in path:
-            if not input or input[-1] != p:
-                input.append(p)
+        input = removeDuplicateConfs(path)
         if len(input) < 3:
             return path
         checked = set([])
@@ -768,7 +784,7 @@ class RoadMap:
                 if n < 1:
                     debugMsg('smooth', 'Path is empty!')
                     pdb.set_trace()
-                    return path
+                    return removeDuplicateConfs(path)
                 i = random.randrange(n)
                 j = random.randrange(n)
                 if j < i: i, j = j, i 
@@ -802,10 +818,10 @@ class RoadMap:
             if outer < npasses:
                 count = 0
                 if verbose: print 'Re-expanding path'
-                input = rrt.interpolatePath(smoothed)
+                input = removeDuplicateConfs(rrt.interpolatePath(removeDuplicateConfs(smoothed)))
         if verbose:
             print 'Final smooth path len =', len(smoothed), 'dist=', basePathLength(smoothed)
-        return smoothed
+        return removeDuplicateConfs(smoothed)
 
     # does not use self... could be a static method
     def checkRobotCollision(self, conf, obj, clearance=0.0, attached=None, selectedChains=None):

@@ -17,7 +17,7 @@ class Hashable:
         self.descValue = None
     def __eq__(self, other):
         return hasattr(other, 'desc') and self.desc() == other.desc()
-    def __neq__(self, other):
+    def __ne__(self, other):
         return not self == other
     def __hash__(self):
         if self.hashValue is None:
@@ -433,3 +433,10 @@ def robotGraspFrame(pbs, conf, hand):
     if debug('robotGraspFrame'):
         print 'robot wristFrame\n', wristFrame
     return wristFrame
+
+def removeDuplicateConfs(path):
+    inp = []
+    for p in path:
+        if not inp or inp[-1] != p:
+            inp.append(p)
+    return inp
