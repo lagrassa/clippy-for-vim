@@ -222,6 +222,12 @@ class JointConf:
         return hu.Pose(base[0], base[1], 0.0, base[2])
     def cartConf(self):
         return self.robot.forwardKin(self)
+    def armShape(self, h, attached=None):
+        return self.robot.armShape(self, h, attached)
+    def handWorkspace(self):
+        tz = self.conf['pr2Torso'][0]
+        bb = ((0.5, -0.25, tz+0.2),(0.75, 0.25, tz+0.4)) # low z, so view cone extends
+        return shapes.BoxAligned(np.array(bb), Ident).applyTrans(self.basePose())
     def placement(self, attached=None, getShapes=True):
         return self.robot.placement(self, attached=attached, getShapes=getShapes)[0]
     def placementMod(self, place, attached=None):
@@ -565,6 +571,14 @@ class PR2:
             conf = conf.set(chainName,
                             self.chains.chainsByName[chainName].randomValues())
         return conf
+
+    def armShape(self, c, hand, attached):
+        parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])
+        armShapes = [parts[self.armChainNames[hand]],
+                     parts[self.gripperChainNames[hand]]]
+        if attached[hand]:
+            armShapes.append(parts[attached[hand].name()])
+        return shapes.Shape(armShapes, None)
 
     # attach the object (at its current pose) to gripper (at current conf)
     def attach(self, objectPlace, wstate, hand='left'):

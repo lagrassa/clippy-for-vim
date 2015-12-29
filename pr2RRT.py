@@ -79,6 +79,8 @@ class RRT:
     def buildTree(self, goalTest, K=1000):
         """Builds the RRT and returns either a node or FAILURE."""
         if debug('rrt'): print 'Building RRT'
+        if goalTest(self.Ta.root.conf):
+            return self.Ta.root
         for i in range(K):
             if debug('rrt'):
                 if i % 100 == 0: print i
@@ -115,7 +117,10 @@ class RRT:
     def findGoalPath(self, goalTest, K=None):
         node = self.buildTree(goalTest, K)
         if node is 'FAILURE': return 'FAILURE'
-        return self.tracePath(node)[::-1]
+        path = self.tracePath(node)[::-1]
+        goalValues = [goalTest(c.conf) for c in path]
+        goalIndex = goalValues.index(True)
+        return path[:goalIndex+1]       # include up to first True 
     
     def findPath(self, K=None):
         sharedNodes = self.buildBiTree(K)

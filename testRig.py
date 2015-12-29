@@ -203,7 +203,7 @@ viewPort = [wx0, wx1, wy0, wy1, 0.0, wdz]
 def testWorld(include = []):
     ((x0, y0, _), (x1, y1, dz)) = workspace
     w = 0.1
-    wm.makeWindow('W', viewPort, 1000)   # was 800
+    wm.makeWindow('W', viewPort, 800)   # was 800
     if useROS: wm.makeWindow('MAP', viewPort)
     world = World()
     # The room

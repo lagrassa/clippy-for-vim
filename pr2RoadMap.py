@@ -821,7 +821,10 @@ class RoadMap:
                 input = removeDuplicateConfs(rrt.interpolatePath(removeDuplicateConfs(smoothed)))
         if verbose:
             print 'Final smooth path len =', len(smoothed), 'dist=', basePathLength(smoothed)
-        return removeDuplicateConfs(smoothed)
+
+        ans = removeDuplicateConfs(smoothed)
+        assert ans[0] == path[0] and ans[-1] == path[-1]
+        return ans
 
     # does not use self... could be a static method
     def checkRobotCollision(self, conf, obj, clearance=0.0, attached=None, selectedChains=None):
@@ -1010,10 +1013,11 @@ def minViolPathDebugVisit(state, cost, heuristicCost, a, newState, newCost, hVal
     boxPoint.applyTrans(hu.Pose(x,y,0,th)).draw('W', 'cyan')
     wm.getWindow('W').update()
     
-def showPath(pbs, p, path):
+def showPath(pbs, p, path, stop=True):
+    attached = pbs.getShadowWorld(p).attached
     for c in path:
         pbs.draw(p, 'W')
-        c.draw('W')
+        c.draw('W', attached=attached)
         raw_input('Next?')
     raw_input('Path end')
 

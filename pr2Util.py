@@ -15,16 +15,20 @@ class Hashable:
     def __init__(self):
         self.hashValue = None
         self.descValue = None
+    def _desc(self):
+        if self.descValue is None:
+            self.descValue = self.desc()
+        return self.descValue
     def __eq__(self, other):
-        return hasattr(other, 'desc') and self.desc() == other.desc()
+        return hasattr(other, 'desc') and self._desc() == other._desc()
     def __ne__(self, other):
         return not self == other
     def __hash__(self):
         if self.hashValue is None:
-            self.hashValue = hash(self.desc())
+            self.hashValue = hash(self._desc())
         return self.hashValue
     def __str__(self):
-        return self.__class__.__name__+str(self.desc())
+        return self.__class__.__name__+str(self._desc())
     __repr__ = __str__
 
 # Useful as a default

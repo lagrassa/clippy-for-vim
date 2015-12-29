@@ -12,7 +12,7 @@ from shapes import thingFaceFrames, drawFrame, Shape
 import hu
 from planUtil import ObjGraspB, ObjPlaceB, Violations, PoseD, PushResponse
 from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords, bboxRandomCoords,\
-     supportFaceIndex, inside, Memoizer, objectGraspFrame, robotGraspFrame
+     supportFaceIndex, inside, Memoizer, objectGraspFrame, robotGraspFrame, Hashable
 from pr2GenUtils import getRegions, getPoseAndSupport, fixed, chooseHandGen, minimalConf
 from pr2GenGrasp import potentialGraspConfGen, graspConfForBase
 from pr2GenPose import potentialRegionPoseGen
@@ -1215,14 +1215,21 @@ def nextCrossing(pt, dirx, tangents, goal, regShape, reverse = False):
                 return (p[0],p[1]), bestDirs, bestDist
     return None, None, None
 
-class PushState:
+class PushState(Hashable):
     def __init__(self, pt, dirx, vert, coll):
         self.pt = pt
         self.dirx = dirx
         self.vert = vert
         self.coll = coll
+        self.stored = None
+        Hashable.__init__(self)
     def __str__(self):
         return 'PushState(%s,%s,%s,%s)'%(self.pt, self.dirx, self.vert, self.coll)
+    def desc (self):
+        return (self.pt,
+                self.dirx if self.dirx=='goal' else (self.dirx[0], self.dirx[1]),
+                self.vert,
+                frozenset(self.coll))
     __repr__ = __str__
 
 class PushSegment:
@@ -1392,6 +1399,8 @@ def pushGenPaths(pbs, prob, potentialContacts, targetPB, curPB,
                 continue
             else:
                 break
+        if not ps.pt0:
+            continue     # degenerate path
         graspB, width = potentialPushes[(ps.dirx, ps.vert)]
         for seg in (ps, split(ps)):
             # Use pbs with object in it

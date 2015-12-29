@@ -97,6 +97,13 @@ class RealWorld(WorldState):
         odoError = self.domainProbs.odoError
         prevXYT = self.robotConf.conf['pr2Base']
         prevConf = self.robotConf
+
+        if max([abs(a-b) for (a,b) in zip(self.robotConf.basePose().xyztTuple(),
+                                          path[0].basePose().xyztTuple())]) > 0.01:
+            print 'current base pose', self.robotConf.basePose()
+            print 'path[0] base pose', path[0].basePose()
+            raw_input('Inconsistency in path and simulation')
+        
         for (pathIndex, conf) in enumerate(path):
             originalConf = conf
             newXYT = conf['pr2Base']
@@ -105,7 +112,7 @@ class RealWorld(WorldState):
             # Compute the nominal displacement along the original path
             disp = prevBasePose.inverse().compose(newBasePose).pose()
             # Variance based on magnitude of original displacement
-            dispXY = math.sqrt(disp.x**2 + disp.y**2)
+            dispXY = (disp.x**2 + disp.y**2)**0.5
             dispAngle = disp.theta
             odoVar = ((dispXY *  odoError[0])**2,
                       (dispXY *  odoError[1])**2,

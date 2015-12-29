@@ -67,7 +67,7 @@ class SearchNode:
 def search(initialState, goalTest, actions, successor,
            heuristic = lambda s: 0, maxNodes = 10000,
            visitF = None, expandF = None, hmax = float('inf'),
-           prevExpandF = None,
+           prevExpandF = None, checkExpandF = None,
            multipleSuccessors = False,
            greedy = 0.5,
            verbose = False, printFinal = True, maxHDelta = None,
@@ -86,7 +86,7 @@ def search(initialState, goalTest, actions, successor,
                (action, state) tuples and a list of path costs from start to
                each state in the path
         """
-
+        
         somewhatVerbose = verbose
         verbose = False
 
@@ -114,7 +114,6 @@ def search(initialState, goalTest, actions, successor,
             if verbose:
                 print "agenda: ", agenda
             (hc, _, n) = heappop(agenda)
-
             if n.state in expanded:
                 if prevExpandF: prevExpandF(n)
                 if verbose:
@@ -123,6 +122,11 @@ def search(initialState, goalTest, actions, successor,
                 continue
             expanded.add(n.state)
             countExpanded += 1
+
+            if checkExpandF:            # check legality on demand
+                n = checkExpandF(n)      # possibly modify the node or set to None
+                if n is None: continue
+
             if expandF: expandF(n)
             if verbose: print  "expanding node: ", n.cost, n.state
             if goalTest(n.state):
@@ -157,6 +161,7 @@ def search(initialState, goalTest, actions, successor,
             successors = set()
             for a in applicableActions:
                 succ = successor(n.state, a)
+                if not succ: continue
                 if not multipleSuccessors:
                     succ = [succ]
                 if verbose: print '        ', len(succ), 'successors'

@@ -23,6 +23,9 @@ from pr2Push import PushGen, pushOut, canPush
 import pr2RRT as rrt
 from pr2Visible import visible
 import itertools
+import pr2GenMove
+reload(pr2GenMove)
+from pr2GenMove import moveLookPath
 
 zeroPose = zeroVar = (0.0,)*4
 awayPose = (100.0, 100.0, 0.0, 0.0)
@@ -79,9 +82,11 @@ def primPath(bs, cs, ce, p):
     def onlyShadows(viols):
         return viols and not (viols.obstacles or any(viols.heldObstacles))
     home = bs.getRoadMap().homeConf
+    # path (cs -> ce)
     path, viols = canReachHome(bs, cs, p, Violations(),
                                homeConf=ce, optimize=True)
     if not(path):
+        # path (ce -> cs)
         path, viols = canReachHome(bs, ce, p, Violations(),
                                    homeConf=cs, optimize=True)
         if path:
@@ -91,6 +96,14 @@ def primPath(bs, cs, ce, p):
             print 'Shadow collision in primPath', viols
             raw_input('Shadow collisions - continue?')
         trAlways('Direct path succeeded')
+
+        # Debugging
+        mp =  moveLookPath(bs, p, cs, ce)
+        for i, (a,q) in enumerate(mp):
+            print i, 'action=', a[0] if a else None
+            q.draw('W', 'cyan')
+        raw_input('moveLookPath in cyan')
+        
     else:
         assert False, 'primPath failed'
 

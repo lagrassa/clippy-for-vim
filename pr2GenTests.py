@@ -316,13 +316,6 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
 # collide with the view cone to the target shape and maybe shadow.
 def canView(pbs, prob, conf, hand, shape,
             shapeShadow = None, maxIter = 50, findPath = True):
-    def armShape(c, h):
-        parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])
-        armShapes = [parts[pbs.getRobot().armChainNames[h]],
-                     parts[pbs.getRobot().gripperChainNames[h]]]
-        if attached[h]:
-            armShapes.append(parts[attached[h].name()])
-        return shapes.Shape(armShapes, None)
     collides = pbs.getRoadMap().checkRobotCollision
     robot = pbs.getRobot()
     vc = viewCone(conf, shape)
@@ -353,13 +346,13 @@ def canView(pbs, prob, conf, hand, shape,
             chainName = robot.armChainNames[h]
             armChains = [chainName, robot.gripperChainNames[h]]
             if not (collides(conf, avoid, attached=attached, selectedChains=armChains) \
-                   if glob.useCC else avoid.collides(armShape(conf, h))):
+                   if glob.useCC else avoid.collides(conf.armShape(h,attached))):
                 continue
             if debug('canView'):
                 print 'canView collision with', h, 'arm', conf['pr2Base']
             path, viol = planRobotGoalPath(pbs, prob, conf,
                                 lambda c: not (collides(c, avoid, attached=attached, selectedChains=armChains) \
-                                                          if glob.useCC else avoid.collides(armShape(c,h))),
+                                                          if glob.useCC else avoid.collides(c.armShape(h,attached))),
                                            None, [chainName], maxIter = maxIter)
             if debug('canView'):
                 pbs.draw(prob, 'W')
