@@ -52,7 +52,7 @@ class MoveState(Hashable):
     __repr__ = __str__
 
 # Only do this when the base distance between the two confs is large.
-def moveLookPath(pbs, prob, q1, q2):
+def moveLookPathBS(pbs, prob, q1, q2):
     if q1['pr2Base'] == q2['pr2Base']:
         return []
     print 'moveLookPath: start'
@@ -150,7 +150,7 @@ def moveLookPath(pbs, prob, q1, q2):
         print 'moveLookPath: path length =', len(path), 'search time =', time.time() - startTime
     else:
         print 'moveLookPath: failed, search time =', time.time() - startTime
-        return []
+        return None
     
     # Repeatedly streamline until we reach a fix point.
     for i in xrange(5):
@@ -368,15 +368,17 @@ def findRetractArmConf(pbs, prob, q1, q2, maxIter = 50):
             return None
     return conf
 
-maxRetractAttempts = 10
-def findRetractBaseConf(pbs, prob, conf, maxIter=10):
-    # Inflate the objects and move the base
+def inflatedBS(pbs, prob):
     newBS = pbs.copy()
-    newBS.conf = (False, conf)
     for obj in newBS.objectBs:
         fix, objB = newBS.objectBs[obj]
         inflatedVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
         newBS.updatePlaceB(objB.modifyPoseD(var=inflatedVar))
+    return newBS
+
+maxRetractAttempts = 10
+def findRetractBaseConf(newBS, prob, conf, maxIter=10):
+    # Inflate the objects and move the base
 
     def anyColl(c):
         v = newBS.confViolations(c, prob)
@@ -403,3 +405,37 @@ def findRetractBaseConf(pbs, prob, conf, maxIter=10):
     wm.getWindow('W').update()
     return bestRetractConf
 
+def moveLookPath(pbs, prob, q1, q2):
+    if q1['pr2Base'] == q2['pr2Base']:
+        return []
+    print 'moveLookPath: start'
+    startTime = time.time()
+    # Get confs with hands retracted
+    retractArm1 = findRetractArmConf(pbs, prob, q1, q2)
+    if not retractArm1:
+        print 'Failed to retract arm'
+        pdb.set_trace()
+        return None
+    retractArm2 = retractArm1.set('pr2Base', q2['pr2Base'])
+    newBS = inflatedBS(pbs, prob)
+    retract1 = findRetractBaseConf(newBS, prob, retractArm1) or retractArm1
+    retract2 = findRetractBaseConf(newBS, prob, retractArm2) or retractArm2
+
+    path0, viol0 = canReachHome(newBS, retract1, prob, Violations(),
+                                homeConf=retract2, optimize=True)
+
+    path1, viol1 = canReachHome(pbs, q1, prob, Violations(),
+                                homeConf=retract1, optimize=True)
+    assert viol1 and viol1.weight() == 0
+    assert path1[0] == q1
+    path2, viol2 = canReachHome(pbs, retract2, prob, Violations(),
+                                homeConf=q2, optimize=True)
+    assert viol2 and viol2.weight() == 0
+    assert path2[-1] == q2
+
+    print 'moveLookPath: total time =', time.time() - startTime
+    
+    # a list of (action, conf
+    return [(None, q) for q in path1] + \
+           [(None, q) for q in path0] + \
+           [(None, q) for q in path2]
