@@ -920,3 +920,21 @@ def closeFirmly(conf, hand, delta = 0.005):
 
 def baseNear(conf1, conf2, thr):
     return all(abs(x-y)<=thr for (x,y) in zip(conf1['pr2Base'], conf2['pr2Base']))
+
+"""
+-                distSoFar = 0           #  reset
+-                obj = next(self.visibleShapes(conf, objShapes), None)
+-                if obj:
+-                    lookConf = lookAtConf(conf, obj)
+-                    if lookConf:
+-                        obs = self.doLook(lookConf, placeBs)
+-                        if obs:
+-                            args[1] = lookConf
+-                            lookAtBProgress(self.bs, args, obs)
+-                        else:
+-                            raw_input('No observation')
+-                    else:
+-                        raw_input('No lookConf for %s'%obj.name())
+-                else:
+-                    raw_input('No visible object')
+"""

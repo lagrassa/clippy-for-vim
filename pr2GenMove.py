@@ -55,6 +55,7 @@ class MoveState(Hashable):
 def moveLookPath(pbs, prob, q1, q2):
     if q1['pr2Base'] == q2['pr2Base']:
         return []
+    print 'moveLookPath: start'
     startTime = time.time()
     # Get confs with hands retracted
     retractArm1 = findRetractArmConf(pbs, prob, q1, q2)
@@ -71,7 +72,10 @@ def moveLookPath(pbs, prob, q1, q2):
                              {pB.obj:pB.poseD.var for pB in pBs})
     goalState = MoveState(retract2, None)
     goalPt = goalState.pt()
-    print 'goalPt', goalPt
+    print '    initPt', q1['pr2Base']
+    print '    ret1Pt', initialState.pt()
+    print '    ret2Pt', goalPt
+    print '    goalPt', q2['pr2Base']
     odoError = pbs.domainProbs.odoError
     obsVar = pbs.domainProbs.obsVarTuple
     # The 'move' actions are incremental, 'moveGoal' is an absolute displacement
@@ -133,34 +137,76 @@ def moveLookPath(pbs, prob, q1, q2):
                         heuristic,
                         # Check legality on expansion and possibly modify node
                         checkExpandF = \
-                        lambda node: feasibleAction(pbs, prob, node, odoError, obsVar,
-                                                    first = (node.state == initialState)),
+                        lambda node: feasibleAction(pbs, prob, node, odoError, obsVar),
                         expandF = expandF,
                         greedy = 0.75,
                         printFinal = debug('moveLookPath'),
                         verbose = debug('moveLookPath'),
                         fail = False)
-    print 'moveLookPath time =', time.time() - startTime
     if debugH:
         glob.debugOn.append('h')
 
-    if not path:
-        pdb.set_trace()
+    if path:
+        print 'moveLookPath: path length =', len(path), 'search time =', time.time() - startTime
+    else:
+        print 'moveLookPath: failed, search time =', time.time() - startTime
+        return []
+    
+    # Repeatedly streamline until we reach a fix point.
+    for i in xrange(5):
+        newPath = streamline(pbs, prob, path)
+        m = len(path); n = len(newPath)
+        print 'Streamline pass', i+1, 'prev=', m, 'new=', n
+        path = newPath
+        if m == n: break
 
     path1, viol1 = canReachHome(pbs, q1, prob, Violations(),
                                 homeConf=retract1, optimize=True)
     assert viol1 and viol1.weight() == 0
+    assert path1[0] == q1
     path2, viol2 = canReachHome(pbs, retract2, prob, Violations(),
                                 homeConf=q2, optimize=True)
     assert viol2 and viol2.weight() == 0
+    assert path2[-1] == q2
 
+    print 'moveLookPath: total time =', time.time() - startTime
+    
     # a list of (action, conf
     return [(None, q) for q in path1] + \
            [(act, state.q) for (act, state) in path] + \
            [(None, q) for q in path2]
 
+# Get rid of jaggies, introduced by having only dx, dy actions.
+def streamline(pbs, prob, path):
+    if len(path) < 4: return path
+    newPath = [path[0]]
+    pi = 0
+    pmax = len(path)-2
+    while pi < pmax:
+        act1, state1 = path[pi]
+        act2, state2 = path[pi+1]
+        act3, state3 = path[pi+2]
+        pi += 1                         # standard step
+        if act2 and act2[0] == 'look':
+            pass
+        elif feasibleMove(pbs, prob, state1, state3):
+            # print 'Cutting corner at', pi
+            newPath.append((act3, state3))
+            pi += 1
+        else:
+            newPath.append((act2, state2))
+        final = pi                      # last index added to path
+
+    # make sure we do last point
+    # print 'len(path)=', len(path), 'final', final
+    if not final == len(path)-1:
+        assert final == len(path)-2
+        newPath.append(path[-1])
+
+    return newPath
+
 # node is a SearchNode from ucSearchPQ.py
-def feasibleAction(pbs, prob, node, odoError, obsVar, first=False):
+def feasibleAction(pbs, prob, node, odoError, obsVar):
     if node.parent is None:
         return node
     # The node.state is an absolute state obtained from resultState
@@ -168,42 +214,17 @@ def feasibleAction(pbs, prob, node, odoError, obsVar, first=False):
     act = node.action                   # a
     state = node.state                  # s'
     actType = act[0]
-    if actType in ('move', 'moveGoal'):
-        newState, newCost = feasibleMove(pbs, prob, ostate, act, state,
-                                         odoError, first)
-    elif actType == 'look':
-        newState, newCost = feasibleLook(pbs, prob, ostate, act, state,
-                                         obsVar, first)
-    else: assert False, 'Illegal action: %s'%(act,)
-    if not newState:
-        if debug('moveLookPath'):
-            print ostate.pt(), '+', act, '->', None
-        return None                     # infeasible action
-    else:
-        if node.state != newState:      # update the node...
-            node.state = newState
-            node.cost += newCost - node.actionCost # update total cost
-            node.actionCost = newCost
-        if debug('moveLookPath'):
-            print ostate.pt(), '+', act, '->', node.cost, newState
-    return node
+    if (actType in ('move', 'moveGoal') and feasibleMove(pbs, prob, ostate, state)) \
+       or \
+       (actType == 'look' and feasibleLook(pbs, prob, ostate, act, state)):
+        return node
 
-def feasibleMove(pbs, prob, ostate, act, state, odoError, first=False):
-   newPBS = pbsUpdateVar(pbs, (ostate if first else state).objVars)
+def feasibleMove(pbs, prob, ostate, state):
+   newPBS = pbsUpdateVar(pbs, state.objVars)
    q_f = stopConf(newPBS, prob, state.q, ostate.q, ['pr2Base'])
-   if q_f == ostate.q:                  # couldn't move
-       return None, None
-   else:
-       # updated state and cost for an absolute move, as far as we could go
-       newState, newCost = resultStateMoveGoal(ostate, ('moveGoal',) + tuple(q_f['pr2Base']), odoError)
-       newvs = newState.objVars
-       oldvs = state.objVars
-       for o in newvs:
-           if any(thisV+1.0e-8 < prevV for (thisV, prevV) in zip(newvs[o],oldvs[o])):
-               raw_input('Whoa')
-       return newState, newCost
+   return q_f != ostate.q               # managed to move
 
-def feasibleLook(pbs, prob, ostate, act, state, obsVar, first):
+def feasibleLook(pbs, prob, ostate, act, state):
     (_, obj) = act
     shWorld = pbs.getShadowWorld(prob)
     obstacles = [s for s in shWorld.getObjectShapes() if \
@@ -212,10 +233,7 @@ def feasibleLook(pbs, prob, ostate, act, state, obsVar, first):
                         shWorld.objectShapes[obj],
                         obstacles, prob, moveHead=True,
                         fixed=[shWorld.robotPlace])
-    if vis or len(occl) == 0:
-        return state, lookCost
-    else:
-        return None, None
+    return (vis and len(occl) == 0)
 
 def eqChains(conf1, conf2, moveChains):
     return all([conf1.conf[c]==conf2.conf[c] for c in moveChains])
@@ -271,7 +289,7 @@ def resultStateMoveGoal(state, act, odoError):
 def newMoveState(state, dx, dy, dth, odoError):
     # dx, dy is xy displacement along move
     # dth is the angular displacement along move
-    increaseFactor = 3.
+    increaseFactor = 5.
     dxdy = (dx**2 + dy**2)**0.5
 
     # Displacement should affect the angular variance...
@@ -371,17 +389,17 @@ def findRetractBaseConf(pbs, prob, conf, maxIter=10):
         path, viol = \
               planRobotGoalPath(newBS, prob, conf, anyColl,
                                 None, ['pr2Base'], maxIter = maxIter)
-        path[-1].draw('W', 'pink') if path else None
+        if debug('retract'):
+            path[-1].draw('W', 'pink') if path else None
         if path:
             retractConf = path[-1]
             dist = ptDist(conf['pr2Base'], retractConf['pr2Base'])
-            print 'retractDist', dist
             if dist == 0:
                 return retractConf
             elif dist < bestRetractDist:
                 bestRetractConf = retractConf
                 bestRetractDist = dist
     bestRetractConf.draw('W', 'green')
-    raw_input('retract')
+    wm.getWindow('W').update()
     return bestRetractConf
 

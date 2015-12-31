@@ -79,6 +79,10 @@ def describePath(path, tag):
     raw_input('Go?')
 
 def primPath(bs, cs, ce, p):
+    return primPathUntilLook(bs, cs, ce, p) or \
+           primPathRRT(bs, cs, ce, p)
+
+def primPathRRT(bs, cs, ce, p):
     def onlyShadows(viols):
         return viols and not (viols.obstacles or any(viols.heldObstacles))
     home = bs.getRoadMap().homeConf
@@ -96,23 +100,34 @@ def primPath(bs, cs, ce, p):
             print 'Shadow collision in primPath', viols
             raw_input('Shadow collisions - continue?')
         trAlways('Direct path succeeded')
-
-        # Debugging
-        mp =  moveLookPath(bs, p, cs, ce)
-        for i, (a,q) in enumerate(mp):
-            print i, 'action=', a[0] if a else None
-            q.draw('W', 'cyan')
-        raw_input('moveLookPath in cyan')
-        
     else:
         assert False, 'primPath failed'
-
-    # smoothed = bs.getRoadMap().smoothPath(path, bs, p)
-    smoothed = path
+    smoothed = path                     # already smoothed
     interpolated = rrt.interpolatePath(smoothed)
     verifyPaths(bs, p, path, smoothed, interpolated)
     return smoothed, interpolated
 
+def primPathUntilLook(bs, cs, ce, p):
+    mp =  moveLookPath(bs, p, cs, ce)
+    path = []
+    for i, (a,q) in enumerate(mp):
+        if debug('moveLookPath'):
+            print i, 'action=', a[0] if a else None
+            q.draw('W', 'cyan')
+        # Stop when we get to first look
+        if a and a[0] == 'look':
+            print '*** Move prim terminated before look at:', q['pr2Base']
+            print '***                     final path pose:', path[-1]['pr2Base']
+            print '***                     final target is:', ce['pr2Base']
+            break
+        else: path.append(q)
+    if debug('moveLookPath'):
+        raw_input('moveLookPath in cyan')
+    smoothed = path                     # already smoothed
+    interpolated = rrt.interpolatePath(smoothed)
+    verifyPaths(bs, p, path, smoothed, interpolated)
+    return smoothed, interpolated
+        
 def primNBPath(bs, cs, ce, p):
     path, v = canReachNB(bs, cs, ce, p, Violations())
     if not path:

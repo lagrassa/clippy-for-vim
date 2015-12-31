@@ -746,7 +746,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     writeFile = debug('alwaysWriteHFile')
     glob.inHeuristic = True
     (totalCost, totalActSet) = topLevel(maxK, writeFile = writeFile)
-    if totalCost == float('inf'):
+    if totalCost == float('inf') and debug('infiniteHeuristic'):
         print '** Found infinite heuristic value, recomputing **'
         # Could flush cache
         (h2, as2) = topLevel(maxK, writeFile = True)

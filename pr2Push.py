@@ -19,6 +19,7 @@ from pr2GenPose import potentialRegionPoseGen
 from pr2GenTests import lookAtConfCanView
 from pr2Robot import gripperPlace, gripperFaceFrame
 from pr2RRT import interpolate
+from pr2Visible import findSupportTableInPbs
 from cspace import xyCO
 import mathematica
 reload(mathematica)
@@ -180,6 +181,9 @@ def pushGenTop(args, pbs, cpbs, away=False):
                 if debug(tag):
                     raw_input('Collision in pushPath')
                 continue
+            elif pushedCollides(testBS, prob, viol):
+                print 'pushed collides', viol
+                pdb.set_trace()
         # End double check
         yield ans
     tr(tag, '=> pushGenTop exhausted for', hand)
@@ -750,7 +754,8 @@ def checkPushPathCache(key, names,  pbs, prob, gB, conf, newBS):
                 if debug(tag): print tag, gB.obj, 'cached ->', ans[-1]
                 pushPathCacheStats[1] += 1
                 return ans
-        replay = checkReplay(newBS, prob, val)
+        supportTablePB = findSupportTableInPbs(pbs, gB.obj)
+        replay = checkReplay(newBS, prob, val, supportTablePB)
         if replay:
             if debug(tag): print tag, 'cached replay ->', replay[-1]
             pushPathCacheStats[1] += 1
@@ -795,6 +800,9 @@ def transitionViol(pbs, prob, q1, q2, shape, hand):
     if q1 is None or glob.inHeuristic:
         if armCollides(q2, shape, hand): return None
         viol = pbs.confViolations(q2, prob)
+        if viol and pushedCollides(pbs, prob, viol):
+            print 'pushed collides in transitionViol', viol
+            pdb.set_trace()
     else:
         dist = q1.robot.distConf(q1, q2)
         if dist > 2.0:
@@ -808,12 +816,16 @@ def transitionViol(pbs, prob, q1, q2, shape, hand):
                     pbs.draw(prob, 'W'); q1.draw('W','blue'); q2.draw('W','pink')
                     print 'Transition collides with pushed object'
                 return None
-            viol = pbs.confViolations(q, prob, initViol=viol)
+            # Just check for arm collisions, since object is not really attached.
+            viol = pbs.confViolations(q, prob, initViol=viol, ignoreAttached=True)
             if viol is None:
                 if debug('pushPath'):
                     pbs.draw(prob, 'W'); q1.draw('W','blue'); q2.draw('W','pink')
                     print 'Transition collides with permanent object'
                 break
+            elif pushedCollides(pbs, prob, viol):
+                print 'pushed collides in transitionViol', viol
+                pdb.set_trace()
     return viol
 
 # The conf in the input is the robot conf in contact with the object
@@ -850,10 +862,10 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
     if debug(tag): newBS.draw(prob, 'W'); raw_input('pushPath: Go?')
     # Check there is no permanent collision at the goal
     viol = newBS.confViolations(conf, prob)
-    if not viol:
+    if not viol or pushedCollides(newBS, prob, viol):
         return finish('collide', 'Final conf collides in pushPath')
     preViol = newBS.confViolations(preConf, prob)
-    if not preViol:
+    if not preViol or pushedCollides(newBS, prob, preViol):
         return finish('collide', 'Pre-conf collides in pushPath')
     #######################
     # Set up scan parameters, directions, steps, etc.
@@ -909,7 +921,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
         if not nconf:
             reason = 'invkin'; break
         viol = transitionViol(newBS, prob, prevConf, nconf, shape, hand)
-        if viol is None:
+        if viol is None or pushedCollides(newBS, prob, viol):
             reason = 'collide'; break
         if debug('pushPath'):
             print 'approach step=', step, viol
@@ -960,7 +972,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
         if regShape and not inside(nshape, regShape):
             reason = 'outside'; break
         viol = transitionViol(newBS, prob, prevConf, nconf, nshape, hand)
-        if viol is None:
+        if viol is None or pushedCollides(newBS, prob, viol):
             reason = 'collide'; break
         if debug('pushPath'):
             print 'push step=', step, viol
@@ -1034,12 +1046,27 @@ def handTilt(conf, hand, direction):
             print 'Bad direction relative to hand'
         return None
 
-def checkReplay(pbs, prob, cachedValues):
+def checkReplay(pbs, prob, cachedValues, supportTablePB=None):
     doneVals = [val for (bs, p, gB, val) in cachedValues if val[-1] == 'done']
+    ignore = [] if supportTablePB is None else [supportTablePB.obj]
     for (pathViols, reason) in doneVals:
         viol = [pbs.confViolations(conf, prob) for (conf, _, _) in pathViols]
         if all(viol):
+            if any(pushedCollides(pbs, prob, v, ignore=ignore) for v in viol):
+                print 'pushed collides in checkReplay', viol
+                pdb.set_trace()
             return ([(c, v2, p) for ((c, v1, p), v2) in zip(pathViols, viol)], 'done')
+
+def pushedCollides(pbs, prob, viol, ignore=[]):
+    if viol is None: return True        # not strictly a pushed collision
+    if viol.weight() == 0: return False
+    shWorld = pbs.getShadowWorld(prob)
+    fixedObst = set([shWorld.objectShapes[obj] \
+                     for obj in shWorld.fixedObjects if obj not in ignore])
+    for h in (0, 1):
+        if viol.heldObstacles[h].intersection(fixedObst) or \
+           viol.heldShadows[h].intersection(fixedObst):
+            return True
 
 """
 A simple xy planner to push from a specified target location towards a
@@ -1308,8 +1335,8 @@ def searchObjPushPath(pbs, prob, potentialPushes, targetPB, curPB,
             s = targetPt
         return sum([abs(si - gi) for si, gi in zip(s[0:2], g[0:2])])
     
-    if debug('pushGen'): print 'searchObjPushPath...'
-    print 'searchObjPushPath, target=', targetPt, 'cur=', curPt
+    if debug('pushGen'): 
+        print 'searchObjPushPath, target=', targetPt, 'cur=', curPt
     gen = search.searchGen(None, [curPt], actions, successor,
                            heuristic,
                            goalKey = lambda x: x.pt if x else x,
@@ -1318,22 +1345,19 @@ def searchObjPushPath(pbs, prob, potentialPushes, targetPB, curPB,
                            fail = False)
     for (path, costs) in gen:
         if debug('pushGen'):
-            print '...yielding', path
+            print '...yielding path='
             if path is None:
+                print '    ', None
                 pdb.set_trace()
             else:
                 pbs.draw(prob, 'W')
                 targetPose = targetPB.poseD.mode()
                 for (a, s) in path:
                     if not s: continue
+                    print '    ', s
                     pose = hu.Pose(s.pt[0], s.pt[1], targetPose.z, targetPose.theta)
                     targetPB.modifyPoseD(pose).makeShadow(pbs, prob).draw('W', 'blue')
                 raw_input('Push path')
-        print '->'
-        if path and path[1:]:
-            for p in path[1:]: print '  ', p[0]
-        else:
-            print 'path=', path
         yield path
     print 'searchObjPushPath end'
 
@@ -1393,9 +1417,11 @@ def pushGenPaths(pbs, prob, potentialContacts, targetPB, curPB,
                 continue     # degenerate path
             maxPush = max([abs(a-b) for (a,b) in zip(ps.pt0,ps.pt1)])
             minDelta = min(targetPB.delta[0], targetPB.delta[1])
-            print 'maxPush', maxPush, 'minDelta', minDelta
+            if debug(tag):
+                print 'maxPush', maxPush, 'minDelta', minDelta
             if maxPush < minDelta:
-                print 'maxPush < minDelta', ps
+                if debug(tag):
+                    print 'maxPush < minDelta', ps
                 continue
             else:
                 break
@@ -1404,13 +1430,13 @@ def pushGenPaths(pbs, prob, potentialContacts, targetPB, curPB,
         graspB, width = potentialPushes[(ps.dirx, ps.vert)]
         for seg in (ps, split(ps)):
             # Use pbs with object in it
-            print '  ', seg
+            if debug(tag): print '  ', seg
             for ans in pushGenPathsAux(pbs, newBS, prob, seg, graspB, width, targetPB, curPB,
                                        hand, base, supportRegShape,
                                        frame=frames[(ps.dirx,ps.vert) ]):
-                print '->', ans
+                if debug('pushGen'): print '->', ans
                 yield ans
-            print '  -> end'
+        if debug('pushGen'): print '  -> end'
         
 def pushGenPathsAux(pbs, newBS, prob, pathSeg, graspB, width, targetPB, curPB,
                     hand, base, supportRegion, frame=None):

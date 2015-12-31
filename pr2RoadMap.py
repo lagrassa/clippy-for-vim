@@ -343,7 +343,8 @@ class RoadMap:
                     bestPath = path; bestViol = v
             path = bestPath; viol = bestViol
             if viol is not None: break
-        path = self.smoothPath(path, pbs, prob)
+        if viol:
+            path = self.smoothPath(path, pbs, prob)
         runningTime = time.time() - startTime
         trAlways('RRT time', runningTime)
         if viol:

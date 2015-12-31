@@ -9,7 +9,6 @@ import random
 from miscUtil import isGround
 from dist import UniformDist,  DeltaDist
 from objects import World, WorldState
-#from pr2Robot import PR2, pr2Init, makePr2Chains
 from traceFile import debugMsg, debug
 import planGlobals as glob
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose, \
@@ -527,7 +526,7 @@ class PBS:
         else:
             cache = self.beliefContext.genCaches['getShadowWorld']
             # key = (self.items(), prob)
-            key = self.items()
+            key = self.items() + (glob.ignoreShadowZ,) # !
             if key in cache:
                 ans = cache.get(key, None)
                 if ans != None:
@@ -654,7 +653,7 @@ class PBS:
         poseVar = poseBel.poseD.variance()
         poseDelta = poseBel.delta
         objShadowStats[0] += 1
-        key = (shape, shName, prob, poseBel, faceFrame)
+        key = (shape, shName, prob, poseBel, faceFrame, glob.ignoreShadowZ)
         shadow = self.beliefContext.objectShadowCache.get(key, None)
         if shadow:
             objShadowStats[1] += 1
@@ -732,7 +731,9 @@ def sigmaPoses(prob, poseD, poseDelta):
     widths = shadowWidths(poseD.variance(), poseDelta, prob)
     n = len(widths)
     offsets = []
-    (wx, wy, _, wt) = widths
+    (wx, wy, wz, wt) = widths
+    if glob.ignoreShadowZ:
+        wz = 0.
     angles = interpAngle(-wt, wt)
     if debug('getShadowWorld'):
         print 'shadowWidths', widths
@@ -741,11 +742,8 @@ def sigmaPoses(prob, poseD, poseDelta):
     for dx in (-wx, 0., wx):
         for dy in (-wy, 0., wy):
             if dx or dy:
-                for a in angles: offsets.append([dx, dy, 0, a])
-    # for a in angles: offsets.append([-wx, 0, 0, a])
-    # for a in angles: offsets.append([wx, 0, 0, a])
-    # for a in angles: offsets.append([0, -wy, 0, a])
-    # for a in angles: offsets.append([0, wy, 0, a])
+                for dz in (-wz, wz):
+                    for a in angles: offsets.append([dx, dy, dz, a])
     poses = []
     for offset in offsets:
         offPoseTuple = offset

@@ -899,6 +899,8 @@ def dropIn(pbs, prob, obj, regShapes):
             regShape.draw('W', 'purple')
             rshape.draw('W', 'green')
             if inside(rshape.xyPrim(), regShape):
+                print 'dropIn', obj, regShapes
+                pdb.set_trace()
                 if canPickPlaceTest(pbs, ppr.ca, ppr.c, ppr.hand, ppr.gB, ppr.pB, prob,
                             op='place')[0]:
                     return ppr

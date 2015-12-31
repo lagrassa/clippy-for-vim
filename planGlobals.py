@@ -82,7 +82,7 @@ constructor = {}
 ########################################
 
 # laserScanParams = (0.3, 0.2, 0.1, 3., 30)
-laserScanParams = (0.3, 0.05, 0.05, 3., 10)
+laserScanParams = (0.3, 0.075, 0.075, 3., 15)
 
 ########################################
 # Robot Parameters
@@ -101,7 +101,7 @@ failRRTIter = 10
 smoothPathObst = True
 rrtPlanAttempts = 5                     # to try to get smaller base displacement
 
-maxOpenLoopDist = 2.0                   # maybe should be smaller
+maxOpenLoopDist = 8.0                   # Assumes we're doing moveLook paths
 
 ########################################
 # Obstacle growing, should be determined by uncertainty

@@ -6,7 +6,7 @@ import random
 from objects import WorldState
 import windowManager3D as wm
 import pr2Util
-from pr2Util import supportFaceIndex, DomainProbs, bigAngleWarn, bboxGridCoords
+from pr2Util import supportFaceIndex, DomainProbs, bigAngleWarn, bboxGridCoords, permanent
 from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 import hu
@@ -164,6 +164,10 @@ class RealWorld(WorldState):
                     if self.robotPlace.collides(obst):
                         obs ='crash'
                         tr('sim', 'Crash! with '+obst.name())
+                        if originalConf.placement().collides(obst):
+                            print 'original conf collides - bad path?'
+                        else:
+                            print 'original conf does not collide - simulated base error'
                         raw_input('Crash! with '+obst.name())
                         if crashIsError:
                             raise Exception, 'Crash'
@@ -209,7 +213,11 @@ class RealWorld(WorldState):
         # actual + noise?
         # commanded + noise?
         # commanded?  -- This is the hack we use on actual robot
-        
+
+        print 'sim robot base'
+        print '    commanded:', path[-1]['pr2Base']
+        print '       actual:', self.robotConf['pr2Base']
+
         return path[-1], (distSoFar, angleSoFar)
 
     def visibleObj(self, objShapes):
@@ -238,7 +246,7 @@ class RealWorld(WorldState):
             targetConf = op.args[1]
             if max([abs(a-b) for (a,b) \
                     in zip(self.robotConf.conf['pr2Base'], targetConf.conf['pr2Base'])]) > 1.0e-6:
-                print '****** The base moved in MoveNB, probably to an earlier collision fix'
+                print '****** MoveNB base pose does not match actual pose. '
 
         if params:
             path, interpolated, _  = params
@@ -272,8 +280,19 @@ class RealWorld(WorldState):
                          if s.name() != targetObj ] + [self.robotPlace]
             vis, occl = visible(self, self.robotConf, shapeInHand,
                              obstacles, 0.75, moveHead=False, fixed=[self.robotPlace.name()])
-            if not vis or len(occl) > 0:
+            if not vis:
+                if debug('sim'): print 'visible returned', vis, occl
                 tr('sim', 'Object %s is not visible'%targetObj)
+                return 'none'
+            elif len(occl) > 0:
+                if debug('sim'): print 'visible returned', vis, occl
+                # This condition is implemented in canView.  It might
+                # be very difficult to move hand out of the way of big
+                # permanent objects.
+                if occl == ['PR2'] and permanent(targetObj):
+                    tr('sim', 'Permanent object %s is visible in spite of robot'%targetObj)
+                else:
+                    tr('sim', 'Object %s is not visible'%targetObj)
                 return 'none'
             else:
                 tr('sim', 'Object %s is visible'%targetObj)
@@ -670,3 +689,20 @@ def bruteForceMin(f, init):
     return minX, minVal
 
 print 'Loaded pr2Sim.py'
+
+"""
+obj = self.visibleObj(objShapes)
+                if obj:
+                    lookConf = lookAtConf(self.robotConf, obj)
+                    if lookConf:
+                        obs = self.doLook(lookConf)
+                        if obs:
+                            args[1] = lookConf
+                            lookAtBProgress(self.bs, args, obs)
+                        else:
+                            tr('sim', 'No observation')
+                    else:
+                        tr('sim', 'No lookConf for %s'%obj.name())
+                else:
+                    tr('sim', 'No visible object')
+"""

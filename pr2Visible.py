@@ -214,7 +214,10 @@ def findSupportTable(targetObj, world, placeBs):
     return tableBs[ind]
 
 def findSupportTableInPbs(pbs, targetObj):
-    return findSupportTable(targetObj, pbs.getWorld(), pbs.getPlacedObjBs())
+    if targetObj in pbs.getPlacedObjBs():
+        return findSupportTable(targetObj, pbs.getWorld(), pbs.getPlacedObjBs())
+    else:
+        return None
 
 def lookScan(lookConf):
     global laserScanGlobal
