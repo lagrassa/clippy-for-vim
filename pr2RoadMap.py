@@ -343,7 +343,7 @@ class RoadMap:
                     bestPath = path; bestViol = v
             path = bestPath; viol = bestViol
             if viol is not None: break
-        if viol:
+        if viol and optimize:
             path = self.smoothPath(path, pbs, prob)
         runningTime = time.time() - startTime
         trAlways('RRT time', runningTime)

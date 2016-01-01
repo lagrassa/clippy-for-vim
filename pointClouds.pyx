@@ -63,12 +63,13 @@ cdef class Scan:
         (focal, height, width, length, n) = self.scanParams
         cdef:
             hu.Point ptLocal = self.headTransInverse.applyToPoint(pt)
-            double t
-        if ptLocal.x <= focal: return False
-        t = focal/ptLocal.x
-        return abs(t*ptLocal.y) <= width \
-               and abs(t*ptLocal.z) <= height \
-               and (ptLocal.x**2 + ptLocal.y**2 + ptLocal.z**2 < length**2)
+            double t, x, y, z
+        x,y,z = [ptLocal.matrix[i,0] for i in (0,1,2)]
+        if x <= focal: return False
+        t = focal/x
+        return abs(t*y) <= width \
+               and abs(t*z) <= height \
+               and (x**2 + y**2 + z**2 < length**2)
 
     def draw(self, window, str color = None):
         if self.scanParams:

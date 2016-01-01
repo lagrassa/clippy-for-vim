@@ -969,7 +969,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
         offsetPB = pB.modifyPoseD(newPose, var=4*(0.01**2,))
         offsetPB.delta=4*(0.001,)
         nshape = offsetPB.makeShadow(pbs, prob)
-        if regShape and not inside(nshape, regShape):
+        if regShape and not inside(nshape, regShape, strict=True):
             reason = 'outside'; break
         viol = transitionViol(newBS, prob, prevConf, nconf, nshape, hand)
         if viol is None or pushedCollides(newBS, prob, viol):

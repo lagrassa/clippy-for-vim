@@ -896,11 +896,11 @@ def dropIn(pbs, prob, obj, regShapes):
             pose = (x,y,z+dz,t)
             support = supportFaceIndex(shape)
             rshape = shape.applyLoc(hu.Pose(*pose))
-            regShape.draw('W', 'purple')
-            rshape.draw('W', 'green')
-            if inside(rshape.xyPrim(), regShape):
-                print 'dropIn', obj, regShapes
-                pdb.set_trace()
+            if inside(rshape.xyPrim(), regShape, strict=True):
+                pbs.draw(prob, 'W')
+                regShape.draw('W', 'purple')
+                rshape.draw('W', 'black')
+                print 'dropIn', rshape, 'in', regShapes
                 if canPickPlaceTest(pbs, ppr.ca, ppr.c, ppr.hand, ppr.gB, ppr.pB, prob,
                             op='place')[0]:
                     return ppr

@@ -1194,8 +1194,8 @@ def singleTargetUpdate(details, objName, obsPose, obsFace):
     if obsPose is None:
         print 'Expected to see', objName, 'but did not'
         print 'Should have been near pose', oldPlaceB.poseD.modeTuple()
-        if debug('assign'):
-            raw_input('okay?')
+        # if debug('assign'):
+        #     raw_input('okay?')
         # Update modeprob if we don't get a good score
         oldP = details.poseModeProbs[objName]
         obsGivenH = details.domainProbs.obsTypeErrProb

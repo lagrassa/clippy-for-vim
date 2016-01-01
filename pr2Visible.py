@@ -49,7 +49,23 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
             print 'lookConf failed'
         cache[key] = (False, [])
         return False, []
-    vc = viewCone(conf, shape, moveHead=moveHead)
+    scan = lookScan(lookConf)
+    # centerPoint = hu.Point(np.resize(np.hstack([bboxCenter(shape.bbox()), [1]]), (4,1)))
+    # if not scan.visible(centerPoint): # is origin in FOV
+    #     if debug('visible'):
+    #         print 'shape not in FOV', shape
+    #         print 'center', centerPoint
+    #         viewCone(conf, shape).draw('W', 'red')
+    #         raw_input('FOV')
+    #     cache[key] = (False, [])
+    #     return False, []
+    vc = viewCone(conf, shape)
+    if not vc:
+        if debug('visible'):
+            print 'viewCone failed'
+        cache[key] = (False, [])
+        return False, []
+
     if debug('visible'):
         vc.draw('W', 'red')
         shape.draw('W', 'cyan')
@@ -75,7 +91,6 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
 
     occluders = []
 
-    scan = lookScan(lookConf)
     n = scan.edges.shape[0]
     dm = np.zeros(n); dm.fill(10.0)
     contacts = n*[None]
@@ -85,7 +100,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     if total < minVisiblePoints:
         if debug('visible'):
             scan.draw('W')
-            print total, 'hit points'
+            print total, 'hit points for', shape
             debugMsg('visible', 'Not enough hit points')
         cache[key] = (False, [])
         return False, []
@@ -176,11 +191,8 @@ def lookAtConf(conf, shape):
     if debug('visible'):
         print 'Failed head kinematics trying to look at', shape.name(), 'from', center.tolist()
 
-def viewCone(conf, shape, offset = 0.1, moveHead=True):
-    if moveHead:
-        lookConf = lookAtConf(conf, shape)
-    else:
-        lookConf = conf
+def viewCone(conf, shape, offset = 0.1):
+    lookConf = lookAtConf(conf, shape)
     if not lookConf:
         return
     lookCartConf = lookConf.cartConf()
@@ -196,7 +208,7 @@ def viewCone(conf, shape, offset = 0.1, moveHead=True):
         wm.getWindow('W').clear()
         shape.draw('W', 'cyan')
         final.draw('W', 'red')
-        print shape.name(), 'sensor bbox\n', sensorShape.bbox(), 'moveHead=', moveHead
+        print shape.name(), 'sensor bbox\n', sensorShape.bbox()
         raw_input('viewCone')
 
     return final

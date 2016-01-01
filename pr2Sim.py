@@ -102,7 +102,8 @@ class RealWorld(WorldState):
                                           path[0].basePose().xyztTuple())]) > 0.01:
             print 'current base pose', self.robotConf.basePose()
             print 'path[0] base pose', path[0].basePose()
-            raw_input('Inconsistency in path and simulation')
+            if debug('sim'):
+                raw_input('Inconsistency in path and simulation')
         
         for (pathIndex, conf) in enumerate(path):
             originalConf = conf
@@ -336,9 +337,9 @@ class RealWorld(WorldState):
                 deb = 'visible' in glob.debugOn
                 if (not deb) and debug('visibleEx'): glob.debugOn.append('visible')
                 vis, occl = visible(self, self.robotConf,
-                                 self.objectShapes[curObj],
-                                 obstacles, 0.75, moveHead=False,
-                                 fixed=[self.robotPlace])
+                                    self.objectShapes[curObj],
+                                    obstacles, 0.75, moveHead=False,
+                                    fixed=[self.robotPlace])
                 if not deb and debug('visibleEx'): glob.debugOn.remove('visible')
                 if not vis or len(occl) > 0:
                     tr('sim', 'Object %s is not visible'%curObj)
