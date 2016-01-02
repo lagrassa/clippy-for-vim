@@ -320,7 +320,7 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
         failCount += 1
         if debug('rrt') or failCount % 10 == 0:
             if failCount > 0:
-                print 'RRT Failed', failCount, 'times'
+                print 'RRT Failed', failCount, 'times in planRobotGoalPath'
     if failCount == (failIter or glob.failRRTIter):
         return [], None
     rrtTime = time.time() - startTime

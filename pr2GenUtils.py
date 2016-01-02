@@ -10,7 +10,7 @@ def fixed(value):
     return value and isinstance(value, tuple) and len(value) == 2 and value[0]
 
 def sortedHyps(hypGen, validTestFn, costFn, maxHyps, maxTries,
-              minCost = 0., size = 3 if glob.inHeuristic else 10):
+              minCost = 0., size = 1 if glob.inHeuristic else 3):
     tag = 'sortedHyps'
     costHistory = []
     hypHistory = []

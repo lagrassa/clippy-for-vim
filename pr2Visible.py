@@ -85,9 +85,9 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
 
     # If we can't move the head, then the object might not be visible
     # because of FOV issues (not enough points on the object).
-    # if moveHead and not potentialOccluders:
-    #     cacheStats[2 if glob.inHeuristic else 5] += 1
-    #     return True, []
+    if moveHead and not potentialOccluders:
+        cacheStats[2 if glob.inHeuristic else 5] += 1
+        return True, []
 
     occluders = []
 

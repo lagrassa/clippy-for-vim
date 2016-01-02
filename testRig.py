@@ -3,6 +3,7 @@ import time
 import string
 
 import windowManager3D as wm
+import DrawingWindowStandalonePIL as dw
 from geom import bboxGrow
 from objects import World
 from miscUtil import timeString
@@ -407,6 +408,7 @@ class PlanTest:
         randomizedInitialPoses = rip
         global heuristicTime
         glob.inHeuristic = False
+        dw.doPIL = not debug('noTrace') # activate writing gen figures
         if not hierarchical:
             glob.maxNodesHPN = 1000
             print 'Not hierarchical, setting glob.maxNodesHPN =', glob.maxNodesHPN

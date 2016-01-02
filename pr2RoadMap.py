@@ -318,27 +318,36 @@ class RoadMap:
         ans = None
 
         startTime = time.time()
-        # trAlways('Calling RRT')
+        chains = [chain for chain in initConf.conf \
+                  if chain in targetConf.conf \
+                  and max([abs(x-y) > 1.0e-6 for (x,y) in zip(initConf.conf[chain], targetConf.conf[chain])])]
+        if 'pr2Base' in chains and 'pr2Head' in chains:
+            chains.remove('pr2Head')
+
         for inflate in ((True, False) if optimize else (False,)):
             attempts = 1 if (not optimize or targetConf['pr2Base'] == initConf['pr2Base']) else glob.rrtPlanAttempts
             bestDist = float('inf')
             bestPath = None
             bestViol = None
             for attempt in range(attempts):
-                path, v = rrt.planRobotPathSeq(pbs, prob, targetConf, initConf, endPtViol,
-                                               maxIter=glob.maxRRTIter,
-                                               failIter=glob.failRRTIter,
-                                               inflate=inflate)
+                path, v = rrt.planRobotPath(pbs, prob, targetConf, initConf, endPtViol, chains,
+                                            maxIter=glob.maxRRTIter,
+                                            failIter=glob.failRRTIter,
+                                            safeCheck = False,
+                                            inflate=inflate)
                 if v is None: break
                 if attempts > 1:
                     # Do a quick smoothing step to make the base dist estimate more accurate.
                     path = self.smoothPath(path, pbs, prob,
                                            nsteps = glob.smoothSteps/4, npasses = 1.)
                     dist = basePathLength(path)
-                    print 'RRT base path length', dist
+                    print 'RRT base path length', dist, (dist == bestDist)
                     if dist < bestDist:
                         bestPath = path
                         bestViol = v
+                        bestDist = dist
+                    elif dist == bestDist:
+                        break           # this would only happen if direct path works
                 else:
                     bestPath = path; bestViol = v
             path = bestPath; viol = bestViol

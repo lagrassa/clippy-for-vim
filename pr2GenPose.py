@@ -65,7 +65,8 @@ def potentialRegionPoseGenAux(pbs, obj, placeBs, graspBGen, prob, regShapes, han
     pbsCopy = pbs.copy()                # so it can be modified 
     hypGen = regionPoseHypGen(pbsCopy, prob, placeBs, regShapes,
                               maxTries=2*maxPoses, angles=angles)
-    for hyp in sortedHyps(hypGen, validTestFn, costFn, maxPoses, 2*maxPoses):
+    for hyp in sortedHyps(hypGen, validTestFn, costFn, maxPoses, 2*maxPoses,
+                          size=(1 if glob.inHeuristic else 3)):
         if debug(tag):
             pbs.draw(prob, 'W'); hyp.conf.draw('W', 'green')
             debugMsg(tag, 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),
@@ -76,7 +77,7 @@ def checkValidHyp(hyp, pbs, graspBGen, prob, regShapes, hand, base):
     return poseGraspable(hyp, pbs, graspBGen, prob, hand, base) and \
            feasiblePBS(hyp, pbs)
 
-# We want to minimize this score, optimzal value is 0.
+# We want to minimize this score, optimal value is 0.
 def scoreValidHyp(hyp, pbs, graspBGen, prob):
     # ignores size of shadow.
     return 5*hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf)

@@ -953,7 +953,7 @@ def getHeldAndGraspBel(goalConds, getGraspDesc):
                    obj != objects[hand] or face != faces[hand]:
                 continue
             assert hand in ('left', 'right') and not hand in grasps
-            if obj != 'none':
+            if obj != 'none' and mu != '*':
                 graspB[hand] = ObjGraspB(obj, getGraspDesc(obj),
                                          DeltaDist(face), None, hu.Pose(*mu), var, delta)
 

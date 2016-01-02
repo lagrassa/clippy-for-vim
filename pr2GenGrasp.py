@@ -57,11 +57,12 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
     def validTestFn(hyp):
         return True
     def costFn(hyp):
-        return hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf)
+        return 5*hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf)
     pbsCopy = pbs.copy()                # so it can be modified 
     hypGen = graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                              nMax=nMax, findApproach=findApproach)
-    for hyp in sortedHyps(hypGen, validTestFn, costFn, nMax, 2*nMax):
+    for hyp in sortedHyps(hypGen, validTestFn, costFn, nMax, 2*nMax,
+                          size=(1 if glob.inHeuristic else 10)):
         if debug('potentialGraspConfGen'):
             pbs.draw(prob, 'W'); hyp.conf.draw('W', 'green')
             debugMsg('potentialGraspConfGen', 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),

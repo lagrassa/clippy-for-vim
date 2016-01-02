@@ -52,7 +52,7 @@ class MoveState(Hashable):
     __repr__ = __str__
 
 # Only do this when the base distance between the two confs is large.
-def moveLookPathBS(pbs, prob, q1, q2):
+def moveLookPath(pbs, prob, q1, q2):
     if q1['pr2Base'] == q2['pr2Base']:
         return []
     print 'moveLookPath: start'
@@ -64,8 +64,9 @@ def moveLookPathBS(pbs, prob, q1, q2):
         pdb.set_trace()
         return None
     retractArm2 = retractArm1.set('pr2Base', q2['pr2Base'])
-    retract1 = findRetractBaseConf(pbs, prob, retractArm1) or retractArm1
-    retract2 = findRetractBaseConf(pbs, prob, retractArm2) or retractArm2
+    newBS = inflatedBS(pbs, prob)
+    retract1 = findRetractBaseConf(newBS, prob, retractArm1) or retractArm1
+    retract2 = findRetractBaseConf(newBS, prob, retractArm2) or retractArm2
     # Find path in belief space
     pBs = pbs.getPlacedObjBs().values()
     initialState = MoveState(retract1,
@@ -140,6 +141,7 @@ def moveLookPathBS(pbs, prob, q1, q2):
                         lambda node: feasibleAction(pbs, prob, node, odoError, obsVar),
                         expandF = expandF,
                         greedy = 0.75,
+                        maxNodes = 500,
                         printFinal = debug('moveLookPath'),
                         verbose = debug('moveLookPath'),
                         fail = False)
@@ -148,18 +150,21 @@ def moveLookPathBS(pbs, prob, q1, q2):
 
     if path:
         print 'moveLookPath: path length =', len(path), 'search time =', time.time() - startTime
+        # Repeatedly streamline until we reach a fix point.
+        for i in xrange(5):
+            newPath = streamline(pbs, prob, path)
+            m = len(path); n = len(newPath)
+            print 'Streamline pass', i+1, 'prev=', m, 'new=', n
+            path = newPath
+            if m == n: break
+        basePath = [(act, state.q) for (act, state) in path]
     else:
         print 'moveLookPath: failed, search time =', time.time() - startTime
-        return None
+        path, viol = canReachHome(newBS, retract1, prob, Violations(),
+                                  homeConf=retract2, optimize=True)
+        if viol is None: return None
+        basePath = [(None, q) for q in path]
     
-    # Repeatedly streamline until we reach a fix point.
-    for i in xrange(5):
-        newPath = streamline(pbs, prob, path)
-        m = len(path); n = len(newPath)
-        print 'Streamline pass', i+1, 'prev=', m, 'new=', n
-        path = newPath
-        if m == n: break
-
     path1, viol1 = canReachHome(pbs, q1, prob, Violations(),
                                 homeConf=retract1, optimize=True)
     assert viol1 and viol1.weight() == 0
@@ -173,7 +178,7 @@ def moveLookPathBS(pbs, prob, q1, q2):
     
     # a list of (action, conf
     return [(None, q) for q in path1] + \
-           [(act, state.q) for (act, state) in path] + \
+           basePath + \
            [(None, q) for q in path2]
 
 # Get rid of jaggies, introduced by having only dx, dy actions.
@@ -405,7 +410,7 @@ def findRetractBaseConf(newBS, prob, conf, maxIter=10):
     wm.getWindow('W').update()
     return bestRetractConf
 
-def moveLookPath(pbs, prob, q1, q2):
+def moveLookPathRRT(pbs, prob, q1, q2):
     if q1['pr2Base'] == q2['pr2Base']:
         return []
     print 'moveLookPath: start'

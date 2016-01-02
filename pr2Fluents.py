@@ -324,7 +324,7 @@ class CanReachHome(Fluent):
 
     def feasiblePBS(self, pbs, v, p):
         path, violations = self.getViols(pbs, v, p)
-        return violations != None
+        return not violations is None
 
     def heuristicVal(self, details, v, p):
         # Return cost estimate and a set of dummy operations

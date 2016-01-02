@@ -28,6 +28,7 @@
 from Tkinter import *
 import math
 import Image, ImageDraw
+doPIL = True
 
 class Thing:
     pass
@@ -80,34 +81,39 @@ class DrawingWindow:
     def drawPoint(self, x, y, color = "blue"):
         windowX = self.scaleX(x)
         windowY = self.scaleY(y)
-        self.draw.point([(windowX, windowY)], fill = color); self.modified=True
+        if doPIL:
+            self.draw.point([(windowX, windowY)], fill = color); self.modified=True
         return self.canvas.create_rectangle(windowX-1, windowY-1, windowX+1,
                                      windowY+1, fill = color, outline = color)
 
     def drawText(self, x, y, label):
         windowX = self.scaleX(x)
         windowY = self.scaleY(y)
-        self.draw.text((int(windowX), int(windowY)), label, fill='black'); self.modified=True
+        if doPIL:
+            self.draw.text((int(windowX), int(windowY)), label, fill='black'); self.modified=True
         return self.canvas.create_text(windowX, windowY, text=label)
         # font="Arial 20",fill="#ff0000"
 
 
     def drawRect(self, (x1,y1), (x2,y2), color = "black", outline = 'black'):
         points = (self.scaleX(x1), self.scaleY(y1), self.scaleX(x2), self.scaleY(y2))
-        self.draw.rectangle([int(x) for x in points], outline=outline, fill=color); self.modified=True
+        if doPIL:
+            self.draw.rectangle([int(x) for x in points], outline=outline, fill=color); self.modified=True
         return self.canvas.create_rectangle(*points,
                                             fill = color,
                                             outline = outline)
 
     def drawOval(self, (x1,y1), (x2,y2), color = "black", outline = 'black'):
         points = (self.scaleX(x1), self.scaleY(y1), self.scaleX(x2), self.scaleY(y2))
-        self.draw.ellipse([int(x) for x in points], outline=outline, fill=color); self.modified=True
+        if doPIL:
+            self.draw.ellipse([int(x) for x in points], outline=outline, fill=color); self.modified=True
         return self.canvas.create_oval(*points,
                                        fill = color)
 
     def drawLineSeg(self, x1, y1, x2, y2, color = "black", width = 2):
         points = (self.scaleX(x1),self.scaleY(y1), self.scaleX(x2),self.scaleY(y2))
-        self.draw.line([int(x) for x in points], fill=color, width=width); self.modified=True
+        if doPIL:
+            self.draw.line([int(x) for x in points], fill=color, width=width); self.modified=True
         return self.canvas.create_line(*points,
                                        fill = color,
                                        width = width)
@@ -124,7 +130,8 @@ class DrawingWindow:
             endX = self.scaleX(self.xMax)
             endY = self.scaleY(- (a * self.xMax + c) / b)
         points = (startX, startY, endX, endY)
-        self.draw.line([int(x) for x in points], fill=color); self.modified=True
+        if doPIL:
+            self.draw.line([int(x) for x in points], fill=color); self.modified=True
         return self.canvas.create_line(*points, fill = color)
 
     def delete(self, thing):
@@ -139,6 +146,6 @@ class DrawingWindow:
         self.modified = False
 
     def saveImage(self, file):
-        if self.modified:
+        if self.modified and doPIL:
             self.image.save(file, 'PNG')
             self.modified = False
