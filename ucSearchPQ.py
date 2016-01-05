@@ -338,7 +338,6 @@ def searchGen(initialState, goalStates, actions, successor,
 
     if somewhatVerbose or verbose or count >= maxNodes or countExpanded >= maxExpanded:
         print "Search failed after visiting ", count, " states."
-        # raw_input('Too many nodes')
         if fail: pdb.set_trace()
 
     yield None, None

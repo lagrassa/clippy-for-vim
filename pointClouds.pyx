@@ -235,4 +235,180 @@ cpdef double edgeCross(np.ndarray[np.float64_t, ndim=1] p0, # row vector
             return t
     return 10.0                         # out of bounds
 
+######################################
+# raster version of depth map
+######################################
 
+# Should be in-line...
+cdef inline double edgeFunction(np.ndarray[np.float64_t, ndim=1] a,
+                                np.ndarray[np.float64_t, ndim=1] b,
+                                np.ndarray[np.float64_t, ndim=1] c):
+    return (c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0])
+
+cdef class Raster:
+    def __init__(self,
+                 screenWidth, screenHeight, imageWidth, imageHeight,
+                 nearClippingPlane, farClippingPLane, focalLength):
+        self.screenWidth = screenWidth
+        self.screenHeight = screenHeight
+        self.imageWidth = imageWidth
+        self.imageHeight = imageHeight
+        self.nearClippingPlane = nearClippingPlane
+        self.farClippingPLane = farClippingPLane
+        self.focalLength = focalLength
+        screenAspectRatio = float(screenWidth)/float(screenHeight)
+        imageAspectRatio = float(imageWidth) / float(imageHeight)
+        top = ((screenHeight/2.) / focalLength) * nearClippingPlane
+        right = ((screenWidth/2.) / focalLength) * nearClippingPlane
+        # field of view (horizontal)
+        xscale = 1.; yscale = 1.
+        fov = 2*180/math.pi*math.atan((screenWidth / 2.) / focalLength)
+        print 'fov=', fov
+        if screenAspectRatio > imageAspectRatio:
+            xscale = imageAspectRatio / screenAspectRatio
+        else:
+            yscale = screenAspectRatio / imageAspectRatio
+        right *= xscale
+        top *= yscale
+        bottom = -top
+        left = -right
+        self.screenCoordinates = (left, right, top, bottom)
+        size = imageWidth * imageHeight
+        self.depthBuffer = np.full(size, farClippingPLane, dtype=np.float64)
+        self.frameBuffer = np.zeros(size, dtype=np.int)
+
+    cpdef int convertToRaster(self,
+                             np.ndarray[np.float64_t, ndim=1] vertexCamera,
+                             np.ndarray[np.float64_t, ndim=1] vertexRaster):
+        cdef:
+            double l, r, t, b, vScreen_x, vScreen_y, vNDC_x, vNDC_y
+        (l, r, t, b) = self.screenCoordinates
+        vScreen_x = self.nearClippingPlane * vertexCamera[0] / -vertexCamera[2]
+        vScreen_y = self.nearClippingPlane * vertexCamera[1] / -vertexCamera[2]
+        # from screen to NDC (range [-1,1])
+        vNDC_x = 2. * vScreen_x / (r - l) - (r + l) / (r - l)
+        vNDC_y = 2. * vScreen_y / (t - b) - (t + b) / (t - b)
+        vertexRaster[0] = (vNDC_x + 1) / 2 * self.imageWidth
+        # in raster space y is down
+        vertexRaster[1] = (1 - vNDC_y) / 2 * self.imageHeight
+        vertexRaster[2] = - vertexCamera[2]
+        return 0
+
+    cpdef int reset(self):
+        cdef:
+            int size = self.imageWidth * self.imageHeight
+            int i
+        for i in xrange(size):
+            self.depthBuffer[i] = self.farClippingPLane
+            self.frameBuffer[i] = 0.
+        return 0
+
+    cpdef int update(self, prim, int objId, onlyUpdate=None):
+        cdef:
+            np.ndarray[np.int_t, ndim=1] fbuff = self.frameBuffer
+            np.ndarray[np.float64_t, ndim=1] dbuff = self.depthBuffer
+            np.ndarray[np.float64_t, ndim=1] v0, v1, v2, v0Raster, v1Raster, v2Raster, pixelSample
+            np.ndarray[np.float64_t, ndim=2] verts
+            np.ndarray[np.int_t, ndim=1] face
+            double xmin, ymin, xmax, ymax, w0, w1, w2, z, near
+            int x0, x1, y0, y1, x, y, curId, v
+            set updates = set([]) if onlyUpdate is None else onlyUpdate
+        
+        assert objId > 0
+        v0Raster = np.zeros(3, dtype=np.float64)
+        v1Raster = np.zeros(3, dtype=np.float64)
+        v2Raster = np.zeros(3, dtype=np.float64)
+        pixelSample = np.zeros(2, dtype=np.float64)
+        near = self.nearClippingPlane
+
+        verts = prim.vertices()
+        # Punt on prims too near or behing the eye
+        for v in xrange(verts.shape[1]):
+            if -verts[2,v] < near: return 1
+        for face in prim.faces():
+            # face is array of indices for verts in face
+            v0 = verts[:, face[0]]
+            for tri in xrange(face.shape[0] - 2):
+                v1 = verts[:, face[tri+1]]
+                v2 = verts[:, face[tri+2]]
+                # Convert the vertices of the triangle to raster space
+                self.convertToRaster(v0, v0Raster)
+                self.convertToRaster(v1, v1Raster)
+                self.convertToRaster(v2, v2Raster)
+
+                # window = wm.getWindow('Raster')
+                # window.window.drawLineSeg(v0Raster[0], v0Raster[1], v1Raster[0], v1Raster[1])
+                # window.window.drawLineSeg(v1Raster[0], v1Raster[1], v2Raster[0], v2Raster[1])
+                # window.window.drawLineSeg(v2Raster[0], v2Raster[1], v0Raster[0], v0Raster[1])
+                # raw_input('Tri')
+                
+                # Precompute reciprocal of vertex z-coordinate
+                v0Raster[2] = 1. / v0Raster[2]
+                v1Raster[2] = 1. / v1Raster[2]
+                v2Raster[2] = 1. / v2Raster[2]
+
+                xmin = min(v0Raster[0], v1Raster[0], v2Raster[0])
+                ymin = min(v0Raster[1], v1Raster[1], v2Raster[1])
+                xmax = max(v0Raster[0], v1Raster[0], v2Raster[0])
+                ymax = max(v0Raster[1], v1Raster[1], v2Raster[1])
+
+                # the triangle is out of screen
+                if (xmin > self.imageWidth - 1 or xmax < 0 \
+                    or ymin > self.imageHeight - 1 or ymax < 0): continue
+
+                # be careful xmin/xmax/ymin/ymax can be negative
+                x0 = int(max(0, math.floor(xmin)))
+                x1 = int(min(self.imageWidth - 1, math.floor(xmax)))
+                y0 = int(max(0, math.floor(ymin)))
+                y1 = int(min(self.imageHeight - 1, math.floor(ymax)))
+
+                area = edgeFunction(v0Raster, v1Raster, v2Raster)
+
+                # Inner loop
+                for y in xrange(y0, y1+1):
+                    for x in xrange(x0, x1+1):
+                        pixelSample[0] = x + 0.5; pixelSample[1] = y + 0.5
+                        w0 = edgeFunction(v1Raster, v2Raster, pixelSample);
+                        w1 = edgeFunction(v2Raster, v0Raster, pixelSample);
+                        w2 = edgeFunction(v0Raster, v1Raster, pixelSample);
+                        if (w0 >= 0 and w1 >= 0 and w2 >= 0):
+                            w0 /= area;
+                            w1 /= area;
+                            w2 /= area;
+                            oneOverZ = v0Raster[2] * w0 + v1Raster[2] * w1 + v2Raster[2] * w2;
+                            z = 1. / oneOverZ;
+                            # Depth-buffer test
+                            off = y * self.imageWidth + x
+                            if (z < dbuff[off]):
+                                dbuff[off] = z;
+                                curId = fbuff[off]
+                                if (not updates) or (curId and curId in updates):
+                                    fbuff[off] = objId;
+        return 0
+
+    cpdef int countId(self, int objId):
+        cdef int i, count = 0
+        cdef np.ndarray[np.int_t, ndim=1] buff = self.frameBuffer
+        for i in xrange(self.imageWidth * self.imageHeight):
+            if buff[i] == objId: count += 1
+        return count
+
+    def draw(self, win):
+        colors = ['red', 'green', 'blue', 'orange', 'cyan', 'purple']
+        objColors = {}
+        size = self.imageWidth * self.imageHeight
+        window = wm.getWindow(win)
+        window.clear()
+        iw = float(self.imageWidth)
+        for i in xrange(size):        
+            val = self.frameBuffer[i]
+            if val in objColors:
+                color = objColors[val]
+            else:
+                color = colors[val%len(colors)]
+                objColors[val] = color
+            if val:
+                y = int(i/iw)
+                x = i - y*self.imageWidth
+                window.window.drawPoint(x,self.imageHeight-y,color=color)
+        window.update()

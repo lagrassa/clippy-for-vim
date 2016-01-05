@@ -82,7 +82,8 @@ constructor = {}
 ########################################
 
 # laserScanParams = (0.3, 0.2, 0.1, 3., 30)
-laserScanParams = (0.3, 0.075, 0.075, 3., 15)
+laserScanParams = (0.3, 0.075, 0.075, 3., 30)
+laserScanParams = (0.3, 0.2, 0.1, 3., 50)
 
 ########################################
 # Robot Parameters

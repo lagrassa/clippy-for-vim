@@ -12,8 +12,6 @@ from ranges import *
 from objects import WorldState
 from geom import bboxOverlap, bboxUnion, bboxCenter
 from transformations import quaternion_slerp
-import ucSearchPQ as search
-reload(search)
 import pr2RRT as rrt
 reload(rrt)
 import planGlobals as glob

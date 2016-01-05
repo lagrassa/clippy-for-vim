@@ -806,20 +806,15 @@ def canPickPlaceDropGen(args, goal, start, vals):
 ## Special regression funs
 ################################################################
 
-attenuation = 0.5
 # During regression, apply to all fluents in goal;  returns f or a new fluent.
 # noinspection PyUnusedLocal
 def moveSpecialRegress(f, details, abstractionLevel):
 
-    # Only model these effects at the lower level of abstraction.
-    # if abstractionLevel == 0:
-    #     return f.copy()
-
     # Assume that odometry error is controlled during motion, so not more than 
     # this.  It's a stdev
     odoError = details.domainProbs.odoError
-    # Variance due to odometry after move of a meter
-    odoVar = [e * e for e in odoError]
+    # Variance due to odometry after move of two meters
+    odoVar = [e * e * 2 for e in odoError]
 
     if f.predicate == 'B' and f.args[0].predicate == 'Pose':
         fNew = f.copy()

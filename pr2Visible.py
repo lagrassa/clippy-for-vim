@@ -1,6 +1,7 @@
+import pdb
 import math
 import numpy as np
-from pointClouds import Scan, updateDepthMap
+from pointClouds import Scan, updateDepthMap, Raster
 import hu
 import planGlobals as glob
 from geom import bboxCenter
@@ -32,7 +33,7 @@ cacheStats = [0, 0, 0, 0, 0, 0]                   # h tries, h hits, h easy, rea
 # Returns (bool, list of occluders).  The bool indicates whether the
 # target shape is potentially visible if the occluding obsts are removed.
 
-def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
+def visibleOLD(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     global laserScanGlobal
     key = (ws, conf, shape, tuple(obstacles), prob, moveHead, tuple(fixed))
     cacheStats[0 if glob.inHeuristic else 3] += 1
@@ -243,3 +244,115 @@ def lookScan(lookConf):
     scanTrans = headTrans.compose(hu.Transform(transf.rotation_matrix(-math.pi/2, (0,1,0))))
     scan = laserScan.applyTrans(scanTrans)
     return scan
+
+#######################################
+
+rasterGlobal = None
+
+def lookRaster():
+    global rasterGlobal
+    if rasterGlobal is None:
+        (focal, height, width, length, n) = glob.laserScanParams
+        rasterGlobal = Raster(width, height, 2*n, 2*n, 0.5, length, focal)
+        viewPort = [0, rasterGlobal.imageWidth, 0, rasterGlobal.imageHeight, 0.0, 0.1]
+        wm.makeWindow('Raster', viewPort, 2*n+10)
+    return rasterGlobal
+
+def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
+    key = (ws, conf, shape, tuple(obstacles), prob, moveHead, tuple(fixed))
+    cacheStats[0 if glob.inHeuristic else 3] += 1
+    if key in cache:
+        cacheStats[1 if glob.inHeuristic else 4] += 1
+        return cache[key]
+    if debug('visible'):
+        print 'visible', shape.name(), 'from base=', conf['pr2Base'], 'head=', conf['pr2Head']
+        print 'obstacles', obstacles
+        print 'fixed', fixed
+    lookConf = lookAtConf(conf, shape) if moveHead else conf
+    if not lookConf:
+        if debug('visible'):
+            print 'lookConf failed'
+        cache[key] = (False, [])
+        return False, []
+    raster = lookRaster()
+    raster.reset()
+    lookCartConf = lookConf.cartConf()
+    headTrans = lookCartConf['pr2Head']
+    sensor = headTrans.compose(hu.Transform(transf.rotation_matrix(-math.pi, (1,0,0))))
+    trans = sensor.inverse()
+    fix = [obj for obj in obstacles if obj.name() in ws.fixedObjects]
+    for f in fixed: fix.append(f)
+    move = [obj for obj in obstacles if obj not in fix]
+    occluders = []
+    shape1 = shape.applyTrans(trans)
+    for objPrim in shape1.toPrims():
+        raster.update(objPrim, 1)
+    total = raster.countId(1)           #  pixels on target
+    if total < minVisiblePoints:
+        if debug('visible'):
+            print total, 'hit points for', shape
+            debugMsg('visible', 'Not enough hit points')
+        cache[key] = (False, [])
+        return False, []
+
+    if 'table' in shape.name():
+        threshold = 0.5*prob            # generous
+    else:
+        # threshold = 0.75*prob
+        threshold = 0.5
+
+    for i, objShape in enumerate(fix):
+        if debug('visible'):
+            print 'updating depth with', objShape.name()
+        shape = objShape.applyTrans(trans)
+        for objPrim in shape.toPrims():
+            raster.update(objPrim, i+2, onlyUpdate=set(range(1,i+2)))
+        count = raster.countId(i+2)
+        if count > 0:                   #  should these be included?
+            occluders.append((count, objShape.name()))
+    if debug('visible'):
+        print 'fixed occluders', occluders
+    # acceptance is based on occlusion by fixed obstacles
+    final = raster.countId(1)
+    ratio = float(final)/float(total)
+    if ratio < threshold:
+        if debug('visible'): print 'visible ->', (False, [])
+        return False, []            # No hope
+    # find a list of movable occluders that could be removed to
+    # achieve visibility
+    for j, objShape in enumerate(move):
+        i = len(fix) + j
+        if debug('visible'):
+            print 'updating depth with', objShape.name()
+        shape = objShape.applyTrans(trans)
+        for objPrim in shape.toPrims():
+            raster.update(objPrim, i+2,
+                          onlyUpdate=set(range(1,i+2)))
+        count = raster.countId(i+2)
+        if count > 0:
+            occluders.append((count, objShape.name()))
+    # remove enough occluders to make it visible, be greedy
+    occluders.sort(reverse=True)        # biggest occluder first
+    ans = None
+    for i in xrange(len(occluders)):
+        if float(final - sum([x[0] for x in occluders[i:]]))/float(total) >= threshold:
+            ans = True, [x[1] for x in occluders[:i]]
+            break
+    if ans is None:
+        ans = True, [x[1] for x in occluders]
+    if debug('visible'):
+        print 'sorted occluders', occluders
+        print 'total', total, 'final', final, '(', ratio, ')', 'thr', threshold, '->', ans
+        wm.getWindow('W').clear()
+        ws.draw('W')
+        lookConf.draw('W', attached=ws.attached)
+        wm.getWindow('W').update()
+        raster.draw('Raster')
+        debugMsg('visible', 'Admire')
+
+    # For entertainment...
+    if debug('visible_raster'): raster.draw('Raster')
+
+    cache[key] = ans
+    return ans
+

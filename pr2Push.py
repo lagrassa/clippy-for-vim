@@ -1413,7 +1413,7 @@ def pushGenPaths(pbs, prob, potentialContacts, targetPB, curPB,
         for i in range(len(pathSegs)):
             ps = pathSegs[i]
             if not ps.pt0:
-                print 'degenerate path segment', ps
+                if debug(tag): print 'degenerate path segment', ps
                 continue     # degenerate path
             maxPush = max([abs(a-b) for (a,b) in zip(ps.pt0,ps.pt1)])
             minDelta = min(targetPB.delta[0], targetPB.delta[1])
