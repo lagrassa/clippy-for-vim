@@ -217,9 +217,18 @@ class JointConf:
         c = self.copy()
         c.conf[name] = value
         return c
+    def minimalConf(self, hand):
+        armChainName = self.robot.armChainNames[hand]
+        return (tuple(self.baseConf()), tuple(self.conf[armChainName]))
+    # Abstract interface...
     def basePose(self):
         base = self.conf['pr2Base']
         return hu.Pose(base[0], base[1], 0.0, base[2])
+    def setBaseConf(self, baseConf):
+        assert isinstance(baseConf, (tuple, list)) and len(baseConf) == 3
+        return self.set('pr2Base', list(baseConf))
+    def baseConf(self):                 # (x, y, theta)
+        return self.conf['pr2Base']
     def cartConf(self):
         return self.robot.forwardKin(self)
     def armShape(self, h, attached=None):
@@ -304,6 +313,8 @@ class CartConf(JointConf):
             assert value is None or isinstance(value, hu.Transform)
             c.conf[name] = value
         return c
+    def basePose(self):
+        return self.conf['pr2Base'].pose()
     def confItems(self):
         if not self.items:
             vals = []
@@ -572,6 +583,17 @@ class PR2:
                             self.chains.chainsByName[chainName].randomValues())
         return conf
 
+    def baseShape(self, c):
+        parts = dict([(o.name(), o) for o in c.placement().parts()])
+        return parts['pr2Base']
+
+    # This is useful to get the base shape when we don't yet have a conf
+    def baseLinkShape(self, basePose=None):
+        if basePose:
+            return pr2BaseLink.applyTrans(basePose)
+        else:
+            return pr2BaseLink
+
     def armShape(self, c, hand, attached):
         parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])
         armShapes = [parts[self.armChainNames[hand]],
@@ -621,6 +643,31 @@ class PR2:
             return obj.applyTrans(frame)
         else:
             return None
+
+    def confFromBaseAndWrist(self, basePose, hand, wrist,
+                             defaultConf, counts=None):
+        cart = CartConf({'pr2BaseFrame': basePose,
+                         'pr2Torso':[glob.torsoZ]}, self)
+        if hand == 'left':
+            cart.conf['pr2LeftArmFrame'] = wrist 
+            cart.conf['pr2LeftGripper'] = [0.08] # !! pick better value
+        else:
+            cart.conf['pr2RightArmFrame'] = wrist 
+            cart.conf['pr2RightGripper'] = [0.08]
+        # Check inverse kinematics
+        conf = self.inverseKin(cart)
+        if None in conf.values():
+            debugMsg('potentialGraspConfsLose', 'invkin failure')
+            if counts: counts[0] += 1       # kin failure
+            return
+        # Copy the other arm from pbs
+        if hand == 'left':
+            conf.conf['pr2RightArm'] = defaultConf['pr2RightArm']
+            conf.conf['pr2RightGripper'] = [0.08]
+        else:
+            conf.conf['pr2LeftArm'] = defaultConf['pr2LeftArm']
+            conf.conf['pr2LeftGripper'] = [0.08]
+        return conf
 
     def placement(self, conf, wstate=None, getShapes=True, attached=None):
         place, attachedParts, trans = self.placementAux(conf, wstate, getShapes, attached)

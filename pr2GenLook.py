@@ -14,7 +14,7 @@ def potentialLookConfGen(pbs, prob, shape, maxDist):
     tested = set([])
     rm = pbs.getRoadMap()
     for node in rm.nodes():             # !!
-        nodeBase = tuple(node.conf['pr2Base'])
+        nodeBase = tuple(node.conf.baseConf())
         if nodeBase in tested:
             continue
         else:
@@ -31,18 +31,18 @@ def potentialLookConfGen(pbs, prob, shape, maxDist):
             angle = math.atan2(center.matrix[0,0], center.matrix[1,0])
             rotBasePose = basePose.compose(hu.Pose(0,0,0,-angle))
             par = rotBasePose.pose().xyztTuple()
-            rotConf = node.conf.set('pr2Base', (par[0], par[1], par[3]))
+            rotConf = node.conf.setBaseConf((par[0], par[1], par[3]))
             if debug('potentialLookConfs'):
-                print 'basePose', node.conf['pr2Base']
+                print 'basePose', node.conf.baseConf()
                 print 'center', center
-                print 'rotBasePose', rotConf['pr2Base']
+                print 'rotBasePose', rotConf.baseConf()
             if testPoseInv(rotBasePose.inverse()):
                 if rm.confViolations(rotConf, pbs, prob):
                     yield rotConf
         else:
             if debug('potentialLookConfs'):
                 node.conf.draw('W')
-                print 'node.conf', node.conf['pr2Base']
+                print 'node.conf', node.conf.baseConf()
                 raw_input('potential look conf')
             if rm.confViolations(node.conf, pbs, prob):
                 yield node.conf
@@ -66,11 +66,11 @@ def potentialLookHandConfGen(pbs, prob, hand):
     robot = pbs.getConf().robot
     curCartConf = pbs.getConf().cartConf()
     chain = robot.armChainNames[hand]
-    baseFrame = curCartConf['pr2Base']
+    basePose = curCartConf.basePose()
     for pose in lookPoses[hand]:
         if debug('potentialLookHandConfs'):
             print 'potentialLookHandConfs trying:\n', pose
-        target = baseFrame.compose(pose)
+        target = basePose.compose(pose)
         cartConf = curCartConf.set(chain, target)
         conf = robot.inverseKin(cartConf, conf=pbs.getConf())
         if all(v for v in conf.conf.values()):

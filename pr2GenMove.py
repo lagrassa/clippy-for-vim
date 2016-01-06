@@ -44,7 +44,7 @@ class MoveState(Hashable):
         self.objVars = objVars
         Hashable.__init__(self)
     def pt(self):
-        return self.q['pr2Base']
+        return self.q.baseConf()
     def __str__(self):
         return 'MoveState(%s,%s)'%(self.pt(), self.objVars)
     def desc(self):
@@ -53,7 +53,7 @@ class MoveState(Hashable):
 
 # Only do this when the base distance between the two confs is large.
 def moveLookPath(pbs, prob, q1, q2):
-    if q1['pr2Base'] == q2['pr2Base']:
+    if q1.baseConf() == q2.baseConf():
         return []
     print 'moveLookPath: start'
     startTime = time.time()
@@ -63,7 +63,7 @@ def moveLookPath(pbs, prob, q1, q2):
         print 'Failed to retract arm'
         pdb.set_trace()
         return None
-    retractArm2 = retractArm1.set('pr2Base', q2['pr2Base'])
+    retractArm2 = retractArm1.setBaseConf(q2.baseConf())
     newBS = inflatedBS(pbs, prob)
     retract1 = findRetractBaseConf(newBS, prob, retractArm1) or retractArm1
     retract2 = findRetractBaseConf(newBS, prob, retractArm2) or retractArm2
@@ -73,10 +73,10 @@ def moveLookPath(pbs, prob, q1, q2):
                              {pB.obj:pB.poseD.var for pB in pBs})
     goalState = MoveState(retract2, None)
     goalPt = goalState.pt()
-    print '    initPt', q1['pr2Base']
+    print '    initPt', q1.baseConf()
     print '    ret1Pt', initialState.pt()
     print '    ret2Pt', goalPt
-    print '    goalPt', q2['pr2Base']
+    print '    goalPt', q2.baseConf()
     odoError = pbs.domainProbs.odoError
     obsVar = pbs.domainProbs.obsVarTuple
     # The 'move' actions are incremental, 'moveGoal' is an absolute displacement
@@ -226,7 +226,7 @@ def feasibleAction(pbs, prob, node, odoError, obsVar):
 
 def feasibleMove(pbs, prob, ostate, state):
    newPBS = pbsUpdateVar(pbs, state.objVars)
-   q_f = stopConf(newPBS, prob, state.q, ostate.q, ['pr2Base'])
+   q_f = stopConf(newPBS, prob, state.q, ostate.q, [pbs.getRobot().baseChainName])
    return q_f != ostate.q               # managed to move
 
 def feasibleLook(pbs, prob, ostate, act, state):
@@ -303,7 +303,7 @@ def newMoveState(state, dx, dy, dth, odoError):
               (dxdy * increaseFactor * odoError[1])**2,
               0.0,
               (abs(dth) * increaseFactor * odoError[3])**2)
-    return MoveState(state.q.set('pr2Base', [a+b for (a,b) in zip(state.pt(), (dx,dy,dth))]),
+    return MoveState(state.q.setBaseConf([a+b for (a,b) in zip(state.pt(), (dx,dy,dth))]),
                      {o:tuple([a + b for (a, b) in zip(oldVar, odoVar)]) \
                       for (o,oldVar) in state.objVars.iteritems()})
     
@@ -327,7 +327,7 @@ def findRetractArmConf(pbs, prob, q1, q2, maxIter = 50):
     shape1 = q1.handWorkspace()
     # obstacles at q1
     avoid1 = shWorld.objectShapes.values()
-    if q2['pr2Base'] != q1['pr2Base']:
+    if q2.baseConf() != q1.baseConf():
         # obstacles at q2, placed on top of q1
         tr = q1.basePose().compose(q2.basePose().inverse())
         avoid2 = [s.applyTrans(tr) for s in avoid1]
@@ -347,7 +347,7 @@ def findRetractArmConf(pbs, prob, q1, q2, maxIter = 50):
                if glob.useCC else avoid.collides(conf.armShape(h,attached))):
             continue
         if debug('retract'):
-            print 'retract collision with', h, 'arm', conf['pr2Base']
+            print 'retract collision with', h, 'arm', conf.baseConf()
         path, viol = \
               planRobotGoalPath(pbs, prob, conf,
                                 lambda c: not (collides(c, avoid, attached=attached, selectedChains=armChains) \
@@ -392,15 +392,16 @@ def findRetractBaseConf(newBS, prob, conf, maxIter=10):
     bestRetractConf = None
     bestRetractDist = float('inf')
     conf.draw('W', 'blue')
+    robot = conf.robot
     for attempt in range(maxRetractAttempts):
         path, viol = \
               planRobotGoalPath(newBS, prob, conf, anyColl,
-                                None, ['pr2Base'], maxIter = maxIter)
+                                None, [robot.baseChainName], maxIter = maxIter)
         if debug('retract'):
             path[-1].draw('W', 'pink') if path else None
         if path:
             retractConf = path[-1]
-            dist = ptDist(conf['pr2Base'], retractConf['pr2Base'])
+            dist = ptDist(conf.baseConf(), retractConf.baseConf())
             if dist == 0:
                 return retractConf
             elif dist < bestRetractDist:
@@ -411,7 +412,7 @@ def findRetractBaseConf(newBS, prob, conf, maxIter=10):
     return bestRetractConf
 
 def moveLookPathRRT(pbs, prob, q1, q2):
-    if q1['pr2Base'] == q2['pr2Base']:
+    if q1.baseConf() == q2.baseConf():
         return []
     print 'moveLookPath: start'
     startTime = time.time()
@@ -421,7 +422,7 @@ def moveLookPathRRT(pbs, prob, q1, q2):
         print 'Failed to retract arm'
         pdb.set_trace()
         return None
-    retractArm2 = retractArm1.set('pr2Base', q2['pr2Base'])
+    retractArm2 = retractArm1.setBaseConf(q2.baseConf())
     newBS = inflatedBS(pbs, prob)
     retract1 = findRetractBaseConf(newBS, prob, retractArm1) or retractArm1
     retract2 = findRetractBaseConf(newBS, prob, retractArm2) or retractArm2

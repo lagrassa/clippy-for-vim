@@ -163,7 +163,7 @@ def poseGraspable(hyp, pbs, graspBGen, prob, hand, base):
     for gB in graspBGen.copy():
         pB = hyp.pB
         grasp = gB.grasp.mode()
-        cb = pbs.getConf()['pr2Base']
+        cb = pbs.getConf().baseConf()
         # Try with a specified base
         c, ca, v = next(potentialGraspConfGen(pbs, pB, gB, None, hand, (base or cb), prob, nMax=1),
                         (None,None,None))

@@ -277,7 +277,7 @@ def pickGenAux(pbs, cpbs, obj, confAppr, conf, placeB, graspB, hand, prob,
     if placeB.poseD.mode() is not None: # otherwise go to regrasp
         if not base:
             # Try current conf
-            (x,y,th) = cpbs.getConf()['pr2Base']
+            (x,y,th) = cpbs.getConf().baseConf()
             currBasePose = hu.Pose(x, y, 0.0, th)
             confs = graspConfForBase(cpbs, placeB, graspB, hand, currBasePose, prob)
             if confs:
@@ -557,7 +557,7 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
                ('curr', pbs.graspB[hand]), ('desired', gB))
             return 0
 
-        minConf = minimalConf(pbs.getConf(), hand)
+        minConf = pbs.getConf().minimalConf(hand)
         if minConf in PPRCache:
             ppr = PPRCache[minConf]
             currGraspB = ppr.gB
@@ -878,7 +878,7 @@ lookVarIncreaseFactor = 2
 def dropIn(pbs, prob, obj, regShapes):
     hand = None
     for h in ('left', 'right'):
-        minConf = minimalConf(pbs.getConf(), h)
+        minConf = pbs.getConf().minimalConf(h)
         if minConf in PPRCache:
             hand = h
             break
@@ -906,7 +906,7 @@ def dropIn(pbs, prob, obj, regShapes):
                     return ppr
 
 def drop(pbs, prob, obj, hand, placeB):
-    minConf = minimalConf(pbs.getConf(), hand)
+    minConf = pbs.getConf().minimalConf(hand)
     if minConf in PPRCache:
         ppr = PPRCache[minConf]
     else:
@@ -1019,7 +1019,7 @@ def placeInGenAux(pbs, cpbs, poseGen, confAppr, conf, placeB, graspB,
 
 PPRCache = {}
 def cachePPResponse(ppr):
-    minConf = minimalConf(ppr.ca, ppr.hand)
+    minConf = ppr.ca.minimalConf(ppr.hand)
     if minConf not in PPRCache:
         PPRCache[minConf] = ppr
     else:
@@ -1098,7 +1098,7 @@ def lookGenTop(args, pbs, cpbs):
     # fixed obstacles).  The obst are "movable" obstacles.  Returns
     # boolean.
     def testFn(c, sh, shWorld):
-        tr(tag, 'Trying base conf', c['pr2Base'], ol = True)
+        tr(tag, 'Trying base conf', c.baseConf(), ol = True)
         obst = [s for s in shWorld.getNonShadowShapes() if s.name() != obj ]
         # We don't need to add the robot, since it can be moved out of the way.
         # obst_rob = obst + [c.placement(shWorld.attached)]
@@ -1152,7 +1152,7 @@ def lookGenTop(args, pbs, cpbs):
             # Modify the lookConf (if needed) by moving arm out of the
             # way of the viewCone and the shapeShadow.
             delta = cpbs.domainProbs.moveConfDelta
-            if baseConfWithin(cpbs.getConf()['pr2Base'], base, delta):
+            if baseConfWithin(cpbs.getConf().baseConf(), base, delta):
                 curLookConf = lookAtConfCanView(cpbs_after, prob,
                                                 cpbs_after.getConf(),
                                                 shapeForLook,

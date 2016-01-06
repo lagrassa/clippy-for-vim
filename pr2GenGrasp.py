@@ -4,7 +4,7 @@ from planGlobals import torsoZ
 from pr2Util import Memoizer, objectGraspFrame
 from planUtil import Violations
 from pr2GenUtils import sortedHyps, baseDist
-from pr2Robot import CartConf, pr2BaseLink, gripperPlace
+from pr2Robot import CartConf, gripperPlace
 from traceFile import tr, debug, debugMsg
 
 approachConfCacheStats = [0,0]
@@ -78,7 +78,7 @@ def graspConfForBase(pbs, placeB, graspB, hand, basePose, prob,
     graspConfStats[0] += 1
     # If just the base collides with a perm obstacle, no need to continue
     if baseCollision(pbs, prob, basePose): return
-    conf = confFromBaseAndWrist(pbs, basePose, hand, wrist, robot, counts)
+    conf = robot.confFromBaseAndWrist(basePose, hand, wrist, pbs.getConf(), counts)
     if conf is None: return
     # check collisions
     ans = testConfs(pbs, placeB, conf, hand, prob,
@@ -116,7 +116,7 @@ def testConfs(pbs, placeB, conf, hand, prob, findApproach=True, counts=None):
     return c, ca, viol
 
 def baseCollision(pbs, prob, basePose, counts=None):
-    baseShape = pr2BaseLink.applyTrans(basePose)
+    baseShape = pbs.getRobot().baseLinkShape(basePose)
     shWorld = pbs.getShadowWorld(prob)
     for perm in shWorld.fixedObjects:
         obst = shWorld.objectShapes[perm]
@@ -144,30 +144,6 @@ def gripperCollision(pbs, prob, conf, hand, wrist, counts=None):
             tr('gripperCollision', 'Hand collides with permanent', perm)
             return True
     return False
-
-def confFromBaseAndWrist(pbs, basePose, hand, wrist, robot, counts=None):
-    cart = CartConf({'pr2BaseFrame': basePose,
-                     'pr2Torso':[torsoZ]}, robot)
-    if hand == 'left':
-        cart.conf['pr2LeftArmFrame'] = wrist 
-        cart.conf['pr2LeftGripper'] = [0.08] # !! pick better value
-    else:
-        cart.conf['pr2RightArmFrame'] = wrist 
-        cart.conf['pr2RightGripper'] = [0.08]
-    # Check inverse kinematics
-    conf = robot.inverseKin(cart)
-    if None in conf.values():
-        debugMsg('potentialGraspConfsLose', 'invkin failure')
-        if counts: counts[0] += 1       # kin failure
-        return
-    # Copy the other arm from pbs
-    if hand == 'left':
-        conf.conf['pr2RightArm'] = pbs.getConf()['pr2RightArm']
-        conf.conf['pr2RightGripper'] = [0.08]
-    else:
-        conf.conf['pr2LeftArm'] = pbs.getConf()['pr2LeftArm']
-        conf.conf['pr2LeftGripper'] = [0.08]
-    return conf
 
 def graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                     nMax=10, findApproach=True):
@@ -197,8 +173,7 @@ def graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                 yield GraspConfHyp(*ans)
         tr(tag, 'Base specified; out of grasp confs for base')
         return
-    (x,y,th) = pbs.getConf()['pr2Base']
-    curBasePose = hu.Pose(x, y, 0.0, th)
+    curBasePose = pbs.getConf().basePose()
     # Try current pose first
     ans = graspConfForBase(pbs, placeB, graspB, hand, curBasePose, prob,
                            wrist=wrist, counts=counts)

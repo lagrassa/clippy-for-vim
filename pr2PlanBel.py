@@ -317,12 +317,12 @@ class PBS:
             if debug('dither'):
                 self.draw(p, 'W')
                 raw_input('go?')
-            base = self.getConf()['pr2Base']
+            base = self.getConf().baseConf()
             # Should consider motions in both positive and negative directions
             # It won't wonder away too far... TLP
             newBase = tuple([b + (random.random() - 0.5) * 0.01 * count\
                               for b in base])
-            newConf = self.getConf().set('pr2Base', newBase)
+            newConf = self.getConf().setBaseConf(newBase)
             self.updateConf(newConf)
             confViols = self.confViolations(self.getConf(), p)
         if count == 100:

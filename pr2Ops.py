@@ -116,9 +116,9 @@ def primPathUntilLook(bs, cs, ce, p):
             q.draw('W', 'cyan')
         # Stop when we get to first look
         if a and a[0] == 'look':
-            print '*** Move prim terminated before look at:', q['pr2Base']
-            print '***                     final path pose:', path[-1]['pr2Base']
-            print '***                     final target is:', ce['pr2Base']
+            print '*** Move prim terminated before look at:', q.baseConf()
+            print '***                     final path pose:', path[-1].baseConf()
+            print '***                     final target is:', ce.baseConf()
             break
         else: path.append(q)
     if debug('moveLookPath'):
@@ -206,7 +206,7 @@ def confStr(conf):
         hand = str(np.array(pose.xyztTuple()))
     else:
         hand = '\n'+str(cart['pr2LeftArm'].matrix)
-    return 'base: '+str(conf['pr2Base'])+'   hand: '+hand
+    return 'base: '+str(conf.baseConf())+'   hand: '+hand
 
 def pickPrim(args, details):
     # !! Should close the fingers as well?
@@ -313,7 +313,7 @@ class GetBase(Function):
         if isVar(conf):
             return []
         else:
-            return [[conf['pr2Base']]]
+            return [[conf.baseConf()]]
 
 # LPK: make this more efficient by storing the inverse mapping
 class RegionParent(Function):
@@ -944,10 +944,9 @@ def moveBProgress(details, args, obs=None):
     # Let's say this is error per meter / radian
     odoError = details.domainProbs.odoError
     (endConf, (xyDisp, angDisp)) = obs
-    obsConf = endConf.conf
-    bp1 = (s['pr2Base'][0], s['pr2Base'][1], 0, s['pr2Base'][2])
-    bp2 = (obsConf['pr2Base'][0], obsConf['pr2Base'][1], 0,
-           obsConf['pr2Base'][2])
+    bp1 = (s.baseConf()[0], s.baseConf()[1], 0, s.baseConf()[2])
+    bp2 = (endConf.baseConf()[0], endConf.baseConf()[1], 0,
+           endConf.baseConf()[2])
     # turn this up in case we have to 
     increaseFactor = 1
     # xyDisp is the total xy displacement along path

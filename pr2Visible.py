@@ -41,7 +41,7 @@ def visibleOLD(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         cacheStats[1 if glob.inHeuristic else 4] += 1
         return cache[key]
     if debug('visible'):
-        print 'visible', shape.name(), 'from base=', conf['pr2Base'], 'head=', conf['pr2Head']
+        print 'visible', shape.name(), 'from base=', conf.baseConf(), 'head=', conf['pr2Head']
         print 'obstacles', obstacles
         print 'fixed', fixed
     lookConf = lookAtConf(conf, shape) if moveHead else conf
@@ -106,11 +106,13 @@ def visibleOLD(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         cache[key] = (False, [])
         return False, []
 
-    if 'table' in shape.name():
-        threshold = 0.5*prob            # generous
-    else:
-        # threshold = 0.75*prob
-        threshold = 0.5
+    # if 'table' in shape.name():
+    #     threshold = 0.5*prob            # generous
+    # else:
+    #     # threshold = 0.75*prob
+    #     threshold = 0.5
+
+    threshold = 0.5                     # for consistency across simulation and planning
 
     for i, objShape in enumerate(fix):
         if objShape not in potentialOccluders: continue
@@ -265,7 +267,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         cacheStats[1 if glob.inHeuristic else 4] += 1
         return cache[key]
     if debug('visible'):
-        print 'visible', shape.name(), 'from base=', conf['pr2Base'], 'head=', conf['pr2Head']
+        print 'visible', shape.name(), 'from base=', conf.baseConf(), 'head=', conf['pr2Head']
         print 'obstacles', obstacles
         print 'fixed', fixed
     lookConf = lookAtConf(conf, shape) if moveHead else conf

@@ -61,8 +61,8 @@ def sortedHyps(hypGen, validTestFn, costFn, maxHyps, maxTries,
         yield hyp
 
 def baseDist(c1, c2):
-    (x1,y1,th1) = c1['pr2Base']
-    (x2,y2,th2) = c2['pr2Base']
+    (x1,y1,th1) = c1.baseConf()
+    (x2,y2,th2) = c2.baseConf()
     return ((x2-x1)**2 + (y2-y1)**2 + hu.angleDiff(th1,th2)**2)**0.5
 
 
@@ -206,12 +206,6 @@ def chooseHandGen(action, pbs, cpbs, obj, hand, leftGen, rightGen):
         gen = roundrobin(rightGen, leftGen)
 
     return gen
-
-def minimalConf(conf, hand):
-    if hand == 'left':
-        return (tuple(conf['pr2Base']), tuple(conf['pr2LeftArm']))
-    else:
-        return (tuple(conf['pr2Base']), tuple(conf['pr2RightArm']))
 
 ################
 ## Drawing

@@ -13,7 +13,7 @@ import hu
 from planUtil import ObjGraspB, ObjPlaceB, Violations, PoseD, PushResponse
 from pr2Util import GDesc, trArgs, otherHand, bboxGridCoords, bboxRandomCoords,\
      supportFaceIndex, inside, Memoizer, objectGraspFrame, robotGraspFrame, Hashable
-from pr2GenUtils import getRegions, getPoseAndSupport, fixed, chooseHandGen, minimalConf
+from pr2GenUtils import getRegions, getPoseAndSupport, fixed, chooseHandGen
 from pr2GenGrasp import potentialGraspConfGen, graspConfForBase
 from pr2GenPose import potentialRegionPoseGen
 from pr2GenTests import lookAtConfCanView
@@ -253,8 +253,7 @@ def potentialConfs(cpbs, prob, placeB, prePose, appPose, graspB, hand, base):
         for (c1, ca1, v1) in \
                 potentialGraspConfGen(newBS, targetPB if rev else appPB, graspB,
                                       None, hand, base, prob, findApproach=False):
-            (x, y, th) = c1['pr2Base']
-            basePose = hu.Pose(x, y, 0, th)
+            basePose = c1.basePose()
             if debug('pushPath'):
                 print 'Testing base', basePose, 'at other end of push'
             ans = graspConfForBase(newBS, appPB if rev else targetPB, graspB,
@@ -683,7 +682,7 @@ def regionTargetPB(pbs, prob, placeB, regShapes, hand,
 
 PushCache = {}
 def cachePushResponse(pr):
-    minConf = minimalConf(pr.preConf, pr.hand)
+    minConf = pr.preConf.minimalConf(pr.hand)
     if minConf not in PushCache:
         PushCache[minConf] = pr
     else:
@@ -694,7 +693,7 @@ def cachePushResponse(pr):
             pdb.set_trace()
 
 def push(pbs, prob, obj, hand):
-    minConf = minimalConf(pbs.getConf(), hand)
+    minConf = pbs.getConf().minimalConf(hand)
     if minConf in PushCache:
         pr = PushCache[minConf]
     else:
@@ -852,7 +851,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
     # Create pbs in which the object is grasped
     newBS = pbs.copy().updateHeldBel(gB, hand)
     # Check cache and return it if appropriate
-    baseSig = "%.6f, %.6f, %.6f"%tuple(conf['pr2Base'])
+    baseSig = "%.6f, %.6f, %.6f"%tuple(conf.baseConf())
     key = (postPose, baseSig, initPose, hand, glob.pushBuffer, glob.inHeuristic)
     names =('postPose', 'base', 'initPose', 'hand', 'pushBuffer', 'inHeuristic')
     cached = checkPushPathCache(key, names, pbs, prob, gB, conf, newBS)

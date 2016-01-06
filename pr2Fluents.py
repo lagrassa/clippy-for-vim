@@ -193,7 +193,7 @@ class BaseConf(Fluent):
     predicate = 'BaseConf'
     def test(self, bState):
         (targetConf, delta) = self.args
-        return baseConfWithin(bState.pbs.getConf()['pr2Base'], targetConf, delta)
+        return baseConfWithin(bState.pbs.getConf().baseConf(), targetConf, delta)
 
     def heuristicVal(self, details):
         # Needs heuristic val because we don't have an operator that
@@ -212,7 +212,7 @@ class BaseConf(Fluent):
             (oval, odelta) = other.args
             if isVar(oval) or isVar(odelta):
                 return {self, other}, {}
-            obase = oval['pr2Base']
+            obase = oval.baseConf()
             if isVar(sval):
                 return other, {sval : obase}
             if baseConfWithin(obase, sval, sdelta):
@@ -485,7 +485,7 @@ class CanReachNB(Fluent):
                      self)
             return False
         elif max(abs(a-b) for (a,b) in \
-                 zip(startConf['pr2Base'], endConf['pr2Base'])) > 1.0e-4:
+                 zip(startConf.baseConf(), endConf.baseConf())) > 1.0e-4:
             # Bases have to be equal!
             debugMsg('canReachNB', 'Base not belong to us', startConf, endConf)
             return False
@@ -506,6 +506,7 @@ class CanReachNB(Fluent):
         elif not (violations.obstacles or violations.heldShadows or \
                   violations.heldObstacles):
             assert violations.shadows
+            assert False, 'This should not happen'
             (startConf, endConf, cond) = self.args
             return onlyBaseCollides(startConf, violations.shadows) and \
                        onlyBaseCollides(endConf, violations.shadows)
@@ -558,6 +559,7 @@ class CanReachNB(Fluent):
         return self.predicate + ' ' + argStr + valueStr
 
 def onlyBaseCollides(conf, shadows):
+    assert False, 'onlyBaseCollides is deprecated'
     parts = dict([(part.name(), part) for part in conf.placement().parts()])
     collide = any(any(parts[p].collides(sh) for sh in shadows) for p in parts if p != 'pr2Base')
     print parts, collide
@@ -927,7 +929,7 @@ class Pose(Fluent):
         return bState.poseModeDist(obj, face)
 
     def fglb(self, other, bState = None):
-        if not self.isGround():
+        if bState is None or not self.isGround():
             return {self, other}, {}
         (obj, face) = self.args
         if (other.predicate == 'Holding' and obj == other.value) or \

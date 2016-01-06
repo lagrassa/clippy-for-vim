@@ -137,8 +137,8 @@ def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False
         for i, c in enumerate(path[::-1] if reversePath else path ):
             if i == 0: continue
             # that is, moving from i to i-1 should be forwards (valid)
-            if not validEdgeTest(c['pr2Base'], path[i-1]['pr2Base']):
-                backSteps.append((c['pr2Base'], path[i-1]['pr2Base']))
+            if not validEdgeTest(c.baseConf(), path[i-1].baseConf()):
+                backSteps.append((c.baseConf(), path[i-1].baseConf()))
         if backSteps:
             for (pre, post) in backSteps:
                 trAlways('Backward step:', pre, '->', post, ol = True,
@@ -302,7 +302,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
     debugMsg(tag, ('->', violations))
 
     if debug('lookBug'):
-        base = tuple(preConf['pr2Base'])
+        base = tuple(preConf.baseConf())
         entry = (preConf, tuple([x.getShadowWorld(p) for x in (pbs1, pbs2, pbs3, pbs4)]))
         if base in ppConfs:
             ppConfs[base] = ppConfs[base].union(frozenset([entry]))
@@ -349,7 +349,7 @@ def canView(pbs, prob, conf, hand, shape,
                    if glob.useCC else avoid.collides(conf.armShape(h,attached))):
                 continue
             if debug('canView'):
-                print 'canView collision with', h, 'arm', conf['pr2Base']
+                print 'canView collision with', h, 'arm', conf.baseConf()
             path, viol = planRobotGoalPath(pbs, prob, conf,
                                 lambda c: not (collides(c, avoid, attached=attached, selectedChains=armChains) \
                                                           if glob.useCC else avoid.collides(c.armShape(h,attached))),

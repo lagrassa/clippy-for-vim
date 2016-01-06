@@ -65,9 +65,9 @@ class Node(Hashable):
             self.cartConf = self.conf.cartConf()
         return self.cartConf
     def baseConf(self):
-        return tuple(self.conf['pr2Base'])
+        return tuple(self.conf.baseConf())
     def pointFromConf(self, conf):
-        x,y,th=conf['pr2Base']
+        x,y,th=conf.baseConf()
         point = (x,y, nodePointRotScale*math.cos(th), nodePointRotScale*math.sin(th))
         return point
     def draw(self, window, color = 'blue'):
@@ -323,7 +323,7 @@ class RoadMap:
             chains.remove('pr2Head')
 
         for inflate in ((True, False) if optimize else (False,)):
-            attempts = 1 if (not optimize or targetConf['pr2Base'] == initConf['pr2Base']) else glob.rrtPlanAttempts
+            attempts = 1 if (not optimize or targetConf.baseConf() == initConf.baseConf()) else glob.rrtPlanAttempts
             bestDist = float('inf')
             bestPath = None
             bestViol = None
@@ -429,8 +429,8 @@ class RoadMap:
         if node_f == node_i: return
         if graph.edges.get((node_f, node_i), None) or graph.edges.get((node_i, node_f), None): return
         if strict:
-            base_f = node_f.conf['pr2Base']
-            base_i = node_i.conf['pr2Base']
+            base_f = node_f.conf.baseConf()
+            base_i = node_i.conf.baseConf()
             # Change position or angle, but not both.
             if all([f != i for (f,i) in zip(base_f, base_i)]): return
         if self.params['cartesian']:
@@ -1011,13 +1011,13 @@ def minViolPathDebugExpand(n):
     (node, _) = n.state
     # node.conf.draw('W')
     # raw_input('expand')
-    (x,y,th) = node.conf['pr2Base']
+    (x,y,th) = node.conf.baseConf()
     boxPoint.applyTrans(hu.Pose(x,y,0,th)).draw('W')
     wm.getWindow('W').update()
 
 def minViolPathDebugVisit(state, cost, heuristicCost, a, newState, newCost, hValue):
     (node, _) = newState
-    (x,y,th) = node.conf['pr2Base']
+    (x,y,th) = node.conf.baseConf()
     boxPoint.applyTrans(hu.Pose(x,y,0,th)).draw('W', 'cyan')
     wm.getWindow('W').update()
     
@@ -1033,8 +1033,8 @@ def basePathDistAndAngle(path):
     distSoFar = 0.0
     angleSoFar = 0.0
     for i in xrange(1, len(path)):
-        prevXYT = path[i-1]['pr2Base']
-        newXYT = path[i]['pr2Base']
+        prevXYT = path[i-1].baseConf()
+        newXYT = path[i].baseConf()
         distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
         # approx pi => 1 meter
         angleSoFar += abs(hu.angleDiff(prevXYT[2],newXYT[2]))

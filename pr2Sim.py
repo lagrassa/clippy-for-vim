@@ -95,7 +95,7 @@ class RealWorld(WorldState):
         backSteps = []
         pathTraveled = []
         odoError = self.domainProbs.odoError
-        prevXYT = self.robotConf.conf['pr2Base']
+        prevXYT = self.robotConf.baseConf()
         prevConf = self.robotConf
 
         if max([abs(a-b) for (a,b) in zip(self.robotConf.basePose().xyztTuple(),
@@ -107,7 +107,7 @@ class RealWorld(WorldState):
         
         for (pathIndex, conf) in enumerate(path):
             originalConf = conf
-            newXYT = conf['pr2Base']
+            newXYT = conf.baseConf()
             prevBasePose = path[max(0, pathIndex-1)].basePose()
             newBasePose = path[pathIndex].basePose()
             # Compute the nominal displacement along the original path
@@ -132,7 +132,7 @@ class RealWorld(WorldState):
                 print 'Initial base conf', newXYT
                 print 'draw', baseOff.xyztTuple()
                 print '+++', dispNoisy.pose().xyztTuple()
-                print '--> modified base conf', conf['pr2Base']
+                print '--> modified base conf', conf.baseConf()
             if action:
                 action(prevConf, conf) # do optional action
                 prevConf = conf
@@ -154,7 +154,7 @@ class RealWorld(WorldState):
             leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3]).tolist()[0][:-1]
             rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3]).tolist()[0][:-1]
             tr('sim',
-               'base', conf['pr2Base'], 'left', leftPos, 'right', rightPos)
+               'base', conf.baseConf(), 'left', leftPos, 'right', rightPos)
             if debug('sim'):
                 print 'left\n', cart['pr2LeftArm'].matrix
                 print 'right\n', cart['pr2RightArm'].matrix
@@ -189,7 +189,7 @@ class RealWorld(WorldState):
                 leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
                 rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
                 tr('sim',
-                   ('base', c['pr2Base'], 'left', leftPos, 'right', rightPos))
+                   ('base', c.baseConf(), 'left', leftPos, 'right', rightPos))
                 break
             # Integrate the displacement
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
@@ -216,8 +216,8 @@ class RealWorld(WorldState):
         # commanded?  -- This is the hack we use on actual robot
 
         print 'sim robot base'
-        print '    commanded:', path[-1]['pr2Base']
-        print '       actual:', self.robotConf['pr2Base']
+        print '    commanded:', path[-1].baseConf()
+        print '       actual:', self.robotConf.baseConf()
 
         return path[-1], (distSoFar, angleSoFar)
 
@@ -246,7 +246,7 @@ class RealWorld(WorldState):
             startConf = op.args[0]
             targetConf = op.args[1]
             if max([abs(a-b) for (a,b) \
-                    in zip(self.robotConf.conf['pr2Base'], targetConf.conf['pr2Base'])]) > 1.0e-6:
+                    in zip(self.robotConf.baseConf(), targetConf.baseConf())]) > 1.0e-6:
                 print '****** MoveNB base pose does not match actual pose. '
 
         if params:
