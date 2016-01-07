@@ -15,7 +15,7 @@ from traceFile import debugMsg, debug, pause
 import planGlobals as glob
 from miscUtil import isGround, isVar, prettyString, applyBindings
 from fbch import Fluent, getMatchingFluents, Operator
-from belief import B, Bd, ActSet
+from belief import B, Bd
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from traceFile import tr, trAlways
@@ -26,7 +26,7 @@ from shapes import drawFrame
 tiny = 1.0e-6
 
 #### Ugly!!!!!
-graspObstCost = 20  # Heuristic cost of moving an object
+graspObstCost = 30  # Heuristic cost of moving an object
 pushObstCost = 75  # Heuristic cost of moving an object
 
 # Need contradiction between Pose and In: fglb
@@ -204,7 +204,7 @@ class BaseConf(Fluent):
         
         dummyOp = Operator('LookMove', ['dummy'],{},[])
         dummyOp.instanceCost = 7.0
-        return (dummyOp.instanceCost, ActSet([dummyOp]))
+        return (dummyOp.instanceCost, [dummyOp])
 
     def fglb(self, other, details = None):
         (sval, sdelta) = self.args
@@ -334,7 +334,7 @@ class CanReachHome(Fluent):
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
             dummyOp.instanceCost = graspObstCost
-            return (graspObstCost, ActSet([dummyOp]))
+            return (graspObstCost, [dummyOp])
         
         path, violations = self.getViols(details.pbs, v, p)
 
@@ -373,12 +373,12 @@ def hCost(violations, details):
     for o in shadowOps:
         # Use variance in start state
         # Should try to figure out a number of looks needed
-        # For now, assume 2
+        # For now, assume 3 (should factor in some moving)
         obj = objectName(o.args[0])
         vb = details.pbs.getPlaceB(obj).poseD.variance()
         deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
         c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
-        o.instanceCost = c * 2    # two looks
+        o.instanceCost = c * 3    # two looks
     ops = obstOps.union(shadowOps)
 
     # look at hand or drop an object
@@ -411,18 +411,18 @@ def hCost(violations, details):
 
     totalCost = sum([o.instanceCost for o in ops])
 
-    return totalCost, ActSet(ops)
+    return totalCost, ops
 
 def hCostSee(vis, violations, details):
     # vis is whether enough is visible;   we're 0 cost if that's true
     if not vis or violations is None:
-        return float('inf'), ActSet()
+        return float('inf'), []
     occluders = violations.obstacles
     obstOps = set([Operator('RemoveObst', [o],{},[]) \
                    for o in occluders])
     for o in obstOps: o.instanceCost = graspObstCost
     totalCost = sum([o.instanceCost for o in obstOps])
-    return totalCost, ActSet(obstOps)
+    return totalCost, obstOps
 
 class CanReachNB(Fluent):
     predicate = 'CanReachNB'
@@ -538,7 +538,7 @@ class CanReachNB(Fluent):
         if not self.isGround():
             dummyOp = Operator('UnboundStart', ['dummy'],{},[])
             dummyOp.instanceCost = unboundCost
-            return unboundCost, ActSet([dummyOp])
+            return unboundCost, [dummyOp]
             
         path, violations = self.getViols(details.pbs, v, p)
 
@@ -713,7 +713,7 @@ class CanPickPlace(Fluent):
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
             dummyOp.instanceCost = graspObstCost
-            return graspObstCost, ActSet([dummyOp])
+            return graspObstCost, [dummyOp]
 
         path, violations = self.getViols(details.pbs, v, p)
         totalCost, ops = hCost(violations, details)
@@ -827,7 +827,7 @@ class CanPush(Fluent):
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
             dummyOp.instanceCost = graspObstCost
-            return graspObstCost, ActSet([dummyOp])
+            return graspObstCost, [dummyOp]
 
         path, violations = self.getViols(details.pbs, v, p)
         totalCost, ops = hCost(violations, details)
@@ -936,7 +936,8 @@ class Pose(Fluent):
            (other.predicate in ('Grasp', 'GraspFace') and
                  self.args[0] == other.args[0]):
            return False, {}
-        elif (other.predicate == 'In' and obj == other.args[0]):
+        elif (other.predicate == 'In' and obj == other.args[0]) \
+                  and bState:
             # see if having obj at pose puts it in this region
             region = other.args[1]
             if inTestMinShadow(bState.pbs, obj, self.value, face, region):
@@ -1063,7 +1064,7 @@ class CanSeeFrom(Fluent):
             # assume an obstacle, if we're asking.  May need to decrease this
             dummyOp = Operator('RemoveObst', ['dummy'],{},[])
             dummyOp.instanceCost = graspObstCost
-            return graspOCost, ActSet([dummyOp])
+            return graspOCost, [dummyOp]
         
         vis, viol = self.getViols(details.pbs, v, p)
         totalCost, ops = hCostSee(vis, viol, details)
@@ -1180,3 +1181,5 @@ def partition(fluents):
                     
         groups.append(frozenset(newSet))
     return groups
+
+print 'Loaded pr2Fluents.py'

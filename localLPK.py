@@ -52,6 +52,7 @@ executionFail
 extraTests (test for rendundancy and contradiction within state fluent set;
             test that cached fluent strings are right)
 feasibleHeuristicOnly (don't try to find optimal value in heuristic)
+ffl (ff-like heuristic, new implementation)
 fluentCache (be sure the fluent cache is behaving)
 hAddBack   (super verbose)
 hAddBackInf
@@ -87,8 +88,10 @@ skeleton
 testVerbose
 traceCRH
 traceGen  (compact summary of generators)
+useNewH
 visible
 visibleEx (show visibility stuff during execution even if visible is false)
+visible_raster
 
 '''
 
@@ -109,8 +112,8 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['executionFail', 'pushGen']
-      # + ['alwaysWriteHFile'] #+ ['disablePush']
+debugOn = usualTags + ['visibleRaster', 'useNewH']
+
 
 
 debugOnly = debugOnly

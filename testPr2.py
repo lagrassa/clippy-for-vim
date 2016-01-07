@@ -128,6 +128,7 @@ def test0(**args):
                   {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
     goal = inRegion(['objA'], 'table1Left')
+    easyGoal = inRegion(['objA'], 'table1Top')
     # pick/place, flat
     skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), move,              
@@ -137,16 +138,6 @@ def test0(**args):
              moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
              move, lookAt.applyBindings({'Obj' : 'table1'}),
              move]]*10
-    # pick/place, hierarchical.  Not verified recently
-    hskel = [[poseAchIn],
-            [poseAchIn],
-            [poseAchIn, lookAt, place],
-            [place],
-            [place, pick],
-            [pick],
-            [pick],
-            [pick, moveNB, lookAt, move],
-            [place, move]]
     return doTest('test0', exp, goal, skel, args)
 
 def testGrab(**args):
@@ -360,11 +351,6 @@ def test8(initG=0, **args):
     
     goal = holding('objB', 'left', 1, goalProb=0.7)
     testWithBInHand('test8', goal, initG, args)
-
-######################################################################
-#       Another test.  Picking something up from the back.
-#       shouldn't be hard.
-######################################################################
 
 def test9(**args):
     front = hu.Pose(1.1, 0.0, tZ, 0.0)

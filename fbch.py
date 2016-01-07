@@ -302,7 +302,7 @@ class State:
                    for f in self.fluents])
 
     def __str__(self):
-        # Try using prettyString so that real values will be truncated
+        # Using prettyString so that real values will be truncated
         fluentString = self.prettyString(True)
                         
         # Rebind nodes look like duplicates, so be sure they're never pruned
@@ -334,7 +334,6 @@ class State:
     __repr__ = __str__
     signature = __str__
     def __eq__(self, other):
-        
         return other != None and self.signature() == other.signature()
     def __ne__(self, other):
         return other == None or self.signature() != other.signature()
@@ -514,6 +513,10 @@ class Fluent(object):
             self.strStored[eq] = self.predicate + self.argString(eq) +\
                                  ' = ' + prettyString(self.value, eq)
         return self.strStored[eq]
+
+    # Return a version with all variables turned into 'X'
+    def subXForVars(self):
+        return self.applyBindings(dict([(var, 'X') for var in self.getVars()]))
 
     def argString(self, eq):
         return '['+ ', '.join([prettyString(a, eq) for a in self.args]) + ']'
@@ -1088,7 +1091,7 @@ class Operator(object):
                 print self.name, 'generated a bad suggestion'
                 print 'Ignoring it for now, but we should fix this.'
                 return None
-            goal.addSet(newCond)
+            goal.addSet(newCond, startState.details)
 
         resultSE = [f.applyBindings(newBindings) \
                     for f in self.guaranteedSideEffects(allLevels = True)]

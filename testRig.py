@@ -26,7 +26,7 @@ from fbch import State, planBackward, makePlanObj, HPN
 
 import belief
 reload(belief)
-from belief import BBhAddBackBSet, B, Bd
+from belief import BBhAddBackBSet, B, Bd, BBhAddBackBSetNew
 
 import pr2Util
 reload(pr2Util)
@@ -56,7 +56,7 @@ reload(pr2GenTests)
 
 import pr2Fluents
 reload(pr2Fluents)
-from pr2Fluents import partition, In, Holding, Grasp, GraspFace, Pose, SupportFace
+from pr2Fluents import partition, In, Holding, Grasp, GraspFace, Pose, SupportFace, BaseConf
 
 import pr2PlanBel
 reload(pr2PlanBel)
@@ -144,7 +144,12 @@ def habbs(s, g, ops, ancestors):
     startTime = time.time()
     feasibleOnly = debug('feasibleHeuristicOnly')
     hops = ops + [hRegrasp]
-    val = BBhAddBackBSet(s, g, hops, ancestors, ddPartitionFn = partition,
+    if debug('useNewH'):
+        val = BBhAddBackBSetNew(s, g, hops, ancestors,
+                                ddPartitionFn = partition,
+                                maxK = hDepth, feasibleOnly = feasibleOnly)
+    else:
+        val = BBhAddBackBSet(s, g, hops, ancestors, ddPartitionFn = partition,
                                 maxK = hDepth, feasibleOnly = feasibleOnly)
     if val == 0:
         # Just in case the addBack heuristic thinks we're at 0 when

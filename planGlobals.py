@@ -103,6 +103,7 @@ smoothPathObst = True
 rrtPlanAttempts = 5                     # to try to get smaller base displacement
 
 maxOpenLoopDist = 1.5                   # Assumes we're doing moveLook paths
+maxOpenLoopDist = 10.0                   # Assumes we're doing moveLook paths
 
 ########################################
 # Obstacle growing, should be determined by uncertainty

@@ -834,6 +834,11 @@ def moveSpecialRegress(f, details, abstractionLevel):
             tr('specialRegress',
                'Move special regress failing; target var less than odo', f)
             return None
+
+    # For CanReachHome and other fluents, would need to add a
+    # condition that it will still work if the variance on some set of
+    # objects is increased by xxxx.
+
     return f.copy()
 
 ################################################################
