@@ -558,17 +558,6 @@ class CanReachNB(Fluent):
         valueStr = ' = ' + prettyString(self.value) if includeValue else ''
         return self.predicate + ' ' + argStr + valueStr
 
-def onlyBaseCollides(conf, shadows):
-    assert False, 'onlyBaseCollides is deprecated'
-    parts = dict([(part.name(), part) for part in conf.placement().parts()])
-    collide = any(any(parts[p].collides(sh) for sh in shadows) for p in parts if p != 'pr2Base')
-    print parts, collide
-    raw_input('onlyBaseCollides')
-    if not collide:
-        assert any(parts['pr2Base'].collides(sh) for sh in shadows)
-        return True
-    return False
-
 zeroPose = zeroVar = (0.0,)*4
 tinyDelta = (1e-8,)*4
 zeroDelta = (0.0,)*4

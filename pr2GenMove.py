@@ -344,14 +344,14 @@ def findRetractArmConf(pbs, prob, q1, q2, maxIter = 50):
         chainName = robot.armChainNames[h]
         armChains = [chainName, robot.gripperChainNames[h]]
         if not (collides(conf, avoid, attached=attached, selectedChains=armChains) \
-               if glob.useCC else avoid.collides(conf.armShape(h,attached))):
+               if glob.useCC else avoid.collides(conf.robot.armAndGripperShape(h,attached))):
             continue
         if debug('retract'):
             print 'retract collision with', h, 'arm', conf.baseConf()
         path, viol = \
               planRobotGoalPath(pbs, prob, conf,
                                 lambda c: not (collides(c, avoid, attached=attached, selectedChains=armChains) \
-                                               if glob.useCC else avoid.collides(c.armShape(h,attached))),
+                                               if glob.useCC else avoid.collides(c.robot.armAndGripperShape(h,attached))),
                                 None, [chainName], maxIter = maxIter)
         if debug('retract'):
             pbs.draw(prob, 'W')

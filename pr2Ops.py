@@ -79,8 +79,11 @@ def describePath(path, tag):
     raw_input('Go?')
 
 def primPath(bs, cs, ce, p):
-    return primPathUntilLook(bs, cs, ce, p) or \
-           primPathRRT(bs, cs, ce, p)
+    path = primPathUntilLook(bs, cs, ce, p)
+    if not path:
+        raw_input('Could not find inflated base path in prim... continue withouut inflation?')
+        return primPathRRT(bs, cs, ce, p)
+    return path
 
 def primPathRRT(bs, cs, ce, p):
     def onlyShadows(viols):
@@ -201,11 +204,12 @@ def movePrim(args, details):
 
 def confStr(conf):
     cart = conf.cartConf()
-    pose = cart['pr2LeftArm'].pose(fail=False)
+    chainName = conf.robot.armChainNames['left']
+    pose = cart[chainName].pose(fail=False)
     if pose:
         hand = str(np.array(pose.xyztTuple()))
     else:
-        hand = '\n'+str(cart['pr2LeftArm'].matrix)
+        hand = '\n'+str(cart[chainName].matrix)
     return 'base: '+str(conf.baseConf())+'   hand: '+hand
 
 def pickPrim(args, details):

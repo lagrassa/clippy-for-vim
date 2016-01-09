@@ -346,13 +346,13 @@ def canView(pbs, prob, conf, hand, shape,
             chainName = robot.armChainNames[h]
             armChains = [chainName, robot.gripperChainNames[h]]
             if not (collides(conf, avoid, attached=attached, selectedChains=armChains) \
-                   if glob.useCC else avoid.collides(conf.armShape(h,attached))):
+                   if glob.useCC else avoid.collides(conf.robot.armAndGripperShape(h,attached))):
                 continue
             if debug('canView'):
                 print 'canView collision with', h, 'arm', conf.baseConf()
             path, viol = planRobotGoalPath(pbs, prob, conf,
                                 lambda c: not (collides(c, avoid, attached=attached, selectedChains=armChains) \
-                                                          if glob.useCC else avoid.collides(c.armShape(h,attached))),
+                                                          if glob.useCC else avoid.collides(c.robot.armAndGripperShape(h,attached))),
                                            None, [chainName], maxIter = maxIter)
             if debug('canView'):
                 pbs.draw(prob, 'W')
@@ -387,6 +387,7 @@ def lookAtConfCanView(pbs, prob, conf, shape, hands=('left', 'right'),
     if not lookConf:
         tr('lookAtConfCanView', 'lookAtConfCanView failed conf')
         return None
+    if not glob.useRight: hands = ('left',)
     if True: # not glob.inHeuristic:            # if heuristic we'll ignore robot
         path = None
         for hand in hands:              # consider each hand in turn

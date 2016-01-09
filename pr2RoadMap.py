@@ -151,7 +151,6 @@ def violToColl(viol):
 viol0 = Violations()
 stats = {'newRob':0, 'newHeld':0, 'oldRob':0, 'oldHeld':0,
          'newTest':0, 'oldTest':0}
-allMoveChains = ['pr2Base', 'pr2LeftArm', 'pr2RightArm'] # no grippers or head
 
 # params: kNearest, kdLeafSize, cartesian, moveChains
 # cartesian indicates whether to use cartesian interpolation
@@ -319,8 +318,8 @@ class RoadMap:
         chains = [chain for chain in initConf.conf \
                   if chain in targetConf.conf \
                   and max([abs(x-y) > 1.0e-6 for (x,y) in zip(initConf.conf[chain], targetConf.conf[chain])])]
-        if 'pr2Base' in chains and 'pr2Head' in chains:
-            chains.remove('pr2Head')
+        if self.robot.baseChainName in chains and self.robot.headChainName in chains:
+            chains.remove(self.robot.headChainName)
 
         for inflate in ((True, False) if optimize else (False,)):
             attempts = 1 if (not optimize or targetConf.baseConf() == initConf.baseConf()) else glob.rrtPlanAttempts
@@ -377,7 +376,7 @@ class RoadMap:
         cacheAns(ans)
         return confAns(ans, show=True)
 
-    def robotSelfCollide(self, shape, heldDict={}):
+    def robotSelfCollide(self, shape, heldDict):
         def partDistance(p1, p2):
             c1 = p1.origin().point()
             c2 = p2.origin().point()
@@ -385,15 +384,18 @@ class RoadMap:
         tag = 'robotSelfCollide'
         if glob.inHeuristic: return False
         # Very sparse checks...
-        checkParts = {'pr2LeftArm': ['pr2RightArm', 'pr2RightGripper', 'right'],
-                      'pr2LeftGripper': ['pr2RightArm', 'pr2RightGripper', 'right'],
-                      'pr2RightArm': ['left'],
-                      'pr2RightGripper': ['left']}
+        armChains = self.robot.armChainNames
+        gripperChains = self.robot.gripperChainNames
+        # 'left' and 'right' stand in for the held objects if any
+        checkParts = {armChains['left'] : [armChains['right'], gripperChains['right'], 'right'],
+                      gripperChains['left'] : [armChains['right'], gripperChains['right'], 'right'],
+                      armChains['right']: ['left'],
+                      gripperChains['right']: ['left']}
         parts = dict([(part.name(), part) for part in shape.parts()])
-        if partDistance(parts['pr2RightGripper'], parts['pr2LeftGripper']) < minGripperDistance:
+        if partDistance(parts[gripperChains['right']], parts[gripperChains['left']]) < minGripperDistance:
             if debug(tag): print tag, 'grippers are too close'
             return True
-        for h in handName:
+        for h in handName:              # fill in the held objects as 'left' or 'right'
             if h in heldDict and heldDict[h]:
                 parts[h] = heldDict[h]
         for p in checkParts:
@@ -405,10 +407,7 @@ class RoadMap:
                 if pShape.collides(checkShape):
                     if debug(tag): print tag, p, 'collides with', check
                     return True
-        if heldDict:
-            heldParts = [x for x in heldDict.values() if x]
-        else:
-            heldParts = [parts[p] for p in parts if p[:3] != 'pr2']
+        heldParts = [x for x in heldDict.values() if x]
         return self.heldSelfCollide(heldParts)
 
     def heldSelfCollide(self, shape):
@@ -623,19 +622,22 @@ class RoadMap:
                 return shapes.Shape([parts[1]], None)
         tag = 'confCollidersCC'
         shWorld = pbs.getShadowWorld(prob)
+        robot = conf.robot
         attached = None if ignoreAttached else shWorld.attached
         assert conf.robot.compiledChains
-        robCC = confPlaceChains(conf, conf.robot.compiledChains)
+        robCC = confPlaceChains(conf, robot.compiledChains)
         # Ignore big shadows when checking for self collision
         attCCd = tuple([compileAttachedFrames(conf.robot, attached, h, robCC[0], heldSolidParts) \
                         for h in handName])
 
         permanentNames = set(shWorld.fixedObjects) # set of names
+        chainNames = [[robot.armChainNames['left']], [robot. gripperChainNames['left']],
+                      [robot.armChainNames['right']], [robot. gripperChainNames['right']]]
         if debug(tag):
             pbs.draw(prob, 'W')
             conf.draw('W', 'purple', attached=attached)
         # The self collision can depend on grasps - how to handle caching?
-        if confSelfCollide(robCC, attCCd):
+        if confSelfCollide(robCC, attCCd, chainNames):
             if debug(tag):
                 conf.draw('W', 'red', attached=attached)
                 raw_input('selfCollision')

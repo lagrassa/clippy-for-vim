@@ -1995,3 +1995,15 @@ def getCRHObsts(goalConds, pbs, ignore=[]):
         obsts.append((frozenset(ignoreObjects), obst))
     debugMsg('getReachObsts', ('->', len(obsts), 'CRH obsts'))
     return obsts
+
+
+def onlyBaseCollides(conf, shadows):
+    assert False, 'onlyBaseCollides is deprecated'
+    parts = dict([(part.name(), part) for part in conf.placement().parts()])
+    collide = any(any(parts[p].collides(sh) for sh in shadows) for p in parts if p != 'pr2Base')
+    print parts, collide
+    raw_input('onlyBaseCollides')
+    if not collide:
+        assert any(parts['pr2Base'].collides(sh) for sh in shadows)
+        return True
+    return False

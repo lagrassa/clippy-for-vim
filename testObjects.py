@@ -156,11 +156,26 @@ def makeSoup(radius=0.0675/2, height=0.1, name='soup', color='red'):
     color = color or pickColor(name)
     # TODO: grasps...
     raw_input('No grasps defined for soup')
-    glob.objectSymmetries['bar'] = sym6
     return (Sh([shapes.Ngon(radius, height, 6)], name=name, color=color), [])
 glob.graspableNames.append('soup'); glob.pushableNames.append('soup')
 glob.objectTypes['soup'] = 'soup'
+glob.objectSymmetries['soup'] = sym6
 glob.constructor['soup'] = makeSoup
+
+def makeDowny(scale=0.025, name='downy', color='blue'):
+    color = color or pickColor(name)
+    glob.objectSymmetries['downy'] = sym0
+    return  (shapes.readWrl('meshes/downy-hi.wrl',
+                           scale=scale, name=name, color=color),
+             [])
+glob.pushableNames.append('downy')
+glob.objectSymmetries['downy'] = sym0
+glob.objectTypes['downy'] = 'downy'
+glob.constructor['downy'] = makeDowny
+
+################
+# Furniture
+################
 
 def makeSolidTable(dx=0.603, dy=0.298, dz=0.67, name='tableSolid', width=0.1, color = 'orange'):
     table = Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name+'Body', color=color)
@@ -375,6 +390,4 @@ glob.constructor['coolShelves'] = makeCoolShelves
 #                  name = 'cupboardSide1', color='orange')
 # cupboard2 = Sh([place((-0.25, 0.25), (-0.05, 0.06), (0.0, 0.4))],
 #                  name = 'cupboardSide2', color='orange')
-
-
 

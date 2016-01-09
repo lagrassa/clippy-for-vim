@@ -97,6 +97,8 @@ class RealWorld(WorldState):
         odoError = self.domainProbs.odoError
         prevXYT = self.robotConf.baseConf()
         prevConf = self.robotConf
+        leftChainName = self.robotConf.robot.armChainNames['left']
+        rightChainName = self.robotConf.robot.armChainNames['right']
 
         if max([abs(a-b) for (a,b) in zip(self.robotConf.basePose().xyztTuple(),
                                           path[0].basePose().xyztTuple())]) > 0.01:
@@ -127,7 +129,7 @@ class RealWorld(WorldState):
             # Apply the noisy displacement to the "actual" robot location
             bc = self.robotConf.basePose().compose(dispNoisy).pose().xyztTuple()
             # This is the new conf to move to
-            conf = conf.set('pr2Base', tuple([bc[i] for i in (0,1,3)]))
+            conf = conf.setBaseConf(tuple([bc[i] for i in (0,1,3)]))
             if debug('sim'):
                 print 'Initial base conf', newXYT
                 print 'draw', baseOff.xyztTuple()
@@ -151,13 +153,13 @@ class RealWorld(WorldState):
             wm.getWindow('World').pause()
             wm.getWindow('Belief').pause()
             cart = conf.cartConf()
-            leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3]).tolist()[0][:-1]
-            rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3]).tolist()[0][:-1]
+            leftPos = np.array(cart[leftChainName].point().matrix.T[0:3]).tolist()[0][:-1]
+            rightPos = np.array(cart[rightChainName].point().matrix.T[0:3]).tolist()[0][:-1]
             tr('sim',
                'base', conf.baseConf(), 'left', leftPos, 'right', rightPos)
             if debug('sim'):
-                print 'left\n', cart['pr2LeftArm'].matrix
-                print 'right\n', cart['pr2RightArm'].matrix
+                print 'left\n', cart[leftChainName].matrix
+                print 'right\n', cart[rightChainName].matrix
             if ignoreCrash:
                 pass
             else:
@@ -186,8 +188,8 @@ class RealWorld(WorldState):
                 self.robotPlace.draw('World', 'orange')
                 self.robotPlace.draw('Belief', 'orange')
                 cart = c.cartConf()
-                leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
-                rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
+                leftPos = np.array(cart[leftChainName].point().matrix.T[0:3])
+                rightPos = np.array(cart[rightChainName].point().matrix.T[0:3])
                 tr('sim',
                    ('base', c.baseConf(), 'left', leftPos, 'right', rightPos))
                 break
@@ -268,6 +270,7 @@ class RealWorld(WorldState):
         nominalGD = op.args[3]
         nominalGPoseTuple = op.args[4]
         self.setRobotConf(lookConf)
+        robotName = self.robotConf.robot.name
         tr('sim', 'LookAtHand configuration', draw=[(self.robotPlace, 'World', 'orchid')])
         _, attachedParts = self.robotConf.placementAux(self.attached,
                                                        getShapes=[])
@@ -290,7 +293,7 @@ class RealWorld(WorldState):
                 # This condition is implemented in canView.  It might
                 # be very difficult to move hand out of the way of big
                 # permanent objects.
-                if occl == ['PR2'] and permanent(targetObj):
+                if occl == [robotName] and permanent(targetObj):
                     tr('sim', 'Permanent object %s is visible in spite of robot'%targetObj)
                 else:
                     tr('sim', 'Object %s is not visible'%targetObj)

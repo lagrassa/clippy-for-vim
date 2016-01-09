@@ -263,7 +263,7 @@ class Memoizer:
 
 def bigAngleWarn(conf1, conf2, thr = math.pi/8.):
     if not debug('bigAngleChange'): return
-    for chain in ['pr2LeftArm', 'pr2RightArm']:
+    for chain in conf.robot.armChainNames.values():
         joint = 0
         for angle1, angle2 in zip(conf1[chain], conf2[chain]):
             if abs(hu.angleDiff(angle1, angle2)) >= thr:
@@ -396,8 +396,8 @@ def confWithin(c1, c2, delta):
     robot = c1.robot
 
     # Also be sure two head angles are the same
-    (c1h1, c1h2) = c1['pr2Head']
-    (c2h1, c2h2) = c2['pr2Head']
+    (c1h1, c1h2) = c1[c1.robot.headChainName]
+    (c2h1, c2h2) = c2[c2.robot.headChainName]
 
     # Also look at gripper
 

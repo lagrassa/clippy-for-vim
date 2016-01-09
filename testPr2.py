@@ -125,7 +125,8 @@ def doTest(name, exp, goal, skel, args):
 
 def test0(**args):
     exp = makeExp({'table1' : (table1Pose, medVar)},
-                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
+                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar),
+                   'downyB' : (hu.Pose(1.1, 0.2, tZ, 0.0), medVar)},
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
     goal = inRegion(['objA'], 'table1Left')
     easyGoal = inRegion(['objA'], 'table1Top')
@@ -755,7 +756,7 @@ def testShelvesPush(**args):
 def testPush(name, objName, startPose, targetReg, **args):
     middle = hu.Pose(1.3, 0.05, tZ, math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
-                   'barC': (middle, medVar)
+                   # 'barC': (middle, medVar)
                    },
                   {objName : (startPose, medVar)},
                   ['table1Top', targetReg], easy=args.get('easy', False))
@@ -779,7 +780,7 @@ def testPush(name, objName, startPose, targetReg, **args):
 
 def testPush0(objName='bigB', **args):
     skel = [[poseAchIn,
-             lookAt.applyBindings({'Obj' : 'bigB'}), moveNB,
+             lookAt.applyBindings({'Obj' : objName}), moveNB,
              lookAt.applyBindings({'Obj' : 'table1'}), move,
              push, moveNB, lookAt, moveNB, lookAt, move]]
     args['skeleton'] = skel if 'skeleton' in args else None

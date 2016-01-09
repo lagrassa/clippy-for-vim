@@ -22,7 +22,8 @@ drawFailedNodes = False
 drawRebindNodes = True
 
 usualTags = [# 'nonmon',
-             'animate']
+             'animate',
+             'useNewH']
 flags = ['simpleAbstractCostEstimates',
          'primitiveHeuristicAlways',
          # 'pushSim',
@@ -40,7 +41,7 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['visible', 'visibleEx', 'visible_raster']
+debugOn = usualTags + ['debugInHeuristic', 'pushGen', 'pushPath', 'visible_raster']
 # + ['lookGen', 'pickGen', 'placeGen', 'placeInGen', 'getReachObsts', 'CanReachHome']
 # + ['debugInHeuristic', 'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'visible', 'CanSeeFrom', 'canView']
 # + ['potentialRegionPoseGen', 'regionPoseHyps', 'debugInHeuristic', 'potentialGraspConfs', 'potentialGraspConfsWin', 'potentialGraspConfsLose']

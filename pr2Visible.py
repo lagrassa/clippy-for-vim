@@ -40,8 +40,9 @@ def visibleOLD(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     if key in cache:
         cacheStats[1 if glob.inHeuristic else 4] += 1
         return cache[key]
+    headChainName = conf.robot.headChainName
     if debug('visible'):
-        print 'visible', shape.name(), 'from base=', conf.baseConf(), 'head=', conf['pr2Head']
+        print 'visible', shape.name(), 'from base=', conf.baseConf(), 'head=', conf[headChainName]
         print 'obstacles', obstacles
         print 'fixed', fixed
     lookConf = lookAtConf(conf, shape) if moveHead else conf
@@ -78,7 +79,6 @@ def visibleOLD(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     for f in fixed: fix.append(f)
     move = [obj for obj in obstacles if obj not in fix]
     for objShape in fix+move:
-        # if objShape.name() == 'PR2': continue # already handled
         if objShape.collides(vc):
             potentialOccluders.append(objShape)
     if debug('visible'):
@@ -183,11 +183,12 @@ def lookAtConf(conf, shape):
     z = shape.bbox()[1,2]               # at the top
     z = 0.5*(shape.bbox()[0,2] + shape.bbox()[1,2])       # at the middle
     z = shape.bbox()[0,2]               # at the bottom
+    headChainName = conf.robot.headChainName
     for dz in (0, 0.02, 0.04, 0.06):
         center[2] = z + dz
         cartConf = conf.cartConf()
-        assert cartConf['pr2Head']
-        lookCartConf = cartConf.set('pr2Head', hu.Pose(*center.tolist()+[0.,]))
+        assert cartConf[headChainName]
+        lookCartConf = cartConf.set(headChainName, hu.Pose(*center.tolist()+[0.,]))
         lookConf = conf.robot.inverseKin(lookCartConf, conf=conf)
         if all(lookConf.values()):
             return lookConf
@@ -199,7 +200,8 @@ def viewCone(conf, shape, offset = 0.1):
     if not lookConf:
         return
     lookCartConf = lookConf.cartConf()
-    headTrans = lookCartConf['pr2Head']
+    headChainName = conf.robot.headChainName
+    headTrans = lookCartConf[headChainName]
     sensor = headTrans.compose(hu.Transform(transf.rotation_matrix(-math.pi, (1,0,0))))
     sensorShape = shape.applyTrans(sensor.inverse())
     ((x0,y0,z0),(x1,y1,z1)) = sensorShape.bbox()
@@ -237,7 +239,8 @@ def findSupportTableInPbs(pbs, targetObj):
 def lookScan(lookConf):
     global laserScanGlobal
     lookCartConf = lookConf.cartConf()
-    headTrans = lookCartConf['pr2Head']
+    headChainName = conf.robot.headChainName
+    headTrans = lookCartConf[headChainName]
 
     if not laserScanGlobal:
         laserScanGlobal = Scan(Ident, glob.laserScanParams)
@@ -266,8 +269,9 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     if key in cache:
         cacheStats[1 if glob.inHeuristic else 4] += 1
         return cache[key]
+    headChainName = conf.robot.headChainName
     if debug('visible'):
-        print 'visible', shape.name(), 'from base=', conf.baseConf(), 'head=', conf['pr2Head']
+        print 'visible', shape.name(), 'from base=', conf.baseConf(), 'head=', conf[headChainName]
         print 'obstacles', obstacles
         print 'fixed', fixed
     lookConf = lookAtConf(conf, shape) if moveHead else conf
@@ -279,7 +283,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     raster = lookRaster()
     raster.reset()
     lookCartConf = lookConf.cartConf()
-    headTrans = lookCartConf['pr2Head']
+    headTrans = lookCartConf[headChainName]
     sensor = headTrans.compose(hu.Transform(transf.rotation_matrix(-math.pi, (1,0,0))))
     trans = sensor.inverse()
     fix = [obj for obj in obstacles if obj.name() in ws.fixedObjects]

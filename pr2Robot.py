@@ -231,8 +231,6 @@ class JointConf:
         return self.conf['pr2Base']
     def cartConf(self):
         return self.robot.forwardKin(self)
-    def armShape(self, h, attached=None):
-        return self.robot.armShape(self, h, attached)
     def handWorkspace(self):
         tz = self.conf['pr2Torso'][0]
         bb = ((0.5, -0.25, tz+0.2),(0.75, 0.25, tz+0.4)) # low z, so view cone extends
@@ -508,6 +506,7 @@ class PR2:
         self.gripperChainNames = {'left':'pr2LeftGripper', 'right':'pr2RightGripper'}
         self.wristFrameNames = {'left':'l_wrist_roll_joint', 'right':'r_wrist_roll_joint'}
         self.baseChainName = 'pr2Base'
+        self.headChainName = 'pr2Head'
         # This has the X axis pointing along fingers
         self.toolOffsetX = {'left': left_gripperToolOffsetX, 'right': right_gripperToolOffsetX}
         # This has the Z axis pointing along fingers (more traditional, as in ikFast)
@@ -594,13 +593,25 @@ class PR2:
         else:
             return pr2BaseLink
 
-    def armShape(self, c, hand, attached):
+    def armAndGripperShape(self, c, hand, attached):
         parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])
         armShapes = [parts[self.armChainNames[hand]],
                      parts[self.gripperChainNames[hand]]]
-        if attached[hand]:
+        if attached and attached[hand]:
             armShapes.append(parts[attached[hand].name()])
         return shapes.Shape(armShapes, None)
+
+    def armShape(self, c, hand):
+        parts = dict([(o.name(), o) for o in c.placement().parts()])
+        armShapes = [parts[self.armChainNames[hand]]]
+        return shapes.Shape(armShapes, None)
+
+    def gripperShape(self, c, hand, attached):
+        parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])
+        gripperShapes = [parts[self.gripperChainNames[hand]]]
+        if attached and attached[hand]:
+            gripperShapes.append(parts[attached[hand].name()])
+        return shapes.Shape(gripperShapes, None)
 
     # attach the object (at its current pose) to gripper (at current conf)
     def attach(self, objectPlace, wstate, hand='left'):

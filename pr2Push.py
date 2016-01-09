@@ -986,10 +986,7 @@ def pushPath(pbs, prob, gB, pB, conf, initPose, preConf, regShape, hand):
     return finish(reason, 'Final pushPath', pathViols)
 
 def armCollides(conf, objShape, hand):
-    armShape = conf.placement()
-    parts = dict([(part.name(), part) for part in armShape.parts()])
-    gripperName = conf.robot.gripperChainNames[hand]
-    return any(objShape.collides(parts[name]) for name in parts if name != gripperName)
+    return conf.robot.armShape(conf, hand).collides(objShape)
 
 def drawState(pbs, prob, conf, shape=None):
     shWorld = pbs.getShadowWorld(prob)
@@ -1007,6 +1004,7 @@ def drawState(pbs, prob, conf, shape=None):
         
 def displaceHandRot(conf, hand, offsetPose, nearTo=None, tiltRot=None, angle=0.0):
     cart = conf.cartConf()
+    robot = conf.robot
     handFrameName = conf.robot.armChainNames[hand]
     trans = cart[handFrameName]         # initial hand position
     # wrist x points down, so we negate angle to get rotation around z.
@@ -1017,7 +1015,7 @@ def displaceHandRot(conf, hand, offsetPose, nearTo=None, tiltRot=None, angle=0.0
     nCart = cart.set(handFrameName, nTrans)
     nConf = conf.robot.inverseKin(nCart, conf=(nearTo or conf)) # use conf to resolve
     if all(nConf.values()):
-        assert all(conf[g] == nConf[g] for g in ('pr2LeftGripper', 'pr2RightGripper'))
+        assert all(conf[g] == nConf[g] for g in robot.gripperChainNames.values())
         return nConf
     
 def handTilt(conf, hand, direction):
