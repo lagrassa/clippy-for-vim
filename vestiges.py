@@ -1012,8 +1012,6 @@ def getAllPoseBels(overrides, getFaceFrames, curr):
         objects[o] = p
     return objects
 
-<<<<<<< HEAD
-
 # regrasp
 def testRegrasp(hpn = False, draw=False):
     t = PlanTest('testRegrasp',  typicalErrProbs,
@@ -1068,9 +1066,6 @@ def testScan():
             count += 1
     return count
 
-
-=======
-        
     def setObjectConfOld(self, objName, conf):
         obj = self.world.objects[objName]
         if not isinstance(conf, dict):
@@ -1686,3 +1681,329 @@ def potentialConfs(pbs, prob, placeB, prePose, graspB, hand, base):
     postGen = potentialGraspConfGen(pbs, placeB, graspB, None, hand, base, prob)
     preGen = preGraspConfGen()
     return roundrobin(postGen, preGen)
+
+# Preconditions (for R1):
+
+# 1. CanReach(...) - new Pose fluent should not make the canReach
+# infeasible (use fluent as taboo).
+# new Pose fluent should not already be in conditions (any Pose for this obj).
+
+# 2. Pose(obj) - new Pose has to be consistent with the goal (ok to
+# reduce variance wrt goal but not cond). if Pose(obj) in goalConds,
+# can only reduce variance.
+
+def canXGenTop(violFn, args, goalConds, newBS, tag):
+    (cond, prob, lookVar) = args
+    tr(tag, 'h=%s'%glob.inHeuristic)
+    # Initial test
+    viol = violFn(newBS)
+    tr(tag, ('viol', viol),
+       draw=[(newBS, prob, 'W')], snap=['W'])
+    if not viol:                  # hopeless
+        if tag == 'canPickPlaceGen':
+            glob.debugOn.append('canPickPlaceTest')
+            violFn(newBS)
+            glob.debugOn.remove('canPickPlaceTest')
+        tr(tag, 'Impossible dream')
+        return
+    if viol.empty():
+        tr(tag, '=> No obstacles or shadows; returning')
+        return
+    
+    lookDelta = newBS.domainProbs.shadowDelta
+    moveDelta = newBS.domainProbs.placeDelta
+    shWorld = newBS.getShadowWorld(prob)
+    fixed = shWorld.fixedObjects
+    # Try to fix one of the violations if any...
+    obstacles = [o.name() for o in viol.allObstacles() \
+                 if o.name() not in fixed]
+    shadows = [sh.name() for sh in viol.allShadows() \
+               if not sh.name() in fixed]
+    if not (obstacles or shadows):
+        tr(tag, '=> No movable obstacles or shadows to fix')
+        return       # nothing available
+    if obstacles:
+        obst = obstacles[0]
+        for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
+            yield ans
+        return
+    if shadows:
+        shadowName = shadows[0]
+        obst = objectName(shadowName)
+        objBMinVar = newBS.domainProbs.objBMinVar(objectName(obst))
+        placeB = newBS.getPlaceB(obst)
+        tr(tag, '=> reduce shadow %s (in red):'%obst,
+           draw=[(newBS, prob, 'W'),
+                 (placeB.shadow(newBS.getShadowWorld(prob)), 'W', 'red')],
+           snap=['W'])
+        ans = PPResponse(placeB, None, None, None, None, objBMinVar, lookDelta)
+        yield ans
+        # Either reducing the shadow is not enough or we failed and
+        # need to move the object (if it's movable).
+        if obst not in fixed:
+            for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
+                yield ans
+    tr(tag, '=> Out of remedies')
+
+# Preconditions (for R1):
+
+# 1. CanSeeFrom(...) - new Pose fluent should not make the CanSeeFrom
+# infeasible.  new Pose fluent should not already be in conditions.
+
+# 2. Pose(obj) - new Pose has to be consistent with the goal (ok to
+# reduce variance wrt goal but not cond)
+
+# returns
+# ['Occ', 'PoseFace', 'Pose', 'PoseVar', 'PoseDelta']
+def canSeeGen(args, goalConds, bState):
+    (obj, pose, support, objV, objDelta, lookConf, lookDelta, prob) = args
+    pbs = bState.pbs.copy()
+    world = pbs.getWorld()
+
+    if pose == '*':
+        poseD = pbs.getPlaceB(obj).poseD
+    else: 
+        poseD = PoseD(pose, objV)
+    if isVar(support) or support == '*':
+        support = pbs.getPlaceB(obj).support.mode()
+    if objDelta == '*':
+        objDelta = lookDelta
+    
+    placeB = ObjPlaceB(obj, world.getFaceFrames(obj), support,
+                       poseD,
+                       # Pretend that the object has bigger delta
+                       delta=tuple([o+l for (o,l) in zip(objDelta, lookDelta)]))
+
+    for ans in canSeeGenTop((lookConf, placeB, [], prob),
+                            goalConds, pbs):
+        yield ans
+
+def canSeeGenTop(args, goalConds, pbs):
+    (conf, placeB, cond, prob) = args
+    obj = placeB.obj
+    tr('canSeeGen', '(%s) h=%s'%(obj, glob.inHeuristic))
+    tr('canSeeGen', zip(('conf', 'placeB', 'cond', 'prob'), args))
+
+    newBS = pbs.conditioned(goalConds, conds)
+    newBS = newBS.updatePermObjBel(placeB)
+
+    shWorld = newBS.getShadowWorld(prob)
+    shape = shWorld.objectShapes[placeB.obj]
+    obst = [s for s in shWorld.getNonShadowShapes() \
+            if s.name() != placeB.obj ]
+    p, occluders = visible(shWorld, conf, shape, obst, prob, moveHead=True)
+    occluders = [oc for oc in occluders if oc not in newBS.fixObjBs()]
+    if not occluders:
+        tr('canSeeGen', '=> no occluders')
+        return
+    obst = occluders[0] # !! just pick one
+    moveDelta = pbs.domainProbs.placeDelta
+    for ans in moveOut(newBS, prob, obst, moveDelta, goalConds):
+        yield ans 
+
+
+            
+def getGoalInConds(goalConds, X=[]):
+    # returns a list of [(obj, regShape, prob)]
+    fbs = fbch.getMatchingFluents(goalConds,
+                                  Bd([In(['Obj', 'Reg']), 'Val', 'P'], True))
+    return [(b['Obj'], b['Reg'], b['P']) \
+            for (f, b) in fbs if isGround(b.values())]
+
+def pathShape(path, prob, pbs, name):
+    assert isinstance(path, (list, tuple))
+    attached = pbs.getShadowWorld(prob).attached
+    return shapes.Shape([c.placement(attached=attached) for c in path], None, name=name)
+
+def pathObst(cs, cd, p, pbs, name, start=None, smooth=False):
+    newBS = pbs.copy()
+    newBS = newBS.updateFromGoalPoses(cd, permShadows=True)
+    key = (cs, newBS, p)
+    if key in pbs.beliefContext.pathObstCache:
+        return pbs.beliefContext.pathObstCache[key]
+    path,  viol = canReachHome(newBS, cs, p, Violations(), homeConf = start)
+    if debug('pathObst'):
+        newBS.draw(p, 'W')
+        cs.draw('W', 'red', attached=newBS.getShadowWorld(p).attached)
+        print 'condition', cd
+    if not path:
+        if debug('pathObst'):
+            print 'pathObst', 'failed to find path to conf in red', (cs, p, newBS)
+        ans = None
+    else:
+        if smooth or glob.smoothPathObst:
+            if debug('pathObst'):
+                print 'Smoothing in pathObst - initial', len(path)
+            st = time.time()
+            path = newBS.getRoadMap().smoothPath(path, newBS, p,
+                                                 nsteps = 50, npasses = 5)
+            if debug('pathObst'):
+                print 'Smoothing in pathObst - final', len(path), 'time=%.3f'%(time.time()-st)
+        path = interpolatePath(path)        # fill it in...
+        ans = pathShape(path, p, newBS, name)
+    pbs.beliefContext.pathObstCache[key] = ans
+    return ans
+
+def getReachObsts(goalConds, pbs, ignore = []):
+    fbs = fbch.getMatchingFluents(goalConds,
+             Bd([CanPickPlace(['Preconf', 'Ppconf', 'Hand', 'Obj', 'Pose',
+                               'Posevar', 'Posedelta', 'Poseface',
+                               'Graspface', 'Graspmu', 'Graspvar', 'Graspdelta',
+                                'Op', 'Inconds']),
+                                True, 'P'], True))
+    obstacles = []
+    for (f, b) in fbs:
+        crhObsts = getCRHObsts([Bd([fc, True, b['P']], True) \
+                                for fc in f.args[0].getConds()], pbs, ignore=ignore)
+        if crhObsts is None:
+            return None
+        obstacles.extend(crhObsts)
+
+    # Now look for standalone CRH, CRNB and CP
+    basicCRH = getCRHObsts(goalConds, pbs, ignore=ignore)
+    if basicCRH is None: return None
+    obstacles.extend(basicCRH)
+
+    basicCRNB = getCRNBObsts(goalConds, pbs, ignore=ignore) 
+    if basicCRNB is None: return None
+    obstacles.extend(basicCRNB)
+
+    basicCP = getCPObsts(goalConds, pbs, ignore=ignore) 
+    if basicCP is None: return None
+    obstacles.extend(basicCP)
+        
+    return obstacles
+
+def pushPathObst(obj, hand, poseFace, prePose, pose, preConf, pushConf,
+                 postConf, poseVar, prePoseVar, poseDelta, cond, p, pbs, name):
+    newBS = pbs.copy()
+    newBS = newBS.updateFromGoalPoses(cond, permShadows=True)
+    path,  viol = canPush(newBS, obj, hand, poseFace, prePose, pose,
+                          preConf, pushConf, postConf, poseVar,
+                          prePoseVar, poseDelta, p, Violations())
+    # Attache the pushed object to the hand so that it is in reachObst
+    post = hu.Pose(*pose)
+    placeB = ObjPlaceB(obj, pbs.getWorld().getFaceFrames(obj), poseFace,
+                       PoseD(post, poseVar), poseDelta)
+    gB = pushGraspB(pbs, pushConf, hand, placeB)
+    newBS = newBS.updateHeldBel(gB, hand)
+    if debug('pathObst'):
+        newBS.draw(p, 'W')
+        cs.draw('W', 'red', attached=newBS.getShadowWorld(p).attached)
+        print 'condition', cd
+    if not path:
+        if debug('pathObst'):
+            print 'pathObst', 'failed to find path to conf in red', (cs, p, newBS)
+        ans = None
+    else:
+        ans = pathShape(path, p, newBS, name)
+    #pbs.beliefContext.pathObstCache[key] = ans
+    return ans
+
+def getCPObsts(goalConds, pbs, ignore=[]):
+    fbs = fbch.getMatchingFluents(goalConds,
+                     Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
+                                  'PreConf', 'PushConf',
+                               'PostConf', 'PoseVar', 'PrePoseVar', 'PoseDelta',                                 'PreCond']),  True, 'Prob'], True))
+    world = pbs.getWorld()
+    obsts = []
+    index = 0
+    for (f, b) in fbs:
+        if not isGround(b.values()): continue
+        if debug('getReachObsts'):
+            print 'GRO', f
+        ignoreObjects = set([])
+        # Look at Poses in conditions; they are exceptions
+        pfbs = fbch.getMatchingFluents(b['PreCond'],
+                                       B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
+        for (pf, pb) in pfbs:
+            if isGround(pb.values()):
+                ignoreObjects.add(pb['Obj'])
+        # Ignore obstacles which have objects in ignore 
+        if any(obj in ignoreObjects for obj in ignore):
+            continue
+        obst = pushPathObst(b['Obj'], b['Hand'], b['PoseFace'], b['PrePose'], b['Pose'],
+                            b['PreConf'], b['PushConf'],
+                            b['PostConf'], b['PoseVar'], b['PrePoseVar'], b['PoseDelta'],
+                            b['PreCond'], b['Prob'], pbs,
+                            name= 'reachObst%d'%index)
+        index += 1
+        if not obst:
+            debugMsg('getReachObsts', ('path fail', f, b.values()))
+            return None
+        obsts.append((frozenset(ignoreObjects), obst))
+    debugMsg('getReachObsts', ('->', len(obsts), 'CRH NB obsts'))
+    return obsts
+
+def getCRNBObsts(goalConds, pbs, ignore=[]):
+    fbs = fbch.getMatchingFluents(goalConds,
+                             Bd([CanReachNB(['Start', 'End', 'Cond']),
+                                 True, 'P'], True))
+    world = pbs.getWorld()
+    obsts = []
+    index = 0
+    for (f, b) in fbs:
+        if not isGround(b.values()): continue
+        if debug('getReachObsts'):
+            print 'GRO', f
+        ignoreObjects = set([])
+        # Look at Poses in conditions; they are exceptions
+        pfbs = fbch.getMatchingFluents(b['Cond'],
+                                       B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
+        for (pf, pb) in pfbs:
+            if isGround(pb.values()):
+                ignoreObjects.add(pb['Obj'])
+        # Ignore obstacles which have objects in ignore 
+        if any(obj in ignoreObjects for obj in ignore):
+            continue
+        obst = pathObst(b['Start'], b['Cond'], b['P'], pbs,
+                        name= 'reachObst%d'%index, start=b['End'])
+        index += 1
+        if not obst:
+            debugMsg('getReachObsts', ('path fail', f, b.values()))
+            return None
+        obsts.append((frozenset(ignoreObjects), obst))
+    debugMsg('getReachObsts', ('->', len(obsts), 'CRH NB obsts'))
+    return obsts
+
+def getCRHObsts(goalConds, pbs, ignore=[]):
+    fbs = fbch.getMatchingFluents(goalConds,
+                             Bd([CanReachHome(['C', 'Cond']),
+                                 True, 'P'], True))
+    world = pbs.getWorld()
+    obsts = []
+    index = 0
+    for (f, b) in fbs:
+        if not isGround(b.values()): continue
+        if debug('getReachObsts'):
+            print 'GRO', f
+        ignoreObjects = set([])
+        # Look at Poses in conditions; they are exceptions
+        pfbs = fbch.getMatchingFluents(b['Cond'],
+                                  B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
+        for (pf, pb) in pfbs:
+            if isGround(pb.values()):
+                ignoreObjects.add(pb['Obj'])
+        # Ignore obstacles which have objects in ignore 
+        if any(obj in ignoreObjects for obj in ignore):
+            continue
+        obst = pathObst(b['C'], b['Cond'], b['P'], pbs, name= 'reachObst%d'%index)
+        index += 1
+        if not obst:
+            debugMsg('getReachObsts', ('path fail', f, b.values()))
+            return None
+        obsts.append((frozenset(ignoreObjects), obst))
+    debugMsg('getReachObsts', ('->', len(obsts), 'CRH obsts'))
+    return obsts
+
+
+def onlyBaseCollides(conf, shadows):
+    assert False, 'onlyBaseCollides is deprecated'
+    parts = dict([(part.name(), part) for part in conf.placement().parts()])
+    collide = any(any(parts[p].collides(sh) for sh in shadows) for p in parts if p != 'pr2Base')
+    print parts, collide
+    raw_input('onlyBaseCollides')
+    if not collide:
+        assert any(parts['pr2Base'].collides(sh) for sh in shadows)
+        return True
+    return False

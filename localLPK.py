@@ -1,5 +1,6 @@
 import os
 import platform
+
 path = os.getcwd()
 parent = path[:path.rfind('/')] + '/../'
 libkinDir = './IK/'
@@ -18,8 +19,6 @@ dotSearchX = outDir + 'sX%s%s.dot'
 pngGen = '%s/g%s.png'
 htmlGen = '%s/a%s.html'
 htmlGenH = '%s/aH%s.html'
-
-rebindPenalty = 100
 
 monotonicFirst = True
 drawFailedNodes = False
@@ -53,6 +52,7 @@ executionFail
 extraTests (test for rendundancy and contradiction within state fluent set;
             test that cached fluent strings are right)
 feasibleHeuristicOnly (don't try to find optimal value in heuristic)
+ffl (ff-like heuristic, new implementation)
 fluentCache (be sure the fluent cache is behaving)
 hAddBack   (super verbose)
 hAddBackInf
@@ -77,6 +77,7 @@ placeInGen
 placeInRegionGen
 potentialLookConfs
 prim
+pushSim : more accurate push sim
 regression
 regression:fail
 regression:fail:bindings
@@ -87,17 +88,17 @@ skeleton
 testVerbose
 traceCRH
 traceGen  (compact summary of generators)
+useNewH
 visible
 visibleEx (show visibility stuff during execution even if visible is false)
+visible_raster
 
 '''
 
 # turned off helpful actions
 
-usualTags = ['nonmon', 'nagLeslie', 'animate', 'helpfulActions']
-flags = ['simpleAbstractCostEstimates',
-          'primitiveHeuristicAlways',
-          'pushSim']
+usualTags = ['useNewH'] # 'animate', , 'helpfulActions', 'nonmon'
+flags = ['simpleAbstractCostEstimates', 'primitiveHeuristicAlways']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack', 
                  'debugInHeuristic', 'h'] #, 'hv'] 
 skeletonTags = ['skeleton', 'regression:fail', 'appOp:number', 'rebind',
@@ -111,13 +112,13 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags  + ['alwaysWriteHFile', 'debugInHeuristic']
+debugOn = usualTags + ['rebind']
+
 
 
 debugOnly = debugOnly
 traceOnly = traceOnly 
                                                  
-
 
 #------------------------------------
 pauseOn = debugOn[:]
@@ -126,4 +127,4 @@ logOn = debugOn + traceOnly
 debugOn.extend(debugOnly)
 debugOn.extend(flags)
 
-
+print 'Loaded localLPK.py'

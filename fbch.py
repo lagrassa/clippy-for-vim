@@ -2,6 +2,7 @@ import time
 import copy
 import os
 import pdb
+import numpy as np
 
 import planGlobals as glob
 from traceFile import debugMsg, debug
@@ -301,7 +302,7 @@ class State:
                    for f in self.fluents])
 
     def __str__(self):
-        # Try using prettyString so that real values will be truncated
+        # Using prettyString so that real values will be truncated
         fluentString = self.prettyString(True)
                         
         # Rebind nodes look like duplicates, so be sure they're never pruned
@@ -333,7 +334,6 @@ class State:
     __repr__ = __str__
     signature = __str__
     def __eq__(self, other):
-        
         return other != None and self.signature() == other.signature()
     def __ne__(self, other):
         return other == None or self.signature() != other.signature()
@@ -428,7 +428,7 @@ class Fluent(object):
     def update(self):
         self.isGroundStored = self.getIsGround()
         self.isPartiallyBoundStored = self.getIsPartiallyBound()
-        self.strStored = self.getStr()
+        self.strStored = {True:None, False:None} # key is eq
 
     def isImplicit(self):
         return self.implicit
@@ -506,13 +506,17 @@ class Fluent(object):
         return self.value
 
     def __str__(self):
-        if debug('extraTests'):
-            assert self.strStored == self.getStr(True)
-        return self.strStored
+        return self.getStr(True)
 
     def getStr(self, eq = True):
-        return self.predicate + self.argString(eq) +\
-          ' = ' + prettyString(self.value, eq)
+        if self.strStored[eq] is None:
+            self.strStored[eq] = self.predicate + self.argString(eq) +\
+                                 ' = ' + prettyString(self.value, eq)
+        return self.strStored[eq]
+
+    # Return a version with all variables turned into 'X'
+    def subXForVars(self):
+        return self.applyBindings(dict([(var, 'X') for var in self.getVars()]))
 
     def argString(self, eq):
         return '['+ ', '.join([prettyString(a, eq) for a in self.args]) + ']'
@@ -542,7 +546,7 @@ class Fluent(object):
     __repr__ = __str__
     def __hash__(self):
         #return hash(self.prettyString(eq=True))
-        return hash(self.strStored)
+        return hash(self.getStr(True))
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()
     def __ne__(self, other):
@@ -672,7 +676,7 @@ class Operator(object):
                  argsToPrint = None,
                  specialRegress = None,
                  metaOperator = False,
-                 rebindPenalty = glob.rebindPenalty,
+                 rebindPenalty = None, 
                  costAdjustment = 0,
                  delayBinding = False,
                  parent = None):
@@ -714,6 +718,10 @@ class Operator(object):
         self.subPlans = []
         self.delayBinding = delayBinding
         self.parent = parent
+
+    def getRebindPenalty(self):
+        return glob.rebindPenalty if self.rebindPenalty is None \
+          else self.rebindPenalty
 
     def verifyArgs(self):
         varsUsed = set({})
@@ -989,12 +997,12 @@ class Operator(object):
         # Stop right away if an immutable precond is false
         if any([(p.immutable and p.isGround() and\
                  not startState.fluentValue(p) == p.getValue()) \
-                for p in self.preconditionSet()]):
-                tr('regression:fail', 'immutable precond is false',
+                                       for p in self.preconditionSet()]):
+            tr('regression:fail', 'immutable precond is false',
                          [p for p in self.preconditionSet() if \
                           (p.immutable and p.isGround() and \
                             not startState.fluentValue(p) == p.getValue())])
-                return []
+            return []
 
         results = squashSets([r for (r, c) in self.results])
 
@@ -1061,7 +1069,7 @@ class Operator(object):
         rebindLater.operator = rebindLater.suspendedOperator
         rebindLater.bindingsAlreadyTried.extend(alreadyTried)
         rebindLater.rebind = True
-        rebindCost = self.rebindPenalty + cost
+        rebindCost = self.getRebindPenalty() + cost
         rebindLater.suspendedOperator.instanceCost = rebindCost
         return [rebindLater, rebindCost]
 
@@ -1083,7 +1091,7 @@ class Operator(object):
                 print self.name, 'generated a bad suggestion'
                 print 'Ignoring it for now, but we should fix this.'
                 return None
-            goal.addSet(newCond)
+            goal.addSet(newCond, startState.details)
 
         resultSE = [f.applyBindings(newBindings) \
                     for f in self.guaranteedSideEffects(allLevels = True)]
@@ -1414,13 +1422,15 @@ class RebindOp:
         g.rebind = False
         results = op.regress(g, startState, heuristic, operators, ancestors)
 
-        if len(results) > 0 and debug('rebind'):
+        if len(results) > 0:
+            results = [(r, c - op.getRebindPenalty()) \
+                       for (r, c) in results[:-1]] +  [results[-1]]
             tr('rebind', 'successfully rebound local vars',
                      'costs', [c for (s, c) in results], 'minus',
-                     op.rebindPenalty)
-            results[0] = (results[0][0], results[0][1] - op.instanceCost)
+                     op.getRebindPenalty())
         else:
             tr('rebind', 'failed to rebind local vars')
+
         return results
 
     def __str__(self):
@@ -1459,10 +1469,8 @@ class AddPreConds(Function):
         return [[resultCond]]
         
 ######################################################################
-# Heuristic.  Needs to be reimplemented.  See belief.py
+# Hooks for heuristic
 ######################################################################
-
-# New heuristic.  Independent backchaining, summing costs.
 
 hCache = {}
 def hCacheReset():
@@ -1474,8 +1482,6 @@ def hCacheDel(f):
 
 # hCache maps each fluent to the set of actions needed to achieve it
 # This can be saved until the next action is taken
-
-# TODO : LPK!!   Put non-belief version of heuristic here!
 
 ######################################################################
 # Execution
@@ -2029,18 +2035,6 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
     if len(preBoundNames) > 0 and debug('preBoundOps'):
         raw_input('look at dem ops')
 
-    # if not glob.inHeuristic and len(result) > 0:
-    #     placeR = [x for x in result if x.name == 'Place' and \
-    #               not x.delayBinding]
-    #     if len(placeR) > 1:
-    #         print '*******  returning from app op ******'
-    #         for oo in placeR:
-    #             print '    args', oo.args
-    #             print '   results of this operator'
-    #             for xx in oo.results:
-    #                 for yy in xx[0]: print '     ', yy
-    #         raw_input('gogogo')
-
     if len(result) == 0:
         debugMsg('appOp:number', ('h', glob.inHeuristic, 'number', len(result)))
     debugMsg(tag, ('h', glob.inHeuristic, 'number', len(result)),
@@ -2267,17 +2261,23 @@ def planBackward(startState, goal, ops, ancestors = [],
                 return p
             if f1:  writeSearchCoda(f1, f2)
             tr('nonmon', 'Monotonic failed')
-        print 'Automatically skipping non-mon'
-        return None
+
+        if not debug('nonmon'):
+            return
+
+        # print 'Automatically skipping non-mon'
+        # return None
     
         # Now try non-monotonic
+        # Don't use a heuristic in this case;  it's actively
+        # detrimental
         if fileTag:
             (f1, f2) = writeSearchPreamble(goal.planNum, fileTag+'NonMon')
         (p, c) = planBackwardAux(goal, startState, ops, ancestors, skeleton,
-                                 False, lastOp, nonMonOps, heuristic,
-                                 h is not None, usefulActions,
+                                 False, lastOp, nonMonOps,
+                                 lambda g: 0, False, None,
                                  visitF, expandF, prevExpandF, float('inf'),
-                                 maxNodes)
+                                 maxNodes * 2)
         if p and f1:
             writeSuccess(f1, f2, p)
         if p: return p
@@ -2567,3 +2567,4 @@ def writePrimRefinement(f, op):
         wf(f, indent + tasksNodeName + arrow + primNodeName + \
            styleStr(refinementArrowStyle) + eol)
 
+print 'Loaded fbch.py'

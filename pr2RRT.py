@@ -4,6 +4,7 @@ import time
 from time import sleep
 import planGlobals as glob
 from traceFile import debug, debugMsg
+from pr2Util import removeDuplicateConfs
 import hu
 import windowManager3D as wm
 from random import random
@@ -19,6 +20,8 @@ if glob.useMPL:
 ############################################################
 
 # For now, use configurations until they are added to the tree as Nodes.
+
+maxStopNodeSteps = 10
 
 class RRT:
     def __init__(self, pbs, prob, initConf, goalConf, allowedViol, moveChains):
@@ -76,6 +79,8 @@ class RRT:
     def buildTree(self, goalTest, K=1000):
         """Builds the RRT and returns either a node or FAILURE."""
         if debug('rrt'): print 'Building RRT'
+        if goalTest(self.Ta.root.conf):
+            return self.Ta.root
         for i in range(K):
             if debug('rrt'):
                 if i % 100 == 0: print i
@@ -83,7 +88,7 @@ class RRT:
             na_near = self.Ta.nearest(q_rand)
             # adjust continuous angle values
             q_rand = self.robot.normConf(q_rand, na_near.conf)
-            na_new = self.Ta.stopNode(q_rand, na_near, maxSteps = 5)
+            na_new = self.Ta.stopNode(q_rand, na_near, maxSteps = maxStopNodeSteps)
             if goalTest(na_new.conf):
                 return na_new
         if debug('rrt'):
@@ -112,7 +117,10 @@ class RRT:
     def findGoalPath(self, goalTest, K=None):
         node = self.buildTree(goalTest, K)
         if node is 'FAILURE': return 'FAILURE'
-        return self.tracePath(node)[::-1]
+        path = self.tracePath(node)[::-1]
+        goalValues = [goalTest(c.conf) for c in path]
+        goalIndex = goalValues.index(True)
+        return path[:goalIndex+1]       # include up to first True 
     
     def findPath(self, K=None):
         sharedNodes = self.buildBiTree(K)
@@ -312,7 +320,7 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
         failCount += 1
         if debug('rrt') or failCount % 10 == 0:
             if failCount > 0:
-                print 'RRT Failed', failCount, 'times'
+                print 'RRT Failed', failCount, 'times in planRobotGoalPath'
     if failCount == (failIter or glob.failRRTIter):
         return [], None
     rrtTime = time.time() - startTime
@@ -328,10 +336,11 @@ def planRobotGoalPath(pbs, prob, initConf, goalTest, allowedViol, moveChains,
         verifyPath(pbs, prob, interpolatePath(path), allowedViol, 'interp rrt:'+chain)
     return path, allowedViol
 
-def interpolate(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=100):
-    return list(interpolateGen(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=100))
+def interpolate(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=300):
+    return list(interpolateGen(q_f, q_i, stepSize=glob.rrtInterpolateStepSize,
+                               moveChains=None, maxSteps=maxSteps))
 
-def interpolateGen(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=100):
+def interpolateGen(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=None, maxSteps=300):
     robot = q_f.robot
     path = [q_i]
     q = q_i
@@ -390,15 +399,19 @@ def interpolatePath(path, stepSize = glob.rrtInterpolateStepSize):
         confs = interpolate(qf, qi, stepSize=stepSize)
         if debug('rrt'): print i, 'path segment has', len(confs), 'confs'
         interpolated.extend(confs)
-    return interpolated
+    return removeDuplicateConfs(interpolated)
 
 def pbsInflate(pbs, prob, initConf, goalConf):
     if not glob.useInflation: return pbs
     newBS = pbs.copy()
     newBS.conf = (False, initConf)
+<<<<<<< HEAD
     for obj in newBS.getPlacedObjBs():
+=======
+    inflatedVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
+    for obj in newBS.objectBs:
+>>>>>>> redo-generators
         fix, objB = newBS.objectBs[obj]
-        inflatedVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
         newBS.updatePlaceB(objB.modifyPoseD(var=inflatedVar))
     newBS.internalCollisionCheck(dither=False, objChecks=False, factor=1.1)
     newBS.conf = (newBS.conf[0], goalConf)

@@ -3,6 +3,7 @@ import time
 import string
 
 import windowManager3D as wm
+import DrawingWindowStandalonePIL as dw
 from geom import bboxGrow
 from objects import World
 from miscUtil import timeString
@@ -10,6 +11,10 @@ from miscUtil import timeString
 import planGlobals as glob
 reload(glob)
 from planGlobals import useROS
+
+import local
+reload(local)
+from local import *
 
 import traceFile
 reload(traceFile)
@@ -21,7 +26,7 @@ from fbch import State, planBackward, makePlanObj, HPN
 
 import belief
 reload(belief)
-from belief import BBhAddBackBSet, B, Bd
+from belief import BBhAddBackBSet, B, Bd, BBhAddBackBSetNew
 
 import pr2Util
 reload(pr2Util)
@@ -46,9 +51,12 @@ import pr2BeliefState
 reload(pr2BeliefState)
 from pr2BeliefState import BeliefState
 
+import pr2GenTests
+reload(pr2GenTests)
+
 import pr2Fluents
 reload(pr2Fluents)
-from pr2Fluents import partition, In, Holding, Grasp, GraspFace, Pose, SupportFace
+from pr2Fluents import partition, In, Holding, Grasp, GraspFace, Pose, SupportFace, BaseConf
 
 import pr2PlanBel
 reload(pr2PlanBel)
@@ -58,14 +66,18 @@ import pr2Visible
 reload(pr2Visible)
 pr2Visible.cache = {}
 
-import pr2GenAux
-reload(pr2GenAux)
-
-import pr2Gen
-reload(pr2Gen)
-
+import pr2GenUtils
+reload(pr2GenUtils)
+import pr2GenGrasp
+reload(pr2GenGrasp)
+import pr2GenLook
+reload(pr2GenLook)
+import pr2GenPose
+reload(pr2GenPose)
 import pr2Push
 reload(pr2Push)
+import pr2Gen
+reload(pr2Gen)
 
 import pr2Ops
 reload(pr2Ops)
@@ -106,11 +118,11 @@ def clearCaches(details):
     pr2Visible.cache.clear()
     bc.pathObstCache.clear()
     bc.objectShadowCache.clear()
-    pr2GenAux.graspConfGenCache.clear()
+    pr2GenGrasp.graspConfGenCache.clear()
     bc.world.robot.cacheReset()
     pr2Visible.cache.clear()
     fbch.hCacheReset()
-    pr2Fluents.pushPathCache.clear()
+    pr2Push.pushPathCache.clear()
     pr2Push.pushGenCache.clear()
 
 ######################################################################
@@ -122,7 +134,7 @@ def clearCaches(details):
 def hEasy(s, g, ops, ancestors):
     return g.easyH(s, defaultFluentCost = 1.5)
 
-hDepth = 10
+hDepth = 15
 
 heuristicTime = 0.0
 
@@ -132,7 +144,12 @@ def habbs(s, g, ops, ancestors):
     startTime = time.time()
     feasibleOnly = debug('feasibleHeuristicOnly')
     hops = ops + [hRegrasp]
-    val = BBhAddBackBSet(s, g, hops, ancestors, ddPartitionFn = partition,
+    if debug('useNewH'):
+        val = BBhAddBackBSetNew(s, g, hops, ancestors,
+                                ddPartitionFn = partition,
+                                maxK = hDepth, feasibleOnly = feasibleOnly)
+    else:
+        val = BBhAddBackBSet(s, g, hops, ancestors, ddPartitionFn = partition,
                                 maxK = hDepth, feasibleOnly = feasibleOnly)
     if val == 0:
         # Just in case the addBack heuristic thinks we're at 0 when
@@ -192,7 +209,7 @@ viewPort = [wx0, wx1, wy0, wy1, 0.0, wdz]
 def testWorld(include = []):
     ((x0, y0, _), (x1, y1, dz)) = workspace
     w = 0.1
-    wm.makeWindow('W', viewPort, 600)   # was 800
+    wm.makeWindow('W', viewPort, 800)   # was 800
     if useROS: wm.makeWindow('MAP', viewPort)
     world = World()
     # The room
@@ -359,7 +376,11 @@ class PlanTest:
     def buildBelief(self, home=None, regions=frozenset([])):
         world = self.world
         belC = BeliefContext(world)
-        pr2Home = home or makeConf(world.robot, 0.0, 0.0, 0.0)
+        if isinstance(home, tuple):
+            pr2Home = makeConf(world.robot, home[0], home[1], home[2], vertical=True)
+        else:
+            pr2Home = home or makeConf(world.robot, 0.0, 0.0, 0.0, vertical=True)
+        world.robot.nominalConf = pr2Home # !! Note
         rm = RoadMap(pr2Home, world,
                      params={'kNearest':17, # May be too low
                              'kdLeafSize':100,
@@ -367,11 +388,15 @@ class PlanTest:
                              'moveChains':
                              ['pr2Base', 'pr2LeftArm', 'pr2RightArm'] if glob.useRight \
                              else ['pr2Base', 'pr2LeftArm']})
-        rm.batchAddClusters(self.initConfs)
+        rm.batchAddNodes(self.initConfs)
         belC.roadMap = rm
-        pbs = PBS(belC, conf=pr2Home, fixObjBs = self.fix.copy(),
-                  moveObjBs = self.move.copy(), regions = frozenset(regions),
-                  domainProbs=self.domainProbs, useRight=glob.useRight) 
+        pbs = PBS(belC,
+                  conf=(False, pr2Home), 
+                  objectBs = \
+                  dict([(o, (True, pB)) for (o,pB) in self.fix.iteritems()] + \
+                  [(o, (False, pB)) for (o,pB) in self.move.iteritems()]),
+                  regions = frozenset(regions),
+                  domainProbs=self.domainProbs) 
         pbs.draw(0.95, 'Belief')
         bs = BeliefState(pbs, self.domainProbs, 'table2Top')
         # TODO:  LPK Awful modularity
@@ -388,6 +413,7 @@ class PlanTest:
         randomizedInitialPoses = rip
         global heuristicTime
         glob.inHeuristic = False
+        dw.doPIL = not debug('noTrace') # activate writing gen figures
         if not hierarchical:
             glob.maxNodesHPN = 1000
             print 'Not hierarchical, setting glob.maxNodesHPN =', glob.maxNodesHPN
@@ -413,7 +439,7 @@ class PlanTest:
         if glob.useROS:
             # pass belief state so that we can do obs updates in prims.
             self.realWorld = RobotEnv(world, self.bs) 
-            startConf = self.bs.pbs.conf.copy()
+            startConf = self.bs.pbs.getConf().copy()
             # Move base to [0., 0., 0.]
             startConf.set('pr2Base', 3*[0.])
             result, cnfOut, _ = pr2GoToConf(startConf,'move')
@@ -430,9 +456,9 @@ class PlanTest:
             glob.realWorld = self.realWorld
 
             # LPK!! add collision checking
-            heldLeft = self.bs.pbs.held['left'].mode()
-            heldRight = self.bs.pbs.held['right'].mode()
-            self.realWorld.setRobotConf(self.bs.pbs.conf)
+            heldLeft = self.bs.pbs.getHeld('left')
+            heldRight = self.bs.pbs.getHeld('right')
+            self.realWorld.setRobotConf(self.bs.pbs.getConf())
             for obj in self.objects:
                 if not obj in (heldLeft, heldRight):
                     pb = self.bs.pbs.getPlaceB(obj)
@@ -443,7 +469,7 @@ class PlanTest:
                     else:
                         objPose = meanObjPose
                     self.realWorld.setObjectPose(obj, objPose)
-            self.realWorld.setRobotConf(self.bs.pbs.conf)
+            self.realWorld.setRobotConf(self.bs.pbs.getConf())
 
         # Modify belief and world if these hooks are defined
         if initBelief: initBelief(self.bs)
@@ -639,9 +665,12 @@ typicalErrProbs = DomainProbs(
 #             placeDelta = (0.005, 0.005, 1.0e-4, 0.01),
 #             graspDelta = (0.001, 0.001, 1.0e-4, 0.002))
 
-allOperators = [move, push, lookAt, moveNB,
+allOperators = [move, lookAt, moveNB,
                 achCanReach, achCanReachNB, achCanPickPlace, achCanPush,
                 poseAchIn, bLoc1, bLoc2]
+
+if not debug('disablePush'):
+    allOperators.extend([push])
 
 if not debug('disablePickPlace'):
     allOperators.extend([pick, place])

@@ -70,7 +70,7 @@ def squash(stuff):
             result.append(thing)
     return result
 
-# Return a flat set of elements
+# Turn a list of sets into a single set using union
 def squashSets(stuff):
     result = set([])
     for thing in stuff:
@@ -119,7 +119,10 @@ def powerset(xs, includeEmpty = True):
 
 # if eq = True, use 6 digits otherwise 3
 
+eqDig = 3 # was 8
+
 def prettyString(struct, eq = True):
+    dig = eqDig if eq else 3
     if type(struct) == list:
         return '[' + ', '.join([prettyString(item, eq) for item in struct]) +']'
     elif type(struct) == tuple:
@@ -132,9 +135,10 @@ def prettyString(struct, eq = True):
         return str(struct)
     elif type(struct)!= int and type(struct) != bool and \
              hasattr(struct, '__float__'):
-        struct = round(struct, 8 if eq else 3)
+        struct = round(struct, dig)
         if struct == 0: struct = 0      #  catch stupid -0.0
-        return ("%5.8f" % struct) if eq else ("%5.3f" % struct)
+        #return ("%5.8f" % struct) if eq else ("%5.3f" % struct)
+        return (("%5."+str(dig)+"f") % struct)
     elif hasattr(struct, 'prettyString'):
         return struct.prettyString(eq)
     else:
@@ -199,6 +203,25 @@ def argmax(l, f):
     """
     vals = [f(x) for x in l]
     return l[vals.index(max(vals))]
+
+def argmin(l, f):
+    """
+    @param l: C{List} of items
+    @param f: C{Procedure} that maps an item into a numeric score
+    @returns: the element of C{l} that has the lowest score
+    """
+    vals = [f(x) for x in l]
+    return l[vals.index(min(vals))]
+
+def argmaxWithVal(l, f):
+    vals = [f(x) for x in l]
+    maxV = max(vals)
+    return l[vals.index(maxV)], maxV
+
+def argminWithVal(l, f):
+    vals = [f(x) for x in l]
+    minV = min(vals)
+    return l[vals.index(minV)], minV
 
 def isStruct(thing):
     return isinstance(thing, collections.Iterable) and not type(thing)==str

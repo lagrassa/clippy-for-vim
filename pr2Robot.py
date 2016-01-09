@@ -200,6 +200,7 @@ class JointConf:
         self.conf = conf
         self.robot = robot
         self.items = None
+        self.strStored = {True:None, False:None}
     def copy(self):
         return JointConf(self.conf.copy(), self.robot)
     def values(self):
@@ -216,11 +217,24 @@ class JointConf:
         c = self.copy()
         c.conf[name] = value
         return c
+    def minimalConf(self, hand):
+        armChainName = self.robot.armChainNames[hand]
+        return (tuple(self.baseConf()), tuple(self.conf[armChainName]))
+    # Abstract interface...
     def basePose(self):
         base = self.conf['pr2Base']
         return hu.Pose(base[0], base[1], 0.0, base[2])
+    def setBaseConf(self, baseConf):
+        assert isinstance(baseConf, (tuple, list)) and len(baseConf) == 3
+        return self.set('pr2Base', list(baseConf))
+    def baseConf(self):                 # (x, y, theta)
+        return self.conf['pr2Base']
     def cartConf(self):
         return self.robot.forwardKin(self)
+    def handWorkspace(self):
+        tz = self.conf['pr2Torso'][0]
+        bb = ((0.5, -0.25, tz+0.2),(0.75, 0.25, tz+0.4)) # low z, so view cone extends
+        return shapes.BoxAligned(np.array(bb), Ident).applyTrans(self.basePose())
     def placement(self, attached=None, getShapes=True):
         return self.robot.placement(self, attached=attached, getShapes=getShapes)[0]
     def placementMod(self, place, attached=None):
@@ -239,9 +253,12 @@ class JointConf:
     def prettyString(self, eq = True):
         if not eq:
             # If we don't need to maintain equality, just print the base
-            return 'JointConf('+prettyString(self.conf['pr2Base'], eq)+')'
+            if self.strStored[eq] is None:
+                self.strStored[eq] = 'JointConf('+prettyString(self.conf['pr2Base'], eq)+')'
         else:
-            return 'JointConf('+prettyString(self.conf, eq)+')'
+            if self.strStored[eq] is None:
+                self.strStored[eq] = 'JointConf('+prettyString(self.conf, eq)+')'
+        return self.strStored[eq]
     def prettyPrint(self, msg='Conf:'):
         print msg
         for key in sorted(self.conf.keys()):
@@ -261,8 +278,9 @@ class JointConf:
     def __eq__(self, other):
         if not hasattr(other, 'conf'): return False
         return self.conf == other.conf
-    def __neq__(self, other):
-        return not self == other
+    def __ne__(self, other):
+        if not hasattr(other, 'conf'): return True
+        return not self.conf == other.conf
 
 class CartConf(JointConf):
     def __init__(self, conf, robot):
@@ -293,6 +311,8 @@ class CartConf(JointConf):
             assert value is None or isinstance(value, hu.Transform)
             c.conf[name] = value
         return c
+    def basePose(self):
+        return self.conf['pr2Base'].pose()
     def confItems(self):
         if not self.items:
             vals = []
@@ -486,12 +506,13 @@ class PR2:
         self.gripperChainNames = {'left':'pr2LeftGripper', 'right':'pr2RightGripper'}
         self.wristFrameNames = {'left':'l_wrist_roll_joint', 'right':'r_wrist_roll_joint'}
         self.baseChainName = 'pr2Base'
+        self.headChainName = 'pr2Head'
         # This has the X axis pointing along fingers
         self.toolOffsetX = {'left': left_gripperToolOffsetX, 'right': right_gripperToolOffsetX}
         # This has the Z axis pointing along fingers (more traditional, as in ikFast)
         self.toolOffsetZ = {'left': left_gripperToolOffsetZ, 'right': right_gripperToolOffsetZ}
         self.nominalConf = None
-        horizontalTrans, verticalTrans = ikTrans()
+        horizontalTrans, verticalTrans = ikTrans(level=2) # include more horizontal confs
         self.horizontalTrans = {'left': [p.inverse() for p in horizontalTrans],
                                 'right': [fliph(p).inverse() for p in horizontalTrans]}
         self.verticalTrans = {'left': [p.inverse() for p in verticalTrans],
@@ -561,6 +582,37 @@ class PR2:
                             self.chains.chainsByName[chainName].randomValues())
         return conf
 
+    def baseShape(self, c):
+        parts = dict([(o.name(), o) for o in c.placement().parts()])
+        return parts['pr2Base']
+
+    # This is useful to get the base shape when we don't yet have a conf
+    def baseLinkShape(self, basePose=None):
+        if basePose:
+            return pr2BaseLink.applyTrans(basePose)
+        else:
+            return pr2BaseLink
+
+    def armAndGripperShape(self, c, hand, attached):
+        parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])
+        armShapes = [parts[self.armChainNames[hand]],
+                     parts[self.gripperChainNames[hand]]]
+        if attached and attached[hand]:
+            armShapes.append(parts[attached[hand].name()])
+        return shapes.Shape(armShapes, None)
+
+    def armShape(self, c, hand):
+        parts = dict([(o.name(), o) for o in c.placement().parts()])
+        armShapes = [parts[self.armChainNames[hand]]]
+        return shapes.Shape(armShapes, None)
+
+    def gripperShape(self, c, hand, attached):
+        parts = dict([(o.name(), o) for o in c.placement(attached=attached).parts()])
+        gripperShapes = [parts[self.gripperChainNames[hand]]]
+        if attached and attached[hand]:
+            gripperShapes.append(parts[attached[hand].name()])
+        return shapes.Shape(gripperShapes, None)
+
     # attach the object (at its current pose) to gripper (at current conf)
     def attach(self, objectPlace, wstate, hand='left'):
         conf = wstate.robotConf
@@ -602,6 +654,31 @@ class PR2:
             return obj.applyTrans(frame)
         else:
             return None
+
+    def confFromBaseAndWrist(self, basePose, hand, wrist,
+                             defaultConf, counts=None):
+        cart = CartConf({'pr2BaseFrame': basePose,
+                         'pr2Torso':[glob.torsoZ]}, self)
+        if hand == 'left':
+            cart.conf['pr2LeftArmFrame'] = wrist 
+            cart.conf['pr2LeftGripper'] = [0.08] # !! pick better value
+        else:
+            cart.conf['pr2RightArmFrame'] = wrist 
+            cart.conf['pr2RightGripper'] = [0.08]
+        # Check inverse kinematics
+        conf = self.inverseKin(cart)
+        if None in conf.values():
+            debugMsg('potentialGraspConfsLose', 'invkin failure')
+            if counts: counts[0] += 1       # kin failure
+            return
+        # Copy the other arm from pbs
+        if hand == 'left':
+            conf.conf['pr2RightArm'] = defaultConf['pr2RightArm']
+            conf.conf['pr2RightGripper'] = [0.08]
+        else:
+            conf.conf['pr2LeftArm'] = defaultConf['pr2LeftArm']
+            conf.conf['pr2LeftGripper'] = [0.08]
+        return conf
 
     def placement(self, conf, wstate=None, getShapes=True, attached=None):
         place, attachedParts, trans = self.placementAux(conf, wstate, getShapes, attached)
@@ -1186,3 +1263,13 @@ def compileObjectFrames(objShape):
     ans = frames, framesList, allChains, frameChain
     objectFramesCache[objShape] = ans
     return ans
+
+#########
+
+def gripperPlace(conf, hand, wrist, robotPlace=None):
+    confWrist = conf.cartConf()[conf.robot.armChainNames[hand]]
+    if not robotPlace:
+        robotPlace = conf.placement()
+    gripperChain = conf.robot.gripperChainNames[hand]
+    shape = (part for part in robotPlace.parts() if part.name() == gripperChain).next()
+    return shape.applyTrans(confWrist.inverse()).applyTrans(wrist)

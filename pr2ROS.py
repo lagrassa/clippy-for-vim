@@ -6,7 +6,7 @@ import windowManager3D as wm
 
 import pointClouds as pc
 import planGlobals as glob
-from traceFile import debug, debugMsg
+from traceFile import debug, debugMsg, tr, trAlways
 from pr2Util import shadowWidths, supportFaceIndex, bigAngleWarn, objectName
 from pr2Visible import lookAtConf, findSupportTable, visible
 # import pr2Robot
@@ -84,7 +84,6 @@ def pr2GoToConf(cnfIn,                  # could be partial...
             conf.left_grip = []
             conf.right_grip = []
         if operation == 'look':
-            assert cnfIn.get('pr2Head', None)
             gaze = gazeCoords(cnfIn)
             conf.head = map(float, gaze) # a look point relative to robot
             debugMsg('robotEnvCareful', 'Looking at %s'%gaze)
@@ -207,17 +206,22 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         shWorld = self.bs.pbs.getShadowWorld(0.95)
         objShapes = shWorld.getObjectShapes()
 
-        if debug('robotEnv'):
-            self.bs.pbs.draw(0.95, 'W')
-            for conf in path:
-                conf.draw('W', 'blue')
-                wm.getWindow('W').update()
-        debugMsg('robotEnv', 'executePath')
+        tr('robotEnv',
+           'Executing path',
+           draw=[(self.bs.pbs, 0.95, 'W')] +
+           [(conf, 'W', 'blue') for conf in path],
+           snap=['W'])
+        # debugMsg('robotEnv', 'executePath')
 
         distSoFar = 0.0
         angleSoFar = 0.0
         prevXYT = path[0]['pr2Base']
-        for (i, conf) in enumerate(path):
+        npath = []
+        for p in path:
+            if not npath or p != npath[-1]:
+                npath.append(p)
+        for (i, conf) in enumerate(npath):
+            print '** Path step', i, 'out of', len(path)
             if debug('robotPathCareful') or debug('robotEnvCareful'):
                 conf.prettyPrint('Commanded conf')
                 self.bs.pbs.draw(0.95, 'W')
@@ -290,8 +294,9 @@ class RobotEnv:                         # plug compatible with RealWorld (simula
         obst =  solids + [rob]
         for s in solids:
             # The view is fixed.
-            if visible(shWorld, conf, s, rem(obst,s), prob,
-                       moveHead=False, fixed=rem(obst,s))[0]:
+            vis, occluders = visible(shWorld, conf, s, rem(obst,s), prob,
+                                     moveHead=False, fixed=rem(obst,s))
+            if vis and len(occluders)==0:
                 yield s
             else:
                 continue
@@ -915,3 +920,21 @@ def closeFirmly(conf, hand, delta = 0.005):
 
 def baseNear(conf1, conf2, thr):
     return all(abs(x-y)<=thr for (x,y) in zip(conf1['pr2Base'], conf2['pr2Base']))
+
+"""
+-                distSoFar = 0           #  reset
+-                obj = next(self.visibleShapes(conf, objShapes), None)
+-                if obj:
+-                    lookConf = lookAtConf(conf, obj)
+-                    if lookConf:
+-                        obs = self.doLook(lookConf, placeBs)
+-                        if obs:
+-                            args[1] = lookConf
+-                            lookAtBProgress(self.bs, args, obs)
+-                        else:
+-                            raw_input('No observation')
+-                    else:
+-                        raw_input('No lookConf for %s'%obj.name())
+-                else:
+-                    raw_input('No visible object')
+"""

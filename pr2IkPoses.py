@@ -504,10 +504,10 @@ def clean(poses):
             out.append(pose)
     return out
 
-def ikTrans():
+def ikTrans(level=1):
     def poseScore(pose):
         return 3*abs(pose.theta) + abs(pose.y) - abs(pose.x)
-    horizontal = setupNuggets(n=1)
+    horizontal = setupNuggets(n=level)      # level 1 or 2?
     scored = sorted([(poseScore(tr.pose()), tr) for tr in horizontal])
     horizontal = [tr for (sc, tr) in scored]
     traceFile.tr('ik', 'Num Horizontal =', len(horizontal))

@@ -27,13 +27,22 @@ sym4 = ({4 : 4}, {4 : [hu.Pose(0.,0.,0.,(1./2.)*math.pi*x) for x in range(4)]})
 sym6 = ({4 : 4}, {4 : [hu.Pose(0.,0.,0., (1./3.)*math.pi*x) for x in range(6)]})
 # Grasps
 # from the side
+# the z offset raises or lowers the grasp relative to midpoint of object
 gMat0 = hu.Transform(np.array([(0.,1.,0.,0.),
                                (0.,0.,1.,-0.025),
-                               (1.,0.,0.,0.01),
+                               (1.,0.,0.,0.02), 
+                               (0.,0.,0.,1.)]))
+gMat0h = hu.Transform(np.array([(0.,1.,0.,0.0),
+                               (0.,0.,1.,-0.025),
+                               (1.,0.,0.,0.05), 
                                (0.,0.,0.,1.)]))
 gMat1 = hu.Transform(np.array([(0.,-1.,0.,0.),
                                (0.,0.,-1.,0.025),
-                               (1.,0.,0.,0.01),
+                               (1.,0.,0.,0.02),
+                               (0.,0.,0.,1.)]))
+gMat1h = hu.Transform(np.array([(0.,-1.,0.,0.),
+                               (0.,0.,-1.,0.025),
+                               (1.,0.,0.,0.05),
                                (0.,0.,0.,1.)]))
 # from the top
 gMat2= hu.Transform(np.array([(-1.,0.,0.,0.),
@@ -46,7 +55,9 @@ gMat3= hu.Transform(np.array([(1.,0.,0.,0.),
                               (0.,0.,0.,1.)]))
 
 gdesc0 = lambda obj: GDesc(obj, gMat0, 0.05, 0.05, 0.025)
+gdesc0h = lambda obj: GDesc(obj, gMat0h, 0.05, 0.05, 0.025)
 gdesc1 = lambda obj: GDesc(obj, gMat1, 0.05, 0.05, 0.025)
+gdesc1h = lambda obj: GDesc(obj, gMat1h, 0.05, 0.05, 0.025)
 gdesc2 = lambda obj: GDesc(obj, gMat2, 0.05, 0.05, 0.025)
 gdesc3 = lambda obj: GDesc(obj, gMat3, 0.05, 0.05, 0.025)
 
@@ -80,6 +91,21 @@ glob.objectTypes['obj'] = 'soda'
 glob.objectTypes['soda'] = 'soda'
 glob.constructor['soda'] = makeSoda
 
+def makeTallSoda(dx=0.0445, dy=0.027, dz=0.25, name='tsA', color=None):
+    glob.graspDesc['tallSoda'] = []
+    if glob.useHorizontal:
+        glob.graspDesc['tallSoda'].extend([gdesc0h(name), gdesc1h(name)])
+    if glob.useVertical:
+        glob.graspDesc['tallSoda'].extend([gdesc2(name), gdesc3(name)])
+    color = color or pickColor(name)
+    return (Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)])], name=name, color=color), []) 
+glob.graspableNames.append('ts')
+glob.graspableNames.append('tallSoda')
+glob.objectSymmetries['tallSoda'] = sym2
+glob.objectTypes['ts'] = 'tallSoda'
+glob.objectTypes['tallSoda'] = 'tallSoda'
+glob.constructor['tallSoda'] = makeTallSoda
+
 # dz should be 0.1175
 def makeBig(dx=0.0445, dy=0.055, dz=0.1175, name='bigA', color=None):
     color = color or pickColor(name)
@@ -90,7 +116,7 @@ glob.objectSymmetries['big'] = sym4
 glob.objectTypes['big'] = 'big'
 glob.constructor['big'] = makeBig
 
-def makeTall(dx=0.0445, dy=0.0445, dz=0.2, name='tallA', color=None):
+def makeTall(dx=0.0445, dy=0.0445, dz=0.4, name='tallA', color=None):
     color = color or pickColor(name)
     return (Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)])],
                name=name, color=color), [])
@@ -108,16 +134,48 @@ glob.objectSymmetries['bar'] = sym2
 glob.objectTypes['bar'] = 'bar'
 glob.constructor['bar'] = makeBigBar
 
+def makeBigBarHandle(dx=0.0445, dy=0.175, dz=0.2, name='handle', color=None):
+    color = color or pickColor(name)
+    gMat0 = hu.Transform(np.array([(0.,1.,0.,-0.04),
+                                   (0.,0.,1., -0.025),
+                                   (1.,0.,0.,0.02), 
+                                   (0.,0.,0.,1.)]))
+    gdesc0 = lambda obj: GDesc(obj, gMat0, 0.05, 0.05, 0.025)
+    glob.graspDesc['handle'] = [gdesc0(name)]
+    return (Sh([Ba([(-dx, -dy, 0.), (dx, dy, dz)]),
+                Ba([(-dx-0.08, -0.027, 0.), (-dx, 0.027, dz)])
+                ],
+               name=name, color=color), [])
+glob.graspableNames.append('handle')
+glob.objectSymmetries['handle'] = sym0
+glob.objectTypes['handle'] = 'handle'
+glob.constructor['handle'] = makeBigBarHandle
+
 soupZ = 0.1
 def makeSoup(radius=0.0675/2, height=0.1, name='soup', color='red'):
     color = color or pickColor(name)
     # TODO: grasps...
     raw_input('No grasps defined for soup')
-    glob.objectSymmetries['bar'] = sym6
     return (Sh([shapes.Ngon(radius, height, 6)], name=name, color=color), [])
 glob.graspableNames.append('soup'); glob.pushableNames.append('soup')
 glob.objectTypes['soup'] = 'soup'
+glob.objectSymmetries['soup'] = sym6
 glob.constructor['soup'] = makeSoup
+
+def makeDowny(scale=0.025, name='downy', color='blue'):
+    color = color or pickColor(name)
+    glob.objectSymmetries['downy'] = sym0
+    return  (shapes.readWrl('meshes/downy-hi.wrl',
+                           scale=scale, name=name, color=color),
+             [])
+glob.pushableNames.append('downy')
+glob.objectSymmetries['downy'] = sym0
+glob.objectTypes['downy'] = 'downy'
+glob.constructor['downy'] = makeDowny
+
+################
+# Furniture
+################
 
 def makeSolidTable(dx=0.603, dy=0.298, dz=0.67, name='tableSolid', width=0.1, color = 'orange'):
     table = Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name+'Body', color=color)
@@ -130,6 +188,22 @@ glob.objectSymmetries['solidTable'] = sym2
 glob.objectTypes['solidTable'] = 'solidTable'
 glob.constructor['solidTable'] = makeSolidTable
 
+def makeChute(dx=0.25, dy=0.298, dz=0.3, name='chute', width=0.04, color = 'brown'):
+    chute = [\
+        Ba([(-dx, dy-width, 0.0), (dx, dy, dz)],
+           name=name+ 'back', color=color),
+        Ba([(-dx,      -dy, 0.0),
+            (-dx+width, dy, dz)],
+           name=name+' side 1', color=color),
+        Ba([(dx-width, -dy, 0.0),
+            (dx,       dy, dz)],
+           name=name+' side 2', color=color)
+        ]
+    return (Sh(chute, name = name, color=color), [])
+glob.objectSymmetries['chute'] = sym0
+glob.objectTypes['chute'] = 'chute'
+glob.constructor['chute'] = makeChute
+
 tZ = 0.68                               # table height + 0.01
 def makeLegTable(dx=0.603, dy=0.30, dz=0.67, name='table1', width=0.1, color = 'orange'):
     reg = [Ba([(-dx, -dy, 0.), (dx, dy, dz)], name=name+'Top', color=color),
@@ -137,6 +211,10 @@ def makeLegTable(dx=0.603, dy=0.30, dz=0.67, name='table1', width=0.1, color = '
            Ba([(-dx, -dy, 0.), (-0.2, dy, dz)], name=name+'Right', color=color),
            Ba([(-0.2*dx, 0, 0.), (0.2*dx, dy, dz)], name=name+'MidFront', color=color),
            Ba([(-0.2*dx, -dy, 0.), (0.2*dx, 0, dz)], name=name+'MidRear', color=color),
+
+           Ba([(-0.2*dx, 0.33*dy, 0.), (0.2*dx, dy, dz)], name=name+'Mid1_3', color=color),
+           Ba([(-0.2*dx, -0.33*dy, 0.), (0.2*dx, 0.33*dy, dz)], name=name+'Mid2_3', color=color),
+           Ba([(-0.2*dx, -dy, 0.), (0.2*dx, -0.33*dy, dz)], name=name+'Mid3_3', color=color),
 
            Ba([(-dx, -dy, 0.), (-dx/2, 0., dz)], name=name+'FLL', color=color),
            Ba([(-dx, 0.0, 0.), (-dx/2, dy, dz)], name=name+'BLL', color=color),
@@ -147,6 +225,7 @@ def makeLegTable(dx=0.603, dy=0.30, dz=0.67, name='table1', width=0.1, color = '
            Ba([(0., 0.0, 0.), (dx/2, dy, dz)], name=name+'BR', color=color),
            Ba([(dx/2, -dy, 0.), (dx, 0., dz)], name=name+'FRR', color=color),
            Ba([(dx/2, 0.0, 0.), (dx, dy, dz)], name=name+'BRR', color=color),
+           Ba([(0, 0.0, 0.), (dx/2, dy, dz)], name=name+'BRR1', color=color),
            ]
     regions = [(r, hu.Pose(0.,0.,dz/2,0.)) for r in reg]
     table = [\
@@ -311,6 +390,4 @@ glob.constructor['coolShelves'] = makeCoolShelves
 #                  name = 'cupboardSide1', color='orange')
 # cupboard2 = Sh([place((-0.25, 0.25), (-0.05, 0.06), (0.0, 0.4))],
 #                  name = 'cupboardSide2', color='orange')
-
-
 

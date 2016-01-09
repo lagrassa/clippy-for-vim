@@ -122,14 +122,11 @@ cpdef bool chainCollides(tuple CC1, list chains1, tuple CC2, list chains2,
 # Don't let the arms of the robot get too close
 minSelfDistance = 0.1
 
-cdef list left_gripper = ['pr2LeftGripper']
-cdef list left_arm = ['pr2LeftArm']
-cdef list right_gripper = ['pr2RightGripper']
-cdef list right_arm = ['pr2RightArm']
-
-cpdef bool confSelfCollide(tuple compiledChains, tuple heldCC,
+cpdef bool confSelfCollide(tuple compiledChains, tuple heldCC, list chainNames,
                            double minDist = minSelfDistance):
     minDist = minDist*minDist  # gjk_distance returns squared distance
+    left_arm, left_gripper, right_arm, right_gripper = chainNames
+    if not right_arm: return False      # only one hand...
     return chainCollides(compiledChains, left_gripper, compiledChains, right_gripper, minDist) \
            or chainCollides(heldCC[1], None, heldCC[0], None, minDist) \
            or chainCollides(compiledChains, left_gripper, compiledChains, right_arm) \

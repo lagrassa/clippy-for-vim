@@ -6,7 +6,7 @@ from shapes import pointBox
 import pointClouds as pc
 from traceFile import tr
 import time
-#from planGlobals import debug, debugMsg
+import planGlobals as glob
 import windowManager3D as wm
 import hu
 from pr2Util import colorGen
@@ -14,7 +14,6 @@ from dist import MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 
 
-laserScanParams = (0.3, 0.1, 0.1, 2., 20)
 def getObjectDetections(lookConf, placeB, pbs, pointCloud):
     startTime = time.time()
     objName = placeB.obj
@@ -24,7 +23,7 @@ def getObjectDetections(lookConf, placeB, pbs, pointCloud):
     objShape = placeB.shape(pbs.getWorld()) # shape at nominal pose
     objShadow = placeB.shadow(shWorld)
     # Simulated scan for object at nominal pose
-    objScan = pc.simulatedScan(lookConf, laserScanParams, [objShape])
+    objScan = pc.simulatedScan(lookConf, glob.laserScanParams, [objShape])
     contacts = np.array([bool(c) for c in objScan.contacts])
     # The point cloud corresponding to contacts with the object
     objCloud = objScan.vertices[:, contacts]

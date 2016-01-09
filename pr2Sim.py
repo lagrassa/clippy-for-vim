@@ -6,7 +6,7 @@ import random
 from objects import WorldState
 import windowManager3D as wm
 import pr2Util
-from pr2Util import supportFaceIndex, DomainProbs, bigAngleWarn, bboxGridCoords
+from pr2Util import supportFaceIndex, DomainProbs, bigAngleWarn, bboxGridCoords, permanent
 from dist import DDist, DeltaDist, MultivariateGaussianDistribution
 MVG = MultivariateGaussianDistribution
 import hu
@@ -17,7 +17,6 @@ from pr2Robot import gripperFaceFrame
 from pr2Visible import visible, lookAtConf
 from time import sleep
 from pr2Ops import lookAtBProgress
-from pr2RoadMap import validEdgeTest
 from traceFile import tr, snap
 import locate
 reload(locate)
@@ -46,8 +45,6 @@ animateSleep = 0.02
 simOdoErrorRate = 0.0                   # was 0.02
 
 pickSuccessDist = 0.1  # pretty big for now
-
-laserScanParams = (0.3, 0.2, 0.1, 3., 50)
 
 class RealWorld(WorldState):
     def __init__(self, world, bs, probs, robot = None):
@@ -98,60 +95,71 @@ class RealWorld(WorldState):
         backSteps = []
         pathTraveled = []
         odoError = self.domainProbs.odoError
-        prevXYT = self.robotConf.conf['pr2Base']
+        prevXYT = self.robotConf.baseConf()
         prevConf = self.robotConf
-        for (i, conf) in enumerate(path):
+        leftChainName = self.robotConf.robot.armChainNames['left']
+        rightChainName = self.robotConf.robot.armChainNames['right']
+
+        if max([abs(a-b) for (a,b) in zip(self.robotConf.basePose().xyztTuple(),
+                                          path[0].basePose().xyztTuple())]) > 0.01:
+            print 'current base pose', self.robotConf.basePose()
+            print 'path[0] base pose', path[0].basePose()
+            if debug('sim'):
+                raw_input('Inconsistency in path and simulation')
+        
+        for (pathIndex, conf) in enumerate(path):
             originalConf = conf
-            newXYT = conf['pr2Base']
-            prevBasePose = path[max(0, i-1)].basePose()
-            newBasePose = path[i].basePose()
+            newXYT = conf.baseConf()
+            prevBasePose = path[max(0, pathIndex-1)].basePose()
+            newBasePose = path[pathIndex].basePose()
             # Compute the nominal displacement along the original path
             disp = prevBasePose.inverse().compose(newBasePose).pose()
             # Variance based on magnitude of original displacement
-            dispXY = math.sqrt(disp.x**2 + disp.y**2)
+            dispXY = (disp.x**2 + disp.y**2)**0.5
             dispAngle = disp.theta
             odoVar = ((dispXY *  odoError[0])**2,
                       (dispXY *  odoError[1])**2,
                       0.0,
                       (dispAngle * odoError[3])**2)
             # Draw the noise with zero mean and this variance
-            baseOff = hu.Pose(*MVG((0.,0.,0.,0.), np.diag(odoVar)).draw())
+            baseOff = hu.Pose(*MVG((0.,0.,0.,0.), np.diag(odoVar),
+                                   pose4 = True).draw())
             # Apply the noise to the nominal displacement
             dispNoisy = baseOff.compose(disp)
             # Apply the noisy displacement to the "actual" robot location
             bc = self.robotConf.basePose().compose(dispNoisy).pose().xyztTuple()
             # This is the new conf to move to
-            conf = conf.set('pr2Base', tuple([bc[i] for i in (0,1,3)]))
+            conf = conf.setBaseConf(tuple([bc[i] for i in (0,1,3)]))
             if debug('sim'):
                 print 'Initial base conf', newXYT
                 print 'draw', baseOff.xyztTuple()
                 print '+++', dispNoisy.pose().xyztTuple()
-                print '--> modified base conf', conf['pr2Base']
+                print '--> modified base conf', conf.baseConf()
             if action:
                 action(prevConf, conf) # do optional action
+                prevConf = conf
             else:
                 self.setRobotConf(conf)
             pathTraveled.append(conf)
             if debug('animate'):
                 self.draw('World');
                 # This is the original commanded conf, draw to see accumulated error
-                # originalConf.draw('World', 'pink')
                 self.bs.pbs.draw(0.95, 'Belief', drawRobot=False)
                 self.robotPlace.draw('Belief', 'gold')
                 sleep(animateSleep)
-            else:
-                self.robotPlace.draw('World', 'pink')
-                self.robotPlace.draw('Belief', 'pink')
+            # else:
+            #     self.robotPlace.draw('World', 'pink')
+            #     self.robotPlace.draw('Belief', 'pink')
             wm.getWindow('World').pause()
             wm.getWindow('Belief').pause()
             cart = conf.cartConf()
-            leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3]).tolist()[0][:-1]
-            rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3]).tolist()[0][:-1]
+            leftPos = np.array(cart[leftChainName].point().matrix.T[0:3]).tolist()[0][:-1]
+            rightPos = np.array(cart[rightChainName].point().matrix.T[0:3]).tolist()[0][:-1]
             tr('sim',
-               'base', conf['pr2Base'], 'left', leftPos, 'right', rightPos)
+               'base', conf.baseConf(), 'left', leftPos, 'right', rightPos)
             if debug('sim'):
-                print 'left\n', cart['pr2LeftArm'].matrix
-                print 'right\n', cart['pr2RightArm'].matrix
+                print 'left\n', cart[leftChainName].matrix
+                print 'right\n', cart[rightChainName].matrix
             if ignoreCrash:
                 pass
             else:
@@ -159,7 +167,10 @@ class RealWorld(WorldState):
                     if self.robotPlace.collides(obst):
                         obs ='crash'
                         tr('sim', 'Crash! with '+obst.name())
-                        pdb.set_trace()
+                        if originalConf.placement().collides(obst):
+                            print 'original conf collides - bad path?'
+                        else:
+                            print 'original conf does not collide - simulated base error'
                         raw_input('Crash! with '+obst.name())
                         if crashIsError:
                             raise Exception, 'Crash'
@@ -169,18 +180,19 @@ class RealWorld(WorldState):
                         pass
             if obs == 'crash':
                 # Back up to previous conf
-                c = path[i-1]
+                print 'This is supposed to back up to previous step and stop... does it work?'
+                pdb.set_trace()
+                c = path[pathIndex-1]
+                path = path[:pathIndex]         # cut off the rest of the path
                 self.setRobotConf(c)  # LPK: was conf
                 self.robotPlace.draw('World', 'orange')
                 self.robotPlace.draw('Belief', 'orange')
-                cart = conf.cartConf()
-                leftPos = np.array(cart['pr2LeftArm'].point().matrix.T[0:3])
-                rightPos = np.array(cart['pr2RightArm'].point().matrix.T[0:3])
+                cart = c.cartConf()
+                leftPos = np.array(cart[leftChainName].point().matrix.T[0:3])
+                rightPos = np.array(cart[rightChainName].point().matrix.T[0:3])
                 tr('sim',
-                   ('base', conf['pr2Base'], 'left', leftPos, 'right', rightPos))
+                   ('base', c.baseConf(), 'left', leftPos, 'right', rightPos))
                 break
-            if debug('backwards') and not validEdgeTest(prevXYT, newXYT):
-                backSteps.append((prevXYT, newXYT))
             # Integrate the displacement
             distSoFar += math.sqrt(sum([(prevXYT[i]-newXYT[i])**2 for i in (0,1)]))
             # approx pi => 1 meter
@@ -204,7 +216,11 @@ class RealWorld(WorldState):
         # actual + noise?
         # commanded + noise?
         # commanded?  -- This is the hack we use on actual robot
-        
+
+        print 'sim robot base'
+        print '    commanded:', path[-1].baseConf()
+        print '       actual:', self.robotConf.baseConf()
+
         return path[-1], (distSoFar, angleSoFar)
 
     def visibleObj(self, objShapes):
@@ -217,8 +233,9 @@ class RealWorld(WorldState):
         immovable = [s for s in objShapes if not world.getGraspdesc(s)]
         movable = [s for s in objShapes if world.getGraspdesc(s)]
         for s in immovable + movable:
-            if visible(shWorld, self.robotConf, s, rem(objShapes,s)+[rob], prob,
-                       moveHead=True, fixed=fixed)[0]:
+            vis, occl = visible(shWorld, self.robotConf, s, rem(objShapes,s)+[rob], prob,
+                                moveHead=True, fixed=fixed)
+            if vis and len(occl) == 0:
                 return s
 
     def executeMove(self, op, params, noBase = False):
@@ -231,8 +248,8 @@ class RealWorld(WorldState):
             startConf = op.args[0]
             targetConf = op.args[1]
             if max([abs(a-b) for (a,b) \
-                    in zip(self.robotConf.conf['pr2Base'], targetConf.conf['pr2Base'])]) > 1.0e-6:
-                print '****** The base moved in MoveNB, probably to an earlier collision fix'
+                    in zip(self.robotConf.baseConf(), targetConf.baseConf())]) > 1.0e-6:
+                print '****** MoveNB base pose does not match actual pose. '
 
         if params:
             path, interpolated, _  = params
@@ -253,6 +270,7 @@ class RealWorld(WorldState):
         nominalGD = op.args[3]
         nominalGPoseTuple = op.args[4]
         self.setRobotConf(lookConf)
+        robotName = self.robotConf.robot.name
         tr('sim', 'LookAtHand configuration', draw=[(self.robotPlace, 'World', 'orchid')])
         _, attachedParts = self.robotConf.placementAux(self.attached,
                                                        getShapes=[])
@@ -264,10 +282,21 @@ class RealWorld(WorldState):
                                      self.world.getGraspDesc(targetObj))
             obstacles = [s for s in self.getObjectShapes() \
                          if s.name() != targetObj ] + [self.robotPlace]
-            vis, _ = visible(self, self.robotConf, shapeInHand,
+            vis, occl = visible(self, self.robotConf, shapeInHand,
                              obstacles, 0.75, moveHead=False, fixed=[self.robotPlace.name()])
             if not vis:
+                if debug('sim'): print 'visible returned', vis, occl
                 tr('sim', 'Object %s is not visible'%targetObj)
+                return 'none'
+            elif len(occl) > 0:
+                if debug('sim'): print 'visible returned', vis, occl
+                # This condition is implemented in canView.  It might
+                # be very difficult to move hand out of the way of big
+                # permanent objects.
+                if occl == [robotName] and permanent(targetObj):
+                    tr('sim', 'Permanent object %s is visible in spite of robot'%targetObj)
+                else:
+                    tr('sim', 'Object %s is not visible'%targetObj)
                 return 'none'
             else:
                 tr('sim', 'Object %s is visible'%targetObj)
@@ -283,7 +312,7 @@ class RealWorld(WorldState):
         obs = []
 
         if debug('useLocate'):
-            scan = pc.simulatedScan(lookConf, laserScanParams,
+            scan = pc.simulatedScan(lookConf, glob.laserScanParams,
                                     self.getNonShadowShapes()+ [self.robotPlace])
             scan.draw('W', 'cyan')
 
@@ -310,12 +339,12 @@ class RealWorld(WorldState):
                              s.name() != curObj ]  + [self.robotPlace]
                 deb = 'visible' in glob.debugOn
                 if (not deb) and debug('visibleEx'): glob.debugOn.append('visible')
-                vis, _ = visible(self, self.robotConf,
-                                 self.objectShapes[curObj],
-                                 obstacles, 0.75, moveHead=False,
-                                 fixed=[self.robotPlace])
+                vis, occl = visible(self, self.robotConf,
+                                    self.objectShapes[curObj],
+                                    obstacles, 0.75, moveHead=False,
+                                    fixed=[self.robotPlace])
                 if not deb and debug('visibleEx'): glob.debugOn.remove('visible')
-                if not vis:
+                if not vis or len(occl) > 0:
                     tr('sim', 'Object %s is not visible'%curObj)
                     continue
                 else:
@@ -325,14 +354,20 @@ class RealWorld(WorldState):
                 trueFace = supportFaceIndex(self.objectShapes[curObj])
                 tr('sim', 'Observed face=%s, pose=%s'%(trueFace, truePose.xyztTuple()))
                 ff = self.objectShapes[curObj].faceFrames()[trueFace]
-                obsMissProb = self.domainProbs.obsTypeErrProb
-                miss = DDist({True: obsMissProb, False:1-obsMissProb}).draw()
-                if miss:
+                failProb = self.domainProbs.obsTypeErrProb
+                if debug('simulateFaiure'):
+                    success = DDist({True : 1 - failProb, False : failProb}).draw()
+                    if not success:
+                        print '*** Simulated look failure ***'
+                else:
+                    success = True
+                if not success:
                     tr('sim', 'Missed observation')
                     continue
                 else:
                     obsVar = self.domainProbs.obsVar
-                    obsPose = hu.Pose(*MVG(truePose.xyztTuple(), obsVar).draw())
+                    obsPose = hu.Pose(*MVG(truePose.xyztTuple(), obsVar,
+                                           True).draw())
                     obsPlace = obsPose.compose(ff).pose().xyztTuple()
                     obs.append((objType, trueFace, hu.Pose(*obsPlace)))
         tr('sim', 'Observation', obs)
@@ -356,7 +391,12 @@ class RealWorld(WorldState):
             'PreConf', 'ConfDelta', 'PickConf', 'RealGraspVar', 'PoseVar',
             'P1', 'PR1', 'PR2', 'PR3']
         failProb = self.domainProbs.pickFailProb
-        success = DDist({True : 1 - failProb, False : failProb}).draw()
+        if debug('simulateFaiure'):
+            success = DDist({True : 1 - failProb, False : failProb}).draw()
+            if not success:
+                print '*** Simulated pick failure ***'
+        else:
+            success = True
 
         # Try to execute pick
         (hand, pickConf, approachConf) = \
@@ -410,7 +450,12 @@ class RealWorld(WorldState):
 
     def executePlace(self, op, params):
         failProb = self.domainProbs.placeFailProb
-        success = DDist({True : 1 - failProb, False : failProb}).draw()
+        if debug('simulateFaiure'):
+            success = DDist({True : 1 - failProb, False : failProb}).draw()
+            if not success:
+                print '*** Simulated place failure ***'
+        else:
+            success = True
         if success:
             # Execute the place prim, starting at c1, aiming for c2.
             # Every kind of horrible, putting these indices here..
@@ -449,7 +494,8 @@ class RealWorld(WorldState):
             # print 'retracted'
         return None
 
-    def pushObject(self, obj, c1, c2, hand, deltaPose):
+    def pushObjectSim(self, obj, c1, c2, hand, deltaPose):
+        print 'In push:', obj, 'before push at', self.getObjectPose(obj).pose()
         place = c2.placement()
         shape = self.objectShapes[obj]
         if not place.collides(shape):   # obj at current pose
@@ -466,15 +512,43 @@ class RealWorld(WorldState):
             pdb.set_trace()
         print 'Touching', obj, 'in push, moved to', self.getObjectPose(obj).pose()
 
+    def pushObjectRigid(self, obj, c1, c2, hand, deltaPose):
+        place = c2.placement()
+        shape = self.objectShapes[obj]
+        if not place.collides(shape):   # obj at current pose
+            print 'No contact with', obj
+            self.setRobotConf(c2)           # move robot and objectShapes update
+            return
+        # There is contact, step the object along
+        for steps in range(20):
+            newPose = deltaPose.compose(self.getObjectPose(obj))
+            self.setObjectPose(obj, newPose)
+            shape = self.objectShapes[obj]
+            self.setRobotConf(c2)     # move robot and objectShapes update
+            if not self.robotPlace.collides(shape):
+                break
+        if self.robotPlace.collides(shape):
+            print 'Push left object in collision'
+            pdb.set_trace()
+        print 'Touching', obj, 'in push, moved to', self.getObjectPose(obj).pose()
+
     def executePush(self, op, params, noBase = True):
         def moveObjSim(prevConf, conf):
-            self.pushObject(obj, prevConf, conf, hand, deltaPose)
-
+            self.pushObjectSim(obj, prevConf, conf, hand, deltaPose)
+        def moveObjRigid(prevConf, conf):
+            # w1 = prevConf.cartConf()[chain]
+            # w2 = conf.cartConf()[chain]
+            # delta2 = w2.compose(w1.inverse()).pose(0.1) # from w1 to w2
+            # deltaPose2 = hu.Pose(delta2.x+deltaPose.x, delta2.y+deltaPose.y, 0.0, 0.0)
+            # print 'deltaPose2', deltaPose2
+            self.pushObjectRigid(obj, prevConf, conf, hand, deltaPose)
         failProb = self.domainProbs.pushFailProb
-        success = DDist({True : 1 - failProb, False : failProb}).draw()
-        if not success:
-            print 'Ignoring a random push path failure!'
-        success = True
+        if debug('simulateFaiure'):
+            success = DDist({True : 1 - failProb, False : failProb}).draw()
+            if not success:
+                print '*** Simulated push failure ***'
+        else:
+            success = True
         if success:
             # Execute the push prim
             if params:
@@ -487,8 +561,9 @@ class RealWorld(WorldState):
                 obj = op.args[0]
                 hand = op.args[1]
                 robot = path[0].robot
-                w1 = path[0].cartConf()[robot.armChainNames[hand]]
-                w2 = path[-1].cartConf()[robot.armChainNames[hand]]
+                chain = robot.armChainNames[hand]
+                w1 = path[0].cartConf()[chain]
+                w2 = path[-1].cartConf()[chain]
                 delta = w2.compose(w1.inverse()).pose(0.1) # from w1 to w2
                 mag = (delta.x**2 + delta.y**2 + delta.z**2)**0.5
                 deltaPose = hu.Pose(0.005*(delta.x/mag), 0.005*(delta.y/mag), 0.005*(delta.z/mag), 0.0)
@@ -616,3 +691,22 @@ def bruteForceMin(f, init):
     if minVal == 10.0:
         pdb.set_trace()
     return minX, minVal
+
+print 'Loaded pr2Sim.py'
+
+"""
+obj = self.visibleObj(objShapes)
+                if obj:
+                    lookConf = lookAtConf(self.robotConf, obj)
+                    if lookConf:
+                        obs = self.doLook(lookConf)
+                        if obs:
+                            args[1] = lookConf
+                            lookAtBProgress(self.bs, args, obs)
+                        else:
+                            tr('sim', 'No observation')
+                    else:
+                        tr('sim', 'No lookConf for %s'%obj.name())
+                else:
+                    tr('sim', 'No visible object')
+"""

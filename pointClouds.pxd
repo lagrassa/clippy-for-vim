@@ -24,4 +24,14 @@ cpdef bool updateDepthMap(Scan thing1, shapes.Prim thing2,
                           np.ndarray[np.float64_t, ndim=1] depth,
                           list contacts, int objId, list onlyUpdate = *)
 
+cdef class Raster:
+     cdef public:
+          double screenWidth, screenHeight, nearClippingPlane, farClippingPLane, focalLength
+          int imageWidth, imageHeight
+          tuple screenCoordinates
+          np.ndarray depthBuffer, frameBuffer
+     cpdef int convertToRaster(self, np.ndarray vertexCamera, np.ndarray vertexRaster)
+     cpdef int reset(self)
+     cpdef int update(self, prim, int objId, onlyUpdate=*)
+     cpdef int countId(self, int objId)
 

@@ -10,7 +10,7 @@ from fbch import Fluent, hCache, State, applicableOps, Operator,\
      AddPreConds
 
 from miscUtil import isVar, isAnyVar, floatify, customCopy,\
-    lookup, prettyString, isGround, SetWithEquality, timeString
+    lookup, prettyString, isGround, SetWithEquality, timeString, squash
 
 import local
 
@@ -56,7 +56,7 @@ class BFluent(Fluent):
             return True
         if not other.predicate in ('B', 'Bd'):
             return False
-        return self.args[0].couldClobber(other.args[0])
+        return self.args[0].couldClobber(other.args[0], details)
 
     def argsGround(self):
         return self.args[0].isGround()
@@ -79,7 +79,7 @@ class BFluent(Fluent):
         # Do the update on this fluent (should call the parent method)
         self.isGroundStored = self.getIsGround()
         self.isPartiallyBoundStored = self.getIsPartiallyBound()
-        self.strStored = self.getStr()
+        self.strStored = {True:None, False:None}
 
     # Avoid printing the value of the embedded rfluent
     def argString(self, eq):
@@ -132,21 +132,12 @@ class Bd(BFluent):
             return rFluent.dist(b).prob(v) >= p
 
     def feasible(self, details):
-        # (rFluent, v, p) = self.args
-        # return rFluent.feasible(details, v, p)
-        fs = frozenset((self,))
-        if glob.inHeuristic:
-            if not inCache(fs):
-                if inNHCache(fs):  # okay to use real value for heuristic
-                    return nhCacheLookup(fs)[0] < float('inf')
-                (cost, ops) = self.heuristicVal(details)
-                addToCachesSet(fs, cost, ops)
-            return hCacheLookup(fs)[0] < float('inf')
-        else:
-            if not inNHCache(fs):
-                (cost, ops) = self.heuristicVal(details)
-                addToNHCache(fs, cost, ops)
-            return nhCacheLookup(fs)[0] < float('inf')
+        (rFluent, v, p) = self.args
+        return rFluent.feasible(details, v, p)
+
+    def feasiblePBS(self, pbs):
+        (rFluent, v, p) = self.args
+        return rFluent.feasiblePBS(pbs, v, p)
 
     def heuristicVal(self, details):
         (rFluent, v, p) = self.args
@@ -271,7 +262,7 @@ class B(BFluent):
            ('    Modep >= p', dp >= p),
            ('    value with star', \
               (dc.sigma.diagonal() <= np.array(var)).all() \
-                   and dp >= p))
+                   and dp >= p), ol = False)
 
         if v == '*':
             # Just checking variance and p
@@ -416,6 +407,8 @@ def getOverlap(vl1, vl2, dl1, dl2):
 # Needs special treatment in regression to take the binding of
 # 'NewCond' and add it to the preconditions
 
+# assumes generator returns a list of lists (or sets) of fluents
+
 class BMetaOperator(Operator):
     def __init__(self, name, fluentClass, args, generator,
                  argsToPrint = None):
@@ -437,16 +430,163 @@ class BMetaOperator(Operator):
 
 ######################################################################
 #
+# Belief version of hAddBack, using generic breadth-first AO BB search
+#
+######################################################################
+
+import ffLike
+reload(ffLike)
+from ffLike import search
+
+# Try two-level cache:  could use higher and lower prob fluents to generate
+# upper and lower bounds
+
+# Add depth bound !?
+
+def hCacheReset():
+    print 'flushed heuristic cache'
+    ffLike.visited = {}
+    hCacheResetOld()
+fbch.hCacheReset = hCacheReset
+
+class Dummy(Fluent):
+    predicate = 'Dummy'
+    def test(self, details):
+        return True
+
+def BBhAddBackBSetNew(start, goal, operators, ancestors, maxK = 30,
+                   staticEval = lambda f: float('inf'),
+                   ddPartitionFn = lambda fs: [frozenset([f]) for f in fs],
+                   feasibleOnly = True,
+                  primitiveHeuristicAlways = debug('primitiveHeuristicAlways')):
+
+    # Always address immutable functions first.
+    def partitionFn(fs):
+        immu = frozenset([f for f in fs if f.immutable])
+        notImmu = [f for f in fs if not f.immutable]
+        return [frozenset([immuF]) for immuF in immu if immuF.isGround()] + \
+                     ddPartitionFn(notImmu)
+
+    def andSucc(state):
+        f0 = list(state.fluents)[0] if len(state.fluents) > 0 else None
+        if f0 and f0.predicate == 'Dummy':
+            if f0.args[0] == 'TrueInStart':
+                cost, subgoals = 0, []
+            else:
+                cost = sum([f.args[1] for f in state.fluents])
+                subgoals = [State([f]) for f in state.fluents]
+                for (sg, op) in zip(subgoals, state.operator):
+                    sg.operator = op
+        else:
+            subgoals = [State(fff) for fff in partitionFn(state.fluents)]
+            if state.operator:
+                cost = state.operator.instanceCost
+                if cost == 'none': cost = 0
+            else:
+                cost = 0
+        return cost, subgoals
+        
+    def orSucc(g):
+        if start.satisfies(g) or all([not f.isGround() for f in g.fluents]) or\
+            list(g.fluents)[0].predicate == 'Dummy':
+            # Needs to be be a dummy operator of some sort
+            dummy = State([Dummy(['TrueInStart', 0], True)])
+            dummy.operator = None
+            return 0, [dummy]
+        
+        if len(g.fluents) == 1:
+            hv = list(g.fluents)[0].heuristicVal(start.details)
+            if hv:
+                # Mishandles special heuristic slightly because it
+                # only returns a single operator (with the cost smashed).
+                # Kills chances of sharing actions at this level.
+                (cost, ops) = hv  # have a special-purpose heuristic
+                ops = list(ops)
+                pre = State([Dummy([str(op), cost], True) for op in ops])
+                pre.operator = ops
+                return 0, [pre]
+
+        # Applicable ops -> regress -> list of pre-images (plus cost
+        # stored inside)
+        ops = applicableOps(g, operators, start, ancestors, monotonic=False)
+        pres = set()
+        for o in ops:
+            if primitiveHeuristicAlways:
+                o.abstractionLevel = o.concreteAbstractionLevel
+            # TODO : LPK : domain-dependent hack
+            n = glob.numOpInstances if o.name in ['Push', 'Place'] else 1
+            opres = [pre for (pre, cost) in o.regress(g, start, numResults = n)]
+
+            if len(opres) > 0:
+                pres = pres.union(set(opres[:-1]))
+        if len(pres) == 0: debugMsg('hAddBack', 'no applicable ops', g)
+        return 0, [subX(pre) for pre in pres]
+
+
+    writeFile = debug('alwaysWriteHFile')
+    glob.inHeuristic = True
+
+    top = search(goal.copy(), andSucc, orSucc, staticEval,
+                 writeFile = writeFile, initNodeType = 'and')
+    acts = set(squash([a.state.operator for a in top.ubActs \
+                   if a.state.operator is not None])) if top.ubActs else None
+
+    if top.ub == 0 and not start.satisfies(goal):
+        print 'Heuristic value 0 but goal not satisfied'
+        for thing in goal.fluents:
+            print '   ', thing.valueInDetails(start.details), thing
+        raw_input('go?')
+    if top.ub > 0 and start.satisfies(goal):
+        print top
+        print 'Heuristic value > 0 but goal is satisfied'
+        raw_input('go?')
+
+
+    if top.ub == float('inf') and debug('infiniteHeuristic'):
+        print '** Found infinite heuristic value, recomputing **'
+        top2 = search(goal.copy(), andSucc, orSucc, staticEval,
+                 writeFile = True, initNodeType = 'and')
+        acts2 = set([a.state.operator for a in top2.ubActs \
+                   if a.state.operator is not None]) if top.ubActs else None
+
+        print 'New heuristic value', top2.ub
+        if top2.ub == float('inf'):
+            raw_input('Heuristic value is still infinite - continue?')
+        totalActSet = acts2
+    glob.inHeuristic = False
+
+    return top.ub, acts
+
+def subX(g):
+    s = State([f.subXForVars() for f in g.fluents])
+    s.operator = g.operator
+    return s
+
+# Do something about entailment?
+
+# # Set of actions;  equality is based on ignoring values of many arguments
+class ActSet(SetWithEquality):
+    @staticmethod
+    def testF(a, b):
+        return a.ignoreIgnorableForH() == b.ignoreIgnorableForH()
+    
+    def __init__(self, elts = None):
+        self.elts = [] if elts is None else elts
+        self.test = [self.testF] # horrible workaround should be a static method
+
+######################################################################
+#
 # Belief version of hAddBack
 #
 ######################################################################
+
 
 hCache2 = {}
 hCacheInf = {}  # Maps fluent sets to the level at which they have
                 # generated infinite values
 nhCache = {}
 
-def hCacheReset():
+def hCacheResetOld():
     fbch.hCache.clear()
     hCache2.clear()
     hCacheInf.clear()
@@ -478,9 +618,6 @@ hAddBackEntail = True
 # So, we'll have two caches:  hCache and hCache2
 
 # Could do more to keep hCache2 minimal.
-
-# One more cache for infinities:  hCacheInf
-# maps level k into the set of fluents that have infinite cost at that depth
 
 def removeProbs(f):
     if f.predicate in ('B', 'Bd'):
@@ -536,15 +673,6 @@ cacheHits = 0
 easy = 0
 regress = 0
 
-# Set of actions;  equality is based on ignoring values of many arguments
-class ActSet(SetWithEquality):
-    @staticmethod
-    def testF(a, b):
-        return a.ignoreIgnorableForH() == b.ignoreIgnorableForH()
-    
-    def __init__(self, elts = None):
-        self.elts = [] if elts is None else elts
-        self.test = [self.testF] # horrible workaround should be a static method
 
 def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                  staticEval = lambda f: float('inf'),
@@ -598,26 +726,26 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                 if fp is not None: writeHNode(fp, g, cost, specialStyle)
         # See if it's true in start state
         if cost is None and start.satisfies(g):
-            cost, ops = 0, ActSet()
+            cost, ops = 0, set()
             if fp is not None: writeHNode(fp, g, cost, initStyle)
         # See if it's in level 2 cache.   This makes it inadmissible
         if cost == None and hAddBackEntail:
             result = hCacheEntailsSet(fUp)
             if result:
                 if fp is not None: writeHNode(fp, g, cost, l2CacheStyle)
-                print 'L2'
+                # print 'L2'
                 (cost, ops) = result
         # At a leaf.  Use static eval.
         if cost == None and k == 0:
             cost = staticEval(fUp)
             dummyO = Operator('dummy'+prettyString(cost), [], {}, [])
             dummyO.instanceCost = cost
-            ops = ActSet([dummyO])
+            ops = {dummyO}
             if fp is not None: writeHNode(fp, g, cost, leafStyle)
         if cost == None and all([not f.isGround() for f in fUp]):
             # None of these fluents are ground; assume they can be
             # made true by matching
-            cost, ops = 0, ActSet()
+            cost, ops = 0, set()
             if fp is not None: writeHNode(fp, g, cost, nonGroundStyle)
 
         if cost != None:
@@ -654,7 +782,8 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         minSoFar = bound
         for pre in pres:
             preImage, newOpCost = pre
-            newActSet = ActSet([preImage.operator])
+            #newActSet = ActSet([preImage.operator])
+            newActSet = {preImage.operator}
             partialCost = preImage.operator.instanceCost
             # AND loop over preconditions.  See if we have a good value
             # for this operator
@@ -670,11 +799,11 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                 subCost, subActSet = \
                   aux(fffs, k-1, minSoFar - partialCost, newHA, fp)
                 if subCost == float('inf'):
-                    partialCost, newActSet = (float('inf'), ActSet())
+                    partialCost, newActSet = (float('inf'), set())
                 else:
                     newActSet = newActSet.union(subActSet)
                     partialCost = sum([opr.instanceCost \
-                                           for opr in newActSet.elts])
+                                           for opr in newActSet])
                         
             if fp is not None:
                 style = bbStyle if bb else \
@@ -707,12 +836,12 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
         
         # If it's not in the cache, we bailed out before computing a good
         # value.  Just return inf
-        return result if result != False else (float('inf'), ActSet())
+        return result if result != False else (float('inf'), set())
 
-    def topLevel(writeFile = False):
+    def topLevel(maxK, writeFile = False):
         fp = openHFile() if writeFile else None
         try:
-            totalActSet = ActSet()
+            totalActSet = set()
             infCost = False
             totalCost = '???'
             for ff in partitionFn(goal.fluents):
@@ -727,7 +856,7 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
                         writeHNode(fp, sff, ic, orStyle)
                         writeSearchArc(fp, goal, sff)
                 
-            totalCost = sum([op.instanceCost for op in totalActSet.elts]) \
+            totalCost = sum([op.instanceCost for op in totalActSet]) \
                         if not infCost else float('inf')
         
         finally:
@@ -739,19 +868,18 @@ def BBhAddBackBSet(start, goal, operators, ancestors, maxK = 30,
     ### Procedure body ####
     writeFile = debug('alwaysWriteHFile')
     glob.inHeuristic = True
-    (totalCost, totalActSet) = topLevel(writeFile = writeFile)
-    if totalCost == float('inf'):
+    (totalCost, totalActSet) = topLevel(maxK, writeFile = writeFile)
+    if totalCost == float('inf') and debug('infiniteHeuristic'):
         print '** Found infinite heuristic value, recomputing **'
         # Could flush cache
-        (h2, as2) = topLevel(writeFile = True)
+        (h2, as2) = topLevel(maxK, writeFile = True)
         print 'New heuristic value', h2
-        # totalActSet = ActSet()
         totalCost = h2
         if totalCost == float('inf'):
             raw_input('Heuristic value is still infinite - continue?')
         totalActSet = as2
     glob.inHeuristic = False
-    return totalCost, totalActSet.elts
+    return totalCost, totalActSet
 
 def writeHNode(f, s, c, styleStr):
     f.write('    "'+s.uniqueStr()+\
@@ -807,3 +935,4 @@ domStyle = \
 # clear
 bbStyle = \
   '" [shape=box, label="Pruned cost='
+

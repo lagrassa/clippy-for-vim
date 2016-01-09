@@ -4,6 +4,8 @@ import platform
 # Default values of global values, can be overriden in local.py
 ########################################
 
+libkinDir = ''
+
 ########################################
 # System: LINUX and Mac OS X are supported
 ########################################
@@ -33,7 +35,11 @@ if useROS:
     useVertical = True
     useHorizontal = True
 
+<<<<<<< HEAD
 useMPL = False
+=======
+useMPL = False                           # Amruth
+>>>>>>> redo-generators
 
 ########################################
 # HACKS
@@ -56,7 +62,7 @@ useHandTiltForPush = True              # Use for real robot
 inHeuristic = False
 
 useCC = True                            # Use compiled chains collision checks
-skipSearch = False                       # Don't plan paths except for prims
+skipSearch = False                      # Don't plan paths except for prims
 useMathematica = False
 
 ignoreShadowZ = True
@@ -76,22 +82,32 @@ graspDesc = {}
 constructor = {}
 
 ########################################
+# Perception Parameters
+########################################
+
+# laserScanParams = (0.3, 0.2, 0.1, 3., 30)
+laserScanParams = (0.3, 0.075, 0.075, 3., 30)
+laserScanParams = (0.3, 0.2, 0.1, 3., 50)
+
+########################################
 # Robot Parameters
 ########################################
 
 IKfastStep = 0.1
 useRRT = True                           # use RRT exclusively
 rrtStep = 0.025
-rrtInterpolateStepSize = 10*rrtStep
+rrtInterpolateStepSize = 8*rrtStep
 smoothSteps = 100
 smoothPasses = 20
-torsoZ = 0.1                            # normally 0.3 or 0.2
+torsoZ = 0.2                            # normally 0.3 or 0.2
 skipRRT = False
-maxRRTIter = 200
-failRRTIter = 20
+maxRRTIter = 100
+failRRTIter = 10
 smoothPathObst = True
+rrtPlanAttempts = 5                     # to try to get smaller base displacement
 
-maxOpenLoopDist = 2.0
+maxOpenLoopDist = 1.5                   # Assumes we're doing moveLook paths
+maxOpenLoopDist = 10.0                   # Assumes we're doing moveLook paths
 
 ########################################
 # Obstacle growing, should be determined by uncertainty
@@ -131,7 +147,7 @@ pushBuffer = 0.12
 # Heuristic
 ########################################
 
-numOpInstances = 4
+numOpInstances = 1                      # used to be 4
 
 ########################################
 # Table parameters
@@ -150,7 +166,20 @@ pauseOn = []
 logOn = []
 planNum = 0
 
-import local
-reload(local)
+
+########################################
+# Temporary
+########################################
+pushGenCalls = 0
+pushGenCallsH = 0
+pushGenFail = 0
+pushGenFailH = 0
+pushGenCache = 0
+pushGenCacheH = 0
+pushGenCacheMiss = 0
+pushGenCacheMissH = 0
+
+# This has to be ugly here so that Cython can see the symbols.
 from local import *
 
+print 'Loaded planGlobals.py'

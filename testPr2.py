@@ -96,6 +96,7 @@ defaultArgs = {'hpn' : True,
                'skeleton' : None,
                'easy' : False,
                'multiplier' : 6,
+               'home' : None,
                'initBelief' : None,
                'initWorld' : None}
 
@@ -124,28 +125,45 @@ def doTest(name, exp, goal, skel, args):
 
 def test0(**args):
     exp = makeExp({'table1' : (table1Pose, medVar)},
-                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
+                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar),
+                   'downyB' : (hu.Pose(1.1, 0.2, tZ, 0.0), medVar)},
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
     goal = inRegion(['objA'], 'table1Left')
+    easyGoal = inRegion(['objA'], 'table1Top')
     # pick/place, flat
-    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), move, 
+    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : 'objA'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), move,              
              place.applyBindings({'Obj' : 'objA'}),
              move, pick, moveNB,
              lookAt.applyBindings({'Obj' : 'objA'}),
              moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
              move, lookAt.applyBindings({'Obj' : 'table1'}),
              move]]*10
-    # pick/place, hierarchical.  Not verified recently
-    hskel = [[poseAchIn],
-            [poseAchIn],
-            [poseAchIn, lookAt, place],
-            [place],
-            [place, pick],
-            [pick],
-            [pick],
-            [pick, moveNB, lookAt, move],
-            [place, move]]
     return doTest('test0', exp, goal, skel, args)
+
+def testGrab(**args):
+    exp = makeExp({'table1' : (table1Pose, medVar)},
+                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar),
+                   },
+                  ['table1Top', 'table1Left'], easy=args.get('easy', False))
+    hand = args.get('hand', 'left')
+    g = args.get('grasp', 0)
+    goal = holding('objA', hand=hand, graspType=g)
+    return doTest('testGrab', exp, goal, None, args)
+
+def testHandle(**args):
+    coolShelvesPose = hu.Pose(1.6, 0.03, tZ, math.pi/2)
+    exp = makeExp({'table1' : (table1Pose, medVar),
+                   'bar2' : (hu.Pose(1.25, 0.0, tZ+0.3, math.pi/2), medVar),
+                   'coolShelves' : (coolShelvesPose , bigVar)},
+                  {'handleA' : (hu.Pose(1.25, 0.0, tZ, 0.0), medVar),
+                   'tallSodaB' : (hu.Pose(1.05, 0.2, tZ, 0.0), medVar),
+                   'tallSodaC' : (hu.Pose(1.05, -0.2, tZ, 0.0), medVar)
+                   },
+                  ['table1Top', 'table1Left'], easy=args.get('easy', False))
+    goal = inRegion(['handleA'], 'table1Left')
+    # goal = holding('handleA', hand='left', graspType=0)
+    return doTest('testHandle', exp, goal, None, args)
 
 ######################################################################
 # Test 1: 2 tables move 1 object
@@ -219,7 +237,8 @@ def test3(**args):
     right2 = hu.Pose(1.5, -0.5, tZ, 0.0)
     left1 = hu.Pose(1.05, 0.5, tZ, 0.0)
     left2 = hu.Pose(1.5, 0.5, tZ, 0.0)
-    coolShelvesPose = hu.Pose(1.3, 0.03, tZ, math.pi/2)
+    # coolShelvesPose = hu.Pose(1.35, 0.03, tZ, math.pi/2)
+    coolShelvesPose = hu.Pose(1.28, 0.03, tZ, math.pi/2)
     region = 'coolShelves_space_2'
     easy=args.get('easy', False)
     exp = makeExp({'table1' : (table1Pose, smallVar),
@@ -291,8 +310,17 @@ def test5(**args):
 ######################################################################
 
 def test6(**args):
+    skel = [[pick.applyBindings({'Obj' : 'objA'}),
+             moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
+             moveNB, lookAt.applyBindings({'Obj' : 'objA'}),
+             move, place.applyBindings({'Obj' : 'objB'}), move,
+             achCanReach, 
+             lookAt.applyBindings({'Obj' : 'table1'}),
+             move]]
     # Can't have higher target prob unless we can look at hand
     goal = holding('objA', 'left', 2, goalProb=0.7)
+    if 'skeleton' in args and args['skeleton']:
+        args['skeleton'] = skel
     testWithBInHand('test6', goal, args = args)
     
 ######################################################################
@@ -324,11 +352,6 @@ def test8(initG=0, **args):
     
     goal = holding('objB', 'left', 1, goalProb=0.7)
     testWithBInHand('test8', goal, initG, args)
-
-######################################################################
-#       Another test.  Picking something up from the back.
-#       shouldn't be hard.
-######################################################################
 
 def test9(**args):
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
@@ -362,7 +385,7 @@ def test10(**args):
     return doTest('test10', exp, goal1, skel, args)
 
 def test11(**args):
-    front1 = hu.Pose(1.1, 0.0, tZ, 0.)
+    front1 = hu.Pose(1.05, 0.0, tZ, 0.)
     front2 = hu.Pose(1.1, 0.11, tZ, -math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    },
@@ -384,22 +407,31 @@ def changePose(bs, rw, obj, pose):
     origPose = rw.getObjectPose(obj)
     rw.setObjectPose(obj, hu.Pose(pose.x, pose.y, origPose.z, pose.theta))
 
+def changeBelPose(bs, obj, pose, var=None):
+    pB = bs.pbs.getPlaceB(obj)
+    bs.pbs.updatePlaceB(pB.modifyPoseD(pose, var=var))
+
 ######################################################################
 # Test Swap
 ######################################################################
 
 def testSwap(hardSwap = False, **args):
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    back = hu.Pose(1.4, 0.0, tZ, 0.0)
+    back = hu.Pose(1.3, 0.0, tZ, 0.0)
+    mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
     parking1 = hu.Pose(0.95, 0.3, tZ, 0.0)
     parking2 = hu.Pose(0.95, -0.3, tZ, 0.0)
-    exp = makeExp({'table1' : (table1Pose, smallVar),
-                   'table2' : (table2Pose, smallVar)},
+    perm = {'table1' : (table1Pose, smallVar),
+            'table2' : (table2Pose, smallVar)}
+    if args.get('chute', False):
+        perm['chute'] = (mid, smallVar)
+
+    exp = makeExp(perm,
                   {'objA' : (back, medVar),
                    'objB' : (front, medVar)},
-                  ['table1Top', 'table2Top', 'table1MidFront',
-                   'table1MidRear'], easy=args.get('easy', False))
-    goal = inRegion(['objA', 'objB'], ['table1MidFront', 'table1MidRear'])
+                  ['table1Top', 'table2Top', 'table1Mid1_3',
+                   'table1Mid2_3'], easy=args.get('easy', False))
+    goal = inRegion(['objA', 'objB'], ['table1Mid1_3', 'table1Mid2_3'])
     # A on other table
     goal1 = inRegion('objA', 'table2Top')
     skel1 = [[poseAchIn, 
@@ -408,13 +440,161 @@ def testSwap(hardSwap = False, **args):
     # A and B on other table
     goal2 = inRegion(['objA', 'objB'], 'table2Top')
     # B in back
-    goal3 = inRegion('objB', 'table1MidRear')
+    goal3 = inRegion('objB', 'table1Mid2_3')
     actualGoal = goal if hardSwap else goal3
     skel = None
     return doTest('testSwap', exp, actualGoal, skel, args)
 
 def testHardSwap(**keys):
     return testSwap(hardSwap = True, **keys)
+
+######################################################################
+# Test with Chute
+######################################################################
+
+# Objects are type tallSoda, with name prefix ts
+def testChute0(**args):
+    glob.useVertical = False
+    # front = hu.Pose(1.05, 0.0, tZ, math.pi/2)
+    # back = hu.Pose(1.2, 0.0, tZ, math.pi/2)
+    front = hu.Pose(1.05, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)  
+    mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
+    perm = {'table1' : (table1Pose, smallVar),
+            'table2' : (table2Pose, smallVar)}
+    perm['chute'] = (mid, smallVar)
+
+    exp = makeExp(perm,
+                  {'tsA' : (back, medVar)},
+                  ['table1Top', 'table2Top', 'table1Mid1_3',
+                   'table1Mid2_3'], easy=args.get('easy', False))
+    # Holding obj A in grasp 1
+    goal0 = holding('tsA', 'left', 0, goalProb = 0.7)
+    # A on other table
+    goal1 = inRegion('tsA', 'table2Top')
+    actualGoal = goal1
+    skel = None
+    return doTest('testChute0', exp, actualGoal, skel, args)
+
+# Start with A where it needs to be
+def testChute2(**args):
+    short = args.get('short', False)
+    a = 'objA' if short else 'tsA'
+    b = 'objB' if short else 'tsB'
+    glob.useVertical = False
+    front = hu.Pose(1.05, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+    sideTable = hu.Pose(0.45, -1.2, tz, 0)
+    sideTable2 = hu.Pose(0.45, -1.5, tz, 0)
+    
+    mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
+    perm = {'table1' : (table1Pose, smallVar),
+            'table2' : (table2Pose, smallVar)}
+    perm['chute'] = (mid, smallVar)
+
+    exp = makeExp(perm,
+                  {a : (front, medVar),
+                   b : (sideTable, medVar)},
+                  ['table1Top', 'table2Top', 'table1Mid1_3',
+                   'table1Mid2_3'], easy=args.get('easy', False))
+    # Complete swap
+    goal = inRegion([a, b], ['table1Mid1_3', 'table1Mid2_3'])
+    actualGoal =  goal
+    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : a}),
+             moveNB, lookAt.applyBindings({'Obj' : 'table1'}),
+             move, place.applyBindings({'Obj' : a}),
+             move, pick.applyBindings({'Obj' : a}),
+             moveNB, lookAt.applyBindings({'Obj' : a}),
+             move, 
+             achCanPickPlace,
+             lookAt.applyBindings({'Obj' : b}),
+             move, place, move,
+             pick.applyBindings({'Obj' : 'tsB'}),
+             moveNB, lookAt,
+             move]]
+
+    return doTest('testChute2', exp, actualGoal, skel, args)
+
+def testChute1(**args):
+    short = args.get('short', False)
+    a = 'objA' if short else 'tsA'
+    b = 'objB' if short else 'tsB'
+    glob.useVertical = False
+    front = hu.Pose(1.05, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+    mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
+    perm = {'table1' : (table1Pose, smallVar),
+            'table2' : (table2Pose, smallVar)}
+    perm['chute'] = (mid, smallVar)
+
+    exp = makeExp(perm,
+                  {a : (back, medVar),
+                   b : (front, medVar)},
+                  ['table1Top', 'table2Top', 'table1Mid1_3',
+                   'table1Mid2_3'], easy=args.get('easy', False))
+    # Complete swap
+    goal = inRegion([a, b], ['table1Mid1_3', 'table1Mid2_3'])
+    # Just look at A
+    goalLook = placed(a, back)
+    # B on other table
+    goal0 = inRegion(b, 'table2Top')
+    # A on other table
+    goal1 = inRegion(a, 'table2Top')
+    # A and B on other table
+    goal2 = inRegion([a, b], 'table2Top')
+    # A in front
+    goal3 = inRegion(a, 'table1Mid1_3')
+    actualGoal =  goal
+    skel = [[poseAchIn, lookAt.applyBindings({'Obj' : a}),
+             moveNB, lookAt.applyBindings({'Obj' : 'table2'}),
+             move, place,
+             move, pick,
+             moveNB, lookAt.applyBindings({'Obj' : a}),
+             move, 
+             achCanPickPlace,
+             lookAt.applyBindings({'Obj' : b}),
+             move, place, move,
+             pick.applyBindings({'Obj' : 'tsB'}),
+             moveNB, lookAt,
+             move]]
+
+    return doTest('testChute1', exp, actualGoal, skel, args)
+
+def testChute3(**args):
+    short = args.get('short', False)
+    a = 'objA' if short else 'tsA'
+    b = 'objB' if short else 'tsB'
+    # glob.useVertical = False
+    glob.useHorizontal = False
+    front = hu.Pose(1.05, 0.0, tZ, 0.0)
+    back = hu.Pose(1.25, 0.0, tZ, 0.0)
+    mid =  hu.Pose(1.3, 0.0, tZ, -math.pi/2)
+    perm = {'table1' : (table1Pose, smallVar),
+            'table2' : (table2Pose, smallVar)}
+    perm['chute'] = (mid, smallVar)
+
+    exp = makeExp(perm,
+                  {a : (back, medVar),
+                   b : (front, medVar)
+                   },
+                  ['table1Top', 'table2Top', 'table1Mid1_3',
+                   'table1Mid2_3'], easy=args.get('easy', False))
+    # Complete swap
+    goal = inRegion([a, b], ['table1Mid1_3', 'table1Mid2_3'])
+    # Just look at A
+    goalLook = placed(a, back)
+    # B on other table
+    goal0 = inRegion(b, 'table2Top')
+    # A on other table
+    goal1 = inRegion(a, 'table2Top')
+    # A and B on other table
+    goal2 = inRegion([a, b], 'table2Top')
+    # A in front
+    goal3 = inRegion(a, 'table1Mid1_3')
+    actualGoal =  goal1
+
+    return doTest('testChute3', exp, actualGoal, None, args)
+
 
 ######################################################################
 # Test Swap with clutter
@@ -574,16 +754,47 @@ def testShelvesPush(**args):
 ######################################################################
 
 def testPush(name, objName, startPose, targetReg, **args):
-    exp = makeExp({'table1' : (table1Pose, smallVar)},
+    middle = hu.Pose(1.3, 0.05, tZ, math.pi/2)
+    exp = makeExp({'table1' : (table1Pose, smallVar),
+                   # 'barC': (middle, medVar)
+                   },
                   {objName : (startPose, medVar)},
                   ['table1Top', targetReg], easy=args.get('easy', False))
-    goal = inRegion(objName, targetReg)
+    targetPose = args.get('targetPose', None)
+    hand = args.get('hand', 'right')
+    if targetPose:
+        goal = placed(objName, targetPose, hand)
+    else:
+        goal = inRegion(objName, targetReg)
     skel = args.get('skeleton', None)
-    return doTest(name, exp, goal, skel, args)
+    doTest(name, exp, goal, skel, args)
+    print 'Push gen calls inside / outside heuristic', \
+              glob.pushGenCallsH, glob.pushGenCalls
+    print 'Push gen fails inside / outside heuristic', \
+              glob.pushGenFailH, glob.pushGenFail
+    print 'Push gen cache hits inside / outside heuristic', \
+              glob.pushGenCacheH, glob.pushGenCache
+    print 'Push gen cache misses inside / outside heuristic', \
+              glob.pushGenCacheMissH, glob.pushGenCacheMiss
 
-def testPush0(objName='bigA', **args):
-    skel = [[lookAt, move, push, moveNB, lookAt, moveNB, achCanPush, move, achCanReach, move]]
+
+def testPush0(objName='bigB', **args):
+    skel = [[poseAchIn,
+             lookAt.applyBindings({'Obj' : objName}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), move,
+             push, moveNB, lookAt, moveNB, lookAt, move]]
     args['skeleton'] = skel if 'skeleton' in args else None
+    testPush('testPush0', objName,
+             hu.Pose(1.1, 0.0, tZ, 0.0),
+             'table1BRR', **args)
+
+def testPush0Pose(objName='bigB', **args):
+    skel = [[poseAchIn,
+             lookAt.applyBindings({'Obj' : 'bigB'}), moveNB,
+             lookAt.applyBindings({'Obj' : 'table1'}), move,
+             push, moveNB, lookAt, moveNB, lookAt, move]]
+    args['skeleton'] = skel if 'skeleton' in args else None
+    args['targetPose'] = hu.Pose(1.1, 0.4, tZ, 0.)
     testPush('testPush0', objName,
              hu.Pose(1.1, 0.0, tZ, 0.0),
              'table1BRR', **args)
@@ -592,27 +803,45 @@ def testPush0(objName='bigA', **args):
 # Needs three pushes!
 ######################################################################
 
-def testPush1(objName='bigA', **args):
+def testPush1(objName='bigB', **args):
     skel = [[poseAchIn,
-             lookAt.applyBindings({'Obj' : 'bigA'}), moveNB, 
+             lookAt.applyBindings({'Obj' : 'bigB'}), moveNB, 
              lookAt.applyBindings({'Obj' : 'table1'}), move,
              push, moveNB, 
-             lookAt.applyBindings({'Obj' : 'bigA'}), move,
+             lookAt.applyBindings({'Obj' : 'bigB'}), move,
              push, moveNB,
-             lookAt.applyBindings({'Obj' : 'bigA'}), move,
+             lookAt.applyBindings({'Obj' : 'bigB'}), move,
+             push, moveNB,
+             lookAt.applyBindings({'Obj' : 'bigB'}), move,
              push, moveNB, 
-             lookAt.applyBindings({'Obj' : 'bigA'}), move]]
+             lookAt.applyBindings({'Obj' : 'bigB'}), move]]
 
     args['skeleton'] = skel if 'skeleton' in args else None
     testPush('testPush1', objName,
              hu.Pose(1.1, 0.0, tZ, 0.0),
+             'table1FR', **args)
+
+def testPush1a(objName='bigB', **args):
+    skel = [[poseAchIn,
+             lookAt.applyBindings({'Obj' : 'bigB'}), moveNB, 
+             lookAt.applyBindings({'Obj' : 'table1'}), move,
+             push, moveNB, 
+             lookAt.applyBindings({'Obj' : 'bigB'}), move,
+             push, moveNB,
+             lookAt.applyBindings({'Obj' : 'bigB'}), move,
+             push, moveNB, 
+             lookAt.applyBindings({'Obj' : 'bigB'}), move]]
+
+    args['skeleton'] = skel if 'skeleton' in args else None
+    startPose = hu.Pose(1.09654429, 0.28874632, 0.68000000, 0.01038590)
+    testPush('testPush1', objName, startPose,
              'table1FR', **args)
     
 ######################################################################
 # Test TWo Pushes, harder?
 ######################################################################
 
-def testPush2(objName='bigA', **args):
+def testPush2(objName='bigB', **args):
     testPush('testPush2', objName,
              hu.Pose(1.2, 0.0, tZ, 0.0),
              'table1FRR', **args)
@@ -624,13 +853,20 @@ def testPush2(objName='bigA', **args):
 def testPushShelves(name, objName, startPose, targetReg,
                     startPoseB, **args):
     coolShelvesPose = hu.Pose(1.45, 0.03, tZ, math.pi/2)
+    startPoseC = hu.Pose(1.1, 0.4, tZ, 0.0)
+    extraObject = args.get('extraObject', False)
     exp = makeExp({'table1' : (table1Pose, smallVar),
                    'coolShelves' : (coolShelvesPose, smallVar)
                    },
-                  {objName : (startPose, medVar),
-                   'objB' : (startPoseB, medVar)},
-                  ['table1Top', targetReg], easy=args.get('easy', False))
+                  {objName : (startPose, medVar), 
+                   'objB' : (startPoseB, medVar)} if not extraObject \
+                  else {objName : (startPose, medVar), 
+                        'objB' : (startPoseB, medVar),
+                        'objC' : (startPoseC, medVar)},
+                  ['table1Top', targetReg],
+                  easy=args.get('easy', False))
     goal = inRegion(objName, targetReg)
+    # goal = inRegion([objName, 'objB'], targetReg) # DEBUGGING
     # pick and place!
     skel = [[lookAt, move, place, move, 
              pick, moveNB, lookAt, moveNB, lookAt, move]]
@@ -639,7 +875,7 @@ def testPushShelves(name, objName, startPose, targetReg,
              move, lookAt, moveNB]]
     return doTest(name, exp, goal, skel, args)
 
-def testPush3(objName='bigA', **args):
+def testPush3(objName='bigB', **args):
     testPushShelves('testPush3', objName,
                     hu.Pose(1.1, 0.0, tZ, 0.0),
                     'table1BRR',
@@ -647,10 +883,10 @@ def testPush3(objName='bigA', **args):
                     **args)
 
 ######################################################################
-# Move obj b out of the way to push bigA
+# Move obj b out of the way to push bigB
 ######################################################################
 
-def testPush4(objName='bigA', **args):
+def testPush4(objName='bigB', **args):
     testPushShelves('testPush4', objName,
                     hu.Pose(1.1, 0.0, tZ, 0.0),
                     'table1BRR',
@@ -661,7 +897,7 @@ def testPush4(objName='bigA', **args):
 # Push to Region
 ######################################################################
 
-def testPush5(objName = 'bigA', **args):
+def testPush5(objName = 'bigB', **args):
     exp = makeExp({'table1' : (table1Pose, smallVar)},
                   {objName : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar)},
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
@@ -702,9 +938,18 @@ def prof(test, n=100):
     p.sort_stats('cumulative').print_stats(n)
     p.sort_stats('cumulative').print_callers(n)
 
-    from pr2GenAux import graspConfGenCacheStats, graspConfStats
+    from pr2GenGrasp import graspConfGenCacheStats, graspConfStats, approachConfCacheStats
     print 'graspConfGenCacheStats', graspConfGenCacheStats
     print 'graspConfStats', graspConfStats
+    print 'approachConfCacheStats', approachConfCacheStats
+    from pr2Push import pushGenCacheStats
+    print 'pushGenCacheStats', pushGenCacheStats
+    from pr2Gen import easyGraspGenCacheStats, placeGenCacheStats
+    print 'easyGraspGenCacheStats', easyGraspGenCacheStats
+    print 'placeGenCacheStats', placeGenCacheStats
+    from pr2Visible import cacheStats
+    print 'h tries, h hits, h easy, real tries, real hits, real easy'
+    print 'visible cacheStats',  cacheStats
 
 def profPrint(n=100):
     import pstats
@@ -734,7 +979,7 @@ def canPPDebug(details, fluent):
     # bc.objectShadowCache.clear()
     # for c in bc.genCaches.values():
     #     c.clear()
-    # pr2GenAux.graspConfGenCache.clear()
+    # pr2GenGrasp.graspConfGenCache.clear()
     # bc.world.robot.cacheReset()
     # pr2Visible.cache.clear()
     # belief.hCacheReset()
@@ -743,7 +988,7 @@ def canPPDebug(details, fluent):
     conds = rf.getConds()
     for c in conds:
         c.viols = {}; c.hviols = {}
-        c.getViols(details, True, fluent.args[-1])
+        c.getViols(details.pbs, True, fluent.args[-1])
 
 # Get false fluents
 def ff(g, details):

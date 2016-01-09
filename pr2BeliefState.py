@@ -13,7 +13,7 @@ hugeVarianceArray = [[100, 0, 0, 0],
 
 identPoseTuple = (0.0, 0.0, 0.0, 0.0)
 
-lostDist = GMU([(MVG(identPoseTuple, hugeVarianceArray), 0.99)])
+lostDist = GMU([(MVG(identPoseTuple, hugeVarianceArray, pose4 = True), 0.99)])
 
 # Keep all the raw representation necessary for filtering
 # After every belief update, it will have an instance variable
@@ -29,51 +29,56 @@ class BeliefState:
         self.domainProbs = domainProbs
         self.awayRegion = awayRegion
         self.poseModeProbs = dict([(name , 0.99) \
-               for name in (pbs.moveObjBs.keys() + pbs.fixObjBs.keys())])
+                                   for name in pbs.objectBs.keys()])
+        # Share the poseModeProbs.
+        self.pbs.poseModeProbs = self.poseModeProbs
         self.graspModeProb = {'left' : 0.99, 'right' : 0.99}
         # wm.getWindow('Belief').startCapture()
 
     # Temporary hacks to keep all the types right
     def graspModeDist(self, obj, hand, face):
         if obj == 'none' or face == 'none':
-            return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray), 0.99)])
+            return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray,
+                             pose4 = True), 0.99)]) 
         else:
             if face == '*': face = None
-            poseD = self.pbs.getGraspB(obj, hand, face).poseD
-            return GMU([(MVG(poseD.modeTuple(), diagToSq(poseD.var)),
+            poseD = self.pbs.getGraspBForObj(obj, hand, face).poseD
+            return GMU([(MVG(poseD.modeTuple(), diagToSq(poseD.var),
+                             pose4 = True),
                         self.graspModeProb[hand])])
 
     def poseModeDist(self, obj, face):
         if obj == 'none' or face == 'none':
-            return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray), 0.99)])
+            return GMU([(MVG(identPoseTuple, zeroObjectVarianceArray,
+                             pose4 = True), 0.99)])
         else:
             if face == '*': face = None
             poseD = self.pbs.getPlaceB(obj, face).poseD
-            return GMU([(MVG(poseD.modeTuple(), diagToSq(poseD.var)),
+            return GMU([(MVG(poseD.modeTuple(), diagToSq(poseD.var),
+                             pose4 = True),
                          self.poseModeProbs[obj])])
-        
+
     def draw(self, w = 'Belief'):
         s = '------------  Belief -------------\n'
         s += 'Conf:\n'
-        for key in self.pbs.conf.keys():
-            s += '   ' + key + ' ' + prettyString(self.pbs.conf[key]) + '\n'
-        gb = self.pbs.graspB
-        gbl = gb['left']
-        gbr = gb['right']
+        for key in self.pbs.getConf().keys():
+            s += '   ' + key + ' ' + prettyString(self.pbs.getConf()[key]) + '\n'
+        gb = self.pbs.getGraspB
+        gbl = gb('left')
+        gbr = gb('right')
         s += 'Held Left: %s mode prob %s\n'%\
-             (self.pbs.held['left'], prettyString(self.graspModeProb['left']))
+             (self.pbs.getHeld('left'), prettyString(self.graspModeProb['left']))
         s += '    Grasp type: %s\n'%(prettyString(gbl.grasp) if gbl else None)
         s += '    Grasp mean: %s\n'%(prettyString(gbl.poseD.meanTuple()) if (gbl and gbl.poseD) else None)
         s += '    Grasp stdev: %s\n'%(prettyStdev(gbl.poseD.varTuple())  if (gbl and gbl.poseD) else None)
         s += 'Held Right: %s mode prob %s\n'%\
-             (self.pbs.held['right'],prettyString(self.graspModeProb['right']))
+             (self.pbs.getHeld('right'),prettyString(self.graspModeProb['right']))
         s += '    Grasp type: %s\n'%(prettyString(gbr.grasp) if gbr else None)
         s += '    Grasp mean: %s\n'%(prettyString(gbr.poseD.meanTuple()) if (gbr and gbr.poseD) else None)
         s += '    Grasp stdev: %s\n'%(prettyStdev(gbr.poseD.varTuple())  if (gbr and gbr.poseD) else None)
         s += 'Objects:\n'
-        for (name, stuff) in self.pbs.moveObjBs.items() + \
-                             self.pbs.fixObjBs.items():
-            s += name + '\n'
+        for (name, (fix, stuff)) in self.pbs.objectBs.items():
+            s += name + '(fixed=%s)'%fix + '\n'
             s += '   prob: %s\n'%self.poseModeProbs[name]
             s += '   face: %s\n'%stuff.support
             s += '   pose: %s\n'%prettyString(stuff.poseD.meanTuple())
