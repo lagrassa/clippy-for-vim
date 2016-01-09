@@ -1422,13 +1422,15 @@ class RebindOp:
         g.rebind = False
         results = op.regress(g, startState, heuristic, operators, ancestors)
 
-        if len(results) > 0 and debug('rebind'):
+        if len(results) > 0:
+            results = [(r, c - op.getRebindPenalty()) \
+                       for (r, c) in results[:-1]] +  [results[-1]]
             tr('rebind', 'successfully rebound local vars',
                      'costs', [c for (s, c) in results], 'minus',
                      op.getRebindPenalty())
-            results[0] = (results[0][0], results[0][1] - op.instanceCost)
         else:
             tr('rebind', 'failed to rebind local vars')
+
         return results
 
     def __str__(self):
@@ -1467,10 +1469,8 @@ class AddPreConds(Function):
         return [[resultCond]]
         
 ######################################################################
-# Heuristic.  Needs to be reimplemented.  See belief.py
+# Hooks for heuristic
 ######################################################################
-
-# New heuristic.  Independent backchaining, summing costs.
 
 hCache = {}
 def hCacheReset():
@@ -1482,8 +1482,6 @@ def hCacheDel(f):
 
 # hCache maps each fluent to the set of actions needed to achieve it
 # This can be saved until the next action is taken
-
-# TODO : LPK!!   Put non-belief version of heuristic here!
 
 ######################################################################
 # Execution
@@ -2036,18 +2034,6 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
 
     if len(preBoundNames) > 0 and debug('preBoundOps'):
         raw_input('look at dem ops')
-
-    # if not glob.inHeuristic and len(result) > 0:
-    #     placeR = [x for x in result if x.name == 'Place' and \
-    #               not x.delayBinding]
-    #     if len(placeR) > 1:
-    #         print '*******  returning from app op ******'
-    #         for oo in placeR:
-    #             print '    args', oo.args
-    #             print '   results of this operator'
-    #             for xx in oo.results:
-    #                 for yy in xx[0]: print '     ', yy
-    #         raw_input('gogogo')
 
     if len(result) == 0:
         debugMsg('appOp:number', ('h', glob.inHeuristic, 'number', len(result)))

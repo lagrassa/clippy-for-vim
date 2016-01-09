@@ -97,7 +97,7 @@ visible_raster
 
 # turned off helpful actions
 
-usualTags = [] # 'animate', , 'helpfulActions', 'nonmon'
+usualTags = ['useNewH'] # 'animate', , 'helpfulActions', 'nonmon'
 flags = ['simpleAbstractCostEstimates', 'primitiveHeuristicAlways']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack', 
                  'debugInHeuristic', 'h'] #, 'hv'] 
@@ -112,7 +112,7 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['visibleRaster', 'useNewH']
+debugOn = usualTags + ['rebind']
 
 
 
