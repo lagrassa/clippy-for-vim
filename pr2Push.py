@@ -343,7 +343,7 @@ def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
                 print 'Yield push', ppre.pose(), '->', ppost.pose()
             cachePushResponse(ans)
             yield ans
-=======
+
     potentialContacts = getPotentialContacts(prim)
 
     for ans in pushGenPaths(cpbs, prob, potentialContacts, placeB, curPB,
@@ -351,7 +351,6 @@ def pushGenAux(cpbs, placeB, hand, base, curPB, prob,
         if glob.traceGen:
             print '***', tag+'Aux', glob.inHeuristic, hand, placeB.poseD.mode(), curPB.poseD.mode(), '->', ans
         yield ans
->>>>>>> redo-generators
 
     tr(tag, '=> pushGenAux exhausted')
     if glob.traceGen:
