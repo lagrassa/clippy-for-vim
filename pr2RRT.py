@@ -396,7 +396,7 @@ def pbsInflate(pbs, prob, initConf, goalConf):
     if not glob.useInflation: return pbs
     newBS = pbs.copy()
     newBS.conf = (False, initConf)
-    for obj in newBS.objectBs:
+    for obj in newBS.getPlacedObjBs():
         fix, objB = newBS.objectBs[obj]
         inflatedVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
         newBS.updatePlaceB(objB.modifyPoseD(var=inflatedVar))

@@ -284,7 +284,8 @@ def pushGenAux(pbs, placeB, hand, base, curPB, prob,
                     pdb.set_trace()
                 debugMsg(tag+'_fail', ('Could not find conf for push along', direction[:2]))
             else:
-                print 'Found conf for push', direction[:2], 'between', pose1, pose2 
+                if debug(tag):
+                    print 'Found conf for push', direction[:2], 'between', pose1, pose2 
         # Sort the push paths by violations
         sorted = sortedPushPaths(pushPaths, curPose)
         for i in range(min(len(sorted), maxDone)):
