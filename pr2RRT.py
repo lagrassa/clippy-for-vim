@@ -405,12 +405,8 @@ def pbsInflate(pbs, prob, initConf, goalConf):
     if not glob.useInflation: return pbs
     newBS = pbs.copy()
     newBS.conf = (False, initConf)
-<<<<<<< HEAD
-    for obj in newBS.getPlacedObjBs():
-=======
     inflatedVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
     for obj in newBS.objectBs:
->>>>>>> redo-generators
         fix, objB = newBS.objectBs[obj]
         newBS.updatePlaceB(objB.modifyPoseD(var=inflatedVar))
     newBS.internalCollisionCheck(dither=False, objChecks=False, factor=1.1)

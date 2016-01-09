@@ -35,11 +35,7 @@ if useROS:
     useVertical = True
     useHorizontal = True
 
-<<<<<<< HEAD
-useMPL = False
-=======
 useMPL = False                           # Amruth
->>>>>>> redo-generators
 
 ########################################
 # HACKS
