@@ -126,7 +126,8 @@ def doTest(name, exp, goal, skel, args):
 def test0(**args):
     exp = makeExp({'table1' : (table1Pose, medVar)},
                   {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar),
-                   'downyB' : (hu.Pose(1.1, 0.2, tZ, 0.0), medVar)},
+                   # 'downyB' : (hu.Pose(1.1, 0.2, tZ, 0.0), medVar)
+                   },
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
     goal = inRegion(['objA'], 'table1Left')
     easyGoal = inRegion(['objA'], 'table1Top')
@@ -756,7 +757,7 @@ def testShelvesPush(**args):
 def testPush(name, objName, startPose, targetReg, **args):
     middle = hu.Pose(1.3, 0.05, tZ, math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
-                   # 'barC': (middle, medVar)
+                   'barC': (middle, medVar)
                    },
                   {objName : (startPose, medVar)},
                   ['table1Top', targetReg], easy=args.get('easy', False))

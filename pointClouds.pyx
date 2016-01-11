@@ -274,7 +274,9 @@ cdef class Raster:
         left = -right
         self.screenCoordinates = (left, right, top, bottom)
         size = imageWidth * imageHeight
-        self.depthBuffer = np.full(size, farClippingPLane, dtype=np.float64)
+        # self.depthBuffer = np.full(size, farClippingPLane, dtype=np.float64)
+        self.depthBuffer = np.zeros(size, dtype=np.float64)
+        for i in xrange(size): self.depthBuffer[i] = farClippingPLane
         self.frameBuffer = np.zeros(size, dtype=np.int)
 
     cpdef int convertToRaster(self,
