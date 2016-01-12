@@ -407,7 +407,7 @@ class PlanTest:
     def run(self, goal, skeleton = None, hpn = True,
             home=None, regions = frozenset([]), hierarchical = False,
             heuristic = habbs,
-            greedy = 0.75, simulateError = False,
+            greedy = 0.75,
             initBelief = None, initWorld=None,
             rip = False, alwaysReplan = False, **other):
         randomizedInitialPoses = rip
@@ -429,7 +429,6 @@ class PlanTest:
         startTime = time.clock()
         fbch.flatPlan = not hierarchical
         fbch.plannerGreedy = greedy 
-        pr2Sim.simulateError = simulateError
         for win in wm.windows:
             wm.getWindow(win).clear()
         self.buildBelief(home=home, regions = frozenset(regions))
@@ -450,7 +449,7 @@ class PlanTest:
             # noinspection PyAttributeOutsideInit
             self.realWorld = RealWorld(world, self.bs,
                                        self.domainProbs,
-                                       robot = self.thinRobot) # simulator
+                                       robot = self.thinRobot)
 
             # TODO: !! Gross hack for debugging
             glob.realWorld = self.realWorld
