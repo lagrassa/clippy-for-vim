@@ -757,7 +757,7 @@ def testShelvesPush(**args):
 def testPush(name, objName, startPose, targetReg, **args):
     middle = hu.Pose(1.3, 0.05, tZ, math.pi/2)
     exp = makeExp({'table1' : (table1Pose, smallVar),
-                   'barC': (middle, medVar)
+                   # 'barC': (middle, medVar)
                    },
                   {objName : (startPose, medVar)},
                   ['table1Top', targetReg], easy=args.get('easy', False))

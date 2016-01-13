@@ -283,7 +283,7 @@ def inside(shape, reg, strict=False):
 
 def insideAux(shape, reg, buffer=tiny):
     # all([np.all(np.dot(reg.planes(), p) <= 1.0e-6) for p in shape.vertices().T])
-    verts = shape.vertices()
+    verts = shape.getVertices()
     for i in xrange(verts.shape[1]):
         if not np.all(np.dot(reg.planes(), verts[:,i].reshape(4,1)) <= buffer):
             return False

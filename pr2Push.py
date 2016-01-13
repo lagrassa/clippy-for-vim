@@ -189,7 +189,9 @@ def pushGenTop(args, pbs, cpbs, away=False):
     tr(tag, '=> pushGenTop exhausted for', hand)
 
 def choosePrim(shape):
-    return sorted(shape.toPrims(),
+    # TODO: This should approximate the parts with a "push-friendly"
+    # representation, for now just xyPrim.
+    return sorted([s.xyPrim() for s in shape.parts()],
                   key = lambda p: bboxVolume(p.bbox()), reverse=True)[0]
 
 def getPotentialContacts(prim):

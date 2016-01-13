@@ -318,8 +318,9 @@ class RoadMap:
         chains = [chain for chain in initConf.conf \
                   if chain in targetConf.conf \
                   and max([abs(x-y) > 1.0e-6 for (x,y) in zip(initConf.conf[chain], targetConf.conf[chain])])]
-        if self.robot.baseChainName in chains and self.robot.headChainName in chains:
-            chains.remove(self.robot.headChainName)
+
+        # if self.robot.baseChainName in chains and self.robot.headChainName in chains:
+        #     chains.remove(self.robot.headChainName)
 
         for inflate in ((True, False) if optimize else (False,)):
             attempts = 1 if (not optimize or targetConf.baseConf() == initConf.baseConf()) else glob.rrtPlanAttempts
