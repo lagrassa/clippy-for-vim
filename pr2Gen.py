@@ -1141,7 +1141,8 @@ def lookGenTop(args, pbs, cpbs):
         # Use the conf in goalConds to "fill in" the base information
         if confAtTarget is None:
             print 'No conf found for lookConf with specified base'
-            raw_input('This might be an error in regression')
+            print 'This might be an error in regression'
+            print 'LPK: not sure this should cause us to give up.'
             return
         # We must be able to reach confAtTarget after the look, but
         # someone else has/will make sure that is true.  Start by

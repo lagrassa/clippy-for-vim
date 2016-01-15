@@ -33,7 +33,8 @@ maxVarianceTuple = (.1,)*4
 
 # If it's bigger than this, we can't just plan to look and see it
 # Should be more subtle than this...
-maxPoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
+maxPoseVar = (0.1**2, 0.1**2, 0.1**2, 0.2**2)
+#maxPoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
 #maxPoseVar = (0.03**2, 0.03**2, 0.03**2, 0.05**2)
 
 # Don't allow delta smaller than this
@@ -819,8 +820,9 @@ def moveSpecialRegress(f, details, abstractionLevel):
     # Assume that odometry error is controlled during motion, so not more than 
     # this.  It's a stdev
     odoError = details.domainProbs.odoError
-    # Variance due to odometry after move of two meters
-    odoVar = [e * e * 2 for e in odoError]
+    maxDist = 4
+    # Variance due to odometry after move of maxDist
+    odoVar = [e * e * maxDist for e in odoError]
 
     if f.predicate == 'B' and f.args[0].predicate == 'Pose':
         fNew = f.copy()
@@ -1493,12 +1495,12 @@ poseAchIn = Operator(
             # then obj 2.  Changed so we don't try to maintain
             # detailed k of the table as we are picking other obj.
             {0 : set(),
-             1 : {BLoc(['Obj1', planVar, planP], True), # 'PoseVar'
-                  BLoc(['Obj2', planVar, planP], True)},
-             2 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
+             # 1 : {BLoc(['Obj1', planVar, planP], True), # 'PoseVar'
+             #      BLoc(['Obj2', planVar, planP], True)},
+             1 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
                                'PoseDelta', 'P1'], True),
                   Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True)},
-             3 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
+             2 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
                                'PoseDelta', 'P2'], True),
                   Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)}},
             # Results

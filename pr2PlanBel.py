@@ -906,11 +906,14 @@ def getGoalTargetConf(goalConds):
                                   Bd([CanReachNB(['Start', 'End', 'Cond']),
                                       True, 'P'], True))
     if not (fbs_conf and fbs_crnb): return None
+    # Goal has a conf specified and at least one CanReachNB
     conf = None
     for (fconf, bconf) in fbs_conf:
         for (fcrnb, bcrnb) in fbs_crnb:
             confVar = fconf.args[0]
+            # Target conf is a var
             if isVar(confVar) and fconf.args[0] == fcrnb.args[0].args[0]:
+                # Find the place we are trying to reach from here.
                 conf = fcrnb.args[0].args[1]
     return conf
 
