@@ -2,13 +2,12 @@
 #import math
 import operator
 import miscUtil
-from miscUtil import prettyString, makeDiag, undiag
+from miscUtil import prettyString, makeDiag, undiag, argmax, argmaxWithVal
 import numpy as np
 from numpy import *
 import random
 import operator as op
 import copy
-import hu
 from traceFile import trAlways
 
 #from pylab import figure, show, rand
@@ -45,16 +44,8 @@ class DiscreteDist:
         """
         @returns: The element in this domain with maximum probability
         """
-        best = []                       # list of pairs (elt, p)
-        for elt in self.support():
-            p = self.prob(elt)
-            if not best or p >= best[0][1]:
-                if best and p == best[0][1]:
-                    best.append((elt, p))
-                else:
-                    best = [(elt, p)]
-        #return random.choice(best) if len(best) > 1 else best[0]
-        return best[0]
+        return argmaxWithVal(self.support(),
+                             lambda x: self.prob(x))
 
     # Returns the x with highest weight
     def mode(self):
@@ -112,10 +103,15 @@ class DDist(DiscreteDist):
         self.mpe = self.computeMPE()
 
     def computeMPE(self):
-        return max(self.__d.items(), lambda (k, p): p)[0]
+        return max(self.__d.items(), key=lambda (k, p): p)
 
     def maxProbElt(self):
+        # returns pair: (element, prob)
         return self.mpe
+
+    def mode(self):
+        # just the element
+        return self.mpe[0]
 
     def addProb(self, val, p):
         """
@@ -825,7 +821,7 @@ def covPoses(data, mu):
     sigma = mat(zeros([n, n]))
     for x in data:
         # x is a row;  need to do subtraction respecting angles
-        delta = hu.tangentSpaceAdd(x.T, -mu)
+        delta = tangentSpaceAdd(x.T, -mu)
         sigma += delta * delta.T
     return sigma / n
 
@@ -1024,8 +1020,8 @@ def gaussPN(value, delta, mu, sigma):
     return rv.cdf(value + delta) - rv.cdf(value - delta)
 
 def gaussPNAngle(value, delta, mu, sigma):
-    limit1 = hu.fixAnglePlusMinusPi(value - mu - delta)
-    limit2 = hu.fixAnglePlusMinusPi(value - mu + delta)
+    limit1 = fixAnglePlusMinusPi(value - mu - delta)
+    limit2 = fixAnglePlusMinusPi(value - mu + delta)
     upper = max(limit1, limit2)
     lower = min(limit1, limit2)
     rv = stats.norm(0, sigma)
@@ -1162,8 +1158,27 @@ def varBeforeObs(obsVar, varAfterObs):
               for (x, y) in zip(obsVar, varAfterObs)]
     return tuple(result)
 
+def tangentSpaceAdd(a, b):
+    res = a + b
+    for i in range(3, len(res), 4):
+        res[i, 0] = fixAnglePlusMinusPi(res[i, 0])
+    return res
 
 
-
+def fixAnglePlusMinusPi(a):
+    """
+    A is an angle in radians;  return an equivalent angle between plus
+    and minus pi
+    """
+    pi2 = 2.0* math.pi
+    i = 0
+    while abs(a) > math.pi:
+        if a > math.pi:
+            a = a - pi2
+        elif a < -math.pi:
+            a = a + pi2
+        i += 1
+        if i > 10: break                # loop found
+    return a
 
 

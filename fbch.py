@@ -658,7 +658,7 @@ class Fluent(object):
 # of fluents.  Level 0 is most abstract.  Preconditions do not need to
 # be repeated...automatically inherited at lower levels.
 
-# Each result is a pair: fluent and a dictionary of specific
+# Each result is a pair: a set of fluents and a dictionary of specific
 # preconditions (not already in the general precondition list
 
 class Operator(object):
@@ -682,6 +682,10 @@ class Operator(object):
                  parent = None):
         self.name = name # string
         self.args = args # list of vars or constants
+
+        for pset in preconditions.values():
+            assert type(pset) == set
+
         self.preconditions = preconditions
         self.functions = functions if functions is not None else []
         self.metaOperator = metaOperator
@@ -704,7 +708,6 @@ class Operator(object):
         # self.concreteAbstractionLevel if flatPlan else 0
         self.sideEffects = sideEffects if sideEffects != None else {}
         self.prim = prim
-        self.verifyArgs()
         self.incrementNum()         # Unique ID for drawing graphs
         self.argsToPrint = argsToPrint
         self.ignorableArgs = [] if ignorableArgs is None else ignorableArgs
@@ -718,6 +721,7 @@ class Operator(object):
         self.subPlans = []
         self.delayBinding = delayBinding
         self.parent = parent
+        self.verifyArgs()
 
     def getRebindPenalty(self):
         return glob.rebindPenalty if self.rebindPenalty is None \
@@ -888,6 +892,7 @@ class Operator(object):
     # for these results.
     def reconfigure(self, preConds, desiredResults):
         new = self.copy()
+        for thing in preConds.values(): assert type(thing) == set
         new.preconditions = preConds
         new.results = [(desiredResults, {})]
         sideEffects = [] 
@@ -915,7 +920,7 @@ class Operator(object):
 
         op = Operator(self.name,
                       [lookup(a, rb) for a in self.args],
-                      dict([(v, [f.applyBindings(rb) for f in preConds]) \
+                      dict([(v, set([f.applyBindings(rb) for f in preConds])) \
                             for (v, preConds) in self.preconditions.items()]),
                       applyBindings(self.results, rb),
                       [f.applyBindings(rb) for f in self.functions],
@@ -1277,8 +1282,9 @@ class Operator(object):
         if any([c.isGround() for c in clobberers]):
             return False
         elif clobberers:
-            assert self.abstractionLevel < self.concreteAbstractionLevel,\
-              'Clobbering at primitive level.  Bad operator description'
+            if self.abstractionLevel >= self.concreteAbstractionLevel:
+                print 'Clobbering at primitive level'
+                return False
             primOp = self.copy()
             tr('clobber', 'Trying less abstract version of op', self.name)
             primOp.abstractionLevel = primOp.concreteAbstractionLevel
@@ -1488,9 +1494,9 @@ def hCacheDel(f):
 ######################################################################
 
 # Abstract subtask for initializing the plan stack
-top = Operator('Top', [], {1:[]}, [], [], None)
+top = Operator('Top', [], {1:set()}, [], [], None)
 top.abstractionLevel = 0
-nop = Operator('Nop', [], {1:[]}, [], [], None)
+nop = Operator('Nop', [], {1:set()}, [], [], None)
 
 # Skeleton is a list of lists of operators
 # First is used in the first planning problem, etc.
@@ -2275,7 +2281,8 @@ def planBackward(startState, goal, ops, ancestors = [],
             (f1, f2) = writeSearchPreamble(goal.planNum, fileTag+'NonMon')
         (p, c) = planBackwardAux(goal, startState, ops, ancestors, skeleton,
                                  False, lastOp, nonMonOps,
-                                 lambda g: 0, False, None,
+                                 heuristic, h is not None, None,
+                                 #lambda g: 0, False, None,
                                  visitF, expandF, prevExpandF, float('inf'),
                                  maxNodes * 2)
         if p and f1:

@@ -46,10 +46,12 @@ canSeeProb = 0.9
 # No prob can go above this
 maxProbValue = 0.98  # was .999
 # How sure do we have to be of CRH for moving
-#movePreProb = 0.98
 movePreProb = 0.8
 # Prob for generators.  Keep it high.   Should this be = maxProbValue?
 probForGenerators = 0.98
+
+# For cheap trick of just checking means
+notBNotProb = 0.01
 
 # Generic large values for the purposes of planning If they're small,
 # it has to keep looking to maintain them.  If they're large, the
@@ -1418,8 +1420,9 @@ move = Operator(
     'Move',
     ['CStart', 'CEnd', 'DEnd'],
     # Pre
-    {0 : {Bd([CanReachHome(['CEnd', []]),  True, movePreProb], True)},
-     1 : {Conf(['CStart', 'DEnd'], True)}},
+    {0 : {Bd([CanReachHome(['CEnd', []]),  True, notBNotProb], True)},
+     1 : {Bd([CanReachHome(['CEnd', []]),  True, movePreProb], True)},     
+     2 : {Conf(['CStart', 'DEnd'], True)}},
     # Results:  list of pairs: (fluent set, private preconds)
     [({Conf(['CEnd', 'DEnd'], True)}, {})],
     functions = [GenNone(['CEnd'], [])],
@@ -1536,13 +1539,16 @@ place = Operator('Place', placeArgs,
          1 : {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                                'RealPoseVar', 'PoseDelta', 'PoseFace',
                                'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                                'place', []]), True, canPPProb],True)},
+                                'place', []]), True, notBNotProb],True)},
          2 : {Bd([Holding(['Hand']), 'Obj', 'P1'], True),
               Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'P1'], True),
               B([Grasp(['Obj', 'Hand', 'GraspFace']),
                  'GraspMu', 'GraspVar', 'GraspDelta', 'P1'], True)},
-         3 : {Conf(['PreConf', 'ConfDelta'], True)}
-        },
+         3 : {Conf(['PreConf', 'ConfDelta'], True),
+              Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
+                               'RealPoseVar', 'PoseDelta', 'PoseFace',
+                               'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
+                    'place', []]), True, canPPProb],True)}},
         # Results
         [({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
            B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta','PR2'],
@@ -1611,12 +1617,16 @@ push = Operator('Push', pushArgs,
          1 : {Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
                            'PreConf',
                             'PushConf', 'PostConf', 'RealPoseVar', 'PrePoseVar',
-                            'PoseDelta', []]), True, canPPProb],True)},
+                            'PoseDelta', []]), True, notBNotProb],True)},
         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
               B([Pose(['Obj', 'PoseFace']), 'PrePose',
                  'PrePoseVar',  pushDelta, 'P'], True)},
         3 : {Conf(['PreConf', 'ConfDelta'], True),
-             Bd([Holding(['Hand']), 'none', canPPProb], True)}
+             Bd([Holding(['Hand']), 'none', canPPProb], True),
+             Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
+                           'PreConf',
+                            'PushConf', 'PostConf', 'RealPoseVar', 'PrePoseVar',
+                            'PoseDelta', []]), True, canPPProb],True)}
         },
         # Results
         [({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
@@ -1667,12 +1677,17 @@ pick = Operator(
          1 : {Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
                                'PoseVar', 'PoseDelta', 'PoseFace',
                                'GraspFace', 'GraspMu', 'RealGraspVar',
-                               'GraspDelta', 'pick', []]), True, canPPProb],
+                               'GraspDelta', 'pick', []]), True, notBNotProb],
                                True)},
 #              Bd([Holding(['Hand']), 'none', canPPProb], True)},
-         3 : {Conf(['PreConf', 'ConfDelta'], True),
-              B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta',
-                 'P1'], True)              
+         3 : {B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta',
+                 'P1'], True)},
+         4 : {Conf(['PreConf', 'ConfDelta'], True),
+              Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
+                               'PoseVar', 'PoseDelta', 'PoseFace',
+                               'GraspFace', 'GraspMu', 'RealGraspVar',
+                               'GraspDelta', 'pick', []]), True, canPPProb],
+                               True)                        
              }},
 
         # Results

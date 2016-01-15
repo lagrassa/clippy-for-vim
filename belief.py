@@ -415,7 +415,7 @@ class BMetaOperator(Operator):
         super(BMetaOperator, self).__init__(\
             name,
             args + ['PreCond', 'NewCond', 'PostCond', 'P'],
-            {0 : {},
+            {0 : set(),
              1 : {Bd([fluentClass(args + ['PreCond']), True, 'P'], True)}},
             [({Bd([fluentClass(args + ['PostCond']),  True, 'P'], True)}, {})],
             functions = [
