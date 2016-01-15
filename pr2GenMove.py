@@ -167,11 +167,15 @@ def moveLookPath(pbs, prob, q1, q2):
     
     path1, viol1 = canReachHome(pbs, q1, prob, Violations(),
                                 homeConf=retract1, optimize=True)
-    assert viol1 and viol1.weight() == 0
+    if not (viol1 and viol1.weight() == 0):
+        print 'moveLookPath failed to return from retract1'
+        return []
     assert path1[0] == q1
     path2, viol2 = canReachHome(pbs, retract2, prob, Violations(),
                                 homeConf=q2, optimize=True)
-    assert viol2 and viol2.weight() == 0
+    if not(viol2 and viol2.weight() == 0):
+        print 'moveLookPath failed to return from retract2'
+        return []
     assert path2[-1] == q2
 
     print 'moveLookPath: total time =', time.time() - startTime

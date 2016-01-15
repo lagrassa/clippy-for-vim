@@ -143,7 +143,7 @@ def regionPoseHypGen(pbs, prob, placeBs, regShapes,
         # Check conditions
         if debug(tag):
             pbs.draw(prob, 'W'); placedShadow.draw('W', 'orange')
-            debugMsg(tag, 'candiate pose=%s, angle=%.2f'%(npB.poseD.mode(), angle))
+            debugMsg(tag, 'candidate pose=%s, angle=%.2f'%(npB.poseD.mode(), angle))
         if inside(placedShadow, rs, strict=True) and \
                legalPlace(npB.obj, placedShadow, shWorld):
             debugMsg(tag, 'valid hyp pose=%s angle=%.2f'%(npB.poseD.mode(), angle))
@@ -175,10 +175,10 @@ def poseGraspable(hyp, pbs, graspBGen, prob, hand, base):
             hyp.conf = ca
             hyp.viol = v
             pbs.draw(prob, 'W'); pB.shape(pbs).draw('W', 'green'); ca.draw('W', 'green')
-            debugMsg(tag, 'candiate won pose=%s, grasp=%s'%(pB.poseD.mode(), gB.grasp.mode()))
+            debugMsg(tag, 'candidate won pose=%s, grasp=%s'%(pB.poseD.mode(), gB.grasp.mode()))
             return hyp
         else:
-            debugMsg(tag, 'candiate failed pose=%s, grasp=%s'%(pB.poseD.mode(), gB.grasp.mode()))
+            debugMsg(tag, 'candidate failed pose=%s, grasp=%s'%(pB.poseD.mode(), gB.grasp.mode()))
 
 def feasiblePBS(hyp, pbs):
     if pbs.conditions:

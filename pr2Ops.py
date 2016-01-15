@@ -80,8 +80,8 @@ def describePath(path, tag):
 
 def primPath(bs, cs, ce, p):
     path = primPathUntilLook(bs, cs, ce, p)
-    if not path:
-        raw_input('Could not find inflated base path in prim... continue withouut inflation?')
+    if not path or not path[0]:
+        raw_input('Could not find moveLook base path in prim... use RRT?')
         return primPathRRT(bs, cs, ce, p)
     return path
 
