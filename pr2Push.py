@@ -1054,9 +1054,9 @@ def checkReplay(pbs, prob, cachedValues, supportTablePB=None):
     for (pathViols, reason) in doneVals:
         viol = [pbs.confViolations(conf, prob) for (conf, _, _) in pathViols]
         if all(viol):
-            if any(pushedCollides(pbs, prob, v, ignore=ignore) for v in viol):
-                print 'pushed collides in checkReplay', viol
-                pdb.set_trace()
+            # if any(pushedCollides(pbs, prob, v, ignore=ignore) for v in viol):
+            #     print 'pushed collides in checkReplay', viol
+            #     pdb.set_trace()
             return ([(c, v2, p) for ((c, v1, p), v2) in zip(pathViols, viol)], 'done')
 
 def pushedCollides(pbs, prob, viol, ignore=[]):

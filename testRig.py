@@ -8,13 +8,13 @@ from geom import bboxGrow
 from objects import World
 from miscUtil import timeString
 
-import planGlobals as glob
-reload(glob)
-from planGlobals import useROS
-
 import local
 reload(local)
 from local import *
+
+import planGlobals as glob
+reload(glob)
+from planGlobals import useROS
 
 import traceFile
 reload(traceFile)
@@ -407,7 +407,7 @@ class PlanTest:
     def run(self, goal, skeleton = None, hpn = True,
             home=None, regions = frozenset([]), hierarchical = False,
             heuristic = habbs,
-            greedy = 0.75,
+            greedy = 0.5,
             initBelief = None, initWorld=None,
             rip = False, alwaysReplan = False, **other):
         randomizedInitialPoses = rip

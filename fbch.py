@@ -1253,6 +1253,12 @@ class Operator(object):
         if cost == float('inf'):
             tr('regression:fail', 'infinite cost for bindings', newBindings)
             return None
+
+        if cost > 300:
+            print 'Cost overrun!', cost, 'h=', glob.inHeuristic
+            print 'self'
+            raw_input('huh?')
+
         newGoal.operator.instanceCost = cost
         # tr('regression', self.name,
         #    '\n', 'result for bindings', newBindings,
@@ -1644,7 +1650,23 @@ class PlanStack(Stack):
                              ('prevIndex', previousUpperIndex),
                              ('currIndex', currentUpperIndex),
                              ('popping layers', i, 'through', len(layers)-1))
-            
+
+                        if previousUpperIndex == currentUpperIndex and \
+                                 not op:
+                            # top-level goal hasn't changed but this
+                            # layer doesn't know what to do
+                            print 'Goal at layer', i-1, 'remains:'
+                            for fl in upperSubgoal.fluents: print '    ', \
+                                      str(fl)[0:60]
+                            print 'But we have exited envelope of layer', i
+                            for j in range(len(layers[i].steps)):
+                                print 'Unsat fluents in pre-image', j, ':'
+                                for fl in layers[i].steps[j][1].fluents:
+                                    if fl.value != s.fluentValue(fl):
+                                        print '    ', str(fl)[0:60]
+                            print 'Popping layers to here'
+                            raw_input('okay?')
+  
                 # For purposes of drawing in the tree, find the next
                 # step at each level below
                 for j in range(i+1, len(layers)):
@@ -2512,7 +2534,7 @@ def writeSurpriseNode(f, surpriseNodeName, prevIndex, currIndex):
 def writeFailureNode(f, nodeName, fluents):
     if f:
         g = State(fluents)
-        nodeLabel = name('Failure.  Expected'+nl+\
+        nodeLabel = name('Expected'+nl+\
                          g.prettyString(False, None))
         wf(f, indent + nodeName + styleStr(failureStyle + ', label=' +\
                                                nodeLabel) + eol)

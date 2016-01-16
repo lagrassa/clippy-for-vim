@@ -34,7 +34,7 @@ maxVarianceTuple = (.1,)*4
 # If it's bigger than this, we can't just plan to look and see it
 # Should be more subtle than this...
 maxPoseVar = (0.1**2, 0.1**2, 0.1**2, 0.2**2)
-#maxPoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
+maxReasonablePoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
 #maxPoseVar = (0.03**2, 0.03**2, 0.03**2, 0.05**2)
 
 # Don't allow delta smaller than this
@@ -657,7 +657,7 @@ class GenLookObjPrevVariance(Function):
         odoVar = [e * e for e in start.domainProbs.odoError]
         if start.pbs.getHeld('left') == obj or \
                start.pbs.getHeld('right') == obj:
-            vs = maxPoseVar
+            vs = maxReasonablePoseVar
         else:
             vs = list(start.poseModeDist(obj, face).mld().sigma.diagonal().\
                       tolist()[0])
@@ -668,10 +668,11 @@ class GenLookObjPrevVariance(Function):
             vs = tuple([v + ov for (v, ov) in zip(vs, odoVar)])
         # Don't let variance get bigger than variance in the initial state, or
         # the cap, whichever is bigger
-        cap = [max(a, b) for (a, b) in zip(maxPoseVar, vs)]
+        cap = [max(a, b) for (a, b) in zip(maxReasonablePoseVar, vs)]
         vbo = varBeforeObs(lookVar, ve)
         cappedVbo1 = tuple([min(a, b) for (a, b) in zip(cap, vbo)])
         cappedVbo2 = tuple([min(a, b) for (a, b) in zip(vs, vbo)])
+        cappedVbo3 = tuple([min(a, b) for (a, b) in zip(maxPoseVar, vbo)])
         # vbo > ve
         # This is useful if it's between:  vbo > vv > ve
         ve3 = (ve[0], ve[1], ve[3])
@@ -684,6 +685,8 @@ class GenLookObjPrevVariance(Function):
         def sqrts(vv):
             # noinspection PyShadowingNames
             return [sqrt(xx) for xx in vv]
+        # vbo3 has a really big cap
+        #result = [[cappedVbo1], [cappedVbo3]]
         result = [[cappedVbo1]]
         v4 = tuple([v / 4.0 for v in cappedVbo1])
         v9 = tuple([v / 9.0 for v in cappedVbo1])
@@ -1989,6 +1992,8 @@ class AchCanSeeGen(Function):
 # violFn specifies what we are trying to achieve tries all the ways we
 # know how to achieve it
 
+achCanProb = 0.95
+
 # targetFluents are the declarative version of the same condition;
 # would be better if we didn't have to specify it both ways.
 
@@ -2042,9 +2047,9 @@ def lookAchCanXGen(pbs, shWorld, initViol, violFn, prob):
         face = placeB.support.mode()
         poseMean = placeB.poseD.modeTuple()
         # set of fluents
-        conds = frozenset([Bd([SupportFace([obst]), face, prob], True),
+        conds = frozenset([Bd([SupportFace([obst]), face, achCanProb], True),
                            B([Pose([obst, face]), poseMean, objBMinVar,
-                              lookDelta, prob], True)])
+                              lookDelta, achCanProb], True)])
         resultBS = pbs.conditioned([], conds)
         resultViol = violFn(resultBS)
         if resultViol is not None and shadowName not in resultViol.allShadows():
@@ -2099,9 +2104,9 @@ def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob):
             poseVar = r.pB.poseD.varTuple()
 
             newConds = frozenset(
-                [Bd([SupportFace([obst]), supportFace, prob], True),
+                [Bd([SupportFace([obst]), supportFace, achCanProb], True),
                  B([Pose([obst, supportFace]), poseMean, poseVar,
-                           moveDelta, prob], True)])
+                           moveDelta, achCanProb], True)])
             print '*** moveOut', r
             resultBS = pbs.conditioned([], newConds)
             resultViol = violFn(resultBS)
@@ -2139,9 +2144,9 @@ def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob):
             prePoseVar = r.prePB.poseD.var
 
             newConds = frozenset(
-                [Bd([SupportFace([obst]), supportFace, prob], True),
+                [Bd([SupportFace([obst]), supportFace, achCanProb], True),
                  B([Pose([obst, supportFace]), postPose, postPoseVar,
-                           moveDelta, prob], True)])
+                           moveDelta, achCanProb], True)])
             print '*** pushOut', obst
             resultBS = pbs.conditioned([], newConds)
             resultViol = violFn(resultBS)
