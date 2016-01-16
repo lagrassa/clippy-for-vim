@@ -1015,6 +1015,7 @@ def pickBProgress(details, args, obs=None):
     details.pbs.reset()
     details.pbs.getShadowWorld(0)
     details.pbs.internalCollisionCheck()
+    details.clearRelPoseVars(o)
     debugMsg('beliefUpdate', 'pickBel')
 
 # noinspection PyUnusedLocal
@@ -1040,6 +1041,7 @@ def placeBProgress(details, args, obs=None):
     details.pbs.reset()
     details.pbs.getShadowWorld(0)
     details.pbs.internalCollisionCheck()
+    details.updateRelPoseVars()
     debugMsg('beliefUpdate', 'placeBel')
 
 # noinspection PyUnusedLocal
@@ -1066,6 +1068,8 @@ def pushBProgress(details, args, obs=None):
     details.pbs.reset()
     details.pbs.getShadowWorld(0)
     details.pbs.internalCollisionCheck()
+    details.clearRelPoseVars(o)
+    details.updateRelPoseVars()
     debugMsg('beliefUpdate', 'pushBel')
     
 # obs has the form (obj-type, face, relative pose)
@@ -1076,6 +1080,7 @@ def lookAtBProgress(details, args, obs):
     details.pbs.getRoadMap().confReachCache = {} # Clear motion planning cache
     details.pbs.getShadowWorld(0)
     details.pbs.internalCollisionCheck()
+    details.updateRelPoseVars()
     debugMsg('beliefUpdate', 'look')
 
 #llMatchThreshold = -100.0
@@ -1480,6 +1485,25 @@ bLoc2 = Operator(
          ignorableArgs = (1, 3),
          ignorableArgsForHeuristic = (1, 3))
 
+# To establish a conditional pose between two objects, see them both
+# with small variance relative to the robot.
+condPose = Operator('ConditionalPose',
+                    ['Obj1', 'ObjPose1', 'PoseFace1',
+                     'Obj2', 'ObjPose2', 'PoseFace2', 
+                     'PoseVar', 'TotalVar', 'PoseDelta', 'TotalDelta',
+                     'P1', 'P2', 'PR'],
+             {0 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
+                               'PoseDelta', 'P1'], True),
+                   Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True),
+                   B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
+                               'PoseDelta', 'P2'], True),
+                   Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)}},
+             # Result
+             [B([Cond([Pose('Obj1', 'PoseFace1'),
+                       Pose('Obj2', 'PoseFace2'), 'ObjPose2']),
+                          'ObjPose1', 'TotalVar', 'PR'], True)],
+             functions = [Times2(['TotalVar'], ['PoseVar'])])
+
 poseAchIn = Operator(
              'PosesAchIn', ['Obj1', 'Region',
                             'ObjPose1', 'PoseFace1',
@@ -1492,8 +1516,9 @@ poseAchIn = Operator(
             {0 : set(),
              1 : {BLoc(['Obj1', planVar, planP], True), # 'PoseVar'
                   BLoc(['Obj2', planVar, planP], True)},
-             2 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
-                               'PoseDelta', 'P1'], True),
+             2 : {B([Cond([Pose('Obj1', 'PoseFace1'),
+                           Pose('Obj2', 'PoseFace2'), 'ObjPose2']),
+                     'ObjPose1', 'TotalVar', 'PR'], True),
                   Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True)},
              3 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
                                'PoseDelta', 'P2'], True),

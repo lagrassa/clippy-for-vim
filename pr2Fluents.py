@@ -917,6 +917,19 @@ class Pose(Fluent):
 
         return bState.poseModeDist(obj, face)
 
+    def cDist(self, rf2, val2, bState):
+        # Return a distribution on the pose of obj given the value of
+        # the othe rfluent.
+        (obj1, face1) = self.args
+        assert rf2.predicate == 'Pose'
+        (obj2, face2) = rf2.args
+        # Disgustingly ignoring the faces for now
+        # And not changing mode (ignoring val2)
+        var = bState.relPoseVars((obj1, obj2))
+        mode = bState.pbs.getPlaceB(obj, face).poseD.modeTuple()
+        return GMU([(MVG(mode, diagToSq(var), pose4 = True),
+                         self.poseModeProbs[obj1])])
+
     def fglb(self, other, bState = None):
         if bState is None or not self.isGround():
             return {self, other}, {}

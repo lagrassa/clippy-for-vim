@@ -185,6 +185,23 @@ class Bd(BFluent):
             # This is pure entailment
             return self, b
 
+# Conditional distribution, to be used like this:
+#     B(Cond(rf1, rf2, val2), val1, var, delta, p)
+
+class Cond(Fluent):
+    predicate = 'Cond'
+
+    def __init__(self, rf1, rf2, val2):
+        self.rf1 = rf1
+        self.rf2 = rf2
+        self.val2 = val2
+
+    def dist(self, bState):
+        assert hasattr(self.rf1, 'cDist')
+        # Ask the first fluent to provide a cDist method
+        return self.rf1.cDist(rf2, val2)
+        
+
 class B(BFluent):
     predicate = 'B'
     # Fluent for the planner to use.  Derived from an RFluent with a

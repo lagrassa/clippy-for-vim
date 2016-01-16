@@ -25,15 +25,55 @@ lostDist = GMU([(MVG(identPoseTuple, hugeVarianceArray, pose4 = True), 0.99)])
 class BeliefState:
 
     def __init__(self, pbs, domainProbs, awayRegion):
+        objNames = pbs.objectBs.keys()
         self.pbs = pbs
         self.domainProbs = domainProbs
         self.awayRegion = awayRegion
         self.poseModeProbs = dict([(name , 0.99) \
-                                   for name in pbs.objectBs.keys()])
+                                   for name in objNames])
         # Share the poseModeProbs.
         self.pbs.poseModeProbs = self.poseModeProbs
         self.graspModeProb = {'left' : 0.99, 'right' : 0.99}
+        self.relPoseVars = self.getInitRelPoseVars()
         # wm.getWindow('Belief').startCapture()
+
+    def getRelPoseVars(self):
+        # Take them out of the current pbs, going via the robot
+        result = []
+        objNames = self.pbs.objectBs.keys()
+        for o1 in objNames:
+            f1 = self.poseModeProbs[o1].maxProbElt()
+            var1 = self.pbs.getPlaceB(o1, f1).poseD.var
+            for o2 in objNames:
+                f2 = self.poseModeProbs[o2].maxProbElt()
+                var2 = self.pbs.getPlaceB(o1, f2).poseD.var
+                result.append((o1, o2),
+                              tuple([a + b for (a, b) in zip(var1, var2)]))
+        return dict(result)
+
+    # Take the min of what we had and the current ones
+    def updateRelPoseVars(self):
+        objNames = self.pbs.objectBs.keys()
+        for o1 in objNames:
+            f1 = self.poseModeProbs[o1].maxProbElt()
+            var1 = self.pbs.getPlaceB(o1, f1).poseD.var
+            for o2 in objNames:
+                f2 = self.poseModeProbs[o2].maxProbElt()
+                var2 = self.pbs.getPlaceB(o1, f2).poseD.var
+                rv = tuple([a + b for (a, b) in zip(var1, var2)])
+                old = self.relPoseVars[(o1, o2)]
+                if old == None:
+                    self.relPoseVars[(o1, o2)] = rv
+                else:
+                    self.relPoseVars[(o1, o2)] = \
+                              tuple([min(a, b) for (a, b) in zip(rv, old)])
+
+    def clearRelPoseVars(self, o):
+        objNames = self.pbs.objectBs.keys()
+        for otherO in objNames:
+            if otherO == o: continue
+            self.relPoseVars([o, otherO]) = None
+            self.relPoseVars([otherO, o]) = None
 
     # Temporary hacks to keep all the types right
     def graspModeDist(self, obj, hand, face):
