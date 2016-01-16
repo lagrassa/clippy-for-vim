@@ -10,7 +10,7 @@ from traceFile import debugMsg, debug, trAlways, tr
 from miscUtil import squashSets, argminWithVal, argmin, prettyString, timeString
 import local
 
-maxVisitedNodes = 1000
+maxVisitedNodes = 500
 terminationPct = 0.05
 
 class AONode:
@@ -95,7 +95,7 @@ class AONode:
                     writeSearchArc(fp, self, c, bold = bold)
 
     def updateChildBudgets(self):
-        if self.done() or self.unexpanded(): return
+        if self.lb == self.ub or self.unexpanded(): return
         for c in self.children:
             ocb = c.budget
             c.updateBudget()
@@ -127,10 +127,10 @@ class AndNode(AONode):
                 self.lbActs = squashSets(childLBActionSets)
                 self.lbActs.add(self)
                 self.lb = sum([a.cost for a in self.lbActs])
+                assert self.lb < float('inf')
             else:
                 self.lbActs = None
                 self.lb = float('inf')
-
             childUBActionSets = [c.ubActs for c in self.children]
             if not None in childUBActionSets:
                 self.ubActs = squashSets(childUBActionSets)
@@ -166,7 +166,10 @@ class AndNode(AONode):
 
     def getBudget(self, child):
         totalLb = sum([c.lb for c in self.children])
+        if totalLb == float('inf'):
+            return 0
         b = self.budget - self.cost - totalLb + child.lb
+
         if debug('ffl') and b < float('inf'):
             print 'Budget for', child.state, 'is', b
             print 'self.budget - self.cost - totalLb + child.lb'
@@ -239,7 +242,9 @@ def getAWinner(topNode, agenda):
                 aa.extend(n.children)
             else:
                 aa.append(argmin(n.children, lambda x: x.lb))
-        return agenda.pop(0)
+        if len(aa) == 0:
+            return None
+            #return agenda.pop(0)
 
 def search(initialState, andSuccessors, orSuccessors, staticEval,
            writeFile = False, initNodeType = 'or'):
@@ -292,6 +297,10 @@ def search(initialState, andSuccessors, orSuccessors, staticEval,
                                       len(visitedThisTime) < maxVisitedNodes:
             if len(visited) % 100 == 0: print 'v', len(visited)
             node = getAWinner(initNode, agenda)
+            if node is None:
+                writeAOTree(initNode)
+                print 'heuristic ran out of winners but bounds open'
+                break
             if node.done():  continue
             tr('ffl', 'Expanding', node.state)
             if node.nodeType == 'or':
@@ -305,8 +314,10 @@ def search(initialState, andSuccessors, orSuccessors, staticEval,
             node.expanded = True
             node.updateBounds()
         if len(visitedThisTime) == maxVisitedNodes:
+            writeAOTree(initNode)
             raw_input('heuristic ran out of nodes')
         if initNode.ub == float('inf'):
+            writeAOTree(initNode)
             raw_input('infinite heuristic')
     finally:
         if writeFile: writeAOTree(initNode)

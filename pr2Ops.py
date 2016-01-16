@@ -33,9 +33,12 @@ maxVarianceTuple = (.1,)*4
 
 # If it's bigger than this, we can't just plan to look and see it
 # Should be more subtle than this...
-maxPoseVar = (0.1**2, 0.1**2, 0.1**2, 0.2**2)
+maxPoseVar = (0.11**2, 0.11**2, 0.11**2, 0.31**2)
 maxReasonablePoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
 #maxPoseVar = (0.03**2, 0.03**2, 0.03**2, 0.05**2)
+
+# Don't be grasping at low-probability straws
+minProb = 0.1   # was 0.5
 
 # Don't allow delta smaller than this
 minDelta = .0001
@@ -445,7 +448,6 @@ class ObsVar(Function):
 
 # Regression:  what does the mode need to be beforehand, assuming a good
 # outcome.  Don't let it go down too fast...
-minProb = 0.5
 
 class ObsModeProb(Function):
     # noinspection PyUnusedLocal

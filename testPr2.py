@@ -1037,3 +1037,9 @@ def testIt():
         raw_input('Ok')
 
 print 'Loaded testPr2.py'
+
+# c has new parent p
+# we set c's budget to inf
+# we tell p to update child budgets
+# if c is an or node, then we set c's budget to be the max of the parents
+# if c is an and node, then 
