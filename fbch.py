@@ -1659,7 +1659,10 @@ class PlanStack(Stack):
                             for fl in upperSubgoal.fluents: print '    ', \
                                       str(fl)[0:60]
                             print 'But we have exited envelope of layer', i
+                            lastExecutedAtLayerI = layers[i].lastStepExecuted
                             for j in range(len(layers[i].steps)):
+                                if j == lastExecutedAtLayerI:
+                                    print '===> Last step executed' 
                                 print 'Unsat fluents in pre-image', j, ':'
                                 for fl in layers[i].steps[j][1].fluents:
                                     if fl.value != s.fluentValue(fl):
@@ -2516,7 +2519,7 @@ def writeGoalNode(f, goal):
     dotSearchId += 1
     traceHeader('Goal '+str(goal.planNum))
     trAlways('Planning for goal', goal.planNum,
-             '\n'.join([fl.prettyString() for fl in goal.fluents]))
+             '\n'.join([fl.prettyString()[0:60] for fl in goal.fluents]))
     goalNodeName =  name(goal.goalName())
     goalLabel = name('Goal '+str(goal.planNum)+nl+goal.prettyString(False,None))
     if f:
@@ -2534,8 +2537,9 @@ def writeSurpriseNode(f, surpriseNodeName, prevIndex, currIndex):
 def writeFailureNode(f, nodeName, fluents):
     if f:
         g = State(fluents)
-        nodeLabel = name('Expected'+nl+\
-                         g.prettyString(False, None))
+        # nodeLabel = name('Expected'+nl+\
+        #                  g.prettyString(False, None))
+        nodeLabel = 'Pop'
         wf(f, indent + nodeName + styleStr(failureStyle + ', label=' +\
                                                nodeLabel) + eol)
 

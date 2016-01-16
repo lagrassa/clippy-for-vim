@@ -652,9 +652,14 @@ class PickPoseVar(Function):
 class GenLookObjPrevVariance(Function):
     # noinspection PyUnusedLocal
     @staticmethod
-    def fun((ve, obj, face), goal, start):
+    def fun((ve, obj, face, pose), goal, start):
         lookVar = start.domainProbs.obsVarTuple
         odoVar = [e * e for e in start.domainProbs.odoError]
+
+        if pose == '*':
+            # Make the pre-image really weak
+            return [[maxPoseVar]]
+
         if start.pbs.getHeld('left') == obj or \
                start.pbs.getHeld('right') == obj:
             vs = maxReasonablePoseVar
@@ -1661,8 +1666,6 @@ push = Operator('Push', pushArgs,
 # Put the condition to know the pose precisely down at the bottom to
 # try to decrease replanning.
 
-# Debate about level 2 vs level 1 preconds.
-
 # We want the holding none precond at the same level as pose, if the
 # object is currently in the hand.
 
@@ -1675,11 +1678,11 @@ pick = Operator(
         # Pre
         {0 : {Graspable(['Obj'], True),
               BLoc(['Obj', planVar, 'P1'], True)},    # was planP
-         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
+         1 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
               B([Pose(['Obj', 'PoseFace']), 'Pose', planVar, 'PoseDelta',
                  'P1'], True),
               Bd([Holding(['Hand']), 'none', 'P1'], True)},
-         1 : {Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
+         2 : {Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
                                'PoseVar', 'PoseDelta', 'PoseFace',
                                'GraspFace', 'GraspMu', 'RealGraspVar',
                                'GraspDelta', 'pick', []]), True, notBNotProb],
@@ -1774,7 +1777,7 @@ lookAt = Operator(
         ObsModeProb(['P1'], ['PR0', 'PR1', 'PR2']),
         # How confident do we need to be before the look?
         GenLookObjPrevVariance(['PoseVarBefore'],
-                               ['RealPoseVarAfter', 'Obj', 'PoseFace']),
+                               ['RealPoseVarAfter', 'Obj', 'PoseFace', 'Pose']),
         LookGen(['LookConf'],
                  ['Obj', 'Pose', 'PoseFace', 'PoseVarBefore',
                   'RealPoseVarAfter', 'PoseDelta',
