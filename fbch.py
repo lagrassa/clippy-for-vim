@@ -1644,8 +1644,7 @@ class PlanStack(Stack):
                     assert currentUpperIndex != None
 
                     if previousUpperIndex != currentUpperIndex -1 :
-                        writeSurprise(f, layers[i-1], previousUpperIndex,
-                                      currentUpperIndex)
+
                         tr('executionSurprise', ('layer', i-1),
                              ('prevIndex', previousUpperIndex),
                              ('currIndex', currentUpperIndex),
@@ -1669,6 +1668,16 @@ class PlanStack(Stack):
                                         print '    ', str(fl)[0:60]
                             print 'Popping layers to here'
                             raw_input('okay?')
+
+                            probableCause = [fl for fl in \
+                             layers[i].steps[lastExecutedAtLayerI-1][1].fluents\
+                               if fl.value != s.fluentValue(fl)]
+                            writeEnvelopeFail(f, layers[i-1],
+                                              lastExecutedAtLayerI,
+                                              State(probableCause))
+                        else:
+                            writeSkip(f, layers[i-1], previousUpperIndex-1,
+                                      currentUpperIndex-1)
   
                 # For purposes of drawing in the tree, find the next
                 # step at each level below
@@ -1744,28 +1753,28 @@ class PlanStack(Stack):
         debugMsg('nextStep', 'not in envelope')
         
         fooFluents = []
-        for fl in layer.steps[layer.lastStepExecuted][1].fluents:
-            if fl.value != s.fluentValue(fl):
-                fooFluents.append(fl)
-        tr('executionFail', 'Failure: expected to satisfy subgoal',
-           layer.lastStepExecuted, 'at layer', layer.level, '\n',
-          'Unsatisfied fluents:',  fooFluents)
+        # for fl in layer.steps[layer.lastStepExecuted][1].fluents:
+        #     if fl.value != s.fluentValue(fl):
+        #         fooFluents.append(fl)
+        # tr('executionFail', 'Failure: expected to satisfy subgoal',
+        #    layer.lastStepExecuted, 'at layer', layer.level, '\n',
+        #   'Unsatisfied fluents:',  fooFluents)
         writeFailure(f, layer, fooFluents)
 
-        if debug('executionFail') and not quiet:
-            print 'Next step: failed to satisfy any pre-image'
-            print 'Was expecting to satisfy preimage', layer.lastStepExecuted
-            glob.debugOn.append('testVerbose')
-            foundError = False
-            for fl in layer.steps[layer.lastStepExecuted][1].fluents:
-                fv = s.fluentValue(fl)
-                if fl.value != fv:
-                    print 'wanted:', fl.value, 'got:', fv
-                    print '    ', fl.prettyString()
-                    foundError = True
-            glob.debugOn.pop()
-            assert foundError, 'inconsistency!?'
-            raw_input('execution fail')
+        # if debug('executionFail') and not quiet:
+        #     print 'Next step: failed to satisfy any pre-image'
+        #     print 'Was expecting to satisfy preimage', layer.lastStepExecuted
+        #     glob.debugOn.append('testVerbose')
+        #     foundError = False
+        #     for fl in layer.steps[layer.lastStepExecuted][1].fluents:
+        #         fv = s.fluentValue(fl)
+        #         if fl.value != fv:
+        #             print 'wanted:', fl.value, 'got:', fv
+        #             print '    ', fl.prettyString()
+        #             foundError = True
+        #     glob.debugOn.pop()
+        #     assert foundError, 'inconsistency!?'
+        #     raw_input('execution fail')
         return None, None
         
 
@@ -2495,6 +2504,7 @@ primitiveStyle = 'shape=box, style=filled, colorscheme=pastel16, color=3'
 planGoalStyle = 'shape=box, style=filled, colorscheme=pastel16, color=2'
 surpriseStyle = 'shape=box, style=filled, colorscheme=pastel16, color=5'
 failureStyle = 'shape=box, style=filled, colorscheme=pastel16, color=1'
+popStyle = 'shape=box, style=filled, colorscheme=pastel16, color=6'
 planStepArrowStyle = ''
 refinementArrowStyle = 'style=dashed'
 indent = '    '
@@ -2526,21 +2536,31 @@ def writeGoalNode(f, goal):
         wf(f, indent + goalNodeName + styleStr(planGoalStyle + ', label=' +\
                                                goalLabel) + eol)
 
-def writeSurpriseNode(f, surpriseNodeName, prevIndex, currIndex):
+def writeEnvFailNode(f, surpriseNodeName, prevIndex, badFluents):
     if f:
-        nodeLabel = name('Surprise'+nl+\
-                         'Upper step ' + str(currIndex-1))
-                          # +nl+\'Got index ' + str(currIndex))
-        wf(f, indent + surpriseNodeName + styleStr(surpriseStyle + ', label=' +\
+        nodeLabel = name('Envelope fail'+nl+\
+                         'Working on step' + str(prevIndex) + nl + \
+                      'Probable cause: ' + badFluents.prettyString(False, None))
+
+        wf(f, indent + surpriseNodeName + styleStr(failureStyle + ', label=' +\
                                                nodeLabel) + eol)
 
+def writeSkipNode(f, surpriseNodeName, prevIndex, currIndex):
+    if f:
+        skipStr = 'Skipped forward' if currIndex > prevIndex else 'Fell back'
+        nodeLabel = name(skipStr+nl+\
+                         'Step ' + str(prevIndex) + ' to step ' + \
+                         str(currIndex))
+        wf(f, indent + surpriseNodeName + styleStr(surpriseStyle + ', label=' +\
+                                               nodeLabel) + eol)
+                                               
 def writeFailureNode(f, nodeName, fluents):
     if f:
         g = State(fluents)
         # nodeLabel = name('Expected'+nl+\
         #                  g.prettyString(False, None))
-        nodeLabel = 'Pop'
-        wf(f, indent + nodeName + styleStr(failureStyle + ', label=' +\
+        nodeLabel = 'Popped'
+        wf(f, indent + nodeName + styleStr(popStyle + ', label=' +\
                                                nodeLabel) + eol)
 
 def writeSubgoalRefinement(f, p, subgoal):
@@ -2550,19 +2570,33 @@ def writeSubgoalRefinement(f, p, subgoal):
         wf(f, indent + p.subtasksNodeName + arrow + subgoalNodeName + \
            styleStr(refinementArrowStyle) + eol)
 
-surpriseCount = 0
-def writeSurprise(f, p, prevIndex, currIndex):
-    global surpriseCount
-    surpriseCount += 1
+skipCount = 0
+def writeSkip(f, p, prevIndex, currIndex):
+    global skipCount
+    skipCount += 1
     if not hasattr(p, 'subtasksNodeName'):
         p.subtasksNodeName = '"Top"'
     surpriseNodeName =  name(p.subtasksNodeName[1:-1]+':'+str(prevIndex)+':'\
-                                 +str(currIndex)+':'+str(surpriseCount))
-    writeSurpriseNode(f, surpriseNodeName, prevIndex, currIndex)
+                                 +str(currIndex)+':'+str(skipCount))
+    writeSkipNode(f, surpriseNodeName, prevIndex, currIndex)
     if f and p.steps[1][0] != top:  # if task 1 is top, this is a root
         wf(f, indent + p.subtasksNodeName + arrow + surpriseNodeName + \
            styleStr(refinementArrowStyle) + eol)
 
+envFailCount = 0
+def writeEnvelopeFail(f, p, prevIndex, badFluents):
+    global envFailCount
+    envFailCount += 1
+    if not hasattr(p, 'subtasksNodeName'):
+        p.subtasksNodeName = '"Top"'
+    surpriseNodeName =  name(p.subtasksNodeName[1:-1]+':'+str(prevIndex)+':'\
+                                 +str(badFluents)+':'+str(envFailCount))
+    writeEnvFailNode(f, surpriseNodeName, prevIndex, badFluents)
+    if f and p.steps[1][0] != top:  # if task 1 is top, this is a root
+        wf(f, indent + p.subtasksNodeName + arrow + surpriseNodeName + \
+           styleStr(refinementArrowStyle) + eol)
+
+           
 failureCount = 0
 def writeFailure(f, p, fluents):
     global failureCount
