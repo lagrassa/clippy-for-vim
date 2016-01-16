@@ -53,7 +53,10 @@ class PoseHyp(object):
         self.viol = None
     def getPose(self):
         return self.pB.poseD.mode()
-
+    def __str__(self):
+        return 'PoseHyp(%s,%s)'%(self.pB.poseD.mode(), self.viol)
+    __repr__ = __str__
+    
 # Generator for poses
 def potentialRegionPoseGenAux(pbs, obj, placeBs, graspBGen, prob, regShapes, hand, base,
                               maxPoses = 30, angles = angleList):
@@ -66,7 +69,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeBs, graspBGen, prob, regShapes, han
     hypGen = regionPoseHypGen(pbsCopy, prob, placeBs, regShapes,
                               maxTries=2*maxPoses, angles=angles)
     for hyp in sortedHyps(hypGen, validTestFn, costFn, maxPoses, 2*maxPoses,
-                          size=(1 if glob.inHeuristic else 3)):
+                          size=(1 if glob.inHeuristic else 5)):
         if debug(tag):
             pbs.draw(prob, 'W'); hyp.conf.draw('W', 'green')
             debugMsg(tag, 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),
@@ -74,12 +77,24 @@ def potentialRegionPoseGenAux(pbs, obj, placeBs, graspBGen, prob, regShapes, han
         yield hyp.getPose()
 
 def checkValidHyp(hyp, pbs, graspBGen, prob, regShapes, hand, base):
-    return poseGraspable(hyp, pbs, graspBGen, prob, hand, base) and \
-           feasiblePBS(hyp, pbs)
+    graspable =  poseGraspable(hyp, pbs, graspBGen, prob, hand, base)
+    if debug('sortedHyps'):
+        print 'graspable =', graspable
+    if not graspable:
+        return False
+    feasible = feasiblePBS(hyp, pbs)
+    if debug('sortedHyps'):
+        print 'feasible =', feasible
+    return feasible
 
 # We want to minimize this score, optimal value is 0.
 def scoreValidHyp(hyp, pbs, graspBGen, prob):
     # ignores size of shadow.
+    if debug('sortedHyps'):
+        pbs.draw(prob, 'W')
+        pbs.getConf().draw('W', 'blue')
+        hyp.conf.draw('W', 'pink')
+        print 'dist=%f'%baseDist(pbs.getConf(), hyp.conf)
     return 5*hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf)
 
 # A generator for hyps that meet the minimal requirement - object is
@@ -176,9 +191,10 @@ def poseGraspable(hyp, pbs, graspBGen, prob, hand, base):
             hyp.viol = v
             pbs.draw(prob, 'W'); pB.shape(pbs).draw('W', 'green'); ca.draw('W', 'green')
             debugMsg(tag, 'candidate won pose=%s, grasp=%s'%(pB.poseD.mode(), gB.grasp.mode()))
-            return hyp
+            return True
         else:
             debugMsg(tag, 'candidate failed pose=%s, grasp=%s'%(pB.poseD.mode(), gB.grasp.mode()))
+    return False
 
 def feasiblePBS(hyp, pbs):
     if pbs.conditions:

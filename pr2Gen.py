@@ -1086,6 +1086,9 @@ class LookConfHyp:
         self.path = path
         self.viol = viol
         self.occluders = occluders
+    def __str__(self):
+        return 'LookHyp(%s,%s)'%(self.conf.baseConf(), self.viol)
+    __repr__ = __str__
 
 # Returns (lookConf,), viol
 # The lookConf should be s.t.

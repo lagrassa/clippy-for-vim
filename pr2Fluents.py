@@ -656,7 +656,7 @@ class CanPickPlace(Fluent):
         condViols = [c.getViols(pbs, v, p) for c in self.getConds(pbs)]
 
         if debug('CanPickPlace'):
-            print 'canPickPlace getViols'
+            print 'CanPickPlace getViols'
             for (cond, (pp, viol)) in zip(self.getConds(pbs), condViols):
                 print '    cond', cond
                 print '    viol', viol
@@ -688,6 +688,8 @@ class CanPickPlace(Fluent):
         objShadow = objPlace.makeShadow(pbs1, p)
         path = canView(pbs1, p, preConf, hand, objShadow)
         canSee = bool(path)
+        if debug('CanPickPlace'):
+            print 'CanPickPlace getViols canSee=', canSee
             
         return canSee, violations
 
