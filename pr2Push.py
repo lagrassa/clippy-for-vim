@@ -189,7 +189,9 @@ def pushGenTop(args, pbs, cpbs, away=False):
     tr(tag, '=> pushGenTop exhausted for', hand)
 
 def choosePrim(shape):
-    return sorted(shape.toPrims(),
+    # TODO: This should approximate the parts with a "push-friendly"
+    # representation, for now just xyPrim.
+    return sorted([s.xyPrim() for s in shape.parts()],
                   key = lambda p: bboxVolume(p.bbox()), reverse=True)[0]
 
 def getPotentialContacts(prim):
@@ -678,6 +680,9 @@ def regionTargetPB(pbs, prob, placeB, regShapes, hand,
                                        prob, regShapes,
                                        hand, None,
                                        maxPoses=nPoses, angles=[placeB.poseD.mode().pose().theta]):
+
+        print 'target push pose', pose
+
         yield placeB.modifyPoseD(pose)
 
 PushCache = {}
@@ -1049,9 +1054,9 @@ def checkReplay(pbs, prob, cachedValues, supportTablePB=None):
     for (pathViols, reason) in doneVals:
         viol = [pbs.confViolations(conf, prob) for (conf, _, _) in pathViols]
         if all(viol):
-            if any(pushedCollides(pbs, prob, v, ignore=ignore) for v in viol):
-                print 'pushed collides in checkReplay', viol
-                pdb.set_trace()
+            # if any(pushedCollides(pbs, prob, v, ignore=ignore) for v in viol):
+            #     print 'pushed collides in checkReplay', viol
+            #     pdb.set_trace()
             return ([(c, v2, p) for ((c, v1, p), v2) in zip(pathViols, viol)], 'done')
 
 def pushedCollides(pbs, prob, viol, ignore=[]):
@@ -1092,38 +1097,41 @@ move the base to make the kinematics feasible.
 
 # Returns a list of dictionaries of C-obstacles, one for each
 # potential push.  We don't distinguish permanents from not.
-def CObstacles(pbs, prob, potentialPushes, pB, hand, supportRegShape):
+def CObstacles(pbs, prob, potentialPushes, pBList, hand, supportRegShape):
     shWorld = pbs.getShadowWorld(prob)
-    objShape = pB.makeShadow(pbs, prob)
-    (x,y,z,_) = pB.poseD.mode().pose().xyztTuple()
+    objShapes = [pB.makeShadow(pbs, prob) for pB in pBList]
+    # All the pBs shate the pose
+    (x,y,z,_) = pBList[0].poseD.mode().pose().xyztTuple()
     centeringOffset = hu.Pose(-x,-y,-z,0.)
 
     xyObst = {name: obst.xyPrim() \
               for (name, obst) in shWorld.objectShapes.iteritems()}
     CObsts = {}
     for (dirx, vert), (gB, width) in potentialPushes.iteritems():
-        wrist = objectGraspFrame(pbs, gB, pB, hand)
+        wrist = objectGraspFrame(pbs, gB, pBList[0], hand)
         # the gripper at push pose relative to pB
         gripShape = gripperPlace(pbs.getConf(), hand, wrist)
-        # the combinaed gripper and object, origin is that of object
-        objGripShape = Shape([gripShape, objShape], \
-                             objShape.origin(),
-                             name='gripper').xyPrim() # note xyPrim
-        # center the shape at the origin (only in x,y translation)
-        objGripShapeCtr = objGripShape.applyTrans(centeringOffset)
-        bb = bboxExtendXY(supportRegShape.bbox(), objGripShapeCtr.bbox())
         CO = {}
-        for (name, obst) in xyObst.iteritems():
-            if bboxOverlap(bb, obst.bbox()):
-                c = xyCO(objGripShapeCtr, obst)
-                CO[name] = c
-                c.properties['name'] = name
+        for s, objShape in enumerate(objShapes):
+            # the combinaed gripper and object, origin is that of object
+            objGripShape = Shape([gripShape, objShape], \
+                                 objShape.origin(),
+                                 name='gripper').xyPrim() # note xyPrim
+            # center the shape at the origin (only in x,y translation)
+            objGripShapeCtr = objGripShape.applyTrans(centeringOffset)
+            bb = bboxExtendXY(supportRegShape.bbox(), objGripShapeCtr.bbox())
+            for (name, obst) in xyObst.iteritems():
+                sname = name+str(s)
+                if bboxOverlap(bb, obst.bbox()):
+                    c = xyCO(objGripShapeCtr, obst)
+                    CO[sname] = c
+                    c.properties['name'] = sname
 
-                if 'table' in name:
-                    pdb.set_trace()
+                    if 'table' in name:
+                        pdb.set_trace()
 
-            else:
-                CO[name] = None
+                else:
+                    CO[sname] = None
         CObsts[(dirx, vert)] = CO
 
     return CObsts
@@ -1272,12 +1280,24 @@ def searchObjPushPath(pbs, prob, potentialPushes, targetPB, curPB,
                       hand, supportRegShape, away=False):
     curPt = curPB.poseD.mode().pose().xyztTuple()[:2]
     targetPt = targetPB.poseD.mode().pose().xyztTuple()[:2]
-    # Use a fixed shadow in computing the COs to avoid growth in COs
-    # in successive calls
-    ntargetPB = targetPB.modifyPoseD(var=(0.0001,0.0001, 1e-10,0.0004))
-    ntargetPB.delta = (0.01,0.01,0.0002,0.02)
-    COs = CObstacles(pbs, prob, potentialPushes, ntargetPB,
+
+    # Use a fixed shadows in computing the COs to avoid growth in COs
+    # in successive calls... Alternative variances to use in planning.
+    ntargetPBs = [targetPB.modifyPoseD(var=(0.0001,0.0001, 1e-10,0.0004)),
+                  targetPB.modifyPoseD(var=(0.0004,0.0004, 1e-10,0.0004))]
+    for ntargetPB in ntargetPBs:
+        ntargetPB.delta = (0.01,0.01,0.0002,0.02)
+
+    COs = CObstacles(pbs, prob, potentialPushes, ntargetPBs,
                      hand, supportRegShape)
+
+    if debug('searchObjPushPath'):
+        for d in COs.values():
+            pbs.draw(prob, 'W')
+            for c in d.values():
+                if c: c.draw('W', 'blue')
+            raw_input('CO')
+
     dirxs = []
     tLines = {}
     for (dirx, vert), (gB, width) in potentialPushes.iteritems():

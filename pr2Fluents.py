@@ -26,7 +26,7 @@ from shapes import drawFrame
 tiny = 1.0e-6
 
 #### Ugly!!!!!
-graspObstCost = 30  # Heuristic cost of moving an object
+graspObstCost = 15  # Heuristic cost of moving an object
 pushObstCost = 75  # Heuristic cost of moving an object
 
 # Need contradiction between Pose and In: fglb
@@ -378,7 +378,7 @@ def hCost(violations, details):
         vb = details.pbs.getPlaceB(obj).poseD.variance()
         deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
         c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
-        o.instanceCost = c * 3    # two looks
+        o.instanceCost = c + 5   # look + move
     ops = obstOps.union(shadowOps)
 
     # look at hand or drop an object
@@ -656,7 +656,7 @@ class CanPickPlace(Fluent):
         condViols = [c.getViols(pbs, v, p) for c in self.getConds(pbs)]
 
         if debug('CanPickPlace'):
-            print 'canPickPlace getViols'
+            print 'CanPickPlace getViols'
             for (cond, (pp, viol)) in zip(self.getConds(pbs), condViols):
                 print '    cond', cond
                 print '    viol', viol
@@ -688,6 +688,8 @@ class CanPickPlace(Fluent):
         objShadow = objPlace.makeShadow(pbs1, p)
         path = canView(pbs1, p, preConf, hand, objShadow)
         canSee = bool(path)
+        if debug('CanPickPlace'):
+            print 'CanPickPlace getViols canSee=', canSee
             
         return canSee, violations
 
@@ -717,7 +719,6 @@ class CanPickPlace(Fluent):
         (preConf, ppConf, hand, obj, pose, poseVar, poseDelta, poseFace,
           face, graspMu, graspVar, graspDelta,
           op, conds) = self.args
-        assert obj != 'none'
 
         condStr = self.args[-1] if isVar(self.args[-1]) else \
           str([innerPred(c) for c in self.args[-1]]) 

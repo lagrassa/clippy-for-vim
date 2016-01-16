@@ -152,7 +152,7 @@ glob.objectTypes['handle'] = 'handle'
 glob.constructor['handle'] = makeBigBarHandle
 
 soupZ = 0.1
-def makeSoup(radius=0.0675/2, height=0.1, name='soup', color='red'):
+def makeSoup(radius=0.0675/2, height=0.1, name='soup', color=None):
     color = color or pickColor(name)
     # TODO: grasps...
     raw_input('No grasps defined for soup')
@@ -162,7 +162,7 @@ glob.objectTypes['soup'] = 'soup'
 glob.objectSymmetries['soup'] = sym6
 glob.constructor['soup'] = makeSoup
 
-def makeDowny(scale=0.025, name='downy', color='blue'):
+def makeDowny(scale=0.025, name='downy', color=None):
     color = color or pickColor(name)
     glob.objectSymmetries['downy'] = sym0
     return  (shapes.readWrl('meshes/downy-hi.wrl',

@@ -911,7 +911,9 @@ def readWrl(filename, name='wrlObj', scale=1.0, color='black'):
         else:
             print 'Object', len(prims)
             prims.append(readOneObj())
-    return Shape(prims, None, name=name, color=color)
+    # Have one "part" so that shadows are simpler
+    part = Shape(prims, None, name=name+'_part', color=color)
+    return Shape([part], None, name=name, color=color)
 
 def drawFrame(tr, window = 'W', r = 0.01, length=0.25):
     rayx = BoxAligned(np.array([(-r, -r, -r), (length/3., r, r)]), None)

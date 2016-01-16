@@ -126,7 +126,8 @@ def doTest(name, exp, goal, skel, args):
 def test0(**args):
     exp = makeExp({'table1' : (table1Pose, medVar)},
                   {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), medVar),
-                   'downyB' : (hu.Pose(1.1, 0.2, tZ, 0.0), medVar)},
+                   # 'downyB' : (hu.Pose(1.1, 0.2, tZ, 0.0), medVar)
+                   },
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
     goal = inRegion(['objA'], 'table1Left')
     easyGoal = inRegion(['objA'], 'table1Top')
@@ -155,10 +156,11 @@ def testHandle(**args):
     coolShelvesPose = hu.Pose(1.6, 0.03, tZ, math.pi/2)
     exp = makeExp({'table1' : (table1Pose, medVar),
                    'bar2' : (hu.Pose(1.25, 0.0, tZ+0.3, math.pi/2), medVar),
-                   'coolShelves' : (coolShelvesPose , bigVar)},
+                   'coolShelves' : (coolShelvesPose , bigVar)
+                   },
                   {'handleA' : (hu.Pose(1.25, 0.0, tZ, 0.0), medVar),
-                   'tallSodaB' : (hu.Pose(1.05, 0.2, tZ, 0.0), medVar),
-                   'tallSodaC' : (hu.Pose(1.05, -0.2, tZ, 0.0), medVar)
+                   'tallSodaB' : (hu.Pose(1.05, 0.22, tZ, 0.0), medVar),
+                   'tallSodaC' : (hu.Pose(1.05, -0.22, tZ, 0.0), medVar)
                    },
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
     goal = inRegion(['handleA'], 'table1Left')
@@ -705,24 +707,31 @@ def testIkeaShelvesGrasp(**args):
     # -pi/2 works ok for grasp 0.  Why doesn't this work as well for for pi/2 and grasp 1??
     mid = hu.Pose(1.15, 0.35, ikZ, 0.0)
     # mid = hu.Pose(1.05, 0.0, ikZ, 0.0)
-    sh1 = hu.Pose(1.3, -0.1, 1.170, 0.0)
-    sh2 = hu.Pose(1.3, 0.1, 1.170, 0.0)
-    ikeaShelvesPose = hu.Pose(1.25, -0.2, ikZ, 0.0)
-    region = 'ikeaShelves_space_2'
+    sh1 = hu.Pose(1.25, -0.2, 1.025, 0.0)
+    sh2 = hu.Pose(1.25, -0.1, 1.025, 0.0)
+    ikeaShelves1Pose = hu.Pose(1.25, -0.2, ikZ, 0.0)
+
+    table2x = 0.5
+    ikeaShelves2Pose = hu.Pose(table2x-0.2, -1.3, ikZ, -math.pi/2)
+    table2Pose = hu.Pose(table2x, -1.4, 0.0, 0.0)
+
+    region = 'ikeaShelves2_space_2'
     easy=args.get('easy', False)
     exp = makeExp({'tableIkea1' : (table1Pose, smallVar),
-                   'ikeaShelves' : (ikeaShelvesPose , smallVar)},  # was medVar
+                   'ikeaShelves1' : (ikeaShelves1Pose , smallVar),
+                   'tableIkea2' : (table2Pose, smallVar),
+                   'ikeaShelves2' : (ikeaShelves2Pose , smallVar)},
                   {'objA' : (mid, medVar),
                    # 'objD' : (front, medVar), # or objD
                    # 'bigB' : (back, medVar),
-                   # 'objB' : (sh1, medVar),
+                   'objB' : (sh1, medVar),
                    # 'objC' : (sh2, medVar),
                    },
-                  [region, 'tableIkea1Top'], easy=easy)
+                  [region, 'tableIkea1Top', 'tableIkea2Top'], easy=easy)
 
     goal1 = inRegion('objA', region)
     goal2 = holding('objA', 'left', 0)
-    goal3 = inRegion('objC', 'tableIkea1Right')
+    goal3 = inRegion('objC', 'tableIkea11Right')
     skel = None
     return doTest('testIkeaShelvesGrasp', exp, goal1, skel, args)
 

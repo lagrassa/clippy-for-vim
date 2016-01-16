@@ -33,7 +33,8 @@ maxVarianceTuple = (.1,)*4
 
 # If it's bigger than this, we can't just plan to look and see it
 # Should be more subtle than this...
-maxPoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
+maxPoseVar = (0.1**2, 0.1**2, 0.1**2, 0.2**2)
+maxReasonablePoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
 #maxPoseVar = (0.03**2, 0.03**2, 0.03**2, 0.05**2)
 
 # Don't allow delta smaller than this
@@ -46,10 +47,12 @@ canSeeProb = 0.9
 # No prob can go above this
 maxProbValue = 0.98  # was .999
 # How sure do we have to be of CRH for moving
-#movePreProb = 0.98
 movePreProb = 0.8
 # Prob for generators.  Keep it high.   Should this be = maxProbValue?
 probForGenerators = 0.98
+
+# For cheap trick of just checking means
+notBNotProb = 0.01
 
 # Generic large values for the purposes of planning If they're small,
 # it has to keep looking to maintain them.  If they're large, the
@@ -80,8 +83,8 @@ def describePath(path, tag):
 
 def primPath(bs, cs, ce, p):
     path = primPathUntilLook(bs, cs, ce, p)
-    if not path:
-        raw_input('Could not find inflated base path in prim... continue withouut inflation?')
+    if not path or not path[0]:
+        raw_input('Could not find moveLook base path in prim... use RRT?')
         return primPathRRT(bs, cs, ce, p)
     return path
 
@@ -649,12 +652,17 @@ class PickPoseVar(Function):
 class GenLookObjPrevVariance(Function):
     # noinspection PyUnusedLocal
     @staticmethod
-    def fun((ve, obj, face), goal, start):
+    def fun((ve, obj, face, pose), goal, start):
         lookVar = start.domainProbs.obsVarTuple
         odoVar = [e * e for e in start.domainProbs.odoError]
+
+        if pose == '*':
+            # Make the pre-image really weak
+            return [[maxPoseVar]]
+
         if start.pbs.getHeld('left') == obj or \
                start.pbs.getHeld('right') == obj:
-            vs = maxPoseVar
+            vs = maxReasonablePoseVar
         else:
             vs = list(start.poseModeDist(obj, face).mld().sigma.diagonal().\
                       tolist()[0])
@@ -665,10 +673,11 @@ class GenLookObjPrevVariance(Function):
             vs = tuple([v + ov for (v, ov) in zip(vs, odoVar)])
         # Don't let variance get bigger than variance in the initial state, or
         # the cap, whichever is bigger
-        cap = [max(a, b) for (a, b) in zip(maxPoseVar, vs)]
+        cap = [max(a, b) for (a, b) in zip(maxReasonablePoseVar, vs)]
         vbo = varBeforeObs(lookVar, ve)
         cappedVbo1 = tuple([min(a, b) for (a, b) in zip(cap, vbo)])
         cappedVbo2 = tuple([min(a, b) for (a, b) in zip(vs, vbo)])
+        cappedVbo3 = tuple([min(a, b) for (a, b) in zip(maxPoseVar, vbo)])
         # vbo > ve
         # This is useful if it's between:  vbo > vv > ve
         ve3 = (ve[0], ve[1], ve[3])
@@ -681,6 +690,8 @@ class GenLookObjPrevVariance(Function):
         def sqrts(vv):
             # noinspection PyShadowingNames
             return [sqrt(xx) for xx in vv]
+        # vbo3 has a really big cap
+        #result = [[cappedVbo1], [cappedVbo3]]
         result = [[cappedVbo1]]
         v4 = tuple([v / 4.0 for v in cappedVbo1])
         v9 = tuple([v / 9.0 for v in cappedVbo1])
@@ -817,8 +828,9 @@ def moveSpecialRegress(f, details, abstractionLevel):
     # Assume that odometry error is controlled during motion, so not more than 
     # this.  It's a stdev
     odoError = details.domainProbs.odoError
-    # Variance due to odometry after move of two meters
-    odoVar = [e * e * 2 for e in odoError]
+    maxDist = 4
+    # Variance due to odometry after move of maxDist
+    odoVar = [e * e * maxDist for e in odoError]
 
     if f.predicate == 'B' and f.args[0].predicate == 'Pose':
         fNew = f.copy()
@@ -1423,8 +1435,9 @@ move = Operator(
     'Move',
     ['CStart', 'CEnd', 'DEnd'],
     # Pre
-    {0 : {Bd([CanReachHome(['CEnd', []]),  True, movePreProb], True)},
-     1 : {Conf(['CStart', 'DEnd'], True)}},
+    {0 : {Bd([CanReachHome(['CEnd', []]),  True, notBNotProb], True)},
+     1 : {Bd([CanReachHome(['CEnd', []]),  True, movePreProb], True)},     
+     2 : {Conf(['CStart', 'DEnd'], True)}},
     # Results:  list of pairs: (fluent set, private preconds)
     [({Conf(['CEnd', 'DEnd'], True)}, {})],
     functions = [GenNone(['CEnd'], [])],
@@ -1514,13 +1527,13 @@ poseAchIn = Operator(
             # then obj 2.  Changed so we don't try to maintain
             # detailed k of the table as we are picking other obj.
             {0 : set(),
-             1 : {BLoc(['Obj1', planVar, planP], True), # 'PoseVar'
-                  BLoc(['Obj2', planVar, planP], True)},
-             2 : {B([Cond([Pose('Obj1', 'PoseFace1'),
+             # 1 : {BLoc(['Obj1', planVar, planP], True), # 'PoseVar'
+             #      BLoc(['Obj2', planVar, planP], True)},
+             1 : {B([Cond([Pose('Obj1', 'PoseFace1'),
                            Pose('Obj2', 'PoseFace2'), 'ObjPose2']),
                      'ObjPose1', 'TotalVar', 'PR'], True),
                   Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True)},
-             3 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
+             2 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
                                'PoseDelta', 'P2'], True),
                   Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)}},
             # Results
@@ -1561,13 +1574,16 @@ place = Operator('Place', placeArgs,
          1 : {Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
                                'RealPoseVar', 'PoseDelta', 'PoseFace',
                                'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
-                                'place', []]), True, canPPProb],True)},
+                                'place', []]), True, notBNotProb],True)},
          2 : {Bd([Holding(['Hand']), 'Obj', 'P1'], True),
               Bd([GraspFace(['Obj', 'Hand']), 'GraspFace', 'P1'], True),
               B([Grasp(['Obj', 'Hand', 'GraspFace']),
                  'GraspMu', 'GraspVar', 'GraspDelta', 'P1'], True)},
-         3 : {Conf(['PreConf', 'ConfDelta'], True)}
-        },
+         3 : {Conf(['PreConf', 'ConfDelta'], True),
+              Bd([CanPickPlace(['PreConf', 'PlaceConf', 'Hand', 'Obj', 'Pose',
+                               'RealPoseVar', 'PoseDelta', 'PoseFace',
+                               'GraspFace', 'GraspMu', 'GraspVar', 'GraspDelta',
+                    'place', []]), True, canPPProb],True)}},
         # Results
         [({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
            B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta','PR2'],
@@ -1636,12 +1652,16 @@ push = Operator('Push', pushArgs,
          1 : {Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
                            'PreConf',
                             'PushConf', 'PostConf', 'RealPoseVar', 'PrePoseVar',
-                            'PoseDelta', []]), True, canPPProb],True)},
+                            'PoseDelta', []]), True, notBNotProb],True)},
         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P'], True),
               B([Pose(['Obj', 'PoseFace']), 'PrePose',
                  'PrePoseVar',  pushDelta, 'P'], True)},
         3 : {Conf(['PreConf', 'ConfDelta'], True),
-             Bd([Holding(['Hand']), 'none', canPPProb], True)}
+             Bd([Holding(['Hand']), 'none', canPPProb], True),
+             Bd([CanPush(['Obj', 'Hand', 'PoseFace', 'PrePose', 'Pose',
+                           'PreConf',
+                            'PushConf', 'PostConf', 'RealPoseVar', 'PrePoseVar',
+                            'PoseDelta', []]), True, canPPProb],True)}
         },
         # Results
         [({Bd([SupportFace(['Obj']), 'PoseFace', 'PR1'], True),
@@ -1671,8 +1691,6 @@ push = Operator('Push', pushArgs,
 # Put the condition to know the pose precisely down at the bottom to
 # try to decrease replanning.
 
-# Debate about level 2 vs level 1 preconds.
-
 # We want the holding none precond at the same level as pose, if the
 # object is currently in the hand.
 
@@ -1685,19 +1703,24 @@ pick = Operator(
         # Pre
         {0 : {Graspable(['Obj'], True),
               BLoc(['Obj', planVar, 'P1'], True)},    # was planP
-         2 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
+         1 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
               B([Pose(['Obj', 'PoseFace']), 'Pose', planVar, 'PoseDelta',
                  'P1'], True),
               Bd([Holding(['Hand']), 'none', 'P1'], True)},
-         1 : {Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
+         2 : {Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
+                               'PoseVar', 'PoseDelta', 'PoseFace',
+                               'GraspFace', 'GraspMu', 'RealGraspVar',
+                               'GraspDelta', 'pick', []]), True, notBNotProb],
+                               True)},
+#              Bd([Holding(['Hand']), 'none', canPPProb], True)},
+         3 : {B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta',
+                 'P1'], True)},
+         4 : {Conf(['PreConf', 'ConfDelta'], True),
+              Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
                                'PoseVar', 'PoseDelta', 'PoseFace',
                                'GraspFace', 'GraspMu', 'RealGraspVar',
                                'GraspDelta', 'pick', []]), True, canPPProb],
-                               True)},
-#              Bd([Holding(['Hand']), 'none', canPPProb], True)},
-         3 : {Conf(['PreConf', 'ConfDelta'], True),
-              B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta',
-                 'P1'], True)              
+                               True)                        
              }},
 
         # Results
@@ -1779,7 +1802,7 @@ lookAt = Operator(
         ObsModeProb(['P1'], ['PR0', 'PR1', 'PR2']),
         # How confident do we need to be before the look?
         GenLookObjPrevVariance(['PoseVarBefore'],
-                               ['RealPoseVarAfter', 'Obj', 'PoseFace']),
+                               ['RealPoseVarAfter', 'Obj', 'PoseFace', 'Pose']),
         LookGen(['LookConf'],
                  ['Obj', 'Pose', 'PoseFace', 'PoseVarBefore',
                   'RealPoseVarAfter', 'PoseDelta',
@@ -1997,6 +2020,8 @@ class AchCanSeeGen(Function):
 # violFn specifies what we are trying to achieve tries all the ways we
 # know how to achieve it
 
+achCanProb = 0.95
+
 # targetFluents are the declarative version of the same condition;
 # would be better if we didn't have to specify it both ways.
 
@@ -2050,9 +2075,9 @@ def lookAchCanXGen(pbs, shWorld, initViol, violFn, prob):
         face = placeB.support.mode()
         poseMean = placeB.poseD.modeTuple()
         # set of fluents
-        conds = frozenset([Bd([SupportFace([obst]), face, prob], True),
+        conds = frozenset([Bd([SupportFace([obst]), face, achCanProb], True),
                            B([Pose([obst, face]), poseMean, objBMinVar,
-                              lookDelta, prob], True)])
+                              lookDelta, achCanProb], True)])
         resultBS = pbs.conditioned([], conds)
         resultViol = violFn(resultBS)
         if resultViol is not None and shadowName not in resultViol.allShadows():
@@ -2107,9 +2132,9 @@ def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob):
             poseVar = r.pB.poseD.varTuple()
 
             newConds = frozenset(
-                [Bd([SupportFace([obst]), supportFace, prob], True),
+                [Bd([SupportFace([obst]), supportFace, achCanProb], True),
                  B([Pose([obst, supportFace]), poseMean, poseVar,
-                           moveDelta, prob], True)])
+                           moveDelta, achCanProb], True)])
             print '*** moveOut', r
             resultBS = pbs.conditioned([], newConds)
             resultViol = violFn(resultBS)
@@ -2147,9 +2172,9 @@ def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob):
             prePoseVar = r.prePB.poseD.var
 
             newConds = frozenset(
-                [Bd([SupportFace([obst]), supportFace, prob], True),
+                [Bd([SupportFace([obst]), supportFace, achCanProb], True),
                  B([Pose([obst, supportFace]), postPose, postPoseVar,
-                           moveDelta, prob], True)])
+                           moveDelta, achCanProb], True)])
             print '*** pushOut', obst
             resultBS = pbs.conditioned([], newConds)
             resultViol = violFn(resultBS)

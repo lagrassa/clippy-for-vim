@@ -1086,6 +1086,9 @@ class LookConfHyp:
         self.path = path
         self.viol = viol
         self.occluders = occluders
+    def __str__(self):
+        return 'LookHyp(%s,%s)'%(self.conf.baseConf(), self.viol)
+    __repr__ = __str__
 
 # Returns (lookConf,), viol
 # The lookConf should be s.t.
@@ -1141,7 +1144,8 @@ def lookGenTop(args, pbs, cpbs):
         # Use the conf in goalConds to "fill in" the base information
         if confAtTarget is None:
             print 'No conf found for lookConf with specified base'
-            raw_input('This might be an error in regression')
+            print 'This might be an error in regression'
+            print 'LPK: not sure this should cause us to give up.'
             return
         # We must be able to reach confAtTarget after the look, but
         # someone else has/will make sure that is true.  Start by

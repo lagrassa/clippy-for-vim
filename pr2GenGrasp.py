@@ -23,6 +23,9 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob,
                           nMax=100, findApproach=True):
     tag = 'potentialGraspConfs'
     grasp = graspB.grasp.mode()
+
+    pbs = pbs.copy().excludeObjs([graspB.obj])
+
     # When the grasp is -1 (a push), we need the full grasp spec.
     graspBCacheVal = graspB if grasp == -1 else grasp
     key = (pbs, placeB, graspBCacheVal, conf, hand, tuple(base) if base else None, prob,
@@ -46,11 +49,15 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob,
         yield x
 
 class GraspConfHyp(object):
-    def __init__(self, conf, approachConf, viol):
+    def __init__(self, grasp, conf, approachConf, viol):
+        self.grasp = grasp
         self.conf = conf
         self.approachConf = approachConf
         self.viol = viol
-
+    def __str__(self):
+        return 'GraspHyp(%s,%s,%s)'%(self.grasp, self.conf.baseConf(), self.viol)
+    __repr__ = __str__
+    
 # Generator for grasp confs
 def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
                              nMax=10, findApproach = True):
@@ -149,10 +156,11 @@ def graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                     nMax=10, findApproach=True):
     tag = 'potentialGraspConfs'
     if debug(tag): print 'Entering potentialGraspConfGenAux'
+    grasp = graspB.grasp.mode()
     if conf:
         ans = testConfs(pbs, placeB, conf, hand, prob, findApproach=findApproach)
         if ans:
-            yield GraspConfHyp(*ans)
+            yield GraspConfHyp(*(grasp,)+ans)
         tr(tag, 'Conf specified; viol is None or out of alternatives')
         return
     wrist = objectGraspFrame(pbs, graspB, placeB, hand)
@@ -170,7 +178,7 @@ def graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                                      nominalBasePose, prob, wrist=wrist, counts=counts)]:
             if ans:
                 count += 1
-                yield GraspConfHyp(*ans)
+                yield GraspConfHyp(*(grasp,)+ans)
         tr(tag, 'Base specified; out of grasp confs for base')
         return
     curBasePose = pbs.getConf().basePose()
@@ -179,7 +187,7 @@ def graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                            wrist=wrist, counts=counts)
     if ans:
         count += 1
-        yield GraspConfHyp(*ans)
+        yield GraspConfHyp(*(grasp,)+ans)
     # Try the rest
     # TODO: Sample subset?
     for basePose in robot.potentialBasePosesGen(wrist, hand):
@@ -189,7 +197,7 @@ def graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                                wrist=wrist, counts=counts)
         if ans:
             count += 1
-            yield GraspConfHyp(*ans)
+            yield GraspConfHyp(*(grasp,)+ans)
     debugMsg('potentialGraspConfs',
              ('Tried', tried, 'found', count, 'potential grasp confs, with grasp', graspB.grasp),
              ('Failed', counts[0], 'invkin', counts[1], 'collisions'))

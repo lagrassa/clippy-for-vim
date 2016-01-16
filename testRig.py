@@ -8,13 +8,13 @@ from geom import bboxGrow
 from objects import World
 from miscUtil import timeString
 
-import planGlobals as glob
-reload(glob)
-from planGlobals import useROS
-
 import local
 reload(local)
 from local import *
+
+import planGlobals as glob
+reload(glob)
+from planGlobals import useROS
 
 import traceFile
 reload(traceFile)
@@ -209,7 +209,7 @@ viewPort = [wx0, wx1, wy0, wy1, 0.0, wdz]
 def testWorld(include = []):
     ((x0, y0, _), (x1, y1, dz)) = workspace
     w = 0.1
-    wm.makeWindow('W', viewPort, 800)   # was 800
+    wm.makeWindow('W', viewPort, 600)   # was 800
     if useROS: wm.makeWindow('MAP', viewPort)
     world = World()
     # The room
@@ -407,7 +407,7 @@ class PlanTest:
     def run(self, goal, skeleton = None, hpn = True,
             home=None, regions = frozenset([]), hierarchical = False,
             heuristic = habbs,
-            greedy = 0.75, simulateError = False,
+            greedy = 0.5,
             initBelief = None, initWorld=None,
             rip = False, alwaysReplan = False, **other):
         randomizedInitialPoses = rip
@@ -429,7 +429,6 @@ class PlanTest:
         startTime = time.clock()
         fbch.flatPlan = not hierarchical
         fbch.plannerGreedy = greedy 
-        pr2Sim.simulateError = simulateError
         for win in wm.windows:
             wm.getWindow(win).clear()
         self.buildBelief(home=home, regions = frozenset(regions))
@@ -450,7 +449,7 @@ class PlanTest:
             # noinspection PyAttributeOutsideInit
             self.realWorld = RealWorld(world, self.bs,
                                        self.domainProbs,
-                                       robot = self.thinRobot) # simulator
+                                       robot = self.thinRobot)
 
             # TODO: !! Gross hack for debugging
             glob.realWorld = self.realWorld

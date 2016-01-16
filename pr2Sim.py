@@ -38,11 +38,10 @@ def argN (v, vl, args):
 
 crashIsError = False
 
+# Simulate grap error and object pose error
 simulateError = False
 
 animateSleep = 0.02
-
-simOdoErrorRate = 0.0                   # was 0.02
 
 pickSuccessDist = 0.1  # pretty big for now
 
@@ -122,8 +121,11 @@ class RealWorld(WorldState):
                       0.0,
                       (dispAngle * odoError[3])**2)
             # Draw the noise with zero mean and this variance
-            baseOff = hu.Pose(*MVG((0.,0.,0.,0.), np.diag(odoVar),
-                                   pose4 = True).draw())
+            if debug('noOdoError'):
+                baseOff = hu.Pose(0.,0.,0.,0.)
+            else:
+                baseOff = hu.Pose(*MVG((0.,0.,0.,0.), np.diag(odoVar),
+                                       pose4 = True).draw())
             # Apply the noise to the nominal displacement
             dispNoisy = baseOff.compose(disp)
             # Apply the noisy displacement to the "actual" robot location

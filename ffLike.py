@@ -239,7 +239,7 @@ def getAWinner(topNode, agenda):
                 aa.extend(n.children)
             else:
                 aa.append(argmin(n.children, lambda x: x.lb))
-        assert len(aa) > 0
+        return agenda.pop(0)
 
 def search(initialState, andSuccessors, orSuccessors, staticEval,
            writeFile = False, initNodeType = 'or'):

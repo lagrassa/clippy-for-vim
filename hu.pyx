@@ -763,8 +763,3 @@ cpdef pop(x):
         except StopIteration:
             return None
 
-def tangentSpaceAdd(a, b):
-    res = a + b
-    for i in range(3, len(res), 4):
-        res[i, 0] = fixAnglePlusMinusPi(res[i, 0])
-    return res
