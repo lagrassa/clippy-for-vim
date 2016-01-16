@@ -2601,7 +2601,7 @@ failureCount = 0
 def writeFailure(f, p, fluents):
     global failureCount
     failureCount += 1
-    failNodeName =  name(p.subtasksNodeName[1:-1]+':'+str(surpriseCount))
+    failNodeName =  name(p.subtasksNodeName[1:-1]+':'+str(failureCount))
     writeFailureNode(f, failNodeName, fluents)
     if f and p.steps[1][0] != top:  # if task 1 is top, this is a root
         wf(f, indent + p.subtasksNodeName + arrow + failNodeName + \
