@@ -460,7 +460,7 @@ class Fluent(object):
         return newFluent
 
     def getIsGround(self):
-        return self.argsGround() and not isVar(self.value)
+        return self.argsGround() and isGround(self.value)
 
     # If some args are bound and some are not
     def getIsPartiallyBound(self):
@@ -478,12 +478,7 @@ class Fluent(object):
             return set([a for a in self.args if isVar(a)] + valVars)
 
     def argsGround(self):
-        if self.isConditional():
-            return not isVar(self.args[-1]) and \
-                   all([not isVar(a) for a in self.args[:-1]]) and \
-                   all([c.isGround() for c in self.args[-1]])
-        else:
-            return all([not isVar(a) for a in self.args])
+        return isGround(self.args)
                    
     def isGround(self):
         return self.isGroundStored

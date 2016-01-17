@@ -39,11 +39,6 @@ class BFluent(Fluent):
         return self.isGround() and other.isGround() and \
           self.args[0].matchArgs(other.args[0]) != None
 
-    def getIsGround(self):
-        return self.args[0].isGround() and \
-               all([not isAnyVar(a) for a in self.args[1:]]) \
-               and not isAnyVar(self.value)
-
     def getIsPartiallyBound(self):
         b0 = self.args[0].isPartiallyBound()
         g0 = self.args[0].isGround()
@@ -191,15 +186,47 @@ class Bd(BFluent):
 class Cond(Fluent):
     predicate = 'Cond'
 
-    def __init__(self, rf1, rf2, val2):
-        self.rf1 = rf1
-        self.rf2 = rf2
-        self.val2 = val2
+    def getIsPartiallyBound(self):
+        b0 = self.args[0].isPartiallyBound()
+        g0 = self.args[0].isGround()
+        v0 = not b0 and not g0 # rf has no bindings
+        b1 = self.args[1].isPartiallyBound()
+        g1 = self.args[1].isGround()
+        v1 = not b1 and not g1 # rf has no bindings
+        av = [v0, v1, isVar(self.args[2])]
+        return (True in av) and (False in av)
+
+    def getVars(self):
+        return self.args[0].getVars().union(self.args[1].getVars()).union(\
+            {self.args[2]} if isVar(self.args[2]) else set())
+
+    def shortName(self):
+        return self.predicate + '(' + self.args[0].shortName() + \
+                self.args[1].shortName() + ', ' + \
+                ', ' + prettyString(self.args[-1]) +  ')'
+
+    def update(self):
+        assert isVar(self.args[-1]) or (0 <= self.args[-1] <= 1) or \
+          self.args[-1] == None
+        # Set the value in the embedded fluent
+        self.args[0].value = self.args[1]
+        # Generate the string
+        self.args[0].update()
+        # Do the update on this fluent (should call the parent method)
+        self.isGroundStored = self.getIsGround()
+        self.isPartiallyBoundStored = self.getIsPartiallyBound()
+        self.strStored = {True:None, False:None}
+
+    # Avoid printing the value of the embedded rfluent
+    def argString(self, eq):
+        return '['+ self.args[0].prettyString(eq, includeValue = False) +', ' +\
+                  ', '.join([prettyString(a, eq) for a in self.args[1:]]) + ']'
 
     def dist(self, bState):
-        assert hasattr(self.rf1, 'cDist')
+        (rf1, rf2, val2) = self.args
+        assert hasattr(rf1, 'cDist')
         # Ask the first fluent to provide a cDist method
-        return self.rf1.cDist(rf2, val2)
+        return rf1.cDist(rf2, val2, bState)
         
 
 class B(BFluent):

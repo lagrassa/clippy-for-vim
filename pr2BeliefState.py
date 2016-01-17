@@ -34,21 +34,20 @@ class BeliefState:
         # Share the poseModeProbs.
         self.pbs.poseModeProbs = self.poseModeProbs
         self.graspModeProb = {'left' : 0.99, 'right' : 0.99}
-        self.relPoseVars = self.getInitRelPoseVars()
-        # wm.getWindow('Belief').startCapture()
+        self.relPoseVars = self.getRelPoseVars()
 
     def getRelPoseVars(self):
         # Take them out of the current pbs, going via the robot
         result = []
         objNames = self.pbs.objectBs.keys()
         for o1 in objNames:
-            f1 = self.poseModeProbs[o1].maxProbElt()
+            f1 = self.pbs.getPlacedObjBs()[o1].support.maxProbElt()
             var1 = self.pbs.getPlaceB(o1, f1).poseD.var
             for o2 in objNames:
-                f2 = self.poseModeProbs[o2].maxProbElt()
+                f2 = self.pbs.getPlacedObjBs()[o2].support.maxProbElt()
                 var2 = self.pbs.getPlaceB(o1, f2).poseD.var
-                result.append((o1, o2),
-                              tuple([a + b for (a, b) in zip(var1, var2)]))
+                result.append(((o1, o2),
+                               tuple([a + b for (a, b) in zip(var1, var2)])))
         return dict(result)
 
     # Take the min of what we had and the current ones
@@ -72,8 +71,8 @@ class BeliefState:
         objNames = self.pbs.objectBs.keys()
         for otherO in objNames:
             if otherO == o: continue
-            self.relPoseVars([o, otherO]) = None
-            self.relPoseVars([otherO, o]) = None
+            self.relPoseVars[(o, otherO)] = None
+            self.relPoseVars[(otherO, o)] = None
 
     # Temporary hacks to keep all the types right
     def graspModeDist(self, obj, hand, face):

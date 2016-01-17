@@ -84,7 +84,7 @@ reload(pr2Ops)
 # lookAtHand
 from pr2Ops import move, push, pick, place, lookAt, achCanReach, achCanReachNB,\
    achCanPickPlace, achCanPush, \
-   hRegrasp, poseAchIn, moveNB, bLoc1, bLoc2
+   hRegrasp, poseAchIn, moveNB, bLoc1, bLoc2, condPose
 
 import pr2Sim
 reload(pr2Sim)
@@ -666,7 +666,7 @@ typicalErrProbs = DomainProbs(
 
 allOperators = [move, lookAt, moveNB,
                 achCanReach, achCanReachNB, achCanPickPlace, achCanPush,
-                poseAchIn, bLoc1, bLoc2]
+                poseAchIn, bLoc1, bLoc2, condPose]
 
 if not debug('disablePush'):
     allOperators.extend([push])

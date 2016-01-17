@@ -915,7 +915,6 @@ class Pose(Fluent):
                 result = lostDist
             else:
                 face = bState.pbs.getPlaceB(obj).support.mode()
-
         return bState.poseModeDist(obj, face)
 
     def cDist(self, rf2, val2, bState):
@@ -926,7 +925,7 @@ class Pose(Fluent):
         (obj2, face2) = rf2.args
         # Disgustingly ignoring the faces for now
         # And not changing mode (ignoring val2)
-        var = bState.relPoseVars((obj1, obj2))
+        var = bState.relPoseVars[(obj1, obj2)]
         mode = bState.pbs.getPlaceB(obj, face).poseD.modeTuple()
         return GMU([(MVG(mode, diagToSq(var), pose4 = True),
                          self.poseModeProbs[obj1])])

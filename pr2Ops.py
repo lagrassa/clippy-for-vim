@@ -13,7 +13,7 @@ from pr2Util import shadowWidths, objectName
 from pr2Gen import PickGen, LookGen,\
     EasyGraspGen, PoseInRegionGen, PlaceGen, moveOut
 from pr2GenTests import canPickPlaceTest, canReachHome, canReachNB, findRegionParent
-from belief import Bd, B, BMetaOperator
+from belief import Bd, B, BMetaOperator, Cond
 from pr2Fluents import Conf, Holding, GraspFace, Grasp, Pose,\
      SupportFace, In, CanSeeFrom, Graspable, CanPickPlace,\
      CanReachHome, CanReachNB, BaseConf, BLoc,\
@@ -1512,9 +1512,11 @@ condPose = Operator('ConditionalPose',
                                'PoseDelta', 'P2'], True),
                    Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)}},
              # Result
-             [B([Cond([Pose('Obj1', 'PoseFace1'),
-                       Pose('Obj2', 'PoseFace2'), 'ObjPose2']),
-                          'ObjPose1', 'TotalVar', 'PR'], True)],
+             [({B([Cond([Pose(['Obj1', 'PoseFace1']),
+                       Pose(['Obj2', 'PoseFace2']),
+                       'ObjPose2']),
+                          'ObjPose1', 'TotalVar', 'TotalDelta', 'PR'], True)},
+                          {})],
              functions = [Times2(['TotalVar'], ['PoseVar'])])
 
 poseAchIn = Operator(
@@ -1529,9 +1531,9 @@ poseAchIn = Operator(
             {0 : set(),
              # 1 : {BLoc(['Obj1', planVar, planP], True), # 'PoseVar'
              #      BLoc(['Obj2', planVar, planP], True)},
-             1 : {B([Cond([Pose('Obj1', 'PoseFace1'),
-                           Pose('Obj2', 'PoseFace2'), 'ObjPose2']),
-                     'ObjPose1', 'TotalVar', 'PR'], True),
+             1 : {B([Cond([Pose(['Obj1', 'PoseFace1']),
+                           Pose(['Obj2', 'PoseFace2']), 'ObjPose2']),
+                     'ObjPose1', 'TotalVar', 'TotalDelta', 'PR'], True),
                   Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True)},
              2 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
                                'PoseDelta', 'P2'], True),
