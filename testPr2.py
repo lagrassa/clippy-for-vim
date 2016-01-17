@@ -182,6 +182,16 @@ def test1(**args):
              place, move, pick, moveNB, lookAt, moveNB, lookAt, move]]
     return doTest('test1', exp, goal, skel, args)
 
+def test1Obj2(**args):
+    exp = makeExp({'table1' : (table1Pose, bigVar),
+                   'table2' : (table2Pose, bigVar)},
+                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), bigVar),
+                   'objB' : (hu.Pose(1.1, 0.2, tZ, 0.0), bigVar)},
+                  ['table1Top', 'table1Left',
+                   'table2Top', 'table2Left'], easy=args.get('easy', False))
+    goal = inRegion(['objA', 'objB'], ['table2Left', 'table2Left'])
+    return doTest('test1Obj2', exp, goal, None, args)
+
 ######################################################################
 # Test 1.5: 2 tables move 1 object: more error on table 1
 ######################################################################

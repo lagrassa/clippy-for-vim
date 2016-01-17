@@ -153,6 +153,8 @@ cdef class ObjPlaceB(Hash):
         faceFrame = self.faceFrames[self.support.mode()]
         sh = pbs.objShadow(self.obj, shadowName(self.obj), prob, self, faceFrame)
         return sh.applyLoc(self.objFrame())
+    def draw(self, pbs, prob, window):
+        self.makeShadow(pbs, prob).draw(window)
     def __richcmp__(self, other, int op):
         if op == 2:
             return isinstance(other, ObjPlaceB) and self.desc() == other.desc()

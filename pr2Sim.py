@@ -285,7 +285,7 @@ class RealWorld(WorldState):
             obstacles = [s for s in self.getObjectShapes() \
                          if s.name() != targetObj ] + [self.robotPlace]
             vis, occl = visible(self, self.robotConf, shapeInHand,
-                             obstacles, 0.75, moveHead=False, fixed=[self.robotPlace.name()])
+                             obstacles, 0.0, moveHead=False, fixed=[self.robotPlace.name()])
             if not vis:
                 if debug('sim'): print 'visible returned', vis, occl
                 tr('sim', 'Object %s is not visible'%targetObj)
@@ -343,7 +343,7 @@ class RealWorld(WorldState):
                 if (not deb) and debug('visibleEx'): glob.debugOn.append('visible')
                 vis, occl = visible(self, self.robotConf,
                                     self.objectShapes[curObj],
-                                    obstacles, 0.75, moveHead=False,
+                                    obstacles, 0.0, moveHead=False,
                                     fixed=[self.robotPlace])
                 if not deb and debug('visibleEx'): glob.debugOn.remove('visible')
                 if not vis or len(occl) > 0:
