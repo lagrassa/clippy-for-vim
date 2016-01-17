@@ -33,9 +33,12 @@ maxVarianceTuple = (.1,)*4
 
 # If it's bigger than this, we can't just plan to look and see it
 # Should be more subtle than this...
-maxPoseVar = (0.1**2, 0.1**2, 0.1**2, 0.2**2)
+maxPoseVar = (0.11**2, 0.11**2, 0.11**2, 0.31**2)
 maxReasonablePoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
 #maxPoseVar = (0.03**2, 0.03**2, 0.03**2, 0.05**2)
+
+# Don't be grasping at low-probability straws
+minProb = 0.2   # was 0.5
 
 # Don't allow delta smaller than this
 minDelta = .0001
@@ -120,13 +123,13 @@ def primPathUntilLook(bs, cs, ce, p):
         if debug('moveLookPath'):
             print i, 'action=', a[0] if a else None
             q.draw('W', 'cyan')
+        path.append(q)
         # Stop when we get to first look
         if a and a[0] == 'look':
             print '*** Move prim terminated before look at:', q.baseConf()
             print '***                     final path pose:', path[-1].baseConf()
             print '***                     final target is:', ce.baseConf()
             break
-        else: path.append(q)
     if debug('moveLookPath'):
         raw_input('moveLookPath in cyan')
     smoothed = path                     # already smoothed
@@ -445,7 +448,6 @@ class ObsVar(Function):
 
 # Regression:  what does the mode need to be beforehand, assuming a good
 # outcome.  Don't let it go down too fast...
-minProb = 0.5
 
 class ObsModeProb(Function):
     # noinspection PyUnusedLocal
@@ -592,6 +594,12 @@ class Times2(Function):
     def fun((thing,), goal, start):
         return [[tuple([v*2 for v in thing])]]
 
+class Div2(Function):
+    # noinspection PyUnusedLocal
+    @staticmethod
+    def fun((thing,), goal, start):
+        return [[tuple([v/2.0 for v in thing])]]
+    
 # For place, grasp var is desired poseVar minus fixed placeVar
 # Don't let it be bigger than maxGraspVar
 class PlaceGraspVar(Function):
@@ -1500,6 +1508,15 @@ bLoc2 = Operator(
 
 # To establish a conditional pose between two objects, see them both
 # with small variance relative to the robot.
+
+# If the joint dist of X1,X2 has cov [[v11, v12], [v21, v22]], and it's
+# diagonal, then cov of X1 | X2 is v11 - v22
+
+# Here, we are saying that if we can make cov (X1 | robot) = v
+# and make cov (X2 | robot) = v, then we can make cov(X1 | X2) = f(v).
+
+# LPK: I think it's reasonable for f(v) = 2v, but this bears more thought.
+
 condPose = Operator('ConditionalPose',
                     ['Obj1', 'ObjPose1', 'PoseFace1',
                      'Obj2', 'ObjPose2', 'PoseFace2', 
@@ -1513,11 +1530,17 @@ condPose = Operator('ConditionalPose',
                    Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)}},
              # Result
              [({B([Cond([Pose(['Obj1', 'PoseFace1']),
-                       Pose(['Obj2', 'PoseFace2']),
-                       'ObjPose2']),
-                          'ObjPose1', 'TotalVar', 'TotalDelta', 'PR'], True)},
-                          {})],
-             functions = [Times2(['TotalVar'], ['PoseVar'])])
+                        Pose(['Obj2', 'PoseFace2']),
+                        'ObjPose2']),
+                   'ObjPose1', 'TotalVar', 'TotalDelta', 'PR'], True)},
+                        {})],
+             functions = [RegressProb(['P1', 'P2'], ['PR']),
+                          Div2(['PoseVar'], ['TotalVar']),
+                          Div2(['PoseDelta'], ['TotalDelta'])],
+             argsToPrint = [0, 1, 3, 4],
+             ignorableArgs = range(5, 14),
+             ignorableArgsForHeuristic = range(5, 14))
+
 
 poseAchIn = Operator(
              'PosesAchIn', ['Obj1', 'Region',

@@ -10,10 +10,11 @@ from pr2Util import shadowName, drawPath, objectName, PoseD, \
 from pr2GenTests import inTest, canReachNB, canReachHome, inTestMinShadow,\
      canView
 from pr2Push import canPush
-from dist import DeltaDist, probModeMoved
+from dist import DeltaDist, probModeMoved, GMU
+from dist import MultivariateGaussianDistribution as MVG
 from traceFile import debugMsg, debug, pause
 import planGlobals as glob
-from miscUtil import isGround, isVar, prettyString, applyBindings
+from miscUtil import isGround, isVar, prettyString, applyBindings, diagToSq
 from fbch import Fluent, getMatchingFluents, Operator
 from belief import B, Bd
 from pr2Visible import visible
@@ -905,16 +906,9 @@ class Grasp(Fluent):
 
 class Pose(Fluent):
     predicate = 'Pose'
+
     def dist(self, bState):
         (obj, face) = self.args
-        if face == '*':
-            hl = bState.pbs.getHeld('left')
-            hr = bState.pbs.getHeld('right')
-            if hl == obj or hr == obj:
-                # We think it's in the hand;  so pose dist is huge
-                result = lostDist
-            else:
-                face = bState.pbs.getPlaceB(obj).support.mode()
         return bState.poseModeDist(obj, face)
 
     def cDist(self, rf2, val2, bState):
@@ -926,9 +920,12 @@ class Pose(Fluent):
         # Disgustingly ignoring the faces for now
         # And not changing mode (ignoring val2)
         var = bState.relPoseVars[(obj1, obj2)]
-        mode = bState.pbs.getPlaceB(obj, face).poseD.modeTuple()
-        return GMU([(MVG(mode, diagToSq(var), pose4 = True),
-                         self.poseModeProbs[obj1])])
+        if var == None:
+            return lostDist
+        else:
+            mode = bState.pbs.getPlaceB(obj1, face1).poseD.modeTuple()
+            return GMU([(MVG(mode, diagToSq(var), pose4 = True),
+                         bState.poseModeProbs[obj1])])
 
     def fglb(self, other, bState = None):
         if bState is None or not self.isGround():

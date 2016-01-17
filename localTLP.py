@@ -41,7 +41,7 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['CanPickPlace', 'executionFail', 'noOdoError', 'visible_raster']
+debugOn = usualTags + ['potentialRegionPoseGenFinal', 'noOdoError', 'visible_raster']
 
 # + ['poseGraspable', 'sortedHyps', 'potentialRegionPoseGen'. 'visible', 'visibleEx']
 # + ['lookGen', 'pickGen', 'placeGen', 'placeInGen', 'getReachObsts', 'CanReachHome']

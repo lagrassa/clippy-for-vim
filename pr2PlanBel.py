@@ -17,7 +17,7 @@ from planUtil import ObjGraspB, ObjPlaceB
 from pr2Util import shadowName, shadowWidths, objectName, supportFaceIndex, \
      PoseD, inside, permanent, pushable, graspable
 from fbch import getMatchingFluents
-from belief import B, Bd
+from belief import B, Bd, Cond
 from traceFile import tr, trAlways
 from transformations import rotation_matrix
 from geom import bboxVolume
@@ -177,14 +177,17 @@ class PBS:
         newBS = newBS.updateFromConds(goalConds)
         if cond:
             newBS = newBS.updateFromConds(cond, permShadows=True)
-        newBS.conditions.update([fluent for fluent in goalConds if fluent.isConditional()])
+        newBS.conditions.update([fluent for fluent in goalConds \
+                                 if fluent.isConditional()])
         return newBS
+
     def copy(self):
         def copyVal(x): return (x[0], x[1].copy())
         return PBS(self.beliefContext, self.held.copy(), copyVal(self.conf),
                    self.graspB.copy(), self.objectBs.copy(),
                    self.regions, self.domainProbs, self.avoidShadow[:],
-                   self.base, self.targetConf, self.conditions.copy(), self.poseModeProbs)
+                   self.base, self.targetConf, self.conditions.copy(),
+                   self.poseModeProbs)
     def feasible(self):
         # Check that all the conditions are feasible; applied to Bd
         for fl in self.conditions:
@@ -268,6 +271,7 @@ class PBS:
                 del self.objectBs[obj]
         self.reset()
         return self
+
     def updateFromConds(self, goalConds, permShadows=False):
         world = self.getWorld()
         initialObjects = self.objectsInPBS()
@@ -294,7 +298,8 @@ class PBS:
         targetConf = getGoalTargetConf(goalConds)
         if targetConf is not None:
             self.targetConf = (True, targetConf)
-        self.objectBs.update({o:(True, pB) for (o, pB) in goalPoseBels.iteritems()})
+        self.objectBs.update({o:(True, pB) \
+                                  for (o, pB) in goalPoseBels.iteritems()})
         # The shadows of Pose(obj) in the cond are also permanent
         if permShadows:
             self.updateAvoidShadow(goalPoseBels.keys())
@@ -861,12 +866,21 @@ def getGoalPoseBels(goalConds, getFaceFrames):
     if not goalConds: return {}
     fbs = getMatchingFluents(goalConds,
                    B([Pose(['Obj', 'Face']), 'Mu', 'Var', 'Delta', 'P'], True))
+
+    fbs2 = getMatchingFluents(goalConds,
+                B([Cond([Pose(['Obj', 'Face']), 'OPose', 'OVal']),
+                                           'Mu', 'Var', 'Delta', 'P'], True))
+    if fbs2:
+        print 'Found matching cond fluent'
+        for thing in fbs2: print thing
+        raw_input('go?')
+
     ans = dict([(b['Obj'], ObjPlaceB(b['Obj'],
                                      getFaceFrames(b['Obj']), # !! ??
                                      DeltaDist(b['Face']),
                                      hu.Pose(* b['Mu']),
                                      b['Var'], b['Delta'])) \
-                 for (f, b) in fbs if \
+                 for (f, b) in fbs + fbs2 if \
                       (isGround(b.values()) and not ('*' in b.values()))])
     return ans
 

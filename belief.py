@@ -39,13 +39,6 @@ class BFluent(Fluent):
         return self.isGround() and other.isGround() and \
           self.args[0].matchArgs(other.args[0]) != None
 
-    def getIsPartiallyBound(self):
-        b0 = self.args[0].isPartiallyBound()
-        g0 = self.args[0].isGround()
-        v0 = not b0 and not g0 # rf has no bindings
-        av = [v0] + [isVar(a) for a in self.args[1:]]
-        return (True in av) and (False in av)
-
     def couldClobber(self, other, details = None):
         if self.contradicts(other, details):
             return True
@@ -53,16 +46,9 @@ class BFluent(Fluent):
             return False
         return self.args[0].couldClobber(other.args[0], details)
 
-    def argsGround(self):
-        return self.args[0].isGround()
-
     def getVars(self):
         return set([a for a in self.args[1:] if isAnyVar(a)]).union(\
                                                 self.args[0].getVars())
-
-    def shortName(self):
-        return self.predicate + '(' + self.args[0].shortName() + \
-                   ', ' + prettyString(self.args[-1]) +  ')'
 
     def update(self):
         assert isVar(self.args[-1]) or (0 <= self.args[-1] <= 1) or \
@@ -73,7 +59,6 @@ class BFluent(Fluent):
         self.args[0].update()
         # Do the update on this fluent (should call the parent method)
         self.isGroundStored = self.getIsGround()
-        self.isPartiallyBoundStored = self.getIsPartiallyBound()
         self.strStored = {True:None, False:None}
 
     # Avoid printing the value of the embedded rfluent
@@ -101,16 +86,6 @@ class Bd(BFluent):
         if isAnyVar(p):
             b[p] = dv.prob(dv.mode())     
         return b
-
-    def applyBindings(self, bindings):
-        if self.isGround():
-            return self.copy()
-        return Bd([self.args[0].applyBindings(bindings)] + \
-                  [lookup(a, bindings) for a in self.args[1:]],
-                  lookup(self.value, bindings))
-
-    def copy(self):
-        return Bd(customCopy(self.args), customCopy(self.value))
 
     # True if the rFluent has value v with probability greater than p
     def test(self, b):
@@ -186,41 +161,26 @@ class Bd(BFluent):
 class Cond(Fluent):
     predicate = 'Cond'
 
-    def getIsPartiallyBound(self):
-        b0 = self.args[0].isPartiallyBound()
-        g0 = self.args[0].isGround()
-        v0 = not b0 and not g0 # rf has no bindings
-        b1 = self.args[1].isPartiallyBound()
-        g1 = self.args[1].isGround()
-        v1 = not b1 and not g1 # rf has no bindings
-        av = [v0, v1, isVar(self.args[2])]
-        return (True in av) and (False in av)
-
     def getVars(self):
-        return self.args[0].getVars().union(self.args[1].getVars()).union(\
-            {self.args[2]} if isVar(self.args[2]) else set())
-
-    def shortName(self):
-        return self.predicate + '(' + self.args[0].shortName() + \
-                self.args[1].shortName() + ', ' + \
-                ', ' + prettyString(self.args[-1]) +  ')'
+        (rf1, rf2, val2) = self.args        
+        return rf1.getVars().union(rf2.getVars()).union(\
+            {val2} if isVar(val2) else set())
 
     def update(self):
-        assert isVar(self.args[-1]) or (0 <= self.args[-1] <= 1) or \
-          self.args[-1] == None
-        # Set the value in the embedded fluent
-        self.args[0].value = self.args[1]
-        # Generate the string
-        self.args[0].update()
+        (rf1, rf2, val2) = self.args        
+        # Generate the strings
+        if not isVar(rf1): rf1.update()
+        if not isVar(rf2): rf2.update()
         # Do the update on this fluent (should call the parent method)
         self.isGroundStored = self.getIsGround()
-        self.isPartiallyBoundStored = self.getIsPartiallyBound()
         self.strStored = {True:None, False:None}
 
     # Avoid printing the value of the embedded rfluent
     def argString(self, eq):
-        return '['+ self.args[0].prettyString(eq, includeValue = False) +', ' +\
-                  ', '.join([prettyString(a, eq) for a in self.args[1:]]) + ']'
+        (rf1, rf2, val2) = self.args
+        str1 = rf1 if isVar(rf1) else rf1.prettyString(eq, includeValue = False)
+        str2 = rf2 if isVar(rf2) else rf2.prettyString(eq, includeValue = False)
+        return '['+ str1 +', ' + str2 + ', ' + prettyString(val2, eq) + ']'
 
     def dist(self, bState):
         (rf1, rf2, val2) = self.args
@@ -249,6 +209,7 @@ class B(BFluent):
         # No negative deltas!
         assert isVar(delta) or delta == None or delta == '*' or \
                      all([float(dv) >= 0.0 for dv in delta])
+        assert isVar(var) or type(var) == tuple
 
         # Make sure numeric args are floats.  Allow None.
         def g(v):
@@ -263,12 +224,6 @@ class B(BFluent):
     def removeProbs(self):
         return B([self.args[0], self.args[1], None, None, None], self.value)
 
-    def applyBindings(self, bindings):
-        if self.isGround(): return self
-        return B([self.args[0].applyBindings(bindings)] + \
-                  [lookup(a, bindings) for a in self.args[1:]],
-                  lookup(self.value, bindings))
-
     # Print stdev!!
     def argString(self, eq = True):
         # Args: fluent, mean, var, delta, p
@@ -277,9 +232,6 @@ class B(BFluent):
                          if (not var == None and not isVar(var)) else var
         return '['+ fluent.prettyString(eq, includeValue = False) + ',' + \
          ', '.join([prettyString(a, eq) for a in [mean, stdev, delta, p]]) + ']'
-
-    def copy(self):
-        return B(customCopy(self.args), customCopy(self.value))
 
     def heuristicVal(self, details):
         (rFluent, v, var, delta, p) = self.args
@@ -365,15 +317,17 @@ class B(BFluent):
         if isinstance(fglb, set):
             # no glb at rfluent level
             return {self, other}, {}
-        if isVar(sval):
-            b[sval] = oval
-        elif isVar(oval):
-            b[oval] = sval
+        if sval != oval:
+            if isVar(sval):
+                b[sval] = oval
+            elif isVar(oval):
+                b[oval] = sval
 
-        if isVar(sdelta):
-            b[sdelta] = odelta
-        elif isVar(odelta):
-            b[odelta] = sdelta
+        if sdelta != odelta: 
+            if isVar(sdelta):
+                b[sdelta] = odelta
+            elif isVar(odelta):
+                b[odelta] = sdelta
 
         # Find the glb.  Find interval of overlap, then pick mean, to get
         # new values of val and delta
@@ -392,10 +346,11 @@ class B(BFluent):
             newVal, newDelta = sval, sdelta
         
         # take the min of the variances
-        if isVar(svar):
-            b[svar] = ovar
-        elif isVar(ovar):
-            b[ovar] = svar
+        if svar != ovar:
+            if isVar(svar):
+                b[svar] = ovar
+            elif isVar(ovar):
+                b[ovar] = svar
 
         if isGround((svar, ovar)):
             newVar = tuple(np.minimum(np.array(svar), np.array(ovar)).tolist())
@@ -404,10 +359,11 @@ class B(BFluent):
             newVar = svar
 
         # take the max of the probs
-        if isVar(sp):
-            b[sp] = op
-        elif isVar(op):
-            b[op] = sp
+        if sp != op:
+            if isVar(sp):
+                b[sp] = op
+            elif isVar(op):
+                b[op] = sp
 
         if isGround((sp, op)):
             newP = max(op, sp)

@@ -427,7 +427,6 @@ class Fluent(object):
 
     def update(self):
         self.isGroundStored = self.getIsGround()
-        self.isPartiallyBoundStored = self.getIsPartiallyBound()
         self.strStored = {True:None, False:None} # key is eq
 
     def isImplicit(self):
@@ -451,9 +450,6 @@ class Fluent(object):
         self.args[-1] = simplifyCond(cond, newRelevantConds, details)
         self.update()
 
-    def shortName(self):
-        return self.predicate
-
     def copy(self):
         newFluent = copy.copy(self)
         newFluent.args = customCopy(self.args)
@@ -461,11 +457,6 @@ class Fluent(object):
 
     def getIsGround(self):
         return self.argsGround() and isGround(self.value)
-
-    # If some args are bound and some are not
-    def getIsPartiallyBound(self):
-        argB = [isVar(a) for a in self.args]
-        return (True in argB) and (False in argB)
 
     def getVars(self):
         valVars = [self.value] if isVar(self.value) else []
@@ -482,9 +473,6 @@ class Fluent(object):
                    
     def isGround(self):
         return self.isGroundStored
-
-    def isPartiallyBound(self):
-        return self.isPartiallyBoundStored
 
     # For a fluent that is ground except for the value, get the value
     def getGrounding(self, state):
@@ -575,14 +563,15 @@ class Fluent(object):
             return self.copy()
         # Have to copy to get the right subclass, methods, etc.
         newF = copy.copy(self)
-        if self.isConditional():
-            # Dig one level deeper into last arg
-            newF.args = [lookup(a, bindings) for a in self.args[:-1]] + \
-                     ([lookup(self.args[-1], bindings)] \
-                      if isVar(self.args[-1]) else \
-                      [[c.applyBindings(bindings) for c in self.args[-1]]])
-        else:
-            newF.args = [lookup(a, bindings) for a in self.args]
+        # if self.isConditional():
+        #     # Dig one level deeper into last arg
+        #     newF.args = [lookup(a, bindings) for a in self.args[:-1]] + \
+        #              ([lookup(self.args[-1], bindings)] \
+        #               if isVar(self.args[-1]) else \
+        #               [[c.applyBindings(bindings) for c in self.args[-1]]])
+        # else:
+        #     newF.args = [lookup(a, bindings) for a in self.args]
+        newF.args = applyBindings(self.args, bindings)
         newF.value = lookup(self.value, bindings)
         newF.update()
         return newF
@@ -915,15 +904,17 @@ class Operator(object):
 
         op = Operator(self.name,
                       [lookup(a, rb) for a in self.args],
-                      dict([(v, set([f.applyBindings(rb) for f in preConds])) \
-                            for (v, preConds) in self.preconditions.items()]),
+                      applyBindings(self.preconditions, rb),
+                      # dict([(v,set([f.applyBindings(rb) for f in preConds])) \
+                      #       for (v, preConds) in self.preconditions.items()]),
                       applyBindings(self.results, rb),
                       [f.applyBindings(rb) for f in self.functions],
                       self.f,
                       self.cost,
                       self.prim,
-                      dict([(v, set([f.applyBindings(rb) for f in preConds])) \
-                            for (v, preConds) in self.sideEffects.items()]),
+                      applyBindings(self.sideEffects, rb),
+                      # dict([(v,set([f.applyBindings(rb) for f in preConds])) \
+                      #       for (v, preConds) in self.sideEffects.items()]),
                       self.ignorableArgs,
                       self.ignorableArgsForHeuristic,
                       self.conditionOnPreconds,
@@ -1248,11 +1239,6 @@ class Operator(object):
         if cost == float('inf'):
             tr('regression:fail', 'infinite cost for bindings', newBindings)
             return None
-
-        if cost > 300:
-            print 'Cost overrun!', cost, 'h=', glob.inHeuristic
-            print 'self'
-            raw_input('huh?')
 
         newGoal.operator.instanceCost = cost
         # tr('regression', self.name,

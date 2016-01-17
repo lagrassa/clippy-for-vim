@@ -1,7 +1,7 @@
 import math
 import windowManager3D as wm
 from dist import GMU, MultivariateGaussianDistribution
-from miscUtil import prettyString
+from miscUtil import prettyString, diagToSq
 from traceFile import tr, trAlways, debug
 MVG = MultivariateGaussianDistribution
 
@@ -54,10 +54,10 @@ class BeliefState:
     def updateRelPoseVars(self):
         objNames = self.pbs.objectBs.keys()
         for o1 in objNames:
-            f1 = self.poseModeProbs[o1].maxProbElt()
+            f1 = self.pbs.getPlacedObjBs()[o1].support.maxProbElt()
             var1 = self.pbs.getPlaceB(o1, f1).poseD.var
             for o2 in objNames:
-                f2 = self.poseModeProbs[o2].maxProbElt()
+                f2 = self.pbs.getPlacedObjBs()[o2].support.maxProbElt()
                 var2 = self.pbs.getPlaceB(o1, f2).poseD.var
                 rv = tuple([a + b for (a, b) in zip(var1, var2)])
                 old = self.relPoseVars[(o1, o2)]
@@ -131,9 +131,6 @@ class BeliefState:
         wm.getWindow('Belief').pause()
         # wm.getWindow('Belief').capturing = False
 
-def diagToSq(d):
-    return [[(d[i] if i==j else 0.0) \
-             for i in range(len(d))] for j in range(len(d))]
 
 def prettyStdev(vt):
     return prettyString([math.sqrt(x) for x in vt])             

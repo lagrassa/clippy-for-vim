@@ -475,3 +475,6 @@ def roundrobin(*iterables):
             nexts = cycle(islice(nexts, pending))
 
 
+def diagToSq(d):
+    return [[(d[i] if i==j else 0.0) \
+             for i in range(len(d))] for j in range(len(d))]
