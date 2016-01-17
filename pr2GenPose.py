@@ -74,11 +74,12 @@ def potentialRegionPoseGenAux(pbs, obj, placeBs, graspBGen, prob, regShapes, han
     hypGen = regionPoseHypGen(pbsCopy, prob, placeBs, regShapes,
                               maxTries=2*maxPoses, angles=angles)
     for hyp in sortedHyps(hypGen, validTestFn, costFn, maxPoses, 2*maxPoses,
-                          size=(1 if glob.inHeuristic else 30)):
+                          size=(1 if glob.inHeuristic else 20)):
         if debug(tag):
             pbs.draw(prob, 'W'); hyp.conf.draw('W', 'green')
             debugMsg(tag, 'obj=%s'%obj, 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),
                      'cost=%s'%hyp.cost, 'pose=%s'%hyp.getPose())
+        if not feasiblePBS(hyp, pbs): continue # check PBS
         pose = hyp.getPose()
         key = (obj, pose)
         entry = poseGraspCache.get(key, None)
@@ -89,11 +90,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeBs, graspBGen, prob, regShapes, han
         yield pose
 
 def checkValidHyp(hyp, pbs, graspBGen, prob, regShapes, hand, base):
-    graspable =  poseGraspable(hyp, pbs, graspBGen, prob, hand, base)
-    if not graspable:
-        return False
-    feasible = feasiblePBS(hyp, pbs)
-    return feasible
+    return poseGraspable(hyp, pbs, graspBGen, prob, hand, base)
 
 # We want to minimize this score, optimal value is 0.
 def scoreValidHyp(hyp, pbs, graspBGen, prob):
