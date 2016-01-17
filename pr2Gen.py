@@ -15,7 +15,7 @@ from pr2Push import pushInRegionGenGen
 from traceFile import tr, debug, debugMsg
 import planGlobals as glob
 from pr2GenUtils import *
-from pr2GenPose import potentialRegionPoseGen
+from pr2GenPose import potentialRegionPoseGen, poseGraspCache
 from pr2GenGrasp import potentialGraspConfGen, graspConfForBase
 import pr2GenLook
 #reload(pr2GenLook)
@@ -587,7 +587,7 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
     def placeApproachConfGen(grasps):
         # Keep generating and if you run out, start again...
         for pB in itertools.chain(placeBs, placeBs.copy()):
-            for gB in grasps:
+            for gB in sortGraspsForPB(grasps, pB):
                 tr(tag, 
                    'considering grasps for ', pB.poseD.mode(), '\n',
                    '  for grasp class', gB.grasp,   '\n',
@@ -692,6 +692,15 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
                     tr(tag, 'onlyPose, only generate one conf, so return')
                     return
     tr(tag, 'out of values')
+
+def sortGraspsForPB(grasps, pB):
+    gs = poseGraspCache.get((pB.obj, pB.poseD.mode()), None)
+    if not gs:
+        return grasps
+    gs = sorted(gs)
+    graspsForSorting = [(gB.grasp.mode(), gB) for gB in grasps]
+    graspsForSorting = [(gs.index(g) if g in gs else len(gs), g, gB) for (g, gB) in graspsForSorting]
+    return [gB for (i,g,gB) in sorted(graspsForSorting)]
 
 # Preconditions (for R1):
 

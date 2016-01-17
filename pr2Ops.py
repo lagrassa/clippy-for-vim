@@ -120,13 +120,13 @@ def primPathUntilLook(bs, cs, ce, p):
         if debug('moveLookPath'):
             print i, 'action=', a[0] if a else None
             q.draw('W', 'cyan')
+        path.append(q)
         # Stop when we get to first look
         if a and a[0] == 'look':
             print '*** Move prim terminated before look at:', q.baseConf()
             print '***                     final path pose:', path[-1].baseConf()
             print '***                     final target is:', ce.baseConf()
             break
-        else: path.append(q)
     if debug('moveLookPath'):
         raw_input('moveLookPath in cyan')
     smoothed = path                     # already smoothed

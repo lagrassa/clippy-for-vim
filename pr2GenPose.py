@@ -15,6 +15,9 @@ angleList = [-math.pi/2. -math.pi/4., 0.0, math.pi/4, math.pi/2]
 # (regShapeName, obj, hand, grasp) : (n_attempts, [relPose, ...])
 regionPoseCache = {}
 
+# (obj, pose) : (score, grasp)
+poseGraspCache = {}
+
 # Generate poses
 # Requirements: inside region, graspable, pbs is feasible
 # Preferences:  bigger shadows, fewer violations, grasp conf close to current conf
@@ -51,6 +54,8 @@ class PoseHyp(object):
         self.shadow = shadow
         self.conf = None
         self.viol = None
+        self.gB = None
+        self.cost = None
     def getPose(self):
         return self.pB.poseD.mode()
     def __str__(self):
@@ -64,38 +69,73 @@ def potentialRegionPoseGenAux(pbs, obj, placeBs, graspBGen, prob, regShapes, han
         return checkValidHyp(hyp, pbsCopy, graspBGen, prob, regShapes, hand, base)
     def costFn(hyp):
         return scoreValidHyp(hyp, pbsCopy, graspBGen, prob)
-    tag = 'potentialRegionPoseGen'
+    tag = 'potentialRegionPoseGenFinal'
     pbsCopy = pbs.copy()                # so it can be modified 
     hypGen = regionPoseHypGen(pbsCopy, prob, placeBs, regShapes,
                               maxTries=2*maxPoses, angles=angles)
     for hyp in sortedHyps(hypGen, validTestFn, costFn, maxPoses, 2*maxPoses,
-                          size=(1 if glob.inHeuristic else 5)):
+                          size=(1 if glob.inHeuristic else 30)):
         if debug(tag):
             pbs.draw(prob, 'W'); hyp.conf.draw('W', 'green')
-            debugMsg(tag, 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),
-                     'pose=%s'%hyp.getPose())
-        yield hyp.getPose()
+            debugMsg(tag, 'obj=%s'%obj, 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),
+                     'cost=%s'%hyp.cost, 'pose=%s'%hyp.getPose())
+        pose = hyp.getPose()
+        key = (obj, pose)
+        entry = poseGraspCache.get(key, None)
+        if entry:
+            entry.append((hyp.cost, hyp.gB))
+        else:
+            poseGraspCache[key] = [(hyp.cost, hyp.gB.grasp.mode())]
+        yield pose
 
 def checkValidHyp(hyp, pbs, graspBGen, prob, regShapes, hand, base):
     graspable =  poseGraspable(hyp, pbs, graspBGen, prob, hand, base)
-    if debug('sortedHyps'):
-        print 'graspable =', graspable
     if not graspable:
         return False
     feasible = feasiblePBS(hyp, pbs)
-    if debug('sortedHyps'):
-        print 'feasible =', feasible
     return feasible
 
 # We want to minimize this score, optimal value is 0.
 def scoreValidHyp(hyp, pbs, graspBGen, prob):
     # ignores size of shadow.
+    obj = hyp.pB.obj
+    shWorld = pbs.getShadowWorld(prob)
+    placeWeight = 0.
+    for o in shWorld.getObjectShapes():
+        name = o.name()
+        if name in shWorld.fixedObjects or name == obj: continue
+        if o.collides(hyp.shadow):
+            if 'shadow' in name:
+                placeWeight += 0.5
+            else:
+                placeWeight += 1.0
+    confWeight = hyp.viol.weight()
+
+    placeWeight *= 2
+    confWeight *= 2
+
+    objd = placeBDist(pbs.getPlaceB(hyp.pB.obj), hyp.pB)
+    based = baseDist(pbs.getConf(), hyp.conf)
     if debug('sortedHyps'):
         pbs.draw(prob, 'W')
         pbs.getConf().draw('W', 'blue')
         hyp.conf.draw('W', 'pink')
-        print 'dist=%f'%baseDist(pbs.getConf(), hyp.conf)
-    return 5*hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf)
+        print pbs.getConf().baseConf()
+        print hyp.conf.baseConf()
+        print 'baseDist', based
+        print 'pBdist=', objd
+        raw_input('dist=%f'%(objd+based))
+    # print 'objd=', objd, 'based=', based, 'conf=', confWeight, 'place', placeWeight
+    hyp.cost = objd + based + confWeight + placeWeight
+    return hyp.cost
+
+def placeBDist(pB1, pB2):
+    if pB1 and pB2:
+        p1 = pB1.poseD.mode().pose()
+        p2 = pB2.poseD.mode().pose()
+        return p1.totalDist(p2)         # angleScale = 1
+    else:
+        return 0.
 
 # A generator for hyps that meet the minimal requirement - object is
 # in region and does not have permanent collisions with other objects.
@@ -189,6 +229,7 @@ def poseGraspable(hyp, pbs, graspBGen, prob, hand, base):
         if v:
             hyp.conf = ca
             hyp.viol = v
+            hyp.gB = gB
             pbs.draw(prob, 'W'); pB.shape(pbs).draw('W', 'green'); ca.draw('W', 'green')
             debugMsg(tag, 'candidate won pose=%s, grasp=%s'%(pB.poseD.mode(), gB.grasp.mode()))
             return True

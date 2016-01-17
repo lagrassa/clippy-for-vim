@@ -64,7 +64,7 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
     def validTestFn(hyp):
         return True
     def costFn(hyp):
-        return 5*hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf)
+        return hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf)
     pbsCopy = pbs.copy()                # so it can be modified 
     hypGen = graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                              nMax=nMax, findApproach=findApproach)
