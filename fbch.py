@@ -1254,11 +1254,6 @@ class Operator(object):
             tr('regression:fail', 'infinite cost for bindings', newBindings)
             return None
 
-        if cost > 300:
-            print 'Cost overrun!', cost, 'h=', glob.inHeuristic
-            print 'self'
-            raw_input('huh?')
-
         newGoal.operator.instanceCost = cost
         # tr('regression', self.name,
         #    '\n', 'result for bindings', newBindings,

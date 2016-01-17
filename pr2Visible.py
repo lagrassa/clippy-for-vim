@@ -7,14 +7,15 @@ import planGlobals as glob
 from geom import bboxCenter
 from shapes import pointBox, BoxScale
 import transformations as transf
-from pr2Util import shadowName
+from pr2Util import shadowName, objectName
 from traceFile import debugMsg, debug
 import windowManager3D as wm
 from miscUtil import argmax
 
-Ident = hu.Transform(np.eye(4))            # identity transform
+Ident = hu.Transform(np.eye(4))         # identity transform
 laserScanGlobal = None
-minVisiblePoints = 5
+minVisiblePoints = 10
+minVisibleRasterAreaFrac = 0.05**2       # 5% on each image axis
 
 colors = ['red', 'green', 'blue', 'orange', 'cyan', 'purple']
 
@@ -263,55 +264,60 @@ def lookRaster():
         wm.makeWindow('Raster', viewPort, 2*n+10)
     return rasterGlobal
 
+def render(raster, lookConf, shape):
+    raster.reset()
+    lookCartConf = lookConf.cartConf()
+    headTrans = lookCartConf[lookConf.robot.headChainName]
+    sensor = headTrans.compose(hu.Transform(transf.rotation_matrix(-math.pi, (1,0,0))))
+    trans = sensor.inverse()
+    shape1 = shape.applyTrans(trans)
+    for objPrim in shape1.toPrims():
+        raster.update(objPrim, 1)
+    return trans
+
+# prob == 0. when doing simulation
 def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
-    key = (ws, conf, shape, tuple(obstacles), prob, moveHead, tuple(fixed))
+    key = (ws, conf, shape, tuple(obstacles), prob==0., moveHead, tuple(fixed))
     cacheStats[0 if glob.inHeuristic else 3] += 1
     if key in cache:
         cacheStats[1 if glob.inHeuristic else 4] += 1
         return cache[key]
-    headChainName = conf.robot.headChainName
     if debug('visible'):
-        print 'visible', shape.name(), 'from base=', conf.baseConf(), 'head=', conf[headChainName]
+        print 'visible', shape.name(), 'from base=', conf.baseConf(), 'head=', conf[conf.robot.headChainName]
         print 'obstacles', obstacles
         print 'fixed', fixed
-    lookConf = lookAtConf(conf, shape) if moveHead else conf
+    raster = lookRaster()
+    rasterArea = raster.imageWidth * raster.imageHeight
+
+    lookConf = lookAtConf(conf, shape)  # assume we can move head
     if not lookConf:
         if debug('visible'):
             print 'lookConf failed'
         cache[key] = (False, [])
         return False, []
-    raster = lookRaster()
-    raster.reset()
-    lookCartConf = lookConf.cartConf()
-    headTrans = lookCartConf[headChainName]
-    sensor = headTrans.compose(hu.Transform(transf.rotation_matrix(-math.pi, (1,0,0))))
-    trans = sensor.inverse()
-    fix = [obj for obj in obstacles if obj.name() in ws.fixedObjects]
-    for f in fixed: fix.append(f)
-    move = [obj for obj in obstacles if obj not in fix]
-    occluders = []
-    shape1 = shape.applyTrans(trans)
-    for objPrim in shape1.toPrims():
-        raster.update(objPrim, 1)
-    total = raster.countId(1)           #  pixels on target
-    if total < minVisiblePoints:
+    trans = render(raster, lookConf, shape)
+    total = raster.countId(1)           #  pixels on target if we can look directly
+    if total < minVisibleRasterAreaFrac * rasterArea:
         if debug('visible'):
             print total, 'hit points for', shape
             debugMsg('visible', 'Not enough hit points')
         cache[key] = (False, [])
         return False, []
-
-    if 'table' in shape.name():
-        threshold = 0.5*prob            # generous
-    else:
-        # threshold = 0.75*prob
-        threshold = 0.5
-
+    if not moveHead:
+        lookConf = conf
+        trans = render(raster, lookConf, shape) # re-render
+    fix = [obj for obj in obstacles if obj.name() in ws.fixedObjects]
+    for f in fixed:
+        if f not in fix: fix.append(f)
+    move = [obj for obj in obstacles if obj not in fix]
+    occluders = []
+    threshold = 0.5 if prob else 0.45
     for i, objShape in enumerate(fix):
+        if objectName(shape) == objectName(objShape): continue
         if debug('visible'):
             print 'updating depth with', objShape.name()
-        shape = objShape.applyTrans(trans)
-        for objPrim in shape.toPrims():
+        sh = objShape.applyTrans(trans)
+        for objPrim in sh.toPrims():
             raster.update(objPrim, i+2, onlyUpdate=set(range(1,i+2)))
         count = raster.countId(i+2)
         if count > 0:                   #  should these be included?
@@ -327,11 +333,12 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     # find a list of movable occluders that could be removed to
     # achieve visibility
     for j, objShape in enumerate(move):
+        if objectName(shape) == objectName(objShape): continue
         i = len(fix) + j
         if debug('visible'):
             print 'updating depth with', objShape.name()
-        shape = objShape.applyTrans(trans)
-        for objPrim in shape.toPrims():
+        sh = objShape.applyTrans(trans)
+        for objPrim in sh.toPrims():
             raster.update(objPrim, i+2,
                           onlyUpdate=set(range(1,i+2)))
         count = raster.countId(i+2)
