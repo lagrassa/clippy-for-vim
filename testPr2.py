@@ -192,7 +192,7 @@ def test1Obj2(**args):
                    'objB' : (hu.Pose(1.6, 0.8, tZ, 1.4), bigVar)},
                   ['table1Top', 'table1Left',
                    'table2Top', 'table2Left'], easy=args.get('easy', False))
-    goal = inRegion(['objA', 'objB'], ['table2Left', 'table2Left'])
+    goal = inRegion(['objA', 'objB'], ['table2Top', 'table2Top'])
     return doTest('test1Obj2', exp, goal, None, args)
 
 ######################################################################
