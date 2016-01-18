@@ -277,15 +277,17 @@ def render(raster, lookConf, shape):
 
 # prob == 0. when doing simulation
 def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
-    key = (ws, conf, shape, tuple(obstacles), prob==0., moveHead, tuple(fixed))
-    cacheStats[0 if glob.inHeuristic else 3] += 1
-    if key in cache:
-        cacheStats[1 if glob.inHeuristic else 4] += 1
-        return cache[key]
     if debug('visible'):
         print 'visible', shape.name(), 'from base=', conf.baseConf(), 'head=', conf[conf.robot.headChainName]
         print 'obstacles', obstacles
         print 'fixed', fixed
+    key = (ws, conf, shape, tuple(obstacles), prob==0., moveHead, tuple(fixed))
+    cacheStats[0 if glob.inHeuristic else 3] += 1
+    if key in cache:
+        cacheStats[1 if glob.inHeuristic else 4] += 1
+        if debug('visible'):
+            print 'cached visibility', cache[key]
+        return cache[key]
     raster = lookRaster()
     rasterArea = raster.imageWidth * raster.imageHeight
 

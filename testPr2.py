@@ -43,6 +43,7 @@ class Experiment:
 
 table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2.0)
 table2Pose = hu.Pose(1.0, -1.4, 0.0, 0.0)
+table2FarPose = hu.Pose(1.4, -2.0, 0.0, 0.0)
 table3Pose = hu.Pose(1.6,0.0,0.0, math.pi/2.0),
 
 bigVar = (0.1**2, 0.1**2, 1e-10, 0.3**2)
@@ -184,7 +185,7 @@ def test1(**args):
 
 def test1Obj2(**args):
     exp = makeExp({'table1' : (table1Pose, bigVar),
-                   'table2' : (table2Pose, bigVar)},
+                   'table2' : (table2FarPose, bigVar)},
                   {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), bigVar),
                    'objB' : (hu.Pose(1.1, 0.2, tZ, 0.0), bigVar)},
                   ['table1Top', 'table1Left',
@@ -723,7 +724,7 @@ def testIkeaShelvesGrasp(**args):
 
     table2x = 0.5
     ikeaShelves2Pose = hu.Pose(table2x-0.2, -1.3, ikZ, -math.pi/2)
-    table2Pose = hu.Pose(table2x, -1.4, 0.0, 0.0)
+    table2Pose = hu.Pose(table2x, -1.3, 0.0, 0.0)
 
     region = 'ikeaShelves2_space_2'
     easy=args.get('easy', False)
