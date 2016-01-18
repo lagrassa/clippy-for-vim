@@ -9,7 +9,7 @@ from dist import DeltaDist, varBeforeObs, probModeMoved, MixtureDist,\
 from fbch import Function, Operator, simplifyCond, State
 from miscUtil import isVar, prettyString, makeDiag, argmax, lookup, roundrobin
 from planUtil import PoseD, ObjGraspB, ObjPlaceB, Violations
-from pr2Util import shadowWidths, objectName
+from pr2Util import shadowWidths, objectName, permanent
 from pr2Gen import PickGen, LookGen,\
     EasyGraspGen, PoseInRegionGen, PlaceGen, moveOut
 from pr2GenTests import canPickPlaceTest, canReachHome, canReachNB, findRegionParent
@@ -1108,6 +1108,12 @@ llMatchThreshold = -400.0
 
 def objectObsUpdate(details, lookConf, obsList):
     def rem(l,x): return [y for y in l if y != x]
+    def testVis(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
+        (vis, occl) = visible(ws, conf, shape, obstacles, prob, moveHead=moveHead, fixed=fixed)
+        if permanent(s.name()):
+            return vis and (not occl or occl == [rob.name()])
+        else:
+            return vis and not occl
     prob = 0.95
     world = details.pbs.getWorld()
     shWorld = details.pbs.getShadowWorld(prob)
@@ -1120,13 +1126,15 @@ def objectObsUpdate(details, lookConf, obsList):
     heldRight = details.pbs.getHeld('left')
 
     glob.debugOn.append('visible')
+    print '** Predicting visibility in update **'
     objList = [s for s in obstacles \
-               if visible(shWorld, lookConf, s, rem(obstacles,s)+[rob], 0.5,
-                          moveHead=False, fixed=fixed)[0] and \
+               if testVis(shWorld, lookConf, s, rem(obstacles,s)+[rob], 0.5,
+                          moveHead=False, fixed=fixed) and \
                   s.name() not in (heldLeft, heldRight)]
     glob.debugOn.remove('visible')
+    print 'Predicted visible:', [s.name() for s in objList]
     raw_input('Update')
-                  
+
     if debug('assign'):
         print '*** Observations ***'
         for obs in obsList: print '   ', obs

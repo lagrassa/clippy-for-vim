@@ -202,15 +202,11 @@ def capture(testFns, winName = 'W'):
         mathematica.mathFile(win.getWindow(winName).capture)
         raw_input('Next?')
 
-workspace = ((-1.0, -2.5, 0.0), (3.0, 2.5, 2.0))
-((wx0, wy0, _), (wx1, wy1, wdz)) = workspace
-viewPort = [wx0, wx1, wy0, wy1, 0.0, wdz]
-
 def testWorld(include = []):
-    ((x0, y0, _), (x1, y1, dz)) = workspace
+    ((x0, y0, _), (x1, y1, dz)) = glob.workspace
     w = 0.1
-    wm.makeWindow('W', viewPort, 600)   # was 800
-    if useROS: wm.makeWindow('MAP', viewPort)
+    wm.makeWindow('W', glob.viewPort, 600)   # was 800
+    if useROS: wm.makeWindow('MAP', glob.viewPort)
     world = World()
     # The room
     world.workspace = np.array([(x0, y0, -w), (x1, y1, -0.0001)])
@@ -332,11 +328,24 @@ class PlanTest:
                  multiplier = 6, var = 1.0e-5): # var was 10e-10
         self.name = name
         self.multiplier = multiplier
-        self.objects = exp.fixPoses.keys() + exp.movePoses.keys()
+        ((x0, y0, z0), (x1, y1, z1)) = glob.workspace
+        zeroVar = 4*(0.0,)
+        if debug('walls'):
+            walls = {'wallx1' : (hu.Pose(0.5*(x0+x1), y0, -0.1, 0.0), zeroVar),
+                     'wallx2' : (hu.Pose(0.5*(x0+x1), y1, -0.1, 0.0), zeroVar),
+                     'wally1' : (hu.Pose(x0, 0.5*(y0+y1), -0.1, 0.0), zeroVar),
+                     'wally2' : (hu.Pose(x1, 0.5*(y0+y1), -0.1, 0.0), zeroVar)}
+        else:
+            walls = {}
+        allFixPoses = { x: pose for (x,(pose, var)) in walls.items()}
+        allVarDict = { x: var for (x,(pose, var)) in walls.items()}
+        allFixPoses.update(exp.fixPoses)
+        allVarDict.update(exp.varDict)
+        self.objects = allFixPoses.keys() + exp.movePoses.keys()
         self.domainProbs = exp.domainProbs
         self.world, self.thinRobot = testWorld(include=self.objects)
         if not initConfs:
-            ((x0, y0, _), (x1, y1, dz)) = workspace
+            ((x0, y0, _), (x1, y1, dz)) = glob.workspace
             dx = x1 - x0; dy = y1 - y0
             count = 2*multiplier
             for x in range(count+1):
@@ -356,22 +365,22 @@ class PlanTest:
         self.initConfs = initConfs
         ff = lambda o: self.world.getFaceFrames(o) if o in self.objects else []
         self.fix = {}
-        for name in exp.fixPoses:
-            oShape = self.world.getObjectShapeAtOrigin(name).applyLoc(exp.fixPoses[name])
+        for name in allFixPoses:
+            oShape = self.world.getObjectShapeAtOrigin(name).applyLoc(allFixPoses[name])
             supFace = supportFaceIndex(oShape)
-            oVar = exp.varDict[name] if (exp.varDict and name in exp.varDict) else exp.defaultVar
+            oVar = allVarDict[name] if (allVarDict and name in allVarDict) else exp.defaultVar
             self.fix[name] = ObjPlaceB(name, ff(name), DeltaDist(supFace),
-                              exp.fixPoses[name], oVar, exp.defaultDelta)
+                              allFixPoses[name], oVar, exp.defaultDelta)
         self.move = {}
         for name in exp.movePoses:
             oShape = self.world.getObjectShapeAtOrigin(name).applyLoc(exp.movePoses[name])
             supFace = supportFaceIndex(oShape)
-            oVar = exp.varDict[name] if (exp.varDict and name in exp.varDict) else exp.defaultVar
+            oVar = allVarDict[name] if (allVarDict and name in allVarDict) else exp.defaultVar
             self.move[name] = ObjPlaceB(name, ff(name), DeltaDist(supFace),
                               exp.movePoses[name], oVar, exp.defaultDelta)
         self.operators = exp.operators
-        wm.makeWindow('Belief', viewPort, 500)
-        wm.makeWindow('World', viewPort, 500)
+        wm.makeWindow('Belief', glob.viewPort, 500)
+        wm.makeWindow('World', glob.viewPort, 500)
 
     def buildBelief(self, home=None, regions=frozenset([])):
         world = self.world

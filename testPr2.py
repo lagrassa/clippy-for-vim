@@ -724,7 +724,7 @@ def testIkeaShelvesGrasp(**args):
 
     table2x = 0.5
     ikeaShelves2Pose = hu.Pose(table2x-0.2, -1.3, ikZ, -math.pi/2)
-    table2Pose = hu.Pose(table2x, -1.4, 0.0, 0.0)
+    table2Pose = hu.Pose(table2x, -1.3, 0.0, 0.0)
 
     region = 'ikeaShelves2_space_2'
     easy=args.get('easy', False)

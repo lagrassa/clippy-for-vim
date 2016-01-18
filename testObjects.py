@@ -69,6 +69,36 @@ def pickColor(name):
     else:
         return 'black'
 
+# Floor and walls
+def makeFloorPlane(name='floor'):
+    ((x0, y0, z0), (x1, y1, z1)) = glob.workspace
+    color = "pink"
+    return (Sh([Ba([(x0, y0, 0.), (x1, y1, 0.0001)])],
+               name=name, color=color), [])
+glob.objectSymmetries['floor'] = sym0
+glob.objectTypes['floor'] = 'floor'
+glob.constructor['floor'] = makeFloorPlane
+
+def makeWallXPlane(name='walls'):
+    ((x0, y0, z0), (x1, y1, z1)) = glob.workspace
+    dz = 0.0001
+    color = "purple"
+    walls = [hor((x0, x1), 0, z1, dz)]
+    return (Sh(walls, name=name, color=color), [])
+glob.objectSymmetries['wallx'] = sym2
+glob.objectTypes['wallx'] = 'wallx'
+glob.constructor['wallx'] = makeWallXPlane
+
+def makeWallYPlane(name='walls'):
+    ((x0, y0, z0), (x1, y1, z1)) = glob.workspace
+    dz = 0.0001
+    color = "purple"
+    walls = [ver(0, (y0, y1), z1, dz)]
+    return (Sh(walls, name=name, color=color), [])
+glob.objectSymmetries['wally'] = sym2
+glob.objectTypes['wally'] = 'wally'
+glob.constructor['wally'] = makeWallYPlane
+
 # Need to add Top to manipulable objects...
 # extraHeight = 1.5*height+0.01
 # bbox = bboxGrow(thing.bbox(), np.array([0.075, 0.075, extraHeight]))
