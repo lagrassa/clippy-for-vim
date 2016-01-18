@@ -8,7 +8,7 @@ from pr2Util import shadowName, drawPath, objectName, PoseD, \
      supportFaceIndex, GDesc, inside, otherHand, graspable, pushable, permanent, \
      confWithin, baseConfWithin
 from pr2GenTests import inTest, canReachNB, canReachHome, inTestMinShadow,\
-     canView
+     canView, findRegionParent
 from pr2Push import canPush
 from dist import DeltaDist, probModeMoved, GMU
 from dist import MultivariateGaussianDistribution as MVG
@@ -16,7 +16,7 @@ from traceFile import debugMsg, debug, pause
 import planGlobals as glob
 from miscUtil import isGround, isVar, prettyString, applyBindings, diagToSq
 from fbch import Fluent, getMatchingFluents, Operator
-from belief import B, Bd
+from belief import B, Bd, Cond
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from traceFile import tr, trAlways
@@ -66,7 +66,48 @@ class In(Fluent):
         if obj in (lObj, rObj):
             return False
         else: 
-            return inTest(bState.pbs, obj, region, p)
+            return inTestRel(bState, obj, region, p)
+
+def inTestRel(bState, obj, regionName, prob):
+    pbs = bState.pbs
+    parent = findRegionParent(bState, regionName)
+    relVar = bState.relPoseVars[(obj, parent)]
+
+    if relVar[0] > 10: return False
+
+    regs = pbs.getWorld().regions
+    pObj = pbs.poseModeProbs[obj]
+    pParent = pbs.poseModeProbs[parent]
+    pFits = prob / (pObj * pParent)
+    if pFits > 1: return False
+
+    # compute a shadow for this object.  Use relVar
+    placeB = pbs.getPlaceB(obj)
+    placeB = placeB.modifyPoseD(var = relVar)
+    faceFrame = placeB.faceFrames[placeB.support.mode()]
+
+    # Setting delta to be 0
+    sh = pbs.objShadow(obj, shadowName(obj), pFits, placeB, faceFrame)
+    shadow = sh.applyLoc(placeB.objFrame()) # !! is this right?
+    shWorld = pbs.getShadowWorld(prob)
+    region = shWorld.regionShapes[regionName]
+
+    ans = any([np.all(np.all(np.dot(r.planes(),
+                                shadow.prim().vertices()) <= tiny, axis=1)) \
+               for r in region.parts()])
+    print 'in test rel', ans
+    region.draw('Belief', color = 'purple')
+    shadow.draw('Belief', color = 'cyan')
+    raw_input('looking good?')
+
+    tr('testVerbose', 'In test relative, shadow in orange, region in purple',
+       (shadow, region, ans), draw = [(pbs, prob, 'W'),
+                                      (shadow, 'W', 'orange'),
+                                      (region, 'W', 'purple')], snap=['W'])
+    return ans
+
+
+    
 
 # Do we know where the object is?
 class BLoc(Fluent):
@@ -1103,7 +1144,7 @@ def partition(fluents):
     while len(fluents) > 0:
         f = fluents.pop()
         newSet = set([f])
-        if f.predicate in ('B', 'Bd'):
+        if f.predicate in ('B', 'Bd', 'Cond'):
             rf = f.args[0]
             if rf.predicate == 'SupportFace':
                 (obj,) = rf.args
@@ -1111,7 +1152,10 @@ def partition(fluents):
                 pf = getMatchingFluents(fluents,
                              B([Pose([obj, face]), 'M','V','D','P'], True)) + \
                       getMatchingFluents(fluents,
-                                 Bd([In([obj, 'R']), True,'P'], True))
+                                 Bd([In([obj, 'R']), True,'P'], True)) + \
+                      getMatchingFluents(fluents,
+                            B([Cond([Pose(['Obj', 'Face']), 'OPose', 'OVal']),
+                                           'Mu', 'Var', 'Delta', 'P'], True))
                 for (ff, b) in pf:
                     newSet.add(ff)
                     fluents.remove(ff)
@@ -1131,7 +1175,10 @@ def partition(fluents):
                 pf = getMatchingFluents(fluents,
                               Bd([SupportFace([obj]), 'F','P'], True)) + \
                      getMatchingFluents(fluents,
-                             B([Pose([obj, 'F']), 'M','V','D','P'], True))
+                             B([Pose([obj, 'F']), 'M','V','D','P'], True)) + \
+                     getMatchingFluents(fluents,
+                            B([Cond([Pose(['Obj', 'Face']), 'OPose', 'OVal']),
+                                           'Mu', 'Var', 'Delta', 'P'], True))
                 for (ff, b) in pf:
                     newSet.add(ff)
                     fluents.remove(ff)

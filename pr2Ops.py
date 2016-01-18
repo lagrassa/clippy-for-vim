@@ -1119,11 +1119,14 @@ def objectObsUpdate(details, lookConf, obsList):
     heldLeft = details.pbs.getHeld('left')
     heldRight = details.pbs.getHeld('left')
 
+    glob.debugOn.append('visible')
     objList = [s for s in obstacles \
                if visible(shWorld, lookConf, s, rem(obstacles,s)+[rob], 0.5,
                           moveHead=False, fixed=fixed)[0] and \
                   s.name() not in (heldLeft, heldRight)]
-
+    glob.debugOn.remove('visible')
+    raw_input('Update')
+                  
     if debug('assign'):
         print '*** Observations ***'
         for obs in obsList: print '   ', obs

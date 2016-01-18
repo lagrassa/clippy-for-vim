@@ -870,10 +870,6 @@ def getGoalPoseBels(goalConds, getFaceFrames):
     fbs2 = getMatchingFluents(goalConds,
                 B([Cond([Pose(['Obj', 'Face']), 'OPose', 'OVal']),
                                            'Mu', 'Var', 'Delta', 'P'], True))
-    if fbs2:
-        print 'Found matching cond fluent'
-        for thing in fbs2: print thing
-        raw_input('go?')
 
     ans = dict([(b['Obj'], ObjPlaceB(b['Obj'],
                                      getFaceFrames(b['Obj']), # !! ??

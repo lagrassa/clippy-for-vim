@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import windowManager3D as wm
 from dist import GMU, MultivariateGaussianDistribution
 from miscUtil import prettyString, diagToSq
@@ -52,20 +53,34 @@ class BeliefState:
 
     # Take the min of what we had and the current ones
     def updateRelPoseVars(self):
+        # Can take out when done debugging!!
+        self.pbs.draw(0.95, 'Belief')
+        # Can take out when done debugging!!
         objNames = self.pbs.objectBs.keys()
         for o1 in objNames:
-            f1 = self.pbs.getPlacedObjBs()[o1].support.maxProbElt()
+            f1 = self.pbs.getPlacedObjBs()[o1].support.mode()
             var1 = self.pbs.getPlaceB(o1, f1).poseD.var
             for o2 in objNames:
-                f2 = self.pbs.getPlacedObjBs()[o2].support.maxProbElt()
-                var2 = self.pbs.getPlaceB(o1, f2).poseD.var
-                rv = tuple([a + b for (a, b) in zip(var1, var2)])
                 old = self.relPoseVars[(o1, o2)]
+                if o1 == o2:
+                    rv = (0, 0, 0, 0)
+                else:
+                    f2 = self.pbs.getPlacedObjBs()[o2].support.mode()
+                    var2 = self.pbs.getPlaceB(o1, f2).poseD.var
+                    rv = tuple([a + b for (a, b) in zip(var1, var2)])
                 if old == None:
+                    # We just placed.
+                    print 'New RPV', rv
+                    print o1, var1
+                    print o2, var2
+                    raw_input('okay?')
                     self.relPoseVars[(o1, o2)] = rv
                 else:
                     self.relPoseVars[(o1, o2)] = \
                               tuple([min(a, b) for (a, b) in zip(rv, old)])
+                if o1 < o2:
+                    print 'RPSD', o1, o2, \
+                       prettyString(np.sqrt(self.relPoseVars[(o1, o2)][0]))
 
     def clearRelPoseVars(self, o):
         objNames = self.pbs.objectBs.keys()
