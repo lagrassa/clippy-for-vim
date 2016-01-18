@@ -42,8 +42,10 @@ class Experiment:
     regions = []
 
 table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2.0)
+table1FarPose = hu.Pose(1.4, 1.0
+                        , 0.0, 0.0)
 table2Pose = hu.Pose(1.0, -1.4, 0.0, 0.0)
-table2FarPose = hu.Pose(1.4, -2.0, 0.0, 0.0)
+table2FarPose = hu.Pose(1.4, -1.8, 0.0, 0.0)
 table3Pose = hu.Pose(1.6,0.0,0.0, math.pi/2.0),
 
 bigVar = (0.1**2, 0.1**2, 1e-10, 0.3**2)
@@ -184,10 +186,10 @@ def test1(**args):
     return doTest('test1', exp, goal, skel, args)
 
 def test1Obj2(**args):
-    exp = makeExp({'table1' : (table1Pose, bigVar),
+    exp = makeExp({'table1' : (table1FarPose, bigVar),
                    'table2' : (table2FarPose, bigVar)},
-                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), bigVar),
-                   'objB' : (hu.Pose(1.1, 0.2, tZ, 0.0), bigVar)},
+                  {'objA' : (hu.Pose(1.2, 0.8, tZ, 1.8), bigVar),
+                   'objB' : (hu.Pose(1.6, 0.8, tZ, 1.4), bigVar)},
                   ['table1Top', 'table1Left',
                    'table2Top', 'table2Left'], easy=args.get('easy', False))
     goal = inRegion(['objA', 'objB'], ['table2Left', 'table2Left'])

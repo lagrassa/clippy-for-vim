@@ -95,10 +95,9 @@ def inTestRel(bState, obj, regionName, prob):
     ans = any([np.all(np.all(np.dot(r.planes(),
                                 shadow.prim().vertices()) <= tiny, axis=1)) \
                for r in region.parts()])
-    print 'in test rel', ans
+    print 'in test rel', obj, regionName, ans
     region.draw('Belief', color = 'purple')
     shadow.draw('Belief', color = 'cyan')
-    raw_input('looking good?')
 
     tr('testVerbose', 'In test relative, shadow in orange, region in purple',
        (shadow, region, ans), draw = [(pbs, prob, 'W'),
@@ -1144,8 +1143,14 @@ def partition(fluents):
     while len(fluents) > 0:
         f = fluents.pop()
         newSet = set([f])
-        if f.predicate in ('B', 'Bd', 'Cond'):
+        if f.predicate in ('B', 'Bd'):
             rf = f.args[0]
+            # Handle the case where rf is a conditional fluent...just look
+            # in one level deeper
+            if rf.predicate == 'Cond':
+                rf = rf.args[0]
+
+            # Now, find relevant groups
             if rf.predicate == 'SupportFace':
                 (obj,) = rf.args
                 face = f.args[1]
@@ -1217,15 +1222,8 @@ def partition(fluents):
                 for (ff, b) in pf:
                     newSet.add(ff)
                     fluents.remove(ff)
-        # else:
-        #     # Not a B fluent
-        #     pf = getMatchingFluents(fluents, Conf(['C', 'D'], True)) + \
-        #          getMatchingFluents(fluents, BaseConf(['C', 'D'], True))
-        #     for (ff, b) in pf:
-        #         newSet.add(ff)
-        #         fluents.remove(ff)
-                    
         groups.append(frozenset(newSet))
+
     return groups
 
 print 'Loaded pr2Fluents.py'

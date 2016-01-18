@@ -1528,6 +1528,10 @@ bLoc2 = Operator(
 
 # LPK: I think it's reasonable for f(v) = 2v, but this bears more thought.
 
+# Postpone object 2...this is kind of a cheat; but otherwise, it tries
+# to maintain knowledge of the pose of the table throughout, and that
+# causes a lot of plaining failures up to the top level.
+
 condPose = Operator('ConditionalPose',
                     ['Obj1', 'ObjPose1', 'PoseFace1',
                      'Obj2', 'ObjPose2', 'PoseFace2', 
@@ -1535,8 +1539,8 @@ condPose = Operator('ConditionalPose',
                      'P1', 'P2', 'PR'],
              {0 : {B([Pose(['Obj1', 'PoseFace1']), 'ObjPose1', 'PoseVar',
                                'PoseDelta', 'P1'], True),
-                   Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True),
-                   B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
+                   Bd([SupportFace(['Obj1']), 'PoseFace1', 'P1'], True)},
+              1 : {B([Pose(['Obj2', 'PoseFace2']), 'ObjPose2', 'PoseVar',
                                'PoseDelta', 'P2'], True),
                    Bd([SupportFace(['Obj2']), 'PoseFace2', 'P2'], True)}},
              # Result
