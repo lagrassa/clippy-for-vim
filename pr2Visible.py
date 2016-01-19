@@ -301,7 +301,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     total = raster.countId(1)           #  pixels on target if we can look directly
     minVis = minVisibleRasterAreaFrac * rasterArea
     if prob:                            # when predicting
-        minVis *= 2
+        minVis *= 1.5                   # be more conservative
     if total < minVis:
         if debug('visible'):
             print total, 'hit points for', shape
