@@ -10,9 +10,11 @@ def potentialLookConfGen(pbs, prob, shape, maxDist):
         bb = shape.applyTrans(basePoseInv).bbox()
         return bb[0][0] > 0 and bb[1][0] > 0
 
+    workspace = pbs.getWorld().workspace
     centerPoint = hu.Point(np.resize(np.hstack([bboxCenter(shape.bbox()), [1]]), (4,1)))
     tested = set([])
     rm = pbs.getRoadMap()
+    sortedNodes = []
     for node in rm.nodes():             # !!
         nodeBase = tuple(node.conf.baseConf())
         if nodeBase in tested:
@@ -20,10 +22,17 @@ def potentialLookConfGen(pbs, prob, shape, maxDist):
         else:
             tested.add(nodeBase)
         x,y,th = nodeBase
+        if x > workspace[1][0] or x < workspace[0][0] or \
+               y > workspace[1][1] or y < workspace[0][1]:
+            continue
         basePose = hu.Pose(x,y,0,th)
         dist = centerPoint.distanceXY(basePose.point())
         if dist > maxDist:
             continue
+        else:
+            sortedNodes.append((dist, node))
+    sortedNodes = sorted(sortedNodes)
+    for dist, node in sortedNodes:
         inv = basePose.inverse()
         if not testPoseInv(inv):
             # Rotate the base to face the center of the object
