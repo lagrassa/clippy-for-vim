@@ -189,10 +189,12 @@ def test1Obj2(**args):
     exp = makeExp({'table1' : (table1FarPose, bigVar),
                    'table2' : (table2FarPose, bigVar)},
                   {'objA' : (hu.Pose(1.2, 0.8, tZ, 1.8), bigVar),
-                   'objB' : (hu.Pose(1.6, 0.8, tZ, 1.4), bigVar)},
+                   'objB' : (hu.Pose(1.6, 0.8, tZ, 1.4), bigVar),
+                   'objC' : (hu.Pose(1.8, 0.8, tZ, 1.2), bigVar) },
                   ['table1Top', 'table1Left',
                    'table2Top', 'table2Left'], easy=args.get('easy', False))
-    goal = inRegion(['objA', 'objB'], ['table2Top', 'table2Top'])
+    goal = inRegion(['objA', 'objB', 'objC'],
+                    ['table2Top', 'table2Top', 'table2Top'])
     return doTest('test1Obj2', exp, goal, None, args)
 
 ######################################################################
