@@ -1068,7 +1068,8 @@ class Operator(object):
     def newGoalFromBindings(self, newBindings, results, goal, startState,
                             heuristic, operators, ancestors):
         goal = goal.copy()
-        if self.metaOperator:
+        if self.metaOperator and not self.isAbstract():
+            # LPK!! Only add in the conditions at the primitive level
             # Add extra preconds straight into the goal
             newCond = False
             for k in newBindings.keys():

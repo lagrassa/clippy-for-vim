@@ -69,18 +69,10 @@ class BeliefState:
                     var2 = self.pbs.getPlaceB(o1, f2).poseD.var
                     rv = tuple([a + b for (a, b) in zip(var1, var2)])
                 if old == None:
-                    # We just placed.
-                    print 'New RPV', rv
-                    print o1, var1
-                    print o2, var2
-                    raw_input('okay?')
                     self.relPoseVars[(o1, o2)] = rv
                 else:
                     self.relPoseVars[(o1, o2)] = \
                               tuple([min(a, b) for (a, b) in zip(rv, old)])
-                if o1 < o2:
-                    print 'RPSD', o1, o2, \
-                       prettyString(np.sqrt(self.relPoseVars[(o1, o2)][0]))
 
     def clearRelPoseVars(self, o):
         objNames = self.pbs.objectBs.keys()
