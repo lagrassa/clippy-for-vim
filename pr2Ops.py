@@ -32,10 +32,15 @@ awayPose = (100.0, 100.0, 0.0, 0.0)
 maxVarianceTuple = (.1,)*4
 
 # If it's bigger than this, we can't just plan to look and see it
-# Should be more subtle than this...
-maxPoseVar = (0.11**2, 0.11**2, 0.11**2, 0.31**2)
-maxReasonablePoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
-#maxPoseVar = (0.03**2, 0.03**2, 0.03**2, 0.05**2)
+
+# If we set this to be too big, then the costs for looking are crazy
+# high.  If we set this to be too small, then we have a problem with
+# situations where we have to let some high uncertainty build up.
+
+#maxPoseVar = (0.11**2, 0.11**2, 0.11**2, 0.31**2)
+#maxReasonablePoseVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
+maxReasonablePoseVar = (0.2**2, 0.2**2, 0.2**2, 0.5**2)
+maxPoseVar = maxReasonablePoseVar
 
 # Don't be grasping at low-probability straws
 minProb = 0.2   # was 0.5
@@ -685,7 +690,6 @@ class GenLookObjPrevVariance(Function):
         vbo = varBeforeObs(lookVar, ve)
         cappedVbo1 = tuple([min(a, b) for (a, b) in zip(cap, vbo)])
         cappedVbo2 = tuple([min(a, b) for (a, b) in zip(vs, vbo)])
-        cappedVbo3 = tuple([min(a, b) for (a, b) in zip(maxPoseVar, vbo)])
         # vbo > ve
         # This is useful if it's between:  vbo > vv > ve
         ve3 = (ve[0], ve[1], ve[3])
@@ -698,8 +702,6 @@ class GenLookObjPrevVariance(Function):
         def sqrts(vv):
             # noinspection PyShadowingNames
             return [sqrt(xx) for xx in vv]
-        # vbo3 has a really big cap
-        #result = [[cappedVbo1], [cappedVbo3]]
         result = [[cappedVbo1]]
         v4 = tuple([v / 4.0 for v in cappedVbo1])
         v9 = tuple([v / 9.0 for v in cappedVbo1])
@@ -843,6 +845,8 @@ def moveSpecialRegress(f, details, abstractionLevel):
     if f.predicate == 'B' and f.args[0].predicate == 'Pose':
         fNew = f.copy()
         newVar = tuple([v - e for (v, e) in zip(f.args[2], odoVar)])
+        print 'Special regression (stdv)', np.sqrt(f.args[2][0]), '->', \
+                                           np.sqrt(newVar[0])
         if any([nv <= 0.0 for nv in newVar]):
             tr('specialRegress',
                'Move special regress failing; cannot regress', f,
@@ -941,6 +945,9 @@ def lookAtCostFun(al, args, details):
         deltaViolProb = probModeMoved(d[0], rva[0], vo[0])
     result = costFun(1.0, canSeeProb*placeProb*(1-deltaViolProb)*\
                      (1 - details.domainProbs.obsTypeErrProb))
+    print 'look cost', deltaViolProb, result
+    if result > 5: 
+        raw_input('okay?')
     return result
 
 # noinspection PyUnusedLocal
