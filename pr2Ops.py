@@ -1129,14 +1129,16 @@ def objectObsUpdate(details, lookConf, obsList):
     heldLeft = details.pbs.getHeld('left')
     heldRight = details.pbs.getHeld('left')
 
-    if debugOn('visibleEx'):
+    dv = False
+    if debug('visibleEx'):
         glob.debugOn.append('visible')
         print '** Predicting visibility in update **'
+        dv = True
     objList = [s for s in obstacles \
                if testVis(shWorld, lookConf, s, rem(obstacles,s)+[rob], 0.5,
                           moveHead=False, fixed=fixed) and \
                   s.name() not in (heldLeft, heldRight)]
-    if debugOn('visibleEx'):
+    if dv:
         glob.debugOn.remove('visible')
 
     if debug('assign'):
