@@ -3,7 +3,7 @@ import planGlobals as glob
 from planGlobals import torsoZ
 from pr2Util import Memoizer, objectGraspFrame
 from planUtil import Violations
-from pr2GenUtils import sortedHyps, baseDist
+from pr2GenUtils import sortedHyps, baseDist, inflatedBS
 from pr2Robot import CartConf, gripperPlace
 from traceFile import tr, debug, debugMsg
 
@@ -25,6 +25,7 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob,
     grasp = graspB.grasp.mode()
 
     pbs = pbs.copy().excludeObjs([graspB.obj])
+    pbs = inflatedBS(pbs, prob)         # ??
 
     # When the grasp is -1 (a push), we need the full grasp spec.
     graspBCacheVal = graspB if grasp == -1 else grasp
