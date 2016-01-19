@@ -1038,8 +1038,6 @@ def cachePPResponse(ppr):
             print 'PPRCache collision'
             pdb.set_trace()
 
-maxLookDist = 1.5
-
 # Preconditions (for R1):
 
 # 1. CanSeeFrom() - make a world from the goalConds and CanSeeFrom (visible) should be true.
@@ -1246,7 +1244,7 @@ def lookGenTop(args, pbs, cpbs):
 
     # Find a lookConf unconstrained by base
     def lookConfHypGen():
-        for conf in  potentialLookConfGen(cpbs_before, prob, shapeForLook, maxLookDist):
+        for conf in  potentialLookConfGen(cpbs_before, prob, shapeForLook, glob.maxLookDist):
             path, viol =  canReachHome(cpbs, conf, prob, noViol)
             if not path:
                 tr(tag,  'Failed to find a path to look conf.')

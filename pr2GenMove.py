@@ -5,6 +5,7 @@ from pr2RRT import planRobotGoalPath
 from pr2GenTests import canReachHome
 from planUtil import Violations
 from pr2Util import Hashable
+from pr2GenUtils import inflatedBS
 from pr2Visible import viewCone, visible
 from shapes import Shape
 from traceFile import debugMsg, debug, tr, trAlways
@@ -376,14 +377,6 @@ def findRetractArmConf(pbs, prob, q1, q2, maxIter = 50):
             pdb.set_trace()
             return None
     return conf
-
-def inflatedBS(pbs, prob):
-    newBS = pbs.copy()
-    for obj in newBS.objectBs:
-        fix, objB = newBS.objectBs[obj]
-        inflatedVar = (0.05**2, 0.05**2, 0.05**2, 0.1**2)
-        newBS.updatePlaceB(objB.modifyPoseD(var=inflatedVar))
-    return newBS
 
 maxRetractAttempts = 10
 def findRetractBaseConf(newBS, prob, conf, maxIter=10):
