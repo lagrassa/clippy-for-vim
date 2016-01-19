@@ -1158,7 +1158,7 @@ def partition(fluents):
                       getMatchingFluents(fluents,
                                  Bd([In([obj, 'R']), True,'P'], True)) + \
                       getMatchingFluents(fluents,
-                            B([Cond([Pose(['Obj', 'Face']), 'OPose', 'OVal']),
+                            B([Cond([Pose([obj, face]), 'OPose', 'OVal']),
                                            'Mu', 'Var', 'Delta', 'P'], True))
                 for (ff, b) in pf:
                     newSet.add(ff)
@@ -1181,7 +1181,7 @@ def partition(fluents):
                      getMatchingFluents(fluents,
                              B([Pose([obj, 'F']), 'M','V','D','P'], True)) + \
                      getMatchingFluents(fluents,
-                            B([Cond([Pose(['Obj', 'Face']), 'OPose', 'OVal']),
+                            B([Cond([Pose([obj, 'F']), 'OPose', 'OVal']),
                                            'Mu', 'Var', 'Delta', 'P'], True))
                 for (ff, b) in pf:
                     newSet.add(ff)
