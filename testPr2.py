@@ -185,18 +185,6 @@ def test1(**args):
              place, move, pick, moveNB, lookAt, moveNB, lookAt, move]]
     return doTest('test1', exp, goal, skel, args)
 
-def test1Obj2(**args):
-    exp = makeExp({'table1' : (table1FarPose, bigVar),
-                   'table2' : (table2FarPose, bigVar)},
-                  {'objA' : (hu.Pose(1.2, 0.8, tZ, 1.8), bigVar),
-                   'objB' : (hu.Pose(1.6, 0.8, tZ, 1.4), bigVar),
-                   'objC' : (hu.Pose(1.8, 0.8, tZ, 1.2), bigVar) },
-                  ['table1Top', 'table1Left',
-                   'table2Top', 'table2Left'], easy=args.get('easy', False))
-    goal = inRegion(['objA', 'objB', 'objC'],
-                    ['table2Top', 'table2Top', 'table2Top'])
-    return doTest('test1Obj2', exp, goal, None, args)
-
 ######################################################################
 # Test 1.5: 2 tables move 1 object: more error on table 1
 ######################################################################
@@ -427,6 +415,41 @@ def changePose(bs, rw, obj, pose):
 def changeBelPose(bs, obj, pose, var=None):
     pB = bs.pbs.getPlaceB(obj)
     bs.pbs.updatePlaceB(pB.modifyPoseD(pose, var=var))
+
+def test11(**args):
+    exp = makeExp({'table1' : (table1FarPose, bigVar),
+                   'table2' : (table2FarPose, bigVar)},
+                  {'objA' : (hu.Pose(1.2, 0.8, tZ, 1.8), bigVar)},
+                  ['table1Top', 'table1Left',
+                   'table2Top', 'table2Left'], easy=args.get('easy', False))
+    goal = inRegion(['objA'],
+                    ['table2Top'])
+    return doTest('test11', exp, goal, None, args)
+
+def test12(**args):
+    exp = makeExp({'table1' : (table1FarPose, bigVar),
+                   'table2' : (table2FarPose, bigVar)},
+                  {'objA' : (hu.Pose(1.2, 0.8, tZ, 1.8), bigVar),
+                   'objC' : (hu.Pose(1.8, 0.8, tZ, 1.2), bigVar) },
+                  ['table1Top', 'table1Left',
+                   'table2Top', 'table2Left'], easy=args.get('easy', False))
+    goal = inRegion(['objA', 'objC'],
+                    ['table2Top', 'table2Top'])
+    return doTest('test12', exp, goal, None, args)
+
+def test13(**args):
+    exp = makeExp({'table1' : (table1FarPose, bigVar),
+                   'table2' : (table2FarPose, bigVar)},
+                  {'objA' : (hu.Pose(1.2, 0.8, tZ, 1.8), bigVar),
+                   'objB' : (hu.Pose(1.6, 0.8, tZ, 1.4), bigVar),
+                   'objC' : (hu.Pose(1.8, 0.8, tZ, 1.2), bigVar) },
+                  ['table1Top', 'table1Left',
+                   'table2Top', 'table2Left'], easy=args.get('easy', False))
+    goal = inRegion(['objA', 'objB', 'objC'],
+                    ['table2Top', 'table2Top', 'table2Top'])
+    return doTest('test13', exp, goal, None, args)
+
+    
 
 ######################################################################
 # Test Swap

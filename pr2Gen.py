@@ -1278,6 +1278,7 @@ def lookGenTop(args, pbs, cpbs):
                      (lookConf, 'W', 'cyan', attached)],
                snap=['W'])
             yield (lookConf,), viol
+    tr(tag, 'Exhausted')
 
 ## lookHandGen
 ## obj, hand, graspFace, grasp, graspVar, graspDelta and gives a conf

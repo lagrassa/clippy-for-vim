@@ -945,9 +945,6 @@ def lookAtCostFun(al, args, details):
         deltaViolProb = probModeMoved(d[0], rva[0], vo[0])
     result = costFun(1.0, canSeeProb*placeProb*(1-deltaViolProb)*\
                      (1 - details.domainProbs.obsTypeErrProb))
-    print 'look cost', deltaViolProb, result
-    if result > 5: 
-        raw_input('okay?')
     return result
 
 # noinspection PyUnusedLocal

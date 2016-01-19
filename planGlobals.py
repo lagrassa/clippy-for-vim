@@ -68,7 +68,7 @@ useMathematica = False
 ignoreShadowZ = True
 useInflation = True
 
-maxLookDist = 3.0
+maxLookDist = 2.0
 
 ########################################
 # Name prefixes for objects that are graspable, pushable, etc.
