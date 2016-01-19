@@ -1137,7 +1137,7 @@ def objectObsUpdate(details, lookConf, obsList):
                   s.name() not in (heldLeft, heldRight)]
     glob.debugOn.remove('visible')
     print 'Predicted visible:', [s.name() for s in objList]
-    raw_input('Update')
+    #raw_input('Update')
 
     if debug('assign'):
         print '*** Observations ***'

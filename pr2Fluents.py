@@ -96,8 +96,8 @@ def inTestRel(bState, obj, regionName, prob):
                                 shadow.prim().vertices()) <= tiny, axis=1)) \
                for r in region.parts()])
     print 'in test rel', obj, regionName, ans
-    region.draw('Belief', color = 'purple')
-    shadow.draw('Belief', color = 'cyan')
+    # region.draw('Belief', color = 'purple')
+    # shadow.draw('Belief', color = 'cyan')
 
     tr('testVerbose', 'In test relative, shadow in orange, region in purple',
        (shadow, region, ans), draw = [(pbs, prob, 'W'),
@@ -418,7 +418,6 @@ def hCost(violations, details):
         vb = details.pbs.getPlaceB(obj).poseD.variance()
         deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
         c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
-        print 'shadow cost', deltaViolProb, c
         o.instanceCost = c + 5   # look + move
     ops = obstOps.union(shadowOps)
 
