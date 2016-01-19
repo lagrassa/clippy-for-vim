@@ -299,7 +299,10 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         return False, []
     trans = render(raster, lookConf, shape)
     total = raster.countId(1)           #  pixels on target if we can look directly
-    if total < minVisibleRasterAreaFrac * rasterArea:
+    minVis = minVisibleRasterAreaFrac * rasterArea
+    if prob:                            # when predicting
+        minVis *= 2
+    if total < minVis:
         if debug('visible'):
             print total, 'hit points for', shape
             debugMsg('visible', 'Not enough hit points')
@@ -313,7 +316,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         if f not in fix: fix.append(f)
     move = [obj for obj in obstacles if obj not in fix]
     occluders = []
-    threshold = 0.5 if prob else 0.45
+    threshold = 0.6 if prob else 0.4
     for i, objShape in enumerate(fix):
         if objectName(shape) == objectName(objShape): continue
         if debug('visible'):
