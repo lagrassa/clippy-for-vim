@@ -311,6 +311,16 @@ class PBS:
                ('    final', sorted(list(finalObjects))))
         return self
 
+    def inWorkspaceConf(self, conf):
+        ((x0,y0,z0),(x1,y1,z0)) = self.getWorld().workspace
+        (x, y, th) = conf.baseConf()
+        return x0 <= x <= x1 and y0 <= y <= y1
+
+    def inWorkspaceConfMargin(self, conf):
+        ((x0,y0,z0),(x1,y1,z0)) = self.getWorld().workspace
+        (x, y, th) = conf.baseConf()
+        return min(x - x0, x1 - x, y - y0, y1 - y)
+
     # Modify world to eliminate collisions and keep support
 
     def ditherRobotOutOfCollision(self, p):

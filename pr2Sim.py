@@ -107,6 +107,8 @@ class RealWorld(WorldState):
                 raw_input('Inconsistency in path and simulation')
         
         for (pathIndex, conf) in enumerate(path):
+            if debug('sim') and prevConf['pr2Head'] != conf['pr2Head']:
+                print 'moving head from', prevConf['pr2Head'], 'to', conf['pr2Head']
             originalConf = conf
             newXYT = conf.baseConf()
             prevBasePose = path[max(0, pathIndex-1)].basePose()
@@ -139,9 +141,9 @@ class RealWorld(WorldState):
                 print '--> modified base conf', conf.baseConf()
             if action:
                 action(prevConf, conf) # do optional action
-                prevConf = conf
             else:
                 self.setRobotConf(conf)
+            prevConf = conf
             pathTraveled.append(conf)
             if debug('animate'):
                 self.draw('World');

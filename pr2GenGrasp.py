@@ -63,9 +63,11 @@ class GraspConfHyp(object):
 def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
                              nMax=10, findApproach = True):
     def validTestFn(hyp):
-        return True
+        return pbs.inWorkspaceConf(hyp.conf)
     def costFn(hyp):
-        return hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf)
+        wkMargin = pbs.inWorkspaceConfMargin(hyp.conf)
+        wkWeight = 5*max(0.1 - wkMargin, 0)
+        return hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf) + wkWeight
     pbsCopy = pbs.copy()                # so it can be modified 
     hypGen = graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                              nMax=nMax, findApproach=findApproach)

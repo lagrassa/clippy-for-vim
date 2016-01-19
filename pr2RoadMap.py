@@ -360,6 +360,9 @@ class RoadMap:
             trAlways('RRT failed')
             print 'endPtViol', endPtViol
             for x in pbs.getShadowWorld(prob).objectShapes.values(): print x
+            print 'targetBase', targetConf.baseConf()
+            print 'initBase', initConf.baseConf()
+            targetConf.draw('W', 'pink'); initConf.draw('W', 'blue')
             raw_input('RRT failed')
 
         if not viol:
