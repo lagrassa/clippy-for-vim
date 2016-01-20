@@ -3,8 +3,8 @@ import random
 import math
 import hu
 from cspace import CI
-from pr2Util import checkCache, shadowName, inside, bboxRandomCoords
-from pr2GenUtils import sortedHyps, baseDist, graspGen
+from pr2Util import checkCache, shadowName, objectName, inside, bboxRandomCoords
+from pr2GenUtils import sortedHyps, baseDist, graspGen, feasiblePBS
 from pr2GenGrasp import potentialGraspConfGen
 import planGlobals as glob
 from traceFile import tr, debug, debugMsg
@@ -66,12 +66,11 @@ class PoseHyp(object):
 def potentialRegionPoseGenAux(pbs, obj, placeBs, graspBGen, prob, regShapes, hand, base,
                               maxPoses = 30, angles = angleList):
     def validTestFn(hyp):
-        return checkValidHyp(hyp, pbsCopy, graspBGen, prob, regShapes, hand, base)
+        return checkValidHyp(hyp, pbs, graspBGen, prob, regShapes, hand, base)
     def costFn(hyp):
-        return scoreValidHyp(hyp, pbsCopy, graspBGen, prob)
+        return scoreValidHyp(hyp, pbs, graspBGen, prob)
     tag = 'potentialRegionPoseGenFinal'
-    pbsCopy = pbs.copy()                # so it can be modified 
-    hypGen = regionPoseHypGen(pbsCopy, prob, placeBs, regShapes,
+    hypGen = regionPoseHypGen(pbs, prob, placeBs, regShapes,
                               maxTries=2*maxPoses, angles=angles)
     for hyp in sortedHyps(hypGen, validTestFn, costFn, maxPoses, 2*maxPoses,
                           size=(1 if glob.inHeuristic else 20)):
@@ -79,7 +78,7 @@ def potentialRegionPoseGenAux(pbs, obj, placeBs, graspBGen, prob, regShapes, han
             pbs.draw(prob, 'W'); hyp.conf.draw('W', 'green')
             debugMsg(tag, 'obj=%s'%obj, 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),
                      'cost=%s'%hyp.cost, 'pose=%s'%hyp.getPose())
-        if not feasiblePBS(hyp, pbs): continue # check PBS
+        if not feasiblePBS(hyp.pB, pbs): continue # check PBS
         pose = hyp.getPose()
         key = (obj, pose)
         entry = poseGraspCache.get(key, None)
@@ -98,10 +97,13 @@ def scoreValidHyp(hyp, pbs, graspBGen, prob):
     obj = hyp.pB.obj
     shWorld = pbs.getShadowWorld(prob)
     placeWeight = 0.
+    placeCollisions = []
     for o in shWorld.getObjectShapes():
         name = o.name()
-        if name in shWorld.fixedObjects or name == obj: continue
+        # Don't place it in the same place it is now, so don't ignore "self collisions"
+        # if name in shWorld.fixedObjects or objectName(name) == objectName(obj): continue
         if o.collides(hyp.shadow):
+            placeCollisions.append(o.name())
             if 'shadow' in name:
                 placeWeight += 0.5
             else:
@@ -113,16 +115,14 @@ def scoreValidHyp(hyp, pbs, graspBGen, prob):
 
     objd = placeBDist(pbs.getPlaceB(hyp.pB.obj), hyp.pB)
     based = baseDist(pbs.getConf(), hyp.conf)
-    if debug('sortedHyps'):
+    if debug('sortedPoseHyps'):
         pbs.draw(prob, 'W')
         pbs.getConf().draw('W', 'blue')
         hyp.conf.draw('W', 'pink')
-        print pbs.getConf().baseConf()
-        print hyp.conf.baseConf()
-        print 'baseDist', based
-        print 'pBdist=', objd
-        raw_input('dist=%f'%(objd+based))
-    # print 'objd=', objd, 'based=', based, 'conf=', confWeight, 'place', placeWeight
+        if confWeight > 0: print 'confViol', hyp.viol
+        if placeWeight > 0: print 'placeCollide', placeCollisions
+        print 'objd=', objd, 'based=', based, 'conf=', confWeight, 'place', placeWeight
+        raw_input('score=%f'%(objd+based+confWeight+placeWeight))
     hyp.cost = objd + based + confWeight + placeWeight
     return hyp.cost
 
@@ -233,13 +233,3 @@ def poseGraspable(hyp, pbs, graspBGen, prob, hand, base):
         else:
             debugMsg(tag, 'candidate failed pose=%s, grasp=%s'%(pB.poseD.mode(), gB.grasp.mode()))
     return False
-
-def feasiblePBS(hyp, pbs):
-    if pbs.conditions:
-        print '*** Testing feasibibility with %d conditions'%(len(pbs.conditions))
-        pbs.updatePlaceB(hyp.pB)
-        feasible = pbs.feasible()   # check conditioned fluents
-        print '*** feasible =>', feasible
-        return feasible
-    else:
-        return True
