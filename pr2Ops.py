@@ -845,8 +845,6 @@ def moveSpecialRegress(f, details, abstractionLevel):
     if f.predicate == 'B' and f.args[0].predicate == 'Pose':
         fNew = f.copy()
         newVar = tuple([v - e for (v, e) in zip(f.args[2], odoVar)])
-        print 'Special regression (stdv)', np.sqrt(f.args[2][0]), '->', \
-                                           np.sqrt(newVar[0])
         if any([nv <= 0.0 for nv in newVar]):
             tr('specialRegress',
                'Move special regress failing; cannot regress', f,
@@ -1995,6 +1993,7 @@ class AchCanPickPlaceGen(Function):
             if not State(goal).isConsistent(newConds, start):
                 print 'AchCanReachNB suggestion inconsistent with goal'
                 for c in newConds: print c
+                raw_input('okay?')
                 debugMsg(tag, 'Inconsistent')
             else:
                 if glob.traceGen:

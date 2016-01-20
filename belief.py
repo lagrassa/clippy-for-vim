@@ -444,7 +444,6 @@ from ffLike import search
 # Add depth bound !?
 
 def hCacheReset():
-    print 'flushed heuristic cache'
     ffLike.visited = {}
     hCacheResetOld()
 fbch.hCacheReset = hCacheReset

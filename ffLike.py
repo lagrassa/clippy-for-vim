@@ -315,10 +315,10 @@ def search(initialState, andSuccessors, orSuccessors, staticEval,
             node.updateBounds()
         if len(visitedThisTime) == maxVisitedNodes:
             writeAOTree(initNode)
-            raw_input('heuristic ran out of nodes')
+            print 'heuristic ran out of nodes'
         if initNode.ub == float('inf'):
             writeAOTree(initNode)
-            raw_input('infinite heuristic')
+            print 'infinite heuristic'
     finally:
         if writeFile: writeAOTree(initNode)
     return initNode
