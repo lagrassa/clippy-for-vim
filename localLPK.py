@@ -24,6 +24,8 @@ monotonicFirst = True
 drawFailedNodes = False
 drawRebindNodes = True
 
+rebindPenalty = 100
+
 useInflation = True
 
 '''
@@ -54,14 +56,11 @@ extraTests (test for rendundancy and contradiction within state fluent set;
 feasibleHeuristicOnly (don't try to find optimal value in heuristic)
 ffl (ff-like heuristic, new implementation)
 fluentCache (be sure the fluent cache is behaving)
-hAddBack   (super verbose)
-hAddBackInf
-hAddBackInfFinal
-hAddBackV  (just values)
 h (really just values)
 helpfulActions
 heuristic (in ucSearch: positive value at goal or 0 value elsewhere)
 heuristicInversion  (prim actually achieves more than abs)
+hv special heuristic values
 infeasible (hierarchical subgoal)
 inHeuristic (turn on debugging inside heuristic in generators)
 inTest
@@ -112,7 +111,7 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags
+debugOn = usualTags + ['hv']
 
 print 'Debugging on', debugOn
 

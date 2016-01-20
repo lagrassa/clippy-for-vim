@@ -1965,7 +1965,6 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         return [RebindOp()]
 
     if skeleton:
-        #monotonic = False
         if g.depth < len(skeleton):
             ops = [skeleton[g.depth]]
             debugMsg('skeleton', g.depth, skeleton[g.depth])
@@ -1990,7 +1989,6 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         
 
     # Now, figure out which pre-bound ops we have
-    # It looks like we're not getting bindings from above?
     preBoundOps = []
     if lastOp and g.depth == 0:
         preBoundOps.append(lastOp)

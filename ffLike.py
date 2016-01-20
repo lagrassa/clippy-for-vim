@@ -295,7 +295,6 @@ def search(initialState, andSuccessors, orSuccessors, staticEval,
 
         while agenda and initNode.boundsNotTight() and \
                                       len(visitedThisTime) < maxVisitedNodes:
-            if len(visited) % 100 == 0: print 'v', len(visited)
             node = getAWinner(initNode, agenda)
             if node is None:
                 writeAOTree(initNode)
@@ -304,9 +303,9 @@ def search(initialState, andSuccessors, orSuccessors, staticEval,
             if node.done():  continue
             tr('ffl', 'Expanding', node.state)
             if node.nodeType == 'or':
-                (c, childStates) = orSuccessors(node.state); print 'o',
+                (c, childStates) = orSuccessors(node.state)
             else:
-                (c, childStates) = andSuccessors(node.state); print 'a',
+                (c, childStates) = andSuccessors(node.state)
                 node.cost = c
             node.children = [n for n in \
                              [findOrMakeNode(s, node) for s in childStates] \
