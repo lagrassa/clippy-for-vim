@@ -497,14 +497,13 @@ def BBhAddBackBSetNew(start, goal, operators, ancestors, maxK = 30,
         if len(g.fluents) == 1:
             hv = list(g.fluents)[0].heuristicVal(start.details)
             if hv:
-                # Mishandles special heuristic slightly because it
-                # only returns a single operator (with the cost smashed).
-                # Kills chances of sharing actions at this level.
                 (cost, ops) = hv  # have a special-purpose heuristic
-                ops = list(ops)
-                pre = State([Dummy([str(op), cost], True) for op in ops])
-                pre.operator = ops
-                return 0, [pre]
+                if cost == float('inf'):
+                    return 0, [State([Dummy(['Infinite special H', float('inf')], True)])]
+                else:
+                    pre = State([Dummy([str(op), cost], True) for op in ops])
+                    pre.operator = list(ops)
+                    return 0, [pre]
 
         # Applicable ops -> regress -> list of pre-images (plus cost
         # stored inside)

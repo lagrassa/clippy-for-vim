@@ -911,7 +911,8 @@ def dropIn(pbs, prob, obj, regShapes):
                 rshape.draw('W', 'black')
                 print 'dropIn', rshape, 'in', regShapes
                 if canPickPlaceTest(pbs, ppr.ca, ppr.c, ppr.hand, ppr.gB, ppr.pB, prob,
-                            op='place')[0]:
+                            op='place')[0] and \
+                   feasiblePBS(ppr.pB, pbs):
                     return ppr
 
 def drop(pbs, prob, obj, hand, placeB):
@@ -927,7 +928,8 @@ def drop(pbs, prob, obj, hand, placeB):
         cxt = placeB.poseD.mode().xyztTuple()
         if max([abs(a-b) for (a,b) in zip(xt,cxt)]) < 0.001:
             if canPickPlaceTest(pbs, ppr.ca, ppr.c, ppr.hand, ppr.gB, ppr.pB, prob,
-                            op='place')[0]:
+                            op='place')[0] and \
+               feasiblePBS(ppr.pB, pbs):
                 return ppr
 
 def placeInGenAway(args, pbs, onlyPose=False):

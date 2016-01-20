@@ -43,6 +43,7 @@ debugOnly = ['h', 'assign']  # don't pause
 
 debugOn = usualTags + ['visibleEx', 'visible_raster']
 
+# + ['potentialRegionPoseGenFinal', 'sortedPoseHyps']
 # + ['poseGraspable', 'sortedHyps', 'potentialRegionPoseGen'. 'visible', 'visibleEx']
 # + ['lookGen', 'pickGen', 'placeGen', 'placeInGen', 'getReachObsts', 'CanReachHome']
 # + ['debugInHeuristic', 'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'visible', 'CanSeeFrom', 'canView']
