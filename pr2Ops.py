@@ -688,7 +688,7 @@ class GenLookObjPrevVariance(Function):
         # the cap, whichever is bigger
         cap = [max(a, b) for (a, b) in zip(maxReasonablePoseVar, vs)]
         vbo = list(varBeforeObs(lookVar, ve))
-        vbo[2] = ve[2]; vbo = tuple(vbo)  # don't regress z var
+        vbo[2] = 1e-8; vbo = tuple(vbo)  # don't regress z var
         cappedVbo1 = tuple([min(a, b) for (a, b) in zip(cap, vbo)])
         cappedVbo2 = tuple([min(a, b) for (a, b) in zip(vs, vbo)])
         # vbo > ve
