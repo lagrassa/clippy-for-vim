@@ -1992,7 +1992,7 @@ class AchCanPickPlaceGen(Function):
               achCanXGen(start.pbs, goal, cond, addedConditions,
                          violFn, prob, tag):
             if not State(goal).isConsistent(newConds, start):
-                print 'AchCanReachNB suggestion inconsistent with goal'
+                print 'AchCanPickPlace suggestion inconsistent with goal'
                 for c in newConds: print c
                 raw_input('okay?')
                 debugMsg(tag, 'Inconsistent')
@@ -2030,7 +2030,7 @@ class AchCanPushGen(Function):
                achCanXGen(start.pbs, goal, cond, [cpFluent, poseFluent],
                                       violFn, prob, tag):
             if not State(goal).isConsistent(newConds):
-                print 'AchCanReachNB suggestion inconsistent with goal'
+                print 'AchCanPushGen suggestion inconsistent with goal'
                 for c in newConds: print c
                 debugMsg(tag, 'Inconsistent')
             else:
@@ -2056,7 +2056,7 @@ class AchCanSeeGen(Function):
                achCanXGen(start.pbs, goal, cond, [csFluent],
                                       violFn, prob, tag):
             if not State(goal).isConsistent(newConds):
-                print 'AchCanReachNB suggestion inconsistent with goal'
+                print 'AchCanSeeFrom suggestion inconsistent with goal'
                 for c in newConds: print c
                 debugMsg(tag, 'Inconsistent')
             else:

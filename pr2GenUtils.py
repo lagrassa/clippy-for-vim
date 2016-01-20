@@ -84,7 +84,9 @@ def inflatedBS(pbs, prob, sd=0.05):
 
 def collisionMargin(pbs, prob, conf):
     shWorld = pbs.getShadowWorld(prob)
-    placePrims = conf.placement().toPrims()
+    placeParts = [x for x in conf.placement().parts() if 'Gripper' not in x.name()]
+    placePrims = []
+    for p in placeParts: placePrims.extend(p.toPrims())
     minDist = float('inf')
     minPair = None
     dists = []
@@ -92,19 +94,25 @@ def collisionMargin(pbs, prob, conf):
         for sp in shape.toPrims():
             for pp in placePrims:
                 dist = gjkDist(sp, pp)**0.5
-                dists.append(dist)
-                if dist < minDist:
-                    minDist = dist
-                    minPair = (pp, sp)
-    # print 'minDist', minDist, 'minPair', [x.name() for x in minPair]
-    # pbs.draw(prob, 'W'); minPair[0].draw('W'); minPair[1].draw('W')
-    # raw_input('Ok?')
-    minDists = sorted(dists)[:3]
+                dists.append((dist, (pp, sp)))
+    minDists = sorted(dists)[:5]
+
+    if debug('collisionWeight'):
+        colors = ['red', 'green', 'blue', 'magenta', 'cyan']
+        pbs.draw(prob, 'W'); conf.draw('W')
+        for ((d, (pp, sp)), color) in zip(minDists, colors):
+            print 'minDist', d, 'minPair', (pp.name(), sp.name())
+            pp.draw('W', color); sp.draw('W', color)
+            raw_input('Ok?')
+    
+    minDists = [x[0] for x in minDists]
     return sum(minDists)/len(minDists)
 
 def feasiblePBS(pB, pbs):
     if pbs.conditions:
         print '*** Testing feasibibility with %d conditions'%(len(pbs.conditions))
+        for c in pbs.conditions:
+            print c
         pbsCopy = pbs.copy()
         pbsCopy.updatePlaceB(pB)
         feasible = pbsCopy.feasible()   # check conditioned fluents

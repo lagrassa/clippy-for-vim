@@ -110,8 +110,8 @@ def scoreValidHyp(hyp, pbs, graspBGen, prob):
                 placeWeight += 1.0
     confWeight = hyp.viol.weight()
 
-    placeWeight *= 2
-    confWeight *= 2
+    placeWeight *= 5
+    confWeight *= 5
 
     objd = placeBDist(pbs.getPlaceB(hyp.pB.obj), hyp.pB)
     based = baseDist(pbs.getConf(), hyp.conf)

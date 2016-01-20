@@ -41,7 +41,7 @@ debugOnly = ['h', 'assign']  # don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['visibleEx', 'visible_raster']
+debugOn = usualTags + ['visibleEx', 'visible_raster'] + ['potentialRegionPoseGenFinal']
 
 # + ['potentialRegionPoseGenFinal', 'sortedPoseHyps']
 # + ['poseGraspable', 'sortedHyps', 'potentialRegionPoseGen'. 'visible', 'visibleEx']
