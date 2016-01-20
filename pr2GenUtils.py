@@ -87,17 +87,20 @@ def collisionMargin(pbs, prob, conf):
     placePrims = conf.placement().toPrims()
     minDist = float('inf')
     minPair = None
+    dists = []
     for shape in shWorld.getNonShadowShapes():
         for sp in shape.toPrims():
             for pp in placePrims:
-                dist = gjkDist(sp, pp)
+                dist = gjkDist(sp, pp)**0.5
+                dists.append(dist)
                 if dist < minDist:
                     minDist = dist
                     minPair = (pp, sp)
-    print 'minDist', minDist, 'minPair', [x.name() for x in minPair]
-    pbs.draw(prob, 'W'); minPair[0].draw('W'); minPair[1].draw('W')
-    raw_input('Ok?')
-    return minDist**0.5
+    # print 'minDist', minDist, 'minPair', [x.name() for x in minPair]
+    # pbs.draw(prob, 'W'); minPair[0].draw('W'); minPair[1].draw('W')
+    # raw_input('Ok?')
+    minDists = sorted(dists)[:3]
+    return sum(minDists)/len(minDists)
 
 def feasiblePBS(pB, pbs):
     if pbs.conditions:

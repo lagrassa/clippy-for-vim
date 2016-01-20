@@ -67,10 +67,10 @@ def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
     def costFn(hyp):
         wkMargin = pbs.inWorkspaceConfMargin(hyp.conf)
         wkWeight = 5*max(0.1 - wkMargin, 0)
-        # print 'wkMargin', wkMargin, 'wkWeight', wkWeight
-        print hyp.viol
-        print 'collisionDist=', collisionMargin(pbs, prob, hyp.conf)
-        return hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf) + wkWeight
+        collMargin = collisionMargin(pbs, prob, hyp.conf)
+        collWeight = 5*max(0.1 - collMargin, 0)
+        print 'collMargin', collMargin, 'collWeight', collWeight
+        return hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf) + wkWeight + collWeight
     pbsCopy = pbs.copy()                # so it can be modified 
     hypGen = graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                              nMax=nMax, findApproach=findApproach)
