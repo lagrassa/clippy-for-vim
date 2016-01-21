@@ -1990,7 +1990,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
 
     # Now, figure out which pre-bound ops we have
     preBoundOps = []
-    if lastOp and g.depth == 0:
+    if lastOp and g.depth == 0 and not debug('ignoreUpperOp'):
         preBoundOps.append(lastOp)
 
     if skeleton is None and hOps:
@@ -2026,7 +2026,10 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         raw_input('okay?')
 
     # These are the preBoundOps that we are actually going to recommend
-    preBoundNames = set([o.name for o in result])
+    if debug('ignoreUpperOp') and lastOp and g.depth == 0:
+        preBoundNames = {lastOp.name}
+    else:
+        preBoundNames = set([o.name for o in result])
 
     # Add possibly useful ops.  If we have a prebound version, then
     # delay binding.  Should we delay binding on *all* other ops if we
@@ -2059,6 +2062,11 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         debugMsg('appOp:number', ('h', glob.inHeuristic, 'number', len(result)))
     debugMsg(tag, ('h', glob.inHeuristic, 'number', len(result)),
              ('result', result))
+
+    if debug('applicableOpsLog'):
+        print 'App op!'
+        for thing in result:
+            print thing
     return result
 
 def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):

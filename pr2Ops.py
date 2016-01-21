@@ -921,6 +921,8 @@ def pickCostFun(al, args, details):
     (o,h,pf,p,pd,gf,gm,gv,gd,prc,cd,pc,rgv,pv,p1,pr1,pr2,pr3) = args
     rawCost = 3
     abstractCost = 10
+    if isVar(p1):
+        p1 = 0.9
     result = costFun(rawCost, p1*canPPProb*canPPProb*\
                      (1 - details.domainProbs.pickFailProb)) + \
                (abstractCost if al == 0 else 0)
@@ -1746,8 +1748,8 @@ pick = Operator(
          'PreConf', 'ConfDelta', 'PickConf', 'RealGraspVar', 'PoseVar',
          'P1', 'PR1', 'PR2', 'PR3'],
         # Pre
-        {0 : {Graspable(['Obj'], True),
-              BLoc(['Obj', planVar, 'P1'], True)},    # was planP
+        {0 : {Graspable(['Obj'], True)},
+             # BLoc(['Obj', planVar, 'P1'], True)},    # was planP
          1 : {Bd([SupportFace(['Obj']), 'PoseFace', 'P1'], True),
               B([Pose(['Obj', 'PoseFace']), 'Pose', planVar, 'PoseDelta',
                  'P1'], True),
