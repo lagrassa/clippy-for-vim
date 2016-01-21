@@ -74,7 +74,7 @@ def holding(obj, hand='left', graspType=2, goalProb=0.7,
                      (0,-0.025,0,0), targetSmallVar, targetDelta,
                      goalProb], True)])
 
-def placed(obj, pose, hand='left', goalProb=0.95,
+def placed(obj, pose, goalProb=0.95,
            targetVar=targetSmallVar, targetDelta=(0.01, 0.01, 0.01, 0.05)) :
     return State([Bd([SupportFace([obj]), 4, goalProb], True),
                   B([Pose([obj, 4]),
@@ -335,7 +335,7 @@ def test6(**args):
 
 def test7(**args):
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    goal = placed('objA', front, 'left')
+    goal = placed('objA', front)
     testWithBInHand('test7', goal, args = args)
 
 ######################################################################
@@ -810,7 +810,7 @@ def testPush(name, objName, startPose, targetReg, **args):
     targetPose = args.get('targetPose', None)
     hand = args.get('hand', 'right')
     if targetPose:
-        goal = placed(objName, targetPose, hand)
+        goal = placed(objName, targetPose)
     else:
         goal = inRegion(objName, targetReg)
     skel = args.get('skeleton', None)

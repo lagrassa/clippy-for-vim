@@ -35,7 +35,7 @@ if useROS:
     useVertical = True
     useHorizontal = True
 
-useMPL = False                           # Amruth
+useMPL = True                           # Amruth
 
 workspace = ((-1.0, -2.5, 0.0), (3.0, 2.5, 2.0))
 ((wx0, wy0, _), (wx1, wy1, wdz)) = workspace

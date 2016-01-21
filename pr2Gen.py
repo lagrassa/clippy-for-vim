@@ -405,6 +405,10 @@ def placeGenGen(args, pbs, cpbs):
     if fixed(cpbs.conf):
         tr(tag, '=> conf fixed in goal, failing')
         return
+
+    # Make sure we exclude obj
+    cpbs = cpbs.copy().excludeObjs([obj])
+
     base = cpbs.getBase()
     tr(tag, 'obj=%s, base=%s'%(obj, base))
     world = cpbs.getWorld()
@@ -463,23 +467,21 @@ def placeGenTop(args, pbs, cpbs, regrasp=False, onlyPose=False):
         return
     conf = None
     confAppr = None
-    # Make sure we exclude obj
-    newBS = cpbs.copy().excludeObjs([obj])
-    tr(tag, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
+    tr(tag, 'Goal conditions', draw=[(cpbs, prob, 'W')], snap=['W'])
 
     if isinstance(placeBs, frozenset):
         for pB in placeBs:
-            ans = drop(newBS, prob, obj, hand, pB)
+            ans = drop(cpbs, prob, obj, hand, pB)
             if ans:
-                shWorld = newBS.getShadowWorld(prob)
+                shWorld = cpbs.getShadowWorld(prob)
                 tr(tag, 'Cached place ->' + str(ans), 'viol=%s'%ans.viol,
-                   draw=[(newBS, prob, 'W'),
+                   draw=[(cpbs, prob, 'W'),
                          (ans.pB.shape(shWorld), 'W', 'magenta'),
                          (ans.c, 'W', 'magenta', shWorld.attached)],
                    snap=['W'])
                 yield ans
 
-    key = (newBS,
+    key = (cpbs,
            (obj, graspB, placeBs, hand, tuple(base) if base else None, prob),
            regrasp, onlyPose)
     val = placeGenCache.get(key, None)
@@ -497,7 +499,7 @@ def placeGenTop(args, pbs, cpbs, regrasp=False, onlyPose=False):
         else:
             placeBG = placeBs
         memo = Memoizer(tag,
-                        placeGenAux(pbs, newBS, obj, confAppr, conf, placeBG.copy(),
+                        placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBG.copy(),
                                     graspB, hand, base, prob,
                                     regrasp=regrasp, onlyPose=onlyPose))
         placeGenCache[key] = memo
@@ -587,7 +589,10 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
     def placeApproachConfGen(grasps):
         # Keep generating and if you run out, start again...
         for pB in itertools.chain(placeBs, placeBs.copy()):
-            for gB in sortGraspsForPB(grasps, pB):
+            sgr = sortGraspsForPB(grasps, pB)
+            print 'pB', pB
+            print '    sorted grasps', [gB.grasp.mode() for gB in sgr]
+            for gB in sgr:
                 tr(tag, 
                    'considering grasps for ', pB.poseD.mode(), '\n',
                    '  for grasp class', gB.grasp,   '\n',
@@ -809,7 +814,6 @@ def placeInRegionGenGen(args, pbs, cpbs, away = False, onlyPose = False):
     if not graspable(obj):
         tr(tag, obj, 'not graspable')
         return
-
     # Get the regions
     regions = getRegions(region)
     shWorld = cpbs.getShadowWorld(prob)
