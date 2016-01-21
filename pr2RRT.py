@@ -435,10 +435,13 @@ class MCRHelper():
     # return back list of obstacles that are in collision when robot is at configuration q
     def collisionsAtQ(self, q):
         conf = confFromTuple(q, self.moveChains, self.conf)
-        return confCollisions(conf, self.pbs, self.prob, self.allowedViol)
+        collisions =  confCollisions(conf, self.pbs, self.prob, self.allowedViol)
+        return collisions
 
     # return a configuration represented as a list, can use the passed goal to do goal biasing in random sampling
     def sampleConfig(self, goal):
+        if random() < 0.1:
+            return goal
         return tupleFromConf(self.pbs.getRobot().randomConf(self.moveChains),
                              self.moveChains)
 
@@ -449,19 +452,30 @@ class MCRHelper():
         for c in interpolate(confTo, confFrom):
             yield tupleFromConf(c, self.moveChains)
 
-    # get configuration through linear scaling of vector `qFrom + scaleFactor * (qTo - qFrom)`
-    def getBetweenConfigurationWithFactor(self, qFrom, qTo, scaleFactor):
+    def stepTowards(self, qFrom, qTo, stepSize = None, maxSteps = 10):
+        if stepSize is None:
+            stepSize = self.stepSize
         confFrom = confFromTuple(qFrom, self.moveChains, self.conf)
         confTo = confFromTuple(qTo, self.moveChains, self.conf)
-        return tupleFromConf(self.conf.robot.stepAlongLine(confTo, confFrom,
-                                                           scaleFactor, moveChains=self.moveChains),
-                             self.moveChains)
+        steppingConf = confFrom
+        for stepNum in range(maxSteps):
+            steppingConf = self.conf.robot.stepAlongLine(confTo, steppingConf,
+                                                           stepSize, moveChains=self.moveChains)
+            if steppingConf == confTo:
+                break
+        return tupleFromConf(steppingConf, self.moveChains)
+        # return tupleFromConf(self.conf.robot.stepAlongLine(confTo, confFrom,
+        #                                                    stepSize, moveChains=self.moveChains),
+        #                      self.moveChains)
 
     # scalar representation of the distance between these configurations
     def distance(self, q1, q2):
         conf1 = confFromTuple(q1, self.moveChains, self.conf)
         conf2 = confFromTuple(q2, self.moveChains, self.conf)
         return self.conf.robot.distConf(conf1, conf2)
+
+    def getStepSize(self):
+        return self.stepSize
 
     # need a way to get the weight of an obstacle (right now its obstacle.getWeight())
 
@@ -473,8 +487,19 @@ def runMPL(pbs, prob, initConf, destConf, allowedViol, moveChains):
     dest = tupleFromConf(destConf, moveChains)
     if len(init) == 0 or len(dest) == 0:
         return [initConf, destConf]
-    path, cover = runAlgorithm(init, dest, helper, algorithms.index('birrt'))
-    return [confFromTuple(c, moveChains, initConf) for c in path]
+    # algorithmToUse = 'birrt'
+    algorithmToUse = 'collision based rrt'
+    path, cover = runAlgorithm(init, dest, helper, algorithms.index(algorithmToUse))
+    if len(path) == 0:
+        # print 'no path found'
+        return []
+    # print 'non empty path' + '!'*40
+    print 'cover', cover
+    pathToReturn = [confFromTuple(c, moveChains, initConf) for c in path]
+    if not (pathToReturn[0].nearEqual(initConf) and pathToReturn[-1].nearEqual(destConf)):
+        pdb.set_trace()
+    return [initConf] + pathToReturn[1:-1] + [destConf]
+    # return pathToReturn
 
 def tupleFromConf(conf, moveChains):
     values = []
@@ -498,10 +523,10 @@ def confCollisions(conf, pbs, prob, allowedViol):
            and all(viol.heldObstacles[h] <= allowedViol.heldObstacles[h] for h in (0,1)) \
            and all(viol.heldShadows[h] <= allowedViol.heldShadows[h] for h in (0,1))
 
-    print 'allowed', allowedViol
-    print viol
-    pbs.draw(prob, 'W'); conf.placement().draw('W')
-    raw_input('Next?')
+    # print 'allowed', allowedViol
+    # print viol
+    # pbs.draw(prob, 'W'); conf.placement().draw('W')
+    # raw_input('Next?')
 
     if ans:
         # No unallowed violations
@@ -521,7 +546,15 @@ def confCollisions(conf, pbs, prob, allowedViol):
             if not o in allowedViol.heldShadows[h]: collisions.append(o.name())
 
     pbs.draw(prob, 'W'); conf.placement().draw('W')
-    print 'collisions', collisions
-    raw_input('Next?')
-    
-    return collisions
+    # print 'collisions', collisions
+    # raw_input('Next?')
+    permanent = pbs.getShadowWorld(prob).fixedObjects
+    return [c for c in collisions if c not in permanent]
+    # return collisions
+
+def writePath(path):
+    f = open('path.txt', 'w')
+    for c in path:
+        f.write(str(c.conf))
+        f.write("\n")
+    f.close()

@@ -12,7 +12,7 @@ from objects import World, WorldState
 from traceFile import debugMsg, debug
 import planGlobals as glob
 from pr2Fluents import Holding, GraspFace, Grasp, Conf, Pose, \
-     BaseConf, CanReachNB
+     BaseConf, CanReachNB, In
 from planUtil import ObjGraspB, ObjPlaceB
 from pr2Util import shadowName, shadowWidths, objectName, supportFaceIndex, \
      PoseD, inside, permanent, pushable, graspable
@@ -303,6 +303,11 @@ class PBS:
         # The shadows of Pose(obj) in the cond are also permanent
         if permShadows:
             self.updateAvoidShadow(goalPoseBels.keys())
+        # TODO: This is too strong!!
+        # Any object that is constrained, say by In(o, R)
+        for obj in getConstrainedObjs(goalConds):
+            if obj in self.objectBs:
+                self.objectBs[obj] = (True, self.objectBs[obj][1])
         self.reset()
         finalObjects = self.objectsInPBS()
         if initialObjects != finalObjects:
@@ -888,6 +893,17 @@ def getGoalPoseBels(goalConds, getFaceFrames):
                                      b['Var'], b['Delta'])) \
                  for (f, b) in fbs + fbs2 if \
                       (isGround(b.values()) and not ('*' in b.values()))])
+    return ans
+
+# Returns dictionary of obj poses, extracted from goalConds.
+def getConstrainedObjs(goalConds):
+    if not goalConds: return []
+    fbs = getMatchingFluents(goalConds,
+                             Bd([In(['Obj', 'Region']), True, 'P'], True))
+    
+    ans = [b['Obj']
+           for (f, b) in fbs if \
+           (isGround(b.values()) and not ('*' in b.values()))]
     return ans
 
 # Return None if there is no Conf requirement; otherwise return conf
