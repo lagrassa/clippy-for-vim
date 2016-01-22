@@ -612,23 +612,12 @@ def pushInGenTop(args, pbs, cpbs, away = False):
 # regShapes is a list of (one) target region
 def pushInGenAux(pbs, cpbs, prob, placeB, regShapes, hand,
                  away=False):
-    def feasiblePBS(pB):
-        if pbs.conditions:
-            newBS = pbs.copy()
-            newBS.updatePlaceB(pB)
-            return newBS.feasible()           # check conditioned fluents
-        else:
-            return True
     tag = 'pushInGen'
     shWorld = cpbs.getShadowWorld(prob)
     # Get a pose in one of the regions.  If away=True, has to be one
     # push away.
     for pB in regionTargetPB(cpbs, prob, placeB, regShapes, hand, away=away):
-        if feasiblePBS(pB):
-            tr(tag, 'target is feasible:', pB)
-        else:
-            tr(tag, 'target is not feasible:', pB)
-            continue
+        # The target has already been checked for feasibility...
         tr(tag, 'target', pB,
            draw=[(cpbs, prob, 'W'),
                  (pB.makeShadow(pbs, prob), 'W', 'pink')] \

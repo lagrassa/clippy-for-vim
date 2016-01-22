@@ -228,6 +228,14 @@ class PBS:
         else:
             assert None, 'Unknown obj in updatePlaceB'
         self.reset()
+    def updatePermObjBel(self, objPlace):
+        obj = objPlace.obj
+        for hand in ('left', 'right'):
+            if self.getHeld(hand) == obj:
+                self.updateHeldBel(None, hand)
+        self.objectBs[obj] = (True, objPlace) # make it permanent
+        self.reset()
+        return self
     def reset(self):
         self.shadowWorld = None
         self.shadowProb = None
@@ -256,14 +264,6 @@ class PBS:
         # The shadowWorld conf
         if self.shadowWorld:
             self.shadowWorld.setRobotConf(c, fixed=fixedConf)
-        return self
-    def updatePermObjBel(self, objPlace):
-        obj = objPlace.obj
-        for hand in ('left', 'right'):
-            if self.getHeld(hand) == obj:
-                self.updateHeldBel(None, hand)
-        self.objectBs[obj] = (True, objPlace) # make it permanent
-        self.reset()
         return self
     def excludeObjs(self, objs):
         for obj in objs:

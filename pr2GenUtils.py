@@ -108,15 +108,16 @@ def collisionMargin(pbs, prob, conf):
     minDists = [x[0] for x in minDists]
     return sum(minDists)/len(minDists)
 
-def feasiblePBS(pB, pbs):
+def feasiblePBS(pB, pbs, pause=False):
     if pbs.conditions:
         print '*** Testing feasibibility with %d conditions'%(len(pbs.conditions))
         for c in pbs.conditions:
             print c
         pbsCopy = pbs.copy()
-        pbsCopy.updatePlaceB(pB)
+        pbsCopy.updatePermObjBel(pB)
         feasible = pbsCopy.feasible()   # check conditioned fluents
         print '*** feasible =>', feasible
+        if not glob.inHeuristic and pause: pdb.set_trace()
         return feasible
     else:
         return True

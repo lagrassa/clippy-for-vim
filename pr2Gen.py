@@ -590,8 +590,7 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
         # Keep generating and if you run out, start again...
         for pB in itertools.chain(placeBs, placeBs.copy()):
             sgr = sortGraspsForPB(grasps, pB)
-            print 'pB', pB
-            print '    sorted grasps', [gB.grasp.mode() for gB in sgr]
+            tr(tag, 'pB', pB, 'sorted grasps', [gB.grasp.mode() for gB in sgr])
             for gB in sgr:
                 tr(tag, 
                    'considering grasps for ', pB.poseD.mode(), '\n',
@@ -916,7 +915,9 @@ def dropIn(pbs, prob, obj, regShapes):
                 print 'dropIn', rshape, 'in', regShapes
                 if canPickPlaceTest(pbs, ppr.ca, ppr.c, ppr.hand, ppr.gB, ppr.pB, prob,
                             op='place')[0] and \
-                   feasiblePBS(ppr.pB, pbs):
+                   feasiblePBS(ppr.pB, pbs, pause=True):
+                    print 'Feasible dropin'
+                    if not glob.inHeuristic: pdb.set_trace()
                     return ppr
 
 def drop(pbs, prob, obj, hand, placeB):
