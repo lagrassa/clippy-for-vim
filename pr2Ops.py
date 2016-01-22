@@ -1147,7 +1147,7 @@ def objectObsUpdate(details, lookConf, obsList, targetObj):
                if testVis(shWorld, lookConf, s, rem(obstacles,s)+[rob], 0.5,
                           moveHead=False, fixed=fixed) and \
                   s.name() not in (heldLeft, heldRight)]
-    if not targetObj in objList:
+    if not targetObj in [x.name() for x in objList]:
         raw_input('Tried to look at ' + targetObj + \
                   ', but failed to predict it would be observable')
         actualTarget = [thing for thing in obstacles if thing.name == targetObj]
