@@ -1348,7 +1348,8 @@ def searchObjPushPath(pbs, prob, potentialPushes, targetPB, curPB,
                            goalKey = lambda x: x.pt if x else x,
                            printFinal = debug('pushGen'),
                            verbose = debug('pushGen'),
-                           fail = False)
+                           maxExpanded = 200,
+                           fail = True) # for debugging...
     for (path, costs) in gen:
         if debug('pushGen'):
             print '...yielding path='

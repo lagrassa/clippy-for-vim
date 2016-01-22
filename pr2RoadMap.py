@@ -871,6 +871,7 @@ class RoadMap:
                     pdb.set_trace()
             return ansCC
         else:
+            assert not selectedChains, 'Does not handle selectedChains'
             placement = conf.placement(attached=attached)
             return placement.collides(obj)
 

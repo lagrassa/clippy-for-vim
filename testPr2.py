@@ -997,6 +997,8 @@ def prof(test, n=100):
     from pr2Visible import cacheStats
     print 'h tries, h hits, h easy, real tries, real hits, real easy'
     print 'visible cacheStats',  cacheStats
+    from pr2GenTests import canViewStats
+    print 'canViewStats', canViewStats
 
 def profPrint(n=100):
     import pstats

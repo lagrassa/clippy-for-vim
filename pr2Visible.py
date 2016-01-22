@@ -275,8 +275,15 @@ def render(raster, lookConf, shape):
         raster.update(objPrim, 1)
     return trans
 
+nCalls = 0
+nWins = 0
+notEnoughPoints = 0
+belowThresh = 0
+
 # prob == 0. when doing simulation
 def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
+    global nCalls, nWins, notEnoughPoints, belowThresh
+    nCalls +=1 
     if debug('visible'):
         print 'visible', shape.name(), 'from base=', conf.baseConf(), 'head=', conf[conf.robot.headChainName]
         print 'obstacles', obstacles
@@ -307,6 +314,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
             print total, 'hit points for', shape
             debugMsg('visible', 'Not enough hit points')
         cache[key] = (False, [])
+        notEnoughPoints += 1
         return False, []
     if not moveHead:
         lookConf = conf
@@ -334,6 +342,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     ratio = float(final)/float(total)
     if ratio < threshold:
         if debug('visible'): print 'visible ->', (False, [])
+        belowThresh += 1
         return False, []            # No hope
     # find a list of movable occluders that could be removed to
     # achieve visibility
@@ -372,5 +381,6 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     if debug('visible_raster'): raster.draw('Raster')
 
     cache[key] = ans
+    nWins += 1
     return ans
 

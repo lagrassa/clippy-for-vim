@@ -337,7 +337,7 @@ def searchGen(initialState, goalStates, actions, successor,
                               greedy * hValue, count, newN))
 
     if somewhatVerbose or verbose or count >= maxNodes or countExpanded >= maxExpanded:
-        print "Search failed after visiting ", count, " states."
+        print "searchGen failed: visited ", count, "and expanded", countExpanded
         if fail: pdb.set_trace()
 
     yield None, None

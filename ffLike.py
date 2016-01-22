@@ -127,7 +127,6 @@ class AndNode(AONode):
                 self.lbActs = squashSets(childLBActionSets)
                 self.lbActs.add(self)
                 self.lb = sum([a.cost for a in self.lbActs])
-                assert self.lb < float('inf')
             else:
                 self.lbActs = None
                 self.lb = float('inf')

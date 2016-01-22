@@ -915,7 +915,7 @@ def dropIn(pbs, prob, obj, regShapes):
                 print 'dropIn', rshape, 'in', regShapes
                 if canPickPlaceTest(pbs, ppr.ca, ppr.c, ppr.hand, ppr.gB, ppr.pB, prob,
                             op='place')[0] and \
-                   feasiblePBS(ppr.pB, pbs, pause=True):
+                   feasiblePBS(ppr.pB, pbs):
                     print 'Feasible dropin'
                     if not glob.inHeuristic: pdb.set_trace()
                     return ppr

@@ -498,11 +498,11 @@ def BBhAddBackBSetNew(start, goal, operators, ancestors, maxK = 30,
             if hv:
                 (cost, ops) = hv  # have a special-purpose heuristic
                 if cost == float('inf'):
-                    return 0, [State([Dummy(['Infinite special H', float('inf')], True)])]
+                    pre = State([Dummy(['Infinite special H', float('inf')], True)])
                 else:
                     pre = State([Dummy([str(op), cost], True) for op in ops])
-                    pre.operator = list(ops)
-                    return 0, [pre]
+                pre.operator = list(ops)
+                return 0, [pre]
 
         # Applicable ops -> regress -> list of pre-images (plus cost
         # stored inside)
