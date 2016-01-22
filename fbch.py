@@ -1634,12 +1634,12 @@ class PlanStack(Stack):
                                  not op:
                             # top-level goal hasn't changed but this
                             # layer doesn't know what to do
+                            lastExecutedAtLayerI =layers[i].lastStepExecuted
                             if debug('executionSurprise'):
                                 print 'Goal at layer', i-1, 'remains:'
                                 for fl in upperSubgoal.fluents:
                                     print '    ', str(fl)[0:78]
                                 print 'But we have exited envelope of layer', i
-                                lastExecutedAtLayerI =layers[i].lastStepExecuted
                                 for j in range(len(layers[i].steps)):
                                     if j == lastExecutedAtLayerI:
                                         print '===> Last step executed' 

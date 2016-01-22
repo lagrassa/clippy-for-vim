@@ -1150,7 +1150,8 @@ def objectObsUpdate(details, lookConf, obsList, targetObj):
     if not targetObj in [x.name() for x in objList]:
         raw_input('Tried to look at ' + targetObj + \
                   ', but failed to predict it would be observable')
-        actualTarget = [thing for thing in obstacles if thing.name == targetObj]
+        actualTarget = [thing for thing in obstacles \
+                                          if thing.name() == targetObj]
         objList.append(actualTarget[0])
                   
     if dv:
