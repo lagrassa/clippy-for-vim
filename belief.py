@@ -423,8 +423,8 @@ class BMetaOperator(Operator):
                AddPreConds(['PreCond'],['PostCond', 'NewCond'], True)],
             argsToPrint = range(len(args)) if argsToPrint == None else \
                            argsToPrint,
-            ignorableArgs = range(len(args), len(args) + 4),
-            ignorableArgsForHeuristic = range(len(args), len(args) + 4),
+            ignorableArgs = range(len(args)+3, len(args) + 4),
+            ignorableArgsForHeuristic = range(len(args)+3, len(args) + 4),
             conditionOnPreconds = True,
             metaOperator = True)
 

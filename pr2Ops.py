@@ -899,6 +899,10 @@ def placeCostFun(al, args, details):
     abstractCost = 20
     (_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,p1) = args
     if isVar(p1): p1 = 0.9
+
+    # Don't penalize if target is low prob
+    p1 = 1
+    
     result = costFun(rawCost,
                      p1*canPPProb*(1-details.domainProbs.placeFailProb)) + \
                (abstractCost if al == 0 else 0)
@@ -910,6 +914,8 @@ def pushCostFun(al, args, details):
     # should always be like this.
     rawCost = 75
     abstractCost = 100
+    # Don't penalize if target is low prob
+    p = 1
     (_, _, _, _, _, _, _, _, _, _, _, _, _, p, _, _)  = args
     result = costFun(rawCost,
                      p*canPPProb*(1-details.domainProbs.placeFailProb)) + \
@@ -923,6 +929,8 @@ def pickCostFun(al, args, details):
     abstractCost = 10
     if isVar(p1):
         p1 = 0.9
+    # Don't penalize if target is low prob
+    p1 = 1
     result = costFun(rawCost, p1*canPPProb*canPPProb*\
                      (1 - details.domainProbs.pickFailProb)) + \
                (abstractCost if al == 0 else 0)
@@ -1099,8 +1107,8 @@ def pushBProgress(details, args, obs=None):
     
 # obs has the form (obj-type, face, relative pose)
 def lookAtBProgress(details, args, obs):
-    (_, lookConf, _, _, _, _, _, _, _, _, _, _, _, _) = args
-    objectObsUpdate(details, lookConf, obs)
+    (targetObj, lookConf, _, _, _, _, _, _, _, _, _, _, _, _) = args
+    objectObsUpdate(details, lookConf, obs, targetObj)
     details.pbs.reset()
     details.pbs.getRoadMap().confReachCache = {} # Clear motion planning cache
     details.pbs.getShadowWorld(0)
@@ -1111,7 +1119,7 @@ def lookAtBProgress(details, args, obs):
 #llMatchThreshold = -100.0
 llMatchThreshold = -400.0
 
-def objectObsUpdate(details, lookConf, obsList):
+def objectObsUpdate(details, lookConf, obsList, targetObj):
     def rem(l,x): return [y for y in l if y != x]
     def testVis(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         (vis, occl) = visible(ws, conf, shape, obstacles, prob, moveHead=moveHead, fixed=fixed)
@@ -1139,6 +1147,12 @@ def objectObsUpdate(details, lookConf, obsList):
                if testVis(shWorld, lookConf, s, rem(obstacles,s)+[rob], 0.5,
                           moveHead=False, fixed=fixed) and \
                   s.name() not in (heldLeft, heldRight)]
+    if not targetObj in objList:
+        raw_input('Tried to look at ' + targetObj + \
+                  ', but failed to predict it would be observable')
+        actualTarget = [thing for thing in obstacles if thing.name == targetObj]
+        objList.append(actualTarget[0])
+                  
     if dv:
         glob.debugOn.remove('visible')
 
@@ -1761,14 +1775,13 @@ pick = Operator(
                                True)},
 #              Bd([Holding(['Hand']), 'none', canPPProb], True)},
          3 : {B([Pose(['Obj', 'PoseFace']), 'Pose', 'PoseVar', 'PoseDelta',
-                 'P1'], True)},
-         4 : {Conf(['PreConf', 'ConfDelta'], True),
+                 'P1'], True),
               Bd([CanPickPlace(['PreConf', 'PickConf', 'Hand', 'Obj', 'Pose',
                                'PoseVar', 'PoseDelta', 'PoseFace',
                                'GraspFace', 'GraspMu', 'RealGraspVar',
                                'GraspDelta', 'pick', []]), True, canPPProb],
-                               True)                        
-             }},
+                               True)},
+         4 : {Conf(['PreConf', 'ConfDelta'], True)}},
 
         # Results
         [({Bd([Holding(['Hand']), 'Obj', 'PR1'], True), 

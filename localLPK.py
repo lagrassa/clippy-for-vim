@@ -32,6 +32,7 @@ useInflation = True
 abstractCost
 animate
 applicableOps
+applicableOpsLog (write final list of applicable ops in a readable way)
 appOp:detail
 appOp:number
 appOp:result
@@ -111,7 +112,7 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags + ['applicableOpsLog']
+debugOn = usualTags
 
 print 'Debugging on', debugOn
 
