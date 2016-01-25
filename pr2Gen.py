@@ -296,6 +296,7 @@ def pickGenAux(pbs, cpbs, obj, confAppr, conf, placeB, graspB, hand, prob,
             if not onlyCurrent:
                 tr(tag, 'No potential grasp confs for %s, will need to regrasp'%obj,
                    draw=[(cpbs, prob, 'W')], snap=['W'])
+                if not glob.inHeuristic: raw_input('Regrasp?')
         else:
             targetConfs = graspApproachConfGen(firstConf)
             batchSize = 1 if glob.inHeuristic else pickPlaceBatchSize
@@ -917,7 +918,6 @@ def dropIn(pbs, prob, obj, regShapes):
                             op='place')[0] and \
                    feasiblePBS(ppr.pB, pbs):
                     print 'Feasible dropin'
-                    if not glob.inHeuristic: pdb.set_trace()
                     return ppr
 
 def drop(pbs, prob, obj, hand, placeB):
@@ -1165,7 +1165,8 @@ def lookGenTop(args, pbs, cpbs):
         # someone else has/will make sure that is true.  Start by
         # checking that confAtTarget is not blocked by fixed
         # obstacles.
-        if testFn(confAtTarget, shapeForLook, shWorld_before)[0]:
+        vis, occluders = testFn(confAtTarget, shapeForLook, shWorld_before)
+        if vis:               # occluders may be non-empty
             # Is current conf good enough?  If not -
             # Modify the lookConf (if needed) by moving arm out of the
             # way of the viewCone and the shapeShadow.
@@ -1271,7 +1272,7 @@ def lookGenTop(args, pbs, cpbs):
 
     noViol = Violations()
     for hyp in sortedHyps(lookConfHypGen(), lookConfHypValid, lookConfHypCost,
-                          20, 40, size=(1 if glob.inHeuristic else 5)): 
+                          20, 40, size=(2 if glob.inHeuristic else 5)): 
         conf = hyp.conf
         viol = hyp.viol
         tr(tag, '(%s) viol=%s'%(obj, viol.weight() if viol else None))
@@ -1360,7 +1361,7 @@ def lookHandGenTop(args, cpbs):
 
     noViol = Violations()
     for c in lookConfGen:
-        if not testFn(c): continue
+        if not testFn(c)[0]: continue
         path, viol =  canReachHome(newBS, c, prob, noViol,
                                    homeConf=newBS.getConf())
         tr(tag, '(%s) viol=%s'%(obj, viol.weight() if viol else None))

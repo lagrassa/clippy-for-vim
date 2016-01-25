@@ -92,7 +92,7 @@ def describePath(path, tag):
 def primPath(bs, cs, ce, p):
     path = primPathUntilLook(bs, cs, ce, p)
     if not path or not path[0]:
-        raw_input('Could not find moveLook base path in prim... use RRT?')
+        print 'Could not find moveLook base path in prim... using RRT'
         return primPathRRT(bs, cs, ce, p)
     return path
 
@@ -1123,10 +1123,7 @@ def objectObsUpdate(details, lookConf, obsList, targetObj):
     def rem(l,x): return [y for y in l if y != x]
     def testVis(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         (vis, occl) = visible(ws, conf, shape, obstacles, prob, moveHead=moveHead, fixed=fixed)
-        if permanent(s.name()):
-            return vis and (not occl or occl == [rob.name()])
-        else:
-            return vis and not occl
+        return vis and not occl
     prob = 0.95
     world = details.pbs.getWorld()
     shWorld = details.pbs.getShadowWorld(prob)
@@ -2182,7 +2179,7 @@ def placeAchCanXGen(pbs, shWorld, initViol, violFn, prob):
     # than a different placement of the first obst;  not really sure how to
     # arrange that.
     for obst in obstacles:
-        for r in moveOut(pbs, prob, obst, moveDelta):
+        for r in moveOut(pbs, achCanProb, obst, moveDelta):
             # TODO: LPK: concerned about how graspVar and graspDelta
             # are computed
             graspFace = r.gB.grasp.mode()
@@ -2225,7 +2222,7 @@ def pushAchCanXGen(pbs, shWorld, initViol, violFn, prob):
 
     moveDelta = pbs.domainProbs.placeDelta
     for obst in obstacles:
-        for r in pushOut(pbs, prob, obst, moveDelta):
+        for r in pushOut(pbs, achCanProb, obst, moveDelta):
 
             supportFace = r.postPB.support.mode()
             postPose = r.postPB.poseD.modeTuple()

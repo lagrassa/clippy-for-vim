@@ -7,7 +7,7 @@ import planGlobals as glob
 from geom import bboxCenter
 from shapes import pointBox, BoxScale
 import transformations as transf
-from pr2Util import shadowName, objectName
+from pr2Util import shadowName, objectName, permanent
 from traceFile import debugMsg, debug
 import windowManager3D as wm
 from miscUtil import argmax
@@ -324,7 +324,12 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         if f not in fix: fix.append(f)
     move = [obj for obj in obstacles if obj not in fix]
     occluders = []
-    threshold = 0.6 if prob else 0.4
+
+    if permanent(objectName(shape.name())):
+        threshold = 0.4 if prob else 0.3 # permanent objects are more distinctive
+    else:
+        threshold = 0.6 if prob else 0.4
+
     for i, objShape in enumerate(fix):
         if objectName(shape) == objectName(objShape): continue
         if debug('visible'):
@@ -346,6 +351,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         return False, []            # No hope
     # find a list of movable occluders that could be removed to
     # achieve visibility
+    perm = permanent(objectName(shape.name()))
     for j, objShape in enumerate(move):
         if objectName(shape) == objectName(objShape): continue
         i = len(fix) + j
