@@ -177,7 +177,7 @@ def moveLookPath(pbs, prob, q1, q2):
     if not(viol2 and viol2.weight() == 0):
         print 'moveLookPath failed to return from retract2'
         return []
-    assert path2[-1] == q2
+    assert path2[-1].nearEqual(q2)
 
     print 'moveLookPath: total time =', time.time() - startTime
     
