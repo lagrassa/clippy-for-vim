@@ -10,7 +10,10 @@ import windowManager3D as wm
 from random import random
 
 if glob.useMPL:
-    sys.path.append("/Users/tlp/MacDocuments/Research/git/MCR/")
+    #TLP
+    # sys.path.append("/Users/tlp/MacDocuments/Research/git/MCR/")
+    # AMRUTH
+    sys.path.append("/Users/amruthvenkatraman/Dropbox/MIT/MEng/Research/code")
     from mpl.algorithm_runner import runAlgorithm
 
 ############################################################
@@ -254,7 +257,10 @@ def planRobotPath(pbs, prob, initConf, destConf, allowedViol, moveChains,
     inflated = pbsInflate(pbs, prob, initConf, destConf) if inflate else pbs
 
     if glob.useMPL:
-        path = runMPL(inflated, prob, initConf, destConf, allowedViol, moveChains)
+        path, cover = runMPL(inflated, prob, initConf, destConf, allowedViol, moveChains)
+        if len(path) == 0:
+            return [], None
+        verifyPath(inflated, prob, path, allowedViol, 'MPL path', cover)
     else:
         nodes = 'FAILURE'
         failCount = -1                      # not really a failure the first time
@@ -364,7 +370,13 @@ def interpolateGen(q_f, q_i, stepSize=glob.rrtInterpolateStepSize, moveChains=No
         raw_input('Path inconsistency')
     yield q_f
 
-def verifyPath(pbs, p, path, allowedViol, msg='rrt'):
+def verifyPath(pbs, p, path, allowedViol, msg='rrt', cover = None):
+    if glob.useMPL:
+        verifyPathMPL(pbs, p, path, allowedViol, msg, cover)
+    else:
+        verifyPathOriginal(pbs, p, path, allowedViol, msg)
+
+def verifyPathOriginal(pbs, p, path, allowedViol, msg):
     shWorld = pbs.getShadowWorld(p)
     obst = shWorld.getObjectShapes()
     attached = shWorld.attached
@@ -387,8 +399,37 @@ def verifyPath(pbs, p, path, allowedViol, msg='rrt'):
             colliders = [o for o in obst if robotShape.collides(o)]
             robotShape.draw('W', 'red')
             for o in colliders: o.draw('W', 'red')
-            print 'collision with', [o.name() for o in colliders]
             raw_input('Ok?')
+    return True
+
+def verifyPathMPL(pbs, p, path, allowedViol, msg, cover):
+    shWorld = pbs.getShadowWorld(p)
+    obst = shWorld.getObjectShapes()
+    attached = shWorld.attached
+    pbsDrawn = False
+    allowed = allowedViol.allObstacles() + allowedViol.allShadows()
+    win = wm.getWindow('W')
+    for conf in path:
+        robotShape = conf.placement(attached=False)
+        if debug('verifyRRTPath'):
+            pbs.draw(p, 'W')
+            pbsDrawn = True
+            conf.draw('W')
+            win.update()
+            sleep(0.2)
+        allowedNames = [a.name() for a in allowed]
+        if any((o not in allowed and o.name() not in cover) and robotShape.collides(o) for o in obst):
+            if not pbsDrawn:
+                pbs.draw(p, 'W')
+                pbsDrawn = True
+            print msg, 'path',
+            colliders = [o for o in obst if robotShape.collides(o)]
+            robotShape.draw('W', 'red')
+            for o in colliders: o.draw('W', 'red')
+            print 'collision with', [o.name() for o in colliders]
+            print 'only expected collision with', (allowedNames + cover)
+            raw_input('Ok?')
+            pdb.set_trace()
     return True
 
 def interpolatePath(path, stepSize = glob.rrtInterpolateStepSize):
@@ -464,9 +505,6 @@ class MCRHelper():
             if steppingConf == confTo:
                 break
         return tupleFromConf(steppingConf, self.moveChains)
-        # return tupleFromConf(self.conf.robot.stepAlongLine(confTo, confFrom,
-        #                                                    stepSize, moveChains=self.moveChains),
-        #                      self.moveChains)
 
     # scalar representation of the distance between these configurations
     def distance(self, q1, q2):
@@ -477,29 +515,24 @@ class MCRHelper():
     def getStepSize(self):
         return self.stepSize
 
-    # need a way to get the weight of an obstacle (right now its obstacle.getWeight())
-
 def runMPL(pbs, prob, initConf, destConf, allowedViol, moveChains):
     algorithms = ['mcr', 'rrt', 'birrt',
-                  'ignore start and goal birrt', 'collision based rrt']
+                  'ignore start and goal birrt', 'collision based rrt', 'ignore all', 'collision based repeat']
     helper = MCRHelper(pbs, prob, allowedViol, moveChains, initConf)
     init = tupleFromConf(initConf, moveChains)
     dest = tupleFromConf(destConf, moveChains)
     if len(init) == 0 or len(dest) == 0:
-        return [initConf, destConf]
-    # algorithmToUse = 'birrt'
+        return [initConf, destConf], []
     algorithmToUse = 'collision based rrt'
     path, cover = runAlgorithm(init, dest, helper, algorithms.index(algorithmToUse))
     if len(path) == 0:
-        # print 'no path found'
-        return []
-    # print 'non empty path' + '!'*40
+        raw_input("no path found")
+        return [], []
     print 'cover', cover
     pathToReturn = [confFromTuple(c, moveChains, initConf) for c in path]
     if not (pathToReturn[0].nearEqual(initConf) and pathToReturn[-1].nearEqual(destConf)):
         pdb.set_trace()
-    return [initConf] + pathToReturn[1:-1] + [destConf]
-    # return pathToReturn
+    return [initConf] + pathToReturn[1:-1] + [destConf], cover
 
 def tupleFromConf(conf, moveChains):
     values = []
@@ -546,15 +579,5 @@ def confCollisions(conf, pbs, prob, allowedViol):
             if not o in allowedViol.heldShadows[h]: collisions.append(o.name())
 
     pbs.draw(prob, 'W'); conf.placement().draw('W')
-    # print 'collisions', collisions
-    # raw_input('Next?')
     permanent = pbs.getShadowWorld(prob).fixedObjects
     return [c for c in collisions if c not in permanent]
-    # return collisions
-
-def writePath(path):
-    f = open('path.txt', 'w')
-    for c in path:
-        f.write(str(c.conf))
-        f.write("\n")
-    f.close()
