@@ -8,14 +8,15 @@ from pr2Util import shadowName, drawPath, objectName, PoseD, \
      supportFaceIndex, GDesc, inside, otherHand, graspable, pushable, permanent, \
      confWithin, baseConfWithin
 from pr2GenTests import inTest, canReachNB, canReachHome, inTestMinShadow,\
-     canView
+     canView, findRegionParent
 from pr2Push import canPush
-from dist import DeltaDist, probModeMoved
+from dist import DeltaDist, probModeMoved, GMU
+from dist import MultivariateGaussianDistribution as MVG
 from traceFile import debugMsg, debug, pause
 import planGlobals as glob
-from miscUtil import isGround, isVar, prettyString, applyBindings
+from miscUtil import isGround, isVar, prettyString, applyBindings, diagToSq
 from fbch import Fluent, getMatchingFluents, Operator
-from belief import B, Bd
+from belief import B, Bd, Cond
 from pr2Visible import visible
 from pr2BeliefState import lostDist
 from traceFile import tr, trAlways
@@ -26,7 +27,7 @@ from shapes import drawFrame
 tiny = 1.0e-6
 
 #### Ugly!!!!!
-graspObstCost = 15  # Heuristic cost of moving an object
+graspObstCost = 20  # Heuristic cost of moving an object
 pushObstCost = 75  # Heuristic cost of moving an object
 
 # Need contradiction between Pose and In: fglb
@@ -65,7 +66,47 @@ class In(Fluent):
         if obj in (lObj, rObj):
             return False
         else: 
-            return inTest(bState.pbs, obj, region, p)
+            return inTestRel(bState, obj, region, p)
+
+def inTestRel(bState, obj, regionName, prob):
+    pbs = bState.pbs
+    parent = findRegionParent(bState, regionName)
+    relVar = bState.relPoseVars[(obj, parent)]
+
+    if relVar[0] > 10: return False
+
+    regs = pbs.getWorld().regions
+    pObj = pbs.poseModeProbs[obj]
+    pParent = pbs.poseModeProbs[parent]
+    pFits = prob / (pObj * pParent)
+    if pFits > 1: return False
+
+    # compute a shadow for this object.  Use relVar
+    placeB = pbs.getPlaceB(obj)
+    placeB = placeB.modifyPoseD(var = relVar)
+    faceFrame = placeB.faceFrames[placeB.support.mode()]
+
+    # Setting delta to be 0
+    sh = pbs.objShadow(obj, shadowName(obj), pFits, placeB, faceFrame)
+    shadow = sh.applyLoc(placeB.objFrame()) # !! is this right?
+    shWorld = pbs.getShadowWorld(prob)
+    region = shWorld.regionShapes[regionName]
+
+    ans = any([np.all(np.all(np.dot(r.planes(),
+                                shadow.prim().vertices()) <= tiny, axis=1)) \
+               for r in region.parts()])
+    print 'in test rel', obj, regionName, ans
+    # region.draw('Belief', color = 'purple')
+    # shadow.draw('Belief', color = 'cyan')
+
+    tr('testVerbose', 'In test relative, shadow in orange, region in purple',
+       (shadow, region, ans), draw = [(pbs, prob, 'W'),
+                                      (shadow, 'W', 'orange'),
+                                      (region, 'W', 'purple')], snap=['W'])
+    return ans
+
+
+    
 
 # Do we know where the object is?
 class BLoc(Fluent):
@@ -373,12 +414,11 @@ def hCost(violations, details):
     for o in shadowOps:
         # Use variance in start state
         # Should try to figure out a number of looks needed
-        # For now, assume 3 (should factor in some moving)
         obj = objectName(o.args[0])
         vb = details.pbs.getPlaceB(obj).poseD.variance()
         deltaViolProb = probModeMoved(d[0], vb[0], vo[0])        
         c = 1.0 / ((1 - deltaViolProb) * (1 - ep) * 0.9 * 0.95)
-        o.instanceCost = c + 5   # look + move
+        o.instanceCost = c + 8   # look + move
     ops = obstOps.union(shadowOps)
 
     # look at hand or drop an object
@@ -905,18 +945,26 @@ class Grasp(Fluent):
 
 class Pose(Fluent):
     predicate = 'Pose'
+
     def dist(self, bState):
         (obj, face) = self.args
-        if face == '*':
-            hl = bState.pbs.getHeld('left')
-            hr = bState.pbs.getHeld('right')
-            if hl == obj or hr == obj:
-                # We think it's in the hand;  so pose dist is huge
-                result = lostDist
-            else:
-                face = bState.pbs.getPlaceB(obj).support.mode()
-
         return bState.poseModeDist(obj, face)
+
+    def cDist(self, rf2, val2, bState):
+        # Return a distribution on the pose of obj given the value of
+        # the othe rfluent.
+        (obj1, face1) = self.args
+        assert rf2.predicate == 'Pose'
+        (obj2, face2) = rf2.args
+        # Disgustingly ignoring the faces for now
+        # And not changing mode (ignoring val2)
+        var = bState.relPoseVars[(obj1, obj2)]
+        if var == None:
+            return lostDist
+        else:
+            mode = bState.pbs.getPlaceB(obj1, face1).poseD.modeTuple()
+            return GMU([(MVG(mode, diagToSq(var), pose4 = True),
+                         bState.poseModeProbs[obj1])])
 
     def fglb(self, other, bState = None):
         if bState is None or not self.isGround():
@@ -1096,13 +1144,22 @@ def partition(fluents):
         newSet = set([f])
         if f.predicate in ('B', 'Bd'):
             rf = f.args[0]
+            # Handle the case where rf is a conditional fluent...just look
+            # in one level deeper
+            if rf.predicate == 'Cond':
+                rf = rf.args[0]
+
+            # Now, find relevant groups
             if rf.predicate == 'SupportFace':
                 (obj,) = rf.args
                 face = f.args[1]
                 pf = getMatchingFluents(fluents,
                              B([Pose([obj, face]), 'M','V','D','P'], True)) + \
                       getMatchingFluents(fluents,
-                                 Bd([In([obj, 'R']), True,'P'], True))
+                                 Bd([In([obj, 'R']), True,'P'], True)) + \
+                      getMatchingFluents(fluents,
+                            B([Cond([Pose([obj, face]), 'OPose', 'OVal']),
+                                           'Mu', 'Var', 'Delta', 'P'], True))
                 for (ff, b) in pf:
                     newSet.add(ff)
                     fluents.remove(ff)
@@ -1122,7 +1179,10 @@ def partition(fluents):
                 pf = getMatchingFluents(fluents,
                               Bd([SupportFace([obj]), 'F','P'], True)) + \
                      getMatchingFluents(fluents,
-                             B([Pose([obj, 'F']), 'M','V','D','P'], True))
+                             B([Pose([obj, 'F']), 'M','V','D','P'], True)) + \
+                     getMatchingFluents(fluents,
+                            B([Cond([Pose([obj, 'F']), 'OPose', 'OVal']),
+                                           'Mu', 'Var', 'Delta', 'P'], True))
                 for (ff, b) in pf:
                     newSet.add(ff)
                     fluents.remove(ff)
@@ -1161,15 +1221,8 @@ def partition(fluents):
                 for (ff, b) in pf:
                     newSet.add(ff)
                     fluents.remove(ff)
-        # else:
-        #     # Not a B fluent
-        #     pf = getMatchingFluents(fluents, Conf(['C', 'D'], True)) + \
-        #          getMatchingFluents(fluents, BaseConf(['C', 'D'], True))
-        #     for (ff, b) in pf:
-        #         newSet.add(ff)
-        #         fluents.remove(ff)
-                    
         groups.append(frozenset(newSet))
+
     return groups
 
 print 'Loaded pr2Fluents.py'

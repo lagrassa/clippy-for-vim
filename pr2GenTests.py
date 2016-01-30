@@ -191,6 +191,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
             violations = pbs.getRoadMap().confViolations(preConf, pbs1, p, violations)
             path = [preConf]
         else:
+            # if not glob.inHeuristic: print 'canPickPlaceTest #1'
             path, violations = canReachHome(pbs1, preConf, p, violations)
         if not violations:
             debugMsg(tag, 'Failed H->App, obj=pose (condition 1)')
@@ -227,6 +228,7 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         violations = pbs.getRoadMap().confViolations(preConf, pbs2, p, violations)
         path = [preConf]
     else:
+        # if not glob.inHeuristic: print 'canPickPlaceTest #2'
         path, violations = canReachHome(pbs2, preConf, p, violations)
     if not violations:
         debugMsg(tag + 'Failed H->App, obj=held (condition 2)')
@@ -273,7 +275,9 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         violations = pbs.getRoadMap().confViolations(ppConf, pbs3, p, violations)
         path = [ppConf]
     else:
-        path, violations = canReachHome(pbs3, ppConf, p, violations)
+        # if not glob.inHeuristic: print 'canPickPlaceTest #3'
+        path, violations = canReachHome(pbs3, ppConf, p, violations,
+                                        homeConf = preConf)
     if not violations:
         debugMsg(tag, 'Failed H->Target  (condition 3)')
         return None, '3. H->Target obj@pose 0var'
@@ -291,7 +295,9 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
         violations = pbs.getRoadMap().confViolations(ppConf, pbs4, p, violations)
         path = [ppConf]
     else:
-        path, violations = canReachHome(pbs4, ppConf, p, violations)
+        # if not glob.inHeuristic: print 'canPickPlaceTest #4'
+        path, violations = canReachHome(pbs4, ppConf, p, violations,
+                                        homeConf = preConf)
     if not violations:
         debugMsg(tag, 'Failed H->Target held=obj(condition 4)')
         return None, '4. H->Target held=obj 0var'
@@ -310,18 +316,28 @@ def canPickPlaceTest(pbs, preConf, ppConf, hand, objGrasp, objPlace, p,
 
     return violations, None
 
+canViewCache = {}
+canViewStats = [0, 0]
 
 # Find a path to a conf such that the arm (specified) by hand does not
 # collide with the view cone to the target shape and maybe shadow.
 def canView(pbs, prob, conf, hand, shape,
             shapeShadow = None, maxIter = 50, findPath = True):
+    canViewStats[0] += 1
+    key = (pbs, prob, conf, hand, shape, shapeShadow, findPath)
+    if key in canViewCache:
+        canViewStats[1] += 1
+        return canViewCache[key]
     collides = pbs.getRoadMap().checkRobotCollision
     robot = pbs.getRobot()
     vc = viewCone(conf, shape)
-    if not vc: return None
+    if not vc:
+        canViewCache[key] = None
+        return None
     shWorld = pbs.getShadowWorld(prob)
     # We don't care about movable occluders, so obst = []
     if not visible(shWorld, conf, shape, [], prob, moveHead=True)[0]:
+        canViewCache[key] = None
         return None
     attached = shWorld.attached
     if shapeShadow:
@@ -331,8 +347,10 @@ def canView(pbs, prob, conf, hand, shape,
     if not collides(conf, avoid, attached=attached):
         if debug('canView'):
             print 'canView - no collisions'
+        canViewCache[key] = [conf]
         return [conf]
     elif not findPath:
+        canViewCache[key] = []
         return []
     # !! don't move arms to clear view of fixed objects
     if not permanent(objectName(shape.name())):
@@ -340,6 +358,11 @@ def canView(pbs, prob, conf, hand, shape,
             avoid.draw('W', 'red')
             conf.draw('W', attached=attached)
             debugMsg('canView', 'ViewCone collision')
+        if collides(conf, avoid, selectedChains=robot.bodyChains):
+            if debug('canView'):
+                print 'canView - avoid obstacle collision with body'
+            canViewCache[key] = None
+            return None
         pathFull = []
         for h in ['left', 'right']:     # try both hands
             chainName = robot.armChainNames[h]
@@ -352,7 +375,7 @@ def canView(pbs, prob, conf, hand, shape,
             path, viol = planRobotGoalPath(pbs, prob, conf,
                                 lambda c: not (collides(c, avoid, attached=attached, selectedChains=armChains) \
                                                           if glob.useCC else avoid.collides(c.robot.armAndGripperShape(h,attached))),
-                                           None, [chainName], maxIter = maxIter)
+                                           None, [chainName], maxIter = maxIter, failIter = 3)
             if debug('canView'):
                 pbs.draw(prob, 'W')
                 if path:
@@ -369,11 +392,14 @@ def canView(pbs, prob, conf, hand, shape,
             if path:
                 pathFull.extend(path)
             else:
+                canViewCache[key] = []
                 return []
+        canViewCache[key] = pathFull
         return pathFull
     else:
         if debug('canView'):
             print 'canView - ignore view cone collision for perm object', shape
+        canViewCache[key] = [conf]
         return [conf]
 
 # Computes lookConf for shape, makes sure that the robot does not

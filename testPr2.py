@@ -42,8 +42,10 @@ class Experiment:
     regions = []
 
 table1Pose = hu.Pose(1.3, 0.0, 0.0, math.pi/2.0)
+table1FarPose = hu.Pose(1.4, 1.0
+                        , 0.0, 0.0)
 table2Pose = hu.Pose(1.0, -1.4, 0.0, 0.0)
-table2FarPose = hu.Pose(1.4, -2.0, 0.0, 0.0)
+table2FarPose = hu.Pose(1.4, -1.8, 0.0, 0.0)
 table3Pose = hu.Pose(1.6,0.0,0.0, math.pi/2.0),
 
 bigVar = (0.1**2, 0.1**2, 1e-10, 0.3**2)
@@ -72,7 +74,7 @@ def holding(obj, hand='left', graspType=2, goalProb=0.7,
                      (0,-0.025,0,0), targetSmallVar, targetDelta,
                      goalProb], True)])
 
-def placed(obj, pose, hand='left', goalProb=0.95,
+def placed(obj, pose, goalProb=0.95,
            targetVar=targetSmallVar, targetDelta=(0.01, 0.01, 0.01, 0.05)) :
     return State([Bd([SupportFace([obj]), 4, goalProb], True),
                   B([Pose([obj, 4]),
@@ -182,16 +184,6 @@ def test1(**args):
     skel = [[poseAchIn, lookAt, moveNB, lookAt, move,
              place, move, pick, moveNB, lookAt, moveNB, lookAt, move]]
     return doTest('test1', exp, goal, skel, args)
-
-def test1Obj2(**args):
-    exp = makeExp({'table1' : (table1Pose, bigVar),
-                   'table2' : (table2FarPose, bigVar)},
-                  {'objA' : (hu.Pose(1.1, 0.0, tZ, 0.0), bigVar),
-                   'objB' : (hu.Pose(1.1, 0.2, tZ, 0.0), bigVar)},
-                  ['table1Top', 'table1Left',
-                   'table2Top', 'table2Left'], easy=args.get('easy', False))
-    goal = inRegion(['objA', 'objB'], ['table2Left', 'table2Left'])
-    return doTest('test1Obj2', exp, goal, None, args)
 
 ######################################################################
 # Test 1.5: 2 tables move 1 object: more error on table 1
@@ -343,7 +335,7 @@ def test6(**args):
 
 def test7(**args):
     front = hu.Pose(1.1, 0.0, tZ, 0.0)
-    goal = placed('objA', front, 'left')
+    goal = placed('objA', front)
     testWithBInHand('test7', goal, args = args)
 
 ######################################################################
@@ -423,6 +415,41 @@ def changePose(bs, rw, obj, pose):
 def changeBelPose(bs, obj, pose, var=None):
     pB = bs.pbs.getPlaceB(obj)
     bs.pbs.updatePlaceB(pB.modifyPoseD(pose, var=var))
+
+def test11(**args):
+    exp = makeExp({'table1' : (table1FarPose, bigVar),
+                   'table2' : (table2FarPose, bigVar)},
+                  {'objA' : (hu.Pose(1.2, 0.8, tZ, 1.8), bigVar)},
+                  ['table1Top', 'table1Left',
+                   'table2Top', 'table2Left'], easy=args.get('easy', False))
+    goal = inRegion(['objA'],
+                    ['table2Top'])
+    return doTest('test11', exp, goal, None, args)
+
+def test12(**args):
+    exp = makeExp({'table1' : (table1FarPose, bigVar),
+                   'table2' : (table2FarPose, bigVar)},
+                  {'objA' : (hu.Pose(1.2, 0.8, tZ, 1.8), bigVar),
+                   'objC' : (hu.Pose(1.8, 0.8, tZ, 1.2), bigVar) },
+                  ['table1Top', 'table1Left',
+                   'table2Top', 'table2Left'], easy=args.get('easy', False))
+    goal = inRegion(['objA', 'objC'],
+                    ['table2Top', 'table2Top'])
+    return doTest('test12', exp, goal, None, args)
+
+def test13(**args):
+    exp = makeExp({'table1' : (table1FarPose, bigVar),
+                   'table2' : (table2FarPose, bigVar)},
+                  {'objA' : (hu.Pose(1.2, 0.8, tZ, 1.8), bigVar),
+                   'objB' : (hu.Pose(1.6, 0.8, tZ, 1.4), bigVar),
+                   'objC' : (hu.Pose(1.8, 0.8, tZ, 1.2), bigVar) },
+                  ['table1Top', 'table1Left',
+                   'table2Top', 'table2Left'], easy=args.get('easy', False))
+    goal = inRegion(['objA', 'objB', 'objC'],
+                    ['table2Top', 'table2Top', 'table2Top'])
+    return doTest('test13', exp, goal, None, args)
+
+    
 
 ######################################################################
 # Test Swap
@@ -782,7 +809,7 @@ def testPush(name, objName, startPose, targetReg, **args):
     targetPose = args.get('targetPose', None)
     hand = args.get('hand', 'right')
     if targetPose:
-        goal = placed(objName, targetPose, hand)
+        goal = placed(objName, targetPose)
     else:
         goal = inRegion(objName, targetReg)
     skel = args.get('skeleton', None)
@@ -969,6 +996,8 @@ def prof(test, n=100):
     from pr2Visible import cacheStats
     print 'h tries, h hits, h easy, real tries, real hits, real easy'
     print 'visible cacheStats',  cacheStats
+    from pr2GenTests import canViewStats
+    print 'canViewStats', canViewStats
 
 def profPrint(n=100):
     import pstats
@@ -1048,8 +1077,3 @@ def testIt():
 
 print 'Loaded testPr2.py'
 
-# c has new parent p
-# we set c's budget to inf
-# we tell p to update child budgets
-# if c is an or node, then we set c's budget to be the max of the parents
-# if c is an and node, then 

@@ -124,7 +124,7 @@ baseGrowthY = 0.1
 # FBCH
 ########################################
 
-savedMaxNodesHPN = maxNodesHPN = 100
+savedMaxNodesHPN = maxNodesHPN = 200 #100
 rebindPenalty = 30
 monotonicFirst = True
 monotonicNow = True

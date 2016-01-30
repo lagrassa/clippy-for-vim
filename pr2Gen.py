@@ -296,6 +296,7 @@ def pickGenAux(pbs, cpbs, obj, confAppr, conf, placeB, graspB, hand, prob,
             if not onlyCurrent:
                 tr(tag, 'No potential grasp confs for %s, will need to regrasp'%obj,
                    draw=[(cpbs, prob, 'W')], snap=['W'])
+                if not glob.inHeuristic: raw_input('Regrasp?')
         else:
             targetConfs = graspApproachConfGen(firstConf)
             batchSize = 1 if glob.inHeuristic else pickPlaceBatchSize
@@ -405,6 +406,10 @@ def placeGenGen(args, pbs, cpbs):
     if fixed(cpbs.conf):
         tr(tag, '=> conf fixed in goal, failing')
         return
+
+    # Make sure we exclude obj
+    cpbs = cpbs.copy().excludeObjs([obj])
+
     base = cpbs.getBase()
     tr(tag, 'obj=%s, base=%s'%(obj, base))
     world = cpbs.getWorld()
@@ -463,23 +468,21 @@ def placeGenTop(args, pbs, cpbs, regrasp=False, onlyPose=False):
         return
     conf = None
     confAppr = None
-    # Make sure we exclude obj
-    newBS = cpbs.copy().excludeObjs([obj])
-    tr(tag, 'Goal conditions', draw=[(newBS, prob, 'W')], snap=['W'])
+    tr(tag, 'Goal conditions', draw=[(cpbs, prob, 'W')], snap=['W'])
 
     if isinstance(placeBs, frozenset):
         for pB in placeBs:
-            ans = drop(newBS, prob, obj, hand, pB)
+            ans = drop(cpbs, prob, obj, hand, pB)
             if ans:
-                shWorld = newBS.getShadowWorld(prob)
+                shWorld = cpbs.getShadowWorld(prob)
                 tr(tag, 'Cached place ->' + str(ans), 'viol=%s'%ans.viol,
-                   draw=[(newBS, prob, 'W'),
+                   draw=[(cpbs, prob, 'W'),
                          (ans.pB.shape(shWorld), 'W', 'magenta'),
                          (ans.c, 'W', 'magenta', shWorld.attached)],
                    snap=['W'])
                 yield ans
 
-    key = (newBS,
+    key = (cpbs,
            (obj, graspB, placeBs, hand, tuple(base) if base else None, prob),
            regrasp, onlyPose)
     val = placeGenCache.get(key, None)
@@ -497,7 +500,7 @@ def placeGenTop(args, pbs, cpbs, regrasp=False, onlyPose=False):
         else:
             placeBG = placeBs
         memo = Memoizer(tag,
-                        placeGenAux(pbs, newBS, obj, confAppr, conf, placeBG.copy(),
+                        placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBG.copy(),
                                     graspB, hand, base, prob,
                                     regrasp=regrasp, onlyPose=onlyPose))
         placeGenCache[key] = memo
@@ -587,7 +590,9 @@ def placeGenAux(pbs, cpbs, obj, confAppr, conf, placeBs, graspB, hand, base, pro
     def placeApproachConfGen(grasps):
         # Keep generating and if you run out, start again...
         for pB in itertools.chain(placeBs, placeBs.copy()):
-            for gB in sortGraspsForPB(grasps, pB):
+            sgr = sortGraspsForPB(grasps, pB)
+            tr(tag, 'pB', pB, 'sorted grasps', [gB.grasp.mode() for gB in sgr])
+            for gB in sgr:
                 tr(tag, 
                    'considering grasps for ', pB.poseD.mode(), '\n',
                    '  for grasp class', gB.grasp,   '\n',
@@ -809,7 +814,6 @@ def placeInRegionGenGen(args, pbs, cpbs, away = False, onlyPose = False):
     if not graspable(obj):
         tr(tag, obj, 'not graspable')
         return
-
     # Get the regions
     regions = getRegions(region)
     shWorld = cpbs.getShadowWorld(prob)
@@ -911,7 +915,9 @@ def dropIn(pbs, prob, obj, regShapes):
                 rshape.draw('W', 'black')
                 print 'dropIn', rshape, 'in', regShapes
                 if canPickPlaceTest(pbs, ppr.ca, ppr.c, ppr.hand, ppr.gB, ppr.pB, prob,
-                            op='place')[0]:
+                            op='place')[0] and \
+                   feasiblePBS(ppr.pB, pbs):
+                    print 'Feasible dropin'
                     return ppr
 
 def drop(pbs, prob, obj, hand, placeB):
@@ -927,7 +933,8 @@ def drop(pbs, prob, obj, hand, placeB):
         cxt = placeB.poseD.mode().xyztTuple()
         if max([abs(a-b) for (a,b) in zip(xt,cxt)]) < 0.001:
             if canPickPlaceTest(pbs, ppr.ca, ppr.c, ppr.hand, ppr.gB, ppr.pB, prob,
-                            op='place')[0]:
+                            op='place')[0] and \
+               feasiblePBS(ppr.pB, pbs):
                 return ppr
 
 def placeInGenAway(args, pbs, onlyPose=False):
@@ -1158,7 +1165,8 @@ def lookGenTop(args, pbs, cpbs):
         # someone else has/will make sure that is true.  Start by
         # checking that confAtTarget is not blocked by fixed
         # obstacles.
-        if testFn(confAtTarget, shapeForLook, shWorld_before)[0]:
+        vis, occluders = testFn(confAtTarget, shapeForLook, shWorld_before)
+        if vis:               # occluders may be non-empty
             # Is current conf good enough?  If not -
             # Modify the lookConf (if needed) by moving arm out of the
             # way of the viewCone and the shapeShadow.
@@ -1264,7 +1272,7 @@ def lookGenTop(args, pbs, cpbs):
 
     noViol = Violations()
     for hyp in sortedHyps(lookConfHypGen(), lookConfHypValid, lookConfHypCost,
-                          20, 40, size=(1 if glob.inHeuristic else 5)): 
+                          20, 40, size=(2 if glob.inHeuristic else 5)): 
         conf = hyp.conf
         viol = hyp.viol
         tr(tag, '(%s) viol=%s'%(obj, viol.weight() if viol else None))
@@ -1278,6 +1286,7 @@ def lookGenTop(args, pbs, cpbs):
                      (lookConf, 'W', 'cyan', attached)],
                snap=['W'])
             yield (lookConf,), viol
+    tr(tag, 'Exhausted')
 
 ## lookHandGen
 ## obj, hand, graspFace, grasp, graspVar, graspDelta and gives a conf
@@ -1352,7 +1361,7 @@ def lookHandGenTop(args, cpbs):
 
     noViol = Violations()
     for c in lookConfGen:
-        if not testFn(c): continue
+        if not testFn(c)[0]: continue
         path, viol =  canReachHome(newBS, c, prob, noViol,
                                    homeConf=newBS.getConf())
         tr(tag, '(%s) viol=%s'%(obj, viol.weight() if viol else None))

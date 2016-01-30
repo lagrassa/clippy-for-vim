@@ -359,7 +359,10 @@ class RoadMap:
             trAlways('RRT failed')
             print 'endPtViol', endPtViol
             for x in pbs.getShadowWorld(prob).objectShapes.values(): print x
-            raw_input('RRT failed')
+            print 'targetBase', targetConf.baseConf()
+            print 'initBase', initConf.baseConf()
+            targetConf.draw('W', 'pink'); initConf.draw('W', 'blue')
+            tr('RRTFailed', 'RRT failed')
 
         if not viol:
             pass
@@ -867,6 +870,7 @@ class RoadMap:
                     pdb.set_trace()
             return ansCC
         else:
+            assert not selectedChains, 'Does not handle selectedChains'
             placement = conf.placement(attached=attached)
             return placement.collides(obj)
 

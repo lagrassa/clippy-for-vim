@@ -7,7 +7,7 @@ import planGlobals as glob
 from geom import bboxCenter
 from shapes import pointBox, BoxScale
 import transformations as transf
-from pr2Util import shadowName, objectName
+from pr2Util import shadowName, objectName, permanent
 from traceFile import debugMsg, debug
 import windowManager3D as wm
 from miscUtil import argmax
@@ -275,8 +275,15 @@ def render(raster, lookConf, shape):
         raster.update(objPrim, 1)
     return trans
 
+nCalls = 0
+nWins = 0
+notEnoughPoints = 0
+belowThresh = 0
+
 # prob == 0. when doing simulation
 def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
+    global nCalls, nWins, notEnoughPoints, belowThresh
+    nCalls +=1 
     if debug('visible'):
         print 'visible', shape.name(), 'from base=', conf.baseConf(), 'head=', conf[conf.robot.headChainName]
         print 'obstacles', obstacles
@@ -307,6 +314,7 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
             print total, 'hit points for', shape
             debugMsg('visible', 'Not enough hit points')
         cache[key] = (False, [])
+        notEnoughPoints += 1
         return False, []
     if not moveHead:
         lookConf = conf
@@ -316,7 +324,12 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
         if f not in fix: fix.append(f)
     move = [obj for obj in obstacles if obj not in fix]
     occluders = []
-    threshold = 0.6 if prob else 0.4
+
+    if permanent(objectName(shape.name())):
+        threshold = 0.4 if prob else 0.3 # permanent objects are more distinctive
+    else:
+        threshold = 0.6 if prob else 0.4
+
     for i, objShape in enumerate(fix):
         if objectName(shape) == objectName(objShape): continue
         if debug('visible'):
@@ -334,9 +347,11 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     ratio = float(final)/float(total)
     if ratio < threshold:
         if debug('visible'): print 'visible ->', (False, [])
+        belowThresh += 1
         return False, []            # No hope
     # find a list of movable occluders that could be removed to
     # achieve visibility
+    perm = permanent(objectName(shape.name()))
     for j, objShape in enumerate(move):
         if objectName(shape) == objectName(objShape): continue
         i = len(fix) + j
@@ -372,5 +387,6 @@ def visible(ws, conf, shape, obstacles, prob, moveHead=True, fixed=[]):
     if debug('visible_raster'): raster.draw('Raster')
 
     cache[key] = ans
+    nWins += 1
     return ans
 

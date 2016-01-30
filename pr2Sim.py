@@ -107,6 +107,8 @@ class RealWorld(WorldState):
                 raw_input('Inconsistency in path and simulation')
         
         for (pathIndex, conf) in enumerate(path):
+            if debug('sim') and prevConf['pr2Head'] != conf['pr2Head']:
+                print 'moving head from', prevConf['pr2Head'], 'to', conf['pr2Head']
             originalConf = conf
             newXYT = conf.baseConf()
             prevBasePose = path[max(0, pathIndex-1)].basePose()
@@ -139,9 +141,9 @@ class RealWorld(WorldState):
                 print '--> modified base conf', conf.baseConf()
             if action:
                 action(prevConf, conf) # do optional action
-                prevConf = conf
             else:
                 self.setRobotConf(conf)
+            prevConf = conf
             pathTraveled.append(conf)
             if debug('animate'):
                 self.draw('World');
@@ -286,19 +288,9 @@ class RealWorld(WorldState):
                          if s.name() != targetObj ] + [self.robotPlace]
             vis, occl = visible(self, self.robotConf, shapeInHand,
                              obstacles, 0.0, moveHead=False, fixed=[self.robotPlace.name()])
-            if not vis:
+            if not (vis and len(occl) == 0):
                 if debug('sim'): print 'visible returned', vis, occl
                 tr('sim', 'Object %s is not visible'%targetObj)
-                return 'none'
-            elif len(occl) > 0:
-                if debug('sim'): print 'visible returned', vis, occl
-                # This condition is implemented in canView.  It might
-                # be very difficult to move hand out of the way of big
-                # permanent objects.
-                if occl == [robotName] and permanent(targetObj):
-                    tr('sim', 'Permanent object %s is visible in spite of robot'%targetObj)
-                else:
-                    tr('sim', 'Object %s is not visible'%targetObj)
                 return 'none'
             else:
                 tr('sim', 'Object %s is visible'%targetObj)

@@ -39,18 +39,6 @@ class BFluent(Fluent):
         return self.isGround() and other.isGround() and \
           self.args[0].matchArgs(other.args[0]) != None
 
-    def getIsGround(self):
-        return self.args[0].isGround() and \
-               all([not isAnyVar(a) for a in self.args[1:]]) \
-               and not isAnyVar(self.value)
-
-    def getIsPartiallyBound(self):
-        b0 = self.args[0].isPartiallyBound()
-        g0 = self.args[0].isGround()
-        v0 = not b0 and not g0 # rf has no bindings
-        av = [v0] + [isVar(a) for a in self.args[1:]]
-        return (True in av) and (False in av)
-
     def couldClobber(self, other, details = None):
         if self.contradicts(other, details):
             return True
@@ -58,16 +46,9 @@ class BFluent(Fluent):
             return False
         return self.args[0].couldClobber(other.args[0], details)
 
-    def argsGround(self):
-        return self.args[0].isGround()
-
     def getVars(self):
         return set([a for a in self.args[1:] if isAnyVar(a)]).union(\
                                                 self.args[0].getVars())
-
-    def shortName(self):
-        return self.predicate + '(' + self.args[0].shortName() + \
-                   ', ' + prettyString(self.args[-1]) +  ')'
 
     def update(self):
         assert isVar(self.args[-1]) or (0 <= self.args[-1] <= 1) or \
@@ -78,7 +59,6 @@ class BFluent(Fluent):
         self.args[0].update()
         # Do the update on this fluent (should call the parent method)
         self.isGroundStored = self.getIsGround()
-        self.isPartiallyBoundStored = self.getIsPartiallyBound()
         self.strStored = {True:None, False:None}
 
     # Avoid printing the value of the embedded rfluent
@@ -106,16 +86,6 @@ class Bd(BFluent):
         if isAnyVar(p):
             b[p] = dv.prob(dv.mode())     
         return b
-
-    def applyBindings(self, bindings):
-        if self.isGround():
-            return self.copy()
-        return Bd([self.args[0].applyBindings(bindings)] + \
-                  [lookup(a, bindings) for a in self.args[1:]],
-                  lookup(self.value, bindings))
-
-    def copy(self):
-        return Bd(customCopy(self.args), customCopy(self.value))
 
     # True if the rFluent has value v with probability greater than p
     def test(self, b):
@@ -185,6 +155,40 @@ class Bd(BFluent):
             # This is pure entailment
             return self, b
 
+# Conditional distribution, to be used like this:
+#     B(Cond(rf1, rf2, val2), val1, var, delta, p)
+
+class Cond(Fluent):
+    predicate = 'Cond'
+
+    def getVars(self):
+        (rf1, rf2, val2) = self.args        
+        return rf1.getVars().union(rf2.getVars()).union(\
+            {val2} if isVar(val2) else set())
+
+    def update(self):
+        (rf1, rf2, val2) = self.args        
+        # Generate the strings
+        if not isVar(rf1): rf1.update()
+        if not isVar(rf2): rf2.update()
+        # Do the update on this fluent (should call the parent method)
+        self.isGroundStored = self.getIsGround()
+        self.strStored = {True:None, False:None}
+
+    # Avoid printing the value of the embedded rfluent
+    def argString(self, eq):
+        (rf1, rf2, val2) = self.args
+        str1 = rf1 if isVar(rf1) else rf1.prettyString(eq, includeValue = False)
+        str2 = rf2 if isVar(rf2) else rf2.prettyString(eq, includeValue = False)
+        return '['+ str1 +', ' + str2 + ', ' + prettyString(val2, eq) + ']'
+
+    def dist(self, bState):
+        (rf1, rf2, val2) = self.args
+        assert hasattr(rf1, 'cDist')
+        # Ask the first fluent to provide a cDist method
+        return rf1.cDist(rf2, val2, bState)
+        
+
 class B(BFluent):
     predicate = 'B'
     # Fluent for the planner to use.  Derived from an RFluent with a
@@ -205,6 +209,7 @@ class B(BFluent):
         # No negative deltas!
         assert isVar(delta) or delta == None or delta == '*' or \
                      all([float(dv) >= 0.0 for dv in delta])
+        assert isVar(var) or type(var) == tuple
 
         # Make sure numeric args are floats.  Allow None.
         def g(v):
@@ -219,12 +224,6 @@ class B(BFluent):
     def removeProbs(self):
         return B([self.args[0], self.args[1], None, None, None], self.value)
 
-    def applyBindings(self, bindings):
-        if self.isGround(): return self
-        return B([self.args[0].applyBindings(bindings)] + \
-                  [lookup(a, bindings) for a in self.args[1:]],
-                  lookup(self.value, bindings))
-
     # Print stdev!!
     def argString(self, eq = True):
         # Args: fluent, mean, var, delta, p
@@ -233,9 +232,6 @@ class B(BFluent):
                          if (not var == None and not isVar(var)) else var
         return '['+ fluent.prettyString(eq, includeValue = False) + ',' + \
          ', '.join([prettyString(a, eq) for a in [mean, stdev, delta, p]]) + ']'
-
-    def copy(self):
-        return B(customCopy(self.args), customCopy(self.value))
 
     def heuristicVal(self, details):
         (rFluent, v, var, delta, p) = self.args
@@ -321,15 +317,17 @@ class B(BFluent):
         if isinstance(fglb, set):
             # no glb at rfluent level
             return {self, other}, {}
-        if isVar(sval):
-            b[sval] = oval
-        elif isVar(oval):
-            b[oval] = sval
+        if sval != oval:
+            if isVar(sval):
+                b[sval] = oval
+            elif isVar(oval):
+                b[oval] = sval
 
-        if isVar(sdelta):
-            b[sdelta] = odelta
-        elif isVar(odelta):
-            b[odelta] = sdelta
+        if sdelta != odelta: 
+            if isVar(sdelta):
+                b[sdelta] = odelta
+            elif isVar(odelta):
+                b[odelta] = sdelta
 
         # Find the glb.  Find interval of overlap, then pick mean, to get
         # new values of val and delta
@@ -348,10 +346,11 @@ class B(BFluent):
             newVal, newDelta = sval, sdelta
         
         # take the min of the variances
-        if isVar(svar):
-            b[svar] = ovar
-        elif isVar(ovar):
-            b[ovar] = svar
+        if svar != ovar:
+            if isVar(svar):
+                b[svar] = ovar
+            elif isVar(ovar):
+                b[ovar] = svar
 
         if isGround((svar, ovar)):
             newVar = tuple(np.minimum(np.array(svar), np.array(ovar)).tolist())
@@ -360,10 +359,11 @@ class B(BFluent):
             newVar = svar
 
         # take the max of the probs
-        if isVar(sp):
-            b[sp] = op
-        elif isVar(op):
-            b[op] = sp
+        if sp != op:
+            if isVar(sp):
+                b[sp] = op
+            elif isVar(op):
+                b[op] = sp
 
         if isGround((sp, op)):
             newP = max(op, sp)
@@ -411,20 +411,21 @@ def getOverlap(vl1, vl2, dl1, dl2):
 
 class BMetaOperator(Operator):
     def __init__(self, name, fluentClass, args, generator,
-                 argsToPrint = None):
+                 argsToPrint = None, sideEffects = None):
         super(BMetaOperator, self).__init__(\
             name,
             args + ['PreCond', 'NewCond', 'PostCond', 'P'],
-            {0 : set(),
-             1 : {Bd([fluentClass(args + ['PreCond']), True, 'P'], True)}},
+            #{0 : set(),
+             {0 : {Bd([fluentClass(args + ['PreCond']), True, 'P'], True)}},
             [({Bd([fluentClass(args + ['PostCond']),  True, 'P'], True)}, {})],
             functions = [
                generator(['NewCond'], args + ['P', 'PostCond'], True),
                AddPreConds(['PreCond'],['PostCond', 'NewCond'], True)],
+            sideEffects = sideEffects if sideEffects else {},
             argsToPrint = range(len(args)) if argsToPrint == None else \
                            argsToPrint,
-            ignorableArgs = range(len(args), len(args) + 4),
-            ignorableArgsForHeuristic = range(len(args), len(args) + 4),
+            ignorableArgs = range(len(args)+3, len(args) + 4),
+            ignorableArgsForHeuristic = range(len(args)+3, len(args) + 4),
             conditionOnPreconds = True,
             metaOperator = True)
 
@@ -444,7 +445,6 @@ from ffLike import search
 # Add depth bound !?
 
 def hCacheReset():
-    print 'flushed heuristic cache'
     ffLike.visited = {}
     hCacheResetOld()
 fbch.hCacheReset = hCacheReset
@@ -497,13 +497,12 @@ def BBhAddBackBSetNew(start, goal, operators, ancestors, maxK = 30,
         if len(g.fluents) == 1:
             hv = list(g.fluents)[0].heuristicVal(start.details)
             if hv:
-                # Mishandles special heuristic slightly because it
-                # only returns a single operator (with the cost smashed).
-                # Kills chances of sharing actions at this level.
                 (cost, ops) = hv  # have a special-purpose heuristic
-                ops = list(ops)
-                pre = State([Dummy([str(op), cost], True) for op in ops])
-                pre.operator = ops
+                if cost == float('inf'):
+                    pre = State([Dummy(['Infinite special H', float('inf')], True)])
+                else:
+                    pre = State([Dummy([str(op), cost], True) for op in ops])
+                pre.operator = list(ops)
                 return 0, [pre]
 
         # Applicable ops -> regress -> list of pre-images (plus cost

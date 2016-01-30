@@ -24,12 +24,15 @@ monotonicFirst = True
 drawFailedNodes = False
 drawRebindNodes = True
 
+rebindPenalty = 100
+
 useInflation = True
 
 '''
 abstractCost
 animate
 applicableOps
+applicableOpsLog (write final list of applicable ops in a readable way)
 appOp:detail
 appOp:number
 appOp:result
@@ -54,14 +57,11 @@ extraTests (test for rendundancy and contradiction within state fluent set;
 feasibleHeuristicOnly (don't try to find optimal value in heuristic)
 ffl (ff-like heuristic, new implementation)
 fluentCache (be sure the fluent cache is behaving)
-hAddBack   (super verbose)
-hAddBackInf
-hAddBackInfFinal
-hAddBackV  (just values)
 h (really just values)
 helpfulActions
 heuristic (in ucSearch: positive value at goal or 0 value elsewhere)
 heuristicInversion  (prim actually achieves more than abs)
+hv special heuristic values
 infeasible (hierarchical subgoal)
 inHeuristic (turn on debugging inside heuristic in generators)
 inTest
@@ -81,6 +81,7 @@ pushSim : more accurate push sim
 regression
 regression:fail
 regression:fail:bindings
+RRTFailed
 satisfies                          
 sim
 simpleAbstractCostEstimates  (cut down on generator calls high in the hierarchy)
@@ -97,7 +98,7 @@ visible_raster
 
 # turned off helpful actions
 
-usualTags = ['useNewH'] # 'animate', , 'helpfulActions', 'nonmon'
+usualTags = ['useNewH', 'ignoreUpperOp'] # 'nonmon'
 flags = ['simpleAbstractCostEstimates', 'primitiveHeuristicAlways']
 heuristicTags = ['hAddBackV', 'heuristic', 'hAddBackInf', 'hAddBack', 
                  'debugInHeuristic', 'h'] #, 'hv'] 
@@ -112,7 +113,7 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags
+debugOn = usualTags 
 
 print 'Debugging on', debugOn
 

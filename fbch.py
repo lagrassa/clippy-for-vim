@@ -427,7 +427,6 @@ class Fluent(object):
 
     def update(self):
         self.isGroundStored = self.getIsGround()
-        self.isPartiallyBoundStored = self.getIsPartiallyBound()
         self.strStored = {True:None, False:None} # key is eq
 
     def isImplicit(self):
@@ -451,21 +450,13 @@ class Fluent(object):
         self.args[-1] = simplifyCond(cond, newRelevantConds, details)
         self.update()
 
-    def shortName(self):
-        return self.predicate
-
     def copy(self):
         newFluent = copy.copy(self)
         newFluent.args = customCopy(self.args)
         return newFluent
 
     def getIsGround(self):
-        return self.argsGround() and not isVar(self.value)
-
-    # If some args are bound and some are not
-    def getIsPartiallyBound(self):
-        argB = [isVar(a) for a in self.args]
-        return (True in argB) and (False in argB)
+        return self.argsGround() and isGround(self.value)
 
     def getVars(self):
         valVars = [self.value] if isVar(self.value) else []
@@ -478,18 +469,10 @@ class Fluent(object):
             return set([a for a in self.args if isVar(a)] + valVars)
 
     def argsGround(self):
-        if self.isConditional():
-            return not isVar(self.args[-1]) and \
-                   all([not isVar(a) for a in self.args[:-1]]) and \
-                   all([c.isGround() for c in self.args[-1]])
-        else:
-            return all([not isVar(a) for a in self.args])
+        return isGround(self.args)
                    
     def isGround(self):
         return self.isGroundStored
-
-    def isPartiallyBound(self):
-        return self.isPartiallyBoundStored
 
     # For a fluent that is ground except for the value, get the value
     def getGrounding(self, state):
@@ -580,14 +563,15 @@ class Fluent(object):
             return self.copy()
         # Have to copy to get the right subclass, methods, etc.
         newF = copy.copy(self)
-        if self.isConditional():
-            # Dig one level deeper into last arg
-            newF.args = [lookup(a, bindings) for a in self.args[:-1]] + \
-                     ([lookup(self.args[-1], bindings)] \
-                      if isVar(self.args[-1]) else \
-                      [[c.applyBindings(bindings) for c in self.args[-1]]])
-        else:
-            newF.args = [lookup(a, bindings) for a in self.args]
+        # if self.isConditional():
+        #     # Dig one level deeper into last arg
+        #     newF.args = [lookup(a, bindings) for a in self.args[:-1]] + \
+        #              ([lookup(self.args[-1], bindings)] \
+        #               if isVar(self.args[-1]) else \
+        #               [[c.applyBindings(bindings) for c in self.args[-1]]])
+        # else:
+        #     newF.args = [lookup(a, bindings) for a in self.args]
+        newF.args = applyBindings(self.args, bindings)
         newF.value = lookup(self.value, bindings)
         newF.update()
         return newF
@@ -660,6 +644,9 @@ class Fluent(object):
 
 # Each result is a pair: a set of fluents and a dictionary of specific
 # preconditions (not already in the general precondition list
+
+# Ignorable args are ignored when considering operation equivalence
+# for determining the appropriate level of abstraction.  
 
 class Operator(object):
     num = 0
@@ -920,15 +907,17 @@ class Operator(object):
 
         op = Operator(self.name,
                       [lookup(a, rb) for a in self.args],
-                      dict([(v, set([f.applyBindings(rb) for f in preConds])) \
-                            for (v, preConds) in self.preconditions.items()]),
+                      applyBindings(self.preconditions, rb),
+                      # dict([(v,set([f.applyBindings(rb) for f in preConds])) \
+                      #       for (v, preConds) in self.preconditions.items()]),
                       applyBindings(self.results, rb),
                       [f.applyBindings(rb) for f in self.functions],
                       self.f,
                       self.cost,
                       self.prim,
-                      dict([(v, set([f.applyBindings(rb) for f in preConds])) \
-                            for (v, preConds) in self.sideEffects.items()]),
+                      applyBindings(self.sideEffects, rb),
+                      # dict([(v,set([f.applyBindings(rb) for f in preConds])) \
+                      #       for (v, preConds) in self.sideEffects.items()]),
                       self.ignorableArgs,
                       self.ignorableArgsForHeuristic,
                       self.conditionOnPreconds,
@@ -1082,7 +1071,8 @@ class Operator(object):
     def newGoalFromBindings(self, newBindings, results, goal, startState,
                             heuristic, operators, ancestors):
         goal = goal.copy()
-        if self.metaOperator:
+        if self.metaOperator and not self.isAbstract():
+            # LPK!! Only add in the conditions at the primitive level
             # Add extra preconds straight into the goal
             newCond = False
             for k in newBindings.keys():
@@ -1640,29 +1630,25 @@ class PlanStack(Stack):
 
                     if previousUpperIndex != currentUpperIndex -1 :
 
-                        tr('executionSurprise', ('layer', i-1),
-                             ('prevIndex', previousUpperIndex),
-                             ('currIndex', currentUpperIndex),
-                             ('popping layers', i, 'through', len(layers)-1))
-
                         if previousUpperIndex == currentUpperIndex and \
                                  not op:
                             # top-level goal hasn't changed but this
                             # layer doesn't know what to do
-                            print 'Goal at layer', i-1, 'remains:'
-                            for fl in upperSubgoal.fluents: print '    ', \
-                                      str(fl)[0:60]
-                            print 'But we have exited envelope of layer', i
-                            lastExecutedAtLayerI = layers[i].lastStepExecuted
-                            for j in range(len(layers[i].steps)):
-                                if j == lastExecutedAtLayerI:
-                                    print '===> Last step executed' 
-                                print 'Unsat fluents in pre-image', j, ':'
-                                for fl in layers[i].steps[j][1].fluents:
-                                    if fl.value != s.fluentValue(fl):
-                                        print '    ', str(fl)[0:60]
-                            print 'Popping layers to here'
-                            raw_input('okay?')
+                            lastExecutedAtLayerI =layers[i].lastStepExecuted
+                            if debug('executionSurprise'):
+                                print 'Goal at layer', i-1, 'remains:'
+                                for fl in upperSubgoal.fluents:
+                                    print '    ', str(fl)[0:78]
+                                print 'But we have exited envelope of layer', i
+                                for j in range(len(layers[i].steps)):
+                                    if j == lastExecutedAtLayerI:
+                                        print '===> Last step executed' 
+                                    print 'Unsat fluents in pre-image', j, ':'
+                                    for fl in layers[i].steps[j][1].fluents:
+                                        if fl.value != s.fluentValue(fl):
+                                            print '    ', str(fl)[0:78]
+                                print 'Popping layers to here'
+                                raw_input('okay?')
 
                             probableCause = [fl for fl in \
                              layers[i].steps[lastExecutedAtLayerI-1][1].fluents\
@@ -1977,8 +1963,8 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         debugMsg(tag, 'Doing rebind op')
         return [RebindOp()]
 
+    # Ops = all operators, unless we have a skeleton
     if skeleton:
-        #monotonic = False
         if g.depth < len(skeleton):
             ops = [skeleton[g.depth]]
             debugMsg('skeleton', g.depth, skeleton[g.depth])
@@ -1993,7 +1979,7 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
     else:
         ops = operators
 
-    # default method of getting possibly useful operators
+    # Get instances of all ops
     possiblyUsefulOps = set()
     for o in ops:
         possiblyUsefulOps.update(appOpInstances(o, g, startState,
@@ -2002,12 +1988,12 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
     possiblyUsefulNames = set([o.name for o in possiblyUsefulOps])
         
 
-    # Now, figure out which pre-bound ops we have
-    # It looks like we're not getting bindings from above?
+    # Figure out which pre-bound ops we have, either passed in from
+    # above, or from the skeleton
     preBoundOps = []
-    if lastOp and g.depth == 0:
+    if lastOp and lastOp.name != 'Top' and \
+                  g.depth == 0 and not debug('ignoreUpperOp'):
         preBoundOps.append(lastOp)
-
     if skeleton is None and hOps:
         hopsg = hOps(g)
         if hopsg: 
@@ -2015,9 +2001,10 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
                 if o.name in possiblyUsefulNames:
                     preBoundOps.append(o)
                                          
+    # Accumulate final set of operators into result
     result = []
     # For each pre-bound operator, make a fresh new instance with
-    # those same bindings and add them to the result.
+    # those same bindings and add its instances to result
     for o in preBoundOps:
         newO = o.parentWithNewBindings()
         newIs = appOpInstances(newO, g, startState, ancestors,
@@ -2025,55 +2012,44 @@ def applicableOps(g, operators, startState, ancestors = [], skeleton = None,
         for oo in newIs:
             if not redundant(oo, result):
                 result.append(oo)
-        if debug('preBoundOps'):
-            print 'prebound op', o
-            print '   has', len(newIs), 'applicable instances'
-            if len(newIs) == 0:
-                raw_input('look at this?')
-
-    if debug('preBoundOps'):
-        print 'Pre bound ops'
-        for o in result:
-            print '    ', o.name
-            for r in o.results:
-                for rr in r[0]:
-                    print '        ', rr
-        raw_input('okay?')
 
     # These are the preBoundOps that we are actually going to recommend
     preBoundNames = set([o.name for o in result])
 
-    # Add possibly useful ops.  If we have a prebound version, then
-    # delay binding.  Should we delay binding on *all* other ops if we
-    # have some possibly useful ones?
-
-    if debug('preBoundOps'): print 'Delayed ops worth trying'
+    # Add additional possibly useful ops.
+    # Delay some of them if we have prebound ops or a good lastop
+    delayOthers = len(preBoundNames) > 0 or \
+      (lastOp and lastOp.name != 'Top' and g.depth == 0)
 
     for o in possiblyUsefulOps:
+        delayThis = delayOthers
+        # Do not delay this one if same type as passed in from above
+        if debug('ignoreUpperOp') and lastOp and g.depth == 0 and \
+          o.name == lastOp.name:
+          delayThis = False
+        # Do not delay if it is related to a pre-bound op
         # Todo: LPK; horrible domain-dependent hack.
-        # If Move is helpful, alway also consider moveNB
-        # If LookAt is helpful, always consider the unbound version
-        if len(preBoundNames) > 0 and \
-            not (o.name == 'MoveNB' and ('Move' in preBoundNames)) and \
-            not (o.name == 'LookAt' and ('LookAt' in preBoundNames)):
-            o.delayBinding = True
-            if debug('preBoundOps'):
-                print '    ', o
+        # If Move is preBound, alway also consider moveNB
+        # If LookAt is preBound, always consider the unbound version
+        if (o.name == 'MoveNB' and ('Move' in preBoundNames)) or \
+           (o.name == 'LookAt' and ('LookAt' in preBoundNames)):
+            delayThis = False
+            
+        o.delayBinding = delayThis
+        # Add to result if it's not redundant
         if not renaming(o, result):
             result.append(o)
-        else:
-            if debug('preBoundOps'):
-                print 'not appending renamed result'
-                print o
-                raw_input('really okay?')
 
-    if len(preBoundNames) > 0 and debug('preBoundOps'):
-        raw_input('look at dem ops')
-
+    # Tracing stuff
     if len(result) == 0:
         debugMsg('appOp:number', ('h', glob.inHeuristic, 'number', len(result)))
     debugMsg(tag, ('h', glob.inHeuristic, 'number', len(result)),
              ('result', result))
+
+    if debug('applicableOpsLog'):
+        print 'App op!'
+        for thing in result:
+            print thing
     return result
 
 def appOpInstances(o, g, startState, ancestors, monotonic, nonMonOps):

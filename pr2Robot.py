@@ -507,6 +507,7 @@ class PR2:
         self.chainNames = ['pr2LeftGripper', 'pr2RightGripper',
                            'pr2Torso', 'pr2Base',
                            'pr2LeftArm', 'pr2RightArm', 'pr2Head']
+        self.bodyChains = ['pr2Torso', 'pr2Base', 'pr2Head']
         self.moveChainNames = ['pr2LeftArm', 'pr2Base']
         self.armChainNames = {'left':'pr2LeftArm', 'right':'pr2RightArm'}
         self.gripperChainNames = {'left':'pr2LeftGripper', 'right':'pr2RightGripper'}

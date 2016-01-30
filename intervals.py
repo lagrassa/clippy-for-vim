@@ -43,13 +43,6 @@ class W(Fluent):
             all([not isVar(a) for a in self.args[1:]]) \
             and not isVar(self.value)
 
-    def getIsPartiallyBound(self):
-        b0 = self.args[0].isPartiallyBound()
-        g0 = self.args[0].isGround()
-        v0 = not b0 and not g0 # rf has no bindings
-        av = [v0] + [isVar(a) for a in self.args[1:]]
-        return (True in av) and (False in av)
-
     def argsGround(self):
         return self.args[0].isGround()
 

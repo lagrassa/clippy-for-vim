@@ -1,7 +1,8 @@
 import math
+import numpy as np
 import windowManager3D as wm
 from dist import GMU, MultivariateGaussianDistribution
-from miscUtil import prettyString
+from miscUtil import prettyString, diagToSq
 from traceFile import tr, trAlways, debug
 MVG = MultivariateGaussianDistribution
 
@@ -25,15 +26,60 @@ lostDist = GMU([(MVG(identPoseTuple, hugeVarianceArray, pose4 = True), 0.99)])
 class BeliefState:
 
     def __init__(self, pbs, domainProbs, awayRegion):
+        objNames = pbs.objectBs.keys()
         self.pbs = pbs
         self.domainProbs = domainProbs
         self.awayRegion = awayRegion
         self.poseModeProbs = dict([(name , 0.99) \
-                                   for name in pbs.objectBs.keys()])
+                                   for name in objNames])
         # Share the poseModeProbs.
         self.pbs.poseModeProbs = self.poseModeProbs
         self.graspModeProb = {'left' : 0.99, 'right' : 0.99}
-        # wm.getWindow('Belief').startCapture()
+        self.relPoseVars = self.getRelPoseVars()
+
+    def getRelPoseVars(self):
+        # Take them out of the current pbs, going via the robot
+        result = []
+        objNames = self.pbs.objectBs.keys()
+        for o1 in objNames:
+            f1 = self.pbs.getPlacedObjBs()[o1].support.maxProbElt()
+            var1 = self.pbs.getPlaceB(o1, f1).poseD.var
+            for o2 in objNames:
+                f2 = self.pbs.getPlacedObjBs()[o2].support.maxProbElt()
+                var2 = self.pbs.getPlaceB(o1, f2).poseD.var
+                result.append(((o1, o2),
+                               tuple([a + b for (a, b) in zip(var1, var2)])))
+        return dict(result)
+
+    # Take the min of what we had and the current ones
+    def updateRelPoseVars(self):
+        # Can take out when done debugging!!
+        self.pbs.draw(0.95, 'Belief')
+        # Can take out when done debugging!!
+        objNames = self.pbs.objectBs.keys()
+        for o1 in objNames:
+            f1 = self.pbs.getPlacedObjBs()[o1].support.mode()
+            var1 = self.pbs.getPlaceB(o1, f1).poseD.var
+            for o2 in objNames:
+                old = self.relPoseVars[(o1, o2)]
+                if o1 == o2:
+                    rv = (0, 0, 0, 0)
+                else:
+                    f2 = self.pbs.getPlacedObjBs()[o2].support.mode()
+                    var2 = self.pbs.getPlaceB(o1, f2).poseD.var
+                    rv = tuple([a + b for (a, b) in zip(var1, var2)])
+                if old == None:
+                    self.relPoseVars[(o1, o2)] = rv
+                else:
+                    self.relPoseVars[(o1, o2)] = \
+                              tuple([min(a, b) for (a, b) in zip(rv, old)])
+
+    def clearRelPoseVars(self, o):
+        objNames = self.pbs.objectBs.keys()
+        for otherO in objNames:
+            if otherO == o: continue
+            self.relPoseVars[(o, otherO)] = None
+            self.relPoseVars[(otherO, o)] = None
 
     # Temporary hacks to keep all the types right
     def graspModeDist(self, obj, hand, face):
@@ -92,9 +138,6 @@ class BeliefState:
         wm.getWindow('Belief').pause()
         # wm.getWindow('Belief').capturing = False
 
-def diagToSq(d):
-    return [[(d[i] if i==j else 0.0) \
-             for i in range(len(d))] for j in range(len(d))]
 
 def prettyStdev(vt):
     return prettyString([math.sqrt(x) for x in vt])             
