@@ -81,6 +81,7 @@ pushSim : more accurate push sim
 regression
 regression:fail
 regression:fail:bindings
+RRTFailed
 satisfies                          
 sim
 simpleAbstractCostEstimates  (cut down on generator calls high in the hierarchy)
@@ -112,7 +113,7 @@ debugOnly = ['h', 'assign']  # print but don't pause
 #------------------------------------
 # Add tags that you want to debug and pause on to this list
 
-debugOn = usualTags
+debugOn = usualTags 
 
 print 'Debugging on', debugOn
 

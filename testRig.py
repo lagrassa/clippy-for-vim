@@ -416,7 +416,7 @@ class PlanTest:
     def run(self, goal, skeleton = None, hpn = True,
             home=None, regions = frozenset([]), hierarchical = False,
             heuristic = habbs,
-            greedy = 0.5,
+            greedy = 0.75,
             initBelief = None, initWorld=None,
             rip = False, alwaysReplan = False, **other):
         randomizedInitialPoses = rip
@@ -629,7 +629,8 @@ typicalErrProbs = DomainProbs(
             placeVar = (0.005**2, 0.005**2, 1e-11, 0.01**2),
             pushVar = (0.01**2, 0.01**2, 1e-11, 0.02**2),
             # pickTolerance
-            pickTolerance = (0.025, 0.025, 0.025, 0.1),
+            #pickTolerance = (0.025, 0.025, 0.025, 0.1),
+            pickTolerance = (0.03, 0.03, 0.03, 0.1),
             maxGraspVar = (0.0051**2, .0051**2, .005**2, .015**2),
             #maxPushVar = (0.001**2, .001**2, .0001**2, .002**2),
             #maxPushVar = (0.005**2, .005**2, .0001**2, .01**2),

@@ -363,7 +363,7 @@ class RoadMap:
             print 'targetBase', targetConf.baseConf()
             print 'initBase', initConf.baseConf()
             targetConf.draw('W', 'pink'); initConf.draw('W', 'blue')
-            raw_input('RRT failed')
+            tr('RRTFailed', 'RRT failed')
 
         if not viol:
             pass

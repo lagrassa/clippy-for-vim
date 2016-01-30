@@ -411,16 +411,17 @@ def getOverlap(vl1, vl2, dl1, dl2):
 
 class BMetaOperator(Operator):
     def __init__(self, name, fluentClass, args, generator,
-                 argsToPrint = None):
+                 argsToPrint = None, sideEffects = None):
         super(BMetaOperator, self).__init__(\
             name,
             args + ['PreCond', 'NewCond', 'PostCond', 'P'],
-            {0 : set(),
-             1 : {Bd([fluentClass(args + ['PreCond']), True, 'P'], True)}},
+            #{0 : set(),
+             {0 : {Bd([fluentClass(args + ['PreCond']), True, 'P'], True)}},
             [({Bd([fluentClass(args + ['PostCond']),  True, 'P'], True)}, {})],
             functions = [
                generator(['NewCond'], args + ['P', 'PostCond'], True),
                AddPreConds(['PreCond'],['PostCond', 'NewCond'], True)],
+            sideEffects = sideEffects if sideEffects else {},
             argsToPrint = range(len(args)) if argsToPrint == None else \
                            argsToPrint,
             ignorableArgs = range(len(args)+3, len(args) + 4),

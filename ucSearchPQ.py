@@ -203,6 +203,14 @@ def search(initialState, goalTest, actions, successor,
 
         if somewhatVerbose or verbose or count >= maxNodes:
             print "Search failed after visiting ", count, " states."
+
+        if count == maxNodes:
+            # See if there's a winner in the agenda
+            while not agenda == []:
+                (hc, _, n) = heappop(agenda)
+                if n is None: continue
+                if goalTest(n.state):
+                    return n.path(), n.costs()
         return None, None
 
 # This is a generator version of search... it has multiple explicit
