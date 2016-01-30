@@ -267,6 +267,12 @@ class JointConf:
         if not self.items:
             self.items = frozenset([(chain, tuple(self.conf[chain])) for chain in self.conf])
         return self.items
+
+    def nearEqual(self, other):
+      if not hasattr(other, 'conf'): return False
+      if not set(self.conf.keys()) == set(other.conf.keys()): return False
+      return not any([any([abs(x-y) > 1.0e-6 for (x,y) in zip(self.conf[chain], other.conf[chain])]) for chain in self.conf])
+
     def __str__(self):
         return 'JointConf('+str(self.conf)+')'
     def ss(self):

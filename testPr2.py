@@ -162,8 +162,8 @@ def testHandle(**args):
                    'coolShelves' : (coolShelvesPose , bigVar)
                    },
                   {'handleA' : (hu.Pose(1.25, 0.0, tZ, 0.0), medVar),
-                   'tallSodaB' : (hu.Pose(1.05, 0.22, tZ, 0.0), medVar),
-                   'tallSodaC' : (hu.Pose(1.05, -0.22, tZ, 0.0), medVar)
+                   'tsB' : (hu.Pose(1.05, 0.22, tZ, 0.0), medVar),
+                   'tsC' : (hu.Pose(1.05, -0.22, tZ, 0.0), medVar)
                    },
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
     goal = inRegion(['handleA'], 'table1Left')
@@ -492,7 +492,6 @@ def testHardSwap(**keys):
 # Test with Chute
 ######################################################################
 
-# Objects are type tallSoda, with name prefix ts
 def testChute0(**args):
     glob.useVertical = False
     # front = hu.Pose(1.05, 0.0, tZ, math.pi/2)

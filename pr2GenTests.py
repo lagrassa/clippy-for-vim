@@ -122,9 +122,8 @@ def canReachHome(pbs, conf, prob, initViol, homeConf = None, reversePath = False
                                         optimize = optimize)
 
     if path:
-        assert path[0] == conf, 'Start of path'
-        assert path[-1] == homeConf, 'End of path'
-
+        assert path[0].nearEqual(conf), 'Start of path'
+        assert path[-1].nearEqual(homeConf), 'End of path'
     if viol is None or viol.weight() > 0:
         # Don't log the "trivial" ones...
         tr('CRH', '%s h=%s'%(tag, glob.inHeuristic) + \

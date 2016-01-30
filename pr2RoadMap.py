@@ -256,12 +256,11 @@ class RoadMap:
                 viol = viol.update(endPtViol)
                 path = cachedPath[1]
                 if show and debug('showPath') and not glob.inHeuristic:
-                    print 'confAns'
                     showPath(pbs, prob, path)
                 if debug('verifyPath'):
                     if not self.checkPath(path, pbs, prob):
                         raw_input('Failed checkPath')
-                if len(path) > 1 and not (path[0] == targetConf and path[-1] == initConf):
+                if len(path) > 1 and not (path[0].nearEqual(targetConf) and path[-1].nearEqual(initConf)):
                     raw_input('Path inconsistency')
                 if finalConf: path = [finalConf] + path
                 return (viol, cost, path)
@@ -373,7 +372,7 @@ class RoadMap:
             # print 'original viol', ans if ans==None else ans[0]
             # print 'RRT viol', viol
             tr('CRH', '    returning RRT ans')
-            if len(path) > 1 and not( path[0] == targetConf and path[-1] == initConf):
+            if len(path) > 1 and not(path[0].nearEqual(targetConf) and path[-1].nearEqual(initConf)):
                 raw_input('Path inconsistency')
             ans = (viol, 0, ('confs', path))
 
