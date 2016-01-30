@@ -45,6 +45,7 @@ debugOn = usualTags
 
 # + ['visible_raster']
 # + ['potentialRegionPoseGenFinal', 'sortedPoseHyps']
+# + ['placeGen', 'placeInGen', 'canPickPlaceTest', 'CanReachHome', 'debugInHeuristic']
 # + ['poseGraspable', 'sortedHyps', 'potentialRegionPoseGen'. 'visible', 'visibleEx']
 # + ['lookGen', 'pickGen', 'placeGen', 'placeInGen', 'getReachObsts', 'CanReachHome']
 # + ['debugInHeuristic', 'pickGen', 'placeGen', 'placeInGen', 'lookGen', 'visible', 'CanSeeFrom', 'canView']
