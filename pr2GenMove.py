@@ -124,8 +124,8 @@ def moveLookPath(pbs, prob, q1, q2):
     def goalTest(state):
         return ptDist(state.pt(), goalPt) <= 0.0001
     def expandF(node):
-        newPBS = pbsUpdateVar(pbs, node.state.objVars)
         if debug('moveLookPath'):
+            newPBS = pbsUpdateVar(pbs, node.state.objVars)
             print node.action
             newPBS.draw(prob, 'W')
             goalState.q.draw('W', 'pink')
@@ -142,9 +142,10 @@ def moveLookPath(pbs, prob, q1, q2):
                         lambda node: feasibleAction(pbs, prob, node, odoError, obsVar),
                         expandF = expandF,
                         greedy = 0.75,
-                        maxNodes = 500,
+                        maxNodes = 10000,
                         printFinal = debug('moveLookPath'),
                         verbose = debug('moveLookPath'),
+                        postFailScan = False,
                         fail = False)
     if debugH:
         glob.debugOn.append('h')

@@ -545,7 +545,6 @@ class PBS:
             return self.shadowWorld
         else:
             cache = self.beliefContext.genCaches['getShadowWorld']
-            # key = (self.items(), prob)
             key = self.items() + (glob.ignoreShadowZ,) # !
             if key in cache:
                 ans = cache.get(key, None)

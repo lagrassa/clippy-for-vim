@@ -1,3 +1,3 @@
 from testPr2 import *
-test0()
+test1()
 

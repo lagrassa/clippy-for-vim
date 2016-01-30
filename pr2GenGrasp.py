@@ -25,7 +25,9 @@ def potentialGraspConfGen(pbs, placeB, graspB, conf, hand, base, prob,
     grasp = graspB.grasp.mode()
 
     pbs = pbs.copy().excludeObjs([graspB.obj])
-    pbs = inflatedBS(pbs, prob)         # ??
+
+    # To encourage grasp confs to be far from obstacles.
+    pbs = inflatedBS(pbs, prob) 
 
     # When the grasp is -1 (a push), we need the full grasp spec.
     graspBCacheVal = graspB if grasp == -1 else grasp
@@ -63,19 +65,23 @@ class GraspConfHyp(object):
 def potentialGraspConfGenAux(pbs, placeB, graspB, conf, hand, base, prob,
                              nMax=10, findApproach = True):
     def validTestFn(hyp):
-        return pbs.inWorkspaceConf(hyp.conf)
+        ans = pbs.inWorkspaceConf(hyp.conf)
+        if debug(tag): print 'Grasp hyp', hyp, 'valid=', ans
+        return ans
     def costFn(hyp):
         wkMargin = pbs.inWorkspaceConfMargin(hyp.conf)
         wkWeight = 5*max(0.1 - wkMargin, 0)
         collMargin = collisionMargin(pbs, prob, hyp.conf)
         collWeight = 5*max(0.1 - collMargin, 0)
-        # print 'collMargin', collMargin, 'collWeight', collWeight
-        return hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf) + wkWeight + collWeight
+        cost = hyp.viol.weight() + baseDist(pbs.getConf(), hyp.conf) + wkWeight + collWeight
+        if debug(tag): print 'Grasp hyp', hyp, 'cost=', cost
+        return cost
+    tag = 'potentialGraspConfs'
     pbsCopy = pbs.copy()                # so it can be modified 
     hypGen = graspConfHypGen(pbs, placeB, graspB, conf, hand, base, prob,
                              nMax=nMax, findApproach=findApproach)
     for hyp in sortedHyps(hypGen, validTestFn, costFn, nMax, 2*nMax,
-                          size=(1 if glob.inHeuristic else 10)):
+                          size=(2 if glob.inHeuristic else 10)):
         if debug('potentialGraspConfGen'):
             pbs.draw(prob, 'W'); hyp.conf.draw('W', 'green')
             debugMsg('potentialGraspConfGen', 'v=%s'%hyp.viol, 'weight=%s'%str(hyp.viol.weight()),

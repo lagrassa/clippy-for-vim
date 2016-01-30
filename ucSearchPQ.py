@@ -73,6 +73,7 @@ def search(initialState, goalTest, actions, successor,
            verbose = False, printFinal = True, maxHDelta = None,
            maxCost = float('inf'),
            fail = True,
+           postFailScan = True,
            returnFirstGoal = False):
         """
         @param initialState: root of the search
@@ -204,13 +205,18 @@ def search(initialState, goalTest, actions, successor,
         if somewhatVerbose or verbose or count >= maxNodes:
             print "Search failed after visiting ", count, " states."
 
-        if count == maxNodes:
-            # See if there's a winner in the agenda
+        if postFailScan:
             while not agenda == []:
                 (hc, _, n) = heappop(agenda)
-                if n is None: continue
+                if n.state in expanded: continue
+                if checkExpandF:        # check legality on demand
+                    n = checkExpandF(n) # possibly modify the node or set to None
+                    if n is None: continue
                 if goalTest(n.state):
+                    if expandF: expandF(n)  # Treat like an expansion
+                    print 'Found goal on agenda, returning it'
                     return n.path(), n.costs()
+
         return None, None
 
 # This is a generator version of search... it has multiple explicit
