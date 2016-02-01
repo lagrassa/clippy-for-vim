@@ -1,4 +1,5 @@
 import platform
+import os
 
 ########################################
 # Default values of global values, can be overriden in local.py
@@ -11,12 +12,14 @@ libkinDir = ''
 ########################################
 
 LINUX = (platform.system() == 'Linux')
+rosMasterURI = os.environ.get("ROS_MASTER_URI")
+connectedToPr2 = rosMasterURI is not None and "pr2" in rosMasterURI
 
 ########################################
 # ROS: Controlling robot 
 ########################################
 
-useROS = LINUX
+useROS = connectedToPr2
 speedFactor = 0.5
 
 ######################################################################
