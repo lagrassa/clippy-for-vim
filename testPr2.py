@@ -81,6 +81,18 @@ def placed(obj, pose, goalProb=0.95,
                      pose.xyztTuple(), targetVar, targetDelta,
                      goalProb], True)])
 
+def placedAndHolding(obj, pose, hand='left', graspType=0, goalProb=0.7,
+                     targetVar=targetSmallVar, targetDelta=(0.01, 0.01, 0.01, 0.05)):
+    return State([Bd([Holding([hand]), obj, goalProb], True),
+                  Bd([GraspFace([obj, hand]), graspType, goalProb], True),
+                  B([Grasp([obj, hand,  graspType]),
+                     (0,-0.025,0,0), targetSmallVar, targetDelta,
+                     goalProb], True),
+                  Bd([SupportFace([obj]), 4, goalProb], True),
+                  B([Pose([obj, 4]),
+                     pose.xyztTuple(), targetVar, targetDelta,
+                     goalProb], True)])
+
 def emptyHand(hand='left', goalProb=0.95):
     return State([Bd([Holding([hand]), 'none', goalProb], True)])
     
@@ -166,8 +178,10 @@ def testHandle(**args):
                    'tsC' : (hu.Pose(1.05, -0.22, tZ, 0.0), medVar)
                    },
                   ['table1Top', 'table1Left'], easy=args.get('easy', False))
-    goal = inRegion(['handleA'], 'table1Left')
-    # goal = holding('handleA', hand='left', graspType=0)
+    # goal = inRegion(['handleA'], 'table1Left')
+    # goal = placedAndHolding('handleA', hu.Pose(0.5, 0., tZ, 0.), hand='left', graspType=0)
+    goal = placed('handleA', hu.Pose(0.5, 0., tZ, 0.))
+    # goal = holding('handleA', graspType=0)
     return doTest('testHandle', exp, goal, None, args)
 
 ######################################################################
