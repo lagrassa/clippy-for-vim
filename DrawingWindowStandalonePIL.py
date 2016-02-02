@@ -27,7 +27,7 @@
 
 from Tkinter import *
 import math
-import Image, ImageDraw
+from PIL import Image, ImageDraw
 doPIL = True
 
 class Thing:

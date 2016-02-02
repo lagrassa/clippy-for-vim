@@ -165,7 +165,8 @@ cpdef tuple bestTablePose(shapes.Shape table, np.ndarray[np.float64_t, ndim=1 ]c
                           tuple summed, double res, int size):
 
     cdef hu.Transform centerPose, centerPoseInv, pose, cpose
-    cdef tuple ci, bestPlace
+    cdef tuple bestPlace
+    cdef ci
     cdef np.ndarray[np.float64_t, ndim=2] bb
     cdef int dimI, dimJ, bestScore
     cdef int i, j, score, shrink, maxShrink, scoreGood, scoreBad

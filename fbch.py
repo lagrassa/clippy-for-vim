@@ -531,9 +531,9 @@ class Fluent(object):
         #return hash(self.prettyString(eq=True))
         return hash(self.getStr(True))
     def __eq__(self, other):
-        return self.__hash__() == other.__hash__()
+        return type(self) == type(other) and self.__hash__() == other.__hash__()
     def __ne__(self, other):
-        return self.__hash__() != other.__hash__()
+        return type(self) != type(other) or self.__hash__() != other.__hash__()
 
     def getPredicate(self):
         return self.predicate
