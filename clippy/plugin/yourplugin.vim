@@ -35,39 +35,40 @@ import vim
 import pdb
 scriptname_with_args = vim.eval("a:scriptname_with_args")
 command_name = scriptname_with_args
-width = int(vim.eval("winwidth(0)"))-2
-quote = "Do you want me to execute the command:" + command_name+ " for you?  "
-quote_left = quote[:]
-top_bubble =" " + "".join(["_"]*(width-2)) 
-top_bubble_with_lines ="/" + "".join([" "]*(width-1))+"\ "
-print(top_bubble,end='\n')
-print(top_bubble_with_lines,end='')
-while True:
-    if len(quote_left) < width:
-        spaces = "".join([" "]*(width-len(quote_left)))
-        print("|"+quote_left+spaces+"|",end='')
-        break;
-    else:
-       quote_to_print = quote_left[:width]
-       print("|"+quote_to_print+"|",end='')
-       quote_left = quote_left[width:]
+width = int(vim.eval("winwidth(0)"))
+def print_bubble(text):
+    quote_left = text[:]
+    top_bubble ="  " + "".join(["_"]*(width-3))+"  " 
+    top_bubble_with_lines ="/" + "".join([" "]*(width-3))+"\ "
+    print(top_bubble,end='')
+    print(top_bubble_with_lines,end='')
+    while True:
+        if len(quote_left) < width:
+            spaces = "".join([" "]*(width-len(quote_left)-3))
+            print("|"+quote_left+spaces+"|",end='')
+            break;
+        else:
+           quote_to_print = quote_left[:width-6]
+           print("|"+quote_to_print+"|",end='')
+           quote_left = quote_left[width-6:]
        
 
 
-big_clippy = "               .~=777?                  \n               :I    .7.                \n              :I.     D?                \n           O  : Z     $?                \n           ,.,~      .MNNN              \n         ,..ZNM.~    ,,~  .             \n         ~.NDNM.~  ...8M.,.             \n          +:,,:=I  ,.NNNN.=             \n             OO.    :,..,=?             \n             $$      88 .               \n             Z$$$    OZ .$              \n             Z7$7    O7 IO              \n             ZII7    O= ?.              \n             Z+.?    O= +.              \n             =~ ?    7? ?               \n              +.$=   +? I?              \n              $, 7~~:+  Z7              \n              8:    ..  OI              \n              .+        7?              \n              .8:       ?               \n                8~    =~.               \n                  OI?I? .  \n"
-bottom_bubble = "\\"+"".join(["_"]*(width-3))+"  "+"_/"
-tip_of_bottom_bubble = "".join([" "]*(width-2))+"\/"
-print(bottom_bubble,end="")
-print(tip_of_bottom_bubble)
+    big_clippy = "               .~=777?                  \n               :I    .7.                \n              :I.     D?                \n           O  : Z     $?                \n           ,.,~      .MNNN              \n         ,..ZNM.~    ,,~  .             \n         ~.NDNM.~  ...8M.,.             \n          +:,,:=I  ,.NNNN.=             \n             OO.    :,..,=?             \n             $$      88 .               \n             Z$$$    OZ .$              \n             Z7$7    O7 IO              \n             ZII7    O= ?.              \n             Z+.?    O= +.              \n             =~ ?    7? ?               \n              +.$=   +? I?              \n              $, 7~~:+  Z7              \n              8:    ..  OI              \n              .+        7?              \n              .8:       ?               \n                8~    =~.               \n                  OI?I? .  \n"
+    bottom_bubble = " \\"+"".join(["_"]*(width-6))+"  "+"_/"
+    tip_of_bottom_bubble = "".join([" "]*(width-4))+"\/"
+    print(bottom_bubble,end="")
+    print(tip_of_bottom_bubble)
+    print(big_clippy)
+quote = "Let me execute the command:" + command_name+ " for you!  "
+print_bubble(quote)
 
-
-
-print(big_clippy)
 vim.command("let variable=system('!python printthing.py')")
 var = vim.eval("variable")
 #output = vim.command(scriptname_with_args)
-output_quote = "I found the answer for you! \n" + var + "\n Was that helpful?"
-print(output_quote)
+var.rstrip()
+output_quote = "I found the answer for you! " + var + " Was that helpful?"
+print_bubble(output_quote)
 endpython
 endfunction
 
