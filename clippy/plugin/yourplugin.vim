@@ -63,13 +63,14 @@ def print_bubble(text):
 scriptname_with_args = vim.eval("a:scriptname_with_args")
 command_name = scriptname_with_args
 width = int(vim.eval("winwidth(0)"))
+
 quote = "Let me execute the command:" + command_name+ " for you!  "
 print_bubble(quote)
-
 vim.command("let variable=system('"+scriptname_with_args+"')")
 var = vim.eval("variable")
-#output = vim.command(scriptname_with_args)
 output_quote = "I found the answer for you! " + var + " Was that helpful?"
+if "error" in var:
+    output_quote += "   I'm sorry about that....Better luck next time!!"
 print_bubble(output_quote)
 endpython
 endfunction
