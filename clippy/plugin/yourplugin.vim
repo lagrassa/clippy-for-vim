@@ -33,24 +33,24 @@ python << endpython
 from __future__ import print_function
 import vim
 import pdb
-scriptname_with_args = vim.eval("a:scriptname_with_args")
-command_name = scriptname_with_args
-width = int(vim.eval("winwidth(0)"))
+
 def print_bubble(text):
+    text = text.replace("\n"," ")
+    text = text.replace("\r"," ") 
     quote_left = text[:]
     top_bubble ="  " + "".join(["_"]*(width-3))+"  " 
     top_bubble_with_lines ="/" + "".join([" "]*(width-3))+"\ "
     print(top_bubble,end='')
     print(top_bubble_with_lines,end='')
     while True:
-        if len(quote_left) < width:
+        if len(quote_left) < width-3:
             spaces = "".join([" "]*(width-len(quote_left)-3))
             print("|"+quote_left+spaces+"|",end='')
             break;
         else:
-           quote_to_print = quote_left[:width-6]
-           print("|"+quote_to_print+"|"+"\n",end='')
-           quote_left = quote_left[width-6:]
+           quote_to_print = quote_left[:width-3]
+           print("{"+quote_to_print+"}"+"\n",end='')
+           quote_left = quote_left[width-3:]
        
 
 
@@ -60,13 +60,15 @@ def print_bubble(text):
     print(bottom_bubble,end="")
     print(tip_of_bottom_bubble)
     print(big_clippy)
+scriptname_with_args = vim.eval("a:scriptname_with_args")
+command_name = scriptname_with_args
+width = int(vim.eval("winwidth(0)"))
 quote = "Let me execute the command:" + command_name+ " for you!  "
 print_bubble(quote)
 
 vim.command("let variable=system('"+scriptname_with_args+"')")
 var = vim.eval("variable")
 #output = vim.command(scriptname_with_args)
-var.rstrip()
 output_quote = "I found the answer for you! " + var + " Was that helpful?"
 print_bubble(output_quote)
 endpython
