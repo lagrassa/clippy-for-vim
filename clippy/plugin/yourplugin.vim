@@ -49,7 +49,7 @@ def print_bubble(text):
             break;
         else:
            quote_to_print = quote_left[:width-6]
-           print("|"+quote_to_print+"|",end='')
+           print("|"+quote_to_print+"|"+"\n",end='')
            quote_left = quote_left[width-6:]
        
 
@@ -63,7 +63,7 @@ def print_bubble(text):
 quote = "Let me execute the command:" + command_name+ " for you!  "
 print_bubble(quote)
 
-vim.command("let variable=system('!python printthing.py')")
+vim.command("let variable=system('"+scriptname_with_args+"')")
 var = vim.eval("variable")
 #output = vim.command(scriptname_with_args)
 var.rstrip()
