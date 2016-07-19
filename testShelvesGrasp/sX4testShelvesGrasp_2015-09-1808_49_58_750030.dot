@@ -1,0 +1,14 @@
+digraph G {
+    ordering=out;
+    node [fontname=HelveticaBold];
+    "175" [shape=box, label="cost=0 h=69.80719048\n* Bd[In[objA, coolShelves_space_2], True, 0.950] = True\n"];
+    "342" [shape=box, label="cost=1 h=68.80719048\n* B[Pose[objA, 4],(1.506, 0.025, 1.170, 0.000), (0.005, 0.005, 0.005, 0.010), (0.010, 0.010, 0.000, 0.020), 0.975] = True\nBLoc[coolShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.975] = True\n"];
+    "175" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=0 h=69.80719048\n* Bd[In[objA, coolShelves_space_2], True, 0.950] = True\n"];
+    "175" -> "342"[label="PosesAchIn(objA, coolShelves_space_2):2"];
+    "416" [shape=box, label="cost=69.80719048 h=0\nBLoc[coolShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nGraspable[objA] = True\n"];
+    "342" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=1 h=68.80719048\n* B[Pose[objA, 4],(1.506, 0.025, 1.170, 0.000), (0.005, 0.005, 0.005, 0.010), (0.010, 0.010, 0.000, 0.020), 0.975] = True\nBLoc[coolShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.975] = True\n"];
+    "342" -> "416"[label="Place(objA, _, 4, (1.506, 0.025, 1.170, 0.000)):0"];
+    "175" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "342" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "416" [shape=box, style=filled, colorscheme=pastel16,color=3];
+}

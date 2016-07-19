@@ -1,0 +1,18 @@
+digraph G {
+    ordering=out;
+    node [fontname=HelveticaBold];
+    "0" [shape=box, label="cost=0 h=65.84802746\n* Bd[In[objA, ikeaShelves_space_2], True, 0.950] = True\n"];
+    "194" [shape=box, label="cost=37.36687941 h=8.48114805\n* BLoc[objA, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\n"];
+    "0" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=0 h=65.84802746\n* Bd[In[objA, ikeaShelves_space_2], True, 0.950] = True\n"];
+    "0" -> "194"[label="PosesAchIn(objA, ikeaShelves_space_2):1"];
+    "214" [shape=box, label="cost=38.36687941 h=7.48114805\n* B[Pose[objA, *],*, (0.040, 0.040, 0.040, 0.080), *, 0.950] = True\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], *, 0.950] = True\n"];
+    "194" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=37.36687941 h=8.48114805\n* BLoc[objA, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\n"];
+    "194" -> "214"[label="BLoc1(objA, (0.002, 0.002, 0.002, 0.006), 0.950):0"];
+    "284" [shape=box, label="cost=45.84802746 h=0\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nB[Pose[objA, *],*, (0.050, 0.050, 0.030, 0.100), *, 0.750] = True\nBd[SupportFace[objA], *, 0.750] = True\n"];
+    "214" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=38.36687941 h=7.48114805\n* B[Pose[objA, *],*, (0.040, 0.040, 0.040, 0.080), *, 0.950] = True\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], *, 0.950] = True\n"];
+    "214" -> "284"[label="LookAt(objA, _, *):0"];
+    "0" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "194" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "214" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "284" [shape=box, style=filled, colorscheme=pastel16,color=3];
+}

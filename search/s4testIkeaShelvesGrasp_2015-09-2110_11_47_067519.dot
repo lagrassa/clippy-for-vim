@@ -1,0 +1,28 @@
+digraph G {
+    ordering=out;
+    node [fontname=HelveticaBold];
+    "154" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=0 h=54.80662065\n* Bd[In[objA, ikeaShelves_space_2], True, 0.950] = True\n"];
+    "154" [shape=box, label="cost=0 h=54.80662065\n* Bd[In[objA, ikeaShelves_space_2], True, 0.950] = True\n"];
+    "316" [shape=box, label="cost=1.00000000 h=53.80662065\n* B[Pose[objA, 4],(1.491, 0.217, 1.035, 0.000), (0.005, 0.005, 0.005, 0.010), (0.010, 0.010, 0.000, 0.020), 0.975] = True\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.975] = True\n"];
+    "154" -> "316"[label="PosesAchIn(objA, ikeaShelves_space_2):2"];
+    "154" [shape=box, label="cost=0 h=54.80662065\n* Bd[In[objA, ikeaShelves_space_2], True, 0.950] = True\n"];
+    "353" [shape=box, style=filled, colorscheme=pastel16, color=4, label="cost=101.00000000 h=54.80662065\nPosesAchIn\n ** try local rebinding"];
+    "154" -> "353"[label="PosesAchIn(objA, ikeaShelves_space_2):2"];
+    "316" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=1.00000000 h=53.80662065\n* B[Pose[objA, 4],(1.491, 0.217, 1.035, 0.000), (0.005, 0.005, 0.005, 0.010), (0.010, 0.010, 0.000, 0.020), 0.975] = True\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.975] = True\n"];
+    "316" [shape=box, label="cost=1.00000000 h=53.80662065\n* B[Pose[objA, 4],(1.491, 0.217, 1.035, 0.000), (0.005, 0.005, 0.005, 0.010), (0.010, 0.010, 0.000, 0.020), 0.975] = True\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.975] = True\n"];
+    "354" [shape=box, label="cost=54.80662065 h=0\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nGraspable[objA] = True\n"];
+    "316" -> "354"[label="Place(objA, _, 4, (1.491, 0.217, 1.035, 0.000)):0"];
+    "316" [shape=box, label="cost=1.00000000 h=53.80662065\n* B[Pose[objA, 4],(1.491, 0.217, 1.035, 0.000), (0.005, 0.005, 0.005, 0.010), (0.010, 0.010, 0.000, 0.020), 0.975] = True\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.975] = True\n"];
+    "355" [shape=box, style=filled, colorscheme=pastel16, color=4, label="cost=84.80662065 h=53.80662065\nPlace\n ** try local rebinding"];
+    "316" -> "355"[label="Place(objA, _, 4, (1.491, 0.217, 1.035, 0.000)):0"];
+    "316" [shape=box, label="cost=1.00000000 h=53.80662065\n* B[Pose[objA, 4],(1.491, 0.217, 1.035, 0.000), (0.005, 0.005, 0.005, 0.010), (0.010, 0.010, 0.000, 0.020), 0.975] = True\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.975] = True\n"];
+    "356" [shape=box, label="cost=2.20005069 h=54.11643931\n* B[Pose[objA, 4],(1.491, 0.217, 1.035, 0.000), (0.030, 0.030, 0.030, 0.050), (0.010, 0.010, 0.000, 0.020), 0.775] = True\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.775] = True\n"];
+    "316" -> "356"[label="LookAt(objA, _, (1.491, 0.217, 1.035, 0.000)):0"];
+    "316" [shape=box, label="cost=1.00000000 h=53.80662065\n* B[Pose[objA, 4],(1.491, 0.217, 1.035, 0.000), (0.005, 0.005, 0.005, 0.010), (0.010, 0.010, 0.000, 0.020), 0.975] = True\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nBd[SupportFace[objA], 4, 0.975] = True\n"];
+    "357" [shape=box, style=filled, colorscheme=pastel16, color=4, label="cost=102.20005069 h=53.80662065\nLookAt\n ** try local rebinding"];
+    "316" -> "357"[label="LookAt(objA, _, (1.491, 0.217, 1.035, 0.000)):0"];
+    "354" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=54.80662065 h=0\nBLoc[ikeaShelves, (0.04000000, 0.04000000, 0.04000000, 0.08000000), 0.95000000] = True\nGraspable[objA] = True\n"];
+    "154" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "316" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "354" [shape=box, style=filled, colorscheme=pastel16,color=3];
+}

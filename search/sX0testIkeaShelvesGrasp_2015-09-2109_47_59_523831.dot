@@ -1,0 +1,10 @@
+digraph G {
+    ordering=out;
+    node [fontname=HelveticaBold];
+    "0" [shape=box, label="cost=0 h=56.98873732\n* Bd[In[objA, ikeaShelves_space_2], True, 0.950] = True\n"];
+    "140" [shape=box, label="cost=56.98873732 h=0\n\n"];
+    "0" [shape=box, style=filled, colorscheme=pastel16, color=2, label="cost=0 h=56.98873732\n* Bd[In[objA, ikeaShelves_space_2], True, 0.950] = True\n"];
+    "0" -> "140"[label="PosesAchIn(objA, ikeaShelves_space_2):0"];
+    "0" [shape=box, style=filled, colorscheme=pastel16,color=3];
+    "140" [shape=box, style=filled, colorscheme=pastel16,color=3];
+}
