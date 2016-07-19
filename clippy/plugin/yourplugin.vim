@@ -48,9 +48,9 @@ def print_bubble(text):
             print("|"+quote_left+spaces+"|",end='')
             break;
         else:
-           quote_to_print = quote_left[:width-3]
-           print("{"+quote_to_print+"}"+"\n",end='')
-           quote_left = quote_left[width-3:]
+           quote_to_print = quote_left[:width-4]
+           print("|"+quote_to_print+"|\n",end='')
+           quote_left = quote_left[width-4:]
        
 
 
