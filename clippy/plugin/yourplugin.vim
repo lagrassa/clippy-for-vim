@@ -8,18 +8,28 @@ endif
 
 function! ShowClippy()
 python << endpython
-import vim
+import sys
+sys.path.append(".")
+import clippyprint as cp
 import clippyprint as cp
 cp.welcome_clippy()
 endpython
 endfunction
 
-
+function InsultMe()
+python << endpython
+import sys
+import vim
+sys.path.append(".")
+import clippyprint as cp
+import clippyprint as cp
+width = int(vim.eval("winwidth(0)"))
+cp.insult(width)
+endpython
+endfunction
 
 function! ExecuteScript(scriptname_with_args)
 python << endpython
-from __future__ import print_function
-import vim
 import sys
 sys.path.append(".")
 import clippyprint as cp
