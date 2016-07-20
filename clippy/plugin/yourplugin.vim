@@ -2,21 +2,31 @@ if !has('python')
     finish
 endif
 
-" Vim comments start with a double quote.
-" Function definition is VimL. We can mix VimL and Python in
-" function definition.
+
+function! ClippyReact(command)
+python << endpython
+import sys
+import vim
+sys.path.append(".")
+import clippyprint as cp
+width = int(vim.eval("winwidth(0)"))
+command = vim.eval("a:command")
+cp.react(command,width)
+endpython
+endfunction
 
 function! ShowClippy()
 python << endpython
 import sys
+import vim
 sys.path.append(".")
 import clippyprint as cp
-import clippyprint as cp
-cp.welcome_clippy()
+width = int(vim.eval("winwidth(0)"))
+cp.welcome_clippy(width)
 endpython
 endfunction
 
-function InsultMe()
+function! InsultMe()
 python << endpython
 import sys
 import vim
@@ -40,6 +50,7 @@ cp.help_menu(help_topic, width)
 endpython
 endfunction
 
+
 function! ExecuteScript(scriptname_with_args)
 python << endpython
 import sys
@@ -60,3 +71,8 @@ endfunction
 
 nmap insult ;s :call InsultMe()
 
+let small_clippy = "  __\n  /  \\ \n  |  |\n  O  O\n  || ||\n  || ||\n  |\\_/|\n  \\___/  \n"
+let insert_message = "It looks like you're trying to leave insert mode. You are now in normal mode. Type : to enter commands \n "
+let cursor_message = "Tip: You can use a number then the navigation command for repeated movement!"
+autocmd InsertLeave * :echo insert_message . small_clippy
+autocmd CursorMoved * :echo cursor_message . small_clippy 
