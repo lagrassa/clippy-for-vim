@@ -28,9 +28,22 @@ cp.insult(width)
 endpython
 endfunction
 
+function! ClippyHelp(help_topic)
+python << endpython
+import sys
+import vim
+sys.path.append(".")
+import clippyprint as cp
+help_topic = vim.eval("a:help_topic")
+width = int(vim.eval("winwidth(0)"))
+cp.help_menu(help_topic, width)
+endpython
+endfunction
+
 function! ExecuteScript(scriptname_with_args)
 python << endpython
 import sys
+import vim
 sys.path.append(".")
 import clippyprint as cp
 
@@ -44,4 +57,6 @@ var = vim.eval("variable")
 cp.clippy_friendly_output(var,width)
 endpython
 endfunction
+
+nmap insult ;s :call InsultMe()
 
