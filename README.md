@@ -1,4 +1,0 @@
-redux
-=====
-
-HPN Redux
