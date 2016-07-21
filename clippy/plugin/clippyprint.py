@@ -10,9 +10,12 @@ def react(command, width):
         reaction_message = "It looks like you are trying to write text. Use <ESC> to get back to command mode. Hope that was helpful!"
     print_bubble(reaction_message, width, size = "small")
 
+def relax(width):
+    print_bubble("Sorry if I was being annoying. You'll see less of me soon!",width)
+
 def welcome_clippy(width):
     quote = "Welcome back! It's your friend Clippy! Use 'i' to enter insert mode to write text, '<ESC>' to enter normal mode. ':help' brings up the normal help page. For more help, try to :call ClippyHelp(<topic>) where topic = {navigation, copypaste, repeatedcommands, deletion, or search}"
-    print_bubble(quote, width, size="small")
+    print_bubble(quote, width, size="large")
 
 def help_menu(command, width):
     if command == "navigation":

@@ -2,6 +2,7 @@ if !has('python')
     finish
 endif
 
+let relaxed = 0
 
 function! ClippyReact(command)
 python << endpython
@@ -14,6 +15,22 @@ command = vim.eval("a:command")
 cp.react(command,width)
 endpython
 endfunction
+
+function! ClippyRelax()
+let relaxed = 1
+python << endpython
+import sys
+import vim
+sys.path.append(".")
+import clippyprint as cp
+width = int(vim.eval("winwidth(0)"))
+cp.relax(width)
+endpython
+autocmd! CursorMovedI * : 
+autocmd InsertLeave * :
+endfunction
+
+
 
 function! ShowClippy()
 python << endpython
@@ -72,8 +89,8 @@ endfunction
 nmap insult ;s :call InsultMe()
 
 let small_clippy = "  __\n  /  \\ \n  |  |\n  O  O\n  || ||\n  || ||\n  |\\_/|\n  \\___/  \n"
-let insert_message = "It looks like you're trying to leave insert mode. You are now in normal mode. Type : to enter commands \n "
-let cursor_message = "Tip: Moving the cursor is much more efficient in normal mode! call ClippyHelp('navigation') to learn how."
+let insert_message = "It looks like you're trying to leave insert mode. You are now in normal mode. Type : to enter commands. call ClippyRelax() to make me more quiet"
+let cursor_message = "Tip: Moving the cursor is much more efficient in normal mode! call ClippyHelp('navigation') to learn how. call ClippyRelax() to make me more quiet"
 autocmd InsertLeave * :echo insert_message . small_clippy
 autocmd CursorMovedI * :echo cursor_message . small_clippy 
 autocmd BufWinLeave * :echo "Where are you going?" . small_clippy
