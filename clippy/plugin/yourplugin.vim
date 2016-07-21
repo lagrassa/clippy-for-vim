@@ -51,7 +51,7 @@ endpython
 endfunction
 
 
-function! ExecuteScript(scriptname_with_args)
+function! ClippyExecute(scriptname_with_args)
 python << endpython
 import sys
 import vim
@@ -65,7 +65,7 @@ cp.clippy_shell(scriptname_with_args,width)
 
 vim.command("let variable=system('"+scriptname_with_args+"')")
 var = vim.eval("variable")
-cp.clippy_friendly_output(var,width)
+cp.clippy_friendly_output(var,width, scriptname_with_args)
 endpython
 endfunction
 

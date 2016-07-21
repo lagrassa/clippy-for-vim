@@ -5,9 +5,14 @@ small_clippy = "   __\n  /  \ \n  |  |\n  O  O\n  || ||\n  || ||\n  |\_/|\n  \__
 
 big_clippy = "               .~=777?                  \n               :I    .7.                \n              :I.     D?                \n           O  : Z     $?                \n           ,.,~      .MNNN              \n         ,..ZNM.~    ,,~  .             \n         ~.NDNM.~  ...8M.,.             \n          +:,,:=I  ,.NNNN.=             \n             OO.    :,..,=?             \n             $$      88 .               \n             Z$$$    OZ .$              \n             Z7$7    O7 IO              \n             ZII7    O= ?.              \n             Z+.?    O= +.              \n             =~ ?    7? ?               \n              +.$=   +? I?              \n              $, 7~~:+  Z7              \n              8:    ..  OI              \n              .+        7?              \n              .8:       ?               \n                8~    =~.               \n                  OI?I? .  \n"
 
+def react(command, width):
+    if command == "InsertEnter":
+        reaction_message = "It looks like you are trying to write text. Use <ESC> to get back to command mode. Hope that was helpful!"
+    print_bubble(reaction_message, width, size = "small")
+
 def welcome_clippy(width):
-    quote = "Welcome back! It's your friend Clippy! Use 'i' to enter insert mode to write text, '<ESC>' to enter normal mode. For more help, try to :call ClippyHelp(<topic>) where topic = {navigation, copypaste, repeatedcommands, deletion, or search}"
-    print_bubble(quote, text)
+    quote = "Welcome back! It's your friend Clippy! Use 'i' to enter insert mode to write text, '<ESC>' to enter normal mode. ':help' brings up the normal help page. For more help, try to :call ClippyHelp(<topic>) where topic = {navigation, copypaste, repeatedcommands, deletion, or search}"
+    print_bubble(quote, width, size="small")
 
 def help_menu(command, width):
     if command == "navigation":
@@ -54,15 +59,25 @@ def clippy_shell(scriptname_with_args, widthBox):
     quote = "Let me execute the command:" + scriptname_with_args+ " for you!  "
     print_bubble(quote, widthBox, size='small')
 
-def clippy_friendly_output(output,widthBox):
+def clippy_friendly_output(output,widthBox, scriptname_with_args):
     output_quote = "I found the answer for you! " + output
-    if "error" in output:
-        output_quote += "   I'm sorry about that....Better luck next time!!"
-    output_quote += "Was that helpful?"
+    output_lowercase = output.lower()
+
+    if "error" in output_lowercase:
+        output_quote += "   Hm, it looks like you have an error....Better luck next time!!"
+    if "syntax" in output_lowercase:
+        output_quote += " Tip: If you have a syntax error, you can find the line where the error occurred and change it until the compiler or interpreter can understand! Hope that was helpful!"
+        if ".py" in scriptname_with_args:
+            output_quote += "For Python in particular, a lot of cryptic syntax errors are just caused by mismatched parentheses"
+    if ".py" in scriptname_with_args:
+        output_quote += " Tip: add 'import pdb' to the top of your Python script, and pdb.set_trace() to open a pdb shell, which is useful for debugging"
+    if ".c" in scriptname_with_args:
+        output_quote += "Tip: running your code with gdb can help you step through your code to catch bugs"
+
     print_bubble(output_quote,widthBox)
 
 def insult(width):
-    insult_list = ["Looks like you need a template to save you some time", "Good luck reinventing the wheel", "q! q! q! Do it! It's not like you wrote anything of value anyway", "It looks like you are angrily mashing the keyboard, do you want me to turn on caps lock?","It looks like you're having a problem deleting this useless file. Would you like help with that?" ]
+    insult_list = ["Looks like you need a template to save you some time", "Good luck reinventing the wheel", "q! q! q! Do it! It's not like you wrote anything of value anyway", "It looks like you are angrily mashing the keyboard, do you want me to turn on caps lock?","It looks like you're having a problem deleting this useless file. Would you like help with that?", "You're writing so slow, you don't need an editor, you need a magnet to move the electrons with", "I see you've used the word '.' multiple times in this document. Would you like me to help you find synonyms?"]
     import random
     i = random.randint(0,len(insult_list))
     print_bubble(insult_list[i],width)
