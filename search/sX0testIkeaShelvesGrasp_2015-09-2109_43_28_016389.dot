@@ -1,4 +1,0 @@
-digraph G {
-    ordering=out;
-    node [fontname=HelveticaBold];
-}
