@@ -1,0 +1,32 @@
+This is a vim plugin that brings back the ever so annoying but useful Clippy from Microsoft Office. 
+
+Installation
+To install, either use Vundle or pathogen, and add it to your .vim/bundle. Alternatively, you can directly source yourplugin.vim with a custom path in your .vimrc
+
+
+
+Usage 
+Currently, Clippy boasts some great functionality. Some is called for, some is not.
+
+Automatic:
+-Every time you leave insert mode, Clippy gives you helpful tips about normal mode. 
+-Every time you move the cursor in insert mode (including typing text as of now, that could be changed) Clippy pops up and gives you tips on navigating in normal mode.
+
+Desired:
+:call <command> 
+-InsultMe() to get a random insult/snark from Clippy()
+-ClippyExecute('<command>') to get Clippy to run the command, and then return the result for you, potentially with useful tips
+-ShowClippy() to get suggested help topics
+-ClippyHelp('<helptopic>') to get Clippy to help you with a currently finite set of help topics
+
+
+Ways to contribute
+-Add/replace InsultMe() with better actual insults
+-Add more help topics 
+-More tips from error output in clippyprint.py
+-Change Clippy's navigation tip to not occur upon text being added to a file. 
+-change ClippyHelp() to search instead of be a chain of elifs
+ 
+Looking forward to some great pull requests!
+
+
